@@ -161,9 +161,9 @@ toestub:
   extends: .base
   stage: check
   script:
-    - cargo build -p vox-cli --quiet 2>/dev/null || true
+    - cargo build -p vox-cli --bin vox --features stub-check --quiet 2>/dev/null || true
     - |
-      if cargo run -p vox-cli --quiet -- stub-check --path crates/ --severity error 2>/dev/null; then
+      if cargo run -p vox-cli --bin vox --features stub-check --quiet -- stub-check crates/ --severity error 2>/dev/null; then
         echo "OK: TOESTUB passed"
       else
         echo "WARN: TOESTUB found issues"
