@@ -11,7 +11,7 @@ env:
 jobs:
   check-and-test:
     name: Check, Build, and Test (Rust)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v4
 
@@ -31,14 +31,84 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Workspace manifest resolves (fix-forward guard)
+        run: bash scripts/verify_workspace_manifest.sh
+
       - name: Format Check
         run: cargo fmt --all -- --check
+
+      - name: Codex SSOT documentation guard
+        run: bash scripts/check_codex_ssot.sh
+
+      - name: Docs migration SSOT guard
+        run: bash scripts/check_docs_ssot.sh
+
+      - name: Doc inventory matches generator
+        run: python3 scripts/docs/verify_doc_inventory_fresh.py
+
+      - name: Rustdoc (deny warnings)
+        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
 
       - name: Lint Check (Clippy)
         run: cargo clippy --workspace -- -D warnings
 
-      - name: Build Workspace
-        run: cargo build --workspace
+      # Scoped TOESTUB: default crate is clean; override arg only for local/debug scans.
+      - name: TOESTUB (scoped)
+        run: bash scripts/quality/toestub_scoped.sh
+
+      - name: Repository SSOT + MCP smoke
+        run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo check -p vox-mcp && cargo check -p vox-git
+
+      - name: Check vox-cli (populi-qlora + stub-check integration)
+        run: cargo check -p vox-cli --features gpu,populi-qlora,stub-check
+
+      - name: vox-cli feature matrix + no vox_dei imports
+        run: bash scripts/check_vox_cli_feature_matrix.sh && bash scripts/check_vox_cli_no_vox_dei.sh
+
+      - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
+        run: bash scripts/check_cuda_feature_builds.sh
 
       - name: Run Tests
         run: cargo test --workspace
+
+      - name: Populi execution planner (contract gates)
+        run: cargo test -p vox-populi --features train execution_planner
+
+      - name: Populi HF keymap + training_text
+        run: cargo test -p vox-populi --features train hf_keymap && cargo test -p vox-populi --features train training_text
+
+      - name: Populi QLoRA preflight strict proxy-stack regression
+        run: cargo test -p vox-populi --features train preflight_strict_rejects_missing_o_proj
+
+      - name: Populi Burn full-graph forward smoke (wgpu)
+        run: cargo test -p vox-populi --features train burn_full_graph_smoke
+
+      - name: Populi Burn LoRA bin checkpoint roundtrip (NdArray)
+        run: cargo test -p vox-populi --features train lora_vox_transformer_checkpoint_roundtrip
+
+      - name: Populi LoraVoxTransformer merge forward parity (NdArray)
+        run: cargo test -p vox-populi --features train merged_vox_transformer_matches_lora_full_forward
+
+      - name: Populi Candle vs Burn f32 matmul touchpoint (CPU)
+        run: cargo test -p vox-populi --features train --test candle_burn_f32_matmul_parity
+
+      - name: Populi Candle vs Burn cross-entropy touchpoint (CPU)
+        run: cargo test -p vox-populi --features train --test candle_burn_cross_entropy_parity
+
+      - name: Populi Candle vs Burn f32 LM linear logits touchpoint (CPU)
+        run: cargo test -p vox-populi --features train --test candle_burn_f32_linear_lm_logits_parity
+
+      - name: Populi NF4 dequant reference vs Burn/Candle LM linear touchpoint (CPU)
+        run: cargo test -p vox-populi --features train --test candle_burn_nf4_dequant_lm_reference_parity
+
+      - name: Populi merge CLI + adapter compat
+        run: cargo test -p vox-cli merge_
+
+      - name: vox-tensor Burn LR warmup (gpu feature)
+        run: cargo test -p vox-tensor --features gpu --lib linear_warmup_sequence_matches
+
+      - name: Populi Candle QLoRA merge math (v2)
+        run: cargo test -p vox-populi --features train merge_v2
+
+      - name: Populi release gate script (M1–M4 subset)
+        run: bash scripts/populi_release_gate.sh
