@@ -6,14 +6,18 @@ This directory contains **OpenCode AI IDE** configuration for the Vox programmin
 
 ```
 .opencode/
-├── agents/      # Specialized agent definitions (markdown frontmatter)
 ├── skills/      # Reusable skill instructions for agents
+├── plugins/     # OpenCode plugins (e.g. vox-opencode-plugin)
+├── scripts/     # Helper TypeScript utilities
 └── README.md    # This file
 ```
 
-## Agents
+## Agents (canonical path)
 
-Each `.md` file in `agents/` defines a specialized AI agent with:
+Specialized agent definitions with `scope:` front matter live under **`.vox/agents/*.md`** — that tree is the single source of truth for repository scope parsing (`vox-repository::load_agent_scopes`). OpenCode prompts in root `opencode.json` reference those files.
+
+Each `.md` file defines a specialized AI agent with:
+
 - **scope** — files/crates the agent is allowed to modify
 - **model** — preferred LLM (overrides project default)
 - **tools** — which OpenCode tools the agent can use

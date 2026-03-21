@@ -55,7 +55,7 @@ export default function initVoxPlugin(api: OpenCodePluginAPI) {
             // (Mocking this: we assume the orchestrator MCP will handle a "map session" request)
 
             // We use our new mapped tool
-            const mapRes = await api.mcp.callTool('vox', 'vox_map_opencode_session', {
+            const mapRes = await api.mcp.callTool('vox', 'vox_map_agent_session', {
                 agent_id: 1, // Defaulting to the root agent (or we could fetch agents first)
                 session_id: sessionId
             });
