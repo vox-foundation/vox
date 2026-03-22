@@ -15,10 +15,9 @@ on:
       - 'docs/src/research/**'
       - 'examples/**'
       - 'scripts/vox_system_prompt.txt'
-      - 'scripts/generate_instruction_pairs.py'
-      - 'scripts/validate_training_data.py'
       - 'crates/vox-cli/src/training/**'
       - 'crates/vox-cli/src/commands/corpus.rs'
+      - 'populi/data/**'
   schedule:
     - cron: '0 4 * * *'  # 4 AM UTC nightly
   workflow_dispatch:       # manual trigger
@@ -53,7 +52,7 @@ on:
 jobs:
   extract:
     name: Extract & Validate Training Corpus
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     env:
       # Abstract VCS_SHA: use github.sha on GitHub Actions.
       # On GitLab: set VCS_SHA: $CI_COMMIT_SHA in variables block.
@@ -92,18 +91,7 @@ jobs:
 
       - name: Detect grammar drift
         id: grammar_drift
-        run: |
-          # Compare the taxonomy fingerprint embedded in the binary
-          FINGERPRINT=$(./target/release/vox corpus prompt --output /dev/stdout 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "unknown")
-          STORED=$(cat populi/data/grammar_fingerprint.txt 2>/dev/null || echo "")
-          if [ "$FINGERPRINT" != "$STORED" ]; then
-            echo "drift=true" >> $GITHUB_OUTPUT
-            echo "Grammar drift detected (fingerprint changed). Forcing full corpus re-extraction."
-            echo "$FINGERPRINT" > populi/data/grammar_fingerprint.txt
-          else
-            echo "drift=false" >> $GITHUB_OUTPUT
-            echo "No grammar drift detected."
-          fi
+        run: ./target/release/vox ci grammar-drift --emit github >> "$GITHUB_OUTPUT"
 
       - name: Extract training corpus (incremental)
         run: |
@@ -139,8 +127,7 @@ jobs:
 
       - name: Run native eval on training corpus
         run: |
-          ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json 2>/dev/null || true
-          [ -f target/dogfood/eval_results.json ] && python3 -c "import json; d=json.load(open('target/dogfood/eval_results.json')); print(f'Samples: {d.get(\"total_samples\")} | Parse rate: {d.get(\"vox_parse_rate\", 0)*100:.1f}% | Coverage: {d.get(\"construct_coverage_pct\", 0):.1f}%')"
+          ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json --print-summary 2>/dev/null || true
 
 
       - name: Count generated pairs
@@ -212,7 +199,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
     # Portable note: On GitLab, use `when: manual` + `rules:` with CI variables.
     # On Forgejo Actions, workflow_dispatch and event.inputs work identically.
-    runs-on: self-hosted  # GPU runner — requires setup
+    runs-on: [self-hosted, linux, x64, gpu]
     env:
       VCS_SHA: ${{ github.sha }}
     steps:
@@ -240,19 +227,11 @@ jobs:
       - name: Build Vox Compiler
         run: cargo build -p vox-cli --release --quiet
 
-      - name: Set up Python (legacy path only)
+      - name: Reject legacy Python training path
         if: github.event.inputs.native_train == 'false'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install uv (legacy Python QLoRA)
-        if: github.event.inputs.native_train == 'false'
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      - name: Install training dependencies (legacy Python QLoRA)
-        if: github.event.inputs.native_train == 'false'
-        run: ~/.local/bin/uv sync --project scripts
+        run: |
+          echo "::error::native_train=false is no longer supported (removed invalid uv sync --project scripts). Use default native Rust training."
+          exit 1
 
       - name: Run native Rust training (default)
         if: github.event.inputs.native_train != 'false'
@@ -267,24 +246,6 @@ jobs:
           echo "strict_quality_gate=${{ github.event.inputs.strict_quality_gate || 'false' }}"
           echo "benchmark_min_pass_rate=${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}"
           ./target/release/vox train --native \
-            --data-dir target/dogfood \
-            --output-dir target/dogfood/run
-
-      - name: Run QLoRA fine-tuning (legacy Python, >7B)
-        if: github.event.inputs.native_train == 'false'
-        env:
-          OMP_NUM_THREADS: "4"
-          MKL_NUM_THREADS: "4"
-          PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
-          VOX_EVAL_MIN_PARSE_RATE: "0.70"
-          VOX_EVAL_MIN_COVERAGE: "0.50"
-          VOX_EVAL_STRICT: ${{ github.event.inputs.strict_quality_gate == 'true' && '1' || '0' }}
-          VOX_BENCHMARK: "1"
-          VOX_BENCHMARK_MIN_PASS_RATE: ${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}
-        run: |
-          echo "strict_quality_gate=${{ github.event.inputs.strict_quality_gate || 'false' }}"
-          echo "benchmark_min_pass_rate=${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}"
-          ./target/release/vox train --native false --provider local \
             --data-dir target/dogfood \
             --output-dir target/dogfood/run
 
