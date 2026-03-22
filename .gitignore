@@ -1,21 +1,33 @@
 # Rust
 target/
 target_*/
+target-*/
+.cargo-targets/
 **/*.rs.bk
 Cargo.lock
 
 # Node
 node_modules/
 dist/
+dist1/
 .env
 
-# Editor
-.vscode/
+# Editor / IDE artifacts (keep shared `settings.json` for terminal PATH / CUDA)
+.vscode/*
+!.vscode/settings.json
 .idea/
+.cursor/plans/
+
+# Python (local tooling under scripts/)
+scripts/.venv/
+.mypy_cache/
 *.swp
 *~
 
-# Vox
-.vox/
+# CodeRabbit CLI worktrees and state (`vox review coderabbit`, `--features coderabbit`)
+.coderabbit/
+
+# Vox (version `.vox/agents/` in-repo; ignore local cache only)
+.vox/cache/
 bundle_out*.txt
 bundle_err*.txt

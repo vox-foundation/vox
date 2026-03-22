@@ -36,10 +36,14 @@ use super::path_policy;
 const DEFAULT_MAX_FILES_PER_PR: usize = 250;
 
 /// Directories / filename suffixes that should never land in a review PR.
+///
+/// The `"target-"` prefix catches any `target-<name>/` variation (target-agent/, target-doc-inv2/,
+/// target-ci/, etc.), mirroring the `.gitignore` `target-*/` rule.
 static IGNORED_DIRS: &[&str] = &[
     "target/",
-    "target-agent-test/",
-    "target-toestub/",
+    "target-",   // catches target-agent/, target-doc-inv2/, target-ci/, target-toestub/, etc.
+    "target_",   // catches target_debug/, target_release/, etc.
+    ".cargo-targets/",
     "docs/book/",          // generated mdBook HTML (in .gitignore but sometimes tracked)
     ".vox-research-data/", // local SQLite cache
     ".vox/cache/",
@@ -50,7 +54,6 @@ static IGNORED_DIRS: &[&str] = &[
     "dist1/",
     ".next/",
     "tmp_tools/",      // temporary scaffolding directories
-    ".cargo-targets/", // alternate cargo target dir
     "vendor/",
     "vox-vscode/out/",
     // CodeRabbit tooling — worktrees, run-state, manifests.
@@ -59,6 +62,7 @@ static IGNORED_DIRS: &[&str] = &[
     ".coderabbit/",
     ".coderabbit",
 ];
+
 
 static IGNORED_EXTENSIONS: &[&str] = &[
     ".db", ".db-wal", ".db-shm", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so",
@@ -985,6 +989,11 @@ mod tests {
     fn is_ignored_build_artifacts() {
         assert!(SemanticPlanner::is_ignored("target/debug/vox"));
         assert!(SemanticPlanner::is_ignored("target-toestub/x"));
+        assert!(SemanticPlanner::is_ignored("target-agent/debug/vox-cli"));
+        assert!(SemanticPlanner::is_ignored("target-agent2/debug/foo.exe"));
+        assert!(SemanticPlanner::is_ignored("target-doc-inv2/.rustc_info.json"));
+        assert!(SemanticPlanner::is_ignored("target-ci/debug/build/addr2line/output"));
+        assert!(SemanticPlanner::is_ignored("target_debug/vox"));
         assert!(SemanticPlanner::is_ignored("docs/book/index.html"));
         assert!(SemanticPlanner::is_ignored(".vox-research-data/vox.db"));
         assert!(SemanticPlanner::is_ignored("Cargo.lock"));
