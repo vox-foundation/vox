@@ -1,5 +1,5 @@
-use burn::tensor::backend::Backend;
 use burn::tensor::Distribution;
+use burn::tensor::backend::Backend;
 
 #[cfg(feature = "gpu")]
 pub type VoxBackend = burn::backend::Wgpu;
@@ -61,7 +61,13 @@ impl<B: Backend> Tensor<B> {
     }
 
     /// Create a 3D tensor from a 1D array.
-    pub fn from_vec_3d(data: Vec<f32>, d0: usize, d1: usize, d2: usize, device: &B::Device) -> Self {
+    pub fn from_vec_3d(
+        data: Vec<f32>,
+        d0: usize,
+        d1: usize,
+        d2: usize,
+        device: &B::Device,
+    ) -> Self {
         let t = burn::tensor::Tensor::<B, 1>::from_floats(data.as_slice(), device)
             .reshape([d0, d1, d2]);
         Tensor::D3(t)
@@ -76,7 +82,11 @@ impl<B: Backend> Tensor<B> {
 
     /// Create a 2D tensor with random normal values (mean=0, std=1).
     pub fn randn_2d(rows: usize, cols: usize, device: &B::Device) -> Self {
-        let t = burn::tensor::Tensor::<B, 2>::random([rows, cols], Distribution::Normal(0.0, 1.0), device);
+        let t = burn::tensor::Tensor::<B, 2>::random(
+            [rows, cols],
+            Distribution::Normal(0.0, 1.0),
+            device,
+        );
         Tensor::D2(t)
     }
 
@@ -200,11 +210,25 @@ impl<B: Backend> Tensor<B> {
     /// Apply element-wise Leaky ReLU activation.
     pub fn leaky_relu(&self, negative_slope: f64) -> Self {
         match self {
-            Tensor::D1(t) => Tensor::D1(burn::tensor::activation::leaky_relu(t.clone(), negative_slope)),
-            Tensor::D2(t) => Tensor::D2(burn::tensor::activation::leaky_relu(t.clone(), negative_slope)),
-            Tensor::D3(t) => Tensor::D3(burn::tensor::activation::leaky_relu(t.clone(), negative_slope)),
-            Tensor::D4(t) => Tensor::D4(burn::tensor::activation::leaky_relu(t.clone(), negative_slope)),
-            Tensor::D1Int(_) | Tensor::D2Int(_) => panic!("leaky_relu: unsupported for Int tensors"),
+            Tensor::D1(t) => Tensor::D1(burn::tensor::activation::leaky_relu(
+                t.clone(),
+                negative_slope,
+            )),
+            Tensor::D2(t) => Tensor::D2(burn::tensor::activation::leaky_relu(
+                t.clone(),
+                negative_slope,
+            )),
+            Tensor::D3(t) => Tensor::D3(burn::tensor::activation::leaky_relu(
+                t.clone(),
+                negative_slope,
+            )),
+            Tensor::D4(t) => Tensor::D4(burn::tensor::activation::leaky_relu(
+                t.clone(),
+                negative_slope,
+            )),
+            Tensor::D1Int(_) | Tensor::D2Int(_) => {
+                panic!("leaky_relu: unsupported for Int tensors")
+            }
         }
     }
 
@@ -226,45 +250,63 @@ impl<B: Backend> Tensor<B> {
         }
         match &tensors[0] {
             Tensor::D1(_) => {
-                let inner: Vec<burn::tensor::Tensor<B, 1>> = tensors.into_iter().map(|t| match t {
-                    Tensor::D1(it) => it,
-                    _ => panic!("cat: rank mismatch"),
-                }).collect();
+                let inner: Vec<burn::tensor::Tensor<B, 1>> = tensors
+                    .into_iter()
+                    .map(|t| match t {
+                        Tensor::D1(it) => it,
+                        _ => panic!("cat: rank mismatch"),
+                    })
+                    .collect();
                 Tensor::D1(burn::tensor::Tensor::cat(inner, dim))
             }
             Tensor::D2(_) => {
-                let inner: Vec<burn::tensor::Tensor<B, 2>> = tensors.into_iter().map(|t| match t {
-                    Tensor::D2(it) => it,
-                    _ => panic!("cat: rank mismatch"),
-                }).collect();
+                let inner: Vec<burn::tensor::Tensor<B, 2>> = tensors
+                    .into_iter()
+                    .map(|t| match t {
+                        Tensor::D2(it) => it,
+                        _ => panic!("cat: rank mismatch"),
+                    })
+                    .collect();
                 Tensor::D2(burn::tensor::Tensor::cat(inner, dim))
             }
             Tensor::D3(_) => {
-                let inner: Vec<burn::tensor::Tensor<B, 3>> = tensors.into_iter().map(|t| match t {
-                    Tensor::D3(it) => it,
-                    _ => panic!("cat: rank mismatch"),
-                }).collect();
+                let inner: Vec<burn::tensor::Tensor<B, 3>> = tensors
+                    .into_iter()
+                    .map(|t| match t {
+                        Tensor::D3(it) => it,
+                        _ => panic!("cat: rank mismatch"),
+                    })
+                    .collect();
                 Tensor::D3(burn::tensor::Tensor::cat(inner, dim))
             }
             Tensor::D4(_) => {
-                let inner: Vec<burn::tensor::Tensor<B, 4>> = tensors.into_iter().map(|t| match t {
-                    Tensor::D4(it) => it,
-                    _ => panic!("cat: rank mismatch"),
-                }).collect();
+                let inner: Vec<burn::tensor::Tensor<B, 4>> = tensors
+                    .into_iter()
+                    .map(|t| match t {
+                        Tensor::D4(it) => it,
+                        _ => panic!("cat: rank mismatch"),
+                    })
+                    .collect();
                 Tensor::D4(burn::tensor::Tensor::cat(inner, dim))
             }
             Tensor::D1Int(_) => {
-                let inner: Vec<burn::tensor::Tensor<B, 1, burn::tensor::Int>> = tensors.into_iter().map(|t| match t {
-                    Tensor::D1Int(it) => it,
-                    _ => panic!("cat: rank mismatch"),
-                }).collect();
+                let inner: Vec<burn::tensor::Tensor<B, 1, burn::tensor::Int>> = tensors
+                    .into_iter()
+                    .map(|t| match t {
+                        Tensor::D1Int(it) => it,
+                        _ => panic!("cat: rank mismatch"),
+                    })
+                    .collect();
                 Tensor::D1Int(burn::tensor::Tensor::cat(inner, dim))
             }
             Tensor::D2Int(_) => {
-                let inner: Vec<burn::tensor::Tensor<B, 2, burn::tensor::Int>> = tensors.into_iter().map(|t| match t {
-                    Tensor::D2Int(it) => it,
-                    _ => panic!("cat: rank mismatch"),
-                }).collect();
+                let inner: Vec<burn::tensor::Tensor<B, 2, burn::tensor::Int>> = tensors
+                    .into_iter()
+                    .map(|t| match t {
+                        Tensor::D2Int(it) => it,
+                        _ => panic!("cat: rank mismatch"),
+                    })
+                    .collect();
                 Tensor::D2Int(burn::tensor::Tensor::cat(inner, dim))
             }
         }
@@ -324,7 +366,10 @@ impl<B: Backend> Tensor<B> {
             data.push(val);
             val += step;
         }
-        Tensor::D1(burn::tensor::Tensor::<B, 1>::from_floats(data.as_slice(), device))
+        Tensor::D1(burn::tensor::Tensor::<B, 1>::from_floats(
+            data.as_slice(),
+            device,
+        ))
     }
 
     /// Generate a 1D tensor with `steps` values from `start` to `end` (inclusive).
@@ -340,7 +385,10 @@ impl<B: Backend> Tensor<B> {
         for i in 0..steps {
             data.push(start + i as f32 * step);
         }
-        Tensor::D1(burn::tensor::Tensor::<B, 1>::from_floats(data.as_slice(), device))
+        Tensor::D1(burn::tensor::Tensor::<B, 1>::from_floats(
+            data.as_slice(),
+            device,
+        ))
     }
 
     /// Add a dimension of size 1 at the specified position.
@@ -390,16 +438,45 @@ impl<B: Backend> Tensor<B> {
                 _ => panic!("slice: invalid dim for D2"),
             },
             Tensor::D3(t) => match dim {
-                0 => Tensor::D3(t.clone().slice([start..end, 0..t.dims()[1], 0..t.dims()[2]])),
-                1 => Tensor::D3(t.clone().slice([0..t.dims()[0], start..end, 0..t.dims()[2]])),
-                2 => Tensor::D3(t.clone().slice([0..t.dims()[0], 0..t.dims()[1], start..end])),
+                0 => Tensor::D3(
+                    t.clone()
+                        .slice([start..end, 0..t.dims()[1], 0..t.dims()[2]]),
+                ),
+                1 => Tensor::D3(
+                    t.clone()
+                        .slice([0..t.dims()[0], start..end, 0..t.dims()[2]]),
+                ),
+                2 => Tensor::D3(
+                    t.clone()
+                        .slice([0..t.dims()[0], 0..t.dims()[1], start..end]),
+                ),
                 _ => panic!("slice: invalid dim for D3"),
             },
             Tensor::D4(t) => match dim {
-                0 => Tensor::D4(t.clone().slice([start..end, 0..t.dims()[1], 0..t.dims()[2], 0..t.dims()[3]])),
-                1 => Tensor::D4(t.clone().slice([0..t.dims()[0], start..end, 0..t.dims()[2], 0..t.dims()[3]])),
-                2 => Tensor::D4(t.clone().slice([0..t.dims()[0], 0..t.dims()[1], start..end, 0..t.dims()[3]])),
-                3 => Tensor::D4(t.clone().slice([0..t.dims()[0], 0..t.dims()[1], 0..t.dims()[2], start..end])),
+                0 => Tensor::D4(t.clone().slice([
+                    start..end,
+                    0..t.dims()[1],
+                    0..t.dims()[2],
+                    0..t.dims()[3],
+                ])),
+                1 => Tensor::D4(t.clone().slice([
+                    0..t.dims()[0],
+                    start..end,
+                    0..t.dims()[2],
+                    0..t.dims()[3],
+                ])),
+                2 => Tensor::D4(t.clone().slice([
+                    0..t.dims()[0],
+                    0..t.dims()[1],
+                    start..end,
+                    0..t.dims()[3],
+                ])),
+                3 => Tensor::D4(t.clone().slice([
+                    0..t.dims()[0],
+                    0..t.dims()[1],
+                    0..t.dims()[2],
+                    start..end,
+                ])),
                 _ => panic!("slice: invalid dim for D4"),
             },
             Tensor::D1Int(t) => Tensor::D1Int(t.clone().slice([start..end])),
@@ -433,15 +510,29 @@ impl<B: Backend> Tensor<B> {
         }
     }
 
-    /// Extract all values as a flat Vec<f32>.
+    /// Extract all values as a flat `Vec<f32>`.
     pub fn to_vec(&self) -> Vec<f32> {
         match self {
             Tensor::D1(t) => t.clone().into_data().to_vec::<f32>().unwrap_or_default(),
             Tensor::D2(t) => t.clone().into_data().to_vec::<f32>().unwrap_or_default(),
             Tensor::D3(t) => t.clone().into_data().to_vec::<f32>().unwrap_or_default(),
             Tensor::D4(t) => t.clone().into_data().to_vec::<f32>().unwrap_or_default(),
-            Tensor::D1Int(t) => t.clone().into_data().to_vec::<i32>().unwrap_or_default().into_iter().map(|v| v as f32).collect(),
-            Tensor::D2Int(t) => t.clone().into_data().to_vec::<i32>().unwrap_or_default().into_iter().map(|v| v as f32).collect(),
+            Tensor::D1Int(t) => t
+                .clone()
+                .into_data()
+                .to_vec::<i32>()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|v| v as f32)
+                .collect(),
+            Tensor::D2Int(t) => t
+                .clone()
+                .into_data()
+                .to_vec::<i32>()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|v| v as f32)
+                .collect(),
         }
     }
 

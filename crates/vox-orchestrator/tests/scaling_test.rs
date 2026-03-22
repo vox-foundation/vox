@@ -105,9 +105,9 @@ async fn test_predictive_scaling_uses_trend() {
     }
 
     // Simulate 3 ticks building up a rising trend in load_history
-    orch.tick();
-    orch.tick();
-    orch.tick();
+    orch.tick().await;
+    orch.tick().await;
+    orch.tick().await;
 
     let status = orch.status();
     // With 9 urgent tasks (weight=3) and 3 agents: weighted_load = 9, per-agent = 3 >= threshold
@@ -124,7 +124,7 @@ async fn test_predictive_scaling_uses_trend() {
             q.drain_tasks();
         }
     }
-    orch.tick();
+    orch.tick().await;
     let status2 = orch.status();
     assert!(
         status2.total_weighted_load < status.total_weighted_load,
@@ -190,7 +190,7 @@ async fn test_urgent_rebalance_trigger() {
         .unwrap_or(0);
 
     // Tick should detect urgency overload and trigger rebalance
-    orch.tick();
+    orch.tick().await;
 
     // After rebalance, agent-a should have fewer urgent tasks than before
     // (or equal if routing already balanced them)

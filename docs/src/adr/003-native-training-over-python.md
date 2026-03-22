@@ -37,8 +37,8 @@ The original Populi training pipeline used `populi/training/train.py` (Python, U
 | Data generation | `scripts/datagen.py` | `vox generate-data` (Rust) |
 | Training loop | Python (`dogfood_train.py`) | `vox training native` (Burn) |
 | Large-model QLoRA | Python (Unsloth) | **Python retained** |
-| Corpus extraction | Python | `vox corpus extract` (Rust) |
-| Training validation | Python | `vox corpus eval` (Rust via vox-eval) |
+| Corpus extraction | Python | `vox populi corpus extract` (Rust) |
+| Training validation | Python | `vox populi corpus eval` (Rust via vox-eval) |
 
 ---
 
@@ -49,7 +49,7 @@ The native pipeline lives entirely in `crates/`:
 ```
 crates/vox-tensor/
   src/data.rs      — VoxTokenizer + JsonlDataLoader
-  src/nn.rs        — VoxTransformer model
+  src/vox_nn.rs    — VoxTransformer model (`gpu` feature)
   src/optim.rs     — AdamW + LinearWarmupScheduler
   src/train.rs     — Checkpoint + gradient_clip_norm
 

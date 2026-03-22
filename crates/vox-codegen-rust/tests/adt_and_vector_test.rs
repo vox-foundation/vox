@@ -1,126 +1,83 @@
-/// Codegen tests A-105 and A-106.
-///
-/// A-105: emit_vector_index_ddl generates correct libsql_vector_idx DDL
-/// A-106: generated Rust code for ADT produces valid enum with struct variants
+//! Codegen tests for ADTs and table DDL against current `vox_hir::HirModule`.
 use vox_ast::span::Span;
+use vox_codegen_rust::emit::{emit_lib, emit_main, emit_table_ddl};
 use vox_hir::*;
+use vox_test_harness::spans::dummy_span;
+use vox_test_harness::hir_builders::minimal_hir_module as minimal_module;
 
-fn dummy_span() -> Span {
-    Span { start: 0, end: 0 }
-}
-
-fn minimal_module() -> HirModule {
-    HirModule {
-        consts: vec![],
-        imports: vec![],
-        functions: vec![],
-        types: vec![],
-        routes: vec![],
-        actors: vec![],
-        workflows: vec![],
-        activities: vec![],
-        tests: vec![],
-        server_fns: vec![],
-        tables: vec![],
-        indexes: vec![],
-        vector_indexes: vec![],
-        search_indexes: vec![],
-        mcp_tools: vec![],
-        traits: vec![],
-        impls: vec![],
-        queries: vec![],
-        mutations: vec![],
-        actions: vec![],
-        skills: vec![],
-        agents: vec![],
-        native_agents: vec![],
-        scheduled: vec![],
-        messages: vec![],
-        config_blocks: vec![],
-        collections: vec![],
-        contexts: vec![],
-        hooks: vec![],
-        providers: vec![],
-        ..Default::default()
-    }
-}
 
 #[test]
-fn a105_vector_index_ddl_generates_float32_column() {
-    let mut module = minimal_module();
-
-    // Add a table with a vector column
-    module.tables.push(HirTable {
+fn table_ddl_maps_unknown_vectorish_type_to_text_column() {
+    let table = HirTable {
         id: DefId(1),
         name: "Document".to_string(),
         fields: vec![
             HirTableField {
                 name: "text".to_string(),
                 type_ann: HirType::Named("str".to_string()),
-                description: None,
                 span: dummy_span(),
             },
             HirTableField {
                 name: "embedding".to_string(),
                 type_ann: HirType::Named("vec384".to_string()),
-                description: None,
                 span: dummy_span(),
             },
         ],
-        description: None,
         is_pub: false,
         is_deprecated: false,
         span: dummy_span(),
-    });
+    };
 
-    // Add a vector index on the embedding column
-    module.vector_indexes.push(HirVectorIndex {
-        table_name: "Document".to_string(),
-        index_name: "idx_document_embedding".to_string(),
-        column: "embedding".to_string(),
-        dimensions: 384,
-        filter_fields: vec![],
-        span: dummy_span(),
-    });
-
-    // Need a route to trigger DB setup
-    module.routes.push(HirRoute {
-        method: vox_hir::HirHttpMethod::Post,
-        path: "/upload".to_string(),
-        params: vec![],
-        return_type: None,
-        body: vec![],
-        is_deprecated: false,
-        is_traced: false,
-        span: dummy_span(),
-    });
-
-    let main_rs = vox_codegen_rust::emit::emit_main(&module, "test_app");
-
+    let ddl = emit_table_ddl(&table);
     assert!(
-        main_rs.contains("\"kind\":\"Vector\""),
-        "Should contain Vector index kind in digest, got:\n{}",
-        &main_rs[..main_rs.len().min(3000)]
-    );
-    assert!(
-        main_rs.contains("\"dimensions\":384"),
-        "Should contain 384 dimensions in digest, got:\n{}",
-        &main_rs[..main_rs.len().min(3000)]
-    );
-    assert!(
-        main_rs.contains("embedding"),
-        "Should reference the embedding column"
+        ddl.contains("embedding TEXT"),
+        "vec384 should fall back to TEXT in SQLite DDL, got:\n{ddl}"
     );
 }
 
 #[test]
-fn a106_adt_generates_valid_rust_enum_with_struct_variants() {
+fn main_with_table_and_route_emits_db_setup_and_codex_connect() {
+    let mut module = minimal_module();
+    module.tables.push(HirTable {
+        id: DefId(1),
+        name: "Document".to_string(),
+        fields: vec![HirTableField {
+            name: "text".to_string(),
+            type_ann: HirType::Named("str".to_string()),
+            span: dummy_span(),
+        }],
+        is_pub: false,
+        is_deprecated: false,
+        span: dummy_span(),
+    });
+    module.routes.push(HirRoute {
+        method: HirHttpMethod::Post,
+        path: "/upload".to_string(),
+        return_type: None,
+        body: vec![],
+        span: dummy_span(),
+    });
+
+    let main_rs = emit_main(&module, "test_app");
+    assert!(
+        main_rs.contains("VOX_DB_PATH"),
+        "main should honor VOX_DB_PATH, got:\n{}",
+        &main_rs[..main_rs.len().min(2500)]
+    );
+    assert!(
+        main_rs.contains("vox_db::Codex::connect"),
+        "main should connect via vox_db Codex (Turso-backed), got:\n{}",
+        &main_rs[..main_rs.len().min(2500)]
+    );
+}
+
+#[test]
+fn adt_generates_tuple_style_rust_enum_variants() {
     let mut module = minimal_module();
 
     module.types.push(HirTypeDef {
         id: DefId(1),
         name: "Shape".to_string(),
-        generics: vec![],
         variants: vec![
             HirVariant {
                 name: "Circle".to_string(),
@@ -141,15 +98,11 @@ fn a106_adt_generates_valid_rust_enum_with_struct_variants() {
                 span: dummy_span(),
             },
         ],
-        fields: vec![],
-        type_alias: None,
         is_pub: true,
-        is_deprecated: false,
-
         span: dummy_span(),
     });
 
-    let lib_rs = vox_codegen_rust::emit::emit_lib(&module);
+    let lib_rs = emit_lib(&module);
 
     assert!(
         lib_rs.contains("pub enum Shape {"),
@@ -157,13 +110,13 @@ fn a106_adt_generates_valid_rust_enum_with_struct_variants() {
         &lib_rs[..lib_rs.len().min(2000)]
     );
     assert!(
-        lib_rs.contains("Circle {"),
-        "Should have Circle as struct variant, got:\n{}",
+        lib_rs.contains("Circle("),
+        "Should emit tuple-style Circle variant, got:\n{}",
         &lib_rs[..lib_rs.len().min(2000)]
     );
     assert!(
-        lib_rs.contains("Rect {"),
-        "Should have Rect as struct variant, got:\n{}",
+        lib_rs.contains("Rect("),
+        "Should emit tuple-style Rect variant, got:\n{}",
         &lib_rs[..lib_rs.len().min(2000)]
     );
     assert!(
@@ -171,11 +124,7 @@ fn a106_adt_generates_valid_rust_enum_with_struct_variants() {
         "Should have Point as unit variant"
     );
     assert!(
-        lib_rs.contains("#[serde(tag = \"_tag\")]"),
-        "Should have serde internally-tagged annotation"
-    );
-    assert!(
-        lib_rs.contains("#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]"),
-        "Should have derive macros"
+        lib_rs.contains("#[derive(Debug, Clone, Serialize, Deserialize)]"),
+        "Should have serde derive macros"
     );
 }

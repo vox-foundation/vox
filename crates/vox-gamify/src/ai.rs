@@ -318,7 +318,9 @@ impl FreeAiClient {
         prompt: &str,
     ) -> Result<String, AiError> {
         match provider {
-            FreeAiProvider::Ollama { url, model } => Self::call_ollama_static(http, url, model, prompt).await,
+            FreeAiProvider::Ollama { url, model } => {
+                Self::call_ollama_static(http, url, model, prompt).await
+            }
             FreeAiProvider::Pollinations => Self::call_pollinations_static(http, prompt).await,
             FreeAiProvider::Gemini { api_key, model } => {
                 Self::call_gemini_static(http, api_key, model, prompt).await
@@ -327,33 +329,64 @@ impl FreeAiClient {
         }
     }
 
-    async fn call_ollama_static(http: &reqwest::Client, url: &str, model: &str, prompt: &str) -> Result<String, AiError> {
+    async fn call_ollama_static(
+        http: &reqwest::Client,
+        url: &str,
+        model: &str,
+        prompt: &str,
+    ) -> Result<String, AiError> {
         let body = serde_json::json!({
             "model": model,
             "prompt": prompt,
             "stream": false,
         });
-        let resp = http.post(format!("{}/api/generate", url)).json(&body).send().await?;
+        let resp = http
+            .post(format!("{}/api/generate", url))
+            .json(&body)
+            .send()
+            .await?;
         let json: serde_json::Value = resp.json().await?;
-        json["response"].as_str().map(|s| s.to_string()).ok_or(AiError::EmptyResponse)
+        json["response"]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or(AiError::EmptyResponse)
     }
 
-    async fn call_pollinations_static(http: &reqwest::Client, prompt: &str) -> Result<String, AiError> {
+    async fn call_pollinations_static(
+        http: &reqwest::Client,
+        prompt: &str,
+    ) -> Result<String, AiError> {
         let encoded = urlencode(prompt);
         let url = format!("{}{}?model=openai&nologo=true", POLLINATIONS_BASE, encoded);
         let resp = http.get(&url).send().await?;
         let text = resp.text().await?;
-        if text.trim().is_empty() { return Err(AiError::EmptyResponse); }
+        if text.trim().is_empty() {
+            return Err(AiError::EmptyResponse);
+        }
         Ok(text)
     }
 
-    async fn call_gemini_static(http: &reqwest::Client, api_key: &str, model: &str, prompt: &str) -> Result<String, AiError> {
-        let resolved_key = if api_key.is_empty() { std::env::var("GEMINI_API_KEY").unwrap_or_default() } else { api_key.to_string() };
-        let url = GEMINI_ENDPOINT_TEMPLATE.replace("{MODEL}", model).replace("{KEY}", &resolved_key);
+    async fn call_gemini_static(
+        http: &reqwest::Client,
+        api_key: &str,
+        model: &str,
+        prompt: &str,
+    ) -> Result<String, AiError> {
+        let resolved_key = if api_key.is_empty() {
+            std::env::var("GEMINI_API_KEY").unwrap_or_default()
+        } else {
+            api_key.to_string()
+        };
+        let url = GEMINI_ENDPOINT_TEMPLATE
+            .replace("{MODEL}", model)
+            .replace("{KEY}", &resolved_key);
         let body = serde_json::json!({ "contents": [{ "parts": [{ "text": prompt }] }] });
         let resp = http.post(&url).json(&body).send().await?;
         let json: serde_json::Value = resp.json().await?;
-        json["candidates"][0]["content"]["parts"][0]["text"].as_str().map(|s| s.to_string()).ok_or(AiError::EmptyResponse)
+        json["candidates"][0]["content"]["parts"][0]["text"]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or(AiError::EmptyResponse)
     }
 
     /// Call a single provider.

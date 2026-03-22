@@ -1,4 +1,6 @@
-use vox_mcp::{tools, ServerState};
+#![allow(missing_docs)]
+
+use vox_mcp::{ServerState, tools};
 use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]

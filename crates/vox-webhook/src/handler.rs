@@ -1,7 +1,7 @@
 //! Inbound webhook handler — parses, verifies and routes incoming webhook events.
 
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use crate::WebhookError;
 
@@ -23,14 +23,20 @@ pub struct InboundPayload {
 /// A parsed webhook event ready for dispatch.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookEvent {
+    /// Unique delivery id (for idempotency / tracing).
     pub id: Arc<str>,
+    /// Source system identifier.
     pub source: Arc<str>,
+    /// Normalized event type string.
     pub event_type: Arc<str>,
+    /// Parsed JSON body.
     pub payload: serde_json::Value,
+    /// Unix seconds when the gateway accepted the event.
     pub received_at: u64,
 }
 
 impl WebhookEvent {
+    /// Builds an event from a verified inbound payload, stamping `received_at` to now.
     pub fn new(payload: &InboundPayload) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
         Self {
@@ -59,11 +65,14 @@ fn generate_id() -> String {
 /// 1. Optionally verifies signature
 /// 2. Returns a `WebhookEvent` ready for dispatch
 pub struct WebhookHandler {
+    /// Optional HMAC secret — when set, signatures are required.
     pub secret: Option<String>,
+    /// If non-empty, only these `source` values are accepted.
     pub allowed_sources: Vec<Arc<str>>,
 }
 
 impl WebhookHandler {
+    /// Handler with no secret and no source allowlist.
     pub fn new() -> Self {
         Self {
             secret: None,
@@ -71,17 +80,20 @@ impl WebhookHandler {
         }
     }
 
+    /// Require HMAC verification using this shared secret.
     pub fn with_secret(mut self, secret: impl Into<String>) -> Self {
         self.secret = Some(secret.into());
         self
     }
 
+    /// Allowlist an inbound `source` label (e.g. `"github"`).
     pub fn allow_source(mut self, source: impl Into<String>) -> Self {
         let s: String = source.into();
         self.allowed_sources.push(Arc::from(s.as_str()));
         self
     }
 
+    /// Verifies (optional) signature and allowlist, then returns a [`WebhookEvent`].
     pub fn handle(&self, payload: &InboundPayload) -> Result<WebhookEvent, WebhookError> {
         // Source allowlist check
         if !self.allowed_sources.is_empty() && !self.allowed_sources.contains(&payload.source) {
@@ -105,6 +117,7 @@ impl WebhookHandler {
 }
 
 impl Default for WebhookHandler {
+    /// Same as [`WebhookHandler::new`].
     fn default() -> Self {
         Self::new()
     }

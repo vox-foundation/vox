@@ -8,3 +8,12 @@ license.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
+vox-ast = { workspace = true }
+vox-hir = { workspace = true }
+vox-lexer = { workspace = true }
+vox-parser = { workspace = true }
+vox-typeck = { workspace = true }
+
+[lints]
+workspace = true
+

@@ -243,8 +243,19 @@ pub fn emit_expr(expr: &Expr) -> String {
             args,
             ..
         } => {
-            let obj = emit_expr(object);
             let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
+            if let Expr::Ident { name, .. } = object.as_ref() {
+                if name == "Speech" && method == "transcribe" {
+                    let path_js = args_str
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "\"\"".to_string());
+                    return format!(
+                        "((path: string) => {{ throw new Error(\"Speech.transcribe is backend-only (Vox Oratio / Candle Whisper). Use a @server function or POST /api/audio/transcribe with JSON {{ path }}; see examples/oratio/codexAudioTranscribe.ts.\"); }})({path_js} as string)"
+                    );
+                }
+            }
+            let obj = emit_expr(object);
             // Special case: list.append(x) -> [...list, x]
             if method == "append" && args.len() == 1 {
                 return format!("[...{obj}, {}]", args_str[0]);

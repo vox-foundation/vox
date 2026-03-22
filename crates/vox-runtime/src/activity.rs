@@ -35,40 +35,48 @@ impl Default for ActivityOptions {
 }
 
 impl ActivityOptions {
+    /// Returns default options (no retries, no per-attempt timeout).
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets how many retries to perform after the first failed attempt.
     pub fn with_retries(mut self, retries: u32) -> Self {
         self.retries = retries;
         self
     }
 
+    /// Sets a wall-clock timeout for each attempt.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
 
+    /// Sets the per-attempt timeout from a whole number of seconds.
     pub fn with_timeout_secs(mut self, secs: u64) -> Self {
         self.timeout = Some(Duration::from_secs(secs));
         self
     }
 
+    /// Sets the delay before the first retry after a failure.
     pub fn with_initial_backoff(mut self, backoff: Duration) -> Self {
         self.initial_backoff = backoff;
         self
     }
 
+    /// Sets the upper bound for exponential backoff growth.
     pub fn with_max_backoff(mut self, max: Duration) -> Self {
         self.max_backoff = max;
         self
     }
 
+    /// Sets the multiplicative factor applied between backoff steps.
     pub fn with_backoff_multiplier(mut self, multiplier: f64) -> Self {
         self.backoff_multiplier = multiplier;
         self
     }
 
+    /// Sets a stable idempotency key for this activity run.
     pub fn with_activity_id(mut self, id: String) -> Self {
         self.activity_id = Some(id);
         self
@@ -110,12 +118,20 @@ pub enum ActivityResult<T> {
 /// Error from activity execution.
 #[derive(Debug, thiserror::Error)]
 pub enum ActivityError {
+    /// A single attempt exceeded its configured timeout.
     #[error("activity timed out after {0:?}")]
     Timeout(Duration),
 
+    /// All attempts failed; includes the final attempt count and last error text.
     #[error("activity failed after {attempts} attempts: {last_error}")]
-    RetriesExhausted { attempts: u32, last_error: String },
+    RetriesExhausted {
+        /// Number of attempts that were made.
+        attempts: u32,
+        /// Display string of the last error returned by the activity closure.
+        last_error: String,
+    },
 
+    /// A non-retryable or wrapped execution failure.
     #[error("activity execution error: {0}")]
     ExecutionError(String),
 }
@@ -123,19 +139,30 @@ pub enum ActivityError {
 /// Tracks the state of an activity execution for observability.
 #[derive(Debug, Clone)]
 pub struct ActivityExecution {
+    /// Stable id for this run (from options or generated).
     pub activity_id: String,
+    /// Current attempt number (1-based).
     pub attempt: u32,
+    /// Maximum attempts allowed (initial + retries).
     pub max_attempts: u32,
+    /// When this execution started.
     pub started_at: std::time::Instant,
+    /// High-level lifecycle state.
     pub status: ActivityStatus,
 }
 
+/// Coarse lifecycle state of an activity for metrics and tracing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActivityStatus {
+    /// At least one attempt is in flight.
     Running,
+    /// Completed with a value.
     Succeeded,
+    /// Failed without a successful value.
     Failed,
+    /// Stopped due to timeout.
     TimedOut,
+    /// Waiting to retry after backoff.
     Retrying,
 }
 
@@ -255,8 +282,8 @@ fn uuid_simple() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
 
     #[test]
     fn test_default_options() {

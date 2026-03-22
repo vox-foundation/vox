@@ -9,32 +9,46 @@ use crate::{ServerState, ToolResult};
 // Parameters
 // ---------------------------------------------------------------------------
 
+/// MCP arguments: upsert a namespaced context string for one agent (`ttl_seconds` optional retention hint).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SetContextParams {
+    /// Agent namespace for the key (orchestrator context is per-agent).
     pub agent_id: u64,
+    /// Arbitrary string key.
     pub key: String,
+    /// UTF-8 value to store.
     pub value: String,
+    /// Optional seconds-to-live (`0` means default / indefinite in orchestrator).
     pub ttl_seconds: Option<u64>,
 }
 
+/// MCP arguments: fetch a single context value by global key.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetContextParams {
+    /// Key to look up in the global context map.
     pub key: String,
 }
 
+/// MCP arguments: enumerate keys sharing a string prefix (orchestrator context store).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ListContextParams {
+    /// Only keys starting with this prefix are listed.
     pub prefix: String,
 }
 
+/// MCP arguments: inspect token budget / summarization hint for one agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ContextBudgetParams {
+    /// Agent whose token budget is summarized.
     pub agent_id: u64,
 }
 
+/// MCP arguments: copy summarized context from `from_agent` to `to_agent` via orchestrator handoff.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct HandoffContextParams {
+    /// Source agent id for summarized context.
     pub from_agent: u64,
+    /// Destination agent id receiving the handoff.
     pub to_agent: u64,
 }
 

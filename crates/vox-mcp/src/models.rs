@@ -48,6 +48,33 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
     }
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetActiveMcpModelParams {
+    pub model_id: String,
+}
+
+/// Persist the user's preferred MCP inline-chat model (OpenRouter id, Gemini id, Ollama tag, …).
+pub async fn set_active_mcp_chat_model(
+    state: &ServerState,
+    params: SetActiveMcpModelParams,
+) -> String {
+    let mut lock = state.mcp_chat_model_override.write().await;
+    if params.model_id.is_empty() {
+        *lock = None;
+        ToolResult::ok("cleared active MCP chat model override").to_json()
+    } else {
+        let id = params.model_id.clone();
+        *lock = Some(id.clone());
+        ToolResult::ok(format!("Active MCP chat model set to {id}")).to_json()
+    }
+}
+
+/// Return the active MCP chat model override, if any.
+pub async fn get_active_mcp_chat_model(state: &ServerState) -> String {
+    let id = state.mcp_chat_model_override.read().await.clone();
+    ToolResult::ok(id.unwrap_or_default()).to_json()
+}
+
 pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 

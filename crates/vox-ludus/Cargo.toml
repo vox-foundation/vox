@@ -1,0 +1,38 @@
+[package]
+name = "vox-ludus"
+description = "Gamification layer for Vox — companions, quests, battles, and free AI integration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["vox", "gamification", "ai", "games"]
+categories = ["game-development", "development-tools"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+futures-util = { workspace = true }
+async-stream = { workspace = true }
+thiserror = { workspace = true }
+owo-colors = { workspace = true }
+bytes = { workspace = true }
+rand = { workspace = true }
+chrono = { workspace = true }
+vox-db = { path = "../vox-db" }
+vox-config = { workspace = true }
+turso = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+schemars = { workspace = true }
+twox-hash = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
+

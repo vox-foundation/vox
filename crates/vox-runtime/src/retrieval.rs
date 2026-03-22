@@ -1,16 +1,22 @@
 /// Retrieval chunk with provenance metadata.
 #[derive(Debug, Clone)]
 pub struct RetrievedChunk {
+    /// Stable chunk identifier.
     pub id: String,
+    /// Document or corpus source label.
     pub source: String,
+    /// Chunk text content.
     pub text: String,
+    /// Relevance score from the retriever (higher is better).
     pub score: f32,
 }
 
 /// Context budget to cap prompt growth.
 #[derive(Debug, Clone, Copy)]
 pub struct ContextBudget {
+    /// Maximum number of chunks to attach.
     pub max_chunks: usize,
+    /// Maximum total characters of chunk text to include.
     pub max_chars: usize,
 }
 
@@ -26,9 +32,13 @@ impl Default for ContextBudget {
 /// Compact provenance attachment for observability and reproducibility.
 #[derive(Debug, Clone)]
 pub struct ProvenanceRecord {
+    /// Matches [`RetrievedChunk::id`].
     pub chunk_id: String,
+    /// Same source label as the originating chunk.
     pub source: String,
+    /// Score at selection time (before truncation).
     pub score: f32,
+    /// True if `text` was shortened to satisfy [`ContextBudget::max_chars`].
     pub truncated: bool,
 }
 

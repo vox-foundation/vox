@@ -16,8 +16,8 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::runtime::ContainerRuntime;
 use crate::BuildOpts;
+use crate::runtime::ContainerRuntime;
 
 /// A fully-resolved deployment target for a Vox application.
 ///
@@ -110,11 +110,7 @@ impl DeployTarget {
     ///
     /// For `Container` targets, `runtime` must be provided.
     /// For other targets, `runtime` is unused.
-    pub fn execute(
-        &self,
-        runtime: Option<&dyn ContainerRuntime>,
-        dry_run: bool,
-    ) -> Result<()> {
+    pub fn execute(&self, runtime: Option<&dyn ContainerRuntime>, dry_run: bool) -> Result<()> {
         match self {
             Self::Container(cfg) => execute_container(cfg, runtime, dry_run),
             Self::BareMetal(cfg) => execute_bare_metal(cfg, dry_run),
@@ -156,7 +152,9 @@ fn execute_container(
         if let Some(ref host) = cfg.registry_host {
             println!("  Pushing to {}…", host);
         }
-        runtime.tag(&cfg.image_tag, remote_tag).context("Failed to tag image")?;
+        runtime
+            .tag(&cfg.image_tag, remote_tag)
+            .context("Failed to tag image")?;
         runtime.push(remote_tag).context("Failed to push image")?;
         println!("  ✓ Pushed: {}", remote_tag);
     }
@@ -171,8 +169,14 @@ fn execute_bare_metal(cfg: &BareMetalTarget, dry_run: bool) -> Result<()> {
     let service_file = format!("{}.service", cfg.service_name);
 
     if dry_run {
-        println!("  [dry-run] would SCP service file → {}:{}/{}", ssh_target, cfg.deploy_dir, service_file);
-        println!("  [dry-run] would run: systemctl enable --now {}", cfg.service_name);
+        println!(
+            "  [dry-run] would SCP service file → {}:{}/{}",
+            ssh_target, cfg.deploy_dir, service_file
+        );
+        println!(
+            "  [dry-run] would run: systemctl enable --now {}",
+            cfg.service_name
+        );
         return Ok(());
     }
 
@@ -183,12 +187,10 @@ fn execute_bare_metal(cfg: &BareMetalTarget, dry_run: bool) -> Result<()> {
 
     // SCP service file to remote
     let scp_status = Command::new("scp")
-        .args([
-            "-P",
-            &cfg.port.to_string(),
-            &tmp_path.to_string_lossy().to_string(),
-            &format!("{ssh_target}:{}/{service_file}", cfg.deploy_dir),
-        ])
+        .arg("-P")
+        .arg(cfg.port.to_string())
+        .arg(tmp_path.as_os_str())
+        .arg(format!("{ssh_target}:{}/{service_file}", cfg.deploy_dir))
         .status()
         .context("scp not found; install OpenSSH client")?;
 
@@ -206,12 +208,7 @@ fn execute_bare_metal(cfg: &BareMetalTarget, dry_run: bool) -> Result<()> {
     );
 
     let ssh_status = Command::new("ssh")
-        .args([
-            "-p",
-            &cfg.port.to_string(),
-            &ssh_target,
-            &systemd_cmds,
-        ])
+        .args(["-p", &cfg.port.to_string(), &ssh_target, &systemd_cmds])
         .status()
         .context("ssh not found; install OpenSSH client")?;
 
@@ -220,7 +217,10 @@ fn execute_bare_metal(cfg: &BareMetalTarget, dry_run: bool) -> Result<()> {
     }
 
     let _ = std::fs::remove_file(&tmp_path);
-    println!("  ✓ Service '{}' installed on {}", cfg.service_name, cfg.host);
+    println!(
+        "  ✓ Service '{}' installed on {}",
+        cfg.service_name, cfg.host
+    );
     Ok(())
 }
 
@@ -233,9 +233,7 @@ fn execute_compose(cfg: &ComposeTarget, dry_run: bool) -> Result<()> {
     } else if command_exists("docker") {
         ("docker", vec!["compose"])
     } else {
-        anyhow::bail!(
-            "No compose runtime found. Install Podman (podman-compose) or Docker."
-        );
+        anyhow::bail!("No compose runtime found. Install Podman (podman-compose) or Docker.");
     };
 
     let compose_file_str = cfg.compose_file.to_string_lossy();
@@ -274,9 +272,7 @@ fn execute_compose(cfg: &ComposeTarget, dry_run: bool) -> Result<()> {
 
 fn execute_kubernetes(cfg: &KubernetesTarget, dry_run: bool) -> Result<()> {
     if !command_exists("kubectl") {
-        anyhow::bail!(
-            "kubectl not found. Install from https://kubernetes.io/docs/tasks/tools/"
-        );
+        anyhow::bail!("kubectl not found. Install from https://kubernetes.io/docs/tasks/tools/");
     }
 
     let manifests = cfg.manifests_dir.to_string_lossy();
@@ -311,7 +307,10 @@ fn execute_kubernetes(cfg: &KubernetesTarget, dry_run: bool) -> Result<()> {
         println!("  ℹ️  Desired replicas: {replicas} (ensure your manifests reflect this)");
     }
 
-    println!("  ✓ Kubernetes manifests applied to namespace '{}'", cfg.namespace);
+    println!(
+        "  ✓ Kubernetes manifests applied to namespace '{}'",
+        cfg.namespace
+    );
     Ok(())
 }
 
@@ -383,7 +382,10 @@ mod tests {
         assert_eq!(resolve_target_kind(None, None), "container");
         assert_eq!(resolve_target_kind(Some("bare-metal"), None), "bare-metal");
         assert_eq!(resolve_target_kind(None, Some("docker-compose")), "compose");
-        assert_eq!(resolve_target_kind(Some("k8s"), Some("docker")), "kubernetes");
+        assert_eq!(
+            resolve_target_kind(Some("k8s"), Some("docker")),
+            "kubernetes"
+        );
         assert_eq!(resolve_target_kind(Some("auto"), None), "container");
     }
 

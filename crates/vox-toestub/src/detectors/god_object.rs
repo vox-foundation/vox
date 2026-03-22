@@ -2,7 +2,9 @@ use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 
 /// Detects "God Objects" — files or entities that are too large or have too many responsibilities.
 pub struct GodObjectDetector {
+    /// Soft cap on non-blank source lines in a single file before it is treated as a god object.
     pub max_lines: usize,
+    /// Maximum `fn` / method-like declarations counted per file (language-specific heuristics in `check`).
     pub max_methods: usize,
 }
 
@@ -33,7 +35,12 @@ impl DetectionRule for GodObjectDetector {
     }
 
     fn languages(&self) -> &[Language] {
-        &[Language::Rust, Language::TypeScript, Language::Python, Language::Vox]
+        &[
+            Language::Rust,
+            Language::TypeScript,
+            Language::Python,
+            Language::Vox,
+        ]
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Finding> {
@@ -53,7 +60,10 @@ impl DetectionRule for GodObjectDetector {
                     file.lines.len(),
                     self.max_lines
                 ),
-                suggestion: Some("Refactor this file into smaller sub-modules or extract logic into traits.".to_string()),
+                suggestion: Some(
+                    "Refactor this file into smaller sub-modules or extract logic into traits."
+                        .to_string(),
+                ),
                 context: file.context_around(1, 2),
             });
         }
@@ -76,19 +86,19 @@ impl DetectionRule for GodObjectDetector {
             }
         }
 
-        if count > self.max_methods * 2 { // Rough heuristic for density
-             findings.push(Finding {
+        if count > self.max_methods * 2 {
+            // Rough heuristic for density
+            findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
                 severity: Severity::Warning,
                 file: file.path.clone(),
                 line: 1,
                 column: 0,
-                message: format!(
-                    "High method/entity density detected (~{} entities).",
-                    count
+                message: format!("High method/entity density detected (~{} entities).", count),
+                suggestion: Some(
+                    "Consider decomposing large structs into multiple traits.".to_string(),
                 ),
-                suggestion: Some("Consider decomposing large structs into multiple traits.".to_string()),
                 context: String::new(),
             });
         }

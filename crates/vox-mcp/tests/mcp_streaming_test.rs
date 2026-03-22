@@ -1,9 +1,9 @@
 //! Integration tests for MCP streaming capabilities.
 
-use vox_mcp::ServerState;
-use vox_orchestrator::events::{AgentEvent, EventId as AgentEventId, AgentEventKind};
-use vox_orchestrator::types::AgentId;
 use std::sync::Arc;
+use vox_mcp::ServerState;
+use vox_orchestrator::events::{AgentEvent, AgentEventKind, EventId as AgentEventId};
+use vox_orchestrator::types::AgentId;
 
 #[tokio::test]
 async fn test_mcp_token_streaming_poll() {
@@ -31,7 +31,9 @@ async fn test_mcp_token_streaming_poll() {
         let mut transient = state.transient_events.lock().await;
         for ev in transient.drain(..) {
             let (agent_id_str, event_type) = match &ev.kind {
-                AgentEventKind::TokenStreamed { agent_id, .. } => (agent_id.to_string(), "TokenStreamed"),
+                AgentEventKind::TokenStreamed { agent_id, .. } => {
+                    (agent_id.to_string(), "TokenStreamed")
+                }
                 _ => ("A-00".to_string(), "Other"),
             };
             let payload = serde_json::to_string(&ev.kind).unwrap_or_default();

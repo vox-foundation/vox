@@ -3,12 +3,37 @@
 use crate::params::{SubmitTaskParams, TaskStatusParams, ToolResult};
 use crate::server::ServerState;
 
+/// Benchmark telemetry query tools (`research_metrics`).
+pub mod benchmark_tools;
+/// Shared LLM model resolution for chat tools.
+pub mod chat_model_resolve;
+/// Socrates grounding + telemetry helpers for chat tools.
+pub mod chat_socrates_meta;
+/// Chat, inline edit, ghost text, planning, and ambient editor decorations.
 pub mod chat_tools;
+/// Codex relational V17/V16 helpers over connected `VoxDb`.
+pub mod codex_tools;
+/// `cargo`/LSP validation helpers (`vox_validate_file`, `vox_run_tests`, ...).
 pub mod compiler_tools;
+/// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
+/// Thin `git` CLI wrappers scoped to the discovered git root.
 pub mod git_tools;
+/// Local mesh registry status (`vox_mesh_local_status`).
+pub mod mesh_tools;
+/// Oratio speech-to-text (Candle Whisper).
+pub mod oratio_tools;
+/// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
+pub mod repo_index;
+/// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
+/// Training-intent submission via orchestrator (Populi CLI remains canonical executor).
+pub mod training_tools;
+/// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
+
+mod input_schemas;
+mod tool_aliases;
 
 /// Names and descriptions of all available tools.
 pub const TOOL_REGISTRY: &[(&str, &str)] = &[
@@ -52,10 +77,7 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_check_workspace",
         "Run cargo check for the entire workspace and return diagnostics.",
     ),
-    (
-        "vox_test_all",
-        "Run cargo test for the entire workspace.",
-    ),
+    ("vox_test_all", "Run cargo test for the entire workspace."),
     (
         "vox_publish_message",
         "Publish a message to the bulletin board for all agents to receive.",
@@ -68,10 +90,7 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_get_context",
         "Retrieve a value from the shared context.",
     ),
-    (
-        "vox_list_context",
-        "List available context keys by prefix.",
-    ),
+    ("vox_list_context", "List available context keys by prefix."),
     (
         "vox_context_budget",
         "Get the token budget status and summarize recommendation for an agent.",
@@ -112,34 +131,22 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_budget_status",
         "Returns token usage and approximate costs across all agents.",
     ),
-    (
-        "vox_cancel_task",
-        "Cancels an active or queued task.",
-    ),
+    ("vox_cancel_task", "Cancels an active or queued task."),
     (
         "vox_rebalance",
         "Rebalances tasks dynamically across agents.",
     ),
-    (
-        "vox_agent_events",
-        "Streams event history for agents.",
-    ),
+    ("vox_agent_events", "Streams event history for agents."),
     (
         "vox_my_files",
         "Returns all files currently owned by the specified agent.",
     ),
-    (
-        "vox_claim_file",
-        "Request ownership of a specific file.",
-    ),
+    ("vox_claim_file", "Request ownership of a specific file."),
     (
         "vox_transfer_file",
         "Transfer ownership of a file to another agent.",
     ),
-    (
-        "vox_ask_agent",
-        "Ask another agent a question.",
-    ),
+    ("vox_ask_agent", "Ask another agent a question."),
     (
         "vox_answer_question",
         "Answer a pending question from another agent.",
@@ -180,18 +187,9 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_skill_install",
         "Install a skill from a VoxSkillBundle JSON payload.",
     ),
-    (
-        "vox_skill_uninstall",
-        "Uninstall an installed skill by ID.",
-    ),
-    (
-        "vox_skill_list",
-        "List all installed skills.",
-    ),
-    (
-        "vox_skill_search",
-        "Search installed skills by keyword.",
-    ),
+    ("vox_skill_uninstall", "Uninstall an installed skill by ID."),
+    ("vox_skill_list", "List all installed skills."),
+    ("vox_skill_search", "Search installed skills by keyword."),
     (
         "vox_skill_info",
         "Get detailed info on a specific skill by ID.",
@@ -272,10 +270,7 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_coverage_report",
         "Get code coverage report for a crate using cargo-llvm-cov.",
     ),
-    (
-        "vox_reorder_task",
-        "Change the priority of a queued task.",
-    ),
+    ("vox_reorder_task", "Change the priority of a queued task."),
     (
         "vox_drain_agent",
         "Remove all queued tasks from an agent without retiring it.",
@@ -290,23 +285,15 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
     ),
     (
         "vox_config_get",
-        "Get the current runtime orchestrator and toolchain configuration.",
-    ),
-    (
-        "vox_get_config",
-        "Canonical alias for vox_config_get. Returns toolchain + orchestrator config merged.",
+        "Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).",
     ),
     (
         "vox_config_set",
-        "Update the orchestrator configuration dynamically (pass fields to update).",
-    ),
-    (
-        "vox_set_config",
-        "Canonical alias for vox_config_set.",
+        "Update the orchestrator configuration dynamically (wire alias: vox_set_config).",
     ),
     (
         "vox_map_agent_session",
-        "Map a Vox agent session ID to an existing orchestrator agent.",
+        "Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session).",
     ),
     (
         "vox_poll_events",
@@ -320,60 +307,194 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_record_cost",
         "Record a cost event from a Vox agent session token usage.",
     ),
-    (
-        "vox_git_log",
-        "Show recent git commits (default: last 10).",
-    ),
+    ("vox_git_log", "Show recent git commits (default: last 10)."),
     (
         "vox_git_diff",
         "Show uncommitted git diff for a file or the whole tree.",
     ),
-    (
-        "vox_git_status",
-        "Get current git working tree status.",
-    ),
+    ("vox_git_status", "Get current git working tree status."),
     ("vox_git_blame", "Show line-by-line git blame for a file."),
-    ("vox_snapshot_list", "List recent file snapshots for an agent."),
-    ("vox_snapshot_diff", "Show the file-level diff between two snapshots."),
-    ("vox_snapshot_restore", "Restore files to a previous snapshot state."),
+    (
+        "vox_repo_index_status",
+        "Return repo index cache status (bounded walk under repo root, `.vox/cache/repos/...`).",
+    ),
+    (
+        "vox_repo_index_refresh",
+        "Refresh the on-disk repo index cache for the current workspace.",
+    ),
+    (
+        "vox_snapshot_list",
+        "List recent file snapshots for an agent.",
+    ),
+    (
+        "vox_snapshot_diff",
+        "Show the file-level diff between two snapshots.",
+    ),
+    (
+        "vox_snapshot_restore",
+        "Restore files to a previous snapshot state.",
+    ),
     ("vox_oplog", "Show recent operations with undo support."),
-    ("vox_undo", "Undo the last operation or a specific operation by ID."),
+    (
+        "vox_undo",
+        "Undo the last operation or a specific operation by ID.",
+    ),
     ("vox_redo", "Redo a previously undone operation."),
-    ("vox_conflicts", "List active file conflicts between agents."),
+    (
+        "vox_conflicts",
+        "List active file conflicts between agents.",
+    ),
     ("vox_resolve_conflict", "Resolve a file conflict."),
     ("vox_conflict_diff", "Show the N-way diff of a conflict."),
-    ("vox_workspace_create", "Create an isolated workspace for an agent."),
-    ("vox_workspace_merge", "Merge an agent's workspace changes back to main."),
-    ("vox_workspace_status", "Show files modified in an agent's workspace."),
+    (
+        "vox_workspace_create",
+        "Create an isolated workspace for an agent.",
+    ),
+    (
+        "vox_workspace_merge",
+        "Merge an agent's workspace changes back to main.",
+    ),
+    (
+        "vox_workspace_status",
+        "Show files modified in an agent's workspace.",
+    ),
     ("vox_change_create", "Start tracking a new logical change."),
     ("vox_change_log", "Show the history of a change."),
     ("vox_vcs_status", "Get unified VCS status."),
-    ("vox_a2a_send", "Send a targeted A2A message from one agent to another."),
-    ("vox_a2a_inbox", "Read unacknowledged messages in an agent's inbox."),
+    (
+        "vox_a2a_send",
+        "Send a targeted A2A message from one agent to another.",
+    ),
+    (
+        "vox_a2a_inbox",
+        "Read unacknowledged messages in an agent's inbox.",
+    ),
     ("vox_a2a_ack", "Acknowledge a message in an agent's inbox."),
-    ("vox_a2a_broadcast", "Broadcast an A2A message to all agents."),
+    (
+        "vox_a2a_broadcast",
+        "Broadcast an A2A message to all agents.",
+    ),
     ("vox_a2a_history", "Query the A2A message audit trail."),
-    ("vox_db_schema", "Return the complete database schema digest as JSON."),
-    ("vox_db_relationships", "Return the entity-relationship graph for the database."),
+    (
+        "vox_db_schema",
+        "Return the complete database schema digest as JSON.",
+    ),
+    (
+        "vox_db_relationships",
+        "Return the entity-relationship graph for the database.",
+    ),
     ("vox_db_data_flow", "Return the data flow map."),
-    ("vox_db_sample_data", "Fetch sample data from a given database table."),
-    ("vox_db_explain_query", "Explain a query or mutation in plain English."),
-    ("vox_db_suggest_query", "Suggest the correct Vox query expression for an intent."),
-    ("vox_generate_code", "Generate validated Vox code from a prompt."),
+    (
+        "vox_db_sample_data",
+        "Fetch sample data from a given database table.",
+    ),
+    (
+        "vox_db_explain_query",
+        "Explain a query or mutation in plain English.",
+    ),
+    (
+        "vox_db_suggest_query",
+        "Suggest the correct Vox query expression for an intent.",
+    ),
+    (
+        "vox_codex_research_session_upsert",
+        "Upsert research_sessions by session_key (V17). Empty repository_id defaults to workspace repository_id.",
+    ),
+    (
+        "vox_codex_conversation_version_append",
+        "Append conversation_versions for a conversation_id (V17).",
+    ),
+    (
+        "vox_codex_conversation_edge_insert",
+        "Insert conversation_edges between two conversations (V17).",
+    ),
+    (
+        "vox_codex_topic_evolution_append",
+        "Append topic_evolution_events for a topic_id (V17).",
+    ),
+    (
+        "vox_codex_research_metric_linked",
+        "Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).",
+    ),
+    (
+        "vox_generate_code",
+        "Generate validated Vox code from a prompt.",
+    ),
+    (
+        "vox_list_models",
+        "List all models in the orchestrator registry (ids, providers, free/paid).",
+    ),
+    (
+        "vox_suggest_model",
+        "Suggest the best model for a task category string (codegen, review, etc.).",
+    ),
+    (
+        "vox_set_model",
+        "Set per-agent model override in the orchestrator registry.",
+    ),
+    (
+        "vox_set_active_model",
+        "Set sticky MCP chat model id for chat / inline / ghost (empty string clears).",
+    ),
+    (
+        "vox_get_active_model",
+        "Show sticky MCP chat override and resolved ModelSpec (no LLM call).",
+    ),
+    (
+        "vox_oratio_transcribe",
+        "Transcribe audio to text via Vox Oratio (Candle Whisper). Arg: path (workspace-relative or absolute).",
+    ),
+    (
+        "vox_oratio_status",
+        "Oratio / Candle Whisper backend status and default model env (JSON).",
+    ),
     // ── Chat & Inline AI ──────────────────────────────────────────────────────
-    ("vox_chat_message", "Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history."),
-    ("vox_chat_history", "Retrieve the full chat history for the current session."),
-    ("vox_inline_edit", "AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement."),
-    ("vox_plan", "Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root."),
+    (
+        "vox_chat_message",
+        "Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history.",
+    ),
+    (
+        "vox_chat_history",
+        "Retrieve the full chat history for the current session.",
+    ),
+    (
+        "vox_inline_edit",
+        "AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement.",
+    ),
+    (
+        "vox_plan",
+        "Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root.",
+    ),
+    (
+        "vox_replan",
+        "Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.",
+    ),
+    (
+        "vox_plan_status",
+        "Plan session status via vox-dei-d (ai.plan.status) for a session_id.",
+    ),
+    (
+        "vox_benchmark_list",
+        "List recent benchmark_event rows from Codex for this repository (requires VoxDb).",
+    ),
+    (
+        "vox_train_submit",
+        "Enqueue a background orchestrator task for Populi training intent; canonical execution remains `vox populi train`.",
+    ),
+    (
+        "vox_mesh_local_status",
+        "Return mesh environment variables and the local mesh registry file contents (CPU-first node records).",
+    ),
 ];
 
+/// Convert the static [`TOOL_REGISTRY`] table into RMCP [`rmcp::model::Tool`] descriptors.
 pub fn tool_registry() -> Vec<rmcp::model::Tool> {
     TOOL_REGISTRY
         .iter()
         .map(|(n, d)| rmcp::model::Tool {
             name: std::borrow::Cow::Owned(n.to_string()),
             description: Some(std::borrow::Cow::Owned(d.to_string())),
-            input_schema: std::sync::Arc::new(serde_json::Map::new()),
+            input_schema: std::sync::Arc::new(input_schemas::tool_input_schema(n)),
             output_schema: None,
             meta: None,
             annotations: None,
@@ -384,30 +505,64 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
         .collect()
 }
 
+/// Dispatch `name` to the matching submodule handler and return JSON text for MCP clients.
 pub async fn handle_tool_call(
     state: &ServerState,
     name: &str,
     args: serde_json::Value,
 ) -> Result<String, anyhow::Error> {
+    let name = tool_aliases::canonical_tool_name(name);
     match name {
-        "vox_submit_task" => Ok(task_tools::submit_task(state, serde_json::from_value(args)?).await),
-        "vox_task_status" => Ok(task_tools::task_status(state, serde_json::from_value(args)?).await),
-        "vox_orchestrator_status" => Ok(crate::orchestrator_tools::orchestrator_status(state).await),
+        "vox_submit_task" => {
+            Ok(task_tools::submit_task(state, serde_json::from_value(args)?).await)
+        }
+        "vox_task_status" => {
+            Ok(task_tools::task_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_orchestrator_status" => {
+            Ok(crate::orchestrator_tools::orchestrator_status(state).await)
+        }
         "vox_orchestrator_start" => Ok(crate::orchestrator_tools::orchestrator_start(state).await),
-        "vox_complete_task" => Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await),
+        "vox_complete_task" => {
+            Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
+        }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
-        "vox_check_file_owner" => Ok(crate::orchestrator_tools::check_file_owner(state, args.get("path").and_then(|v| v.as_str()).unwrap_or(".")).await),
+        "vox_check_file_owner" => Ok(crate::orchestrator_tools::check_file_owner(
+            state,
+            args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
+        )
+        .await),
 
-        "vox_validate_file" => Ok(compiler_tools::validate_file(serde_json::from_value(args)?)),
-        "vox_run_tests" => Ok(compiler_tools::run_tests(serde_json::from_value(args)?)),
-        "vox_check_workspace" => Ok(compiler_tools::check_workspace()),
-        "vox_test_all" => Ok(compiler_tools::test_all()),
-        "vox_publish_message" => Ok(task_tools::publish_message(state, serde_json::from_value(args)?).await),
+        "vox_validate_file" => {
+            Ok(compiler_tools::validate_file(serde_json::from_value(args)?).await)
+        }
+        "vox_run_tests" => {
+            Ok(compiler_tools::run_tests(state, serde_json::from_value(args)?).await)
+        }
+        "vox_check_workspace" => Ok(compiler_tools::check_workspace(state).await),
+        "vox_test_all" => Ok(compiler_tools::test_all(state).await),
+        "vox_publish_message" => {
+            Ok(task_tools::publish_message(state, serde_json::from_value(args)?).await)
+        }
 
-        "vox_git_log" => Ok(git_tools::git_log(args.get("max_commits").and_then(|v| v.as_u64()).map(|n| n as usize))),
-        "vox_git_diff" => Ok(git_tools::git_diff(args.get("path").and_then(|v| v.as_str()))),
-        "vox_git_status" => Ok(git_tools::git_status()),
-        "vox_git_blame" => Ok(git_tools::git_blame(args.get("path").and_then(|v| v.as_str()).unwrap_or("."))),
+        "vox_git_log" => Ok(git_tools::git_log(
+            state,
+            args.get("max_commits")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize),
+        )
+        .await),
+        "vox_git_diff" => {
+            Ok(git_tools::git_diff(state, args.get("path").and_then(|v| v.as_str())).await)
+        }
+        "vox_git_status" => Ok(git_tools::git_status(state).await),
+        "vox_git_blame" => Ok(git_tools::git_blame(
+            state,
+            args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
+        )
+        .await),
+        "vox_repo_index_status" => Ok(repo_index::repo_index_status(state)),
+        "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state)),
 
         "vox_snapshot_list" => Ok(vcs_tools::snapshot_list(state, args).await),
         "vox_snapshot_diff" => Ok(vcs_tools::snapshot_diff(state, args).await),
@@ -417,7 +572,7 @@ pub async fn handle_tool_call(
         "vox_redo" => Ok(vcs_tools::oplog_redo(state, args).await),
         "vox_conflicts" => Ok(vcs_tools::conflicts_list(state).await),
         "vox_resolve_conflict" => Ok(vcs_tools::resolve_conflict(state, args).await),
-        "vox_conflict_diff" => Ok(vcs_tools::conflicts_list(state).await),
+        "vox_conflict_diff" => Ok(vcs_tools::conflict_diff(state, args).await),
         "vox_workspace_create" => Ok(vcs_tools::workspace_create(state, args).await),
         "vox_workspace_merge" => Ok(vcs_tools::workspace_merge(state, args).await),
         "vox_workspace_status" => Ok(vcs_tools::workspace_status(state, args).await),
@@ -432,92 +587,252 @@ pub async fn handle_tool_call(
         "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(args).await),
         "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(args).await),
 
+        "vox_codex_research_session_upsert" => {
+            Ok(codex_tools::codex_research_session_upsert(state, args).await)
+        }
+        "vox_codex_conversation_version_append" => {
+            Ok(codex_tools::codex_conversation_version_append(state, args).await)
+        }
+        "vox_codex_conversation_edge_insert" => {
+            Ok(codex_tools::codex_conversation_edge_insert(state, args).await)
+        }
+        "vox_codex_topic_evolution_append" => {
+            Ok(codex_tools::codex_topic_evolution_append(state, args).await)
+        }
+        "vox_codex_research_metric_linked" => {
+            Ok(codex_tools::codex_research_metric_linked(state, args).await)
+        }
+
         "vox_generate_code" => Ok(compiler_tools::generate_vox_code(args).await),
-        "vox_build_crate" => Ok(compiler_tools::build_crate(args.get("crate_name").and_then(|v| v.as_str()))),
-        "vox_lint_crate" => Ok(compiler_tools::lint_crate(args.get("crate_name").and_then(|v| v.as_str()))),
-        "vox_coverage_report" => Ok(compiler_tools::coverage_report(args.get("crate_name").and_then(|v| v.as_str()))),
+        "vox_list_models" => {
+            Ok(crate::models::list_models(state, serde_json::from_value(args)?).await)
+        }
+        "vox_suggest_model" => {
+            Ok(crate::models::suggest_model(state, serde_json::from_value(args)?).await)
+        }
+        "vox_set_model" => Ok(crate::models::set_model(state, serde_json::from_value(args)?).await),
+        "vox_set_active_model" => Ok(crate::models::set_active_mcp_chat_model(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_get_active_model" => Ok(crate::models::get_active_mcp_chat_model(state).await),
+        "vox_build_crate" => Ok(compiler_tools::build_crate(
+            state,
+            args.get("crate_name").and_then(|v| v.as_str()),
+        )
+        .await),
+        "vox_lint_crate" => Ok(compiler_tools::lint_crate(
+            state,
+            args.get("crate_name").and_then(|v| v.as_str()),
+        )
+        .await),
+        "vox_coverage_report" => Ok(compiler_tools::coverage_report(
+            state,
+            args.get("crate_name").and_then(|v| v.as_str()),
+        )
+        .await),
 
         // ── Chat & Inline AI ──────────────────────────────────────────────
-        "vox_chat_message" => Ok(chat_tools::chat_message(state, serde_json::from_value(args)?).await),
+        "vox_chat_message" => {
+            Ok(chat_tools::chat_message(state, serde_json::from_value(args)?).await)
+        }
         "vox_chat_history" => Ok(chat_tools::chat_history(state).await),
-        "vox_inline_edit" => Ok(chat_tools::inline_edit(state, serde_json::from_value(args)?).await),
+        "vox_inline_edit" => {
+            Ok(chat_tools::inline_edit(state, serde_json::from_value(args)?).await)
+        }
         "vox_plan" => Ok(chat_tools::plan_goal(state, serde_json::from_value(args)?).await),
+        "vox_replan" => Ok(chat_tools::plan_replan(state, serde_json::from_value(args)?).await),
+        "vox_plan_status" => {
+            Ok(chat_tools::plan_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_benchmark_list" => {
+            Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)
+        }
+        "vox_train_submit" => {
+            Ok(training_tools::train_submit(state, serde_json::from_value(args)?).await)
+        }
 
         // Delegate others to existing modules
         "vox_my_files" => Ok(crate::affinity::my_files(state, serde_json::from_value(args)?).await),
-        "vox_claim_file" => Ok(crate::affinity::claim_file(state, serde_json::from_value(args)?).await),
-        "vox_transfer_file" => Ok(crate::affinity::transfer_file(state, serde_json::from_value(args)?).await),
+        "vox_claim_file" => {
+            Ok(crate::affinity::claim_file(state, serde_json::from_value(args)?).await)
+        }
+        "vox_transfer_file" => {
+            Ok(crate::affinity::transfer_file(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_ask_agent" => Ok(crate::qa::ask_agent(state, serde_json::from_value(args)?).await),
-        "vox_answer_question" => Ok(crate::qa::answer_question(state, serde_json::from_value(args)?).await),
-        "vox_pending_questions" => Ok(crate::qa::pending_questions(state, serde_json::from_value(args)?).await),
+        "vox_answer_question" => {
+            Ok(crate::qa::answer_question(state, serde_json::from_value(args)?).await)
+        }
+        "vox_pending_questions" => {
+            Ok(crate::qa::pending_questions(state, serde_json::from_value(args)?).await)
+        }
         "vox_broadcast" => Ok(crate::qa::broadcast(state, serde_json::from_value(args)?).await),
 
-        "vox_memory_store" => Ok(crate::memory::memory_store(state, serde_json::from_value(args)?).await),
-        "vox_memory_recall" => Ok(crate::memory::memory_recall(state, serde_json::from_value(args)?).await),
-        "vox_memory_search" => Ok(crate::memory::memory_search(state, serde_json::from_value(args)?).await),
-        "vox_memory_log" => Ok(crate::memory::memory_daily_log(state, serde_json::from_value(args)?).await),
+        "vox_memory_store" => {
+            Ok(crate::memory::memory_store(state, serde_json::from_value(args)?).await)
+        }
+        "vox_memory_recall" => {
+            Ok(crate::memory::memory_recall(state, serde_json::from_value(args)?).await)
+        }
+        "vox_memory_search" => {
+            Ok(crate::memory::memory_search(state, serde_json::from_value(args)?).await)
+        }
+        "vox_memory_log" => {
+            Ok(crate::memory::memory_daily_log(state, serde_json::from_value(args)?).await)
+        }
         "vox_memory_list_keys" => Ok(crate::memory::memory_list_keys(state).await),
-        "vox_knowledge_query" => Ok(crate::memory::knowledge_query(state, serde_json::from_value(args)?).await),
-        "vox_memory_save_db" => Ok(crate::memory::memory_save_db(state, serde_json::from_value(args)?).await),
-        "vox_memory_recall_db" => Ok(crate::memory::memory_recall_db(state, serde_json::from_value(args)?).await),
+        "vox_knowledge_query" => {
+            Ok(crate::memory::knowledge_query(state, serde_json::from_value(args)?).await)
+        }
+        "vox_memory_save_db" => {
+            Ok(crate::memory::memory_save_db(state, serde_json::from_value(args)?).await)
+        }
+        "vox_memory_recall_db" => {
+            Ok(crate::memory::memory_recall_db(state, serde_json::from_value(args)?).await)
+        }
 
-        "vox_compaction_status" => Ok(crate::memory::compaction_status(state, serde_json::from_value(args)?).await),
-        "vox_session_create" => Ok(crate::memory::session_create(state, serde_json::from_value(args)?).await),
+        "vox_compaction_status" => {
+            Ok(crate::memory::compaction_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_session_create" => {
+            Ok(crate::memory::session_create(state, serde_json::from_value(args)?).await)
+        }
         "vox_session_list" => Ok(crate::memory::session_list(state).await),
-        "vox_session_reset" => Ok(crate::memory::session_reset(state, serde_json::from_value(args)?).await),
-        "vox_session_compact" => Ok(crate::memory::session_compact(state, serde_json::from_value(args)?).await),
-        "vox_session_info" => Ok(crate::memory::session_info(state, serde_json::from_value(args)?).await),
+        "vox_session_reset" => {
+            Ok(crate::memory::session_reset(state, serde_json::from_value(args)?).await)
+        }
+        "vox_session_compact" => {
+            Ok(crate::memory::session_compact(state, serde_json::from_value(args)?).await)
+        }
+        "vox_session_info" => {
+            Ok(crate::memory::session_info(state, serde_json::from_value(args)?).await)
+        }
         "vox_session_cleanup" => Ok(crate::memory::session_cleanup(state).await),
 
-        "vox_preference_get" => Ok(crate::memory::preference_get(state, serde_json::from_value(args)?).await),
-        "vox_preference_set" => Ok(crate::memory::preference_set(state, serde_json::from_value(args)?).await),
-        "vox_preference_list" => Ok(crate::memory::preference_list(state, serde_json::from_value(args)?).await),
-        "vox_learn_pattern" => Ok(crate::memory::learn_pattern(state, serde_json::from_value(args)?).await),
-        "vox_behavior_record" => Ok(crate::memory::behavior_record(state, serde_json::from_value(args)?).await),
-        "vox_behavior_summary" => Ok(crate::memory::behavior_summary(state, serde_json::from_value(args)?).await),
+        "vox_preference_get" => {
+            Ok(crate::memory::preference_get(state, serde_json::from_value(args)?).await)
+        }
+        "vox_preference_set" => {
+            Ok(crate::memory::preference_set(state, serde_json::from_value(args)?).await)
+        }
+        "vox_preference_list" => {
+            Ok(crate::memory::preference_list(state, serde_json::from_value(args)?).await)
+        }
+        "vox_learn_pattern" => {
+            Ok(crate::memory::learn_pattern(state, serde_json::from_value(args)?).await)
+        }
+        "vox_behavior_record" => {
+            Ok(crate::memory::behavior_record(state, serde_json::from_value(args)?).await)
+        }
+        "vox_behavior_summary" => {
+            Ok(crate::memory::behavior_summary(state, serde_json::from_value(args)?).await)
+        }
 
-        "vox_check_mood" => Ok(crate::gamify::check_mood(state, serde_json::from_value(args)?).await),
-        "vox_agent_status" => Ok(crate::gamify::agent_status(state, serde_json::from_value(args)?).await),
-        "vox_agent_continue" => Ok(crate::gamify::agent_continue(state, serde_json::from_value(args)?).await),
-        "vox_agent_assess" => Ok(crate::gamify::agent_assess(state, serde_json::from_value(args)?).await),
-        "vox_agent_handoff" => Ok(crate::gamify::agent_handoff(state, serde_json::from_value(args)?).await),
+        "vox_check_mood" => {
+            Ok(crate::gamify::check_mood(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_status" => {
+            Ok(crate::gamify::agent_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_continue" => {
+            Ok(crate::gamify::agent_continue(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_assess" => {
+            Ok(crate::gamify::agent_assess(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_handoff" => {
+            Ok(crate::gamify::agent_handoff(state, serde_json::from_value(args)?).await)
+        }
 
-        "vox_queue_status" => Ok(crate::orchestrator_tools::queue_status(state, serde_json::from_value(args)?).await),
+        "vox_queue_status" => {
+            Ok(crate::orchestrator_tools::queue_status(state, serde_json::from_value(args)?).await)
+        }
         "vox_lock_status" => Ok(crate::orchestrator_tools::lock_status(state).await),
         "vox_budget_status" => Ok(crate::orchestrator_tools::budget_status(state).await),
-        "vox_cancel_task" => Ok(crate::orchestrator_tools::cancel_task(state, serde_json::from_value(args)?).await),
-        "vox_reorder_task" => Ok(crate::orchestrator_tools::reorder_task(state, serde_json::from_value(args)?).await),
-        "vox_drain_agent" => Ok(crate::orchestrator_tools::drain_agent(state, serde_json::from_value(args)?).await),
-        "vox_cost_history" => Ok(crate::orchestrator_tools::cost_history(state, serde_json::from_value(args)?).await),
+        "vox_cancel_task" => {
+            Ok(crate::orchestrator_tools::cancel_task(state, serde_json::from_value(args)?).await)
+        }
+        "vox_reorder_task" => {
+            Ok(crate::orchestrator_tools::reorder_task(state, serde_json::from_value(args)?).await)
+        }
+        "vox_drain_agent" => {
+            Ok(crate::orchestrator_tools::drain_agent(state, serde_json::from_value(args)?).await)
+        }
+        "vox_cost_history" => {
+            Ok(crate::orchestrator_tools::cost_history(state, serde_json::from_value(args)?).await)
+        }
         "vox_file_graph" => Ok(crate::orchestrator_tools::file_graph(state).await),
-        "vox_config_get" | "vox_get_config" => Ok(crate::orchestrator_tools::config_get(state).await),
-        "vox_config_set" | "vox_set_config" => Ok(crate::orchestrator_tools::config_set(state, args).await),
-        "vox_map_agent_session" => Ok(crate::orchestrator_tools::map_agent_session(state, serde_json::from_value(args)?).await),
-        "vox_poll_events" => Ok(crate::orchestrator_tools::poll_events(state, serde_json::from_value(args)?).await),
-        "vox_heartbeat" => Ok(crate::orchestrator_tools::heartbeat(state, serde_json::from_value(args)?).await),
-        "vox_record_cost" => Ok(crate::orchestrator_tools::record_cost(state, serde_json::from_value(args)?).await),
+        "vox_config_get" => Ok(crate::orchestrator_tools::config_get(state).await),
+        "vox_config_set" => Ok(crate::orchestrator_tools::config_set(state, args).await),
+        "vox_map_agent_session" => Ok(crate::orchestrator_tools::map_agent_session(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_poll_events" => {
+            Ok(crate::orchestrator_tools::poll_events(state, serde_json::from_value(args)?).await)
+        }
+        "vox_heartbeat" => {
+            Ok(crate::orchestrator_tools::heartbeat(state, serde_json::from_value(args)?).await)
+        }
+        "vox_record_cost" => {
+            Ok(crate::orchestrator_tools::record_cost(state, serde_json::from_value(args)?).await)
+        }
         "vox_rebalance" => Ok(crate::orchestrator_tools::rebalance(state).await),
-        "vox_agent_events" => Ok(crate::orchestrator_tools::agent_events(state, serde_json::from_value(args)?).await),
+        "vox_agent_events" => {
+            Ok(crate::orchestrator_tools::agent_events(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_a2a_send" => Ok(crate::a2a::a2a_send(state, serde_json::from_value(args)?).await),
         "vox_a2a_inbox" => Ok(crate::a2a::a2a_inbox(state, serde_json::from_value(args)?).await),
         "vox_a2a_ack" => Ok(crate::a2a::a2a_ack(state, serde_json::from_value(args)?).await),
-        "vox_a2a_broadcast" => Ok(crate::a2a::a2a_broadcast(state, serde_json::from_value(args)?).await),
-        "vox_a2a_history" => Ok(crate::a2a::a2a_history(state, serde_json::from_value(args)?).await),
+        "vox_a2a_broadcast" => {
+            Ok(crate::a2a::a2a_broadcast(state, serde_json::from_value(args)?).await)
+        }
+        "vox_a2a_history" => {
+            Ok(crate::a2a::a2a_history(state, serde_json::from_value(args)?).await)
+        }
 
-        "vox_skill_install" => Ok(crate::skills::skill_install(state, serde_json::from_value(args)?).await),
-        "vox_skill_uninstall" => Ok(crate::skills::skill_uninstall(state, serde_json::from_value(args)?).await),
+        "vox_skill_install" => {
+            Ok(crate::skills::skill_install(state, serde_json::from_value(args)?).await)
+        }
+        "vox_skill_uninstall" => {
+            Ok(crate::skills::skill_uninstall(state, serde_json::from_value(args)?).await)
+        }
         "vox_skill_list" => Ok(crate::skills::skill_list(state)),
-        "vox_skill_search" => Ok(crate::skills::skill_search(state, serde_json::from_value(args)?)),
-        "vox_skill_info" => Ok(crate::skills::skill_info(state, serde_json::from_value(args)?)),
+        "vox_skill_search" => Ok(crate::skills::skill_search(
+            state,
+            serde_json::from_value(args)?,
+        )),
+        "vox_skill_info" => Ok(crate::skills::skill_info(
+            state,
+            serde_json::from_value(args)?,
+        )),
         "vox_skill_parse" => Ok(crate::skills::skill_parse(serde_json::from_value(args)?)),
 
-        "vox_set_context" => Ok(crate::context::set_context(state, serde_json::from_value(args)?).await),
-        "vox_get_context" => Ok(crate::context::get_context(state, serde_json::from_value(args)?).await),
-        "vox_list_context" => Ok(crate::context::list_context(state, serde_json::from_value(args)?).await),
-        "vox_context_budget" => Ok(crate::context::context_budget(state, serde_json::from_value(args)?).await),
-        "vox_handoff_context" => Ok(crate::context::handoff_context(state, serde_json::from_value(args)?).await),
+        "vox_set_context" => {
+            Ok(crate::context::set_context(state, serde_json::from_value(args)?).await)
+        }
+        "vox_get_context" => {
+            Ok(crate::context::get_context(state, serde_json::from_value(args)?).await)
+        }
+        "vox_list_context" => {
+            Ok(crate::context::list_context(state, serde_json::from_value(args)?).await)
+        }
+        "vox_context_budget" => {
+            Ok(crate::context::context_budget(state, serde_json::from_value(args)?).await)
+        }
+        "vox_handoff_context" => {
+            Ok(crate::context::handoff_context(state, serde_json::from_value(args)?).await)
+        }
+
+        "vox_oratio_transcribe" => Ok(oratio_tools::transcribe(state, args)?),
+        "vox_oratio_status" => Ok(oratio_tools::status()),
+
+        "vox_mesh_local_status" => Ok(mesh_tools::mesh_local_status(args)?),
 
         _ => {
             // Check skill macro tools
@@ -534,6 +849,52 @@ pub async fn handle_tool_call(
                 }
             }
             Err(anyhow::anyhow!("Unknown tool: {}", name))
+        }
+    }
+}
+
+#[cfg(test)]
+mod registry_dispatch_tests {
+    use super::{TOOL_REGISTRY, handle_tool_call};
+    use crate::server::ServerState;
+    use serde_json::json;
+    use std::collections::HashSet;
+
+    /// Subprocess / full-workspace tools — do not invoke from this guard (CI time + host deps).
+    const SKIP_DISPATCH_PROBE: &[&str] = &[
+        "vox_check_workspace",
+        "vox_test_all",
+        "vox_run_tests",
+        "vox_build_crate",
+        "vox_lint_crate",
+        "vox_coverage_report",
+        "vox_validate_file",
+        "vox_generate_code",
+        "vox_oratio_transcribe",
+    ];
+
+    #[tokio::test]
+    async fn tool_registry_names_are_unique() {
+        let mut seen = HashSet::new();
+        for (name, _) in TOOL_REGISTRY {
+            assert!(seen.insert(*name), "duplicate TOOL_REGISTRY name: {name}");
+        }
+    }
+
+    #[tokio::test]
+    async fn every_registry_tool_has_static_dispatch() {
+        let state = ServerState::new_test().await;
+        for (name, _) in TOOL_REGISTRY {
+            if SKIP_DISPATCH_PROBE.contains(name) {
+                continue;
+            }
+            let res = handle_tool_call(&state, name, json!({})).await;
+            if let Err(e) = res {
+                assert!(
+                    !e.to_string().contains("Unknown tool"),
+                    "missing dispatch for {name}: {e}"
+                );
+            }
         }
     }
 }

@@ -123,12 +123,12 @@ impl ChannelManager {
                 Some(_) => {
                     return Err(WebhookError::Channel(format!(
                         "Channel '{channel_id}' is disabled"
-                    )))
+                    )));
                 }
                 None => {
                     return Err(WebhookError::Channel(format!(
                         "Channel '{channel_id}' not found"
-                    )))
+                    )));
                 }
             }
         };

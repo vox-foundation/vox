@@ -223,20 +223,10 @@ pub fn type_to_voxdb_validator(ty: &TypeExpr) -> String {
             "Set" | "set" => "v.any() /* Set */".to_string(),
             _ => format!("v.any() /* {}<...> */", name),
         },
-        TypeExpr::Union { variants, .. } => {
-            let vs: Vec<String> = variants.iter().map(type_to_voxdb_validator).collect();
-            format!("v.union({})", vs.join(", "))
-        }
         TypeExpr::Tuple { elements, .. } => {
             let els: Vec<String> = elements.iter().map(type_to_voxdb_validator).collect();
             format!("v.array(v.union({}))", els.join(", "))
         }
-        TypeExpr::Map { .. } => "v.any() /* Map */".to_string(),
-        TypeExpr::Set { element, .. } => {
-            let inner = type_to_voxdb_validator(element);
-            format!("v.array({})", inner)
-        }
-        TypeExpr::Intersection { .. } => "v.any() /* Intersection */".to_string(),
         TypeExpr::Function { .. } => "v.any() /* Function */".to_string(),
         TypeExpr::Unit { .. } => "v.null()".to_string(),
     }
@@ -257,7 +247,7 @@ fn type_to_ts(ty: &TypeExpr) -> String {
         TypeExpr::Generic { name, args, .. } => {
             let args_str: Vec<String> = args.iter().map(type_to_ts).collect();
             match name.as_str() {
-                "Option" => format!("{} | null", args_str.join(", ")),
+                "Option" => format!("{} | undefined", args_str.join(", ")),
                 "List" | "list" => format!(
                     "readonly {}[]",
                     args_str.first().map(|s| s.as_str()).unwrap_or("unknown")
@@ -290,19 +280,6 @@ fn type_to_ts(ty: &TypeExpr) -> String {
             format!("[{}]", elems.join(", "))
         }
         TypeExpr::Unit { .. } => "void".to_string(),
-        TypeExpr::Union { variants, .. } => {
-            let vars: Vec<String> = variants.iter().map(type_to_ts).collect();
-            vars.join(" | ")
-        }
-        TypeExpr::Intersection { left, right, .. } => {
-            format!("{} & {}", type_to_ts(left), type_to_ts(right))
-        }
-        TypeExpr::Map { key, value, .. } => {
-            format!("Record<{}, {}>", type_to_ts(key), type_to_ts(value))
-        }
-        TypeExpr::Set { element, .. } => {
-            format!("Set<{}>", type_to_ts(element))
-        }
     }
 }
 

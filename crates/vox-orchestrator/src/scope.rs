@@ -246,11 +246,15 @@ mod tests {
         assert_eq!(guard.agent_scope(agent).unwrap().len(), 1);
 
         // b.rs still allowed, a.rs now denied
-        assert!(guard
-            .check_write(agent, Path::new("src/b.rs"), &bus)
-            .is_allowed());
-        assert!(!guard
-            .check_write(agent, Path::new("src/a.rs"), &bus)
-            .is_allowed());
+        assert!(
+            guard
+                .check_write(agent, Path::new("src/b.rs"), &bus)
+                .is_allowed()
+        );
+        assert!(
+            !guard
+                .check_write(agent, Path::new("src/a.rs"), &bus)
+                .is_allowed()
+        );
     }
 }

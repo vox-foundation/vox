@@ -1,0 +1,21 @@
+[package]
+name = "vox-ars"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "ARS (agent runtime shell): OpenClaw HTTP client, skill execution harness, context bundles"
+
+[dependencies]
+vox-db = { path = "../vox-db" }
+vox-skills = { path = "../vox-skills" }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+
+[lints]
+workspace = true

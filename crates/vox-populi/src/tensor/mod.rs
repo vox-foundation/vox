@@ -1,38 +1,31 @@
-//! Native ML Tensor operations for Vox (merged from vox-tensor).
-//!
-//! Wraps the `burn` framework to provide PyTorch-like `Tensor` ergonomics
-//! using native Rust cross-platform GPU capabilities (NdArray/WGPU) and autograd.
+//! Populi tensor surface: LoRA transformer, device helpers, training loop, manifests.
+
 #![allow(clippy::module_inception)]
 
-#[cfg(feature = "bpe")]
-pub mod bpe;
-/// Pure-Rust tokenizer and JSONL DataLoader — always compiled, no GPU required.
 pub mod data;
-/// GPU capability detection and device/backend selection.
 pub mod device;
-#[cfg(feature = "hf_load")]
+pub mod hf_keymap;
 pub mod hf_load;
-/// Training manifest schema and loading.
 pub mod manifest;
-/// Human-readable run report (MODEL_CARD.md).
 pub mod model_card;
-/// Training telemetry writer.
 pub mod telemetry;
-/// Debug logging with flush for training diagnostics.
+pub mod telemetry_schema;
 pub mod train_log;
+pub mod training_text;
 
-/// LoRA (Low-Rank Adaptation) — parameter-efficient fine-tuning.
 pub mod lora;
-/// Neural network primitives (layers, sequential, loss functions).
+
 #[cfg(feature = "gpu")]
-pub mod nn;
-/// Optimizers and learning rate schedulers.
+pub mod burn_hf_load;
+
+#[cfg(feature = "gpu")]
+pub mod burn_inference_load;
+#[cfg(feature = "gpu")]
+pub mod burn_stack;
 #[cfg(feature = "gpu")]
 pub mod optim;
-/// Tensor abstraction and backend definitions.
 #[cfg(feature = "gpu")]
 pub mod tensor;
-/// Training loops, callbacks, and metrics.
 #[cfg(feature = "gpu")]
 pub mod train;
 
@@ -43,37 +36,80 @@ pub extern crate burn;
 pub use device::make_wgpu_device;
 pub use device::{
     DeviceKind, GpuInfo, TrainProfile, apply_backend_env, detect_gpu_vendor,
-    estimate_training_vram_mb, normalize_device, oom_guidance, print_gpu_summary, probe_gpu,
-    recommend_config, recommend_config_for_profile, sample_vram_used_mb,
+    estimate_training_vram_mb, estimate_training_vram_mb_qlora, normalize_device, oom_guidance,
+    print_gpu_summary, print_gpu_summary_for, probe_gpu, recommend_config,
+    recommend_config_for_profile, sample_vram_used_mb,
 };
+
 #[cfg(feature = "gpu")]
-pub use lora::LoraLinear;
-#[cfg(feature = "gpu")]
-pub use lora::{LoraAttentionKvCache, LoraTransformerKvCache};
+pub use lora::{LoraAttentionKvCache, LoraLinear, LoraTransformerKvCache, LoraVoxTransformer};
 pub use lora::{LoraConfig, lora_memory_estimate};
+
 #[cfg(feature = "gpu")]
-pub use nn::{
-    IGNORE_INDEX, Module, Sequential, cross_entropy_loss, cross_entropy_loss_masked,
-    cross_entropy_loss_unmasked,
+pub use burn_inference_load::{
+    BurnInferenceLoadSpec, BurnInferenceModel, load_burn_inference_model,
 };
+#[cfg(feature = "gpu")]
+pub use burn_stack::{IGNORE_INDEX, Sequential, VoxTransformer, cross_entropy_loss};
 #[cfg(feature = "gpu")]
 pub use tensor::{ElementType, Tensor, TensorShape};
 
 #[cfg(feature = "train")]
+pub mod adapter_schema_v3;
+#[cfg(feature = "train")]
+pub mod artifact_bridge;
+#[cfg(feature = "train")]
+pub mod backend;
+#[cfg(feature = "train")]
+mod backend_burn_lora;
+#[cfg(feature = "train")]
+mod backend_candle_qlora;
+// QLoRA stack needs `LoraTrainingConfig` / preflight; `train` implies `candle-qlora` in this crate.
+#[cfg(feature = "train")]
+mod candle_qlora_graph;
+#[cfg(feature = "train")]
+pub mod candle_qlora_merge;
+#[cfg(feature = "train")]
+mod candle_qlora_train;
+#[cfg(feature = "train")]
+mod candle_qlora_weights;
+#[cfg(feature = "train")]
+pub mod execution_planner;
+#[cfg(feature = "train")]
+pub mod finetune_contract;
+#[cfg(feature = "train")]
+pub mod finetune_registry;
+#[cfg(feature = "train")]
 pub mod lora_train;
+#[cfg(feature = "train")]
+pub mod operator_messages;
+#[cfg(feature = "train")]
+pub mod preflight_train;
 #[cfg(feature = "train")]
 pub mod preset_schema;
 #[cfg(feature = "train")]
-pub mod training_preflight;
+mod qlora_preflight;
 #[cfg(feature = "train")]
-pub use lora_train::{LoraTrainingConfig, run_lora_training};
+pub mod train_backend;
+#[cfg(feature = "train")]
+pub mod train_jsonl_preflight;
+#[cfg(feature = "train")]
+pub mod training_config;
+
+#[cfg(feature = "train")]
+pub use execution_planner::{ExecutionPlan, ExecutionPlanner};
+#[cfg(feature = "train")]
+pub use finetune_contract::FineTuneContract;
+#[cfg(feature = "train")]
+pub use lora_train::{run_lora_training, run_populi_training};
+#[cfg(feature = "train")]
+pub use preflight_train::preflight_for_contract;
 #[cfg(feature = "train")]
 pub use preset_schema::{
     CliOverrides, DEFAULT_PRESET, DatasetProfile, DeviceProfile, KNOWN_PRESETS, TrainPresetProfile,
     TrainPresetRegistry, load_registry, resolve_effective_profile,
 };
 #[cfg(feature = "train")]
-pub use training_preflight::{
-    CONTRACT_PATH, FALLBACK_TRAIN_FILE, PRIMARY_TRAIN_FILE, ResolveSource, ResolvedTrainInput,
-    find_workspace_root, load_contract, resolve_train_input, validate_train_preflight,
-};
+pub use train_backend::{ExecutionKernel, PopuliTrainBackend};
+#[cfg(feature = "train")]
+pub use training_config::{LoraTrainingConfig, PopuliTokenizerMode, TrainingDeploymentTarget};

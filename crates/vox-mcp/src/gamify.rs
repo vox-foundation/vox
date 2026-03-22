@@ -1,14 +1,22 @@
+//! Gamify companion MCP tools: mood, status markdown, continuation tick, assessment, handoff payload.
+//!
+//! When [`ServerState::db`] is present, companion rows are read/written via Codex; otherwise
+//! in-memory companions are synthesized per agent id.
+
 use crate::{ServerState, ToolResult};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use vox_gamify::companion::{Companion, Interaction};
 use vox_gamify::db::{list_companions, upsert_companion};
 
+/// MCP arguments: load or bootstrap the gamify companion row for one orchestrator agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CheckMoodParams {
+    /// Orchestrator agent id backing the companion row.
     pub agent_id: u64,
 }
 
+/// Return JSON companion record (persisted when DB is wired).
 pub async fn check_mood(state: &ServerState, params: CheckMoodParams) -> String {
     let id = format!("agent-{}", params.agent_id);
     let user_id = vox_db::paths::local_user_id();
@@ -35,11 +43,14 @@ pub async fn check_mood(state: &ServerState, params: CheckMoodParams) -> String 
     ToolResult::ok(companion).to_json()
 }
 
+/// MCP arguments: render queue-aware status markdown for one agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AgentStatusParams {
+    /// Agent to describe in markdown.
     pub agent_id: u64,
 }
 
+/// Return markdown summarizing queue depth, completed tasks, and companion HP bar.
 pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> String {
     let id = format!("agent-{}", params.agent_id);
     let user_id = vox_db::paths::local_user_id();
@@ -63,7 +74,11 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
             hp_bar,
             queue.len(),
             queue.completed_count(),
-            if !queue.is_empty() { "Processing tasks... ⚙️" } else { "Idle 💤" }
+            if !queue.is_empty() {
+                "Processing tasks... ⚙️"
+            } else {
+                "Idle 💤"
+            }
         );
         ToolResult::ok(markdown).to_json()
     } else {
@@ -71,14 +86,17 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
     }
 }
 
+/// MCP arguments: nudge orchestrator auto-continuations (idle agent wake-up path).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AgentContinueParams {
+    /// Agent mentioned in the confirmation string (tick is global).
     pub agent_id: u64,
 }
 
+/// Run one orchestrator tick then return a short confirmation string (JSON `ToolResult`).
 pub async fn agent_continue(state: &ServerState, params: AgentContinueParams) -> String {
     let mut orch = state.orchestrator.lock().await;
-    orch.tick(); // Triggers auto-continuations for idle agents
+    orch.tick().await; // Triggers auto-continuations for idle agents
     ToolResult::ok(format!(
         "Agent {} triggered for continuation",
         params.agent_id
@@ -86,11 +104,14 @@ pub async fn agent_continue(state: &ServerState, params: AgentContinueParams) ->
     .to_json()
 }
 
+/// MCP arguments: estimate remaining wall time from queue depth and user preference `task.estimate_ms`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AgentAssessParams {
+    /// Agent whose queue depth is estimated.
     pub agent_id: u64,
 }
 
+/// Return human-readable pending/completed counts and rough ETA string.
 pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> String {
     let mut ms_per_task: usize = 45_000;
     let user_id = vox_db::paths::local_user_id();
@@ -124,17 +145,24 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
     }
 }
 
+/// MCP arguments: structured plan handoff published on the orchestrator event bus.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AgentHandoffParams {
+    /// Handoff source agent.
     pub from_agent_id: u64,
+    /// Handoff destination agent.
     pub to_agent_id: u64,
+    /// High-level narrative inserted into [`vox_orchestrator::handoff::HandoffPayload`].
     pub plan_summary: String,
     #[serde(default)]
+    /// Open work items the receiver should address.
     pub unresolved_objectives: Vec<String>,
     #[serde(default)]
+    /// Checklist the receiver can use to validate completion.
     pub verification_criteria: Vec<String>,
 }
 
+/// Emit a [`vox_orchestrator::handoff::HandoffPayload`] (side effect: event bus + downstream listeners).
 pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> String {
     let orch = state.orchestrator.lock().await;
     let mut payload = vox_orchestrator::handoff::HandoffPayload::new(
@@ -144,7 +172,9 @@ pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> S
     );
     payload.unresolved_objectives = params.unresolved_objectives;
     payload.verification_criteria = params.verification_criteria;
-    vox_orchestrator::handoff::execute_handoff(&payload, orch.event_bus());
+    if let Err(e) = vox_orchestrator::handoff::execute_handoff(&payload, orch.event_bus()) {
+        return ToolResult::<String>::err(e.to_string()).to_json();
+    }
 
     ToolResult::ok(format!(
         "Handoff initiated from agent {} to agent {}: {}",

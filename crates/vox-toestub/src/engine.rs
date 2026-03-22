@@ -134,17 +134,15 @@ impl ToestubEngine {
     }
 
     fn get_roots(&self) -> Vec<PathBuf> {
-        if let Some(ref path) = self.config.unwired_path {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(roots) = json.get("roots").and_then(|r| r.as_array()) {
-                        return roots
-                            .iter()
-                            .filter_map(|r| r.as_str().map(PathBuf::from))
-                            .collect();
-                    }
-                }
-            }
+        if let Some(ref path) = self.config.unwired_path
+            && let Ok(content) = std::fs::read_to_string(path)
+            && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Some(roots) = json.get("roots").and_then(|r| r.as_array())
+        {
+            return roots
+                .iter()
+                .filter_map(|r| r.as_str().map(PathBuf::from))
+                .collect();
         }
         self.config.roots.clone()
     }

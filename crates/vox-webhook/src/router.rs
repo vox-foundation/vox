@@ -8,20 +8,20 @@
 use std::sync::Arc;
 
 use axum::{
+    Router,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::Json,
     routing::{get, post},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{info, warn};
 
 use crate::{
+    WebhookError,
     channel::ChannelManager,
     handler::{InboundPayload, WebhookHandler},
-    WebhookError,
 };
 
 /// Shared state for the webhook router.

@@ -1,3 +1,8 @@
+//! Workspace-wide affinity groups: globs that route files to preferred agents.
+//!
+//! [`AffinityGroupRegistry`] compiles patterns from repository layout (Cargo, Node, etc.)
+//! so the orchestrator can keep related edits on one agent.
+
 use std::path::{Path, PathBuf};
 
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -21,6 +26,17 @@ pub struct AffinityGroup {
 pub struct AffinityGroupRegistry {
     groups: Vec<AffinityGroup>,
     matchers: Vec<GlobSet>,
+}
+
+fn repo_relative_glob(repo_root: &Path, dir: &Path) -> String {
+    let rel = dir.strip_prefix(repo_root).unwrap_or(dir);
+    let s = rel.to_string_lossy().replace('\\', "/");
+    let s = s.trim_matches('/').to_string();
+    if s.is_empty() {
+        "**/*".to_string()
+    } else {
+        format!("{s}/**")
+    }
 }
 
 impl AffinityGroupRegistry {
@@ -122,6 +138,107 @@ impl AffinityGroupRegistry {
     pub fn find_by_name(&self, name: &str) -> Option<&AffinityGroup> {
         self.groups.iter().find(|g| g.name == name)
     }
+
+    /// Build affinity groups from on-disk repository layout (Cargo workspace members, `crates/`, or catch-all).
+    ///
+    /// Used when the orchestrator should adapt to an external or polyglot repo instead of hardcoded Vox crate names.
+    pub fn detect_from_repository_layout(repo_root: &Path) -> Self {
+        let member_dirs = vox_repository::cargo_workspace_member_dirs(repo_root);
+        if !member_dirs.is_empty() {
+            let groups: Vec<AffinityGroup> = member_dirs
+                .into_iter()
+                .filter_map(|p| {
+                    let name = p.file_name()?.to_string_lossy().into_owned();
+                    let rg = repo_relative_glob(repo_root, &p);
+                    Some(AffinityGroup {
+                        name: format!("{name}-group"),
+                        patterns: vec![
+                            format!("**/crates/{name}/**"),
+                            format!("crates/{name}/**"),
+                            format!("**/{name}/**"),
+                            rg,
+                        ],
+                        default_agent: None,
+                    })
+                })
+                .collect();
+            if !groups.is_empty() {
+                return Self::new(groups);
+            }
+        }
+
+        let node = vox_repository::node_workspace_packages(repo_root);
+        if !node.is_empty() {
+            let groups: Vec<AffinityGroup> = node
+                .into_iter()
+                .map(|(name, p)| {
+                    let pat = repo_relative_glob(repo_root, &p);
+                    AffinityGroup {
+                        name: format!("node-{name}"),
+                        patterns: vec![pat],
+                        default_agent: None,
+                    }
+                })
+                .collect();
+            return Self::new(groups);
+        }
+
+        let py = vox_repository::python_roots(repo_root);
+        if !py.is_empty() {
+            let groups: Vec<AffinityGroup> = py
+                .into_iter()
+                .map(|(name, p)| AffinityGroup {
+                    name: format!("{name}-group"),
+                    patterns: vec![repo_relative_glob(repo_root, &p)],
+                    default_agent: None,
+                })
+                .collect();
+            return Self::new(groups);
+        }
+
+        let go = vox_repository::go_roots(repo_root);
+        if !go.is_empty() {
+            let groups: Vec<AffinityGroup> = go
+                .into_iter()
+                .map(|(name, p)| AffinityGroup {
+                    name: format!("{name}-group"),
+                    patterns: vec![repo_relative_glob(repo_root, &p)],
+                    default_agent: None,
+                })
+                .collect();
+            return Self::new(groups);
+        }
+
+        let crates_dir = repo_root.join("crates");
+        if crates_dir.is_dir() {
+            let mut groups = Vec::new();
+            if let Ok(rd) = std::fs::read_dir(&crates_dir) {
+                for ent in rd.flatten() {
+                    let p = ent.path();
+                    if p.join("Cargo.toml").is_file() {
+                        let name = p.file_name().unwrap().to_string_lossy().into_owned();
+                        groups.push(AffinityGroup {
+                            name: format!("{name}-group"),
+                            patterns: vec![
+                                format!("**/crates/{name}/**"),
+                                format!("crates/{name}/**"),
+                            ],
+                            default_agent: None,
+                        });
+                    }
+                }
+            }
+            if !groups.is_empty() {
+                return Self::new(groups);
+            }
+        }
+
+        Self::new(vec![AffinityGroup {
+            name: "workspace".to_string(),
+            patterns: vec!["**/*".to_string()],
+            default_agent: None,
+        }])
+    }
 }
 
 /// Load affinity groups from VoxWorkspace members.
@@ -164,15 +281,61 @@ pub fn auto_assign_groups(workspace_root: &Path) -> Vec<AffinityGroup> {
     groups
 }
 
-/// Try to load Affinity Groups directly from a `Vox.toml` or similar file format.
+/// Load affinity groups from `Vox.toml` when an `affinity_groups` array is present.
+///
+/// Expected shape:
+///
+/// ```toml
+/// [[affinity_groups]]
+/// name = "my-group"
+/// patterns = ["crates/foo/**", "docs/**"]
+/// ```
+///
+/// If the file is missing, invalid TOML, or `affinity_groups` is absent or empty, returns `None`.
+/// Callers should fall back to [`AffinityGroupRegistry::detect_from_repository_layout`] or
+/// [`AffinityGroupRegistry::defaults`].
 pub fn load_from_config(path: &Path) -> Option<AffinityGroupRegistry> {
-    // In a full implementation, you'd parse `Vox.toml` [affinity_groups] table here.
-    // E.g.: `vox_pm::manifest::load_manifest(path)`
-    // For now we'll simulate returning defaults if the file exists
-    if path.exists() {
-        Some(AffinityGroupRegistry::defaults())
-    } else {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let value: toml::Value = raw.parse().ok()?;
+    let root = value.as_table()?;
+    let ag = root.get("affinity_groups")?;
+    let arr = ag.as_array()?;
+    if arr.is_empty() {
+        return None;
+    }
+    let mut groups = Vec::new();
+    for item in arr {
+        let t = item.as_table()?;
+        let Some(name) = t
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+            .filter(|s| !s.is_empty())
+        else {
+            continue;
+        };
+        let patterns: Vec<String> = match t.get("patterns") {
+            Some(toml::Value::Array(a)) => a
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+            Some(toml::Value::String(s)) => vec![s.clone()],
+            None => continue,
+            Some(_) => return None,
+        };
+        if patterns.is_empty() {
+            continue;
+        }
+        groups.push(AffinityGroup {
+            name,
+            patterns,
+            default_agent: None,
+        });
+    }
+    if groups.is_empty() {
         None
+    } else {
+        Some(AffinityGroupRegistry::new(groups))
     }
 }
 
@@ -232,5 +395,86 @@ mod tests {
         let reg = AffinityGroupRegistry::defaults();
         assert!(reg.find_by_name("lexer-parser-group").is_some());
         assert!(reg.find_by_name("nonexistent").is_none());
+    }
+
+    #[test]
+    fn detect_from_layout_matches_member_crate_paths() {
+        use std::fs;
+        let d = tempfile::TempDir::new().expect("tempdir");
+        fs::write(
+            d.path().join("Cargo.toml"),
+            r#"[workspace]
+members = ["crates/*"]
+resolver = "2"
+"#,
+        )
+        .expect("root");
+        let c = d.path().join("crates");
+        fs::create_dir_all(c.join("alpha")).expect("mkdir");
+        fs::write(
+            c.join("alpha").join("Cargo.toml"),
+            "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        )
+        .expect("crate");
+        let reg = AffinityGroupRegistry::detect_from_repository_layout(d.path());
+        let g = reg.resolve(Path::new("crates/alpha/src/lib.rs"));
+        assert!(g.is_some());
+        assert_eq!(g.unwrap().name, "alpha-group");
+    }
+
+    #[test]
+    fn load_from_config_parses_affinity_groups() {
+        use std::fs;
+        let d = tempfile::TempDir::new().expect("tempdir");
+        let path = d.path().join("Vox.toml");
+        fs::write(
+            &path,
+            r#"[[affinity_groups]]
+name = "docs"
+patterns = ["docs/**"]
+
+[[affinity_groups]]
+name = "single-glob"
+patterns = "legacy/*.md"
+"#,
+        )
+        .expect("write Vox.toml");
+        let reg = load_from_config(&path).expect("registry");
+        let names: Vec<_> = reg.groups().iter().map(|g| g.name.as_str()).collect();
+        assert!(names.contains(&"docs"));
+        assert!(names.contains(&"single-glob"));
+        let g = reg.resolve(Path::new("docs/foo.md"));
+        assert_eq!(g.expect("match").name, "docs");
+    }
+
+    #[test]
+    fn load_from_config_missing_or_empty_returns_none() {
+        use std::fs;
+        let d = tempfile::TempDir::new().expect("tempdir");
+        let path = d.path().join("Vox.toml");
+        fs::write(&path, "[vox]\nmodel = \"x\"\n").unwrap();
+        assert!(load_from_config(&path).is_none());
+        fs::write(&path, "affinity_groups = []\n").unwrap();
+        assert!(load_from_config(&path).is_none());
+    }
+
+    #[test]
+    fn detect_layout_node_workspaces() {
+        use std::fs;
+        let d = tempfile::TempDir::new().expect("tempdir");
+        fs::write(
+            d.path().join("package.json"),
+            r#"{"name":"root","workspaces":["packages/*"]}"#,
+        )
+        .unwrap();
+        let pkg_a = d.path().join("packages").join("a");
+        fs::create_dir_all(&pkg_a).unwrap();
+        fs::write(pkg_a.join("package.json"), "{}").unwrap();
+        let reg = AffinityGroupRegistry::detect_from_repository_layout(d.path());
+        let names: Vec<_> = reg.groups().iter().map(|g| g.name.as_str()).collect();
+        assert!(
+            names.contains(&"node-a"),
+            "expected node-a group, got {names:?}"
+        );
     }
 }

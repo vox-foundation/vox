@@ -50,7 +50,7 @@ The `submit_task` tool uses `is_safe_prompt()` from `vox-runtime::prompt_canonic
 
 ## Agent Scope Enforcement
 
-Agents declared in `.opencode/agents/{name}.md` can have a `scope:` field:
+Agents declared in `.vox/agents/{name}.md` can have a `scope:` field (parsed by `vox-repository` for scope enforcement):
 
 ```markdown
 ---

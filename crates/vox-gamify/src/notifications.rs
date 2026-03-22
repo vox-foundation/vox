@@ -6,28 +6,43 @@ use serde::{Deserialize, Serialize};
 /// The type of gamification notification.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NotificationType {
+    /// Player gained a level.
     LevelUp,
+    /// A new achievement was unlocked.
     AchievementUnlocked,
+    /// Daily streak incremented.
     StreakContinued,
+    /// Streak broke or reset.
     StreakLost,
+    /// Coding challenge finished successfully.
     ChallengeCompleted,
+    /// Companion health, mood, or energy changed notably.
     CompanionStatus,
+    /// Quest objectives met.
     QuestCompleted,
 }
 
 /// A notification meant for the user.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Notification {
+    /// Unique notification id.
     pub id: String,
+    /// Recipient user id.
     pub user_id: String,
+    /// High-level category for UI routing.
     pub notification_type: NotificationType,
+    /// Short headline.
     pub title: String,
+    /// Longer body text.
     pub message: String,
+    /// Whether the user has dismissed or read it.
     pub read: bool,
+    /// Creation time as a UNIX timestamp.
     pub created_at: i64,
 }
 
 impl Notification {
+    /// Build a new unread notification with a generated id and current timestamp.
     pub fn new(
         user_id: impl Into<String>,
         notif_type: NotificationType,
@@ -60,6 +75,7 @@ pub struct NotificationManager {
 }
 
 impl NotificationManager {
+    /// Empty manager with no stored notifications.
     pub fn new() -> Self {
         Self {
             notifications: Vec::new(),

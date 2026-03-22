@@ -1,10 +1,10 @@
 //! `vox workflow` — inspect and validate Vox workflows and activities.
 
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::path::Path;
 
 /// List all workflows and activities defined in a .vox file.
-pub async fn list(file: &PathBuf) -> Result<()> {
+pub async fn list(file: &Path) -> Result<()> {
     let result = crate::pipeline::run_frontend(file, false).await?;
     let hir = &result.hir;
 
@@ -53,7 +53,7 @@ pub async fn list(file: &PathBuf) -> Result<()> {
 }
 
 /// Show type-checked info about a specific workflow.
-pub async fn inspect(file: &PathBuf, workflow_name: &str) -> Result<()> {
+pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
     let result = crate::pipeline::run_frontend(file, false).await?;
     let hir = &result.hir;
 
@@ -112,12 +112,13 @@ pub async fn inspect(file: &PathBuf, workflow_name: &str) -> Result<()> {
     println!("    timeout: str         — e.g. \"30s\", \"5m\"");
     println!("    initial_backoff: str — delay before first retry e.g. \"500ms\"");
     println!("    activity_id: str     — unique ID for deduplication / idempotency");
+    println!("    mesh: str            — mesh_* steps only: noop | join | snapshot | heartbeat");
 
     Ok(())
 }
 
 /// Type-check a workflow file through the full Vox compiler pipeline.
-pub async fn check(file: &PathBuf) -> Result<()> {
+pub async fn check(file: &Path) -> Result<()> {
     let result = crate::pipeline::run_frontend(file, false)
         .await
         .map_err(|e| anyhow::anyhow!("Workflow check failed: {}", e))?;
@@ -141,8 +142,8 @@ pub async fn check(file: &PathBuf) -> Result<()> {
     }
 }
 
-/// Execute a workflow (currently a stub before durable execution runtime is implemented).
-pub async fn run(file: &PathBuf, workflow_name: &str) -> Result<()> {
+/// Execute a workflow — interpreted MVP when built with **`workflow-runtime`**, else dry-run.
+pub async fn run(file: &Path, workflow_name: &str) -> Result<()> {
     let result = crate::pipeline::run_frontend(file, false).await?;
     let _wf = result
         .hir
@@ -157,11 +158,45 @@ pub async fn run(file: &PathBuf, workflow_name: &str) -> Result<()> {
             )
         })?;
 
-    println!("Attempting to execute workflow: {}", workflow_name);
-    println!(">>> NOTICE: Vox Workflow Engine (crates/vox-workflow-runtime) is an upcoming architectural milestone.");
-    println!(">>> Durable execution (retry, timeout, activity journal, crash recovery) is a work in progress.");
-    println!(">>> The execution will be treated as dry-run mode for now.");
-    println!("Dry-run completed successfully.");
+    #[cfg(feature = "workflow-runtime")]
+    {
+        let journal = vox_workflow_runtime::interpret_workflow(&result.hir, workflow_name).await?;
+        for entry in &journal {
+            crate::workflow_journal_codex::persist_workflow_journal_entry_opt(workflow_name, entry)
+                .await;
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&journal).unwrap_or_else(|_| "[]".to_string())
+        );
+        println!(
+            "Workflow '{}' completed (interpreted runtime).",
+            workflow_name
+        );
+        return Ok(());
+    }
 
-    Ok(())
+    #[cfg(not(feature = "workflow-runtime"))]
+    {
+        println!("Attempting to execute workflow: {}", workflow_name);
+        println!(
+            ">>> NOTICE: build with `--features workflow-runtime` for interpreted execution (vox-workflow-runtime)."
+        );
+        println!(
+            ">>> Durable execution (retry, timeout, activity journal, crash recovery) is a work in progress."
+        );
+        println!(">>> The execution will be treated as dry-run mode for now.");
+        println!("Dry-run completed successfully.");
+        let compat = serde_json::json!({
+            "workflow_compat": "dry_run",
+            "workflow": workflow_name,
+            "file": file.display().to_string(),
+            "orchestrator_events": "WorkflowStarted/Completed emitted by future runtime; use MCP vox_submit_task + orchestration_migration.orchestration_v2_enabled until linked",
+        });
+        println!(
+            "{}",
+            serde_json::to_string(&compat).unwrap_or_else(|_| "{}".to_string())
+        );
+        Ok(())
+    }
 }

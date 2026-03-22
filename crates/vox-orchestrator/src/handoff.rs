@@ -12,12 +12,24 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::events::{AgentEventKind, EventBus};
 use crate::types::{AgentId, TaskId};
 
+/// Violation of structured handoff invariants (verification vs pending work).
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum HandoffInvariantError {
+    /// Pending tasks require at least one verification criterion for the receiver.
+    #[error("handoff with pending tasks must include at least one verification criterion")]
+    MissingVerificationCriteria,
+}
+
 /// A single step in the execution history preserved during handoff.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionStep {
+    /// Task this log line refers to.
     pub task_id: TaskId,
+    /// Agent that produced the event.
     pub agent_id: AgentId,
+    /// Unix milliseconds when the step occurred.
     pub timestamp: u64,
+    /// Short event label (e.g. task phase or tool name).
     pub event: String,
 }
 
@@ -212,8 +224,20 @@ impl HandoffPayload {
     }
 }
 
-/// Execute a handoff: emit the event and return the payload for the receiver.
-pub fn execute_handoff(payload: &HandoffPayload, event_bus: &EventBus) {
+/// Ensure pending work always carries explicit verification steps for the receiver.
+pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), HandoffInvariantError> {
+    if !payload.pending_tasks.is_empty() && payload.verification_criteria.is_empty() {
+        return Err(HandoffInvariantError::MissingVerificationCriteria);
+    }
+    Ok(())
+}
+
+/// Execute a handoff: validate invariants, then emit the event for the receiver.
+pub fn execute_handoff(
+    payload: &HandoffPayload,
+    event_bus: &EventBus,
+) -> Result<(), HandoffInvariantError> {
+    validate_handoff_invariants(payload)?;
     let to_str = payload
         .to_agent
         .map(|a| a.to_string())
@@ -231,6 +255,7 @@ pub fn execute_handoff(payload: &HandoffPayload, event_bus: &EventBus) {
         to: payload.to_agent.unwrap_or(AgentId(0)),
         plan_summary: payload.plan_summary.clone(),
     });
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +313,7 @@ mod tests {
         let mut rx = bus.subscribe();
 
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "Test handoff");
-        execute_handoff(&payload, &bus);
+        execute_handoff(&payload, &bus).expect("handoff invariants");
 
         // Event should be in the channel
         let event = rx.try_recv().expect("should have event");
@@ -299,6 +324,15 @@ mod tests {
             }
             _ => panic!("wrong event type"),
         }
+    }
+
+    #[test]
+    fn handoff_pending_requires_verification() {
+        let bus = EventBus::new(4);
+        let payload =
+            HandoffPayload::new(AgentId(1), None, "Work left").with_pending(vec![TaskId(1)]);
+        let err = execute_handoff(&payload, &bus).unwrap_err();
+        assert_eq!(err, HandoffInvariantError::MissingVerificationCriteria);
     }
 
     #[test]

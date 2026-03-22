@@ -21,35 +21,59 @@ use tracing::{info, warn};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SecurityAction {
-    ReadFile { path_glob: String },
-    WriteFile { path_glob: String },
+    /// Read files matching a glob (repo-relative patterns).
+    ReadFile {
+        /// Glob pattern describing readable paths.
+        path_glob: String,
+    },
+    /// Create or overwrite files matching a glob.
+    WriteFile {
+        /// Glob pattern describing writable paths.
+        path_glob: String,
+    },
+    /// Run shell commands on the host.
     ExecShell,
-    NetworkRequest { domain_glob: String },
+    /// Open outbound HTTP(S) to matching domains.
+    NetworkRequest {
+        /// Glob for allowed hostnames.
+        domain_glob: String,
+    },
+    /// Query Codex / Turso read APIs.
     DbRead,
+    /// Mutate Codex / Turso state.
     DbWrite,
+    /// Spawn additional orchestrator agents.
     SpawnAgent,
+    /// Terminate running agents.
     KillAgent,
+    /// Touch secret providers or env material.
     AccessSecrets,
 }
 
 /// A policy rule — either allow or deny an action.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyRule {
+    /// Action this rule applies to (exact match against requests).
     pub action: SecurityAction,
+    /// Whether matching requests are approved.
     pub allow: bool,
+    /// Explanation stored in audit logs.
     pub reason: String,
 }
 
 /// Security policy for an agent or skill.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityPolicy {
+    /// Policy name referenced by `SecurityGuard::check`.
     pub id: String,
+    /// Ordered rules evaluated before the default.
     pub rules: Vec<PolicyRule>,
     /// Default action when no rule matches
     pub default_allow: bool,
 }
 
 impl SecurityPolicy {
+    /// Deny-by-default policy with no rules yet.
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -67,6 +91,7 @@ impl SecurityPolicy {
         }
     }
 
+    /// Appends an allow rule (last match wins when iterating in `check`).
     pub fn allow(mut self, action: SecurityAction, reason: impl Into<String>) -> Self {
         self.rules.push(PolicyRule {
             action,
@@ -76,6 +101,7 @@ impl SecurityPolicy {
         self
     }
 
+    /// Appends an explicit deny rule for the given action template.
     pub fn deny(mut self, action: SecurityAction, reason: impl Into<String>) -> Self {
         self.rules.push(PolicyRule {
             action,
@@ -115,6 +141,7 @@ pub struct SecurityGuard {
 }
 
 impl SecurityGuard {
+    /// Starts with no policies or rate limiters configured.
     pub fn new() -> Self {
         Self {
             policies: Mutex::new(HashMap::new()),
@@ -122,6 +149,7 @@ impl SecurityGuard {
         }
     }
 
+    /// Inserts or replaces a policy keyed by its `id`.
     pub fn set_policy(&self, policy: SecurityPolicy) {
         let id = policy.id.clone();
         self.policies
@@ -130,6 +158,7 @@ impl SecurityGuard {
             .insert(id, policy);
     }
 
+    /// Clones a registered policy, if present.
     pub fn get_policy(&self, id: &str) -> Option<SecurityPolicy> {
         self.policies
             .lock()
@@ -223,18 +252,27 @@ impl RateLimiter {
 /// An audit log entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEntry {
+    /// Agent subject (string form for log export).
     pub agent_id: String,
+    /// Action label that was evaluated.
     pub action: String,
+    /// Outcome of the policy check.
     pub result: AuditResult,
+    /// Matching rule reason or failure explanation.
     pub reason: String,
+    /// When the decision was recorded (Unix ms).
     pub timestamp_ms: u64,
 }
 
+/// High-level decision attached to [`AuditEntry`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AuditResult {
+    /// Request proceeded.
     Allowed,
+    /// Policy explicitly rejected the action.
     Denied,
+    /// Rate limiter short-circuited before policy evaluation completed.
     RateLimited,
 }
 
@@ -255,6 +293,7 @@ pub struct AuditLog {
 }
 
 impl AuditLog {
+    /// Ring buffer retaining the newest `capacity` security events.
     pub fn new(capacity: usize) -> Self {
         Self {
             entries: Mutex::new(VecDeque::with_capacity(capacity)),
@@ -262,6 +301,7 @@ impl AuditLog {
         }
     }
 
+    /// Appends an entry, evicting the oldest when full, and emits tracing.
     pub fn record(&self, entry: AuditEntry) {
         let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
         if entries.len() >= self.capacity {
@@ -285,11 +325,13 @@ impl AuditLog {
         entries.push_back(entry);
     }
 
+    /// Newest-first slice of up to `n` items.
     pub fn recent(&self, n: usize) -> Vec<AuditEntry> {
         let entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
         entries.iter().rev().take(n).cloned().collect()
     }
 
+    /// Number of stored entries whose result is [`AuditResult::Denied`].
     pub fn denied_count(&self) -> usize {
         let entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
         entries
@@ -298,10 +340,12 @@ impl AuditLog {
             .count()
     }
 
+    /// Current number of retained audit rows.
     pub fn len(&self) -> usize {
         self.entries.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
+    /// True when no entries are stored.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

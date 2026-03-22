@@ -4,9 +4,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::SkillError;
 use crate::bundle::VoxSkillBundle;
 use crate::manifest::SkillManifest;
-use crate::SkillError;
 
 /// A search result from the Vox Skills registry.
 #[derive(Debug, Clone, Serialize, Deserialize)]

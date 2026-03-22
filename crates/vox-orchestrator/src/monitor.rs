@@ -1,3 +1,8 @@
+//! Bridges heartbeats to [`ContinuationEngine`] for idle-agent nudges.
+//!
+//! [`AiMonitor`] tracks last activity timestamps and asks the continuation
+//! layer to emit prompts when agents sit idle past a threshold.
+
 use std::collections::HashMap;
 use std::time::Duration;
 // Removed unused Mutex, Arc
@@ -15,6 +20,7 @@ pub struct AiMonitor {
 }
 
 impl AiMonitor {
+    /// Configures continuation cooldown, max auto-nudges per agent, and idle detection window.
     pub fn new(cooldown_ms: u64, max_auto_continuations: u32, idle_threshold_ms: u64) -> Self {
         Self {
             engine: ContinuationEngine::new(cooldown_ms, max_auto_continuations),

@@ -1,9 +1,10 @@
 # Vox Orchestrator — Coordination Layer
 
-The Vox Orchestrator is a long-running Rust daemon exposed over MCP. It is the **single source
-of truth** for all agent coordination, session state, memory, VCS history, and budget.
+The **orchestrator** is the in-process Rust library in `crates/vox-orchestrator`. The default agent stack exposes it through **`vox-mcp`**, a Model Context Protocol **stdio server** that constructs `ServerState` and embeds an `Orchestrator` — not a separate always-on network daemon.
 
-It is **backend-agnostic**: VS Code, `vox` CLI, and CI systems all call the same MCP API.
+VS Code, `vox` CLI helpers, and CI attach to **`vox-mcp`** over MCP; tests and other binaries may also construct an `Orchestrator` directly.
+
+**Authoritative MCP tool names + descriptions:** `crates/vox-mcp/src/tools/mod.rs` → `TOOL_REGISTRY`. The grouped lists below are for humans and may lag that array when new tools land.
 
 ## Sole Responsibilities
 
@@ -21,63 +22,58 @@ It is **backend-agnostic**: VS Code, `vox` CLI, and CI systems all call the same
 | Security gate | Permission checks before dangerous operations |
 | Event bus | Broadcasts events to all subscribed clients |
 
+## Socrates (grounding & completion gate)
+
+- **Policy SSOT** — `vox_socrates_policy::ConfidencePolicy` (crate `vox-socrates-policy`); thresholds must match TOESTUB review and MCP surfaces.
+- **Task metadata** — `AgentTask.socrates` (`SocratesTaskContext`: factual mode, citation counts, contradiction hints). When `socrates_gate_enforce` is on, `complete_task` may requeue if the gate returns `Ask` / `Abstain`. `socrates_gate_shadow` logs decisions only.
+- **Env** — `VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW`, `VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE`, `VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING`.
+- **Reliability** — Arca schema V10 `agent_reliability`; successful/failed tasks update EMA when a `CodeStore` is wired; optional routing blend via `socrates_reputation_routing`.
+- **Handoffs** — `validate_handoff_invariants` / `execute_handoff`: non-empty `pending_tasks` requires non-empty `verification_criteria`.
+
+See `docs/src/architecture/socrates-protocol-ssot.md` and ADR 005.
+
 ## Does NOT Own
 
-- Compilation, formatting, type-checking → delegated to `vox` CLI
-- TOESTUB analysis → delegated to `vox stub-check` CLI
-- Training → delegated to `vox train --native`
-- Inference → delegated to `vox generate`
+- Compilation, formatting, type-checking → surfaced via MCP compiler/git helpers and CLI integration (see `TOOL_REGISTRY` and `crates/vox-mcp/src/tools/compiler_tools.rs`).
+- TOESTUB analysis → `bash scripts/quality/toestub_scoped.sh` or `cargo run -p vox-toestub --bin toestub -- <PATH>`; optional `vox stub-check` when built with **`--features stub-check`** (see `docs/src/ref-cli.md`).
+- Populi **native LoRA** training → **`vox populi train`** (`vox-populi`); not orchestrator core.
+- Inference / codegen → `vox generate` and related CLI surfaces where enabled.
 
-All delegation is done by shelling out to the `vox` binary and returning structured results.
+Some MCP tools spawn subprocesses (`cargo`, `git`, etc.); behavior is **per tool** — do not assume every capability shells out to a single monolithic `vox` invocation.
 
-## Crate Layout (`crates/vox-orchestrator/src/`)
+## Crate layout (`crates/vox-orchestrator/src/`)
 
-```
-orchestrator/
-  core.rs           ← OrchestratorCore struct, startup, shutdown
-  task_dispatch.rs  ← queue, scheduling, file-affinity routing
-  agent_state.rs    ← agent registration, heartbeat, mood/XP
-  tool_bridge.rs    ← delegates to CLI (cargo invocations, vox binary)
-  vcs_ops.rs        ← snapshot, oplog, undo/redo
-a2a.rs              ← agent-to-agent messaging
-affinity.rs         ← file affinity scoring
-budget.rs           ← cost tracking and limits
-bulletin.rs         ← broadcast event bus
-compaction.rs       ← session memory compaction
-config.rs           ← runtime config (sourced from vox-config)
-context.rs          ← per-agent context slots
-events.rs           ← typed EventBus
-handoff.rs          ← structured handoff payloads
-heartbeat.rs        ← agent keepalive
-locks.rs            ← file lock arbitration
-memory.rs           ← agent memory store
-memory_search.rs    ← semantic/BM25 memory search
-models.rs           ← model registry, routing
-oplog.rs            ← VCS change log
-queue.rs            ← task queue implementation
-rebalance.rs        ← queue rebalancing logic
-runtime.rs          ← async runtime wiring
-schema.rs           ← DB schema migrations
-scope.rs            ← scope violation guard
-security.rs         ← permission gate
-session.rs          ← session CRUD and compaction triggers
-snapshot.rs         ← DB snapshot create/restore
-state.rs            ← global shared state
-summary.rs          ← agent summary generation
-types.rs            ← shared type definitions
-usage.rs            ← provider usage counters
-validation.rs       ← input validation helpers
-workspace.rs        ← workspace management
-```
+Modules live **flat** under `src/` (there is no nested `orchestrator/` package). Principal files:
+
+| File / directory | Role |
+|------------------|------|
+| `lib.rs` | Crate root |
+| `orchestrator.rs` | Core orchestrator API |
+| `types.rs` | Shared task/agent types |
+| `queue.rs`, `affinity.rs`, `rebalance.rs` | Task queue & routing |
+| `locks.rs` | File lock arbitration |
+| `session.rs`, `compaction.rs` | Sessions & compaction |
+| `memory.rs`, `memory_search.rs` | Memory & hybrid search |
+| `events.rs`, `bulletin.rs` | Event bus / broadcasts |
+| `a2a.rs` | Agent-to-agent messaging |
+| `budget.rs`, `usage.rs` | Cost & usage |
+| `handoff.rs`, `context.rs` | Handoffs & context |
+| `oplog.rs`, `snapshot.rs`, `jj_backend.rs`, `workspace.rs`, `conflicts.rs` | VCS-inspired flows |
+| `security.rs`, `gate.rs`, `socrates.rs` | Permissions & Socrates gate |
+| `config.rs`, `state.rs`, `runtime.rs`, `schema.rs` | Config & persistence |
+| `services/` | Embeddings, routing, policy, gateway, scaling |
+| Other | `lsp.rs`, `monitor.rs`, `models.rs`, `qa.rs`, `continuation.rs`, `groups.rs`, `heartbeat.rs`, `summary.rs`, `scope.rs`, `validation.rs`, … — see tree in repo |
 
 ## MCP Tool Reference
+
+Grouped for readability only — **names and descriptions** must match `TOOL_REGISTRY` in `vox-mcp`.
 
 ### Task & Orchestration
 `vox_submit_task`, `vox_task_status`, `vox_complete_task`, `vox_fail_task`, `vox_cancel_task`,
 `vox_orchestrator_status`, `vox_orchestrator_start`, `vox_rebalance`, `vox_agent_events`, `vox_poll_events`
 
-### VS Code Bridge
-`vox_map_vscode_session`, `vox_record_cost`, `vox_heartbeat`, `vox_cost_history`
+### Session ↔ orchestrator bridge
+`vox_map_agent_session`, `vox_record_cost`, `vox_heartbeat`, `vox_cost_history`
 
 ### File & Affinity
 `vox_check_file_owner`, `vox_my_files`, `vox_claim_file`, `vox_transfer_file`, `vox_file_graph`
@@ -125,7 +121,7 @@ workspace.rs        ← workspace management
 `vox_git_log`, `vox_git_diff`, `vox_git_status`, `vox_git_blame`
 
 ### Config
-`vox_get_config`
+`vox_config_get` (wire alias: `vox_get_config`)
 
 ### Bulletin
 `vox_publish_message`

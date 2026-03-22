@@ -22,20 +22,27 @@ pub struct CanonicalizedPrompt {
 /// A single objective extracted from a prompt.
 #[derive(Debug, Clone)]
 pub struct Objective {
+    /// Objective text extracted from the prompt.
     pub text: String,
+    /// Optional hint for prioritization UI or routing.
     pub priority_hint: Option<String>,
 }
 
 /// A detected conflict between two instructions.
 #[derive(Debug, Clone)]
 pub struct Conflict {
+    /// First conflicting instruction snippet.
     pub left: String,
+    /// Second conflicting instruction snippet.
     pub right: String,
+    /// Short heuristic explanation of the suspected clash.
     pub description: String,
 }
 
+/// Failure from the optional safety pass over user prompts.
 #[derive(Debug, Error)]
 pub enum SafetyError {
+    /// Prompt matched a disallowed injection-style pattern.
     #[error("Prompt rejected by safety pass: {0}")]
     Rejected(String),
 }

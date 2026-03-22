@@ -48,7 +48,10 @@ pub struct CacheManifest {
 /// Outcome of a cache lookup.
 pub enum CacheLookup {
     /// Cached artifacts exist; the path points to the artifact directory.
-    Hit { artifact_dir: PathBuf, manifest: CacheManifest },
+    Hit {
+        artifact_dir: PathBuf,
+        manifest: CacheManifest,
+    },
     /// No cached artifacts. The caller should build and then call `record_build`.
     Miss { input_hash: String },
 }
@@ -113,11 +116,18 @@ impl ArtifactCache {
                 .ok()
                 .and_then(|s| serde_json::from_str::<CacheManifest>(&s).ok())
             {
-                Some(manifest) => CacheLookup::Hit { artifact_dir, manifest },
-                None => CacheLookup::Miss { input_hash: input_hash.to_string() },
+                Some(manifest) => CacheLookup::Hit {
+                    artifact_dir,
+                    manifest,
+                },
+                None => CacheLookup::Miss {
+                    input_hash: input_hash.to_string(),
+                },
             }
         } else {
-            CacheLookup::Miss { input_hash: input_hash.to_string() }
+            CacheLookup::Miss {
+                input_hash: input_hash.to_string(),
+            }
         }
     }
 
@@ -150,8 +160,7 @@ impl ArtifactCache {
             files: file_names,
         };
 
-        let manifest_json = serde_json::to_string_pretty(&manifest)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let manifest_json = serde_json::to_string_pretty(&manifest).map_err(io::Error::other)?;
         fs::write(self.manifest_path(input_hash), manifest_json)?;
 
         Ok(artifact_dir)
@@ -240,7 +249,10 @@ mod tests {
 
         // Now it should be a hit
         match cache.lookup(hash) {
-            CacheLookup::Hit { manifest, artifact_dir } => {
+            CacheLookup::Hit {
+                manifest,
+                artifact_dir,
+            } => {
                 assert_eq!(manifest.input_hash, hash);
                 assert_eq!(manifest.description, "test build");
                 assert!(artifact_dir.join("output.js").exists());
@@ -255,8 +267,10 @@ mod tests {
         let file_a = tmp.path().join("a.vox");
         fs::write(&file_a, b"component Foo {}").unwrap();
 
-        let h1 = ArtifactCache::compute_input_hash(&[file_a.clone()], &["extra"]).unwrap();
-        let h2 = ArtifactCache::compute_input_hash(&[file_a], &["extra"]).unwrap();
+        let h1 =
+            ArtifactCache::compute_input_hash(std::slice::from_ref(&file_a), &["extra"]).unwrap();
+        let h2 =
+            ArtifactCache::compute_input_hash(std::slice::from_ref(&file_a), &["extra"]).unwrap();
         assert_eq!(h1, h2, "Same inputs must produce same hash");
     }
 
@@ -265,10 +279,10 @@ mod tests {
         let tmp = tempdir().unwrap();
         let file = tmp.path().join("main.vox");
         fs::write(&file, b"component A {}").unwrap();
-        let h1 = ArtifactCache::compute_input_hash(&[file.clone()], &[]).unwrap();
+        let h1 = ArtifactCache::compute_input_hash(std::slice::from_ref(&file), &[]).unwrap();
 
         fs::write(&file, b"component B {}").unwrap();
-        let h2 = ArtifactCache::compute_input_hash(&[file], &[]).unwrap();
+        let h2 = ArtifactCache::compute_input_hash(std::slice::from_ref(&file), &[]).unwrap();
         assert_ne!(h1, h2, "Different content must produce different hash");
     }
 

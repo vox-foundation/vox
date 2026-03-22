@@ -16,7 +16,9 @@ pub enum RestartStrategy {
 
 /// Specification for a supervised child process.
 pub struct ChildSpec {
+    /// Child name for logging and restart correlation.
     pub name: String,
+    /// Factory that spawns a fresh [`ProcessHandle`] when (re)starting the child.
     pub start: Box<dyn Fn() -> ProcessHandle + Send + Sync>,
 }
 
@@ -35,6 +37,7 @@ struct ChildEntry {
 }
 
 impl Supervisor {
+    /// Creates a supervisor with the given restart strategy and default restart cap.
     pub fn new(strategy: RestartStrategy) -> Self {
         Self {
             strategy,
@@ -43,6 +46,7 @@ impl Supervisor {
         }
     }
 
+    /// Sets how many consecutive restarts are allowed per child before giving up.
     pub fn max_restarts(mut self, count: u32) -> Self {
         self.max_restarts = count;
         self

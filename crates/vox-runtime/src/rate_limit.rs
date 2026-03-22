@@ -37,7 +37,10 @@ impl RateLimiter {
     /// Returns true if this key can proceed in the current window.
     pub fn allow(&self, key: &str) -> bool {
         let now = Instant::now();
-        let mut buckets = self.buckets.lock().expect("rate-limit lock poisoned");
+        let mut buckets = self
+            .buckets
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let entries = buckets.entry(key.to_string()).or_default();
         entries.retain(|instant| now.duration_since(*instant) <= self.window);
         if entries.len() >= self.max_requests {

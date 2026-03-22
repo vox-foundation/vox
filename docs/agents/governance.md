@@ -4,28 +4,48 @@ The Vox codebase enforces architectural health automatically using the TOESTUB e
 
 ## Running TOESTUB
 
+**CI / agents (canonical)** — no `vox` feature gate; calls the `toestub` binary directly:
+
 ```bash
-vox toestub self               # scan the entire Vox workspace
-vox stub-check --path .        # equivalent
-vox stub-check --severity error # only show errors/criticals
-vox stub-check --fix           # generate AI fix suggestions
+bash scripts/quality/toestub_scoped.sh                    # default root: crates/vox-repository
+cargo run -p vox-toestub --bin toestub -- <PATH>         # explicit scan root
 ```
 
-In CI, `vox stub-check` exits 1 if any error-level findings are present.
+**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`docs/src/ref-cli.md`](../src/ref-cli.md#vox-stub-check-feature-stub-check)):
+
+```bash
+cargo build -p vox-cli --features stub-check
+vox stub-check --path .                    # or positional PATH / `-p`
+vox stub-check --severity error            # only errors and critical
+# Fix suggestions: `--suggest-fixes` (default true); there is no `--fix` flag
+```
+
+GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in `ref-cli.md`).
 
 ## Enforced Rules
 
-| Rule ID | Description | Severity |
+TOESTUB rule IDs are emitted as shown below (see `crates/vox-toestub/src/detectors/`). Policy names in prose map to these IDs.
+
+| Rule ID (TOESTUB) | Description | Default severity |
 |---|---|---|
-| `no-todo` | `todo!()`, `unimplemented!()`, `fixme` in production code | Error |
-| `no-magic-values` | Raw numeric literals > 3 digits inline | Warning |
-| `no-empty-body` | Empty function bodies without `todo!` | Error |
-| `god-object` | Files > 500 lines or structs > 12 methods | Warning |
-| `sprawl-guard` | Directories > 20 files | Warning |
-| `no-generic-names` | Files named `utils.rs`, `helpers.ts`, `misc.*` | Warning |
-| `dry-violation` | Near-duplicate blocks (≥ 5 lines, 90% similar) | Warning |
-| `victory-claim` | Comments like "// solved", "// done", "// fixed" | Info |
-| `schema-compliance` | New crate paths not in `vox-schema.json` | Error |
+| `arch/stub` | Registry id; emitted findings use `stub/todo`, `stub/unimplemented`, … | Error / Warning |
+| `arch/empty_body` | Empty or trivial function bodies | Warning |
+| `magic-value/*` | Suspicious literals (ports, long strings, large ints); some sub-ids are Error | Warning |
+| `victory-claim` | “Done / solved / fixed” style comments | Warning (`victory-claim/hack` is Info) |
+| `arch/unwired` | Declared modules never wired (`unwired/module` findings) | Warning |
+| `dry-violation` | Near-duplicate blocks (heuristic) | Warning |
+| `unresolved-ref` | Likely undefined symbols in-file (heuristic) | Info |
+| `deprecated-usage` | `@deprecated` in Vox sources | Warning |
+| `security/hardcoded-secret` | High-entropy / credential-shaped literals | Error |
+| `arch/god_object` | Oversized files / high method count | Error |
+| `arch/sprawl` | Forbidden generic filenames + directory file-count sprawl | Error (forbidden names); Warning (directory sprawl) |
+| `arch/schema_compliance` | Paths vs `vox-schema.json` | Error (when schema path configured) |
+| `arch/organization` | Bloated `lib.rs` / type-dump organization | Warning |
+| `stringly-typed-enum` | String fields with enum-like comment lists | Warning |
+| `rust/unwrap-call` | Heuristic `.unwrap()` nudge (skips common test paths) | Info |
+| `cross-platform/line-endings` | CR / CRLF in scanned sources vs LF policy (finding id `cross-platform/crlf`) | Warning |
+
+**CI parity:** hard gate is **`vox ci line-endings`** (forward-only diff); see [runner contract](../src/ci/runner-contract.md#line-endings-cross-platform).
 
 ## God Object Lock
 
@@ -63,7 +83,7 @@ All files must have a specific, meaningful name tied to their domain.
 ## Schema Compliance
 
 All new crate definitions and path conventions must be registered in `vox-schema.json`
-at the workspace root before the file is created. The `schema-compliance` TOESTUB rule
+at the workspace root before the file is created. The `arch/schema_compliance` TOESTUB rule
 enforces this.
 
 ## Vox Quality Rules (Code Review Checklist)
@@ -77,6 +97,7 @@ Before marking any PR or task complete, verify:
 - [ ] `cargo check --workspace` passes with zero errors
 - [ ] `vox stub-check` finds no Error/Critical severity issues
 - [ ] `cargo clippy` (or equivalent) shows no denies
+- [ ] Changed LF-policy files have no CR/CRLF (`vox ci line-endings`; `*.ps1` exempt)
 
 ## Agent Scope Rules
 

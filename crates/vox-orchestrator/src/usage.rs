@@ -6,15 +6,38 @@
 //! - Shared budget awareness across agents (via Turso sync)
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
+
+/// Default `retry_after_secs` when a provider row is marked rate-limited ([`BudgetGate`](crate::gate::BudgetGate)).
+pub const DEFAULT_RATE_LIMIT_RETRY_SECS: u64 = 60;
 
 /// Known daily rate limits per provider (free tier, March 2026).
 const LIMITS: &[ProviderLimit] = &[
-    ProviderLimit { provider: "google", model: "gemini-2.0-flash-lite", daily_limit: 1000 },
-    ProviderLimit { provider: "google", model: "gemini-2.5-flash-preview", daily_limit: 250 },
-    ProviderLimit { provider: "google", model: "gemini-2.5-pro", daily_limit: 100 },
-    ProviderLimit { provider: "openrouter", model: ":free", daily_limit: 50 },
-    ProviderLimit { provider: "ollama", model: "*", daily_limit: u32::MAX },
+    ProviderLimit {
+        provider: "google",
+        model: "gemini-2.0-flash-lite",
+        daily_limit: 1000,
+    },
+    ProviderLimit {
+        provider: "google",
+        model: "gemini-2.5-flash-preview",
+        daily_limit: 250,
+    },
+    ProviderLimit {
+        provider: "google",
+        model: "gemini-2.5-pro",
+        daily_limit: 100,
+    },
+    ProviderLimit {
+        provider: "openrouter",
+        model: ":free",
+        daily_limit: 50,
+    },
+    ProviderLimit {
+        provider: "ollama",
+        model: "*",
+        daily_limit: u32::MAX,
+    },
 ];
 
 struct ProviderLimit {
@@ -23,71 +46,116 @@ struct ProviderLimit {
     daily_limit: u32,
 }
 
+/// Keys rows in `provider_usage` / [`LIMITS`] for gating and accounting (not the API model slug).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct LlmUsageKey {
+    /// Provider namespace matching [`LIMITS`] (`google`, `openrouter`, `ollama`).
+    pub provider: String,
+    /// Model id or aggregate bucket (`:free` for all OpenRouter free models, `*` for Ollama).
+    pub model: String,
+}
+
 /// A single day's usage record for a provider+model pair.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageRecord {
+    /// Billing partition (per-user or `global`).
     pub user_id: String,
+    /// Provider slug stored in Codex.
     pub provider: String,
+    /// Model id within the provider.
     pub model: String,
+    /// UTC day key (`YYYY-MM-DD`) used for aggregation.
     pub date: String,
+    /// Number of API calls on that day.
     pub calls: u32,
+    /// Sum of prompt tokens for the day.
     pub tokens_in: u64,
+    /// Sum of completion tokens for the day.
     pub tokens_out: u64,
+    /// Running cost in USD for the day.
     pub cost_usd: f64,
+    /// True after a provider returns HTTP 429.
     pub is_rate_limited: bool,
+    /// Unix seconds of the most recent 429, if any.
     pub last_429: Option<i64>,
 }
 
 /// Remaining budget for a provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemainingBudget {
+    /// Provider namespace.
     pub provider: String,
+    /// Model id evaluated against `LIMITS`.
     pub model: String,
+    /// Calls already consumed today.
     pub calls_used: u32,
+    /// Configured daily ceiling from static tables.
     pub daily_limit: u32,
+    /// `daily_limit.saturating_sub(calls_used)` unless rate limited.
     pub remaining: u32,
+    /// Spend attributed to this pair today.
     pub cost_today: f64,
+    /// Whether routing should deprioritize this pair.
     pub rate_limited: bool,
 }
 
 /// Provider recommendation with reasoning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderRecommendation {
+    /// Suggested provider to call next.
     pub provider: String,
+    /// Suggested model id.
     pub model: String,
+    /// Estimated calls left today.
     pub remaining: u32,
+    /// Why this pair was chosen or skipped.
     pub reason: String,
 }
 
 /// Cost summary over a time period.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostSummary {
+    /// Calls summed across all providers in the window.
     pub total_calls: u32,
+    /// Aggregate USD spend.
     pub total_cost_usd: f64,
+    /// Per-provider breakdown rows.
     pub by_provider: Vec<ProviderCost>,
 }
 
+/// One row in [`CostSummary::by_provider`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCost {
+    /// Provider slug.
     pub provider: String,
+    /// Calls attributed to the provider.
     pub calls: u32,
+    /// USD attributed to the provider.
     pub cost_usd: f64,
 }
 
 /// Tracks API usage per provider in VoxDB.
 pub struct UsageTracker<'a> {
     db: &'a vox_db::VoxDb,
+    /// Tenant key persisted with usage rows (`global` unless overridden).
     pub user_id: String,
 }
 
 impl<'a> UsageTracker<'a> {
     /// Create a new tracker backed by a borrowed VoxDB instance.
     pub fn new_ref(db: &'a vox_db::VoxDb) -> Self {
-        Self { db, user_id: "global".to_string() }
+        Self {
+            db,
+            user_id: "global".to_string(),
+        }
     }
 
+    /// Same as [`Self::new_ref`] but scopes persisted rows to `user_id`.
     pub fn with_user(db: &'a vox_db::VoxDb, user_id: &str) -> Self {
-        Self { db, user_id: user_id.to_string() }
+        Self {
+            db,
+            user_id: user_id.to_string(),
+        }
     }
 
     fn today() -> String {
@@ -135,12 +203,16 @@ impl<'a> UsageTracker<'a> {
             let tin = doc["tokens_in"].as_u64().unwrap_or(0) + tokens_in;
             let tout = doc["tokens_out"].as_u64().unwrap_or(0) + tokens_out;
             let cost = doc["cost_usd"].as_f64().unwrap_or(0.0) + cost_usd;
-            col.patch(id, &json!({
-                "calls": calls,
-                "tokens_in": tin,
-                "tokens_out": tout,
-                "cost_usd": cost,
-            })).await?;
+            col.patch(
+                id,
+                &json!({
+                    "calls": calls,
+                    "tokens_in": tin,
+                    "tokens_out": tout,
+                    "cost_usd": cost,
+                }),
+            )
+            .await?;
         } else {
             col.insert(&json!({
                 "user_id": self.user_id,
@@ -153,7 +225,8 @@ impl<'a> UsageTracker<'a> {
                 "cost_usd": cost_usd,
                 "is_rate_limited": false,
                 "last_429": Value::Null,
-            })).await?;
+            }))
+            .await?;
         }
         Ok(())
     }
@@ -182,7 +255,8 @@ impl<'a> UsageTracker<'a> {
 
         let existing = col.find(&filter).await?;
         if let Some((id, _)) = existing.into_iter().next() {
-            col.patch(id, &json!({"is_rate_limited": true, "last_429": now})).await?;
+            col.patch(id, &json!({"is_rate_limited": true, "last_429": now}))
+                .await?;
         } else {
             col.insert(&json!({
                 "user_id": self.user_id,
@@ -195,7 +269,8 @@ impl<'a> UsageTracker<'a> {
                 "cost_usd": 0.0,
                 "is_rate_limited": true,
                 "last_429": now,
-            })).await?;
+            }))
+            .await?;
         }
         Ok(())
     }
@@ -228,7 +303,9 @@ impl<'a> UsageTracker<'a> {
     }
 
     /// Get remaining budget for all known providers today.
-    pub async fn remaining_all(&self) -> Result<Vec<RemainingBudget>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn remaining_all(
+        &self,
+    ) -> Result<Vec<RemainingBudget>, Box<dyn std::error::Error + Send + Sync>> {
         let col = self.db.collection("provider_usage");
         col.ensure_table().await?;
 
@@ -325,7 +402,9 @@ impl<'a> UsageTracker<'a> {
     }
 
     /// Cost summary for today.
-    pub async fn cost_summary_today(&self) -> Result<CostSummary, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn cost_summary_today(
+        &self,
+    ) -> Result<CostSummary, Box<dyn std::error::Error + Send + Sync>> {
         let col = self.db.collection("provider_usage");
         col.ensure_table().await?;
 

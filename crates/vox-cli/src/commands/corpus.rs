@@ -4,6 +4,7 @@
 //! - `extract` — walk .vox files, emit JSONL corpus
 //! - `validate` — re-check entries, dedup, print coverage
 //! - `pairs` — generate instruction→response training pairs
+//! - `mix` — merge sources per `populi/config/mix.yaml`
 //! - `prompt` — auto-generate system prompt from construct reference
 
 use anyhow::Result;
@@ -63,21 +64,227 @@ pub enum CorpusAction {
         /// Output eval results JSON
         #[arg(short, long, default_value = "target/dogfood/eval_results.json")]
         output: std::path::PathBuf,
+        /// Print one machine-readable summary line to stdout (for CI logs).
+        #[arg(long)]
+        print_summary: bool,
+    },
+    /// Merge corpus sources defined in a mix config (same as `vox populi train` preflight)
+    Mix {
+        /// Path to mix YAML (default: `populi/config/mix.yaml`)
+        #[arg(long, default_value = "populi/config/mix.yaml")]
+        config: std::path::PathBuf,
     },
 }
 
 pub async fn run(action: CorpusAction) -> Result<()> {
     match action {
         CorpusAction::Extract { dir, output } => run_extract(&dir, &output).await,
-        CorpusAction::Validate { input, output, no_recheck } => {
+        CorpusAction::Validate {
+            input,
+            output,
+            no_recheck,
+        } => {
             let out = output.as_deref().unwrap_or(&input);
             run_validate(&input, out, !no_recheck).await
         }
-        CorpusAction::Pairs { input, output, docs } => {
-            run_pairs(&input, &output, docs.as_deref()).await
-        }
+        CorpusAction::Pairs {
+            input,
+            output,
+            docs,
+        } => run_pairs(&input, &output, docs.as_deref()).await,
         CorpusAction::Prompt { output } => run_prompt(&output),
-        CorpusAction::Eval { input, output } => run_eval(&input, &output).await,
+        CorpusAction::Eval {
+            input,
+            output,
+            print_summary,
+        } => run_eval(&input, &output, print_summary).await,
+        CorpusAction::Mix { config } => vox_corpus::corpus::run_mix(&config),
+    }
+}
+
+/// Aggregated quality metrics for a training JSONL file (fractions 0.0–1.0).
+#[cfg(all(feature = "populi-dei", feature = "gpu"))]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TrainEvalMetrics {
+    /// Fraction of rows whose `response` parses without frontend errors.
+    pub parse_rate: f64,
+    /// Fraction of the construct taxonomy covered by parsed samples.
+    pub coverage_pct: f64,
+}
+
+struct EvalScan {
+    total: usize,
+    format_valid: u32,
+    safety_rejected: u32,
+    parse_passed: u32,
+    construct_hits: HashSet<String>,
+}
+
+fn scan_train_jsonl(path: &Path) -> Result<EvalScan> {
+    let content = std::fs::read_to_string(path)?;
+    let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
+
+    let mut format_valid = 0u32;
+    let mut safety_rejected = 0u32;
+    let mut parse_passed = 0u32;
+    let mut construct_hits: HashSet<String> = HashSet::new();
+
+    let safety_patterns = [
+        "ignore previous instructions",
+        "ignore all above",
+        "disregard your instructions",
+        "you are now",
+        "new instructions:",
+    ];
+
+    for line in &lines {
+        let record: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let response = record
+            .get("response")
+            .or_else(|| record.get("output"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        if !response.trim().is_empty() {
+            format_valid += 1;
+        }
+
+        let lower = response.to_lowercase();
+        if safety_patterns.iter().any(|p| lower.contains(p)) {
+            safety_rejected += 1;
+        }
+
+        let dummy_path = Path::new("__eval__.vox");
+        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false) {
+            if !result.has_errors() {
+                parse_passed += 1;
+                for c in crate::training::extract_constructs(&result.module) {
+                    construct_hits.insert(c);
+                }
+            }
+        }
+    }
+
+    Ok(EvalScan {
+        total: lines.len(),
+        format_valid,
+        safety_rejected,
+        parse_passed,
+        construct_hits,
+    })
+}
+
+/// Compute parse rate and taxonomy coverage for `train.jsonl` (used by post-training gates).
+#[cfg(all(feature = "populi-dei", feature = "gpu"))]
+pub(crate) fn eval_metrics(train_jsonl: &Path) -> Result<TrainEvalMetrics> {
+    let s = scan_train_jsonl(train_jsonl)?;
+    let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
+    let coverage = s
+        .construct_hits
+        .iter()
+        .filter(|x| taxonomy.contains(x.as_str()))
+        .count();
+    let parse_rate = if s.total > 0 {
+        s.parse_passed as f64 / s.total as f64
+    } else {
+        0.0
+    };
+    let coverage_pct = if taxonomy.is_empty() {
+        0.0
+    } else {
+        coverage as f64 / taxonomy.len() as f64
+    };
+    Ok(TrainEvalMetrics {
+        parse_rate,
+        coverage_pct,
+    })
+}
+
+/// When `VOX_BENCHMARK=1` (or `true`), runs `vox populi eval-local` against a held-out bench.
+#[cfg(all(feature = "populi-dei", feature = "gpu"))]
+pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path>) -> Result<()> {
+    let enabled = std::env::var("VOX_BENCHMARK")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if !enabled {
+        return Ok(());
+    }
+
+    {
+        use anyhow::Context;
+        use std::path::PathBuf;
+        let exe = std::env::current_exe().context("resolve current exe for benchmark gate")?;
+        let base = output_dir.unwrap_or(data_dir).to_path_buf();
+
+        let model: Option<PathBuf> = std::env::var("VOX_BENCHMARK_MODEL")
+            .ok()
+            .map(PathBuf::from)
+            .or_else(|| {
+                ["model.bin", "adapter.bin", "populi_adapter.bin"]
+                    .iter()
+                    .map(|name| base.join(name))
+                    .find(|p| p.is_file())
+            });
+
+        let Some(model) = model else {
+            tracing::warn!(
+                "VOX_BENCHMARK=1 but no checkpoint found under {} (set VOX_BENCHMARK_MODEL)",
+                base.display()
+            );
+            return Ok(());
+        };
+
+        let bench: PathBuf = std::env::var("VOX_BENCHMARK_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                vox_corpus::training::contract::find_workspace_root()
+                    .map(|r| r.join("populi/data/heldout_bench"))
+                    .unwrap_or_else(|| PathBuf::from("populi/data/heldout_bench"))
+            });
+
+        if !bench.is_dir() {
+            tracing::warn!(
+                bench = %bench.display(),
+                "VOX_BENCHMARK=1 but benchmark directory missing; skipping gate"
+            );
+            return Ok(());
+        }
+
+        let out_json = base.join("benchmark_gate_eval.json");
+        let status = tokio::process::Command::new(&exe)
+            .arg("populi")
+            .arg("eval-local")
+            .arg("--model")
+            .arg(&model)
+            .arg("--bench")
+            .arg(&bench)
+            .arg("-o")
+            .arg(&out_json)
+            .status()
+            .await
+            .context("spawn vox populi eval-local")?;
+
+        if !status.success() {
+            anyhow::bail!(
+                "benchmark gate failed: vox populi eval-local exited with {:?}",
+                status.code()
+            );
+        }
+        crate::benchmark_telemetry::record_opt(
+            "train_benchmark_gate",
+            None,
+            Some(serde_json::json!({
+                "model": model.to_string_lossy(),
+                "bench": bench.to_string_lossy(),
+                "out_json": out_json.to_string_lossy(),
+            })),
+        )
+        .await;
+        Ok(())
     }
 }
 
@@ -87,14 +294,18 @@ async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
     let entries = crate::training::walk_vox_files(dir);
 
     if entries.is_empty() {
-        eprintln!("{}", format!("No .vox files found in {}", dir.display()).yellow());
+        eprintln!(
+            "{}",
+            format!("No .vox files found in {}", dir.display()).yellow()
+        );
         return Ok(());
     }
 
     // ── 8.2: Incremental — load existing hashes to skip unchanged files ──
     let existing_hashes: std::collections::HashSet<String> = if output.exists() {
         let content = std::fs::read_to_string(output).unwrap_or_default();
-        content.lines()
+        content
+            .lines()
             .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
             .filter_map(|v| v.get("ast_hash").and_then(|h| h.as_str()).map(String::from))
             .collect()
@@ -104,7 +315,14 @@ async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
 
     let incremental_skipped = existing_hashes.len();
     if incremental_skipped > 0 {
-        println!("{}", format!("  ↻ Incremental mode: {} known entries, skipping unchanged files", incremental_skipped).cyan());
+        println!(
+            "{}",
+            format!(
+                "  ↻ Incremental mode: {} known entries, skipping unchanged files",
+                incremental_skipped
+            )
+            .cyan()
+        );
     }
 
     // Ensure output dir exists; open in append mode for incremental
@@ -133,7 +351,8 @@ async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
                     // Build record first to check the hash
                     match crate::training::build_training_record(&path, &result) {
                         Ok(record) => {
-                            let hash = record.get("ast_hash")
+                            let hash = record
+                                .get("ast_hash")
                                 .and_then(|h| h.as_str())
                                 .unwrap_or("")
                                 .to_string();
@@ -146,7 +365,9 @@ async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
                             if let Ok(line) = serde_json::to_string(&record) {
                                 use std::io::Write;
                                 if let Ok(mut f) = std::fs::OpenOptions::new()
-                                    .create(true).append(true).open(&*out)
+                                    .create(true)
+                                    .append(true)
+                                    .open(&*out)
                                 {
                                     let _ = writeln!(f, "{}", line);
                                     return (path, true, false);
@@ -178,7 +399,11 @@ async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
         "{}",
         format!(
             "✓ Corpus extraction: {}/{} new ({} skipped, {} failed) → {}",
-            success, total, skipped + incremental_skipped as u32, failed, output.display()
+            success,
+            total,
+            skipped + incremental_skipped as u32,
+            failed,
+            output.display()
         )
         .green()
     );
@@ -202,7 +427,10 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
     for line in &lines {
         let record: serde_json::Value = match serde_json::from_str(line) {
             Ok(v) => v,
-            Err(_) => { rejected += 1; continue; }
+            Err(_) => {
+                rejected += 1;
+                continue;
+            }
         };
 
         let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
@@ -212,7 +440,10 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
             let dummy_path = Path::new("__validate__.vox");
             match crate::pipeline::run_frontend_str(code, dummy_path, false) {
                 Ok(result) if !result.has_errors() => {}
-                _ => { rejected += 1; continue; }
+                _ => {
+                    rejected += 1;
+                    continue;
+                }
             }
         }
 
@@ -232,7 +463,8 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
     let mut seen: HashSet<String> = HashSet::new();
     let mut deduped: Vec<serde_json::Value> = Vec::new();
     for record in valid {
-        let hash = record.get("ast_hash")
+        let hash = record
+            .get("ast_hash")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
@@ -256,24 +488,34 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
 
     // Coverage report
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
-    let covered: HashSet<&str> = construct_counts.keys()
+    let covered: HashSet<&str> = construct_counts
+        .keys()
         .map(|s| s.as_str())
         .filter(|s| taxonomy.contains(s))
         .collect();
-    let uncovered: Vec<&&str> = taxonomy.iter()
-        .filter(|s| !covered.contains(**s))
-        .collect();
-    let coverage_pct = if taxonomy.is_empty() { 0.0 }
-        else { 100.0 * covered.len() as f64 / taxonomy.len() as f64 };
+    let uncovered: Vec<&&str> = taxonomy.iter().filter(|s| !covered.contains(**s)).collect();
+    let coverage_pct = if taxonomy.is_empty() {
+        0.0
+    } else {
+        100.0 * covered.len() as f64 / taxonomy.len() as f64
+    };
 
     println!("╔══════════════════════════════════════════════════╗");
     println!("║       Vox Training Data Validation Report       ║");
     println!("╠══════════════════════════════════════════════════╣");
     println!("║  Input records:     {:<28}║", total);
-    println!("║  Valid (post-check):{:<28}║", deduped.len() + rejected as usize);
+    println!(
+        "║  Valid (post-check):{:<28}║",
+        deduped.len() + rejected as usize
+    );
     println!("║  After dedup:       {:<28}║", deduped.len());
     println!("║  Rejected:          {:<28}║", rejected);
-    let cov_text = format!("{:.1}% ({}/{})", coverage_pct, covered.len(), taxonomy.len());
+    let cov_text = format!(
+        "{:.1}% ({}/{})",
+        coverage_pct,
+        covered.len(),
+        taxonomy.len()
+    );
     println!("║  Construct coverage:{:<28}║", cov_text);
     println!("╠══════════════════════════════════════════════════╣");
     if uncovered.is_empty() {
@@ -284,7 +526,10 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
             println!("║    - {:<43}║", c);
         }
         if uncovered.len() > 10 {
-            println!("║    ... and {} more                               ║", uncovered.len() - 10);
+            println!(
+                "║    ... and {} more                               ║",
+                uncovered.len() - 10
+            );
         }
     }
     println!("╚══════════════════════════════════════════════════╝");
@@ -310,13 +555,23 @@ async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Resu
         };
 
         let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
-        let source = record.get("source").and_then(|v| v.as_str()).unwrap_or("unknown");
-        let constructs: Vec<String> = record.get("constructs")
+        let source = record
+            .get("source")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        let constructs: Vec<String> = record
+            .get("constructs")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
-        if code.is_empty() { continue; }
+        if code.is_empty() {
+            continue;
+        }
 
         let name = crate::training::extract_name_from_source(code);
 
@@ -328,7 +583,9 @@ async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Resu
                 // Dedup by content hash (XXH3)
                 let combined = format!("{}|||{}", instruction, code);
                 let h = vox_runtime::builtins::vox_hash_fast(&combined);
-                if pair_hashes.contains(&h) { continue; }
+                if pair_hashes.contains(&h) {
+                    continue;
+                }
                 pair_hashes.insert(h);
 
                 let pair = serde_json::json!({
@@ -359,10 +616,7 @@ async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Resu
         // Generate negative (broken code) examples for this record
         let neg_examples = crate::training::generate_negative_examples(code);
         for (broken_code, error_desc) in neg_examples {
-            let fix_instruction = format!(
-                "Fix this broken Vox code. Error: {}",
-                error_desc
-            );
+            let fix_instruction = format!("Fix this broken Vox code. Error: {}", error_desc);
             let fix_pair = serde_json::json!({
                 "prompt": format!("{}\n\n```vox\n{}\n```", fix_instruction, broken_code),
                 "response": code,
@@ -405,11 +659,22 @@ async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Resu
     // Stats
     let mut cats: HashMap<String, u32> = HashMap::new();
     for p in &all_pairs {
-        let cat = p.get("category").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let cat = p
+            .get("category")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         *cats.entry(cat.to_string()).or_insert(0) += 1;
     }
     let neg_count = cats.get("error_correction").copied().unwrap_or(0);
-    println!("\n{}", format!("Generated {} training pairs ({} negative examples):", all_pairs.len(), neg_count).green());
+    println!(
+        "\n{}",
+        format!(
+            "Generated {} training pairs ({} negative examples):",
+            all_pairs.len(),
+            neg_count
+        )
+        .green()
+    );
     let mut sorted_cats: Vec<_> = cats.into_iter().collect();
     sorted_cats.sort_by(|a, b| b.1.cmp(&a.1));
     for (cat, count) in &sorted_cats {
@@ -418,7 +683,10 @@ async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Resu
     }
 
     // Metadata
-    let meta_path = output.parent().unwrap_or(Path::new(".")).join("metadata.json");
+    let meta_path = output
+        .parent()
+        .unwrap_or(Path::new("."))
+        .join("metadata.json");
     let meta = serde_json::json!({
         "schema_version": crate::training::SCHEMA_VERSION,
         "total_pairs": all_pairs.len(),
@@ -429,7 +697,11 @@ async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Resu
     });
     std::fs::write(&meta_path, serde_json::to_string_pretty(&meta)?)?;
 
-    println!("\n✓ Wrote {} pairs to {} (curriculum-ordered)", all_pairs.len(), output.display());
+    println!(
+        "\n✓ Wrote {} pairs to {} (curriculum-ordered)",
+        all_pairs.len(),
+        output.display()
+    );
     println!("✓ Metadata written to {}", meta_path.display());
 
     Ok(())
@@ -452,7 +724,7 @@ fn walk_md_recursive(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             walk_md_recursive(&path, out);
-        } else if path.extension().map_or(false, |e| e == "md") {
+        } else if path.extension().is_some_and(|e| e == "md") {
             out.push(path);
         }
     }
@@ -485,8 +757,10 @@ fn extract_doc_pairs(docs_dir: &Path) -> Vec<serde_json::Value> {
                 let code = code_lines.join("\n");
                 if code.len() >= 20 {
                     let instruction = if context_line.is_empty() || context_line.starts_with('#') {
-                        format!("Write Vox code as shown in {} documentation",
-                            md_file.file_stem().unwrap_or_default().to_string_lossy())
+                        format!(
+                            "Write Vox code as shown in {} documentation",
+                            md_file.file_stem().unwrap_or_default().to_string_lossy()
+                        )
                     } else {
                         context_line.trim_end_matches(':').to_string()
                     };
@@ -525,86 +799,42 @@ fn run_prompt(output: &Path) -> Result<()> {
     std::fs::write(output, &prompt)?;
 
     println!("✓ System prompt written to {}", output.display());
-    println!("  {} characters, {} lines", prompt.len(), prompt.lines().count());
+    println!(
+        "  {} characters, {} lines",
+        prompt.len(),
+        prompt.lines().count()
+    );
 
     Ok(())
 }
 
 // ── Eval ─────────────────────────────────────────────────────────────────
 
-async fn run_eval(input: &Path, output: &Path) -> Result<()> {
+async fn run_eval(input: &Path, output: &Path, print_summary: bool) -> Result<()> {
     if !input.exists() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
 
-    let content = std::fs::read_to_string(input)?;
-    let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
-    let total = lines.len();
-
-    let mut format_valid = 0u32;
-    let mut safety_rejected = 0u32;
-    let mut parse_passed = 0u32;
-    let mut construct_hits: HashSet<String> = HashSet::new();
-
-    let safety_patterns = [
-        "ignore previous instructions",
-        "ignore all above",
-        "disregard your instructions",
-        "you are now",
-        "new instructions:",
-    ];
-
-    for line in &lines {
-        let record: serde_json::Value = match serde_json::from_str(line) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-
-        let response = record.get("response")
-            .or_else(|| record.get("output"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-
-        // Format validity: has content
-        if !response.trim().is_empty() {
-            format_valid += 1;
-        }
-
-        // Safety: check for injection patterns
-        let lower = response.to_lowercase();
-        if safety_patterns.iter().any(|p| lower.contains(p)) {
-            safety_rejected += 1;
-        }
-
-        // Vox parse score: try running through the compiler
-        let dummy_path = Path::new("__eval__.vox");
-        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false) {
-            if !result.has_errors() {
-                parse_passed += 1;
-                // Collect construct hits
-                let constructs = crate::training::extract_constructs(&result.module);
-                for c in constructs {
-                    construct_hits.insert(c);
-                }
-            }
-        }
-    }
+    let s = scan_train_jsonl(input)?;
+    let total = s.total;
 
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
-    let coverage = construct_hits.iter()
-        .filter(|s| taxonomy.contains(s.as_str()))
+    let coverage = s
+        .construct_hits
+        .iter()
+        .filter(|x| taxonomy.contains(x.as_str()))
         .count();
 
     let results = serde_json::json!({
         "run_id": format!("eval_{}", crate::training::timestamp_string()),
         "total_samples": total,
-        "format_validity": if total > 0 { format_valid as f64 / total as f64 } else { 0.0 },
-        "safety_rejection_rate": if total > 0 { safety_rejected as f64 / total as f64 } else { 0.0 },
-        "vox_parse_rate": if total > 0 { parse_passed as f64 / total as f64 } else { 0.0 },
+        "format_validity": if total > 0 { s.format_valid as f64 / total as f64 } else { 0.0 },
+        "safety_rejection_rate": if total > 0 { s.safety_rejected as f64 / total as f64 } else { 0.0 },
+        "vox_parse_rate": if total > 0 { s.parse_passed as f64 / total as f64 } else { 0.0 },
         "construct_coverage": coverage,
         "construct_total": taxonomy.len(),
         "construct_coverage_pct": if taxonomy.is_empty() { 0.0 } else { 100.0 * coverage as f64 / taxonomy.len() as f64 },
-        "quality_proxy": if total > 0 { parse_passed as f64 / total as f64 } else { 0.0 },
+        "quality_proxy": if total > 0 { s.parse_passed as f64 / total as f64 } else { 0.0 },
     });
 
     if let Some(parent) = output.parent() {
@@ -612,14 +842,40 @@ async fn run_eval(input: &Path, output: &Path) -> Result<()> {
     }
     std::fs::write(output, serde_json::to_string_pretty(&results)?)?;
 
+    if print_summary {
+        let parse_pct = 100.0 * s.parse_passed as f64 / total.max(1) as f64;
+        let cov_pct = if taxonomy.is_empty() {
+            0.0
+        } else {
+            100.0 * coverage as f64 / taxonomy.len() as f64
+        };
+        println!(
+            "Samples: {} | Parse rate: {:.1}% | Coverage: {:.1}%",
+            total, parse_pct, cov_pct
+        );
+        return Ok(());
+    }
+
     println!("\n{}", "Vox Training Data Eval Report".bold().cyan());
     println!("  Total samples:      {}", total);
-    println!("  Format validity:    {:.1}%", 100.0 * format_valid as f64 / total.max(1) as f64);
-    println!("  Safety rejection:   {:.1}%", 100.0 * safety_rejected as f64 / total.max(1) as f64);
-    println!("  Vox parse rate:     {:.1}%", 100.0 * parse_passed as f64 / total.max(1) as f64);
-    println!("  Construct coverage: {}/{} ({:.1}%)",
-        coverage, taxonomy.len(),
-        100.0 * coverage as f64 / taxonomy.len().max(1) as f64);
+    println!(
+        "  Format validity:    {:.1}%",
+        100.0 * s.format_valid as f64 / total.max(1) as f64
+    );
+    println!(
+        "  Safety rejection:   {:.1}%",
+        100.0 * s.safety_rejected as f64 / total.max(1) as f64
+    );
+    println!(
+        "  Vox parse rate:     {:.1}%",
+        100.0 * s.parse_passed as f64 / total.max(1) as f64
+    );
+    println!(
+        "  Construct coverage: {}/{} ({:.1}%)",
+        coverage,
+        taxonomy.len(),
+        100.0 * coverage as f64 / taxonomy.len().max(1) as f64
+    );
     println!("\n✓ Results written to {}", output.display());
 
     Ok(())

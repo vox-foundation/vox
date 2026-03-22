@@ -1,5 +1,39 @@
 # Crate API: vox-mcp
 
+## Authoritative sources
+
+| Topic | Location |
+|-------|----------|
+| **Tool names + descriptions (SSOT)** | [`crates/vox-mcp/src/tools/mod.rs`](../../../crates/vox-mcp/src/tools/mod.rs) → `TOOL_REGISTRY` |
+| **Per-tool JSON input schemas (MCP `tools/list`)** | [`crates/vox-mcp/src/tools/input_schemas.rs`](../../../crates/vox-mcp/src/tools/input_schemas.rs) → `tool_input_schema` |
+| **Session → agent binding** | `vox_map_agent_session` (canonical in `TOOL_REGISTRY`); **`vox_map_opencode_session`** / **`vox_map_vscode_session`** are **wire aliases** only (same JSON args), defined in `crates/vox-mcp/src/tools/tool_aliases.rs`. |
+| Orchestrator integration & agent flows | [`agents/orchestrator.md`](../../agents/orchestrator.md), [`crates/vox-orchestrator/`](../../../crates/vox-orchestrator/) |
+| MCP tool wiring & params | [`crates/vox-mcp/src/lib.rs`](../../../crates/vox-mcp/src/lib.rs), [`crates/vox-mcp/src/params.rs`](../../../crates/vox-mcp/src/params.rs) |
+| LLM batch doc playbook | [`agents/llm-documentation-playbook.md`](../../agents/llm-documentation-playbook.md) |
+
+## LLM model routing (`models.toml`)
+
+MCP chat, inline edit, and ghost-text tools resolve models through [`vox-orchestrator`](../../../crates/vox-orchestrator/)’s [`ModelRegistry`](../../../crates/vox-orchestrator/src/models.rs). On first run, a default registry is written to **`models.toml`** under the Vox config directory (same discovery as Codex paths).
+
+| Operator action | Where |
+|-----------------|--------|
+| Add/remove models, tune `strengths` / `cost_per_1k` | Edit `models.toml` and restart MCP (or reload config if your host supports it). |
+| Pin paid “performance” routing per task bucket (`codegen`, `review`, …) without recompiling | Set `[premium_alias]` entries in `models.toml` (e.g. `codegen = "anthropic/claude-sonnet-4.5"`). An empty map falls back to built-in defaults, then ranked paid models by cost when `cost_preference` is **performance**. |
+| OpenRouter free daily caps | Usage rows aggregate under provider **`openrouter`** and model **`:free`** (see `ModelSpec::llm_usage_key`). |
+| Local fallback | Default registry includes an **Ollama** model (`llama3.2`); MCP probes `GET /api/tags` before chat (cached briefly per process). Base URL: **`OLLAMA_HOST`** or Populi default from `vox_config::inference::local_ollama_populi_base_url`. **Desktop-oriented:** phones do not run Ollama on loopback; use **`VOX_INFERENCE_PROFILE`** / cloud or on-device runtimes per [mobile-edge-ai-ssot.md](../architecture/mobile-edge-ai-ssot.md). |
+| Cloud → local when `allow_cloud_ollama_fallback` | Same as above, but **only** when **`VOX_INFERENCE_PROFILE`** is **`desktop_ollama`** or **`lan_gateway`** (otherwise Ollama probes, direct `ProviderType::Ollama`, and fallback are skipped). Chat and inline tools: persisted **daily cap**, in-memory **budget exceeded**, **rate limit**, and many **HTTP errors** retry once via the best **Ollama** candidate (largest `max_tokens`, stable id). Ghost-text uses the same path with **free-tier-only** resolution. |
+| **`VOX_MCP_LLM_COST_EVENTS`** | `1` / `true` always emits [`AgentEventKind::CostIncurred`](../../../crates/vox-orchestrator/src/events.rs) on successful MCP LLM calls; `0` / `false` never. **Default:** emit only when Codex is **not** attached (avoid double-counting with `provider_usage`); with Codex, set `1` if your consumer needs bus events as well as DB. |
+
+Codex-attached deployments pair MCP LLM calls with [`BudgetGate`](../../../crates/vox-orchestrator/src/gate.rs) + [`UsageTracker`](../../../crates/vox-orchestrator/src/usage.rs); HTTP **429** marks rate limits on the usage key.
+
+### Mesh + MCP startup
+
+When **`VOX_MESH_ENABLED=1`**, the **`vox-mcp`** binary calls `vox_mesh::publish_local_registry_best_effort()` after DB connect (same pattern as **`vox run`**), then best-effort **`POST /v1/mesh/join`** when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base ([`normalize_http_control_base`](../../../crates/vox-mesh/src/lib.rs)), plus periodic **`POST /v1/mesh/heartbeat`** (see **`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`** on [mesh SSOT](../architecture/mesh-ssot.md)). Optional Codex rows: **`VOX_MESH_CODEX_TELEMETRY`**, **`mesh_http_join_ok` / `mesh_http_join_err`**. Docker: [mesh SSOT](../architecture/mesh-ssot.md) (`VOX_MESH_MESH_SIDECAR`, `docker/vox-entrypoint.sh`).
+
+## Process model
+
+`vox-mcp` is normally a **stdio MCP server**: one process per editor/CLI session, embedding `Orchestrator` and optional Turso `CodeStore`. It is not, by default, a standalone network daemon; long-running behavior is whatever the host keeps alive.
+
 ## Module: `vox-mcp\src\a2a.rs`
 
 A2A (Agent-to-Agent) MCP tools — send, inbox, ack, broadcast, history.
@@ -391,7 +425,9 @@ Return the data flow map: which queries read which tables, which mutations write
 
 ### `fn tool_registry`
 
-Return full list of capabilities to the Vox agent client
+Return full list of capabilities to the Vox agent client.
+
+Populi **chat** intersects this surface with in-process execution via `vox-tools` (`DirectToolExecutor` + `populi_chat::chat_tool_definitions` / `execute_tool_calls`) and `vox-capability-registry` (Oratio: `vox_oratio_transcribe`, `vox_oratio_status` — same names as here).
 
 
 ### `fn handle_tool_call`

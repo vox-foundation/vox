@@ -149,7 +149,7 @@ Both are added to the Vox workspace `Cargo.toml` and available in `vox-runtime`.
 
 ## Codegen Mapping
 
-The Vox compiler (`vox-codegen-rust/src/emit_expr.rs`) rewrites these calls
+The Vox compiler (`vox-codegen-rust/src/emit.rs`, `emit_expr`) rewrites these calls
 at compile time:
 
 | Vox Source | Generated Rust |

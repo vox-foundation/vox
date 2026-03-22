@@ -429,5 +429,3 @@ A typed stream event entry.
 ### `struct VoxWorkspace`
 
 Represents a Vox workspace containing multiple packages.
-
-

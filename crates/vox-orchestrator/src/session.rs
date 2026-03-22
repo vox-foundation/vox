@@ -234,6 +234,9 @@ impl Session {
 pub struct SessionConfig {
     /// Directory where JSONL session files are stored. Default: `.sessions/`.
     pub sessions_dir: PathBuf,
+    /// Optional stable repo id (e.g. MCP embeds this in session paths / payloads).
+    #[serde(default)]
+    pub repository_id: Option<String>,
     /// Seconds of inactivity before a session is considered idle. Default: 1800 (30 min).
     pub idle_timeout_secs: u64,
     /// Seconds of idle before archiving. Default: 86_400 (24 h).
@@ -247,7 +250,8 @@ pub struct SessionConfig {
 impl Default for SessionConfig {
     fn default() -> Self {
         Self {
-            sessions_dir: PathBuf::from(".sessions"),
+            sessions_dir: PathBuf::from(vox_config::MCP_SESSIONS_DIR_BASENAME),
+            repository_id: None,
             idle_timeout_secs: 1_800,
             archive_timeout_secs: 86_400,
             max_sessions: 16,
@@ -279,7 +283,7 @@ pub enum SessionError {
 
 /// Manages agent sessions: creation, persistence, lifecycle, cleanup.
 ///
-/// When a `VoxDb` is attached via [`with_db`], every session creation and
+/// When a `VoxDb` is attached via [`SessionManager::with_db`], every session creation and
 /// turn addition also writes to the `user_sessions` and `session_turns`
 /// tables. JSONL files remain the hot cache; VoxDB is the durable SSOT.
 pub struct SessionManager {
@@ -337,7 +341,10 @@ impl SessionManager {
             let aid = agent_id.0.to_string();
             tokio::spawn(async move {
                 let meta = format!("{{\"agent_id\":\"{aid}\",\"state\":\"active\"}}");
-                let _ = db.store().create_session(&sid, &aid, Some(&meta)).await;
+                let _ = db
+                    .store()
+                    .create_session(&sid, &aid, Some(meta.as_str()))
+                    .await;
             });
         }
 
@@ -699,6 +706,7 @@ mod tests {
     fn test_config() -> SessionConfig {
         SessionConfig {
             sessions_dir: temp_sessions_dir(),
+            repository_id: None,
             idle_timeout_secs: 30,
             archive_timeout_secs: 60,
             max_sessions: 4,

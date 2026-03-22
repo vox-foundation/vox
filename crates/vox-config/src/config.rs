@@ -9,6 +9,85 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// Gamification UX / reward tuning (consumed by `vox-ludus`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum GamifyMode {
+    /// Default: moderate hints and normal reward pacing.
+    #[default]
+    Balanced,
+    /// No celebration overlays; hints suppressed (system may still record telemetry).
+    Serious,
+    /// Stronger rewards and full hint frequency for learning-heavy sessions.
+    Learning,
+}
+
+impl GamifyMode {
+    /// Lower-case slug persisted in `Vox.toml` / `~/.vox/config.toml` (`[vox].gamify_mode`).
+    #[must_use]
+    pub fn as_config_str(self) -> &'static str {
+        match self {
+            Self::Balanced => "balanced",
+            Self::Serious => "serious",
+            Self::Learning => "learning",
+        }
+    }
+
+    /// Multiplier applied to XP / crystal grants where ludus uses mode-aware scaling.
+    #[must_use]
+    pub fn reward_multiplier(self) -> f64 {
+        match self {
+            Self::Balanced => 1.0,
+            Self::Serious => 0.5,
+            Self::Learning => 1.25,
+        }
+    }
+
+    /// Relative hint frequency in `[0.0, 1.0]` for coaching surfaces.
+    #[must_use]
+    pub fn hint_frequency(self) -> f64 {
+        match self {
+            Self::Balanced => 0.5,
+            Self::Serious => 0.0,
+            Self::Learning => 1.0,
+        }
+    }
+
+    /// Whether level-up / quest-complete style overlays should render.
+    #[must_use]
+    pub fn show_overlays(self) -> bool {
+        !matches!(self, Self::Serious)
+    }
+}
+
+/// How `vox run` (and compilerd) choose the **script** lane vs **web app** lane when the CLI mode is `auto`.
+///
+/// When [`WebRunMode::Auto`], the CLI uses a lightweight source scan (e.g. `@page` in the first 8 KiB).
+/// Set explicitly when that heuristic is wrong for your module layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum WebRunMode {
+    /// Use the `@page` substring heuristic (default).
+    #[default]
+    Auto,
+    /// Always take the app / dev-server path (`target/generated`, Vite, etc.).
+    App,
+    /// Always take the native script runner (`fn main()`), when built with `script-execution`.
+    Script,
+}
+
+impl WebRunMode {
+    /// Lower-case slug in `Vox.toml` `[web] run_mode` and `VOX_WEB_RUN_MODE`.
+    #[must_use]
+    pub fn as_config_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::App => "app",
+            Self::Script => "script",
+        }
+    }
+}
+
 /// Full Vox toolchain configuration.
 ///
 /// Load via `VoxConfig::load()` which applies the full precedence chain.
@@ -17,27 +96,54 @@ use std::path::{Path, PathBuf};
 #[serde(default)]
 pub struct VoxConfig {
     // ── Provider / Model ──────────────────────────────────────────────────
+    /// Default chat/model id (e.g. OpenRouter-style `provider/model`).
     pub model: String,
+    /// API key for OpenRouter (`OPENROUTER_API_KEY` also sets this at load time).
     pub openrouter_key: Option<String>,
+    /// API key for OpenAI-compatible providers.
     pub openai_key: Option<String>,
+    /// API key for Google Gemini.
     pub gemini_key: Option<String>,
+    /// API key for Anthropic.
     pub anthropic_key: Option<String>,
 
     // ── Budget ───────────────────────────────────────────────────────────
+    /// Soft daily spend cap in USD for automated tooling (policy-specific interpretation).
     pub daily_budget_usd: f64,
+    /// Per-session spend cap in USD.
     pub per_session_budget_usd: f64,
 
     // ── Data paths ────────────────────────────────────────────────────────
+    /// Root directory for training data, caches, and dogfood artifacts.
     pub data_dir: PathBuf,
+    /// Directory where downloaded or fine-tuned model weights are stored.
     pub model_dir: PathBuf,
 
     // ── Training ─────────────────────────────────────────────────────────
+    /// Default epoch count for local training loops.
     pub train_epochs: usize,
+    /// Default minibatch size for local training.
     pub train_batch_size: usize,
 
     // ── Orchestrator ─────────────────────────────────────────────────────
+    /// Path to the MCP server binary when spawned by the orchestrator.
     pub mcp_binary: Option<PathBuf>,
+    /// Database connection URL when using remote or embedded DB features.
     pub db_url: Option<String>,
+
+    // ── Gamification (`vox-ludus`) ───────────────────────────────────────
+    /// When false, ludus skips side-effectful gamify operations.
+    pub gamify_enabled: bool,
+    /// Reward / hint / overlay behavior for companions and quests.
+    pub gamify_mode: GamifyMode,
+
+    // ── Web / `vox run` ───────────────────────────────────────────────────
+    /// When CLI `vox run` mode is `auto`, optionally force app vs script before the `@page` heuristic.
+    pub web_run_mode: WebRunMode,
+    /// When true, scaffold `dist/.../app` with **TanStack Start** (`@tanstack/react-start` + Vite plugin + file routes).
+    ///
+    /// Default SPA (`main.tsx` + `index.html`) remains when false.
+    pub web_tanstack_start: bool,
 }
 
 impl Default for VoxConfig {
@@ -58,6 +164,10 @@ impl Default for VoxConfig {
             train_batch_size: 256,
             mcp_binary: None,
             db_url: None,
+            gamify_enabled: true,
+            gamify_mode: GamifyMode::default(),
+            web_run_mode: WebRunMode::default(),
+            web_tanstack_start: false,
         }
     }
 }
@@ -70,6 +180,7 @@ struct VoxToml {
     vox: Option<VoxTomlSection>,
     train: Option<TrainTomlSection>,
     db: Option<DbTomlSection>,
+    web: Option<WebTomlSection>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -79,6 +190,8 @@ struct VoxTomlSection {
     daily_budget_usd: Option<f64>,
     per_session_budget_usd: Option<f64>,
     mcp_binary: Option<PathBuf>,
+    gamify_enabled: Option<bool>,
+    gamify_mode: Option<GamifyMode>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -94,6 +207,14 @@ struct TrainTomlSection {
 #[serde(default)]
 struct DbTomlSection {
     url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
+struct WebTomlSection {
+    run_mode: Option<WebRunMode>,
+    /// `Vox.toml` `[web] tanstack_start` — opt-in TanStack Start scaffold for the Vite app.
+    tanstack_start: Option<bool>,
 }
 
 impl VoxConfig {
@@ -116,7 +237,21 @@ impl VoxConfig {
         cfg
     }
 
-    /// Get the value of a config key by name. Used by `vox_get_config` MCP tool.
+    /// Load like [`Self::load`], but apply `repo_root.join("Vox.toml")` before the process-CWD `Vox.toml`.
+    ///
+    /// Use after `vox_repository::discover_repository` so external-repo tools read the correct manifest.
+    pub fn load_from_repo_root(repo_root: &Path) -> Self {
+        let mut cfg = Self::default();
+        if let Some(global_path) = global_config_path() {
+            cfg.apply_toml_file(&global_path);
+        }
+        cfg.apply_toml_file(&repo_root.join("Vox.toml"));
+        cfg.apply_toml_file(Path::new("Vox.toml"));
+        cfg.apply_env();
+        cfg
+    }
+
+    /// Get the value of a config key by name. Used by the `vox_config_get` MCP tool (alias `vox_get_config`).
     pub fn get_key(&self, key: &str) -> Option<String> {
         match key {
             "model" => Some(self.model.clone()),
@@ -128,11 +263,16 @@ impl VoxConfig {
             "train_batch_size" => Some(self.train_batch_size.to_string()),
             "db_url" => self.db_url.clone(),
             "mcp_binary" => self.mcp_binary.as_ref().map(|p| p.display().to_string()),
+            "gamify_enabled" | "gamify.enabled" => Some(self.gamify_enabled.to_string()),
+            "gamify_mode" | "gamify.mode" => Some(self.gamify_mode.as_config_str().to_string()),
+            "web_run_mode" | "web.run_mode" => Some(self.web_run_mode.as_config_str().to_string()),
+            "web_tanstack_start" | "web.tanstack_start" => Some(self.web_tanstack_start.to_string()),
             _ => None,
         }
     }
 
-    /// Set a config key at runtime (does not persist — use `vox config set` for that).
+    /// Set a config key at runtime (does not persist by itself — call [`Self::save`] after mutating,
+    /// or use `vox config set` in the CLI).
     pub fn set_key(&mut self, key: &str, value: &str) -> bool {
         match key {
             "model" => self.model = value.to_string(),
@@ -159,6 +299,32 @@ impl VoxConfig {
                     self.train_batch_size = v;
                 }
             }
+            "gamify_enabled" | "gamify.enabled" => match value.to_lowercase().as_str() {
+                "true" | "1" | "yes" => self.gamify_enabled = true,
+                "false" | "0" | "no" => self.gamify_enabled = false,
+                _ => return false,
+            },
+            "gamify_mode" | "gamify.mode" => {
+                self.gamify_mode = match value.to_lowercase().as_str() {
+                    "balanced" => GamifyMode::Balanced,
+                    "serious" => GamifyMode::Serious,
+                    "learning" => GamifyMode::Learning,
+                    _ => return false,
+                };
+            }
+            "web.run_mode" | "web_run_mode" => {
+                self.web_run_mode = match value.to_lowercase().as_str() {
+                    "app" => WebRunMode::App,
+                    "script" => WebRunMode::Script,
+                    "auto" => WebRunMode::Auto,
+                    _ => return false,
+                };
+            }
+            "web.tanstack_start" | "web_tanstack_start" => match value.to_lowercase().as_str() {
+                "true" | "1" | "yes" => self.web_tanstack_start = true,
+                "false" | "0" | "no" => self.web_tanstack_start = false,
+                _ => return false,
+            },
             _ => return false,
         }
         true
@@ -187,7 +353,36 @@ impl VoxConfig {
             "train_batch_size",
             "db_url",
             "mcp_binary",
+            "gamify_enabled",
+            "gamify_mode",
+            "gamify.enabled",
+            "gamify.mode",
+            "web.run_mode",
+            "web_run_mode",
+            "web.tanstack_start",
+            "web_tanstack_start",
         ]
+    }
+
+    /// Writes `[vox]`, `[train]`, and optionally `[db].url` to `~/.vox/config.toml`.
+    ///
+    /// Merges into any existing file: top-level tables such as `[registry]` are preserved.
+    /// Within `[vox]` and `[train]`, only the keys owned by this struct are overwritten; unknown
+    /// sibling keys are kept. `[vox].mcp_binary` is updated when [`Self::mcp_binary`] is `Some`;
+    /// when it is `None`, an existing `mcp_binary` entry in the file is left unchanged. When
+    /// [`Self::db_url`] is `None`, the `[db]` table is not modified (so an existing `url` or other
+    /// keys are preserved); when it is `Some`, only `url` is set and other keys under `[db]` are
+    /// kept.
+    ///
+    /// API keys and other env-only material are never written.
+    pub fn save(&self) -> std::io::Result<()> {
+        let Some(path) = global_config_path() else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "cannot resolve ~/.vox data directory",
+            ));
+        };
+        save_merged_global_config(&path, self)
     }
 
     // ── Private helpers ──────────────────────────────────────────────────
@@ -213,6 +408,12 @@ impl VoxConfig {
             if let Some(v) = vox.mcp_binary {
                 self.mcp_binary = Some(v);
             }
+            if let Some(v) = vox.gamify_enabled {
+                self.gamify_enabled = v;
+            }
+            if let Some(v) = vox.gamify_mode {
+                self.gamify_mode = v;
+            }
         }
 
         if let Some(train) = parsed.train {
@@ -230,61 +431,188 @@ impl VoxConfig {
             }
         }
 
-        if let Some(db) = parsed.db {
-            if let Some(v) = db.url {
-                self.db_url = Some(v);
+        if let Some(db) = parsed.db
+            && let Some(v) = db.url
+        {
+            self.db_url = Some(v);
+        }
+
+        if let Some(web) = parsed.web {
+            if let Some(v) = web.run_mode {
+                self.web_run_mode = v;
+            }
+            if let Some(v) = web.tanstack_start {
+                self.web_tanstack_start = v;
             }
         }
     }
 
     fn apply_env(&mut self) {
-        if let Ok(v) = std::env::var("VOX_MODEL") {
-            if !v.is_empty() {
-                self.model = v;
-            }
+        if let Ok(v) = std::env::var("VOX_MODEL")
+            && !v.is_empty()
+        {
+            self.model = v;
         }
-        if let Ok(v) = std::env::var("VOX_BUDGET_USD") {
-            if let Ok(f) = v.parse() {
-                self.daily_budget_usd = f;
-            }
+        if let Ok(v) = std::env::var("VOX_BUDGET_USD")
+            && let Ok(f) = v.parse()
+        {
+            self.daily_budget_usd = f;
         }
-        if let Ok(v) = std::env::var("VOX_DATA_DIR") {
-            if !v.is_empty() {
-                self.data_dir = PathBuf::from(v);
-            }
+        if let Ok(v) = std::env::var("VOX_DATA_DIR")
+            && !v.is_empty()
+        {
+            self.data_dir = PathBuf::from(v);
         }
-        if let Ok(v) = std::env::var("VOX_DB_URL") {
-            if !v.is_empty() {
-                self.db_url = Some(v);
-            }
+        if let Ok(v) = std::env::var("VOX_DB_URL")
+            && !v.is_empty()
+        {
+            self.db_url = Some(v);
         }
-        if let Ok(v) = std::env::var("VOX_MCP_BINARY") {
-            if !v.is_empty() {
-                self.mcp_binary = Some(PathBuf::from(v));
-            }
+        if let Ok(v) = std::env::var("VOX_MCP_BINARY")
+            && !v.is_empty()
+        {
+            self.mcp_binary = Some(PathBuf::from(v));
+        }
+        if let Ok(v) = std::env::var("VOX_GAMIFY_ENABLED")
+            && !v.is_empty()
+        {
+            let low = v.to_lowercase();
+            self.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
+        }
+        if let Ok(v) = std::env::var("VOX_GAMIFY_MODE")
+            && !v.is_empty()
+        {
+            self.gamify_mode = match v.to_lowercase().as_str() {
+                "serious" => GamifyMode::Serious,
+                "learning" => GamifyMode::Learning,
+                _ => GamifyMode::Balanced,
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_WEB_RUN_MODE")
+            && !v.is_empty()
+        {
+            self.web_run_mode = match v.to_lowercase().as_str() {
+                "app" => WebRunMode::App,
+                "script" => WebRunMode::Script,
+                _ => WebRunMode::Auto,
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_WEB_TANSTACK_START")
+            && !v.is_empty()
+        {
+            let low = v.to_lowercase();
+            self.web_tanstack_start = matches!(low.as_str(), "1" | "true" | "yes");
         }
         // API keys
-        if let Ok(v) = std::env::var("OPENROUTER_API_KEY") {
-            if !v.is_empty() {
-                self.openrouter_key = Some(v);
-            }
+        if let Ok(v) = std::env::var("OPENROUTER_API_KEY")
+            && !v.is_empty()
+        {
+            self.openrouter_key = Some(v);
         }
-        if let Ok(v) = std::env::var("OPENAI_API_KEY") {
-            if !v.is_empty() {
-                self.openai_key = Some(v);
-            }
+        if let Ok(v) = std::env::var("OPENAI_API_KEY")
+            && !v.is_empty()
+        {
+            self.openai_key = Some(v);
         }
-        if let Ok(v) = std::env::var("GEMINI_API_KEY") {
-            if !v.is_empty() {
-                self.gemini_key = Some(v);
-            }
+        if let Ok(v) = std::env::var("GEMINI_API_KEY")
+            && !v.is_empty()
+        {
+            self.gemini_key = Some(v);
         }
-        if let Ok(v) = std::env::var("ANTHROPIC_API_KEY") {
-            if !v.is_empty() {
-                self.anthropic_key = Some(v);
-            }
+        if let Ok(v) = std::env::var("ANTHROPIC_API_KEY")
+            && !v.is_empty()
+        {
+            self.anthropic_key = Some(v);
         }
     }
+}
+
+fn take_toml_subtable(
+    root: &mut toml::map::Map<String, toml::Value>,
+    key: &str,
+) -> toml::map::Map<String, toml::Value> {
+    use toml::Value;
+    match root.remove(key) {
+        Some(Value::Table(t)) => t,
+        _ => toml::map::Map::new(),
+    }
+}
+
+/// Merge `cfg` into `path` (global user `config.toml` layout). See [`VoxConfig::save`].
+fn save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io::Result<()> {
+    use toml::Value;
+    use toml::map::Map;
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let mut root: Map<String, Value> = if path.exists() {
+        let text = std::fs::read_to_string(path)?;
+        match toml::from_str::<Value>(&text) {
+            Ok(Value::Table(t)) => t,
+            Ok(_) => Map::new(),
+            Err(_) => Map::new(),
+        }
+    } else {
+        Map::new()
+    };
+
+    let mut vox = take_toml_subtable(&mut root, "vox");
+    vox.insert("model".to_string(), Value::String(cfg.model.clone()));
+    vox.insert(
+        "daily_budget_usd".to_string(),
+        Value::Float(cfg.daily_budget_usd),
+    );
+    vox.insert(
+        "per_session_budget_usd".to_string(),
+        Value::Float(cfg.per_session_budget_usd),
+    );
+    vox.insert(
+        "gamify_enabled".to_string(),
+        Value::Boolean(cfg.gamify_enabled),
+    );
+    vox.insert(
+        "gamify_mode".to_string(),
+        Value::String(cfg.gamify_mode.as_config_str().to_string()),
+    );
+    if let Some(ref p) = cfg.mcp_binary {
+        vox.insert(
+            "mcp_binary".to_string(),
+            Value::String(p.to_string_lossy().into_owned()),
+        );
+    }
+    root.insert("vox".to_string(), Value::Table(vox));
+
+    let mut train = take_toml_subtable(&mut root, "train");
+    train.insert(
+        "data_dir".to_string(),
+        Value::String(cfg.data_dir.to_string_lossy().into_owned()),
+    );
+    train.insert(
+        "model_dir".to_string(),
+        Value::String(cfg.model_dir.to_string_lossy().into_owned()),
+    );
+    train.insert(
+        "epochs".to_string(),
+        Value::Integer(i64::try_from(cfg.train_epochs).unwrap_or(i64::MAX)),
+    );
+    train.insert(
+        "batch_size".to_string(),
+        Value::Integer(i64::try_from(cfg.train_batch_size).unwrap_or(i64::MAX)),
+    );
+    root.insert("train".to_string(), Value::Table(train));
+
+    if let Some(ref url) = cfg.db_url {
+        let mut db_tab = take_toml_subtable(&mut root, "db");
+        db_tab.insert("url".to_string(), Value::String(url.clone()));
+        root.insert("db".to_string(), Value::Table(db_tab));
+    }
+
+    let out = toml::to_string_pretty(&Value::Table(root))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    std::fs::write(path, out)?;
+    Ok(())
 }
 
 fn global_config_path() -> Option<PathBuf> {
@@ -292,8 +620,105 @@ fn global_config_path() -> Option<PathBuf> {
 }
 
 #[cfg(test)]
+fn merge_vox_toml_path_for_test(cfg: &mut VoxConfig, path: &Path) {
+    cfg.apply_toml_file(path);
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn save_merges_and_preserves_unknown_and_optional_keys() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("config.toml");
+        let initial = r#"[registry]
+url = "https://reg.example"
+
+[vox]
+model = "m1"
+daily_budget_usd = 3.0
+per_session_budget_usd = 1.5
+gamify_enabled = true
+gamify_mode = "balanced"
+mcp_binary = "/keep/mcp"
+future_vox = "pv"
+
+[train]
+data_dir = "d1"
+model_dir = "md1"
+epochs = 2
+batch_size = 8
+legacy_train = true
+
+[db]
+url = "https://db.example"
+db_extra = "de"
+"#;
+        std::fs::write(&path, initial).expect("write");
+
+        let cfg = VoxConfig {
+            model: "m1".into(),
+            daily_budget_usd: 3.0,
+            per_session_budget_usd: 1.5,
+            gamify_enabled: true,
+            gamify_mode: GamifyMode::Learning,
+            data_dir: PathBuf::from("d1"),
+            model_dir: PathBuf::from("md1"),
+            train_epochs: 2,
+            train_batch_size: 8,
+            mcp_binary: None,
+            db_url: None,
+            ..VoxConfig::default()
+        };
+
+        save_merged_global_config(&path, &cfg).expect("save");
+
+        let text = std::fs::read_to_string(&path).expect("read");
+        let parsed: toml::Value = toml::from_str(&text).expect("parse");
+
+        let root = parsed.as_table().expect("root table");
+        assert_eq!(
+            root.get("registry")
+                .and_then(|v| v.get("url"))
+                .and_then(toml::Value::as_str),
+            Some("https://reg.example")
+        );
+
+        let vox = root
+            .get("vox")
+            .and_then(toml::Value::as_table)
+            .expect("vox");
+        assert_eq!(
+            vox.get("future_vox").and_then(toml::Value::as_str),
+            Some("pv")
+        );
+        assert_eq!(
+            vox.get("mcp_binary").and_then(toml::Value::as_str),
+            Some("/keep/mcp")
+        );
+        assert_eq!(
+            vox.get("gamify_mode").and_then(toml::Value::as_str),
+            Some("learning")
+        );
+
+        let train = root
+            .get("train")
+            .and_then(toml::Value::as_table)
+            .expect("train");
+        assert_eq!(
+            train.get("legacy_train").and_then(toml::Value::as_bool),
+            Some(true)
+        );
+
+        let db = root.get("db").and_then(toml::Value::as_table).expect("db");
+        assert_eq!(
+            db.get("url").and_then(toml::Value::as_str),
+            Some("https://db.example")
+        );
+        assert_eq!(db.get("db_extra").and_then(toml::Value::as_str), Some("de"));
+    }
 
     #[test]
     fn default_config_has_sensible_values() {
@@ -302,6 +727,44 @@ mod tests {
         assert!(cfg.daily_budget_usd > 0.0);
         assert!(cfg.train_epochs > 0);
         assert!(cfg.train_batch_size > 0);
+        assert_eq!(cfg.web_run_mode, WebRunMode::Auto);
+        assert!(!cfg.web_tanstack_start);
+    }
+
+    #[test]
+    fn reads_web_run_mode_from_vox_toml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[web]\nrun_mode = \"app\"\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        super::merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.web_run_mode, WebRunMode::App);
+    }
+
+    #[test]
+    fn web_run_mode_set_key_roundtrip() {
+        let mut cfg = VoxConfig::default();
+        assert!(cfg.set_key("web.run_mode", "script"));
+        assert_eq!(cfg.web_run_mode, WebRunMode::Script);
+        assert_eq!(cfg.get_key("web.run_mode").as_deref(), Some("script"));
+    }
+
+    #[test]
+    fn reads_web_tanstack_start_from_vox_toml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[web]\ntanstack_start = true\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        super::merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert!(cfg.web_tanstack_start);
+    }
+
+    #[test]
+    fn web_tanstack_start_set_key_roundtrip() {
+        let mut cfg = VoxConfig::default();
+        assert!(cfg.set_key("web.tanstack_start", "true"));
+        assert!(cfg.web_tanstack_start);
+        assert_eq!(cfg.get_key("web.tanstack_start").as_deref(), Some("true"));
     }
 
     #[test]

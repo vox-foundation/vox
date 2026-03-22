@@ -1,0 +1,25 @@
+# Vox Workflow Example — v0.3 brace syntax
+# Demonstrates durable workflows with steps, retries, and activity calls.
+
+# An activity that fetches data from an external API.
+activity fetch_user_data(user_id: str) to Result[str] {
+    ret Ok("User data for " + user_id)
+}
+
+# An activity that sends a notification email.
+activity send_notification(email: str, body: str) to Result[bool] {
+    ret Ok(true)
+}
+
+# A multi-step onboarding workflow.
+workflow onboard_user(user_id: str, email: str) to Result[str] {
+    let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" }
+    let _ = send_notification(email, "Welcome! " + profile) with { retries: 5, timeout: "60s" }
+    ret Ok("Onboarding complete for " + user_id)
+}
+
+# Entry point
+fn main() {
+    let result = onboard_user("usr_123", "alice@example.com")
+    ret result
+}

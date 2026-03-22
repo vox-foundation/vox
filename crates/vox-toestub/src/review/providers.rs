@@ -9,6 +9,7 @@ pub enum ReviewProvider {
     /// Uses the OpenAI-compatible `/chat/completions` API.
     /// Set `OPENROUTER_API_KEY` env var or provide `api_key` directly.
     OpenRouter {
+        /// API key; empty means resolve from `OPENROUTER_API_KEY` when the client runs.
         #[serde(default)]
         api_key: String,
         /// Model identifier, e.g. `"anthropic/claude-3.5-sonnet"`.
@@ -21,8 +22,10 @@ pub enum ReviewProvider {
     /// OpenAI-compatible endpoint — defaults to api.openai.com but can be
     /// overridden for local servers (LMStudio, vLLM, etc.).
     OpenAi {
+        /// API key; empty means resolve from `OPENAI_API_KEY` when the client runs.
         #[serde(default)]
         api_key: String,
+        /// Chat model id (e.g. `gpt-4o-mini`) passed to `/chat/completions`.
         #[serde(default = "default_openai_model")]
         model: String,
         /// Base URL, e.g. `"https://api.openai.com/v1"`.
@@ -32,45 +35,59 @@ pub enum ReviewProvider {
     /// Google Gemini Flash free tier.
     Gemini {
         #[serde(default)]
+        /// Google AI Studio key; empty means resolve from `GEMINI_API_KEY` when the client runs.
         api_key: String,
         #[serde(default = "default_gemini_model")]
+        /// Gemini model id (e.g. `gemini-2.5-flash`).
         model: String,
     },
     /// Local Ollama instance — zero auth, zero cost.
     Ollama {
         #[serde(default = "default_ollama_url")]
+        /// Base URL for Ollama (no `/v1` suffix); default `http://localhost:11434`.
         url: String,
         #[serde(default = "default_ollama_model")]
+        /// Tag pulled into Ollama (e.g. `codellama`).
         model: String,
     },
     /// Pollinations.ai — always available, no auth.
     Pollinations {
         #[serde(default = "default_pollinations_model")]
+        /// Pollinations model slug (their API’s `model` parameter).
         model: String,
     },
 }
 
+/// Default OpenRouter model when `OPENROUTER_MODEL` is unset.
 pub fn default_openrouter_model() -> String {
     "anthropic/claude-3.5-sonnet".to_string()
 }
+/// `HTTP-Referer` value required by OpenRouter; embedded in serde defaults for configs.
 pub fn default_site_url() -> String {
     "https://github.com/brbrainerd/vox".to_string()
 }
+/// Default OpenAI chat model when `OPENAI_MODEL` is unset.
 pub fn default_openai_model() -> String {
     "gpt-4o-mini".to_string()
 }
+
+/// Default OpenAI API base (`https://api.openai.com/v1`) when `OPENAI_BASE_URL` is unset.
 pub fn default_openai_base_url() -> String {
     "https://api.openai.com/v1".to_string()
 }
+/// Default Gemini model id when `GEMINI_MODEL` is unset.
 pub fn default_gemini_model() -> String {
     "gemini-2.5-flash".to_string()
 }
+/// Default Ollama listen URL when `OLLAMA_URL` is unset.
 pub fn default_ollama_url() -> String {
     "http://localhost:11434".to_string()
 }
+/// Default Ollama model tag when `OLLAMA_MODEL` is unset.
 pub fn default_ollama_model() -> String {
     "codellama".to_string()
 }
+/// Default Pollinations model slug for zero-auth fallback reviews.
 pub fn default_pollinations_model() -> String {
     "openai".to_string()
 }
@@ -156,6 +173,7 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     providers
 }
 
+/// Returns true if `{url}/api/tags` responds with HTTP 200 within ~2s (uses `curl` subprocess).
 pub fn probe_ollama(url: &str) -> bool {
     let probe_url = format!("{}/api/tags", url);
     std::process::Command::new("curl")

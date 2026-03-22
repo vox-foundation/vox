@@ -1,2 +1,0 @@
-@page(\
-/about\) fn About(): ret <div>About</div>

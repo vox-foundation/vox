@@ -3,9 +3,27 @@
 //! This is the bridge between the Vox type system and SQLite's physical schema.
 //! It generates `CREATE TABLE`, `CREATE INDEX`, and type-safe DDL from the AST.
 
+use crate::schema_digest::{CollectionInfo, IndexInfo, TableInfo};
 use vox_ast::decl::{CollectionDecl, IndexDecl, TableDecl, VectorIndexDecl};
+use vox_ast::scalar_mapping::VoxScalar;
 use vox_ast::types::TypeExpr;
-use crate::schema_digest::{TableInfo, CollectionInfo, IndexInfo};
+
+/// SQLite affinity for a Vox **named** scalar or common alias (`String`, `i64`, …).
+///
+/// Aligns with [`VoxScalar`](vox_ast::scalar_mapping::VoxScalar) and Rust table emit in `vox-codegen-rust`.
+#[must_use]
+pub fn sqlite_affinity_for_named_vox_type(name: &str) -> Option<&'static str> {
+    if let Some(s) = VoxScalar::parse(name) {
+        return Some(s.as_sqlite_affinity());
+    }
+    match name {
+        "String" => Some(VoxScalar::Str.as_sqlite_affinity()),
+        "i32" | "i64" | "u32" | "u64" => Some(VoxScalar::Int.as_sqlite_affinity()),
+        "f32" | "f64" | "float64" => Some(VoxScalar::Float.as_sqlite_affinity()),
+        "bytes" | "Bytes" => Some("BLOB"),
+        _ => None,
+    }
+}
 
 /// Generate `CREATE TABLE` SQL statements from table declarations.
 pub fn tables_to_ddl(tables: &[&TableDecl]) -> Vec<String> {
@@ -115,7 +133,6 @@ pub fn vector_index_to_ddl(vidx: &VectorIndexDecl) -> Vec<String> {
     stmts
 }
 
-
 /// Generate `CREATE TABLE` from `TableInfo`.
 pub fn table_info_to_ddl(info: &TableInfo) -> String {
     let mut cols = Vec::new();
@@ -169,19 +186,17 @@ pub fn index_info_to_ddl(info: &IndexInfo) -> String {
     )
 }
 
-/// Map a Vox type string (e.g. "str", "Option[int]") to a SQLite type.
+/// Map a Vox type string (e.g. `"str"`, or nested optional like `Option` of `int`) to a SQLite type.
 pub fn vox_type_to_sqlite_type(ty_str: &str) -> &'static str {
     if ty_str.contains("Option[") {
         // Recursively strip Option
         let inner = ty_str.trim_start_matches("Option[").trim_end_matches(']');
         return vox_type_to_sqlite_type(inner);
     }
+    if let Some(sql) = sqlite_affinity_for_named_vox_type(ty_str) {
+        return sql;
+    }
     match ty_str {
-        "str" | "String" => "TEXT",
-        "int" | "i32" | "i64" | "u32" | "u64" => "INTEGER",
-        "float" | "f32" | "f64" | "float64" => "REAL",
-        "bool" => "INTEGER",
-        "bytes" | "Bytes" => "BLOB",
         _ if ty_str.starts_with("Id[") => "TEXT",
         _ if ty_str.starts_with("List[") || ty_str.starts_with("list[") => "TEXT",
         _ if ty_str.starts_with("Map[") || ty_str.starts_with("map[") => "TEXT",
@@ -192,14 +207,7 @@ pub fn vox_type_to_sqlite_type(ty_str: &str) -> &'static str {
 /// Map a Vox `TypeExpr` to a SQLite column type.
 pub fn type_to_sqlite_type(ty: &TypeExpr) -> &'static str {
     match ty {
-        TypeExpr::Named { name, .. } => match name.as_str() {
-            "str" | "String" => "TEXT",
-            "int" | "i32" | "i64" | "u32" | "u64" => "INTEGER",
-            "float" | "f32" | "f64" | "float64" => "REAL",
-            "bool" => "INTEGER", // SQLite uses 0/1 for booleans
-            "bytes" | "Bytes" => "BLOB",
-            _ => "TEXT", // Custom types serialize as JSON TEXT
-        },
+        TypeExpr::Named { name, .. } => sqlite_affinity_for_named_vox_type(name).unwrap_or("TEXT"), // JSON TEXT for unknown ADTs
         TypeExpr::Generic { name, args, .. } => match name.as_str() {
             "Option" => args.first().map(type_to_sqlite_type).unwrap_or("TEXT"),
             "Id" => "TEXT",            // Foreign key references stored as UUID TEXT
@@ -208,11 +216,7 @@ pub fn type_to_sqlite_type(ty: &TypeExpr) -> &'static str {
             "Set" | "set" => "TEXT",   // JSON array serialized as TEXT
             _ => "TEXT",
         },
-        TypeExpr::Union { .. } => "TEXT", // Tagged union as JSON
-        TypeExpr::Tuple { .. } => "TEXT", // Tuple as JSON array
-        TypeExpr::Map { .. } => "TEXT",
-        TypeExpr::Set { .. } => "TEXT",
-        TypeExpr::Intersection { .. } => "TEXT",
+        TypeExpr::Tuple { .. } => "TEXT",    // Tuple as JSON array
         TypeExpr::Function { .. } => "TEXT", // Should not appear in tables
         TypeExpr::Unit { .. } => "TEXT",
     }
@@ -244,14 +248,22 @@ pub fn to_snake_case(s: &str) -> String {
 /// Represents differences between two schema versions.
 #[derive(Debug, Clone)]
 pub struct SchemaDiff {
+    /// Collection names present only in the new schema.
     pub added_collections: Vec<String>,
+    /// Collection names dropped from the new schema.
     pub removed_collections: Vec<String>,
+    /// Table names present only in the new schema.
     pub added_tables: Vec<String>,
+    /// Table names dropped from the new schema.
     pub removed_tables: Vec<String>,
-    pub added_columns: Vec<(String, String, String)>, // (table, column_name, type)
-    pub removed_columns: Vec<(String, String)>,       // (table, column_name)
-    pub added_indexes: Vec<(String, String, Vec<String>)>, // (table, index_name, columns)
-    pub removed_indexes: Vec<(String, String)>,       // (table, index_name)
+    /// `(table, column_name, sql_type)` tuples added.
+    pub added_columns: Vec<(String, String, String)>,
+    /// `(table, column_name)` tuples removed.
+    pub removed_columns: Vec<(String, String)>,
+    /// `(table, index_name, columns)` tuples added.
+    pub added_indexes: Vec<(String, String, Vec<String>)>,
+    /// `(table, index_name)` tuples removed.
+    pub removed_indexes: Vec<(String, String)>,
 }
 
 /// Diff two schema versions to produce migration SQL.
@@ -629,6 +641,9 @@ mod tests {
             }),
             "BLOB"
         );
+        assert_eq!(vox_type_to_sqlite_type("i64"), "INTEGER");
+        assert_eq!(vox_type_to_sqlite_type("String"), "TEXT");
+        assert_eq!(sqlite_affinity_for_named_vox_type("int"), Some("INTEGER"));
     }
 
     #[test]
@@ -659,8 +674,9 @@ mod tests {
         let diff = diff_schemas(&[&old_t], &[&new_t], &[], &[], &[], &[]);
         let sql = diff_to_sql(&diff, &[&new_t], &[]);
 
-        assert!(sql
-            .iter()
-            .any(|s| s.contains("ALTER TABLE task ADD COLUMN done INTEGER")));
+        assert!(
+            sql.iter()
+                .any(|s| s.contains("ALTER TABLE task ADD COLUMN done INTEGER"))
+        );
     }
 }

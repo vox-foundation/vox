@@ -65,11 +65,7 @@ fn canonical_pypi_name(module: &str) -> &str {
 /// * `project_name` — Vox project name, used as the `[project].name`.
 /// * `imports` — Module names from `@py.import` declarations.
 /// * `env` — Detected Python environment (for CUDA-aware source selection).
-pub fn generate_pyproject_toml(
-    project_name: &str,
-    imports: &[String],
-    env: &PythonEnv,
-) -> String {
+pub fn generate_pyproject_toml(project_name: &str, imports: &[String], env: &PythonEnv) -> String {
     // Deduplicate by top-level module.
     let mut deps: Vec<PyDep> = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -115,18 +111,29 @@ pub fn generate_pyproject_toml(
         if torch_index != "https://download.pytorch.org/whl/cpu" {
             out.push_str(&format!(
                 "torch = {{ index = \"pytorch-{gpu}\" }}\n",
-                gpu = if torch_index.contains("cu130") { "cu130" }
-                      else if torch_index.contains("cu124") { "cu124" }
-                      else if torch_index.contains("cu121") { "cu121" }
-                      else { "cu118" }
+                gpu = if torch_index.contains("cu130") {
+                    "cu130"
+                } else if torch_index.contains("cu124") {
+                    "cu124"
+                } else if torch_index.contains("cu121") {
+                    "cu121"
+                } else {
+                    "cu118"
+                }
             ));
             out.push('\n');
             out.push_str("[[tool.uv.index]]\n");
-            out.push_str(&format!("name = \"pytorch-{gpu}\"\n",
-                gpu = if torch_index.contains("cu130") { "cu130" }
-                      else if torch_index.contains("cu124") { "cu124" }
-                      else if torch_index.contains("cu121") { "cu121" }
-                      else { "cu118" }
+            out.push_str(&format!(
+                "name = \"pytorch-{gpu}\"\n",
+                gpu = if torch_index.contains("cu130") {
+                    "cu130"
+                } else if torch_index.contains("cu124") {
+                    "cu124"
+                } else if torch_index.contains("cu121") {
+                    "cu121"
+                } else {
+                    "cu118"
+                }
             ));
             out.push_str(&format!("url = \"{}\"\n", torch_index));
             out.push_str("explicit = true\n");

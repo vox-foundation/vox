@@ -16,9 +16,15 @@ pub enum ScalingAction {
     /// No change.
     NoOp,
     /// Spawn one dynamic agent with the given name.
-    ScaleUp { name: String },
+    ScaleUp {
+        /// Worker name label for logging and process naming.
+        name: String,
+    },
     /// Retire these dynamic agent IDs (idle and past retirement threshold).
-    ScaleDown { agent_ids: Vec<AgentId> },
+    ScaleDown {
+        /// Dynamic agents eligible for teardown.
+        agent_ids: Vec<AgentId>,
+    },
 }
 
 /// Idle dynamic agent candidate for scale-down (agent id and last activity time).

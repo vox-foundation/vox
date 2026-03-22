@@ -1,20 +1,30 @@
+//! LLM model registry, routing metadata, and per-agent overrides.
+//!
+//! [`ModelRegistry`](crate::models::ModelRegistry) picks the best [`ModelSpec`](crate::models::ModelSpec) for a task category and records
+//! sticky overrides used by the runtime scheduler.
+
 use crate::config::CostPreference;
 use crate::types::TaskCategory;
+use crate::usage::LlmUsageKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Specification for an LLM model in the registry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModelSpec {
+    /// Stable model slug used in APIs and config (e.g. `gemini-2.0-flash-lite`).
     pub id: String,
+    /// Provider namespace for billing and routing (`google`, `openrouter`, …).
     pub provider: String,
     /// Which API endpoint to use: "google_direct", "openrouter", or "ollama".
     pub provider_type: ProviderType,
+    /// Advertised context window / max output budget in tokens.
     pub max_tokens: u64,
     /// Simplified cost metric representing aggregate cost per 1000 tokens.
     pub cost_per_1k: f64,
     /// Whether this model is free (no per-token cost).
     pub is_free: bool,
+    /// Tags describing fit (speed, reasoning, codegen) for heuristic routing.
     pub strengths: Vec<String>,
 }
 
@@ -30,10 +40,64 @@ pub enum ProviderType {
     Ollama,
 }
 
+impl ModelSpec {
+    /// Keys for daily quota rows in `provider_usage` (aligned with `usage` module limits; OpenRouter `:free` aggregate, Ollama `*`).
+    #[must_use]
+    pub fn llm_usage_key(&self) -> LlmUsageKey {
+        match self.provider_type {
+            ProviderType::GoogleDirect => LlmUsageKey {
+                provider: "google".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::OpenRouter => {
+                let model = if self.is_free || self.id.contains(":free") {
+                    ":free".to_string()
+                } else {
+                    self.id.clone()
+                };
+                LlmUsageKey {
+                    provider: "openrouter".to_string(),
+                    model,
+                }
+            }
+            ProviderType::Ollama => LlmUsageKey {
+                provider: "ollama".to_string(),
+                model: "*".to_string(),
+            },
+        }
+    }
+}
+
+/// Default [`ModelConfig::premium_alias`] entries (portable defaults; override in `models.toml`).
+fn built_in_premium_alias() -> HashMap<String, String> {
+    [
+        (
+            "codegen".to_string(),
+            "anthropic/claude-sonnet-4.5".to_string(),
+        ),
+        ("testing".to_string(), "deepseek/deepseek-v3.2".to_string()),
+        ("debugging".to_string(), "openai/o3".to_string()),
+        ("logic".to_string(), "openai/o3".to_string()),
+        ("research".to_string(), "openai/gpt-5".to_string()),
+        ("parsing".to_string(), "openai/gpt-5".to_string()),
+        ("review".to_string(), "openai/gpt-5".to_string()),
+    ]
+    .into_iter()
+    .collect()
+}
+
+fn premium_alias_toml_default() -> HashMap<String, String> {
+    HashMap::new()
+}
+
 /// Configuration wrapper for models.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModelConfig {
+    /// All models available to the orchestrator for this deployment.
     pub models: Vec<ModelSpec>,
+    /// Optional premium model id per task bucket (`codegen`, `testing`, …). Empty = use ranked paid models.
+    #[serde(default = "premium_alias_toml_default")]
+    pub premium_alias: HashMap<String, String>,
 }
 
 impl Default for ModelConfig {
@@ -57,7 +121,11 @@ impl Default for ModelConfig {
                     max_tokens: 1_000_000,
                     cost_per_1k: 0.0,
                     is_free: true,
-                    strengths: vec!["codegen".to_string(), "review".to_string(), "parsing".to_string()],
+                    strengths: vec![
+                        "codegen".to_string(),
+                        "review".to_string(),
+                        "parsing".to_string(),
+                    ],
                 },
                 ModelSpec {
                     id: "gemini-2.5-pro".to_string(),
@@ -66,7 +134,12 @@ impl Default for ModelConfig {
                     max_tokens: 2_000_000,
                     cost_per_1k: 0.0,
                     is_free: true,
-                    strengths: vec!["codegen".to_string(), "debugging".to_string(), "review".to_string(), "research".to_string()],
+                    strengths: vec![
+                        "codegen".to_string(),
+                        "debugging".to_string(),
+                        "review".to_string(),
+                        "research".to_string(),
+                    ],
                 },
                 // ── Free Tier (OpenRouter :free, requires free API key) ──
                 ModelSpec {
@@ -113,7 +186,11 @@ impl Default for ModelConfig {
                     max_tokens: 128_000,
                     cost_per_1k: 0.00027,
                     is_free: false,
-                    strengths: vec!["codegen".to_string(), "debugging".to_string(), "logic".to_string()],
+                    strengths: vec![
+                        "codegen".to_string(),
+                        "debugging".to_string(),
+                        "logic".to_string(),
+                    ],
                 },
                 ModelSpec {
                     id: "anthropic/claude-sonnet-4.5".to_string(),
@@ -122,7 +199,11 @@ impl Default for ModelConfig {
                     max_tokens: 200_000,
                     cost_per_1k: 0.003,
                     is_free: false,
-                    strengths: vec!["codegen".to_string(), "refactoring".to_string(), "review".to_string()],
+                    strengths: vec![
+                        "codegen".to_string(),
+                        "refactoring".to_string(),
+                        "review".to_string(),
+                    ],
                 },
                 ModelSpec {
                     id: "openai/gpt-5".to_string(),
@@ -131,7 +212,11 @@ impl Default for ModelConfig {
                     max_tokens: 256_000,
                     cost_per_1k: 0.005,
                     is_free: false,
-                    strengths: vec!["review".to_string(), "parsing".to_string(), "research".to_string()],
+                    strengths: vec![
+                        "review".to_string(),
+                        "parsing".to_string(),
+                        "research".to_string(),
+                    ],
                 },
                 ModelSpec {
                     id: "openai/o3".to_string(),
@@ -142,17 +227,54 @@ impl Default for ModelConfig {
                     is_free: false,
                     strengths: vec!["debugging".to_string(), "logic".to_string()],
                 },
+                // ── Local Ollama / Populi (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
+                ModelSpec {
+                    id: "llama3.2".to_string(),
+                    provider: "ollama".to_string(),
+                    provider_type: ProviderType::Ollama,
+                    max_tokens: 128_000,
+                    cost_per_1k: 0.0,
+                    is_free: true,
+                    strengths: vec!["codegen".to_string(), "parsing".to_string()],
+                },
             ],
+            premium_alias: built_in_premium_alias(),
         }
     }
 }
 
+/// Maps [`TaskCategory`] to a `premium_alias` / routing strength key.
+#[must_use]
+pub fn task_category_premium_key(task_type: TaskCategory) -> &'static str {
+    match task_type {
+        TaskCategory::CodeGen => "codegen",
+        TaskCategory::Testing => "testing",
+        TaskCategory::Debugging => "debugging",
+        TaskCategory::TypeChecking => "logic",
+        TaskCategory::Research => "research",
+        TaskCategory::Parsing => "parsing",
+        TaskCategory::Review => "review",
+    }
+}
+
+fn task_category_strength(task_type: TaskCategory) -> &'static str {
+    match task_type {
+        TaskCategory::CodeGen => "codegen",
+        TaskCategory::Testing => "codegen",
+        TaskCategory::Debugging => "debugging",
+        TaskCategory::TypeChecking => "logic",
+        TaskCategory::Research => "research",
+        TaskCategory::Parsing => "parsing",
+        TaskCategory::Review => "review",
+    }
+}
 
 /// A registry managing available agent models and model routing.
 #[derive(Debug, Clone, Default)]
 pub struct ModelRegistry {
     models: HashMap<String, ModelSpec>,
     agent_overrides: HashMap<u64, String>,
+    premium_alias: HashMap<String, String>,
 }
 
 impl ModelRegistry {
@@ -161,6 +283,7 @@ impl ModelRegistry {
         let mut registry = Self {
             models: HashMap::new(),
             agent_overrides: HashMap::new(),
+            premium_alias: HashMap::new(),
         };
 
         // Try to load from models.toml in the config directory
@@ -185,6 +308,12 @@ impl ModelRegistry {
             }
         } else {
             ModelConfig::default()
+        };
+
+        registry.premium_alias = if model_config.premium_alias.is_empty() {
+            built_in_premium_alias()
+        } else {
+            model_config.premium_alias.clone()
         };
 
         for model in model_config.models {
@@ -231,21 +360,75 @@ impl ModelRegistry {
                 .models
                 .values()
                 .filter(|m| m.strengths.iter().any(|s| s == strength))
-                .min_by(|a, b| a.cost_per_1k.partial_cmp(&b.cost_per_1k).unwrap())
+                .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
                 .cloned()
                 .or_else(|| self.cheapest());
         }
 
-        // Premium routing: best paid model per task type
-        match task_type {
-            TaskCategory::CodeGen => self.models.get("anthropic/claude-sonnet-4.5").cloned(),
-            TaskCategory::Testing => self.models.get("deepseek/deepseek-v3.2").cloned(),
-            TaskCategory::Debugging => self.models.get("openai/o3").cloned(),
-            TaskCategory::TypeChecking => self.models.get("openai/o3").cloned(),
-            TaskCategory::Research => self.models.get("openai/gpt-5").cloned(),
-            TaskCategory::Parsing => self.models.get("gemini-2.5-flash-preview").cloned(),
-            TaskCategory::Review => self.models.get("openai/gpt-5").cloned(),
+        // Premium routing: TOML `premium_alias` first, else cheapest paid model for the task strength.
+        let key = task_category_premium_key(task_type);
+        if let Some(id) = self.premium_alias.get(key) {
+            if let Some(m) = self.models.get(id) {
+                return Some(m.clone());
+            }
         }
+        let strength = task_category_strength(task_type);
+        self.models
+            .values()
+            .filter(|m| !m.is_free && m.strengths.iter().any(|s| s == strength))
+            .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+            .cloned()
+    }
+
+    /// Like [`Self::best_for`] but only considers models for which `pred` returns true.
+    #[must_use]
+    pub fn best_for_with_filter(
+        &self,
+        task_type: TaskCategory,
+        complexity: u8,
+        preference: CostPreference,
+        mut pred: impl FnMut(&ModelSpec) -> bool,
+    ) -> Option<ModelSpec> {
+        let effective_pref = if complexity <= 3 {
+            CostPreference::Economy
+        } else {
+            preference
+        };
+
+        if effective_pref == CostPreference::Economy {
+            let strength = match task_type {
+                TaskCategory::CodeGen => "codegen",
+                TaskCategory::Testing => "codegen",
+                TaskCategory::Debugging => "debugging",
+                TaskCategory::TypeChecking => "logic",
+                TaskCategory::Research => "research",
+                TaskCategory::Parsing => "parsing",
+                TaskCategory::Review => "review",
+            };
+
+            return self
+                .models
+                .values()
+                .filter(|m| m.strengths.iter().any(|s| s == strength) && pred(m))
+                .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+                .cloned()
+                .or_else(|| self.cheapest_with_filter(&mut pred));
+        }
+
+        let key = task_category_premium_key(task_type);
+        if let Some(id) = self.premium_alias.get(key) {
+            if let Some(m) = self.models.get(id) {
+                if pred(m) {
+                    return Some(m.clone());
+                }
+            }
+        }
+        let strength = task_category_strength(task_type);
+        self.models
+            .values()
+            .filter(|m| !m.is_free && m.strengths.iter().any(|s| s == strength) && pred(m))
+            .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+            .cloned()
     }
 
     /// Return the best free model for a given task category.
@@ -268,21 +451,84 @@ impl ModelRegistry {
             .or_else(|| self.cheapest_free())
     }
 
+    /// Like [`Self::best_free_for`] but only considers models for which `pred` returns true.
+    #[must_use]
+    pub fn best_free_for_with_filter(
+        &self,
+        task_type: TaskCategory,
+        mut pred: impl FnMut(&ModelSpec) -> bool,
+    ) -> Option<ModelSpec> {
+        let strength = match task_type {
+            TaskCategory::CodeGen => "codegen",
+            TaskCategory::Testing => "codegen",
+            TaskCategory::Debugging => "debugging",
+            TaskCategory::TypeChecking => "logic",
+            TaskCategory::Research => "research",
+            TaskCategory::Parsing => "parsing",
+            TaskCategory::Review => "review",
+        };
+
+        self.models
+            .values()
+            .filter(|m| m.is_free && m.strengths.iter().any(|s| s == strength) && pred(m))
+            .max_by_key(|m| m.max_tokens)
+            .cloned()
+            .or_else(|| self.cheapest_free_with_filter(&mut pred))
+    }
+
     /// Return all free models in the registry.
     pub fn free_models(&self) -> Vec<ModelSpec> {
-        self.models.values().filter(|m| m.is_free).cloned().collect()
+        self.models
+            .values()
+            .filter(|m| m.is_free)
+            .cloned()
+            .collect()
     }
 
     /// Return the cheapest free model.
     pub fn cheapest_free(&self) -> Option<ModelSpec> {
-        self.models.values().filter(|m| m.is_free).next().cloned()
+        self.models.values().find(|m| m.is_free).cloned()
+    }
+
+    /// Like [`Self::cheapest_free`] but only considers models for which `pred` returns true.
+    #[must_use]
+    pub fn cheapest_free_with_filter(
+        &self,
+        mut pred: impl FnMut(&ModelSpec) -> bool,
+    ) -> Option<ModelSpec> {
+        self.models
+            .values()
+            .filter(|m| m.is_free && pred(m))
+            .min_by(|a, b| {
+                a.cost_per_1k
+                    .total_cmp(&b.cost_per_1k)
+                    .then_with(|| a.id.cmp(&b.id))
+            })
+            .cloned()
     }
 
     /// Return the absolute cheapest model in the registry.
     pub fn cheapest(&self) -> Option<ModelSpec> {
         self.models
             .values()
-            .min_by(|a, b| a.cost_per_1k.partial_cmp(&b.cost_per_1k).unwrap())
+            .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+            .cloned()
+    }
+
+    /// Like [`Self::cheapest`] but only considers models for which `pred` returns true.
+    #[must_use]
+    pub fn cheapest_with_filter(
+        &self,
+        mut pred: impl FnMut(&ModelSpec) -> bool,
+    ) -> Option<ModelSpec> {
+        self.models
+            .values()
+            .filter(|m| pred(m))
+            .min_by(|a, b| {
+                a.cost_per_1k
+                    .total_cmp(&b.cost_per_1k)
+                    .then_with(|| a.id.cmp(&b.id))
+            })
             .cloned()
     }
 
@@ -313,15 +559,16 @@ impl ModelRegistry {
         self.agent_overrides.get(&agent_id).cloned()
     }
 
+    /// Builds a [`vox_runtime::llm::LlmConfig`] for the best matching model when the `runtime` feature is on.
     #[cfg(feature = "runtime")]
     pub fn get_llm_config(
         &self,
         task_type: TaskCategory,
         complexity: u8,
         preference: CostPreference,
-    ) -> Option<vox_runtime::LlmConfig> {
+    ) -> Option<vox_runtime::llm::LlmConfig> {
         self.best_for(task_type, complexity, preference)
-            .map(|spec| vox_runtime::LlmConfig {
+            .map(|spec| vox_runtime::llm::LlmConfig {
                 provider: spec.provider.clone(),
                 model: spec.id.clone(),
                 base_url: None,
@@ -330,5 +577,197 @@ impl ModelRegistry {
                 max_tokens: Some(spec.max_tokens),
                 response_format: None,
             })
+    }
+}
+
+#[cfg(test)]
+mod llm_usage_key_tests {
+    use super::{ModelSpec, ProviderType};
+    use crate::usage::LlmUsageKey;
+
+    #[test]
+    fn openrouter_free_maps_to_aggregate_free_bucket() {
+        let m = ModelSpec {
+            id: "qwen/qwen3-coder:free".into(),
+            provider: "qwen".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec![],
+        };
+        assert_eq!(
+            m.llm_usage_key(),
+            LlmUsageKey {
+                provider: "openrouter".into(),
+                model: ":free".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn openrouter_paid_uses_full_model_id() {
+        let m = ModelSpec {
+            id: "anthropic/claude-sonnet-4.5".into(),
+            provider: "anthropic".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1,
+            cost_per_1k: 0.01,
+            is_free: false,
+            strengths: vec![],
+        };
+        assert_eq!(
+            m.llm_usage_key(),
+            LlmUsageKey {
+                provider: "openrouter".into(),
+                model: "anthropic/claude-sonnet-4.5".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn ollama_maps_to_star_model() {
+        let m = ModelSpec {
+            id: "llama3.2".into(),
+            provider: "ollama".into(),
+            provider_type: ProviderType::Ollama,
+            max_tokens: 1,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec![],
+        };
+        assert_eq!(
+            m.llm_usage_key(),
+            LlmUsageKey {
+                provider: "ollama".into(),
+                model: "*".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn google_direct_uses_google_provider_and_model_id() {
+        let m = ModelSpec {
+            id: "gemini-2.0-flash-lite".into(),
+            provider: "google".into(),
+            provider_type: ProviderType::GoogleDirect,
+            max_tokens: 1,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec![],
+        };
+        assert_eq!(
+            m.llm_usage_key(),
+            LlmUsageKey {
+                provider: "google".into(),
+                model: "gemini-2.0-flash-lite".into(),
+            }
+        );
+    }
+}
+
+#[cfg(test)]
+mod premium_alias_tests {
+    use super::ModelConfig;
+    use std::collections::HashSet;
+
+    #[test]
+    fn default_premium_alias_targets_exist_in_models_list() {
+        let cfg = ModelConfig::default();
+        let ids: HashSet<_> = cfg.models.iter().map(|m| m.id.as_str()).collect();
+        for (k, v) in &cfg.premium_alias {
+            assert!(
+                ids.contains(v.as_str()),
+                "premium_alias {k} -> {v} not in default models list"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod registry_filter_tests {
+    use super::{ModelRegistry, ModelSpec, ProviderType};
+    use crate::config::CostPreference;
+    use crate::types::TaskCategory;
+
+    #[test]
+    fn best_free_for_with_filter_skips_ollama() {
+        let mut r = ModelRegistry::default();
+        r.register(ModelSpec {
+            id: "llama-local".into(),
+            provider: "ollama".into(),
+            provider_type: ProviderType::Ollama,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec!["codegen".into()],
+        });
+        r.register(ModelSpec {
+            id: "gemini-2.0-flash-lite".into(),
+            provider: "google".into(),
+            provider_type: ProviderType::GoogleDirect,
+            max_tokens: 1_000_000,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec!["codegen".into()],
+        });
+        let picked = r
+            .best_for_with_filter(TaskCategory::CodeGen, 2, CostPreference::Performance, |m| {
+                m.is_free && !matches!(m.provider_type, ProviderType::Ollama)
+            })
+            .expect("non-ollama free");
+        assert_eq!(picked.id, "gemini-2.0-flash-lite");
+    }
+
+    #[test]
+    fn cheapest_free_with_filter_stable_tiebreak_on_id() {
+        let mut r = ModelRegistry::default();
+        r.register(ModelSpec {
+            id: "z-free".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1000,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec!["codegen".into()],
+        });
+        r.register(ModelSpec {
+            id: "a-free".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1000,
+            cost_per_1k: 0.0,
+            is_free: true,
+            strengths: vec!["codegen".into()],
+        });
+        let picked = r
+            .cheapest_free_with_filter(|_| true)
+            .expect("free model");
+        assert_eq!(picked.id, "a-free");
+    }
+
+    #[test]
+    fn cheapest_with_filter_stable_tiebreak_on_id() {
+        let mut r = ModelRegistry::default();
+        r.register(ModelSpec {
+            id: "z-paid".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1000,
+            cost_per_1k: 0.01,
+            is_free: false,
+            strengths: vec!["codegen".into()],
+        });
+        r.register(ModelSpec {
+            id: "a-paid".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1000,
+            cost_per_1k: 0.01,
+            is_free: false,
+            strengths: vec!["codegen".into()],
+        });
+        let picked = r.cheapest_with_filter(|_| true).expect("paid model");
+        assert_eq!(picked.id, "a-paid");
     }
 }

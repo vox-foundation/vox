@@ -1,10 +1,8 @@
-use vox_hir::{HirExpr, HirArg};
+//! `std.fs` / `std.path` lowering tests for `emit_expr`.
 use vox_ast::span::Span;
-use vox_codegen_rust::emit_expr::emit_expr;
-
-fn dummy_span() -> Span {
-    Span { start: 0, end: 0 }
-}
+use vox_codegen_rust::emit::emit_expr;
+use vox_hir::{HirArg, HirExpr};
+use vox_test_harness::spans::dummy_span;
 
 fn str_arg(s: &str) -> HirArg {
     HirArg {
@@ -66,10 +64,7 @@ fn fs_builtins_emit_correctly() {
         vec![str_arg("/tmp"), str_arg("file.txt")],
     );
     let out4 = emit_expr(&expr4);
-    assert!(
-        out4.contains("join"),
-        "Expected join, got: {out4}"
-    );
+    assert!(out4.contains("join"), "Expected join, got: {out4}");
 
     // std.path.basename(path)
     let expr5 = call(
@@ -90,7 +85,10 @@ fn fs_remove_emits_remove_file() {
         vec![str_arg("/tmp/old.txt")],
     );
     let out = emit_expr(&expr);
-    assert!(out.contains("std::fs::remove_file"), "Expected remove_file, got: {out}");
+    assert!(
+        out.contains("std::fs::remove_file"),
+        "Expected remove_file, got: {out}"
+    );
 }
 
 #[test]
@@ -100,5 +98,28 @@ fn fs_mkdir_emits_create_dir_all() {
         vec![str_arg("/tmp/newdir")],
     );
     let out = emit_expr(&expr);
-    assert!(out.contains("create_dir_all"), "Expected create_dir_all, got: {out}");
+    assert!(
+        out.contains("create_dir_all"),
+        "Expected create_dir_all, got: {out}"
+    );
+}
+
+#[test]
+fn print_emits_println() {
+    let expr = call(ident("print"), vec![str_arg("hi")]);
+    let out = emit_expr(&expr);
+    assert!(out.contains("println!"), "Expected println!, got: {out}");
+}
+
+#[test]
+fn std_env_get_emits_builtin() {
+    let expr = call(
+        field(field(ident("std"), "env"), "get"),
+        vec![str_arg("PATH")],
+    );
+    let out = emit_expr(&expr);
+    assert!(
+        out.contains("vox_env_get"),
+        "Expected vox_env_get, got: {out}"
+    );
 }

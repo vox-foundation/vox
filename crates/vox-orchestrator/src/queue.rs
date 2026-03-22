@@ -1,5 +1,10 @@
+//! Priority-ordered per-agent task queues with dependency tracking.
+//!
+//! [`AgentQueue`](crate::queue::AgentQueue) is the unit the orchestrator uses for dequeue, pause, and completion accounting.
+
 use std::collections::VecDeque;
 
+use crate::contract::TaskCapabilityHints;
 use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
 
 /// Per-agent priority task queue.
@@ -24,6 +29,8 @@ pub struct AgentQueue {
     pub last_active: std::time::SystemTime,
     /// ID of the AI agent session mapped to this queue, if any.
     pub agent_session_id: Option<String>,
+    /// Hardware capabilities this agent queue provides (for GPU-aware routing).
+    pub capabilities: TaskCapabilityHints,
 }
 
 impl AgentQueue {
@@ -38,6 +45,7 @@ impl AgentQueue {
             paused: false,
             last_active: std::time::SystemTime::now(),
             agent_session_id: None,
+            capabilities: TaskCapabilityHints::default(),
         }
     }
 
@@ -194,11 +202,7 @@ impl AgentQueue {
 
     /// Number of tasks in progress (0 or 1).
     pub fn in_progress_count(&self) -> usize {
-        if self.in_progress.is_some() {
-            1
-        } else {
-            0
-        }
+        if self.in_progress.is_some() { 1 } else { 0 }
     }
 
     /// Calculate the weighted load of this queue.

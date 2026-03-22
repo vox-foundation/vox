@@ -1,3 +1,7 @@
+//! Optional Wasmtime integration for hosting MCP tool servers as `.wasm` modules.
+//!
+//! Enabled with the `wasm` feature; loads modules from disk and exposes instantiate helpers.
+
 use anyhow::Result;
 use std::path::Path;
 use wasmtime::{Engine, Instance, Linker, Module, Store};
@@ -42,12 +46,11 @@ impl WasmModule {
         let linker = Linker::new(&self.engine);
 
         // Instantiate the module into the store
-        let instance = linker.instantiate(&mut store, &self.module).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let instance = linker
+            .instantiate(&mut store, &self.module)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-        Ok(ActiveWasmInstance {
-            store,
-            instance,
-        })
+        Ok(ActiveWasmInstance { store, instance })
     }
 }
 
@@ -137,7 +140,10 @@ impl ActiveWasmInstance {
             .map_err(|e| anyhow::anyhow!("failed to read result from Wasm memory: {e}"))?;
 
         // Optionally, invoke the guest's `deallocate` function here to free both strings
-        if let Ok(free_fn) = self.instance.get_typed_func::<(i32, i32), ()>(&mut self.store, "deallocate") {
+        if let Ok(free_fn) = self
+            .instance
+            .get_typed_func::<(i32, i32), ()>(&mut self.store, "deallocate")
+        {
             let _ = free_fn.call(&mut self.store, (req_ptr, req_len));
             let _ = free_fn.call(&mut self.store, (res_ptr, res_len));
         }
@@ -154,14 +160,14 @@ pub struct InMemTransport {
 }
 
 impl InMemTransport {
-    pub fn new() -> (Self, tokio::sync::mpsc::Receiver<String>, tokio::sync::mpsc::Sender<String>) {
+    pub fn new() -> (
+        Self,
+        tokio::sync::mpsc::Receiver<String>,
+        tokio::sync::mpsc::Sender<String>,
+    ) {
         let (tx1, rx1) = tokio::sync::mpsc::channel(100);
         let (tx2, rx2) = tokio::sync::mpsc::channel(100);
-        (
-            Self { tx: tx1, rx: rx2 },
-            rx1,
-            tx2
-        )
+        (Self { tx: tx1, rx: rx2 }, rx1, tx2)
     }
 
     /// Task 3: Binary Format Serialization

@@ -387,5 +387,3 @@ All statement types in Vox.
 ### `enum TypeExpr`
 
 Type expressions in Vox source code.
-
-

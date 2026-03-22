@@ -13,10 +13,15 @@ const DEFAULT_STALE_THRESHOLD_MS: u64 = 60_000;
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 pub enum StalenessLevel {
+    /// Heartbeats arriving within policy.
     Healthy,
+    /// First missed window; informational.
     Warn,
+    /// Sustained misses; operator should investigate.
     Alert,
+    /// Approaching eviction; likely stuck or partitioned.
     Critical,
+    /// Treat as dead for routing purposes.
     Dead,
 }
 
@@ -35,9 +40,13 @@ impl std::fmt::Display for StalenessLevel {
 /// Policy for graduated heartbeat response.
 #[derive(Debug, Clone)]
 pub struct HeartbeatPolicy {
+    /// Consecutive stale intervals before emitting `Warn`.
     pub warn_after_misses: u32,
+    /// Miss count threshold for `Alert`.
     pub alert_after_misses: u32,
+    /// Miss count threshold for `Critical`.
     pub critical_after_misses: u32,
+    /// Miss count threshold marking the agent as `Dead`.
     pub dead_after_misses: u32,
 }
 
@@ -53,6 +62,7 @@ impl Default for HeartbeatPolicy {
 }
 
 impl HeartbeatPolicy {
+    /// Maps a consecutive miss count to the corresponding [`StalenessLevel`].
     pub fn level_for_misses(&self, misses: u32) -> StalenessLevel {
         if misses >= self.dead_after_misses {
             StalenessLevel::Dead
@@ -71,10 +81,15 @@ impl HeartbeatPolicy {
 /// Per-agent heartbeat state.
 #[derive(Debug, Clone)]
 pub struct AgentHeartbeat {
+    /// Last successful heartbeat instant.
     pub last_seen: Instant,
+    /// Last reported [`AgentActivity`].
     pub activity: AgentActivity,
+    /// Whether we already published a stale event for the current episode.
     pub stale_emitted: bool,
+    /// Consecutive intervals without a heartbeat.
     pub miss_count: u32,
+    /// Latest derived staleness bucket.
     pub staleness: StalenessLevel,
 }
 
@@ -87,6 +102,7 @@ pub struct HeartbeatMonitor {
 }
 
 impl HeartbeatMonitor {
+    /// Creates a monitor; `stale_threshold_ms` is one missed window before counting a miss.
     pub fn new(stale_threshold_ms: u64) -> Self {
         Self {
             agents: HashMap::new(),
@@ -95,11 +111,13 @@ impl HeartbeatMonitor {
         }
     }
 
+    /// Replaces the default [`HeartbeatPolicy`] with custom miss thresholds.
     pub fn with_policy(mut self, policy: HeartbeatPolicy) -> Self {
         self.policy = policy;
         self
     }
 
+    /// Starts tracking liveness for a new agent at `Idle` / healthy.
     pub fn register(&mut self, agent_id: AgentId) {
         self.agents.insert(
             agent_id,
@@ -113,10 +131,12 @@ impl HeartbeatMonitor {
         );
     }
 
+    /// Drops heartbeat state when an agent is torn down.
     pub fn unregister(&mut self, agent_id: AgentId) {
         self.agents.remove(&agent_id);
     }
 
+    /// Records a successful ping and resets miss counters for the agent.
     pub fn heartbeat(&mut self, agent_id: AgentId, activity: AgentActivity) {
         if let Some(hb) = self.agents.get_mut(&agent_id) {
             hb.last_seen = Instant::now();
@@ -160,16 +180,19 @@ impl HeartbeatMonitor {
         stale
     }
 
+    /// Returns the last known activity for an agent, if registered.
     pub fn activity(&self, agent_id: AgentId) -> Option<AgentActivity> {
         self.agents.get(&agent_id).map(|hb| hb.activity)
     }
 
+    /// Milliseconds since the last heartbeat for this agent.
     pub fn last_seen_ms(&self, agent_id: AgentId) -> Option<u64> {
         self.agents
             .get(&agent_id)
             .map(|hb| Instant::now().duration_since(hb.last_seen).as_millis() as u64)
     }
 
+    /// True if the agent has exceeded the stale interval right now.
     pub fn is_stale(&self, agent_id: AgentId) -> bool {
         self.agents
             .get(&agent_id)
@@ -177,6 +200,7 @@ impl HeartbeatMonitor {
             .unwrap_or(false)
     }
 
+    /// Current [`StalenessLevel`] or `Healthy` if unknown.
     pub fn staleness_level(&self, agent_id: AgentId) -> StalenessLevel {
         self.agents
             .get(&agent_id)
@@ -184,6 +208,7 @@ impl HeartbeatMonitor {
             .unwrap_or(StalenessLevel::Healthy)
     }
 
+    /// Agents whose staleness is at least `level`.
     pub fn at_or_above(&self, level: StalenessLevel) -> Vec<AgentId> {
         self.agents
             .iter()
@@ -192,10 +217,12 @@ impl HeartbeatMonitor {
             .collect()
     }
 
+    /// Full heartbeat table (read-only) for diagnostics.
     pub fn all_agents(&self) -> &HashMap<AgentId, AgentHeartbeat> {
         &self.agents
     }
 
+    /// Number of registered agents.
     pub fn agent_count(&self) -> usize {
         self.agents.len()
     }

@@ -1,7 +1,7 @@
 [package]
 name = "vox-tensor"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [features]
 default = []
@@ -10,11 +10,13 @@ train = ["gpu"]
 lstm = ["gpu"]
 
 [dependencies]
-burn = { version = "0.19", features = ["ndarray", "autodiff", "wgpu", "train"], optional = true }
-vox-ast = { path = "../vox-ast" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+burn = { workspace = true, optional = true, features = ["wgpu", "autodiff", "train"] }
+vox-ast = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
-burn = { version = "0.19", features = ["ndarray", "autodiff", "train"] }
-tempfile = "3"
+tempfile = { workspace = true }
+
+# Burn is available in tests via the 'gpu' feature (declared optional in [dependencies]).
+# Run GPU/Burn tests with: cargo test -p vox-tensor --features gpu

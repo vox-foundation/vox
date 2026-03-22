@@ -3,7 +3,9 @@ use std::time::Duration;
 /// Retry policy for resilient outbound HTTP calls.
 #[derive(Debug, Clone, Copy)]
 pub struct RetryPolicy {
+    /// Attempts per endpoint before trying the next or failing.
     pub max_attempts: usize,
+    /// Initial backoff for the first retry on an endpoint (exponential growth).
     pub base_delay_ms: u64,
 }
 
@@ -16,10 +18,13 @@ impl Default for RetryPolicy {
     }
 }
 
+/// Errors from [`ResilientHttpClient`] when no endpoint succeeds.
 #[derive(Debug, thiserror::Error)]
 pub enum ResilientHttpError {
+    /// Every endpoint exhausted its retry budget.
     #[error("all endpoints failed after retries: {0}")]
     Exhausted(String),
+    /// Invalid configuration (e.g. empty endpoint list) or client build failure.
     #[error("request build error: {0}")]
     Build(String),
 }
@@ -32,6 +37,7 @@ pub struct ResilientHttpClient {
 }
 
 impl ResilientHttpClient {
+    /// Wraps a fresh `reqwest` client with the given retry policy.
     pub fn new(policy: RetryPolicy) -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -39,6 +45,7 @@ impl ResilientHttpClient {
         }
     }
 
+    /// Builds a client from `VOX_HTTP_RETRY_MAX_ATTEMPTS` and `VOX_HTTP_RETRY_BASE_DELAY_MS` (with defaults).
     pub fn from_env() -> Self {
         let max_attempts = std::env::var("VOX_HTTP_RETRY_MAX_ATTEMPTS")
             .ok()

@@ -1,6 +1,12 @@
+//! Shared key–value context between agents with optional TTL and VCS linkage.
+//!
+//! [`ContextStore`] is snapshot-friendly and backs cross-agent coordination without
+//! hitting the database for ephemeral coordination state.
+
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use crate::sync_lock;
 use crate::types::{AgentId, VcsContext};
 
 /// An entry in the shared context store.
@@ -42,7 +48,7 @@ impl ContextStore {
 
     /// Dump all current entries (e.g. for state saving).
     pub fn entries(&self) -> HashMap<String, ContextEntry> {
-        self.inner.read().expect("context lock poisoned").clone()
+        sync_lock::rw_read(&self.inner).clone()
     }
 
     /// Set a context value.
@@ -97,7 +103,7 @@ impl ContextStore {
 
     /// Get the full ContextEntry by key.
     pub fn get_entry(&self, key: &str) -> Option<ContextEntry> {
-        let map = self.inner.read().expect("context lock poisoned");
+        let map = sync_lock::rw_read(&self.inner);
         if let Some(entry) = map.get(key) {
             if entry.expires_at == 0 || entry.expires_at > current_timestamp() {
                 return Some(entry.clone());
@@ -108,7 +114,7 @@ impl ContextStore {
 
     /// Return all keys starting with a specific prefix.
     pub fn list_keys(&self, prefix: &str) -> Vec<String> {
-        let map = self.inner.read().expect("context lock poisoned");
+        let map = sync_lock::rw_read(&self.inner);
         let now = current_timestamp();
         map.iter()
             .filter(|(k, v)| k.starts_with(prefix) && (v.expires_at == 0 || v.expires_at > now))
@@ -119,7 +125,7 @@ impl ContextStore {
     /// Clear out items that have expired their TTL.
     /// Intended to be run periodically by the orchestrator.
     pub fn expire_stale(&self) -> usize {
-        let mut map = self.inner.write().expect("context lock poisoned");
+        let mut map = sync_lock::rw_write(&self.inner);
         let now = current_timestamp();
         let initial_len = map.len();
         map.retain(|_, v| v.expires_at == 0 || v.expires_at > now);
@@ -157,7 +163,7 @@ mod tests {
         store.set(AgentId(1), "exp", "val", 1);
 
         {
-            let mut map = store.inner.write().unwrap();
+            let mut map = sync_lock::rw_write(&store.inner);
             map.get_mut("exp").unwrap().expires_at = current_timestamp() - 10;
         }
 

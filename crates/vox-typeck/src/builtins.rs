@@ -47,6 +47,7 @@ impl BuiltinTypes {
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
+                is_deprecated: false,
             },
         );
         // None → Option[T]
@@ -56,6 +57,7 @@ impl BuiltinTypes {
                 ty: Ty::Option(Box::new(Ty::GenericParam(0))),
                 mutable: false,
                 kind: BindingKind::Constructor,
+                is_deprecated: false,
             },
         );
 
@@ -84,6 +86,7 @@ impl BuiltinTypes {
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
+                is_deprecated: false,
             },
         );
         // Error(message: str) → Result[T]
@@ -97,6 +100,7 @@ impl BuiltinTypes {
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
+                is_deprecated: false,
             },
         );
 
@@ -107,6 +111,7 @@ impl BuiltinTypes {
                 ty: Ty::Bool,
                 mutable: false,
                 kind: BindingKind::Constructor,
+                is_deprecated: false,
             },
         );
         env.define(
@@ -115,6 +120,7 @@ impl BuiltinTypes {
                 ty: Ty::Bool,
                 mutable: false,
                 kind: BindingKind::Constructor,
+                is_deprecated: false,
             },
         );
 
@@ -127,6 +133,18 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // std — namespace for `std.fs.*`, `std.path.*`, `std.env.*`, `std.process.*`, `std.json.*` (script codegen)
+        env.define(
+            "std".into(),
+            Binding {
+                ty: Ty::Named("StdNamespace".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
             },
         );
 
@@ -137,6 +155,7 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
 
@@ -147,6 +166,7 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
 
@@ -157,6 +177,7 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Float)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
 
@@ -167,6 +188,7 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
 
@@ -186,6 +208,7 @@ impl BuiltinTypes {
                 ),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
 
@@ -196,8 +219,12 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::Fn(vec![], Box::new(Ty::Unit))], Box::new(Ty::Unit)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
+
+        // DOM / synthetic types (field access is special-cased in `checker`)
+        env.define_type("KeyboardEvent".into(), Ty::Named("KeyboardEvent".into()));
 
         // ── HTTP/network module ───────────────────────────────
 
@@ -208,6 +235,7 @@ impl BuiltinTypes {
                 ty: Ty::Named("HTTPModule".into()),
                 mutable: false,
                 kind: BindingKind::Import,
+                is_deprecated: false,
             },
         );
 
@@ -221,6 +249,18 @@ impl BuiltinTypes {
                 ty: Ty::Named("ClaudeActor".into()),
                 mutable: false,
                 kind: BindingKind::Actor,
+                is_deprecated: false,
+            },
+        );
+
+        // Speech-to-text module (Oratio / Candle Whisper — codegen links `vox-oratio`)
+        env.define(
+            "Speech".into(),
+            Binding {
+                ty: Ty::Named("SpeechModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
             },
         );
 
@@ -299,6 +339,14 @@ impl BuiltinTypes {
             ),
         );
         methods.insert("HTTPModule".into(), http_methods);
+
+        // Speech module: transcribe(path: str) → Result[str] (refined display text)
+        let mut speech_methods = std::collections::HashMap::new();
+        speech_methods.insert(
+            "transcribe".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        );
+        methods.insert("SpeechModule".into(), speech_methods);
 
         // Request methods
         let mut req_methods = std::collections::HashMap::new();

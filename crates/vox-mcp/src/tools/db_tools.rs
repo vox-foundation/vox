@@ -38,7 +38,7 @@ pub fn vox_db_schema(args: serde_json::Value) -> String {
 
     match parse_vox_module(path) {
         Ok(module) => {
-            let digest = vox_db::generate_schema_digest(&module);
+            let digest = vox_db::generate_schema_digest(&module, None);
             match vox_db::digest_to_json(&digest) {
                 Ok(json) => ToolResult::ok(
                     serde_json::from_str::<serde_json::Value>(&json).unwrap_or_default(),
@@ -63,7 +63,7 @@ pub fn vox_db_relationships(args: serde_json::Value) -> String {
 
     match parse_vox_module(path) {
         Ok(module) => {
-            let digest = vox_db::generate_schema_digest(&module);
+            let digest = vox_db::generate_schema_digest(&module, None);
             let context = vox_db::format_llm_context(&digest);
             ToolResult::ok(serde_json::json!({
                 "relationships": digest.relationships,
@@ -84,7 +84,7 @@ pub fn vox_db_data_flow(args: serde_json::Value) -> String {
 
     match parse_vox_module(path) {
         Ok(module) => {
-            let digest = vox_db::generate_schema_digest(&module);
+            let digest = vox_db::generate_schema_digest(&module, None);
             let flow = vox_db::build_data_flow(&digest);
             match serde_json::to_string_pretty(&flow) {
                 Ok(json) => ToolResult::ok(
@@ -112,9 +112,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
 
     let db = match &state.db {
         Some(db) => db,
-        None => {
-            return ToolResult::<serde_json::Value>::err("VoxDb is not connected.").to_json()
-        }
+        None => return ToolResult::<serde_json::Value>::err("VoxDb is not connected.").to_json(),
     };
 
     let info_sql = format!("PRAGMA table_info({})", table);
@@ -122,7 +120,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
         Ok(r) => r,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err(format!("DB error (table info): {e}"))
-                .to_json()
+                .to_json();
         }
     };
 
@@ -145,7 +143,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
         Ok(r) => r,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err(format!("DB error (select): {e}"))
-                .to_json()
+                .to_json();
         }
     };
 
@@ -192,9 +190,9 @@ pub async fn vox_db_explain_query(args: serde_json::Value) -> String {
     }
 
     let schema_digest = match parse_vox_module(schema_path) {
-        Ok(module) => vox_db::generate_schema_digest(&module),
+        Ok(module) => vox_db::generate_schema_digest(&module, None),
         Err(e) => {
-            return ToolResult::<String>::err(format!("Failed to parse schema: {e}")).to_json()
+            return ToolResult::<String>::err(format!("Failed to parse schema: {e}")).to_json();
         }
     };
 
@@ -206,10 +204,7 @@ pub async fn vox_db_explain_query(args: serde_json::Value) -> String {
     let mut new_args = args.clone();
     if let serde_json::Value::Object(ref mut map) = new_args {
         map.insert("prompt".to_string(), serde_json::Value::String(prompt));
-        map.insert(
-            "validate".to_string(),
-            serde_json::Value::Bool(false),
-        );
+        map.insert("validate".to_string(), serde_json::Value::Bool(false));
     }
 
     super::compiler_tools::generate_vox_code(new_args).await
@@ -228,9 +223,9 @@ pub async fn vox_db_suggest_query(args: serde_json::Value) -> String {
     }
 
     let schema_digest = match parse_vox_module(schema_path) {
-        Ok(module) => vox_db::generate_schema_digest(&module),
+        Ok(module) => vox_db::generate_schema_digest(&module, None),
         Err(e) => {
-            return ToolResult::<String>::err(format!("Failed to parse schema: {e}")).to_json()
+            return ToolResult::<String>::err(format!("Failed to parse schema: {e}")).to_json();
         }
     };
 

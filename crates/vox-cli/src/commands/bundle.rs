@@ -1,8 +1,11 @@
+//! `vox bundle` — production-style packaging: codegen, React/Vite app, npm build, embed static files, ship one binary.
+
 use crate::commands::build;
-use crate::templates;
+use crate::frontend;
 use anyhow::{Context, Result};
-use std::fs;
 use std::path::{Path, PathBuf};
+use tokio::fs;
+use tokio::process::Command;
 
 /// Bundle a Vox source file into a complete, runnable web application.
 ///
@@ -17,15 +20,20 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     build::run(file, out_dir).await?;
 
     // Check if we have any frontend components
-    let has_frontend = out_dir.join("Chat.tsx").exists()
-        || fs::read_dir(out_dir)
-            .ok()
-            .map(|entries| {
-                entries
-                    .filter_map(|e| e.ok())
-                    .any(|e| e.path().extension().is_some_and(|ext| ext == "tsx"))
-            })
-            .unwrap_or(false);
+    let chat_tsx = out_dir.join("Chat.tsx");
+    let has_chat = fs::try_exists(&chat_tsx).await.unwrap_or(false);
+    let mut has_other_tsx = false;
+    if !has_chat {
+        if let Ok(mut rd) = fs::read_dir(out_dir).await {
+            while let Ok(Some(e)) = rd.next_entry().await {
+                if e.path().extension().is_some_and(|ext| ext == "tsx") {
+                    has_other_tsx = true;
+                    break;
+                }
+            }
+        }
+    }
+    let has_frontend = has_chat || has_other_tsx;
 
     if !has_frontend {
         println!("No frontend components found. Backend-only build complete.");
@@ -35,25 +43,37 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     // Step 2: Scaffold the React/Vite project
     println!("=== Step 2/5: Scaffolding React application ===");
     let app_dir = out_dir.join("app");
-    scaffold_react_app(&app_dir, out_dir)?;
+    let app_dir_for_scaffold = app_dir.clone();
+    let out_for_scaffold = out_dir.to_path_buf();
+    let tanstack_start = vox_config::VoxConfig::load().web_tanstack_start;
+    tokio::task::spawn_blocking(move || {
+        frontend::scaffold_react_app(&app_dir_for_scaffold, &out_for_scaffold, tanstack_start)
+    })
+    .await
+    .context("scaffold join")?
+    .context("Failed to scaffold Vite + React app")?;
+
+    build::verify_app_src_generated_imports(&app_dir.join("src"))
+        .context("Scaffold entry import graph (main.tsx / routes/index.tsx)")?;
 
     // Step 3: Install deps and build
     println!("=== Step 3/5: Installing dependencies & building ===");
-    npm_install_and_build(&app_dir)?;
+    npm_install_and_build(&app_dir).await?;
 
     // Step 4: Copy built assets to backend public dir
     println!("=== Step 4/5: Packaging static assets ===");
     let generated_dir = PathBuf::from("target").join("generated");
     let public_dir = generated_dir.join("public");
-    copy_built_assets(&app_dir.join("dist"), &public_dir)?;
+    copy_built_assets(&app_dir.join("dist"), &public_dir).await?;
+    crate::frontend::build_islands_if_present(&generated_dir, "public")?;
 
     // Step 5: Build the single binary
     println!("=== Step 5/5: Building single binary ===");
-    let binary_path = build_single_binary(&generated_dir, target, release)?;
+    let binary_path = build_single_binary(&generated_dir, target, release).await?;
 
     // Copy binary to dist/
     let dist_dir = PathBuf::from("dist");
-    fs::create_dir_all(&dist_dir)?;
+    fs::create_dir_all(&dist_dir).await?;
     let app_name = file
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
@@ -64,8 +84,9 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
         } else {
             ""
         };
-    let dest = dist_dir.join(format!("{}{}", app_name, ext));
+    let dest = dist_dir.join(format!("{app_name}{ext}"));
     fs::copy(&binary_path, &dest)
+        .await
         .with_context(|| format!("Failed to copy binary to {}", dest.display()))?;
 
     println!("\n✓ Bundle complete!");
@@ -75,7 +96,7 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     }
     println!(
         "  Size: {:.1} MB",
-        fs::metadata(&dest)?.len() as f64 / 1_048_576.0
+        fs::metadata(&dest).await?.len() as f64 / 1_048_576.0
     );
     println!("\n  Run with: ./{}", dest.display());
     println!("  Then open: http://localhost:3000");
@@ -83,100 +104,33 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     Ok(())
 }
 
-/// Scaffold a complete Vite + React project around the generated TS components.
-fn scaffold_react_app(app_dir: &Path, generated_ts_dir: &Path) -> Result<()> {
-    let src_dir = app_dir.join("src");
-    let generated_dir = src_dir.join("generated");
-
-    fs::create_dir_all(&generated_dir).context("Failed to create app/src/generated directory")?;
-
-    // Write template files
-    fs::write(app_dir.join("index.html"), templates::index_html())
-        .context("Failed to write index.html")?;
-
-    fs::write(app_dir.join("package.json"), templates::package_json())
-        .context("Failed to write package.json")?;
-
-    fs::write(app_dir.join("vite.config.ts"), templates::vite_config(3000))
-        .context("Failed to write vite.config.ts")?;
-
-    fs::write(app_dir.join("tsconfig.json"), templates::tsconfig_json())
-        .context("Failed to write tsconfig.json")?;
-
-    fs::write(src_dir.join("index.css"), templates::index_css())
-        .context("Failed to write index.css")?;
-
-    // Find the main component name from generated TSX files
-    let component_name = find_component_name(generated_ts_dir)?;
-
-    fs::write(
-        src_dir.join("main.tsx"),
-        templates::main_tsx(&component_name),
-    )
-    .context("Failed to write main.tsx")?;
-
-    // Copy all generated TS/TSX files into app/src/generated/
-    for entry in fs::read_dir(generated_ts_dir).context("Failed to read generated TS directory")? {
-        let entry = entry?;
-        let path = entry.path();
-        if let Some(ext) = path.extension() {
-            if ext == "tsx" || ext == "ts" {
-                let dest = generated_dir.join(path.file_name().unwrap());
-                fs::copy(&path, &dest)
-                    .with_context(|| format!("Failed to copy {} to generated/", path.display()))?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Find the name of the main React component in the generated output.
-fn find_component_name(generated_dir: &Path) -> Result<String> {
-    for entry in fs::read_dir(generated_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().is_some_and(|e| e == "tsx") {
-            if let Some(stem) = path.file_stem() {
-                let name = stem.to_string_lossy().to_string();
-                // Skip types.ts files, look for component-like names (PascalCase)
-                if name.chars().next().is_some_and(|c| c.is_uppercase()) {
-                    return Ok(name);
-                }
-            }
-        }
-    }
-    // Default fallback
-    Ok("App".to_string())
-}
-
 /// Run npm install and build in the scaffolded project.
-fn npm_install_and_build(app_dir: &Path) -> Result<()> {
-    // npm install
+async fn npm_install_and_build(app_dir: &Path) -> Result<()> {
     let npm = if cfg!(windows) { "npm.cmd" } else { "npm" };
     println!("  Running npm install...");
-    let install_status = std::process::Command::new(npm)
+    let install_status = Command::new(npm)
         .arg("install")
         .arg("--prefer-offline")
         .current_dir(app_dir)
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .status()
+        .await
         .context("Failed to run npm install. Is Node.js/npm installed?")?;
 
     if !install_status.success() {
         anyhow::bail!("npm install failed");
     }
 
-    // npm run build
     println!("  Running npm run build...");
-    let build_status = std::process::Command::new(npm)
+    let build_status = Command::new(npm)
         .arg("run")
         .arg("build")
         .current_dir(app_dir)
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .status()
+        .await
         .context("Failed to run npm run build")?;
 
     if !build_status.success() {
@@ -186,54 +140,53 @@ fn npm_install_and_build(app_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Copy built static assets from Vite output to the backend's public directory.
-fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
-    if !from.exists() {
-        anyhow::bail!("Built assets not found at {}", from.display());
-    }
-
-    // Clean and recreate public dir
-    if to.exists() {
-        fs::remove_dir_all(to).ok();
-    }
-    fs::create_dir_all(to)?;
-
-    copy_dir_recursive(from, to).with_context(|| {
-        format!(
-            "Failed to copy assets from {} to {}",
-            from.display(),
-            to.display()
-        )
-    })?;
-
-    Ok(())
-}
-
-/// Recursively copy a directory.
-fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
-    for entry in fs::read_dir(from)? {
+fn copy_dir_recursive_sync(from: &Path, to: &Path) -> Result<()> {
+    for entry in std::fs::read_dir(from)? {
         let entry = entry?;
         let from_path = entry.path();
         let to_path = to.join(entry.file_name());
 
         if from_path.is_dir() {
-            fs::create_dir_all(&to_path)?;
-            copy_dir_recursive(&from_path, &to_path)?;
+            std::fs::create_dir_all(&to_path)?;
+            copy_dir_recursive_sync(&from_path, &to_path)?;
         } else {
-            fs::copy(&from_path, &to_path)?;
+            std::fs::copy(&from_path, &to_path)?;
         }
     }
     Ok(())
 }
 
+/// Copy built static assets from Vite output to the backend's public directory.
+async fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
+    let from = from.to_path_buf();
+    let to = to.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        if !from.exists() {
+            anyhow::bail!("Built assets not found at {}", from.display());
+        }
+        if to.exists() {
+            std::fs::remove_dir_all(&to).ok();
+        }
+        std::fs::create_dir_all(&to)?;
+        copy_dir_recursive_sync(&from, &to).with_context(|| {
+            format!(
+                "Failed to copy assets from {} to {}",
+                from.display(),
+                to.display()
+            )
+        })
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("copy task join: {e}"))?
+}
+
 /// Build the generated Rust backend into a single binary.
 /// Optionally cross-compiles for a specific target triple.
-fn build_single_binary(
+async fn build_single_binary(
     generated_dir: &Path,
     target: Option<&str>,
     release: bool,
 ) -> Result<PathBuf> {
-    // If cross-compiling, ensure the target is installed
     if let Some(target_triple) = target {
         println!("  Installing target: {}", target_triple);
         let rustup = if cfg!(windows) {
@@ -241,15 +194,16 @@ fn build_single_binary(
         } else {
             "rustup"
         };
-        let _ = std::process::Command::new(rustup)
+        let _ = Command::new(rustup)
             .args(["target", "add", target_triple])
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit())
-            .status();
+            .status()
+            .await;
     }
 
     let cargo = if cfg!(windows) { "cargo.exe" } else { "cargo" };
-    let mut cmd = std::process::Command::new(cargo);
+    let mut cmd = Command::new(cargo);
     cmd.arg("build");
 
     if release {
@@ -264,16 +218,16 @@ fn build_single_binary(
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
 
-    println!("  Running: {:?}", cmd);
+    println!("  Running cargo build in {}", generated_dir.display());
     let status = cmd
         .status()
+        .await
         .context("Failed to run cargo build on generated backend")?;
 
     if !status.success() {
         anyhow::bail!("cargo build failed");
     }
 
-    // Determine binary path
     let profile = if release { "release" } else { "debug" };
     let binary_name =
         if target.is_some_and(|t| t.contains("windows")) || (cfg!(windows) && target.is_none()) {
@@ -292,7 +246,7 @@ fn build_single_binary(
         generated_dir.join("target").join(profile).join(binary_name)
     };
 
-    if !binary_path.exists() {
+    if !fs::try_exists(&binary_path).await.unwrap_or(false) {
         anyhow::bail!("Binary not found at {}", binary_path.display());
     }
 

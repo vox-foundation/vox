@@ -77,7 +77,8 @@ Total Tools: 102
 | `vox_file_graph` | Get a JSON graph of all files and their owning agents (affinity map). |
 | `vox_config_get` | Get the current runtime orchestrator configuration. |
 | `vox_config_set` | Update the orchestrator configuration dynamically (pass fields to update). |
-| `vox_map_opencode_session` | Map an OpenCode session ID to an existing orchestrator agent. |
+| `vox_map_agent_session` | Map a client session ID string to an existing orchestrator agent. |
+| `vox_map_opencode_session`, `vox_map_vscode_session` | **Wire aliases** for `vox_map_agent_session` (same args); not listed in `TOOL_REGISTRY`. |
 | `vox_poll_events` | Poll recent orchestrator events for all agents. |
 | `vox_submit_task` | Submit a new task to the Vox Orchestrator. |
 | `vox_heartbeat` | Send an active heartbeat from an OpenCode session. |
@@ -107,3 +108,7 @@ Total Tools: 102
 | `vox_a2a_broadcast` | Broadcast an A2A message to all agents except sender. |
 | `vox_a2a_history` | Query the A2A message audit trail. |
 | `vox_generate_code` | Generate validated Vox code from a natural language prompt using the fine-tuned QWEN model. Returns code with syntax validation. |
+
+## Socrates telemetry (chat / plan / inline / ghost)
+
+Tools backed by `vox-mcp/src/tools/chat_tools.rs` (`vox_chat_message`, `vox_plan`, `vox_inline_edit`, `vox_ghost_text`) include a JSON **`socrates`** object on success: `risk_decision` (`answer` \| `ask` \| `abstain`), `confidence_estimate`, `contradiction_ratio`, aligned with `vox_socrates_policy::ConfidencePolicy`. The default system prompt (and ghost FIM system prompt) also embed grounding rules from the same policy. When the MCP server has **`VoxDb` attached**, each successful turn is appended asynchronously to Codex `research_metrics` (`metric_type = socrates_surface`, `session_id = mcp:<repository_id>`) for drift / proxy hallucination-risk monitoring; see `VoxDb::record_socrates_surface_event` in `vox-db`.

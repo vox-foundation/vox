@@ -259,11 +259,21 @@ impl SnapshotStore {
             let content_hash = self.store_blob(data);
             files.insert(
                 path.clone(),
-                FileEntry { path, content_hash, size_bytes: size },
+                FileEntry {
+                    path,
+                    content_hash,
+                    size_bytes: size,
+                },
             );
         }
 
-        let snap = Snapshot { id, agent_id, timestamp_ms, description: description.into(), files };
+        let snap = Snapshot {
+            id,
+            agent_id,
+            timestamp_ms,
+            description: description.into(),
+            files,
+        };
         self.snapshots.push(snap);
         if self.snapshots.len() > self.max_snapshots {
             let excess = self.snapshots.len() - self.max_snapshots;
@@ -427,12 +437,16 @@ mod tests {
 
         let diffs = SnapshotStore::diff(&a, &b);
         assert_eq!(diffs.len(), 2);
-        assert!(diffs
-            .iter()
-            .any(|d| d.path == PathBuf::from("b.rs") && matches!(d.kind, FileDiffKind::Added)));
-        assert!(diffs
-            .iter()
-            .any(|d| d.path == PathBuf::from("a.rs") && matches!(d.kind, FileDiffKind::Removed)));
+        assert!(
+            diffs
+                .iter()
+                .any(|d| d.path == Path::new("b.rs") && matches!(d.kind, FileDiffKind::Added))
+        );
+        assert!(
+            diffs
+                .iter()
+                .any(|d| d.path == Path::new("a.rs") && matches!(d.kind, FileDiffKind::Removed))
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use vox_db::VoxDb;
-use vox_runtime::llm::{llm_embed, LlmConfig};
+use vox_runtime::llm::{LlmConfig, llm_embed};
 use vox_runtime::{ActivityOptions, ActivityResult};
 
 /// Service for generating and storing embeddings in VoxDb.
@@ -30,9 +30,17 @@ impl EmbeddingService {
             ActivityResult::Cancelled => return Err("Embedding cancelled".to_string()),
         };
 
-        let id = self.db
+        let id = self
+            .db
             .store()
-            .store_embedding(source_type, source_id, &self.config.model, &vector, metadata, None)
+            .store_embedding(
+                source_type,
+                source_id,
+                &self.config.model,
+                &vector,
+                metadata,
+                None,
+            )
             .await
             .map_err(|e| format!("Database error: {}", e))?;
 

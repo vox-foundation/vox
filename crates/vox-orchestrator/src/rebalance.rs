@@ -22,11 +22,16 @@ pub enum RebalanceStrategy {
 pub enum ScalingAction {
     /// Start a new dynamic agent to handle load.
     ScaleUp {
+        /// Suggested name for the spawned worker.
         agent_name: String,
+        /// Model bundle the new agent should load.
         model: ModelConfig,
     },
     /// Stop an idle agent to save cost.
-    ScaleDown { agent_id: AgentId },
+    ScaleDown {
+        /// Agent selected for teardown.
+        agent_id: AgentId,
+    },
     /// No action needed.
     None,
 }
@@ -38,6 +43,7 @@ pub struct LoadBalancer {
 }
 
 impl LoadBalancer {
+    /// Starts with default scale-up threshold (queue depth before recommending `ScaleUp`).
     pub fn new(strategy: RebalanceStrategy) -> Self {
         Self {
             strategy,

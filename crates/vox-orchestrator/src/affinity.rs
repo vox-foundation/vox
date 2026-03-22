@@ -1,7 +1,13 @@
+//! File-level affinity: which agent may write which paths.
+//!
+//! [`FileAffinityMap`](crate::affinity::FileAffinityMap) enforces single-writer ownership and records pattern
+//! experience so routing can prefer agents that have touched similar files.
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
+use crate::sync_lock;
 use crate::types::AgentId;
 
 /// Thread-safe map tracking which agent "owns" each file path.
@@ -26,7 +32,7 @@ impl FileAffinityMap {
 
     /// Record that an agent successfully worked on a file (dynamic learning).
     pub fn record_experience(&self, agent: AgentId, file: &Path) {
-        let mut exp = self.experience.write().expect("experience lock poisoned");
+        let mut exp = sync_lock::rw_write(&self.experience);
         let agent_exp = exp.entry(agent).or_insert_with(HashMap::new);
 
         // Increment for extension
@@ -44,7 +50,7 @@ impl FileAffinityMap {
 
     /// Recommend the best agent for a file based on learned experience.
     pub fn best_agent_for(&self, file: &Path) -> Option<AgentId> {
-        let exp = self.experience.read().expect("experience lock poisoned");
+        let exp = sync_lock::rw_read(&self.experience);
         let ext = file
             .extension()
             .and_then(|e| e.to_str())
@@ -77,49 +83,34 @@ impl FileAffinityMap {
 
     /// Assign a file to an agent. Overwrites any previous assignment.
     pub fn assign(&self, file: &Path, agent: AgentId) {
-        self.inner
-            .write()
-            .expect("affinity map lock poisoned")
-            .insert(file.to_path_buf(), agent);
+        sync_lock::rw_write(&self.inner).insert(file.to_path_buf(), agent);
     }
 
     /// Look up which agent owns a file, if any.
     pub fn lookup(&self, file: &Path) -> Option<AgentId> {
-        self.inner
-            .read()
-            .expect("affinity map lock poisoned")
-            .get(file)
-            .copied()
+        sync_lock::rw_read(&self.inner).get(file).copied()
     }
 
     /// Release ownership of a single file.
     pub fn release(&self, file: &Path) {
-        self.inner
-            .write()
-            .expect("affinity map lock poisoned")
-            .remove(file);
+        sync_lock::rw_write(&self.inner).remove(file);
     }
 
     /// Release all files owned by the given agent.
     pub fn release_all(&self, agent: AgentId) {
-        self.inner
-            .write()
-            .expect("affinity map lock poisoned")
-            .retain(|_, v| *v != agent);
+        sync_lock::rw_write(&self.inner).retain(|_, v| *v != agent);
     }
 
     /// Atomically look up the owner of a file, or assign it if unowned.
     /// Returns the actual owner (which may differ from `agent` if already claimed).
     pub fn owner_or_assign(&self, file: &Path, agent: AgentId) -> AgentId {
-        let mut map = self.inner.write().expect("affinity map lock poisoned");
+        let mut map = sync_lock::rw_write(&self.inner);
         *map.entry(file.to_path_buf()).or_insert(agent)
     }
 
     /// List all files owned by a given agent.
     pub fn files_for_agent(&self, agent: AgentId) -> Vec<PathBuf> {
-        self.inner
-            .read()
-            .expect("affinity map lock poisoned")
+        sync_lock::rw_read(&self.inner)
             .iter()
             .filter(|(_, v)| **v == agent)
             .map(|(k, _)| k.clone())
@@ -128,7 +119,7 @@ impl FileAffinityMap {
 
     /// Return a map of agent → number of files owned (for load balancing).
     pub fn agent_load(&self) -> HashMap<AgentId, usize> {
-        let map = self.inner.read().expect("affinity map lock poisoned");
+        let map = sync_lock::rw_read(&self.inner);
         let mut load: HashMap<AgentId, usize> = HashMap::new();
         for agent in map.values() {
             *load.entry(*agent).or_insert(0) += 1;
@@ -143,7 +134,7 @@ impl FileAffinityMap {
         manifest: &[crate::types::FileAffinity],
         requesting_agent: AgentId,
     ) -> Vec<(PathBuf, AgentId)> {
-        let map = self.inner.read().expect("affinity map lock poisoned");
+        let map = sync_lock::rw_read(&self.inner);
         manifest
             .iter()
             .filter_map(|fa| {
@@ -160,7 +151,7 @@ impl FileAffinityMap {
 
     /// Total number of file assignments.
     pub fn len(&self) -> usize {
-        self.inner.read().expect("affinity map lock poisoned").len()
+        sync_lock::rw_read(&self.inner).len()
     }
 
     /// Whether the map is empty.
@@ -170,7 +161,7 @@ impl FileAffinityMap {
 
     /// Return the entire affinity map as a JSON object (Path -> AgentId).
     pub fn as_json(&self) -> serde_json::Value {
-        let map = self.inner.read().expect("affinity map lock poisoned");
+        let map = sync_lock::rw_read(&self.inner);
         let mut obj = serde_json::Map::new();
         for (path, agent) in map.iter() {
             obj.insert(

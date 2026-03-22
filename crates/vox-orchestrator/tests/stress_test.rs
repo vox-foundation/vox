@@ -32,8 +32,7 @@ async fn submit_and_drain(orch: &mut Orchestrator, task_count: usize) {
                 None
             };
             if let Some(tid) = task_id {
-                orch.complete_task(tid).await
-.unwrap();
+                orch.complete_task(tid).await.unwrap();
                 progress = true;
             }
         }

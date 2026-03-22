@@ -1,7 +1,7 @@
 //! Integration tests for vox-mcp
 
 use serde_json::json;
-use vox_mcp::{tools, ServerState};
+use vox_mcp::{ServerState, tools};
 use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]

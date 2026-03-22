@@ -1,5 +1,7 @@
+#![allow(missing_docs)]
+
 use vox_orchestrator::{
-    types::TaskDescriptor, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
+    FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority, types::TaskDescriptor,
 };
 
 fn test_config() -> OrchestratorConfig {
@@ -116,7 +118,9 @@ async fn e2e_timeout_and_retry() {
     if let Some(q) = orch.get_agent_queue_mut(orch.agent_ids()[0]) {
         q.dequeue();
     }
-    orch.fail_task(t1, "simulated failure".to_string()).await.unwrap();
+    orch.fail_task(t1, "simulated failure".to_string())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -181,6 +185,7 @@ async fn e2e_batch_submission() {
                 file_manifest: vec![FileAffinity::write("src/b1.rs")],
                 depends_on: vec![],
                 temp_deps: vec![],
+                capability_requirements: None,
             },
             TaskDescriptor {
                 description: "Batch 2".to_string(),
@@ -188,6 +193,7 @@ async fn e2e_batch_submission() {
                 file_manifest: vec![FileAffinity::write("src/b2.rs")],
                 depends_on: vec![],
                 temp_deps: vec![],
+                capability_requirements: None,
             },
         ])
         .await

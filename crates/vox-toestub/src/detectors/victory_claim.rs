@@ -19,6 +19,7 @@ impl Default for VictoryClaimDetector {
 }
 
 impl VictoryClaimDetector {
+    /// “Done/complete” comment patterns plus TODO/FIXME/HACK proximity heuristics.
     pub fn new() -> Self {
         Self {
             victory_re: Regex::new(

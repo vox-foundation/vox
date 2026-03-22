@@ -2,10 +2,8 @@
 
 use vox_ast::span::Span;
 use vox_hir::*;
+use vox_test_harness::spans::dummy_span;
 
-fn dummy_span() -> Span {
-    Span { start: 0, end: 0 }
-}
 
 fn make_module_with_server_fns() -> HirModule {
     HirModule {

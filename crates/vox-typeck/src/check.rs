@@ -1,10 +1,13 @@
+// Module-level AST typecheck (`typecheck_module`). HIR checking lives in `checker.rs` when enabled.
+
 use crate::builtins::BuiltinTypes;
 use crate::diagnostics::{Diagnostic, Severity};
 use crate::env::{ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig};
 use crate::ty::Ty;
 use crate::unify::InferenceContext;
 use vox_ast::decl::{
-    ActivityDecl, ActorDecl, Decl, FnDecl, Module, TableDecl, TypeDefDecl, WorkflowDecl,
+    ActivityDecl, ActorDecl, Decl, FnDecl, Module, SearchIndexDecl, TableDecl, TypeDefDecl,
+    WorkflowDecl,
 };
 use vox_ast::expr::{BinOp, Expr};
 use vox_ast::pattern::Pattern;
@@ -36,7 +39,11 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
             Decl::Actor(a) => register_actor(&mut env, a),
             Decl::Workflow(w) => register_workflow(&mut env, w),
             Decl::Activity(a) => register_activity(&mut env, a),
-            Decl::HttpRoute(_) | Decl::Import(_) | Decl::V0Component(_) | Decl::Routes(_) => {
+            Decl::HttpRoute(_)
+            | Decl::Import(_)
+            | Decl::V0Component(_)
+            | Decl::Routes(_)
+            | Decl::Island(_) => {
                 // HTTP routes checked in pass 2.
             }
             Decl::Table(t) => register_table(&mut env, t),
@@ -53,6 +60,10 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
                     });
                 }
             }
+            Decl::SearchIndex(si) => {
+                check_search_index_decl(&env, si, &mut diagnostics);
+            }
+            _ => {}
         }
     }
 
@@ -70,6 +81,7 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
                         ty: Ty::Database,
                         mutable: false,
                         kind: BindingKind::Variable,
+                        is_deprecated: false,
                     },
                 );
                 check_function_body(&mut env, &builtins, &mut uf, &mut diagnostics, f, false);
@@ -94,6 +106,7 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
                         ty: Ty::Named("Request".into()),
                         mutable: false,
                         kind: BindingKind::Variable,
+                        is_deprecated: false,
                     },
                 );
                 // Inject 'db' variable
@@ -103,6 +116,7 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
                         ty: Ty::Database,
                         mutable: false,
                         kind: BindingKind::Variable,
+                        is_deprecated: false,
                     },
                 );
                 check_body(
@@ -129,7 +143,9 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
             | Decl::Table(_)
             | Decl::Index(_)
             | Decl::V0Component(_)
-            | Decl::Routes(_) => {}
+            | Decl::Routes(_)
+            | Decl::Island(_) => {}
+            _ => {}
         }
     }
 
@@ -241,6 +257,7 @@ fn register_function(env: &mut TypeEnv, f: &FnDecl) {
             ty: Ty::Fn(param_tys, Box::new(ret_ty)),
             mutable: false,
             kind: BindingKind::Function,
+            is_deprecated: f.is_deprecated,
         },
     );
 }
@@ -319,6 +336,7 @@ fn register_activity(env: &mut TypeEnv, a: &ActivityDecl) {
             ty: Ty::Fn(param_tys, Box::new(ret_ty)),
             mutable: false,
             kind: BindingKind::Activity,
+            is_deprecated: false,
         },
     );
 }
@@ -337,8 +355,70 @@ fn register_table(env: &mut TypeEnv, t: &TableDecl) {
             ty: Ty::Table(t.name.clone(), field_types),
             mutable: false,
             kind: BindingKind::Table,
+            is_deprecated: t.is_deprecated,
         },
     );
+}
+
+fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<Diagnostic>) {
+    let Some(binding) = env.lookup(&si.table_name) else {
+        diags.push(Diagnostic {
+            message: format!(
+                "search_index '{}' references unknown table '{}'",
+                si.index_name, si.table_name
+            ),
+            span: si.span,
+            severity: Severity::Error,
+            expected_type: None,
+            found_type: None,
+            suggestions: vec![],
+        });
+        return;
+    };
+
+    let Ty::Table(_table_name, fields) = &binding.ty else {
+        diags.push(Diagnostic {
+            message: format!(
+                "search_index '{}' target '{}' is not a table",
+                si.index_name, si.table_name
+            ),
+            span: si.span,
+            severity: Severity::Error,
+            expected_type: None,
+            found_type: None,
+            suggestions: vec![],
+        });
+        return;
+    };
+
+    let Some((_, field_ty)) = fields.iter().find(|(n, _)| n == &si.search_field) else {
+        diags.push(Diagnostic {
+            message: format!(
+                "search_index '{}': table '{}' has no field '{}'",
+                si.index_name, si.table_name, si.search_field
+            ),
+            span: si.span,
+            severity: Severity::Error,
+            expected_type: None,
+            found_type: None,
+            suggestions: vec![],
+        });
+        return;
+    };
+
+    if *field_ty != Ty::Str {
+        diags.push(Diagnostic {
+            message: format!(
+                "search_index '{}': field '{}' must be type 'str', found {:?}",
+                si.index_name, si.search_field, field_ty
+            ),
+            span: si.span,
+            severity: Severity::Error,
+            expected_type: Some("str".into()),
+            found_type: Some(format!("{field_ty:?}")),
+            suggestions: vec![],
+        });
+    }
 }
 
 // ── Checking pass ─────────────────────────────────────────────
@@ -379,6 +459,7 @@ fn check_function_body(
                 ty,
                 mutable: false,
                 kind: BindingKind::Parameter,
+                is_deprecated: false,
             },
         );
     }
@@ -447,6 +528,7 @@ fn check_actor(
                 ty: Ty::Database,
                 mutable: false,
                 kind: BindingKind::Variable,
+                is_deprecated: false,
             },
         );
 
@@ -469,6 +551,7 @@ fn check_actor(
                     ty,
                     mutable: false,
                     kind: BindingKind::Parameter,
+                    is_deprecated: false,
                 },
             );
         }
@@ -519,6 +602,7 @@ fn check_workflow(
                 ty,
                 mutable: false,
                 kind: BindingKind::Parameter,
+                is_deprecated: false,
             },
         );
     }
@@ -575,6 +659,7 @@ fn check_activity(
                 ty,
                 mutable: false,
                 kind: BindingKind::Parameter,
+                is_deprecated: false,
             },
         );
     }
@@ -756,45 +841,182 @@ fn check_stmt(
     }
 }
 
-/// Bind names from a pattern into the environment with the given type.
+/// Bind names from a pattern into the environment for the scrutinee type (`let`, `match` arms).
 fn bind_pattern(
     env: &mut TypeEnv,
-    _diags: &mut Vec<Diagnostic>,
+    diags: &mut Vec<Diagnostic>,
     pattern: &Pattern,
     ty: &Ty,
     mutable: bool,
 ) {
+    bind_pattern_against_subject(env, diags, pattern, ty, mutable);
+}
+
+/// Bind pattern variables against a known scrutinee type (Option/Result/ADTs, tuples, …).
+fn bind_pattern_against_subject(
+    env: &mut TypeEnv,
+    diags: &mut Vec<Diagnostic>,
+    pattern: &Pattern,
+    subject_ty: &Ty,
+    mutable: bool,
+) {
     match pattern {
-        Pattern::Ident { name, .. } => {
+        Pattern::Wildcard { .. } | Pattern::Literal { .. } => {}
+        Pattern::Ident { name, span: _ } => {
+            // `None` as nullary `Option` variant (parsed as `Ident`, not `Some()`).
+            if matches!(subject_ty, Ty::Option(_)) && name == "None" {
+                return;
+            }
+            // Nullary variant of a user ADT: `Circle` with no payload.
+            if let Ty::Named(type_name) = subject_ty {
+                if let Some(adt) = env.lookup_adt(type_name) {
+                    if let Some(v) = adt.variants.iter().find(|v| v.name == *name) {
+                        if v.fields.is_empty() {
+                            return;
+                        }
+                    }
+                }
+            }
             env.define(
                 name.clone(),
                 Binding {
-                    ty: ty.clone(),
+                    ty: subject_ty.clone(),
                     mutable,
                     kind: BindingKind::Variable,
+                    is_deprecated: false,
                 },
             );
         }
-        Pattern::Tuple { elements, .. } => {
-            if let Ty::Tuple(elem_tys) = ty {
+        Pattern::Tuple { elements, span } => {
+            if let Ty::Tuple(elem_tys) = subject_ty {
+                if elements.len() != elem_tys.len() {
+                    diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: format!(
+                            "Tuple pattern length {} does not match tuple type length {}",
+                            elements.len(),
+                            elem_tys.len()
+                        ),
+                        span: *span,
+                        expected_type: Some(format!("{} fields", elem_tys.len())),
+                        found_type: Some(format!("{} patterns", elements.len())),
+                        suggestions: vec![],
+                    });
+                }
                 for (pat, elem_ty) in elements.iter().zip(elem_tys.iter()) {
-                    bind_pattern(env, _diags, pat, elem_ty, mutable);
+                    bind_pattern_against_subject(env, diags, pat, elem_ty, mutable);
                 }
             } else {
-                // When destructuring a tuple but the type isn't resolved (e.g. use_state
-                // with a generic return), bind each elem as a fresh type var.
                 for pat in elements {
-                    bind_pattern(env, _diags, pat, &Ty::TypeVar(0), mutable);
+                    bind_pattern_against_subject(env, diags, pat, &Ty::TypeVar(0), mutable);
                 }
             }
         }
-        Pattern::Constructor { fields, .. } => {
-            for pat in fields {
-                bind_pattern(env, _diags, pat, &Ty::TypeVar(0), mutable);
+        Pattern::Constructor { name, fields, span } => match subject_ty {
+            Ty::Option(inner) if name == "Some" => {
+                if fields.len() != 1 {
+                    diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: "`Some` pattern expects exactly one sub-pattern".into(),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        suggestions: vec![],
+                    });
+                    return;
+                }
+                bind_pattern_against_subject(env, diags, &fields[0], inner.as_ref(), mutable);
             }
-        }
-        Pattern::Wildcard { .. } => {}
-        Pattern::Literal { .. } => {}
+            Ty::Result(inner) if name == "Ok" => {
+                if fields.len() != 1 {
+                    diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: "`Ok` pattern expects exactly one sub-pattern".into(),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        suggestions: vec![],
+                    });
+                    return;
+                }
+                bind_pattern_against_subject(env, diags, &fields[0], inner.as_ref(), mutable);
+            }
+            Ty::Result(_) if name == "Error" => {
+                if fields.len() != 1 {
+                    diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: "`Error` pattern expects exactly one sub-pattern".into(),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        suggestions: vec![],
+                    });
+                    return;
+                }
+                bind_pattern_against_subject(env, diags, &fields[0], &Ty::Str, mutable);
+            }
+            Ty::Named(type_name) => {
+                let variant_field_tys = match env.lookup_adt(type_name) {
+                    None => {
+                        for pat in fields {
+                            bind_pattern_against_subject(env, diags, pat, &Ty::TypeVar(0), mutable);
+                        }
+                        return;
+                    }
+                    Some(adt) => match adt.variants.iter().find(|v| v.name == *name) {
+                        None => {
+                            diags.push(Diagnostic {
+                                severity: Severity::Error,
+                                message: format!("Unknown variant '{name}' for type '{type_name}'"),
+                                span: *span,
+                                expected_type: None,
+                                found_type: None,
+                                suggestions: vec![],
+                            });
+                            return;
+                        }
+                        Some(v) => v.fields.iter().map(|(_, t)| t.clone()).collect::<Vec<_>>(),
+                    },
+                };
+                if variant_field_tys.len() != fields.len() {
+                    diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: format!(
+                            "Variant '{name}' expects {} field(s), found {}",
+                            variant_field_tys.len(),
+                            fields.len()
+                        ),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        suggestions: vec![],
+                    });
+                }
+                for (pat, fty) in fields.iter().zip(variant_field_tys.iter()) {
+                    bind_pattern_against_subject(env, diags, pat, fty, mutable);
+                }
+            }
+            Ty::TypeVar(_) | Ty::Error => {
+                for pat in fields {
+                    bind_pattern_against_subject(env, diags, pat, &Ty::TypeVar(0), mutable);
+                }
+            }
+            _ => {
+                diags.push(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "Pattern constructor '{name}' does not match scrutinee type {subject_ty:?}"
+                    ),
+                    span: *span,
+                    expected_type: None,
+                    found_type: Some(format!("{subject_ty:?}")),
+                    suggestions: vec![],
+                });
+                for pat in fields {
+                    bind_pattern_against_subject(env, diags, pat, &Ty::TypeVar(0), mutable);
+                }
+            }
+        },
     }
 }
 
@@ -837,7 +1059,7 @@ fn instantiate(ty: Ty, uf: &mut InferenceContext) -> Ty {
 }
 
 fn check_arguments(
-    env: &TypeEnv,
+    env: &mut TypeEnv,
     builtins: &BuiltinTypes,
     uf: &mut InferenceContext,
     diags: &mut Vec<Diagnostic>,
@@ -848,11 +1070,7 @@ fn check_arguments(
     if expected_args.len() != actual_args.len() {
         diags.push(Diagnostic {
             severity: Severity::Error,
-            message: format!(
-                "Argument count mismatch: expected {}, found {}",
-                expected_args.len(),
-                actual_args.len()
-            ),
+            message: crate::diagnostics::msg_arg_count_mismatch(expected_args.len(), actual_args.len()),
             span,
             expected_type: None,
             found_type: None,
@@ -882,7 +1100,7 @@ fn check_arguments(
 
 /// Infer the type of an expression, recording diagnostics for errors.
 fn infer_expr(
-    env: &TypeEnv,
+    env: &mut TypeEnv,
     builtins: &BuiltinTypes,
     uf: &mut InferenceContext,
     diags: &mut Vec<Diagnostic>,
@@ -896,6 +1114,16 @@ fn infer_expr(
 
         Expr::Ident { name, span } => {
             if let Some(binding) = env.lookup(name) {
+                if binding.is_deprecated {
+                    diags.push(Diagnostic {
+                        severity: Severity::Warning,
+                        message: format!("'{name}' is deprecated"),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        suggestions: vec![],
+                    });
+                }
                 instantiate(binding.ty.clone(), uf)
             } else {
                 diags.push(Diagnostic {
@@ -1068,16 +1296,49 @@ fn infer_expr(
             arms,
             span,
         } => {
-            let _subject_ty = infer_expr(env, builtins, uf, diags, subject);
+            let subject_ty = infer_expr(env, builtins, uf, diags, subject);
 
-            // Check match exhaustiveness for known ADTs
-            check_match_exhaustiveness(env, diags, &_subject_ty, arms, *span);
+            check_match_exhaustiveness(env, diags, &subject_ty, arms, *span);
 
-            if let Some(first_arm) = arms.first() {
-                infer_expr(env, builtins, uf, diags, &first_arm.body)
-            } else {
-                Ty::Unit
+            if arms.is_empty() {
+                return Ty::Unit;
             }
+
+            let mut arm_tys: Vec<Ty> = Vec::with_capacity(arms.len());
+            for arm in arms {
+                env.push_scope();
+                bind_pattern_against_subject(env, diags, &arm.pattern, &subject_ty, false);
+                if let Some(guard) = arm.guard.as_deref() {
+                    let g_ty = infer_expr(env, builtins, uf, diags, guard);
+                    if g_ty != Ty::Bool && !matches!(g_ty, Ty::TypeVar(_) | Ty::Error) {
+                        diags.push(Diagnostic {
+                            severity: Severity::Warning,
+                            message: format!("Match guard should be bool, found {g_ty:?}"),
+                            span: guard.span(),
+                            expected_type: Some("bool".into()),
+                            found_type: Some(format!("{g_ty:?}")),
+                            suggestions: vec![],
+                        });
+                    }
+                }
+                arm_tys.push(infer_expr(env, builtins, uf, diags, &arm.body));
+                env.pop_scope();
+            }
+
+            let acc = arm_tys[0].clone();
+            for t in arm_tys.iter().skip(1) {
+                if let Err(msg) = uf.unify(&acc, t) {
+                    diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: format!("Match arm type mismatch: {msg}"),
+                        span: *span,
+                        expected_type: Some(format!("{acc:?}")),
+                        found_type: Some(format!("{t:?}")),
+                        suggestions: vec![],
+                    });
+                }
+            }
+            acc
         }
 
         Expr::If {
@@ -1248,16 +1509,14 @@ fn infer_expr(
     }
 }
 
-/// Check a statement without being able to modify the env (for nested blocks
-/// where we don't want to add bindings to the outer scope).
+/// Check a statement in a nested block without persisting `let` bindings in the outer scope.
 fn check_stmt_immutable(
-    env: &TypeEnv,
+    env: &mut TypeEnv,
     builtins: &BuiltinTypes,
     uf: &mut InferenceContext,
     diags: &mut Vec<Diagnostic>,
     stmt: &Stmt,
 ) -> Ty {
-    println!("DEBUG: Checking stmt {:?}", stmt);
     match stmt {
         Stmt::Let { value, .. } => {
             infer_expr(env, builtins, uf, diags, value);
@@ -1270,12 +1529,8 @@ fn check_stmt_immutable(
         }
         Stmt::Return { value, span } => {
             let actual_ty = if let Some(v) = value {
-                println!("DEBUG: Stmt::Return inferring value");
-                let t = infer_expr(env, builtins, uf, diags, v);
-                println!("DEBUG: Stmt::Return inferred type: {:?}", t);
-                t
+                infer_expr(env, builtins, uf, diags, v)
             } else {
-                println!("DEBUG: Stmt::Return NO value (Unit)");
                 Ty::Unit
             };
 
@@ -1289,20 +1544,11 @@ fn check_stmt_immutable(
                         found_type: Some(format!("{actual_ty:?}")),
                         suggestions: vec![],
                     });
-                    println!(
-                        "DEBUG: Explicit mismatch actual {:?} vs expected {:?}",
-                        actual_ty, expected_ty
-                    );
                     expected_ty.clone()
                 } else {
-                    println!(
-                        "DEBUG: Explicit match actual {:?} vs expected {:?}",
-                        actual_ty, expected_ty
-                    );
                     actual_ty
                 }
             } else {
-                println!("DEBUG: No expected type. Returning actual {:?}", actual_ty);
                 actual_ty
             }
         }
@@ -1310,7 +1556,7 @@ fn check_stmt_immutable(
     }
 }
 
-/// Check match exhaustiveness for ADT-typed subjects.
+/// Check match exhaustiveness for ADTs and built-in `Option` / `Result`.
 fn check_match_exhaustiveness(
     env: &TypeEnv,
     diags: &mut Vec<Diagnostic>,
@@ -1318,70 +1564,164 @@ fn check_match_exhaustiveness(
     arms: &[vox_ast::expr::MatchArm],
     span: vox_ast::span::Span,
 ) {
-    // Only check exhaustiveness for named types (ADTs)
-    let type_name = match subject_ty {
-        Ty::Named(name) => name.as_str(),
-        _ => return,
-    };
-
-    let adt = match env.lookup_adt(type_name) {
-        Some(adt) => adt,
-        None => return,
-    };
-
-    // Collect constructor names from match arms
-    let mut covered_variants: Vec<String> = Vec::new();
-    let mut has_wildcard = false;
-
-    for arm in arms {
-        match &arm.pattern {
-            Pattern::Wildcard { .. } => {
-                has_wildcard = true;
-            }
-            Pattern::Ident { name, .. } => {
-                // Check if this ident is a nullary constructor
-                if adt.variants.iter().any(|v| v.name == *name) {
-                    covered_variants.push(name.clone());
-                } else {
-                    // It's a catch-all binding (like a variable name)
-                    has_wildcard = true;
+    match subject_ty {
+        Ty::Option(_) => {
+            let mut has_some = false;
+            let mut has_none = false;
+            let mut has_wildcard = false;
+            for arm in arms {
+                match &arm.pattern {
+                    Pattern::Wildcard { .. } => has_wildcard = true,
+                    Pattern::Ident { name, .. } => {
+                        if name == "None" {
+                            has_none = true;
+                        } else {
+                            has_wildcard = true;
+                        }
+                    }
+                    Pattern::Constructor { name, .. } => {
+                        if name == "Some" {
+                            has_some = true;
+                        }
+                    }
+                    Pattern::Literal { .. } | Pattern::Tuple { .. } => {}
                 }
             }
-            Pattern::Constructor { name, .. } => {
-                covered_variants.push(name.clone());
+            if has_wildcard {
+                return;
             }
-            Pattern::Literal { .. } => {}
-            Pattern::Tuple { .. } => {}
+            let mut missing = Vec::new();
+            if !has_some {
+                missing.push("Some");
+            }
+            if !has_none {
+                missing.push("None");
+            }
+            if !missing.is_empty() {
+                diags.push(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "Non-exhaustive match on Option. Missing: {}",
+                        missing.join(", ")
+                    ),
+                    span,
+                    expected_type: None,
+                    found_type: None,
+                    suggestions: missing
+                        .iter()
+                        .map(|m| format!("Add arm: {m} -> ..."))
+                        .collect(),
+                });
+            }
         }
-    }
+        Ty::Result(_) => {
+            let mut has_ok = false;
+            let mut has_error = false;
+            let mut has_wildcard = false;
+            for arm in arms {
+                match &arm.pattern {
+                    Pattern::Wildcard { .. } => has_wildcard = true,
+                    Pattern::Ident { .. } => has_wildcard = true,
+                    Pattern::Constructor { name, .. } => {
+                        if name == "Ok" {
+                            has_ok = true;
+                        }
+                        if name == "Error" {
+                            has_error = true;
+                        }
+                    }
+                    Pattern::Literal { .. } | Pattern::Tuple { .. } => {}
+                }
+            }
+            if has_wildcard {
+                return;
+            }
+            let mut missing = Vec::new();
+            if !has_ok {
+                missing.push("Ok");
+            }
+            if !has_error {
+                missing.push("Error");
+            }
+            if !missing.is_empty() {
+                diags.push(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "Non-exhaustive match on Result. Missing: {}",
+                        missing.join(", ")
+                    ),
+                    span,
+                    expected_type: None,
+                    found_type: None,
+                    suggestions: missing
+                        .iter()
+                        .map(|m| format!("Add arm: {m} -> ..."))
+                        .collect(),
+                });
+            }
+        }
+        Ty::Named(type_name) => {
+            let adt = match env.lookup_adt(type_name) {
+                Some(adt) => adt,
+                None => return,
+            };
 
-    if has_wildcard {
-        return; // Wildcard/catch-all covers everything
-    }
+            let mut covered_variants: Vec<String> = Vec::new();
+            let mut has_wildcard = false;
 
-    // Find missing variants
-    let missing: Vec<&str> = adt
-        .variants
-        .iter()
-        .filter(|v| !covered_variants.contains(&v.name))
-        .map(|v| v.name.as_str())
-        .collect();
+            for arm in arms {
+                match &arm.pattern {
+                    Pattern::Wildcard { .. } => {
+                        has_wildcard = true;
+                    }
+                    Pattern::Ident { name, .. } => {
+                        if adt
+                            .variants
+                            .iter()
+                            .any(|v| v.name == *name && v.fields.is_empty())
+                        {
+                            covered_variants.push(name.clone());
+                        } else {
+                            has_wildcard = true;
+                        }
+                    }
+                    Pattern::Constructor { name, .. } => {
+                        covered_variants.push(name.clone());
+                    }
+                    Pattern::Literal { .. } => {}
+                    Pattern::Tuple { .. } => {}
+                }
+            }
 
-    if !missing.is_empty() {
-        diags.push(Diagnostic {
-            severity: Severity::Error,
-            message: format!(
-                "Non-exhaustive match on type '{}'. Missing variant(s): {}",
-                type_name,
-                missing.join(", ")
-            ),
-            span,
-            expected_type: None,
-            found_type: None,
-            suggestions: missing
+            if has_wildcard {
+                return;
+            }
+
+            let missing: Vec<&str> = adt
+                .variants
                 .iter()
-                .map(|m| format!("Add arm: {m} -> ..."))
-                .collect(),
-        });
+                .filter(|v| !covered_variants.contains(&v.name))
+                .map(|v| v.name.as_str())
+                .collect();
+
+            if !missing.is_empty() {
+                diags.push(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "Non-exhaustive match on type '{}'. Missing variant(s): {}",
+                        type_name,
+                        missing.join(", ")
+                    ),
+                    span,
+                    expected_type: None,
+                    found_type: None,
+                    suggestions: missing
+                        .iter()
+                        .map(|m| format!("Add arm: {m} -> ..."))
+                        .collect(),
+                });
+            }
+        }
+        _ => {}
     }
 }

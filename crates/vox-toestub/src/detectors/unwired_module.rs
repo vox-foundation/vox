@@ -18,6 +18,7 @@ impl Default for UnwiredModuleDetector {
 }
 
 impl UnwiredModuleDetector {
+    /// Regexes for `mod foo;` vs `use crate::foo` and TS `export` declarations for wiring checks.
     pub fn new() -> Self {
         Self {
             rust_mod_decl: Regex::new(r"^\s*(?:pub\s+)?mod\s+(\w+)\s*;").expect("valid regex"),
@@ -38,10 +39,10 @@ impl UnwiredModuleDetector {
         let mut used_mods: Vec<String> = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
-            if let Some(caps) = self.rust_mod_decl.captures(line) {
-                if let Some(name) = caps.get(1) {
-                    declared_mods.push((name.as_str().to_string(), i + 1));
-                }
+            if let Some(caps) = self.rust_mod_decl.captures(line)
+                && let Some(name) = caps.get(1)
+            {
+                declared_mods.push((name.as_str().to_string(), i + 1));
             }
             for caps in self.rust_use_stmt.captures_iter(line) {
                 if let Some(name) = caps.get(1) {

@@ -1,45 +1,9 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::PathBuf;
 
-/// Resolve state directory where the SQLite DB will live.
+/// Resolve state directory where the SQLite DB will live (delegates to `vox_config::paths::state_dir`).
 pub(crate) fn state_dir() -> Option<PathBuf> {
-    let base = std::env::var("VOX_DATA_DIR")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .or_else(platform_data_dir)
-        .map(|d| d.join("vox"));
-    base.map(|d| {
-        let p = d.join("state");
-        std::fs::create_dir_all(&p).ok();
-        p
-    })
-}
-
-#[cfg(target_os = "windows")]
-fn platform_data_dir() -> Option<PathBuf> {
-    std::env::var("APPDATA").ok().map(PathBuf::from)
-}
-
-#[cfg(target_os = "macos")]
-fn platform_data_dir() -> Option<PathBuf> {
-    std::env::var("HOME")
-        .ok()
-        .map(PathBuf::from)
-        .map(|h| h.join("Library").join("Application Support"))
-}
-
-#[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-fn platform_data_dir() -> Option<PathBuf> {
-    std::env::var("XDG_DATA_HOME")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var("HOME")
-                .ok()
-                .map(|h| PathBuf::from(h).join(".local").join("share"))
-        })
+    vox_config::paths::state_dir()
 }
 
 /// A SQLite-backed KV store for Actor state.

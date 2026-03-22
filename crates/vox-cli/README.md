@@ -10,7 +10,7 @@ The command-line interface for the Vox programming language. Entry point for all
 | `vox run <file>` | Build and run a Vox application |
 | `vox bundle <file>` | Bundle into a standalone web application |
 | `vox test <file>` | Run `@test` decorated functions |
-| `vox fmt <file>` | Format Vox source files |
+| `vox fmt <file>` | Not implemented yet (fails with doc pointer; use `vox-fmt` crate in development) |
 | `vox check <file>` | Type-check without producing output |
 | `vox compact <file>` | Compact source for LLM context |
 | `vox lsp` | Launch the Language Server |
@@ -25,7 +25,7 @@ The command-line interface for the Vox programming language. Entry point for all
 | `vox audit` | Check dependencies for security advisories |
 | `vox clean` | Remove build artifacts |
 | `vox stub-check` | Run TOESTUB anti-pattern detection |
-| `vox review` | AI-assisted code review |
+| `vox review coderabbit …` | CodeRabbit batch PRs (needs `--features coderabbit`; see `docs/src/ref-cli.md`; DeI review is `vox populi review`) |
 | `vox share <action>` | Publish/browse shared artifacts |
 | `vox snippet <action>` | Save/search code snippets |
 | `vox agent <action>` | Register/manage AI agents |
@@ -35,11 +35,14 @@ The command-line interface for the Vox programming language. Entry point for all
 | `vox learn <action>` | Learning and skill progress |
 | `vox agent <action>` | Agent registry operations |
 
+**Minimal binary vs. docs:** several rows above match the full product CLI; the default `vox` build from this crate is slimmer. In particular, **`vox stub-check`** is available when built with **`--features stub-check`** (see [`docs/src/ref-cli.md`](../../docs/src/ref-cli.md)).
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `main.rs` | CLI argument parsing (clap) and command dispatch |
+| `src/lib.rs` | CLI argument parsing (clap) and command dispatch |
+| `src/main.rs` | Binary entrypoint → `vox_cli::run_vox_cli()` |
 | `commands/` | One module per subcommand |
 | `templates.rs` | Project scaffolding templates for `vox init` |
 | `v0.rs` | v0.dev AI component generation integration |

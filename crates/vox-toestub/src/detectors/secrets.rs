@@ -16,6 +16,7 @@ impl Default for SecretDetector {
 }
 
 impl SecretDetector {
+    /// Builds generic secret, AWS key, and JWT heuristics for all supported [`Language`]s.
     pub fn new() -> Self {
         Self {
             generic_secret: Regex::new(r#"(?i)(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|bearer)\s*[:=]\s*["'][^"']{8,}["']"#)

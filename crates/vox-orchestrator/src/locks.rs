@@ -1,8 +1,14 @@
+//! Per-file exclusive and shared read locks for multi-agent editing.
+//!
+//! [`FileLockManager`](crate::locks::FileLockManager) coordinates with affinity routing so only compatible
+//! agents can write the same path concurrently.
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
+use crate::sync_lock;
 use crate::types::AgentId;
 
 /// Kind of lock an agent holds on a file.
@@ -17,20 +23,33 @@ pub enum LockKind {
 /// A file lock held by an agent.
 #[derive(Debug, Clone)]
 pub struct FileLock {
+    /// Locked file path (normalized canonical form where possible).
     pub path: PathBuf,
+    /// Whether this is exclusive write or shared read.
     pub kind: LockKind,
+    /// Agent that owns the lock.
     pub holder: AgentId,
+    /// When the lock was granted (for debugging and TTL).
     pub acquired_at: Instant,
 }
 
 /// Error returned when a lock cannot be acquired.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum LockConflict {
+    /// Another agent already holds an exclusive lock on this path.
     #[error("File '{path}' is exclusively locked by agent {holder}")]
-    ExclusivelyHeld { path: PathBuf, holder: AgentId },
+    ExclusivelyHeld {
+        /// Path requested for locking.
+        path: PathBuf,
+        /// Current exclusive holder.
+        holder: AgentId,
+    },
+    /// Exclusive lock requested while readers are still active.
     #[error("File '{path}' has shared readers; cannot acquire exclusive lock")]
     SharedReadersExist {
+        /// Path requested for exclusive access.
         path: PathBuf,
+        /// Agents currently holding shared read locks.
         readers: Vec<AgentId>,
     },
 }
@@ -39,9 +58,15 @@ pub enum LockConflict {
 #[derive(Debug, Clone)]
 enum LockEntry {
     /// A single agent holds exclusive access.
-    Exclusive(FileLock),
+    Exclusive(
+        /// Active exclusive lock record.
+        FileLock,
+    ),
     /// One or more agents hold shared read access.
-    SharedRead(Vec<FileLock>),
+    SharedRead(
+        /// All concurrent read locks on this file.
+        Vec<FileLock>,
+    ),
 }
 
 /// Thread-safe file-level lock manager.
@@ -70,7 +95,7 @@ impl FileLockManager {
         agent: AgentId,
         kind: LockKind,
     ) -> Result<(), LockConflict> {
-        let mut locks = self.locks.write().expect("lock manager lock poisoned");
+        let mut locks = sync_lock::rw_write(&self.locks);
 
         match (kind, locks.get(path)) {
             // No existing lock — acquire freely
@@ -140,7 +165,7 @@ impl FileLockManager {
                 } else {
                     // Must drop immutable ref before mutating
                     drop(locks);
-                    let mut locks = self.locks.write().expect("lock manager lock poisoned");
+                    let mut locks = sync_lock::rw_write(&self.locks);
                     if let Some(LockEntry::SharedRead(readers)) = locks.get_mut(path) {
                         readers.push(FileLock {
                             path: path.to_path_buf(),
@@ -157,7 +182,7 @@ impl FileLockManager {
 
     /// Release a lock held by the given agent on the given file.
     pub fn release(&self, path: &Path, agent: AgentId) {
-        let mut locks = self.locks.write().expect("lock manager lock poisoned");
+        let mut locks = sync_lock::rw_write(&self.locks);
         match locks.get(path) {
             Some(LockEntry::Exclusive(lock)) if lock.holder == agent => {
                 locks.remove(path);
@@ -180,7 +205,7 @@ impl FileLockManager {
 
     /// Release all locks held by the given agent.
     pub fn release_all(&self, agent: AgentId) {
-        let mut locks = self.locks.write().expect("lock manager lock poisoned");
+        let mut locks = sync_lock::rw_write(&self.locks);
         let mut to_remove = Vec::new();
         let mut to_update = Vec::new();
 
@@ -215,7 +240,7 @@ impl FileLockManager {
 
     /// Check who holds a lock on a file (if any).
     pub fn holder(&self, path: &Path) -> Option<(AgentId, LockKind)> {
-        let locks = self.locks.read().expect("lock manager lock poisoned");
+        let locks = sync_lock::rw_read(&self.locks);
         match locks.get(path) {
             Some(LockEntry::Exclusive(lock)) => Some((lock.holder, LockKind::Exclusive)),
             Some(LockEntry::SharedRead(readers)) => {
@@ -227,16 +252,13 @@ impl FileLockManager {
 
     /// Check whether a file is locked.
     pub fn is_locked(&self, path: &Path) -> bool {
-        self.locks
-            .read()
-            .expect("lock manager lock poisoned")
-            .contains_key(path)
+        sync_lock::rw_read(&self.locks).contains_key(path)
     }
 
     /// List all current locks. Returns (path, holder_agent_id, exclusive).
     /// For shared read locks, one entry per holder with exclusive = false.
     pub fn list_locks(&self) -> Vec<(PathBuf, AgentId, bool)> {
-        let locks = self.locks.read().expect("lock manager lock poisoned");
+        let locks = sync_lock::rw_read(&self.locks);
         let mut out = Vec::with_capacity(locks.len());
         for (path, entry) in locks.iter() {
             match entry {
@@ -259,7 +281,7 @@ impl FileLockManager {
         // Simple pairwise check: if agent A holds file X and wants file Y,
         // and agent B holds file Y and wants file X, that's a deadlock.
         // For now we just report all exclusive lock pairs that could conflict.
-        let locks = self.locks.read().expect("lock manager lock poisoned");
+        let locks = sync_lock::rw_read(&self.locks);
         let mut pairs = Vec::new();
         let holders: Vec<(PathBuf, AgentId)> = locks
             .iter()
@@ -281,12 +303,12 @@ impl FileLockManager {
 
     /// Count of actively locked files.
     pub fn active_lock_count(&self) -> usize {
-        self.locks.read().expect("lock manager lock poisoned").len()
+        sync_lock::rw_read(&self.locks).len()
     }
 
     /// Calculate how long a lock has been held (in milliseconds).
     pub fn lock_age(&self, path: &Path) -> Option<u128> {
-        let locks = self.locks.read().expect("lock manager lock poisoned");
+        let locks = sync_lock::rw_read(&self.locks);
         match locks.get(path) {
             Some(LockEntry::Exclusive(lock)) => Some(lock.acquired_at.elapsed().as_millis()),
             Some(LockEntry::SharedRead(readers)) => {
@@ -299,7 +321,7 @@ impl FileLockManager {
     /// Forcefully release any locks held for longer than timeout_ms.
     /// Returns the number of disconnected stale locks.
     pub fn force_release_stale(&self, timeout_ms: u128) -> usize {
-        let mut locks = self.locks.write().expect("lock manager lock poisoned");
+        let mut locks = sync_lock::rw_write(&self.locks);
         let mut stale_count = 0;
         let mut to_remove = Vec::new();
         let mut to_update = Vec::new();
@@ -344,7 +366,7 @@ impl FileLockManager {
 
     /// Upgrade a shared read lock to an exclusive write lock directly.
     pub fn escalate_read_to_write(&self, agent: AgentId, path: &Path) -> Result<(), LockConflict> {
-        let mut locks = self.locks.write().expect("lock manager lock poisoned");
+        let mut locks = sync_lock::rw_write(&self.locks);
         match locks.get(path) {
             Some(LockEntry::SharedRead(readers)) => {
                 // If this agent is the ONLY reader, escalate safely.
@@ -394,7 +416,7 @@ impl FileLockManager {
 
     /// Add an agent to the wait queue for a file they cannot lock.
     pub fn queue_agent_for_lock(&self, agent: AgentId, path: &Path) {
-        let mut q = self.queue.write().unwrap();
+        let mut q = sync_lock::rw_write(&self.queue);
         let queue = q.entry(path.to_path_buf()).or_default();
         if !queue.contains(&agent) {
             queue.push_back(agent);
@@ -413,7 +435,7 @@ impl FileLockManager {
 
     /// Total number of agents waiting for any lock.
     pub fn contention_count(&self) -> usize {
-        let q = self.queue.read().unwrap();
+        let q = sync_lock::rw_read(&self.queue);
         q.values().map(|v| v.len()).sum()
     }
 }

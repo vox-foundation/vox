@@ -1,9 +1,10 @@
-use std::path::PathBuf;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use serde::Deserialize;
+use std::path::PathBuf;
 
 /// Verifies that files are in locations authorized by vox-schema.json.
 pub struct SchemaComplianceDetector {
+    /// Path to `vox-schema.json` (or compatible); [`None`] disables the rule (always clean).
     pub schema_path: Option<PathBuf>,
 }
 
@@ -18,6 +19,7 @@ struct CrateConfig {
 }
 
 impl SchemaComplianceDetector {
+    /// Creates a detector; pass [`None`] to skip disk I/O and emit no findings from this rule.
     pub fn new(schema_path: Option<PathBuf>) -> Self {
         Self { schema_path }
     }
@@ -47,7 +49,12 @@ impl DetectionRule for SchemaComplianceDetector {
     }
 
     fn languages(&self) -> &[Language] {
-        &[Language::Rust, Language::TypeScript, Language::Python, Language::Vox]
+        &[
+            Language::Rust,
+            Language::TypeScript,
+            Language::Python,
+            Language::Vox,
+        ]
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Finding> {
@@ -63,9 +70,13 @@ impl DetectionRule for SchemaComplianceDetector {
 
         let mut matched = false;
 
-        for (_crate_name, config) in &schema.crates {
+        for config in schema.crates.values() {
             // Check if the file is within the declared path_pattern of any crate
-            let pattern_base = config.path_pattern.split("/**").next().unwrap_or(&config.path_pattern);
+            let pattern_base = config
+                .path_pattern
+                .split("/**")
+                .next()
+                .unwrap_or(&config.path_pattern);
 
             // If the file path contains the crate's base path, it belongs to that crate
             if path_str.contains(pattern_base) {
@@ -76,7 +87,7 @@ impl DetectionRule for SchemaComplianceDetector {
 
         // If it's in crates/ or packages/ but not declared in schema, or not matching any pattern
         if !matched && (path_str.contains("crates/") || path_str.contains("packages/")) {
-             findings.push(Finding {
+            findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
                 severity: self.severity(),

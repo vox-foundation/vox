@@ -23,7 +23,11 @@ async fn test_native_read_file_short_circuit() -> Result<()> {
 
     // Our current implementation of read_file short-circuit returns a channel-initialized message
     // rather than the content directly because it starts a background stream for the content.
-    assert!(result["streaming_channel_initialized"].as_bool().unwrap_or(false));
+    assert!(
+        result["streaming_channel_initialized"]
+            .as_bool()
+            .unwrap_or(false)
+    );
     assert_eq!(result["transport"], "InMemTransport");
 
     // Cleanup
@@ -60,9 +64,21 @@ async fn test_native_write_file_short_circuit() -> Result<()> {
 async fn test_schema_cache_lru() {
     let mut cache = SchemaCache::new(2);
 
-    let t1 = ToolDefinition { name: "t1".to_string(), description: "d".to_string(), input_schema: json!({}) };
-    let t2 = ToolDefinition { name: "t2".to_string(), description: "d".to_string(), input_schema: json!({}) };
-    let t3 = ToolDefinition { name: "t3".to_string(), description: "d".to_string(), input_schema: json!({}) };
+    let t1 = ToolDefinition {
+        name: "t1".to_string(),
+        description: "d".to_string(),
+        input_schema: json!({}),
+    };
+    let t2 = ToolDefinition {
+        name: "t2".to_string(),
+        description: "d".to_string(),
+        input_schema: json!({}),
+    };
+    let t3 = ToolDefinition {
+        name: "t3".to_string(),
+        description: "d".to_string(),
+        input_schema: json!({}),
+    };
 
     cache.insert("s1", t1);
     cache.insert("s1", t2);
@@ -82,7 +98,7 @@ async fn test_prompt_caching_format() {
     let tool = ToolDefinition {
         name: "test_tool".to_string(),
         description: "A test tool".to_string(),
-        input_schema: json!({ "type": "object" })
+        input_schema: json!({ "type": "object" }),
     };
 
     let formatted = format_cached_tool_schema(&tool);

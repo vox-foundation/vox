@@ -25,7 +25,9 @@ pub struct DataFlowMap {
 /// A single data flow entry mapping a function to its affected tables.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataFlowEntry {
+    /// Query, mutation, or action name from the digest.
     pub function_name: String,
+    /// Tables this function is believed to read or write.
     pub tables: Vec<String>,
 }
 
@@ -191,6 +193,7 @@ mod tests {
             }],
             actions: Vec::new(),
             summary: String::new(),
+            vcs_snapshot_id: None,
         }
     }
 

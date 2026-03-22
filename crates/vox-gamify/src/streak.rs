@@ -38,14 +38,28 @@ pub enum StreakResult {
     /// Already active today, no streak changes.
     AlreadyActive,
     /// Streak continued (or started). Returns the day count and bonus XP.
-    Continued { streak: u64, bonus_xp: u64 },
+    Continued {
+        /// New streak length in days after this check-in.
+        streak: u64,
+        /// Bonus XP granted for maintaining the streak.
+        bonus_xp: u64,
+    },
     /// Streak saved by grace period. Returns the day count and bonus XP.
-    SavedByGrace { streak: u64, bonus_xp: u64 },
+    SavedByGrace {
+        /// Streak length after consuming grace.
+        streak: u64,
+        /// Bonus XP for a saved streak.
+        bonus_xp: u64,
+    },
     /// Streak broke and reset to 1. Returns the previous streak length.
-    BrokenReset { previous: u64 },
+    BrokenReset {
+        /// Streak length before it was reset.
+        previous: u64,
+    },
 }
 
 impl StreakTracker {
+    /// Fresh tracker with default grace allowances.
     pub fn new() -> Self {
         Self::default()
     }

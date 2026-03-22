@@ -28,7 +28,7 @@ fn order_shuffle_invariance() {
     let lines_a: Vec<&str> = packed_a.lines().filter(|l| l.len() > 2).collect();
     let lines_b: Vec<&str> = packed_b.lines().filter(|l| l.len() > 2).collect();
     assert!(
-        lines_a.len() >= 1 && lines_b.len() >= 1,
+        !lines_a.is_empty() && !lines_b.is_empty(),
         "Both should yield objective lines"
     );
 }

@@ -1,6 +1,9 @@
+//! `vox lsp` — spawns the **`vox-lsp`** executable (separate crate) with stdio inherited.
+
 use anyhow::{Context, Result};
 use std::process::Command;
 
+/// Run `vox-lsp` from `PATH` until the child process exits.
 pub fn run() -> Result<()> {
     // Start the vox-lsp server process, connecting its stdio to ours.
     // This allows the CLI to act as a proxy or direct launcher for the LSP.

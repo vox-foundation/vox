@@ -1,4 +1,4 @@
-use vox_orchestrator::{types::TaskId, AgentId, HandoffPayload};
+use vox_orchestrator::{AgentId, HandoffPayload, types::TaskId};
 
 #[test]
 fn test_handoff_payload_serialization() {

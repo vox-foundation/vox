@@ -1,5 +1,6 @@
-//! LLVM backend - deferred per user decision.
-//! The crate defines the CodegenBackend trait that all backends must implement.
+//! LLVM / Inkwell backend — **optional** and often **excluded** from local `cargo clippy` when LLVM is not installed (see `.agents/cargo-safety.md`).
+//!
+//! Defines the [`CodegenBackend`] trait that codegen backends implement. Full LLVM lowering is deferred; prefer `vox-codegen-rust` / WASM paths for active work.
 
 /// Trait for code generation backends.
 pub trait CodegenBackend {

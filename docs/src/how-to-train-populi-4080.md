@@ -2,21 +2,53 @@
 title: "How To: Train Populi on RTX 4080 Super"
 category: how-to
 constructs: [function, workflow]
-last_updated: 2026-03-20
+last_updated: 2026-03-21
 training_eligible: true
 difficulty: intermediate
 ---
 
 # How To: Train Populi on RTX 4080 Super
 
-This runbook is the canonical first-time path to train Populi locally on Windows with PowerShell, using Vox native training.
+**Canonical contracts, backends, and regression commands:** [Populi native training SSOT](architecture/populi-training-ssot.md). This page is a **step-by-step runbook** for RTX 4080 Super; do not duplicate SSOT tables here.
 
-## Recommended Path
+This runbook covers **two** native paths:
+
+1. **Production Qwen 2.5 (recommended for Qwen2.5-Coder-*)** — **Candle QLoRA** (`--backend qlora`, NF4 frozen bases via qlora-rs). Build with **`populi-candle-cuda`** on Windows/Linux when you have an NVIDIA GPU and CUDA toolkit available for `candle-core`.
+2. **Burn LoRA (GPT-2-shaped HF or Vox tokenizer)** — default `vox populi train` without `--backend qlora`; uses **wgpu** (Vulkan/DX12) on Windows.
+
+## Recommended Path (Qwen2.5-Coder-3B, RTX 4080-class 16GB)
+
+- **Build** (CUDA): from repo root, **`cargo vox-cuda-release`** (alias in `.cargo/config.toml` — same as `cargo build -p vox-cli --release --features gpu,populi-candle-cuda`). On Windows use a VS **Developer** shell so `nvcc` sees MSVC. Plain `cargo build -p vox-cli --release` still produces a **non-CUDA** Candle build (`--device cuda` may CPU-fallback); re-run **`cargo vox-cuda-release`** whenever you need the NVIDIA path after cleaning or switching machines.
+- **Data**: `target/dogfood/train.jsonl` (from corpus pairs/mix); optional `record_format: tool_trace` in mix for command/tool supervision rows (`category` `tool_trace`). See **`populi/schemas/tool_trace_record.schema.json`** and **`populi/data/tool_traces.example.jsonl`**.
+- **Train**:
+  ```powershell
+  .\target\release\vox.exe populi train `
+    --backend qlora --tokenizer hf `
+    --preset qwen_4080_16g `
+    --model Qwen/Qwen2.5-Coder-3B-Instruct `
+    --data-dir target/dogfood `
+    --output-dir populi/runs/qwen25_qlora `
+    --device cuda `
+    --qlora-require-full-proxy-stack
+  ```
+  Drop `--qlora-require-full-proxy-stack` only if you intentionally want **LM-head-only** QLoRA when shards lack per-layer `o_proj` keys.
+- **Artifacts**: `candle_qlora_adapter.safetensors`, `candle_qlora_adapter_meta.json`, `populi_adapter_manifest_v3.json`, `training_manifest.json`, `telemetry.jsonl`.
+### Go-live checklist (local CUDA dogfood)
+
+1. **Shell**: VS Developer / MSVC environment so **`cargo vox-cuda-release`** (or `cargo check -p vox-cli --features gpu,populi-candle-cuda`) succeeds.
+2. **CLI**: `vox populi train --help` lists **`--qlora-*`** flags including **`--qlora-ce-last-k`**.
+3. **Corpus**: refresh `train.jsonl` or set **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the mix step is unnecessary.
+4. **Run**: canonical QLoRA command from above with **`--log-dir populi/runs/logs`** (or your path); tail the log.
+5. **Acceptance**: first log lines show **finite** loss; optional **`--qlora-ce-last-k 4`** for a stronger suffix LM signal (see SSOT).
+6. Thin wrapper (optional): [`scripts/populi/dogfood_qlora_cuda.ps1`](../../scripts/populi/dogfood_qlora_cuda.ps1).
+
+- **Merge (Candle)**: `vox populi merge-qlora …` produces **f32 safetensors** subsets — not Burn `*.bin`. **`vox populi serve` (Burn)** loads LoRA or merged **Burn** checkpoints; it does **not** load Candle merge-qlora safetensors. For querying merged QLoRA weights, use an external stack (e.g. export to HF/Ollama) or keep the **adapter** path your inference tool supports.
+
+## Burn LoRA path (non-Qwen or GPT-2-shaped HF)
 
 - Default: `vox populi train --data-dir target/dogfood --output-dir populi/runs/v1`
 - Input contract: `target/dogfood/train.jsonl`
-- Backend: `wgpu` on Windows (Vulkan or DX12); no CUDA/Python required
-- Fallback only: Python QLoRA for large-model workflows that need 4-bit quantization
+- Backend: `wgpu` on Windows (Vulkan or DX12); no CUDA required for Burn
 
 ## Prerequisites
 
@@ -33,9 +65,10 @@ This runbook is the canonical first-time path to train Populi locally on Windows
    .\target\release\vox.exe populi corpus pairs populi/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/
    # Rustdoc merge skipped: response is Rust prose, not Vox code
    ```
-3. Optional GPU backend selection:
+3. Optional **Burn** GPU backend selection (passed to **`vox populi train --device`**; **`best`** is default):
    ```powershell
-   $env:VOX_BACKEND = "vulkan"   # or "dx12" or "cpu"
+   # Prefer flags on the train command, not legacy env, for `vox populi train`:
+   # --device best | vulkan | dx12 | cpu
    ```
 4. Optional training profile (RTX 4080 Super 16GB VRAM):
    ```powershell
@@ -49,15 +82,15 @@ This runbook is the canonical first-time path to train Populi locally on Windows
 
 Use this when you want **all sources** from `populi/config/mix.yaml` (not a tiny dogfood slice).
 
-1. **Build** with GPU training enabled (native LoRA + eval-local inference):
+1. **Build** release CLI with **`--features gpu`** (default is `populi-base` only; native train / QLoRA need the GPU feature stack). Add **`--features populi-dei`** only if you need legacy **`vox train`** (Together / **`--native`** Burn scratch; **`--provider local`** bails to **`vox populi train`**) or Populi DeI surfaces (`generate`, `review`, …):
    ```powershell
    & "$env:USERPROFILE\.cargo\bin\cargo.exe" build -p vox-cli --release --features gpu
    ```
-   If this fails, restore missing `vox-cli` modules (e.g. `commands/ai/checkpoint.rs`) and fix any `--features gpu` compile errors before training.
+   If this fails, fix `vox-cli` compile errors before training.
 
 2. **Mix** into the default mix output path:
    ```powershell
-   .\target\release\vox.exe corpus mix --config populi/config/mix.yaml
+   .\target\release\vox.exe populi corpus mix --config populi/config/mix.yaml
    ```
    Writes `target/dogfood/train_mixed.jsonl` per mix config.
 
@@ -67,16 +100,18 @@ Use this when you want **all sources** from `populi/config/mix.yaml` (not a tiny
    Copy-Item -Force target/dogfood/train_mixed.jsonl target/dogfood/train.jsonl
    ```
 
-4. **Train** with the SSOT 4080 profile (`populi/config/train-presets.yaml` preset `4080`):
+4. **Train (Qwen + Candle QLoRA)** with the **`qwen_4080_16g`** preset (16GB-oriented; see [preset_schema.rs](../../../crates/vox-populi/src/tensor/preset_schema.rs)):
    ```powershell
    .\target\release\vox.exe populi train `
-     --preset 4080 `
+     --backend qlora --tokenizer hf `
+     --preset qwen_4080_16g `
      --model Qwen/Qwen2.5-Coder-3B-Instruct `
      --data-dir target/dogfood `
      --output-dir populi/runs/rtx4080_full `
+     --device cuda `
      --log-dir populi/runs/logs
    ```
-   Tail `populi/runs/logs/train_*.log` until epochs complete. On OOM, use `--preset safe` or reduce `--batch-size` / `--seq-len` per [runs/logs README](../../../populi/runs/logs/README.md).
+   Tail `populi/runs/logs/train_*.log` until epochs complete. On OOM, use `--preset safe` / `4080_safe`, lower `--seq-len`, raise `--grad-accum`, lower `--rank`, or set `VOX_CANDLE_DEVICE=cpu` (slow).
 
 ## First Training Run (Native)
 
@@ -104,6 +139,10 @@ Expected outputs:
   - `VOX_EVAL_MIN_COVERAGE` (default `0.60`)
 - Strict enforcement:
   - `VOX_EVAL_STRICT=1` to fail run on threshold miss
+- Optional held-out benchmark (build with `--features populi-dei`; paths via env):
+  - `VOX_BENCHMARK=1` — after training, spawns `vox populi eval-local`
+  - `VOX_BENCHMARK_MODEL` — checkpoint path (else auto-detect under output dir)
+  - `VOX_BENCHMARK_DIR` — held-out bench directory (default `populi/data/heldout_bench`)
 
 ```powershell
 .\target\release\vox.exe populi corpus eval target/dogfood/train.jsonl -o populi/runs/v1/eval_results.json
@@ -124,8 +163,19 @@ After training, the model card is rendered from `populi/model_card/`:
 uv run --project scripts render-model-card --run-dir populi/runs/v1
 ```
 
+## Dogfood operator checklist (real corpus, 4080 QLoRA)
+
+Use this before claiming a full dogfood run is complete (CI cannot substitute for your GPU box).
+
+1. **Corpus**: `populi corpus mix --config populi/config/mix.yaml` → copy/rename to **`target/dogfood/train.jsonl`** (preflight requires that filename in `--data-dir`).
+2. **Build**: **`cargo vox-cuda-release`** (or `cargo build -p vox-cli --release --features gpu,populi-candle-cuda`) so **`--device cuda`** is real CUDA, not CPU fallback.
+3. **Train**: `vox populi train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; add `--qlora-require-full-proxy-stack` for strict full proxy stack.
+4. **Artifacts**: Confirm **`candle_qlora_adapter.safetensors`**, **`candle_qlora_adapter_meta.json`**, **`populi_adapter_manifest_v3.json`**, **`training_manifest.json`**, **`telemetry.jsonl`** under the output dir.
+5. **Merge / serve**: Candle merge is **`vox populi merge-qlora`** (f32 shard subsets); **`vox populi serve`** stays Burn-only — see SSOT [Merge / export](architecture/populi-training-ssot.md#merge--export--inference).
+6. **Optional automation**: `scripts/run_qwen25_qlora_real_4080.ps1` builds (CUDA by default) and launches the canonical CLI in the background; see [scripts/README.md](../../scripts/README.md).
+
 ## See Also
 
 - [Native ML Training Pipeline](expl-ml-pipeline.md)
 - [How To: Publish Populi to Hugging Face](how-to-publish-populi-hf.md)
-- [scripts/README.md](../../scripts/README.md) - Python QLoRA fallback details
+- [scripts/README.md](../../scripts/README.md) — thin delegates + optional RTX 4080 QLoRA helper script

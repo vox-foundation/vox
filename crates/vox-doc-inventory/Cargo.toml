@@ -1,0 +1,24 @@
+[package]
+name = "vox-doc-inventory"
+description = "Generate and verify docs/agents/doc-inventory.json (schema v3) without Python."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+vox-repository = { path = "../vox-repository" }
+chrono = { workspace = true, default-features = false, features = ["clock", "std"] }
+regex.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+walkdir = "2"
+
+[[bin]]
+name = "doc-inventory-generate"
+path = "src/bin/doc-inventory-generate.rs"
+
+[lints]
+workspace = true

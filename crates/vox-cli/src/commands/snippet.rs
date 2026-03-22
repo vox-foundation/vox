@@ -3,22 +3,10 @@
 use anyhow::{Context, Result};
 use vox_pm::{CodeStore, SnippetEntry};
 
-const DEFAULT_DB: &str = ".vox/store.db";
-
 async fn connect() -> Result<CodeStore> {
-    if let (Ok(url), Ok(token)) = (
-        std::env::var("VOX_TURSO_URL"),
-        std::env::var("VOX_TURSO_TOKEN"),
-    ) {
-        CodeStore::open_remote(&url, &token)
-            .await
-            .context("Failed to connect to remote store")
-    } else {
-        std::fs::create_dir_all(".vox").ok();
-        CodeStore::open(DEFAULT_DB)
-            .await
-            .context("Failed to open local store")
-    }
+    vox_db::open_project_code_store()
+        .await
+        .context("Failed to open Arca CodeStore (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
 }
 
 fn print_snippet(s: &SnippetEntry) {

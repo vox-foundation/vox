@@ -21,6 +21,9 @@ You can define your deployment environment directly in your `.vox` files using `
     cmd: ["npx", "tsx", "server.ts"]
 ```
 
+> [!NOTE]
+> The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@server fn`. See [vox-fullstack-artifacts-ssot.md](architecture/vox-fullstack-artifacts-ssot.md).
+
 ### Bare Metal (systemd) Provider
 
 For applications that run directly on Linux servers without Docker, set `base` to `"bare-metal"` and Vox will generate a systemd `.service` file instead of a Dockerfile:
@@ -109,5 +112,7 @@ Since Vox uses SQLite for the data layer and durability journal, ensure you moun
 ---
 
 **Related Reference**:
+- [vox-fullstack-artifacts-ssot.md](architecture/vox-fullstack-artifacts-ssot.md) — Rust-first containers vs Express `server.ts`.
+- [Deployment compose SSOT](architecture/deployment-compose-ssot.md) — Docker / Compose / Coolify / CI profiles and env SSOT.
 - [CLI Reference](api/vox-cli.md) — All `vox package` and `vox deploy` options.
 - [Runtime Explanation](expl-architecture.md) — Understanding the runtime environment.

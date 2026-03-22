@@ -5,7 +5,8 @@
 //! - **MEMORY.md** — curated long-term knowledge indexed by heading
 //! - **MemoryManager** — coordinates daily logs + MEMORY.md + VoxDb embeddings,
 //!   bootstraps agent context on startup, and flushes critical state before
-//!   compaction to prevent knowledge loss.
+//!   compaction to prevent knowledge loss. Durable SSOT for agent rows is **Codex**
+//!   (`vox_db::Codex`); file logs are a complementary human-editable layer.
 
 use std::collections::HashMap;
 use std::fmt::Write as FmtWrite;
@@ -141,7 +142,7 @@ fn unix_secs_to_ymd(mut secs: u64) -> (u32, u32, u32) {
 
 /// An append-only daily log file (`memory/YYYY-MM-DD.md`).
 ///
-/// Each call to [`append`] writes a timestamped bullet to disk immediately.
+/// Each call to [`DailyLog::append`] writes a timestamped bullet to disk immediately.
 /// Survives restarts — the file is opened in append mode every time.
 pub struct DailyLog {
     path: PathBuf,
@@ -197,7 +198,7 @@ impl DailyLog {
 /// Manages `MEMORY.md` — curated, human-editable long-term knowledge.
 ///
 /// Sections are Markdown headings (`## key`). Each section contains free-form
-/// text. [`get`] extracts the body under a heading; [`set`] upserts it.
+/// text. [`LongTermMemory::get`] extracts the body under a heading; [`LongTermMemory::set`] upserts it.
 pub struct LongTermMemory {
     path: PathBuf,
 }
@@ -312,21 +313,25 @@ impl LongTermMemory {
 /// A quick in-memory cache of a recently stored fact.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryFact {
+    /// Section heading / fact key in MEMORY.md.
     pub key: String,
+    /// Serialized fact body.
     pub value: String,
+    /// Agent that persisted the fact.
     pub agent_id: AgentId,
+    /// Unix seconds when the fact was stored.
     pub stored_at_secs: u64,
 }
 
 /// Central coordinator for the Vox persistent memory system.
 ///
-/// On creation, call [`bootstrap_context`] to load today's + yesterday's
+/// On creation, call [`MemoryManager::bootstrap_context`] to load today's + yesterday's
 /// daily logs and the contents of MEMORY.md into a ready-to-inject string.
 ///
-/// Before compaction, call [`flush_before_compaction`] with any critical
+/// Before compaction, call [`MemoryManager::flush_before_compaction`] with any critical
 /// key-value pairs to persist them durably.
 ///
-/// When a `VoxDb` is attached via [`with_db`], every `persist_fact` also
+/// When a `VoxDb` is attached via [`MemoryManager::with_db`], every `persist_fact` also
 /// writes to the `agent_memory` table, and `recall` falls back to the DB
 /// when the file-based lookup misses. Files are the hot cache; VoxDB is
 /// the durable single source of truth.
@@ -373,7 +378,10 @@ impl MemoryManager {
     }
 
     /// Attach an EmbeddingService for vector persistence.
-    pub fn with_embeddings(mut self, service: Arc<crate::services::embeddings::EmbeddingService>) -> Self {
+    pub fn with_embeddings(
+        mut self,
+        service: Arc<crate::services::embeddings::EmbeddingService>,
+    ) -> Self {
         self.embedding_service = Some(service);
         self
     }
@@ -384,7 +392,10 @@ impl MemoryManager {
     }
 
     /// Set the embedding service after construction.
-    pub fn set_embedding_service(&mut self, service: Arc<crate::services::embeddings::EmbeddingService>) {
+    pub fn set_embedding_service(
+        &mut self,
+        service: Arc<crate::services::embeddings::EmbeddingService>,
+    ) {
         self.embedding_service = Some(service);
     }
 
@@ -416,17 +427,19 @@ impl MemoryManager {
 
             tokio::spawn(async move {
                 // 1. Save standard agent_memory fact
+                let fact_line = format!("{k}: {v}");
+                let fact_meta = format!("{{\"key\":\"{k}\"}}");
                 let _ = db
                     .store()
-                    .save_memory(
-                        &agent_str,
-                        "global",
-                        "fact",
-                        &format!("{k}: {v}"),
-                        Some(&format!("{{\"key\":\"{k}\"}}")),
-                        1.0,
-                        None,
-                    )
+                    .save_memory(vox_pm::SaveMemoryParams {
+                        agent_id: &agent_str,
+                        session_id: "global",
+                        memory_type: "fact",
+                        content: &fact_line,
+                        metadata: Some(fact_meta.as_str()),
+                        importance: 1.0,
+                        vcs_snapshot_id: None,
+                    })
                     .await;
 
                 // 2. Upsert a knowledge_node for this fact
@@ -498,17 +511,19 @@ impl MemoryManager {
         let mut synced = 0usize;
         for key in &keys {
             if let Ok(Some(value)) = self.long_term.get(key) {
+                let fact_line = format!("{key}: {value}");
+                let fact_meta = format!("{{\"key\":\"{key}\"}}");
                 let _ = db
                     .store()
-                    .save_memory(
-                        "global",
-                        "sync",
-                        "fact",
-                        &format!("{key}: {value}"),
-                        Some(&format!("{{\"key\":\"{key}\"}}")),
-                        1.0,
-                        None,
-                    )
+                    .save_memory(vox_pm::SaveMemoryParams {
+                        agent_id: "global",
+                        session_id: "sync",
+                        memory_type: "fact",
+                        content: &fact_line,
+                        metadata: Some(fact_meta.as_str()),
+                        importance: 1.0,
+                        vcs_snapshot_id: None,
+                    })
                     .await;
                 synced += 1;
             }
@@ -749,7 +764,9 @@ impl MemoryManager {
 pub struct SearchHit {
     /// Source file identifier (e.g. `daily:2026-02-27` or `memory.md`).
     pub source: String,
+    /// 1-based line number in the source file.
     pub line: usize,
+    /// Matching line text.
     pub content: String,
 }
 
@@ -760,8 +777,10 @@ pub struct SearchHit {
 /// Errors from the memory subsystem.
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryError {
+    /// Underlying filesystem error.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+    /// JSON or other serialization failed.
     #[error("Serialization error: {0}")]
     Serialize(String),
 }

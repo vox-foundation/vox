@@ -6,28 +6,31 @@ All examples are located in the [`examples/`](../../examples/) directory. Each d
 
 ## Quick Reference
 
-| Example | Features Demonstrated |
-|---------|----------------------|
-| [`simple_server_fn.vox`](#server-functions) | `@server`, `@component`, auto-generated fetch |
-| [`chatbot.vox`](#full-stack-chatbot) | `@component`, `@table`, `@query`, `@mutation`, `@action`, actors, `style`, `routes` |
-| [`chatbot_server_fn.vox`](#chatbot-with-server-functions) | `@server`, `@component`, ADT pattern matching in JSX |
-| [`data_layer.vox`](#data-layer) | `@table`, `@index`, `@server`, typed database API |
-| [`actor.vox`](#actors) | `actor`, `state`, `spawn`, `send`, `message` |
-| [`durable_counter.vox`](#durable-counter) | Actor with `state_load`/`state_save`, `@component`, `routes` |
-| [`workflow.vox`](#workflows) | `workflow`, `activity`, `with` expression |
-| [`durable_execution.vox`](#durable-execution) | Activities with retry/timeout/backoff policies |
-| [`mcp_tool.vox`](#mcp-tools) | `@mcp.tool`, `@mcp.resource` |
-| [`agent.vox`](#ai-agents) | `@agent_def`, `@mcp.tool`, agent memory |
-| [`dashboard.vox`](#dashboard) | `@v0`, `@component`, `http`, `routes` |
-| [`sharing.vox`](#sharing--skills) | `@skill`, `workflow`, `@component`, publishable packages |
-| [`testing.vox`](#testing) | `@test`, `assert`, ADT matching |
-| [`server_fn.vox`](#minimal-server-function) | Minimal `@server` example |
+Golden (parse in CI) live at `examples/*.vox` — see [`examples/README.md`](../../examples/README.md). Archive paths are under `examples/archive/…`.
+
+| Example | Path | Features demonstrated |
+|---------|------|------------------------|
+| [Server functions](#server-functions) | `examples/archive/simple_server_fn.vox` | `@server`, `@component`, fetch wrapper |
+| [Full-stack chatbot](#full-stack-chatbot) | `examples/chatbot.vox` | `@component`, actors, `style`, `routes`, `http` |
+| [Chatbot + server fn](#chatbot-with-server-functions) | `examples/archive/chatbot_server_fn.vox` | `@server`, `@component`, ADTs |
+| [Data layer](#data-layer) | `examples/data_layer.vox` | `@table`, `@index` (server `db.*` commented until typeck) |
+| [Actors (legacy syntax)](#actors) | `examples/archive/legacy_syntax/actor.vox` | **Does not parse** — aspirational `message` / `fn main` |
+| [Durable counter](#durable-counter) | `examples/durable_counter.vox` | `state_load`/`state_save`, `@component`, `routes` |
+| [Workflows](#workflows) | `examples/workflow.vox` | `workflow`, `activity`, `with` |
+| [Durable execution](#durable-execution) | `examples/archive/durable_execution.vox` | Retry/timeout/backoff |
+| [MCP tools (legacy syntax)](#mcp-tools) | `examples/archive/legacy_syntax/mcp_tool.vox` | **Does not parse** — `@mcp.tool("…")` form |
+| [AI agents](#ai-agents) | `examples/archive/agent.vox` | `@agent_def`, tools, memory |
+| [Dashboard](#dashboard) | `examples/archive/dashboard.vox` | `@v0`, `@component`, `http`, `routes` |
+| [Sharing](#sharing--skills) | `examples/archive/sharing.vox` | `@skill`, `workflow` |
+| [Testing](#testing) | `examples/testing.vox` | `@test`, `assert` |
+| [Minimal server fn](#minimal-server-function) | `examples/server_fn.vox` | Minimal `@server` |
+| [Full-stack minimal](#full-stack-minimal) | `examples/full_stack_minimal.vox` | `routes`, `http`, `@server`, `@component` |
 
 ---
 
 ## Server Functions
 
-**File**: `examples/simple_server_fn.vox`
+**File**: `examples/archive/simple_server_fn.vox`
 
 Demonstrates how `@server` generates both a backend HTTP route and a frontend fetch wrapper:
 
@@ -114,18 +117,16 @@ Typed database tables with indexes and server functions:
 @index Task.by_done on (done, priority)
 @index Task.by_owner on (owner)
 
-@server fn list_tasks() to List[Task]:
-    ret db.query(Task).collect()
-
-@server fn add_task(title: str, owner: str) to Id[Task]:
-    ret db.insert(Task, { title: title, done: false, priority: 0, owner: owner })
+# Server `db.*` bodies are commented in-tree until typeck lands — see examples/data_layer.vox
 ```
 
 ---
 
 ## Actors
 
-**File**: `examples/actor.vox`
+**File**: `examples/archive/legacy_syntax/actor.vox`
+
+**Parser status:** does **not** parse (legacy / aspirational syntax). For a **parseable** actor sample with durable state, see [Durable counter](#durable-counter) (`examples/durable_counter.vox`).
 
 The actor model with state, message handlers, and inter-actor communication:
 
@@ -187,7 +188,7 @@ workflow onboard_user(user_id: str, email: str) to Result[str]:
 
 ## Durable Execution
 
-**File**: `examples/durable_execution.vox`
+**File**: `examples/archive/durable_execution.vox`
 
 Full workflow with varied retry policies:
 
@@ -223,7 +224,7 @@ fn recent_notes() to list[str]:
 
 ## AI Agents
 
-**File**: `examples/agent.vox`
+**File**: `examples/archive/agent.vox`
 
 Define AI agents with memory and tool access:
 
@@ -240,7 +241,7 @@ Define AI agents with memory and tool access:
 
 ## Dashboard
 
-**File**: `examples/dashboard.vox`
+**File**: `examples/archive/dashboard.vox`
 
 AI-generated UI + hand-coded components + routing:
 
@@ -312,3 +313,11 @@ type Greeting =
 @server fn greet(name: str) to Greeting:
     ret Hello("Welcome, " + name + "!")
 ```
+
+---
+
+## Full-stack minimal
+
+**File**: `examples/full_stack_minimal.vox`
+
+Smallest **golden** sample with `routes:`, `http`, `@server`, and `@component`. See [How to: First full-stack app](how-to/first-full-stack-app.md).

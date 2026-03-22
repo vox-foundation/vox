@@ -18,12 +18,16 @@
 //! The next step is adding NF4 (4-bit NormalFloat) quantization to freeze
 //! base weights at 4-bit precision while LoRA adapters remain in fp32.
 //! See the `quant` module (planned) for that implementation.
-//! Ultimately this will be extracted to a `burn-lora` crate on crates.io.
+//! Ultimately this may be extracted to a `burn-lora` crate on crates.io.
+//!
+//! **Populi full transformer + merge** (`LoraVoxTransformer`, attention merge, HF warm-start) lives in
+//! **`vox-populi`** `tensor/lora.rs` — not in this crate. Workspace Burn **0.19** includes quantization
+//! primitives; Populi train path integration is tracked in `docs/src/architecture/hf-finetune-gap-matrix-ssot.md`.
 
 use burn::module::Module;
 use burn::nn;
-use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use burn::tensor::backend::Backend;
 
 /// Configuration for a LoRA adapter.
 ///
@@ -42,7 +46,11 @@ pub struct LoraConfig {
 
 impl Default for LoraConfig {
     fn default() -> Self {
-        Self { rank: 8, alpha: 16.0, dropout: 0.0 }
+        Self {
+            rank: 8,
+            alpha: 16.0,
+            dropout: 0.0,
+        }
     }
 }
 
@@ -98,7 +106,12 @@ impl<B: Backend> LoraLinear<B> {
             .with_bias(false)
             .init(device);
         let scale = config.alpha / config.rank as f32;
-        Self { base, lora_a, lora_b, scale }
+        Self {
+            base,
+            lora_a,
+            lora_b,
+            scale,
+        }
     }
 
     /// Forward pass.
@@ -151,7 +164,11 @@ mod tests {
 
     #[test]
     fn lora_scale_calculation() {
-        let cfg = LoraConfig { rank: 8, alpha: 16.0, dropout: 0.0 };
+        let cfg = LoraConfig {
+            rank: 8,
+            alpha: 16.0,
+            dropout: 0.0,
+        };
         // scale = alpha / rank = 16 / 8 = 2.0
         let expected_scale = cfg.alpha / cfg.rank as f32;
         assert!((expected_scale - 2.0).abs() < 1e-6);
@@ -164,7 +181,10 @@ mod tests {
         // lora = 512*8 + 8*512 = 8192; full = 512*512 = 262144
         assert_eq!(full, 512 * 512);
         assert_eq!(lora, 512 * 8 + 8 * 512);
-        assert!(saving_pct > 90.0, "Expected >90% memory saving, got {saving_pct:.1}%");
+        assert!(
+            saving_pct > 90.0,
+            "Expected >90% memory saving, got {saving_pct:.1}%"
+        );
     }
 
     #[test]

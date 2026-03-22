@@ -1,16 +1,19 @@
-use std::path::Path;
+//! In-process Burn dogfood trainer (used when `vox ai train --native` is enabled).
+#![allow(dead_code)] // compiled with `gpu`; entry is `commands::ai::train` behind `populi-dei`
+
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use std::path::Path;
 use vox_tensor::burn;
 
-use vox_tensor::burn::tensor::backend::Backend;
 use vox_tensor::burn::module::Module as BurnModule;
+use vox_tensor::burn::prelude::Int;
+use vox_tensor::burn::tensor::backend::Backend;
 use vox_tensor::data::{JsonlDataLoader, VOCAB_SIZE};
-use vox_tensor::nn::cross_entropy_loss;
 use vox_tensor::optim::{AdamW, LinearWarmupScheduler};
 use vox_tensor::tensor::Tensor;
-use vox_tensor::burn::prelude::Int;
 use vox_tensor::train::{Checkpoint, gradient_clip_norm};
+use vox_tensor::vox_nn::cross_entropy_loss;
 
 /// A native transformer model for Vox dogfood training.
 #[derive(BurnModule, Debug)]
@@ -31,7 +34,13 @@ struct TransformerBlock<B: Backend> {
 }
 
 impl<B: Backend> VoxTransformer<B> {
-    pub fn new(device: &B::Device, vocab_size: usize, d_model: usize, n_heads: usize, n_layers: usize) -> Self {
+    pub fn new(
+        device: &B::Device,
+        vocab_size: usize,
+        d_model: usize,
+        n_heads: usize,
+        n_layers: usize,
+    ) -> Self {
         let embedding = burn::nn::EmbeddingConfig::new(vocab_size, d_model).init(device);
         let mut blocks = Vec::with_capacity(n_layers);
         for _ in 0..n_layers {
@@ -60,7 +69,8 @@ impl<B: Backend> VoxTransformer<B> {
 
 impl<B: Backend> TransformerBlock<B> {
     fn new(device: &B::Device, d_model: usize, n_heads: usize) -> Self {
-        let attention = burn::nn::attention::MultiHeadAttentionConfig::new(d_model, n_heads).init(device);
+        let attention =
+            burn::nn::attention::MultiHeadAttentionConfig::new(d_model, n_heads).init(device);
         let norm1 = burn::nn::LayerNormConfig::new(d_model).init(device);
         let norm2 = burn::nn::LayerNormConfig::new(d_model).init(device);
 
@@ -92,7 +102,12 @@ impl<B: Backend> TransformerBlock<B> {
 }
 
 pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<()> {
-    println!("{}", "🚀 Starting native Vox training (Burn backend)...".green().bold());
+    println!(
+        "{}",
+        "🚀 Starting native Vox training (Burn backend)..."
+            .green()
+            .bold()
+    );
 
     // Define concrete backend
     type BackendType = burn::backend::Wgpu;
@@ -107,7 +122,8 @@ pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<
     let d_model = 512;
     let n_layers = 12;
     let n_heads = 8;
-    let mut model = VoxTransformer::<ADBackend>::new(&device, VOCAB_SIZE, d_model, n_heads, n_layers);
+    let mut model =
+        VoxTransformer::<ADBackend>::new(&device, VOCAB_SIZE, d_model, n_heads, n_layers);
 
     let mut optim = AdamW::new();
     let initial_lr = 5e-5;
@@ -116,7 +132,10 @@ pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<
     let output_path = output_dir.unwrap_or(data_dir).to_owned();
     std::fs::create_dir_all(&output_path)?;
 
-    println!("  Architecture: {} layers, {} heads, {} hidden", n_layers, n_heads, d_model);
+    println!(
+        "  Architecture: {} layers, {} heads, {} hidden",
+        n_layers, n_heads, d_model
+    );
     println!("  Vocab Size:   {}", VOCAB_SIZE);
     println!("  Data:         {}", train_jsonl.display().cyan());
 
@@ -135,7 +154,7 @@ pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<
 
             let input_tensor = burn::tensor::Tensor::<ADBackend, 2, Int>::from_data(
                 burn::tensor::TensorData::new(input_ids.clone(), [1, input_ids.len()]),
-                &device
+                &device,
             );
 
             let logits = model.forward(input_tensor);
@@ -144,7 +163,7 @@ pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<
 
             let labels_tensor = burn::tensor::Tensor::<ADBackend, 1, Int>::from_data(
                 burn::tensor::TensorData::new(labels.clone(), [labels.len()]),
-                &device
+                &device,
             );
 
             let vox_logits = Tensor::D2(logits_flat);
@@ -172,25 +191,41 @@ pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<
             if steps % 10 == 0 {
                 println!(
                     "  Epoch {:2} | Step {:4} | Loss {:.6} | LR {:.8}",
-                    epoch, steps, total_loss / (steps as f32), lr
+                    epoch,
+                    steps,
+                    total_loss / (steps as f32),
+                    lr
                 );
             }
         }
 
         let avg_loss = total_loss / (steps.max(1) as f32);
-        println!("  {} Epoch {} Summary: Avg Loss {:.6}", "✓".green(), epoch, avg_loss);
+        println!(
+            "  {} Epoch {} Summary: Avg Loss {:.6}",
+            "✓".green(),
+            epoch,
+            avg_loss
+        );
 
         // Save Checkpoint after each epoch
         let checkpoint_name = format!("checkpoint_epoch_{}.bin", epoch);
         let checkpoint_path = output_path.join(checkpoint_name);
         Checkpoint::save(&model, &checkpoint_path).map_err(|e| anyhow::anyhow!("{:?}", e))?;
-        println!("  {} Checkpoint saved: {}", "💾".blue(), checkpoint_path.display());
+        println!(
+            "  {} Checkpoint saved: {}",
+            "💾".blue(),
+            checkpoint_path.display()
+        );
     }
 
     // final save
     let final_path = output_path.join("model_final.bin");
     Checkpoint::save(&model, &final_path).map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    println!("\n{} Native training complete! Final model saved to: {}", "✨".yellow(), final_path.display());
+    println!(
+        "\n{} Native training complete! Final model saved to: {}",
+        "✨".yellow(),
+        final_path.display()
+    );
 
     Ok(())
 }
@@ -213,14 +248,13 @@ mod tests {
         let n_heads = 4;
         let n_layers = 2; // small model for test
 
-        let model = VoxTransformer::<TestBackend>::new(&device, vocab_size, d_model, n_heads, n_layers);
+        let model =
+            VoxTransformer::<TestBackend>::new(&device, vocab_size, d_model, n_heads, n_layers);
 
         // Dummy input [batch=2, seq_len=10]
         let input_data: Vec<i32> = (0..20).collect();
-        let input_tensor = Tensor::<TestBackend, 2, Int>::from_data(
-            TensorData::new(input_data, [2, 10]),
-            &device,
-        );
+        let input_tensor =
+            Tensor::<TestBackend, 2, Int>::from_data(TensorData::new(input_data, [2, 10]), &device);
 
         let output = model.forward(input_tensor);
 

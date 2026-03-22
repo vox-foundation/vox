@@ -10,14 +10,22 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Errors returned by [`PopuliClient`] HTTP calls and response parsing.
 #[derive(Debug, Error)]
 pub enum PopuliError {
+    /// Underlying `reqwest` failure (DNS, TLS, timeout, etc.).
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
+    /// Server responded but the requested model is not loaded or unknown.
     #[error("Model not available: {0}")]
     ModelNotAvailable(String),
+    /// HTTP 429 or similar; caller may backoff using `retry_after_ms`.
     #[error("Rate limited, retry after {retry_after_ms}ms")]
-    RateLimited { retry_after_ms: u64 },
+    RateLimited {
+        /// Suggested delay before retry (milliseconds); heuristic when server omits header.
+        retry_after_ms: u64,
+    },
+    /// JSON shape did not match expected Populi/Ollama response.
     #[error("Malformed response: {0}")]
     MalformedResponse(String),
 }
@@ -53,8 +61,7 @@ impl PopuliConfig {
     /// Construct from environment variables.
     pub fn from_env() -> Self {
         Self {
-            base_url: std::env::var("POPULI_URL")
-                .unwrap_or_else(|_| "http://localhost:11434".to_string()),
+            base_url: vox_config::inference::local_ollama_populi_base_url(),
             api_key: std::env::var("POPULI_API_KEY").ok(),
             model: std::env::var("POPULI_MODEL").unwrap_or_else(|_| "default-model".to_string()),
             temperature: std::env::var("POPULI_TEMPERATURE")
@@ -87,10 +94,14 @@ struct GenerateOptions {
 /// A generation response.
 #[derive(Debug, Deserialize)]
 pub struct GenerateResponse {
+    /// Generated completion text from Populi/Ollama.
     pub response: String,
+    /// Model name echoed by the server.
     pub model: String,
+    /// Token or evaluation count when the API provides it.
     #[serde(default)]
     pub eval_count: u64,
+    /// Evaluation duration in nanoseconds when reported.
     #[serde(default)]
     pub eval_duration: u64,
 }
@@ -105,13 +116,16 @@ struct EmbedRequest<'a> {
 /// An embedding response.
 #[derive(Debug, Deserialize)]
 pub struct EmbedResponse {
+    /// Embedding vector for the input text.
     pub embedding: Vec<f64>,
 }
 
 /// Classification result.
 #[derive(Debug, Clone)]
 pub struct Classification {
+    /// Chosen category label from the model output.
     pub label: String,
+    /// Confidence score in `[0, 1]` (heuristic for single-shot classify).
     pub confidence: f64,
 }
 
@@ -133,6 +147,11 @@ impl PopuliClient {
     /// Create from environment variables.
     pub fn from_env() -> Self {
         Self::new(PopuliConfig::from_env())
+    }
+
+    /// Probe `/api/tags` (and `/api/version` for GPU hints) on [`PopuliConfig::base_url`].
+    pub async fn probe_capabilities(&self) -> crate::inference_env::PopuliCapabilitySnapshot {
+        crate::inference_env::probe_populi_capabilities(&self.config.base_url).await
     }
 
     /// Generate text completion from a prompt.

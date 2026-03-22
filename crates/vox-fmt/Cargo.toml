@@ -10,3 +10,7 @@ vox-lexer = { workspace = true }
 vox-ast = { workspace = true }
 vox-parser = { workspace = true }
 anyhow = { workspace = true }
+
+[lints]
+workspace = true
+

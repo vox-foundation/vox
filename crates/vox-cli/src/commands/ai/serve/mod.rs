@@ -36,7 +36,11 @@ pub use schema::{GenerateRequest, GenerateResponse};
 
 use anyhow::Result;
 
-/// Run the inference server using Axum (requires execution-api or dashboard feature).
+/// Run the inference server using Axum (`execution-api` feature).
+///
+/// With default features this is unused (serve subcommands are `cfg` gated); keep it for
+/// `cargo build --features execution-api` and for unit tests below.
+#[cfg_attr(not(feature = "execution-api"), allow(dead_code))]
 pub fn run_serve(config: &ServeConfig) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -69,6 +73,7 @@ pub fn run_serve(config: &ServeConfig) -> Result<()> {
 }
 
 #[cfg(feature = "execution-api")]
+#[cfg_attr(not(feature = "execution-api"), allow(dead_code))]
 fn run_serve_inner(config: &ServeConfig) -> Result<()> {
     use axum::Router;
     use axum::routing::{get, post};
@@ -115,7 +120,10 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .route("/v1/generate", post(handlers::do_generate))
         .route("/generate", post(handlers::do_generate))
         .route("/v1/completions", post(handlers::do_generate))
-        .route("/v1/completions/stream", post(handlers::do_completions_stream))
+        .route(
+            "/v1/completions/stream",
+            post(handlers::do_completions_stream),
+        )
         .with_state(state);
 
     let addr = format!("{}:{}", config.host, config.port);
@@ -137,7 +145,9 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
     })
 }
 
+/// Stub when Axum stack is off — only reached from [`run_serve`], which is unused in default CLI builds.
 #[cfg(not(feature = "execution-api"))]
+#[allow(dead_code)]
 fn run_serve_inner(config: &ServeConfig) -> Result<()> {
     use owo_colors::OwoColorize;
     eprintln!(
@@ -161,9 +171,9 @@ mod prompt_tests {
     #[test]
     fn prompt_for_output_mode_wraps_strict_json() {
         let out = prompt::prompt_for_output_mode("hello", Some("strict_json"));
-        assert!(out.contains("Respond with valid JSON only"));
+        assert!(out.contains("single valid JSON object"));
         assert!(out.contains("hello"));
-        assert!(out.contains("Output (JSON only)"));
+        assert!(out.contains("No markdown fences"));
     }
 
     #[test]
@@ -180,7 +190,8 @@ mod prompt_tests {
 
     #[test]
     fn validate_structured_output_schema_accepts_valid() {
-        let schema = serde_json::json!({"type":"object","properties":{"name":{"type":"string"}},"required":["name"]});
+        // Matches `vox_corpus::corpus::structured_eval::validate_against_schema` flat key → type string form.
+        let schema = serde_json::json!({"name": "string"});
         assert!(validate_structured_output(
             r#"{"name":"ok"}"#,
             Some("strict_json"),
@@ -190,7 +201,7 @@ mod prompt_tests {
 
     #[test]
     fn validate_structured_output_schema_rejects_invalid() {
-        let schema = serde_json::json!({"type":"object","properties":{"name":{"type":"string"}},"required":["name"]});
+        let schema = serde_json::json!({"name": "string"});
         assert!(!validate_structured_output(
             r#"{"other":1}"#,
             Some("strict_json"),
@@ -208,7 +219,7 @@ mod prompt_tests {
 
     #[test]
     fn validate_structured_output_jsonl_with_schema() {
-        let schema = serde_json::json!({"type":"object","properties":{"x":{"type":"number"}}});
+        let schema = serde_json::json!({"x": "number"});
         assert!(validate_structured_output(
             r#"{"x":1}
 {"x":2}"#,

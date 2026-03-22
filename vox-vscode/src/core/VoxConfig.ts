@@ -1,10 +1,8 @@
 /**
  * VoxConfig — Typed accessor for shared toolchain configuration.
  *
- * SHARED SETTINGS (model, budget, data paths) must be read via the Orchestrator MCP
- * tool `vox_get_config`, NOT from VS Code workspace settings directly.
- *
- * This class provides typed helpers to call `vox_get_config` and cache the result.
+ * SHARED SETTINGS (model, budget, data paths) must come from the Orchestrator MCP tool
+ * `vox_config_get` (not VS Code workspace settings). The server still accepts the wire alias `vox_get_config`.
  */
 
 import type { VoxMcpClient } from './VoxMcpClient';
@@ -33,7 +31,7 @@ export class VoxConfig {
     /** Fetch the full config from the Orchestrator. */
     static async load(mcp: VoxMcpClient): Promise<VoxConfigResponse | null> {
         try {
-            const config = await mcp.call<VoxConfigResponse>('vox_get_config', {});
+            const config = await mcp.call<VoxConfigResponse>('vox_config_get', {});
             if (config) {
                 this._cache = config;
             }
@@ -51,7 +49,7 @@ export class VoxConfig {
 
     /** Set a value in the Orchestrator config (writes to Vox.toml or ~/.vox/config.toml). */
     static async set(mcp: VoxMcpClient, key: string, value: string | number): Promise<void> {
-        await mcp.call('vox_set_config', { key, value: String(value) });
+        await mcp.call('vox_config_set', { key, value: String(value) });
         this._cache = null; // Invalidate cache
     }
 

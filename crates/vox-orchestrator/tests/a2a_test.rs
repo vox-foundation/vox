@@ -1,5 +1,5 @@
-use vox_orchestrator::a2a::{A2AMessageType, MessageBus};
 use vox_orchestrator::AgentId;
+use vox_orchestrator::a2a::{A2AMessageType, MessageBus};
 
 #[test]
 fn test_a2a_communication() {

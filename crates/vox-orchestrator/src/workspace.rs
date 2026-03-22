@@ -22,11 +22,17 @@ use crate::types::AgentId;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WorkspaceEntry {
     /// File was modified — stores the content hash of the new version.
-    Modified { content_hash: String },
+    Modified {
+        /// BLAKE3/SHA-style hash of the staged bytes.
+        content_hash: String,
+    },
     /// File was deleted in this workspace.
     Deleted,
     /// File was created in this workspace.
-    Created { content_hash: String },
+    Created {
+        /// Content hash of the newly added file body.
+        content_hash: String,
+    },
 }
 
 // ---------------------------------------------------------------------------

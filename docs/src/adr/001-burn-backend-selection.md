@@ -82,5 +82,5 @@ The `gpu` feature gates all Burn code, keeping `cargo check --workspace` fast (n
 
 ## References
 - [Burn framework](https://burn.dev)
-- `crates/vox-tensor/src/nn.rs` — VoxTransformer implementation
+- `crates/vox-tensor/src/vox_nn.rs` — VoxTransformer implementation (`gpu` feature)
 - `crates/vox-cli/src/training/native.rs` — Training loop

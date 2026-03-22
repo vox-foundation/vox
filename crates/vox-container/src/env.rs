@@ -49,24 +49,18 @@ impl PythonEnv {
     /// Falls back to CPU-only wheels when no GPU is detected, or when the
     /// CUDA version does not have a specific wheel source.
     ///
-    /// Reference: https://pytorch.org/get-started/locally/
+    /// Reference: <https://pytorch.org/get-started/locally/>
     pub fn pytorch_index_url(&self) -> &'static str {
         match self.cuda_version.as_deref() {
-            Some(v) if v.starts_with("13.") => {
-                "https://download.pytorch.org/whl/cu130"
-            }
+            Some(v) if v.starts_with("13.") => "https://download.pytorch.org/whl/cu130",
             Some(v) if v.starts_with("12.4") || v.starts_with("12.5") || v.starts_with("12.6") => {
                 "https://download.pytorch.org/whl/cu124"
             }
             Some(v) if v.starts_with("12.1") || v.starts_with("12.2") || v.starts_with("12.3") => {
                 "https://download.pytorch.org/whl/cu121"
             }
-            Some(v) if v.starts_with("11.8") => {
-                "https://download.pytorch.org/whl/cu118"
-            }
-            _ => {
-                "https://download.pytorch.org/whl/cpu"
-            }
+            Some(v) if v.starts_with("11.8") => "https://download.pytorch.org/whl/cu118",
+            _ => "https://download.pytorch.org/whl/cpu",
         }
     }
 
@@ -115,9 +109,7 @@ impl PythonEnv {
 
         let index_url = self.pytorch_index_url();
         let mut cmd = Command::new("uv");
-        cmd.arg("add")
-            .arg("--extra-index-url")
-            .arg(index_url);
+        cmd.arg("add").arg("--extra-index-url").arg(index_url);
         for pkg in packages {
             cmd.arg(pkg);
         }
@@ -242,7 +234,10 @@ impl PythonEnv {
         if self.has_gpu && !is_available {
             tracing::warn!("GPU was detected but PyTorch reports CUDA is NOT available!");
             tracing::warn!("This means PyTorch will fall back to slower CPU inference.");
-            tracing::warn!("Verify NVIDIA drivers match the toolkit version: {}", self.cuda_version.as_deref().unwrap_or("unknown"));
+            tracing::warn!(
+                "Verify NVIDIA drivers match the toolkit version: {}",
+                self.cuda_version.as_deref().unwrap_or("unknown")
+            );
         } else if self.has_gpu && is_available {
             tracing::info!("PyTorch successfully bound to CUDA GPU!");
         }
@@ -276,12 +271,7 @@ fn detect_cuda() -> Option<String> {
         for line in out.lines() {
             if line.contains("CUDA Version:") {
                 if let Some(v) = line.split("CUDA Version:").nth(1) {
-                    let ver = v
-                        .split('|')
-                        .next()
-                        .unwrap_or("")
-                        .trim()
-                        .to_string();
+                    let ver = v.split('|').next().unwrap_or("").trim().to_string();
                     if !ver.is_empty() {
                         return Some(ver);
                     }
@@ -339,8 +329,12 @@ impl SetupPlan {
         println!("  • PyTorch source: {}", self.torch_index_url);
         if self.has_gpu {
             if self.torch_index_url.contains("cpu") {
-                println!("  ⚠️ WARNING: GPU detected, but CUDA version is unknown or unsupported/mismatched.");
-                println!("  ⚠️ Falling back to CPU-only PyTorch wheels! Ensure NVIDIA driver and CUDA toolkit are installed.");
+                println!(
+                    "  ⚠️ WARNING: GPU detected, but CUDA version is unknown or unsupported/mismatched."
+                );
+                println!(
+                    "  ⚠️ Falling back to CPU-only PyTorch wheels! Ensure NVIDIA driver and CUDA toolkit are installed."
+                );
             } else {
                 println!("  • GPU detected — CUDA wheels will be used");
             }

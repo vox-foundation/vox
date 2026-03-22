@@ -23,7 +23,7 @@ UX and delegates all state, coordination, and computation to the Vox Orchestrato
 - **No direct Rust imports**. All communication goes through `VoxMcpClient.call(toolName, params)`.
 - **No state stored in the extension** beyond the current webview render buffer.
 - **VS Code settings are UX overrides only**. Structural config (model, budget, data paths) is
-  read via `vox_get_config` MCP tool, not `workspace.getConfiguration` directly.
+  read via `vox_config_get` MCP tool (wire alias `vox_get_config`), not `workspace.getConfiguration` directly.
 
 ## MCP Connection Lifecycle
 

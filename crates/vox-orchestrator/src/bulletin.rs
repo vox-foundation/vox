@@ -1,3 +1,8 @@
+//! Broadcast bulletin board for orchestrator-wide agent messages.
+//!
+//! [`BulletinBoard`](crate::bulletin::BulletinBoard) fans out [`AgentMessage`](crate::types::AgentMessage) values so every subscriber sees
+//! file changes, completions, and interrupts without point-to-point wiring.
+
 use tokio::sync::broadcast;
 
 use crate::types::AgentMessage;

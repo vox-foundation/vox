@@ -1,12 +1,9 @@
 use vox_ast::decl::{Decl, FnDecl, Module};
-use vox_ast::span::Span;
 use vox_ast::stmt::Stmt;
 use vox_typeck::diagnostics::Severity;
 use vox_typeck::Diagnostic;
+use vox_test_harness::spans::dummy_span;
 
-pub fn dummy_span() -> Span {
-    Span { start: 0, end: 0 }
-}
 
 pub fn module_with_fn(name: &str, body: Vec<Stmt>) -> Module {
     Module {

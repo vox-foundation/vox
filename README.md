@@ -26,6 +26,8 @@ The software development workflow is fundamentally changing. Humans are transiti
 cargo install --path crates/vox-cli
 ```
 
+**Contributors (bootstrap Rust + LLVM/clang-cl on Windows for Turso):** `scripts/install.sh` / `scripts/install.ps1` — see [`docs/src/how-to-setup.md`](docs/src/how-to-setup.md).
+
 ### The "All-in-One" Experience
 
 ```vox
@@ -62,6 +64,8 @@ Vox is powered by a robust compiler pipeline written in pure Rust:
 Lexer (`logos`) ➔ Parser ➔ HIR Lowering ➔ Typeck (Hindley-Milner) ➔ Codegen (`axum` / `react`).
 
 For a deep dive into the language architecture, development roadmap, and the Populi LLM model, see [AGENTS.md](./AGENTS.md).
+
+**First full-stack sample:** [docs/src/how-to/first-full-stack-app.md](docs/src/how-to/first-full-stack-app.md) (from [`examples/full_stack_minimal.vox`](examples/full_stack_minimal.vox)). **Example style & corpus:** [`examples/STYLE.md`](examples/STYLE.md), [`docs/src/how-to/examples-corpus.md`](docs/src/how-to/examples-corpus.md).
 
 ## 🌍 Community & License
 

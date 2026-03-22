@@ -1,8 +1,6 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
-#![allow(dead_code)] // db subcommands wired elsewhere or planned
-
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 /// Print current VoxDB schema version and connection path.
@@ -32,7 +30,10 @@ pub async fn reset(file: Option<&PathBuf>) -> Result<()> {
 
     for table in tables_to_drop {
         println!("  Dropping table: {}", table);
-        db.store().conn.execute(&format!("DROP TABLE IF EXISTS {}", table), ()).await?;
+        db.store()
+            .conn
+            .execute(&format!("DROP TABLE IF EXISTS {}", table), ())
+            .await?;
     }
 
     println!("Database cleared. Re-migrating...");
@@ -48,13 +49,17 @@ pub async fn schema(file: Option<&PathBuf>) -> Result<()> {
         .unwrap_or_else(|| PathBuf::from("src/main.vox"));
 
     if !path.exists() {
-        anyhow::bail!("No source file found at {}. Run `vox db schema --file <path>` to specify one.", path.display());
+        anyhow::bail!(
+            "No source file found at {}. Run `vox db schema --file <path>` to specify one.",
+            path.display()
+        );
     }
 
-    let result = crate::pipeline::run_frontend(&path, false).await
+    let result = crate::pipeline::run_frontend(&path, false)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to parse source for schema: {}", e))?;
 
-    let digest = vox_db::generate_schema_digest(&result.module);
+    let digest = vox_db::generate_schema_digest(&result.module, None);
     println!("{}", vox_db::format_llm_context(&digest));
 
     // Also print JSON for tool consumption
@@ -126,7 +131,8 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
         return Ok(());
     }
 
-    let result = crate::pipeline::run_frontend(&path, false).await
+    let result = crate::pipeline::run_frontend(&path, false)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to parse source for migration: {}", e))?;
     let module = &result.module;
 
@@ -217,7 +223,15 @@ pub async fn import(path: &PathBuf) -> Result<()> {
             let importance = m["importance"].as_f64().unwrap_or(1.0);
             if !content.is_empty() {
                 db.store()
-                    .save_memory(user_id, "import", mtype, content, None, importance, None)
+                    .save_memory(vox_db::MemoryParams {
+                        agent_id: user_id,
+                        session_id: "import",
+                        memory_type: mtype,
+                        content,
+                        metadata: None,
+                        importance,
+                        vcs_snapshot_id: None,
+                    })
                     .await?;
                 mem_count += 1;
             }
@@ -297,3 +311,5 @@ pub async fn pref_list(user_id: &str, prefix: Option<&str>) -> Result<()> {
     }
     Ok(())
 }
+
+include!("db_research_impl.rs");

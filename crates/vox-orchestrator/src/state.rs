@@ -1,3 +1,8 @@
+//! JSON snapshot format for persisting orchestrator queue and context state.
+//!
+//! [`OrchestratorState`](crate::state::OrchestratorState) is written by tooling that needs warm restarts without
+//! replaying the full oplog.
+
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -33,13 +38,21 @@ fn default_version() -> u32 {
 /// Serialized state of a single agent.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SavedAgentState {
+    /// Raw agent id (`AgentId.0`).
     pub id: u64,
+    /// Queue display name.
     pub name: String,
+    /// Pending tasks total.
     pub queued_count: usize,
+    /// Urgent backlog depth.
     pub urgent_count: usize,
+    /// Normal backlog depth.
     pub normal_count: usize,
+    /// Background backlog depth.
     pub background_count: usize,
+    /// Lifetime completions for this agent.
     pub completed_count: usize,
+    /// Operator pause flag.
     pub paused: bool,
 }
 
@@ -108,10 +121,13 @@ fn chrono_iso_now() -> String {
 /// Errors for state persistence.
 #[derive(Debug, thiserror::Error)]
 pub enum StateError {
+    /// Filesystem failure while reading/writing the snapshot path.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+    /// `OrchestratorState` could not be encoded.
     #[error("Serialization error: {0}")]
     Serialize(serde_json::Error),
+    /// On-disk JSON did not match the expected schema.
     #[error("Deserialization error: {0}")]
     Deserialize(serde_json::Error),
 }

@@ -245,7 +245,9 @@ fn schema_search_index_appended_to_table() {
     };
     let out = generate_voxdb_schema(&module);
     assert!(
-        out.contains(".searchIndex(\"search_title\", { searchField: \"title\", filterFields: [\"status\"] })"),
+        out.contains(
+            ".searchIndex(\"search_title\", { searchField: \"title\", filterFields: [\"status\"] })"
+        ),
         "got:\n{}",
         out
     );

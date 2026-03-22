@@ -1,9 +1,14 @@
+//! Tokio/`vox-runtime` bridge: actor agents, task processors, and fleet scaling hooks.
+//!
+//! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
+//! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
+
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use vox_runtime::{
-    mailbox::MessagePayload, process::ProcessContext, scheduler::Scheduler, supervisor::ChildSpec,
-    supervisor::RestartStrategy, supervisor::Supervisor, ProcessHandle,
+    ProcessHandle, mailbox::MessagePayload, process::ProcessContext, scheduler::Scheduler,
+    supervisor::ChildSpec, supervisor::RestartStrategy, supervisor::Supervisor,
 };
 
 use crate::events::AgentEventKind;
@@ -17,23 +22,38 @@ use std::time::{Duration, Instant};
 /// Message type sent to the ActorAgent to trigger task processing.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum AgentCommand {
+    /// Drain the agent's queue once (used by supervisor ticks).
     ProcessQueue,
+    /// Pause dequeueing new tasks.
     Pause,
+    /// Resume after [`AgentCommand::Pause`].
     Resume,
+    /// Remove a specific pending task id from the local queue.
     CancelTask(TaskId),
 }
 
+/// Pluggable executor invoked by [`ActorAgent`] for each dequeued [`AgentTask`](crate::types::AgentTask).
 #[async_trait::async_trait]
 pub trait TaskProcessor: Send + Sync {
-    async fn process(&self, agent_id: crate::types::AgentId, task: crate::types::AgentTask) -> anyhow::Result<crate::types::TaskId>;
+    /// Runs `task` on behalf of `agent_id` and returns the finished task id on success.
+    async fn process(
+        &self,
+        agent_id: crate::types::AgentId,
+        task: crate::types::AgentTask,
+    ) -> anyhow::Result<crate::types::TaskId>;
 }
 
-/// A default stub processor that immediately completes tasks.
+/// A default stub processor that simulates a short work slice (~50ms) then completes the task.
 pub struct StubTaskProcessor;
 
 #[async_trait::async_trait]
 impl TaskProcessor for StubTaskProcessor {
-    async fn process(&self, _agent_id: crate::types::AgentId, task: crate::types::AgentTask) -> anyhow::Result<crate::types::TaskId> {
+    async fn process(
+        &self,
+        _agent_id: crate::types::AgentId,
+        task: crate::types::AgentTask,
+    ) -> anyhow::Result<crate::types::TaskId> {
+        // Small delay so scaling/retirement tests and metrics have a non-racy window.
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         Ok(task.id)
     }
@@ -71,11 +91,14 @@ impl AiTaskProcessor {
 
 #[async_trait::async_trait]
 impl TaskProcessor for AiTaskProcessor {
-    async fn process(&self, agent_id: crate::types::AgentId, task: crate::types::AgentTask) -> anyhow::Result<crate::types::TaskId> {
+    async fn process(
+        &self,
+        agent_id: crate::types::AgentId,
+        task: crate::types::AgentTask,
+    ) -> anyhow::Result<crate::types::TaskId> {
         let prompt = format!(
             "Task: {}\n\nContext: {:?}\n\nAction: Execute this task and provide the output.",
-            task.description,
-            task.task_category
+            task.description, task.task_category
         );
 
         let mut stream = self.client.generate_stream(&prompt).await;
@@ -86,10 +109,8 @@ impl TaskProcessor for AiTaskProcessor {
                 Ok(text) => {
                     full_text.push_str(&text);
                     // Emit token stream event
-                    self.event_bus.emit(AgentEventKind::TokenStreamed {
-                        agent_id,
-                        text,
-                    });
+                    self.event_bus
+                        .emit(AgentEventKind::TokenStreamed { agent_id, text });
                 }
                 Err(e) => tracing::error!("AI stream error: {}", e),
             }
@@ -122,7 +143,9 @@ impl TaskProcessor for AiTaskProcessor {
 /// Converts a reactive orchestrator queue into an active background worker
 /// using `vox-runtime` actor primitives.
 pub struct ActorAgent {
+    /// Agent id managed by this process.
     pub agent_id: AgentId,
+    /// Human-readable process/agent name.
     pub name: String,
 }
 
@@ -147,7 +170,8 @@ impl ActorAgent {
                     if let vox_runtime::mailbox::Envelope::Message(msg) = envelope {
                         if let MessagePayload::Json(json_data) = msg.payload {
                             if let Ok(cmd) = serde_json::from_str::<AgentCommand>(&json_data) {
-                                Self::handle_command(cmd, agent_id, &orchestrator, &processor).await;
+                                Self::handle_command(cmd, agent_id, &orchestrator, &processor)
+                                    .await;
                             }
                         }
                     }
@@ -167,20 +191,11 @@ impl ActorAgent {
         orchestrator_ref: &Arc<Mutex<Orchestrator>>,
         processor: &Arc<dyn TaskProcessor>,
     ) {
-        let mut orch = orchestrator_ref.lock().await;
-        // Record activity heartbeat
-        let activity = match &cmd {
-            AgentCommand::ProcessQueue => crate::events::AgentActivity::Idle, // or Thinking if busy
-            _ => crate::events::AgentActivity::Idle,
-        };
-        orch.heartbeat(agent_id, activity);
-
         match cmd {
             AgentCommand::ProcessQueue => {
-                // Try to pop a task and process it (mock logic for now since we don't have
-                // the full AI capabilities injected here yet)
                 let task_to_run = {
-                    if let Some(queue) = orch.get_agent_queue_mut(agent_id) {
+                    let mut orch = orchestrator_ref.lock().await;
+                    let task_to_run = if let Some(queue) = orch.get_agent_queue_mut(agent_id) {
                         if !queue.is_paused() {
                             queue.dequeue()
                         } else {
@@ -188,33 +203,58 @@ impl ActorAgent {
                         }
                     } else {
                         None
+                    };
+
+                    if let Some(ref task) = task_to_run {
+                        orch.heartbeat(agent_id, crate::events::AgentActivity::Thinking);
+                        orch.event_bus().emit(AgentEventKind::TaskStarted {
+                            task_id: task.id,
+                            agent_id,
+                        });
+                    } else {
+                        orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                     }
+                    task_to_run
                 };
 
                 if let Some(task) = task_to_run {
-                    tracing::info!("Agent {} processing task {}", agent_id, task.id);
-
-                    // Take DB snapshot before processing
-                    drop(orch); // Drop lock before processing
+                    let task_id = task.id;
+                    tracing::info!("Agent {} processing task {}", agent_id, task_id);
 
                     match processor.process(agent_id, task).await {
-                        Ok(task_id) => {
+                        Ok(completed_id) => {
                             let mut o2 = orchestrator_ref.lock().await;
-                            let _ = o2.complete_task(task_id).await;
+                            let _ = o2.complete_task(completed_id).await;
+                            o2.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                         }
                         Err(e) => {
-                            tracing::error!("Agent {} failed task: {}", agent_id, e);
+                            tracing::error!("Agent {} failed task {}: {}", agent_id, task_id, e);
+                            let mut o2 = orchestrator_ref.lock().await;
+                            if let Err(err) = o2.fail_task(task_id, e.to_string()).await {
+                                tracing::error!(
+                                    "fail_task after processor error: {} (task {})",
+                                    err,
+                                    task_id
+                                );
+                            }
+                            o2.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                         }
                     }
                 }
             }
             AgentCommand::Pause => {
+                let mut orch = orchestrator_ref.lock().await;
+                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                 let _ = orch.pause_agent(agent_id);
             }
             AgentCommand::Resume => {
+                let mut orch = orchestrator_ref.lock().await;
+                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                 let _ = orch.resume_agent(agent_id);
             }
             AgentCommand::CancelTask(task_id) => {
+                let mut orch = orchestrator_ref.lock().await;
+                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                 if let Some(q) = orch.get_agent_queue_mut(agent_id) {
                     q.cancel(task_id);
                 }
@@ -238,6 +278,7 @@ pub struct AgentFleet {
 }
 
 impl AgentFleet {
+    /// Wires the shared scheduler and orchestrator mutex with a task processor implementation.
     pub fn new(
         scheduler: Arc<Scheduler>,
         orchestrator: Arc<Mutex<Orchestrator>>,
@@ -388,11 +429,25 @@ impl AgentFleet {
             {
                 let mut orch = self.orchestrator.lock().await;
                 orch.rebalance();
-                orch.tick();
+                orch.tick().await;
             }
 
             // 4. Wait until next tick
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
+    }
+}
+
+#[cfg(test)]
+mod stub_processor_tests {
+    use super::{StubTaskProcessor, TaskProcessor};
+    use crate::types::{AgentId, AgentTask, TaskId, TaskPriority};
+
+    #[tokio::test]
+    async fn stub_task_processor_returns_same_task_id() {
+        let p = StubTaskProcessor;
+        let task = AgentTask::new(TaskId(42), "test", TaskPriority::Normal, vec![]);
+        let out = p.process(AgentId(1), task.clone()).await.expect("ok");
+        assert_eq!(out, task.id);
     }
 }

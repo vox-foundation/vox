@@ -1,4 +1,4 @@
-use crate::process::{spawn_process, ProcessContext, ProcessHandle};
+use crate::process::{ProcessContext, ProcessHandle, spawn_process};
 use crate::registry::ProcessRegistry;
 
 /// Cooperative scheduler for the Vox actor runtime.
@@ -9,6 +9,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    /// Creates a scheduler with an empty [`ProcessRegistry`].
     pub fn new() -> Self {
         Self {
             registry: ProcessRegistry::new(),

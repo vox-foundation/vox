@@ -1,8 +1,8 @@
 use std::path::PathBuf;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 use vox_orchestrator::{
-    events::{AgentEventKind, EventBus},
     AgentId,
+    events::{AgentEventKind, EventBus},
 };
 
 #[tokio::test]

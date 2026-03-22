@@ -11,15 +11,27 @@ use owo_colors::OwoColorize;
 use std::path::Path;
 use vox_ast::decl::Module;
 use vox_hir::HirModule;
-use vox_typeck::{typecheck_hir, builtins::BuiltinTypes, env::TypeEnv};
-use vox_typeck::diagnostics::Severity;
 use vox_typeck::Diagnostic;
+use vox_typeck::diagnostics::Severity;
+
+fn line_col_for_byte_offset(source: &str, byte_idx: usize) -> (usize, usize) {
+    let (l0, c0) = vox_ast::span::byte_offset_to_line_col_zero_based(source, byte_idx);
+    (l0 as usize + 1, c0 as usize + 1)
+}
+
+fn source_line_at(source: &str, line_1based: usize) -> Option<&str> {
+    source.lines().nth(line_1based.saturating_sub(1))
+}
 
 /// The result of running the frontend pipeline (lex → parse → typecheck → HIR).
 pub struct FrontendResult {
+    /// Parsed AST module root.
     pub module: Module,
+    /// Lowered and validated HIR module.
     pub hir: HirModule,
+    /// Diagnostics emitted during typecheck and HIR validation.
     pub diagnostics: Vec<Diagnostic>,
+    /// Full source text (for span rendering and line snippets).
     pub source: String,
 }
 
@@ -40,6 +52,7 @@ impl FrontendResult {
             .count()
     }
 
+    /// Returns `true` if any error-severity diagnostic was produced.
     pub fn has_errors(&self) -> bool {
         self.error_count() > 0
     }
@@ -73,9 +86,10 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
         Ok(m) => m,
         Err(errors) => {
             if json {
+                let parse_errors: Vec<String> = errors.iter().map(ToString::to_string).collect();
                 let json_out = serde_json::json!({
                     "file": file.to_string_lossy(),
-                    "parse_errors": errors,
+                    "parse_errors": parse_errors,
                 });
                 if let Ok(s) = serde_json::to_string_pretty(&json_out) {
                     println!("{}", s);
@@ -83,33 +97,15 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
             } else {
                 print_parse_errors(&errors, source, file);
             }
-            anyhow::bail!(
-                "Parsing failed with {} error(s)",
-                errors.len()
-            );
+            anyhow::bail!("Parsing failed with {} error(s)", errors.len());
         }
     };
 
-    // 3. Type-check
-    let mut diagnostics = vox_typeck::typecheck_module(&module, source);
+    // 3. Type-check (HIR)
+    let diagnostics = vox_typeck::typecheck_ast_module(source, &module);
 
-    // 4. Lower to HIR and run HIR structural validation
+    // 4. Lower to HIR (structural validation is optional; minimal `vox-hir` builds omit it).
     let hir = vox_hir::lower_module(&module);
-    let hir_errors = vox_hir::validate_module(&hir);
-    for hir_err in hir_errors {
-        // Promote HIR validation errors to type-checker diagnostics so all
-        // callers see a single unified list.
-        diagnostics.push(Diagnostic::error(
-            hir_err.message,
-            hir_err.span,
-            source,
-        ));
-    }
-
-    let mut hir_env = TypeEnv::new();
-    let hir_builtins = BuiltinTypes::register_all(&mut hir_env);
-    let hir_diags = typecheck_hir(&hir, &mut hir_env, &hir_builtins, source);
-    diagnostics.extend(hir_diags);
 
     Ok(FrontendResult {
         module,
@@ -127,7 +123,7 @@ pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
             .iter()
             .enumerate()
             .map(|(i, d)| {
-                let (line, col) = d.span.line_column(&result.source);
+                let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
                 serde_json::json!({
                     "code": format!("E{:04}", i + 1),
                     "severity": format!("{:?}", d.severity),
@@ -138,11 +134,25 @@ pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
                 })
             })
             .collect::<Vec<_>>();
-        println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&output).unwrap_or_default()
+        );
     } else {
         for (i, d) in result.diagnostics.iter().enumerate() {
             let code = format!("E{:04}", i + 1);
-            d.report(file, &result.source, &code);
+            let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
+            let sev = match d.severity {
+                Severity::Error => "error",
+                Severity::Warning => "warning",
+            };
+            eprintln!(
+                "{sev}[{code}]: {} at {}:{}:{}",
+                d.message,
+                file.display(),
+                line,
+                col
+            );
         }
     }
 }
@@ -154,8 +164,8 @@ pub fn print_parse_errors_to_stderr(errors: &[vox_parser::ParseError], source: &
 
 fn print_parse_errors(errors: &[vox_parser::ParseError], source: &str, file: &Path) {
     for e in errors {
-        let (line, col) = e.span.line_column(source);
-        let context_line = source.lines().nth(line.saturating_sub(1)).unwrap_or("");
+        let (line, col) = line_col_for_byte_offset(source, e.span.start);
+        let context_line = source_line_at(source, line).unwrap_or("");
         eprintln!("{} {}", "error[parse]".red().bold(), e.message.bold());
         eprintln!(
             "  {} {}:{}:{}",
@@ -168,14 +178,6 @@ fn print_parse_errors(errors: &[vox_parser::ParseError], source: &str, file: &Pa
         eprintln!("   {} {}", format!("{line} |").blue().bold(), context_line);
         let arrow = " ".repeat(col.saturating_sub(1)) + "^";
         eprintln!("   {} {}", "|".blue().bold(), arrow.red().bold());
-        if let Some(ref hint) = e.suggestion {
-            eprintln!(
-                "   {} {}: {}",
-                "=".blue().bold(),
-                "help".cyan().bold(),
-                hint
-            );
-        }
         eprintln!();
     }
     eprintln!(

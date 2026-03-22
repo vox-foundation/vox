@@ -12,15 +12,13 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     }
 
     // Use the shared pipeline for parsing — avoids duplicating lex+parse here.
-    let result = crate::pipeline::run_frontend(file, false).await.map_err(|e| {
-        anyhow::anyhow!("Failed to parse source for documentation: {}", e)
-    })?;
+    let result = crate::pipeline::run_frontend(file, false)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to parse source for documentation: {}", e))?;
 
     let mut markdown = format!(
         "# Project Documentation: {}\n\n",
-        file.file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
+        file.file_name().unwrap_or_default().to_string_lossy()
     );
 
     for decl in &result.module.declarations {

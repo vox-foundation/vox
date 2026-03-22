@@ -3,8 +3,11 @@ use logos::Logos;
 /// All tokens in the Vox language.
 /// Keywords are phonetically distinct English words.
 /// Operators use English keywords (and, or, not, is, isnt) instead of symbols.
+///
+/// Block structure is delimited by `{` / `}` (`LBrace` / `RBrace`).
+/// Indentation is cosmetic only; the lexer does **not** emit `Indent` or `Dedent` tokens.
 #[derive(Logos, Debug, Clone, PartialEq)]
-#[logos(skip r"[ \t]+")]
+#[logos(skip r"[ \t]+")] // skip horizontal whitespace
 pub enum Token {
     // ── Keywords ──────────────────────────────────────────────
     #[token("fn")]
@@ -81,6 +84,8 @@ pub enum Token {
     AtIndex,
     #[token("@v0")]
     AtV0,
+    #[token("@island")]
+    AtIsland,
 
     // ── HTTP Methods (contextual, used after `http` keyword) ─
     #[token("get")]
@@ -101,12 +106,16 @@ pub enum Token {
     LBracket,
     #[token("]")]
     RBracket,
+    /// Opens a block or an object literal.
     #[token("{")]
     LBrace,
+    /// Closes a block or an object literal.
     #[token("}")]
     RBrace,
     #[token(":")]
     Colon,
+    #[token("?")]
+    Question,
     #[token(",")]
     Comma,
     #[token(".")]
@@ -164,26 +173,27 @@ pub enum Token {
     SingleQuoteStringLit(String),
 
     // ── Identifiers ───────────────────────────────────────────
-    // Lower-case identifiers (variables, functions)
+    /// Lower-case identifiers (variables, functions).
     #[regex(r"[a-z_][a-zA-Z0-9_]*", priority = 1, callback = |lex| lex.slice().to_string())]
     Ident(String),
 
-    // Upper-case identifiers (types, constructors)
+    /// Upper-case identifiers (types, constructors).
     #[regex(r"[A-Z][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     TypeIdent(String),
 
     // ── Comments ──────────────────────────────────────────────
     #[regex(r"#[^\r\n]*", allow_greedy = true)]
+    #[regex(r"//[^\r\n]*", allow_greedy = true, priority = 3)]
     Comment,
 
-    // ── Newlines (captured, not skipped) ──────────────────────
+    // ── Newlines ─────────────────────────────────────────────
+    /// Newline character. Used as a statement separator inside blocks.
+    /// Not structural (does not define block nesting — braces do).
     #[regex(r"\n|\r\n")]
-    RawNewline,
-
-    // ── Synthetic tokens (injected by indentation tracker) ────
     Newline,
-    Indent,
-    Dedent,
+
+    // ── Sentinel ─────────────────────────────────────────────
+    /// End-of-file sentinel, injected by [`crate::cursor::lex`].
     Eof,
 }
 
@@ -225,6 +235,7 @@ impl std::fmt::Display for Token {
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtV0 => write!(f, "@v0"),
+            Token::AtIsland => write!(f, "@island"),
             Token::Get => write!(f, "get"),
             Token::Post => write!(f, "post"),
             Token::Put => write!(f, "put"),
@@ -236,6 +247,7 @@ impl std::fmt::Display for Token {
             Token::LBrace => write!(f, "{{"),
             Token::RBrace => write!(f, "}}"),
             Token::Colon => write!(f, ":"),
+            Token::Question => write!(f, "?"),
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::Eq => write!(f, "="),
@@ -260,10 +272,7 @@ impl std::fmt::Display for Token {
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),
             Token::Comment => write!(f, "<comment>"),
-            Token::RawNewline => write!(f, "<rawNewline>"),
             Token::Newline => write!(f, "<newline>"),
-            Token::Indent => write!(f, "<indent>"),
-            Token::Dedent => write!(f, "<dedent>"),
             Token::Eof => write!(f, "<eof>"),
         }
     }

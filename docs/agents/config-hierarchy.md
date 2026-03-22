@@ -90,12 +90,12 @@ vox config set daily_budget_usd 20.0
 
 **From Orchestrator (MCP):**
 ```json
-{ "tool": "vox_get_config", "params": { "key": "model" } }
+{ "tool": "vox_config_get", "params": { "key": "model" } }
 ```
 
 **From VS Code extension:**
 ```typescript
-const config = await mcp.call<VoxConfigResponse>('vox_get_config', { key: 'model' });
+const config = await mcp.call<VoxConfigResponse>('vox_config_get', { key: 'model' });
 // Never use: vscode.workspace.getConfiguration('vox').get('model')
 // for shared settings — use MCP instead.
 ```

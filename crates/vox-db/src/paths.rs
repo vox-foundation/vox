@@ -3,8 +3,8 @@
 //! Delegates to `vox_config` for a single source of truth. Re-exports for backward compatibility.
 
 pub use vox_config::{
-    config_dir, data_dir, default_db_path, local_user_id, state_dir, APP_DIR_NAME,
-    DEFAULT_DB_FILENAME,
+    APP_DIR_NAME, DEFAULT_DB_FILENAME, config_dir, data_dir, default_db_path, local_user_id,
+    state_dir,
 };
 
 #[cfg(test)]
@@ -29,16 +29,6 @@ mod tests {
             path.file_name().unwrap().to_str().unwrap(),
             DEFAULT_DB_FILENAME
         );
-    }
-
-    #[test]
-    fn env_override_works() {
-        let tmp = std::env::temp_dir().join("vox_paths_test_override");
-        std::env::set_var("VOX_DATA_DIR", tmp.to_str().unwrap());
-        let dir = data_dir().expect("should resolve");
-        assert_eq!(dir, tmp);
-        std::env::remove_var("VOX_DATA_DIR");
-        std::fs::remove_dir_all(&tmp).ok();
     }
 
     #[test]

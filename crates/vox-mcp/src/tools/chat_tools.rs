@@ -7,28 +7,63 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use super::chat_model_resolve::resolve_chat_llm_model;
+use super::chat_socrates_meta::{
+    socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
+};
+use crate::llm_bridge::{
+    McpChatModelResolution, McpInferRouting, call_llm, clamp_http_max_output_tokens,
+    mcp_infer_completion,
+};
 use crate::params::ToolResult;
 use crate::server::ServerState;
+use regex::Regex;
+use std::sync::LazyLock;
+use vox_orchestrator::types::AgentId;
+use vox_socrates_policy::ConfidencePolicy;
+
+static MENTION_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap());
+static TASK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?m)^(\d+)\.\s+\*\*(.+?)\*\*.*?\[files?:\s*([^\]]*)\].*?\[complexity:\s*(\d+)/10\](?:.*?\[depends?:\s*([^\]]*)\])?",
+    )
+    .unwrap()
+});
+static SUMMARY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Overall Summary\*\*:\s*(.+)").unwrap());
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/// One persisted chat turn in the session transcript (also returned in history APIs).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
+    /// Opaque message id (UUID/ulid string).
     pub id: String,
+    /// `"user"`, `"assistant"`, or `"system"`.
     pub role: String, // "user" | "assistant" | "system"
+    /// Message body after expansion (mentions resolved server-side).
     pub content: String,
+    /// Epoch seconds when stored.
     pub timestamp: u64,
+    /// Extra files pulled in via @mentions or explicit attachments.
     pub context_files: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Model id recorded for assistant turns.
     pub model_used: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Approximate token usage when available.
     pub tokens: Option<u64>,
 }
 
+/// Arguments for `vox_chat_message` (prompt + rich editor context).
 #[derive(Debug, Deserialize)]
 pub struct ChatMessageParams {
+    /// User message text (`message` is accepted for registry / legacy clients).
+    #[serde(alias = "message")]
     pub prompt: String,
     #[serde(default)]
+    /// Explicit @mention or attachment paths from the client.
     pub context_files: Vec<String>,
     /// Open file paths provided by the editor for implicit context injection
     #[serde(default)]
@@ -47,17 +82,21 @@ pub struct ChatMessageParams {
     pub diagnostics: Vec<Value>,
 }
 
+/// Arguments for `vox_inline_edit` (range replacement inside one file).
 #[derive(Debug, Deserialize)]
 pub struct InlineEditParams {
-    /// The edit instruction / prompt from the user
+    /// The edit instruction / prompt from the user (`instruction` is a legacy alias).
+    #[serde(alias = "instruction")]
     pub prompt: String,
-    /// Workspace-relative file path
+    /// Workspace-relative file path (`file_path` is a legacy alias).
+    #[serde(alias = "file_path")]
     pub file: String,
     /// Start line of target range (1-indexed)
     pub start_line: u32,
     /// End line of target range (1-indexed, inclusive)
     pub end_line: u32,
-    /// The current text in the range (sent by editor, avoids FS read latency)
+    /// The current text in the range (sent by editor; `selection` is a legacy alias).
+    #[serde(alias = "selection")]
     pub current_text: String,
     /// Language ID of the file
     #[serde(default)]
@@ -66,12 +105,14 @@ pub struct InlineEditParams {
     #[serde(default)]
     pub context_before: Option<String>,
     #[serde(default)]
+    /// Optional lines after the selection for better LLM grounding.
     pub context_after: Option<String>,
 }
 
+/// Successful inline edit payload returned to the editor host.
 #[derive(Debug, Serialize)]
 pub struct InlineEditResult {
-    /// Replacement text for the range [start_line, end_line]
+    /// Replacement text for the range [`start_line`, `end_line`]
     pub replacement: String,
     /// Human-readable explanation of what was changed
     pub explanation: String,
@@ -81,6 +122,7 @@ pub struct InlineEditResult {
     pub model_used: String,
 }
 
+/// Arguments for `vox_plan` structured planning tool.
 #[derive(Debug, Deserialize)]
 pub struct PlanParams {
     /// The request / goal to plan for
@@ -96,21 +138,53 @@ pub struct PlanParams {
     pub max_tasks: Option<usize>,
 }
 
+/// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-dei-d` is available.
+#[derive(Debug, Deserialize)]
+pub struct PlanReplanParams {
+    /// Session id from a prior `vox_plan` or `ai.plan.new`.
+    pub session_id: String,
+    /// What changed since the last plan version.
+    pub delta_hint: String,
+    #[serde(default)]
+    pub write_to_disk: bool,
+    #[serde(default)]
+    pub mode: Option<String>,
+}
+
+/// Arguments for `vox_plan_status` — forwards to DeI `ai.plan.status`.
+#[derive(Debug, Deserialize)]
+pub struct PlanStatusParams {
+    /// Plan session id to query.
+    pub session_id: String,
+}
+
 #[derive(Debug, Serialize)]
+/// One row inside a generated plan (dependencies + complexity estimate).
 pub struct PlanTask {
+    /// Monotonic task index inside the plan.
     pub id: usize,
+    /// Short imperative description.
     pub description: String,
+    /// Related file paths for affinity routing.
     pub files: Vec<String>,
+    /// Heuristic difficulty on a 1-10 scale.
     pub estimated_complexity: u8, // 1-10
+    /// Task ids that should complete first.
     pub depends_on: Vec<usize>,
 }
 
 #[derive(Debug, Serialize)]
+/// Full structured plan returned to the IDE / LLM.
 pub struct PlanResult {
+    /// Echo of the user goal string.
     pub goal: String,
+    /// Ordered task breakdown.
     pub tasks: Vec<PlanTask>,
+    /// One-line executive summary.
     pub summary: String,
+    /// Markdown document (may mirror on-disk `PLAN.md`).
     pub plan_md: String,
+    /// Whether `PLAN.md` was written under the workspace root.
     pub written_to_disk: bool,
 }
 
@@ -123,55 +197,130 @@ fn now_ts() -> u64 {
         .as_secs()
 }
 
-/// Resolve @filename mentions in a prompt by searching the workspace for the file
-/// and injecting its content. Truncates to 8000 chars to avoid context blowout.
-fn resolve_mentions(prompt: &str, workspace_root: &std::path::Path) -> (String, Vec<String>) {
+fn ghost_grounding_score(params: &GhostTextParams) -> f64 {
+    let mut n = 0u32;
+    if params.file_path.is_some() {
+        n += 1;
+    }
+    if !params.prefix.trim().is_empty() {
+        n += 1;
+    }
+    if !params.suffix.trim().is_empty() {
+        n += 1;
+    }
+    (0.50 + 0.12 * f64::from(n.min(3))).min(0.88)
+}
+
+fn chat_grounding_score(params: &ChatMessageParams, mention_count: usize) -> f64 {
+    let mut n = 0u32;
+    if !params.open_files.is_empty() {
+        n += 1;
+    }
+    if params.active_file.is_some() {
+        n += 1;
+    }
+    if !params.diagnostics.is_empty() {
+        n += 1;
+    }
+    n += (mention_count.min(5)) as u32;
+    (0.52 + 0.07 * f64::from(n)).min(0.94)
+}
+
+fn rebuild_mention_basename_index(
+    workspace_root: &std::path::Path,
+) -> std::collections::HashMap<String, std::path::PathBuf> {
+    let mut map = std::collections::HashMap::new();
+    for entry in walkdir::WalkDir::new(workspace_root)
+        .follow_links(false)
+        .max_depth(10)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let entry_path = entry.path().to_path_buf();
+        let Some(name) = entry_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(str::to_string)
+        else {
+            continue;
+        };
+        map.entry(name).or_insert(entry_path);
+    }
+    map
+}
+
+/// Resolve @filename mentions using a cached basename → path index (refreshed when workspace changes).
+fn resolve_mentions(
+    prompt: &str,
+    workspace_root: &std::path::Path,
+    cache: &std::sync::Arc<
+        std::sync::Mutex<
+            Option<(
+                std::path::PathBuf,
+                std::sync::Arc<std::collections::HashMap<String, std::path::PathBuf>>,
+            )>,
+        >,
+    >,
+) -> (String, Vec<String>) {
     let mut expanded = prompt.to_string();
     let mut resolved_files = Vec::new();
 
-    let mention_re = regex::Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap();
-    for cap in mention_re.captures_iter(prompt) {
-        let filename = &cap[1];
-        // Walk workspace to find the file (cap at found=1)
-        let mut found: Option<std::path::PathBuf> = None;
-        for entry in walkdir::WalkDir::new(workspace_root)
-            .follow_links(false)
-            .max_depth(10)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_type().is_file() {
-                let entry_path = entry.path();
-                let entry_name = entry_path.file_name().unwrap_or_default().to_string_lossy();
-                let entry_rel = entry_path
-                    .strip_prefix(workspace_root)
-                    .unwrap_or(entry_path)
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                if entry_name == filename || entry_rel == filename || entry_rel.ends_with(filename) {
-                    found = Some(entry_path.to_path_buf());
-                    break;
-                }
+    let index: std::sync::Arc<std::collections::HashMap<String, std::path::PathBuf>> = {
+        let mut guard = match cache.lock() {
+            Ok(g) => g,
+            Err(_) => {
+                return (expanded, resolved_files);
             }
+        };
+        let need_rebuild = guard
+            .as_ref()
+            .map(|(root, _)| root != workspace_root)
+            .unwrap_or(true);
+        if need_rebuild {
+            let m = rebuild_mention_basename_index(workspace_root);
+            *guard = Some((workspace_root.to_path_buf(), std::sync::Arc::new(m)));
         }
-        if let Some(path) = found {
-            if let Ok(content) = std::fs::read_to_string(&path) {
+        guard
+            .as_ref()
+            .map(|(_, m)| std::sync::Arc::clone(m))
+            .unwrap_or_else(|| std::sync::Arc::new(std::collections::HashMap::new()))
+    };
+
+    for cap in MENTION_RE.captures_iter(prompt) {
+        let filename = &cap[1];
+        let found = index.get(filename).cloned().or_else(|| {
+            index.iter().find_map(|(_base, path)| {
                 let rel = path
                     .strip_prefix(workspace_root)
-                    .unwrap_or(&path)
+                    .unwrap_or(path)
                     .to_string_lossy()
                     .replace('\\', "/");
-                let truncated = if content.len() > 8000 {
-                    format!("{}\n...[truncated]...", &content[..8000])
+                if rel == filename || rel.ends_with(filename) {
+                    Some(path.clone())
                 } else {
-                    content.clone()
-                };
-                let replacement = format!(
-                    "\n\n--- @{filename} ({rel}) ---\n{truncated}\n---\n"
-                );
-                expanded = expanded.replace(&cap[0], &replacement);
-                resolved_files.push(rel);
-            }
+                    None
+                }
+            })
+        });
+        if let Some(path) = found
+            && let Ok(content) = std::fs::read_to_string(&path)
+        {
+            let rel = path
+                .strip_prefix(workspace_root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            let truncated = if content.len() > 8000 {
+                format!("{}\n...[truncated]...", &content[..8000])
+            } else {
+                content.clone()
+            };
+            let replacement = format!("\n\n--- @{filename} ({rel}) ---\n{truncated}\n---\n");
+            expanded = expanded.replace(&cap[0], &replacement);
+            resolved_files.push(rel);
         }
     }
     (expanded, resolved_files)
@@ -182,175 +331,33 @@ fn build_system_prompt(state: &ServerState) -> String {
     let ws_root = state
         .workspace_root
         .as_deref()
-        .unwrap_or(std::path::Path::new("."))
-        .display()
-        .to_string();
+        .unwrap_or(std::path::Path::new("."));
 
-    format!(
-        r#"You are Vox, an elite AI coding assistant embedded inside VS Code.
+    let mut prompt = String::from(
+        "You are assisting with the **Vox** programming language and its ecosystem. \
+         Vox is AI-native, full-stack, and compiles to Rust/TypeScript/WASM. \
+         Prefer `Option[T]` and explicit errors over null.\n\n",
+    );
 
-Workspace: {ws_root}
-You have access to the full Vox MCP toolbelt. You can read and modify files, run tests, inspect VCS history, manage agents, and query the knowledge graph.
-
-Rules:
-- Be concise and precise. Prefer code over prose.
-- Always cite which files you modified or plan to modify.
-- When generating code, produce valid, complete implementations — no stubs or placeholders.
-- Use Markdown code blocks with language tags.
-- For multi-file changes, use a structured diff or list each file separately.
-- When asked to plan, produce a numbered task list in Markdown.
-"#
-    )
-}
-
-/// Route a prompt through the best available LLM using the orchestrator model registry.
-async fn call_llm(
-    state: &ServerState,
-    system_prompt: &str,
-    user_prompt: &str,
-) -> Result<(String, String, u64), String> {
-    let orch = state.orchestrator.lock().await;
-    let preference = orch.config().cost_preference;
-
-    // Pick best model for chat (codegen task, midpoint complexity)
-    let model = orch
-        .models()
-        .best_for(
-            vox_orchestrator::types::TaskCategory::CodeGen,
-            5,
-            preference,
-        )
-        .or_else(|| orch.models().cheapest_free())
-        .ok_or_else(|| "No models available in registry".to_string())?;
-
-    drop(orch); // release lock before await
-
-    // Build the actual HTTP call to the appropriate provider
-    let (response_text, tokens) = dispatch_to_provider(state, &model, system_prompt, user_prompt).await?;
-
-    Ok((response_text, model.id.clone(), tokens))
-}
-
-/// Dispatch the request to the correct API endpoint based on provider_type.
-async fn dispatch_to_provider(
-    _state: &ServerState,
-    model: &vox_orchestrator::models::ModelSpec,
-    system_prompt: &str,
-    user_prompt: &str,
-) -> Result<(String, u64), String> {
-    use vox_orchestrator::models::ProviderType;
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    match &model.provider_type {
-        ProviderType::GoogleDirect => {
-            let api_key = std::env::var("GEMINI_API_KEY")
-                .or_else(|_| std::env::var("GOOGLE_AI_API_KEY"))
-                .map_err(|_| "GEMINI_API_KEY not set".to_string())?;
-
-            let model_id = &model.id;
-            let url = format!(
-                "https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
-            );
-
-            let body = serde_json::json!({
-                "system_instruction": { "parts": [{ "text": system_prompt }] },
-                "contents": [{ "parts": [{ "text": user_prompt }], "role": "user" }],
-                "generationConfig": { "maxOutputTokens": 8192 }
-            });
-
-            let resp = client
-                .post(&url)
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
-
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let text = resp.text().await.unwrap_or_default();
-                return Err(format!("Google API error {status}: {text}"));
-            }
-
-            let json: Value = resp.json().await.map_err(|e| e.to_string())?;
-            let text = json["candidates"][0]["content"]["parts"][0]["text"]
-                .as_str()
-                .unwrap_or("")
-                .to_string();
-            let tokens = json["usageMetadata"]["totalTokenCount"]
-                .as_u64()
-                .unwrap_or(0);
-            Ok((text, tokens))
-        }
-
-        ProviderType::OpenRouter => {
-            let api_key = std::env::var("OPENROUTER_API_KEY")
-                .map_err(|_| "OPENROUTER_API_KEY not set".to_string())?;
-
-            let body = serde_json::json!({
-                "model": model.id,
-                "messages": [
-                    { "role": "system", "content": system_prompt },
-                    { "role": "user", "content": user_prompt }
-                ],
-                "max_tokens": 8192
-            });
-
-            let resp = client
-                .post("https://openrouter.ai/api/v1/chat/completions")
-                .header("Authorization", format!("Bearer {api_key}"))
-                .header("HTTP-Referer", "https://vox-lang.dev")
-                .header("X-Title", "Vox IDE")
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
-
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let text = resp.text().await.unwrap_or_default();
-                return Err(format!("OpenRouter error {status}: {text}"));
-            }
-
-            let json: Value = resp.json().await.map_err(|e| e.to_string())?;
-            let text = json["choices"][0]["message"]["content"]
-                .as_str()
-                .unwrap_or("")
-                .to_string();
-            let tokens = json["usage"]["total_tokens"].as_u64().unwrap_or(0);
-            Ok((text, tokens))
-        }
-
-        ProviderType::Ollama => {
-            let body = serde_json::json!({
-                "model": model.id,
-                "messages": [
-                    { "role": "system", "content": system_prompt },
-                    { "role": "user", "content": user_prompt }
-                ],
-                "stream": false
-            });
-
-            let resp = client
-                .post("http://localhost:11434/api/chat")
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| format!("Ollama not running (localhost:11434): {e}"))?;
-
-            let json: Value = resp.json().await.map_err(|e| e.to_string())?;
-            let text = json["message"]["content"]
-                .as_str()
-                .unwrap_or("")
-                .to_string();
-            let tokens = json["eval_count"].as_u64().unwrap_or(0)
-                + json["prompt_eval_count"].as_u64().unwrap_or(0);
-            Ok((text, tokens))
+    for rel in ["VOX.md", ".vox/MEMORY.md"] {
+        let p = ws_root.join(rel);
+        if let Ok(content) = std::fs::read_to_string(&p) {
+            prompt.push_str("## ");
+            prompt.push_str(rel);
+            prompt.push_str("\n\n");
+            prompt.push_str(&content);
+            prompt.push_str("\n\n");
         }
     }
+
+    prompt.push_str(&format!(
+        "## Environment\nWorkspace Root: {}\n\nYou are Vox, an elite AI coding assistant. You have access to the Vox MCP toolbelt. You can read and modify files, run tests, inspect VCS history, manage agents, and query the knowledge graph.\n\nRules:\n- Be concise and precise. Prefer code over prose.\n- Always cite which files you modified or plan to modify.\n- When generating code, produce valid, complete implementations — no stubs or placeholders.\n- Use Markdown code blocks with language tags.\n- For multi-file changes, use a structured diff or list each file separately.\n- When asked to plan, produce a numbered task list in Markdown.\n",
+        ws_root.display()
+    ));
+
+    let pol = state.orchestrator_config.effective_socrates_policy();
+    prompt.push_str(&socrates_system_rider(&pol));
+    prompt
 }
 
 // ─── Tool Handlers ────────────────────────────────────────────────────────────
@@ -363,26 +370,31 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         .workspace_root
         .clone()
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let (expanded_prompt, mention_files) = resolve_mentions(&params.prompt, &workspace_root);
+    let (expanded_prompt, mention_files) =
+        resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
+    let mention_count = mention_files.len();
 
     // 2. Build context preamble from editor state
     let mut context_parts = Vec::new();
 
     if let Some(active_file) = &params.active_file {
-        let line_info = params.active_line
+        let line_info = params
+            .active_line
             .map(|l| format!(" (line {l})"))
             .unwrap_or_default();
         context_parts.push(format!("[ACTIVE FILE]: {active_file}{line_info}"));
     }
 
-    if let Some(selected) = &params.selected_text {
-        if !selected.is_empty() {
-            context_parts.push(format!("[SELECTED TEXT]:\n{selected}"));
-        }
+    if let Some(selected) = &params.selected_text
+        && !selected.is_empty()
+    {
+        context_parts.push(format!("[SELECTED TEXT]:\n{selected}"));
     }
 
     if !params.diagnostics.is_empty() {
-        let diag_str: Vec<String> = params.diagnostics.iter()
+        let diag_str: Vec<String> = params
+            .diagnostics
+            .iter()
             .filter_map(|d| {
                 let msg = d["message"].as_str()?;
                 let line = d["line"].as_u64().unwrap_or(0);
@@ -391,7 +403,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             })
             .collect();
         if !diag_str.is_empty() {
-            context_parts.push(format!("[ACTIVE ERRORS/WARNINGS]:\n{}", diag_str.join("\n")));
+            context_parts.push(format!(
+                "[ACTIVE ERRORS/WARNINGS]:\n{}",
+                diag_str.join("\n")
+            ));
         }
     }
 
@@ -414,12 +429,22 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
     // 3. Call LLM
     let system_prompt = build_system_prompt(state);
-    let (response_text, model_used, tokens) = match call_llm(state, &system_prompt, &user_prompt).await {
-        Ok(r) => r,
-        Err(e) => {
-            return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
-        }
-    };
+    let llm_started = std::time::Instant::now();
+    let (response_text, model_used, tokens) =
+        match call_llm(state, &system_prompt, &user_prompt).await {
+            Ok(r) => r,
+            Err(e) => {
+                return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
+            }
+        };
+    tracing::info!(
+        target: "vox_mcp::populi_kpi",
+        tool = "vox_chat_message",
+        model_id = %model_used,
+        tokens,
+        elapsed_ms = llm_started.elapsed().as_millis() as u64,
+        "mcp chat LLM round-trip"
+    );
 
     // 4. Persist to session history via memory store
     let user_msg = ChatMessage {
@@ -444,7 +469,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // Load existing history from context store, append, re-save
     let history_key = "chat_history:default";
     let orch = state.orchestrator.lock().await;
-    let existing_history: Vec<ChatMessage> = orch.context()
+    let existing_history: Vec<ChatMessage> = orch
+        .context()
         .get(history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
@@ -455,21 +481,41 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     history.push(asst_msg.clone());
     // Keep last 100 messages only
     if history.len() > 100 {
-        history = history[history.len() - 100..].to_vec();
+        let trim_to = history.len() - 100;
+        history.drain(0..trim_to);
     }
 
-    if let Ok(history_json) = serde_json::to_string(&history) {
-        let orch = state.orchestrator.lock().await;
-        use vox_orchestrator::AgentId;
-        orch.context().set(AgentId(0), history_key, &history_json, 0);
+    match serde_json::to_string(&history) {
+        Ok(history_json) => {
+            let orch = state.orchestrator.lock().await;
+            orch.context()
+                .set(AgentId(0), history_key, &history_json, 0);
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "chat_message: failed to serialize chat history — \
+                 history will not persist for this turn"
+            );
+        }
     }
 
     // 5. Return updated history + the new assistant message
+    let grounding = chat_grounding_score(&params, mention_count);
+    let pol = state.orchestrator_config.effective_socrates_policy();
+    let soc = socrates_tool_meta(&pol, grounding, false);
+    spawn_socrates_telemetry(
+        state,
+        "vox_chat_message",
+        soc.clone(),
+        Some(model_used.clone()),
+    );
     let result = serde_json::json!({
         "message": asst_msg,
         "history": history,
         "model_used": model_used,
         "tokens": tokens,
+        "socrates": soc,
     });
 
     ToolResult::ok(result).to_json()
@@ -479,7 +525,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 pub async fn chat_history(state: &ServerState) -> String {
     let history_key = "chat_history:default";
     let orch = state.orchestrator.lock().await;
-    let history: Vec<ChatMessage> = orch.context()
+    let history: Vec<ChatMessage> = orch
+        .context()
         .get(history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
@@ -494,7 +541,7 @@ pub async fn inline_edit(state: &ServerState, params: InlineEditParams) -> Strin
     let context_after = params.context_after.as_deref().unwrap_or("");
 
     let user_prompt = format!(
-        r#"You are an expert {language} programmer. Edit the following code snippet as instructed.
+        r"You are an expert {language} programmer. Edit the following code snippet as instructed.
 
 INSTRUCTION: {prompt}
 
@@ -518,7 +565,7 @@ OUTPUT RULES:
 - Do NOT include context_before or context_after.
 - Do NOT wrap output in markdown fences — output raw code only.
 - Preserve indentation consistent with context_before.
-- Do NOT add placeholder comments or TODOs."#,
+- Do NOT add placeholder comments or TODOs.",
         prompt = params.prompt,
         file = params.file,
         start_line = params.start_line,
@@ -526,36 +573,68 @@ OUTPUT RULES:
         current_text = params.current_text,
     );
 
+    let pol = state.orchestrator_config.effective_socrates_policy();
     let system_prompt = format!(
-        "You are an expert inline code editor. You output ONLY replacement code, no markdown fences, no explanation."
+        "You are an expert inline code editor. You output ONLY replacement code, no markdown fences, no explanation.\n{}",
+        socrates_system_rider(&pol)
     );
 
-    let orch = state.orchestrator.lock().await;
-    let model = orch
-        .models()
-        .best_free_for(vox_orchestrator::types::TaskCategory::CodeGen)
-        .or_else(|| orch.models().cheapest())
-        .ok_or_else(|| "No models available".to_string());
-    drop(orch);
-
-    let model = match model {
-        Ok(m) => m,
-        Err(e) => return ToolResult::<String>::err(e).to_json(),
+    let resolution_template = McpChatModelResolution {
+        allow_cheapest_fallback: true,
+        ..Default::default()
+    };
+    let (model, free_only) =
+        match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
+            Ok(pair) => pair,
+            Err(e) => return ToolResult::<String>::err(e).to_json(),
+        };
+    let pref = state.mcp_chat_model_override.read().await.clone();
+    let max_tokens = clamp_http_max_output_tokens(model.max_tokens);
+    let temperature = 0.3_f32;
+    let routing = McpInferRouting {
+        user_prompt: &user_prompt,
+        sticky_model_pref: pref.as_deref(),
+        resolution_template,
+        free_only,
+        allow_cloud_ollama_fallback: true,
     };
 
-    let (replacement, tokens) = match dispatch_to_provider(state, &model, &system_prompt, &user_prompt).await {
+    let (replacement, model_used, tokens) = match mcp_infer_completion(
+        state,
+        model,
+        "mcp_inline_edit",
+        &system_prompt,
+        &routing,
+        max_tokens,
+        temperature,
+    )
+    .await
+    {
         Ok(r) => r,
         Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
     };
 
     let result = InlineEditResult {
         replacement: replacement.trim().to_string(),
-        explanation: format!("{}", params.prompt),
+        explanation: params.prompt.clone(),
         tokens,
-        model_used: model.id.clone(),
+        model_used,
     };
 
-    ToolResult::ok(result).to_json()
+    let grounding = 0.66_f64;
+    let soc = socrates_tool_meta(&pol, grounding, params.current_text.len() < 8);
+    spawn_socrates_telemetry(
+        state,
+        "vox_inline_edit",
+        soc.clone(),
+        Some(result.model_used.clone()),
+    );
+
+    let mut v = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("socrates".to_string(), soc);
+    }
+    ToolResult::ok(v).to_json()
 }
 
 /// Generate a structured plan for a goal. Optionally writes PLAN.md to the workspace root.
@@ -565,11 +644,14 @@ pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
     let scope_note = if params.scope_files.is_empty() {
         String::new()
     } else {
-        format!("\n\nScope this plan to these files:\n{}", params.scope_files.join("\n"))
+        format!(
+            "\n\nScope this plan to these files:\n{}",
+            params.scope_files.join("\n")
+        )
     };
 
     let user_prompt = format!(
-        r#"You are an expert software architect and planner.
+        r"You are an expert software architect and planner.
 
 GOAL: {goal}{scope_note}
 
@@ -595,7 +677,7 @@ Rules:
 - Use `depends: N,M` when a task requires prior tasks to be done first.
 - If files are unknown, use `[files: TBD]`.
 - Include test tasks explicitly.
-- Do NOT include filler tasks like 'Review and refactor'."#,
+- Do NOT include filler tasks like 'Review and refactor'.",
         goal = params.goal,
     );
 
@@ -635,17 +717,64 @@ Rules:
         written_to_disk,
     };
 
-    ToolResult::ok(result).to_json()
+    let grounding = if params.scope_files.is_empty() {
+        0.56_f64
+    } else {
+        0.74_f64
+    };
+    let pol = state.orchestrator_config.effective_socrates_policy();
+    let soc = socrates_tool_meta(&pol, grounding, false);
+    spawn_socrates_telemetry(state, "vox_plan", soc.clone(), Some(model_used.clone()));
+    let mut v = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("socrates".to_string(), soc);
+    }
+    ToolResult::ok(v).to_json()
 }
 
-/// Parse a best-effort list of PlanTask structs from the LLM markdown output.
+/// Replan an existing DeI plan session (`vox-dei-d` on PATH or next to the MCP binary).
+pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> String {
+    let body = serde_json::json!({
+        "session_id": params.session_id,
+        "delta_hint": params.delta_hint,
+        "write_to_disk": params.write_to_disk,
+        "mode": params.mode,
+    });
+    match crate::dei_ipc::call_dei_daemon("ai.plan.replan", body).await {
+        Ok(mut v) => {
+            let pol = state.orchestrator_config.effective_socrates_policy();
+            let soc = socrates_tool_meta(&pol, 0.62, false);
+            spawn_socrates_telemetry(state, "vox_replan", soc.clone(), None);
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("socrates".to_string(), soc);
+            }
+            ToolResult::ok(v).to_json()
+        }
+        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    }
+}
+
+/// Read structured plan session status from `vox-dei-d`.
+pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> String {
+    let body = serde_json::json!({ "session_id": params.session_id });
+    match crate::dei_ipc::call_dei_daemon("ai.plan.status", body).await {
+        Ok(mut v) => {
+            let pol = state.orchestrator_config.effective_socrates_policy();
+            let soc = socrates_tool_meta(&pol, 0.58, false);
+            spawn_socrates_telemetry(state, "vox_plan_status", soc.clone(), None);
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("socrates".to_string(), soc);
+            }
+            ToolResult::ok(v).to_json()
+        }
+        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    }
+}
+
+/// Parse a best-effort list of `PlanTask` structs from the LLM markdown output.
 fn parse_plan_tasks(plan_md: &str) -> Vec<PlanTask> {
     let mut tasks = Vec::new();
-    let task_re = regex::Regex::new(
-        r"(?m)^(\d+)\.\s+\*\*(.+?)\*\*.*?\[files?:\s*([^\]]*)\].*?\[complexity:\s*(\d+)/10\](?:.*?\[depends?:\s*([^\]]*)\])?"
-    ).unwrap();
-
-    for cap in task_re.captures_iter(plan_md) {
+    for cap in TASK_RE.captures_iter(plan_md) {
         let id: usize = cap[1].parse().unwrap_or(tasks.len() + 1);
         let title = cap[2].trim().to_string();
         let files: Vec<String> = cap[3]
@@ -656,8 +785,7 @@ fn parse_plan_tasks(plan_md: &str) -> Vec<PlanTask> {
         let complexity: u8 = cap[4].parse().unwrap_or(5).min(10);
         let depends_on: Vec<usize> = cap
             .get(5)
-            .map(|m| m.as_str())
-            .unwrap_or("")
+            .map_or("", |m| m.as_str())
             .split(',')
             .filter_map(|s| s.trim().parse::<usize>().ok())
             .collect();
@@ -676,10 +804,388 @@ fn parse_plan_tasks(plan_md: &str) -> Vec<PlanTask> {
 
 /// Extract the summary from the plan markdown.
 fn extract_summary(plan_md: &str) -> String {
-    let summary_re = regex::Regex::new(r"\*\*Overall Summary\*\*:\s*(.+)").unwrap();
-    summary_re
+    SUMMARY_RE
         .captures(plan_md)
         .and_then(|c| c.get(1))
-        .map(|m| m.as_str().trim().to_string())
-        .unwrap_or_else(|| "See plan for details.".to_string())
+        .map_or_else(
+            || "See plan for details.".to_string(),
+            |m| m.as_str().trim().to_string(),
+        )
+}
+
+// ─── Ghost Text (IDE inference bridge) ───────────────────────────────────────
+
+/// Parameters for the `vox_ghost_text` MCP tool.
+#[derive(Debug, Deserialize)]
+pub struct GhostTextParams {
+    /// Source code prefix (up to 20 lines before cursor).
+    pub prefix: String,
+    /// Source code suffix (up to 5 lines after cursor).
+    pub suffix: String,
+    /// VS Code language ID (e.g. "vox", "rust", "typescript").
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Workspace-relative file path for context.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Maximum tokens to generate. Defaults to 128 for low latency.
+    #[serde(default)]
+    pub max_tokens: Option<u64>,
+}
+
+/// Response from `vox_ghost_text`.
+#[derive(Debug, Serialize)]
+pub struct GhostTextResult {
+    /// The generated completion text.
+    pub completion: String,
+    /// Model that produced this completion.
+    pub model_used: String,
+    /// Approximate token count.
+    pub tokens: u64,
+    /// Latency to first token (milliseconds, best-effort).
+    pub latency_ms: u64,
+}
+
+/// Handle the `vox_ghost_text` tool call.
+///
+/// Builds a fill-in-the-middle (FIM) prompt optimised for single-line editor
+/// completions and routes it to the fastest available LLM. Targets p95 < 50 ms
+/// time-to-first-token when using a local Ollama / Populi inference server.
+pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String {
+    let language = params.language.as_deref().unwrap_or("vox");
+    let file_hint = params
+        .file_path
+        .as_deref()
+        .map(|p| format!("File: {p}\n"))
+        .unwrap_or_default();
+    let max_tokens = params.max_tokens.unwrap_or(128);
+
+    // FIM-style prompt: give the model clear boundaries.
+    let user_prompt = format!(
+        r"{file_hint}Complete the following {language} code. Output ONLY the completion — no markdown, no explanation, no fences.
+
+<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>",
+        prefix = params.prefix,
+        suffix = params.suffix,
+    );
+
+    let pol = state.orchestrator_config.effective_socrates_policy();
+    let system_prompt = format!(
+        "You are an expert {language} code completion engine. Produce only the missing code fragment that naturally continues the prefix. \
+         Keep completions concise (typically 1-3 lines). Never repeat the prefix or suffix. Never add markdown.\n{}",
+        socrates_system_rider(&pol)
+    );
+
+    let t0 = std::time::Instant::now();
+
+    let resolution_template = McpChatModelResolution {
+        complexity: 2,
+        free_tier_latency_critical: true,
+        free_tier_fill_in_middle: true,
+        allow_cheapest_fallback: true,
+        enforce_free_tier_only: true,
+        ..Default::default()
+    };
+    let (model, free_only) =
+        match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
+            Ok(pair) => pair,
+            Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+        };
+    let pref = state.mcp_chat_model_override.read().await.clone();
+    let temperature = 0.2_f32;
+    let routing = McpInferRouting {
+        user_prompt: &user_prompt,
+        sticky_model_pref: pref.as_deref(),
+        resolution_template,
+        free_only,
+        allow_cloud_ollama_fallback: true,
+    };
+
+    let (mut completion, model_used, tokens) = match mcp_infer_completion(
+        state,
+        model,
+        "mcp_ghost_text",
+        &system_prompt,
+        &routing,
+        max_tokens,
+        temperature,
+    )
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+    };
+
+    let latency_ms = t0.elapsed().as_millis() as u64;
+
+    // Strip any accidental fence wrappers the model may emit.
+    if let Some(inner) = completion
+        .strip_prefix(&format!("```{language}"))
+        .or_else(|| completion.strip_prefix("```"))
+    {
+        completion = inner
+            .trim_start_matches('\n')
+            .trim_end_matches("```")
+            .trim_end()
+            .to_string();
+    }
+
+    // Cap at max_tokens * 4 bytes as a rough UTF-8 token proxy.
+    if completion.len() > max_tokens as usize * 4 {
+        completion = completion[..max_tokens as usize * 4].to_string();
+    }
+
+    let result = GhostTextResult {
+        completion: completion.trim().to_string(),
+        model_used,
+        tokens,
+        latency_ms,
+    };
+
+    tracing::debug!(
+        latency_ms,
+        model = %result.model_used,
+        "ghost_text: {} chars generated",
+        result.completion.len()
+    );
+
+    let thin_context = params.prefix.len() + params.suffix.len() < 40;
+    let grounding = ghost_grounding_score(&params);
+    let soc = socrates_tool_meta(&pol, grounding, thin_context);
+    spawn_socrates_telemetry(
+        state,
+        "vox_ghost_text",
+        soc.clone(),
+        Some(result.model_used.clone()),
+    );
+    let mut v = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("socrates".to_string(), soc);
+    }
+    ToolResult::ok(v).to_json()
+}
+
+// ─── Ambient State (orchestrator → editor projection) ────────────────────────
+
+/// Parameters for `vox_ambient_state`.
+#[derive(Debug, Deserialize)]
+pub struct AmbientStateParams {
+    /// Optional workspace-relative path filter. Returns only decorations for this path prefix.
+    #[serde(default)]
+    pub path_prefix: Option<String>,
+    /// Maximum number of decorations to return. Defaults to 100.
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+/// Handle the `vox_ambient_state` tool call.
+///
+/// Snapshots the current DEI orchestrator state (active locks, conflicts, task-to-file
+/// assignments) and converts it to a list of `AmbientDecoration` records. The VS Code
+/// extension polls this every 2-3 seconds and renders gutter stripes + file-explorer
+/// badges without interrupting the user's flow.
+pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let prefix_filter = params.path_prefix.as_deref().unwrap_or("");
+    let limit = params.limit.unwrap_or(100);
+
+    fn is_file_lock_row(d: &Value) -> bool {
+        d.get("decoration")
+            .and_then(|x| x.get("type"))
+            .and_then(|t| t.as_str())
+            == Some("file_lock")
+    }
+
+    let orch = state.orchestrator.lock().await;
+    let mut decorations: Vec<Value> = Vec::new();
+
+    // 1. Active file locks → FileLock decorations
+    for (path, holder, exclusive) in orch.lock_manager().list_locks() {
+        let path_str = path.to_string_lossy().to_string();
+        if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
+            continue;
+        }
+        let (severity, tooltip) = if exclusive {
+            (
+                "error",
+                format!("\u{1f512} Agent {holder} holding exclusive write lock"),
+            )
+        } else {
+            (
+                "warning",
+                format!("\u{1f50d} Agent {holder} reading this file"),
+            )
+        };
+        decorations.push(serde_json::json!({
+            "path": path_str,
+            "decoration": {
+                "type": "file_lock",
+                "agent_id": holder.0,
+                "exclusive": exclusive,
+            },
+            "severity": severity,
+            "timestamp_ms": now_ms,
+            "tooltip": tooltip,
+        }));
+    }
+
+    // 2. Active conflicts → Conflict decorations
+    for conflict in orch.conflict_manager().active_conflicts() {
+        let path_str = conflict.path.to_string_lossy().to_string();
+        if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
+            continue;
+        }
+        let agent_ids: Vec<u64> = conflict.sides.iter().map(|s| s.agent_id.0).collect();
+        decorations.push(serde_json::json!({
+            "path": path_str,
+            "decoration": {
+                "type": "conflict",
+                "conflict_id": conflict.id.to_string(),
+                "agent_ids": agent_ids,
+            },
+            "severity": "error",
+            "timestamp_ms": now_ms,
+            "tooltip": format!(
+                "\u{26a0} Conflict between {} agents — resolve before proceeding",
+                conflict.sides.len()
+            ),
+        }));
+    }
+
+    // 3. Agent-to-file affinity (active tasks) → AgentActive decorations
+    for agent_id in orch.agent_ids() {
+        let Some(queue) = orch.agent_queue(agent_id) else {
+            continue;
+        };
+        if let Some(task) = queue.current_task() {
+            for fa in &task.file_manifest {
+                let path_str = fa.path.to_string_lossy().to_string();
+                if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
+                    continue;
+                }
+                if decorations.iter().any(|d| {
+                    d.get("path").and_then(|p| p.as_str()) == Some(path_str.as_str())
+                        && is_file_lock_row(d)
+                }) {
+                    continue;
+                }
+                decorations.push(serde_json::json!({
+                    "path": path_str,
+                    "decoration": {
+                        "type": "agent_active",
+                        "agent_id": agent_id.0,
+                        "activity": format!("{:.60}", task.description),
+                    },
+                    "severity": "info",
+                    "timestamp_ms": now_ms,
+                    "tooltip": format!(
+                        "\u{1f916} Agent {} working on: {:.80}",
+                        agent_id, task.description
+                    ),
+                }));
+            }
+        }
+    }
+
+    drop(orch);
+
+    let total = decorations.len().min(limit);
+    decorations.truncate(limit);
+
+    let active_conflicts = decorations
+        .iter()
+        .filter(|d| d.get("severity").and_then(|s| s.as_str()) == Some("error"))
+        .count();
+
+    let result = serde_json::json!({
+        "decorations": decorations,
+        "total": total,
+        "active_conflicts": active_conflicts,
+        "timestamp_ms": now_ms,
+    });
+
+    ToolResult::ok(result).to_json()
+}
+
+#[cfg(test)]
+mod routing_tests {
+    use super::super::chat_socrates_meta::{SocratesJsonMeta, socrates_tool_meta};
+    use super::{ChatMessageParams, GhostTextParams, chat_grounding_score, ghost_grounding_score};
+    use crate::llm_bridge::clamp_http_max_output_tokens;
+    use vox_socrates_policy::ConfidencePolicy;
+
+    #[test]
+    fn clamp_http_max_output_respects_bounds() {
+        assert_eq!(clamp_http_max_output_tokens(0), 1);
+        assert_eq!(clamp_http_max_output_tokens(100), 100);
+        assert_eq!(clamp_http_max_output_tokens(9000), 8192);
+    }
+
+    #[test]
+    fn socrates_meta_contains_required_fields() {
+        let p = ConfidencePolicy::workspace_default();
+        let v = socrates_tool_meta(&p, 0.61, false);
+        assert!(v.get("risk_decision").is_some());
+        assert!(v.get("confidence_estimate").is_some());
+        assert!(v.get("contradiction_ratio").is_some());
+    }
+
+    #[test]
+    fn socrates_tool_meta_matches_telemetry_deserializer() {
+        let p = ConfidencePolicy::workspace_default();
+        let v = socrates_tool_meta(&p, 0.71, true);
+        let m: SocratesJsonMeta = serde_json::from_value(v).expect("telemetry JSON must parse");
+        assert!((m.confidence_estimate - 0.71).abs() < 1e-9);
+        assert!((m.contradiction_ratio - 0.35).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ghost_grounding_score_respects_file_and_fim_boundaries() {
+        let thin = GhostTextParams {
+            prefix: "a".into(),
+            suffix: "".into(),
+            language: None,
+            file_path: None,
+            max_tokens: None,
+        };
+        let rich = GhostTextParams {
+            prefix: "fn main() {\n    let x = 1;\n".into(),
+            suffix: "\n}\n".into(),
+            language: Some("rust".into()),
+            file_path: Some("src/main.rs".into()),
+            max_tokens: None,
+        };
+        assert!(ghost_grounding_score(&rich) > ghost_grounding_score(&thin));
+    }
+
+    #[test]
+    fn grounding_score_increases_with_context() {
+        let empty = ChatMessageParams {
+            prompt: "x".to_string(),
+            context_files: vec![],
+            open_files: vec![],
+            active_file: None,
+            active_line: None,
+            selected_text: None,
+            diagnostics: vec![],
+        };
+        let rich = ChatMessageParams {
+            prompt: "x".to_string(),
+            context_files: vec!["a.rs".to_string()],
+            open_files: vec!["a.rs".to_string(), "b.rs".to_string()],
+            active_file: Some("a.rs".to_string()),
+            active_line: Some(12),
+            selected_text: Some("let x = 1;".to_string()),
+            diagnostics: vec![serde_json::json!({"message":"err"})],
+        };
+        let a = chat_grounding_score(&empty, 0);
+        let b = chat_grounding_score(&rich, 3);
+        assert!(b > a);
+    }
 }

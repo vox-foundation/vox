@@ -1,41 +1,34 @@
 # vox-codegen-rust
 
-Rust code generator for the Vox compiler. Emits Axum server code, actor implementations, table schemas, and test harnesses.
+Rust code generator for the Vox compiler. Emits Axum server code, actor/workflow/activity helpers, Turso-backed `@table` types, MCP server stub, and test harnesses.
 
-## Purpose
+## Layout
 
-Transforms the typed HIR into runnable Rust source using the [`quote!`](https://docs.rs/quote) macro. Each Vox decorator maps to specific Rust constructs.
+| Path | Role |
+|------|------|
+| [`src/lib.rs`](src/lib.rs) | Crate root; re-exports `generate`, `CodegenOutput`, `emit_fn`, `emit_expr`. |
+| [`src/emit.rs`](src/emit.rs) | **SSOT** for codegen: `generate`, `emit_main`, `emit_lib`, expression emission, table DDL/helpers, API client, MCP server. |
 
-## Key Files
+Historical split modules (`emit_main.rs`, `emit_lib.rs`, etc.) were removed; do not reintroduce parallel emit paths.
 
-| File | Purpose |
-|------|---------|
-| `emit.rs` | `generate()` — main entry point, `CodegenOutput` type |
-| `emit_main.rs` | Generates `main()` with Axum router setup |
-| `emit_table.rs` | Generates Turso schema definitions from `@table` |
-| `emit_expr.rs` | Expression-level code emission |
-| `emit_agent.rs` | Agent definition code generation |
-| `emit_lib.rs` | Library-level module emission |
-| `emit_trait.rs` | Trait and interface code generation |
+## Decorator / HIR mapping (high level)
 
-## Decorator Mapping
-
-| Vox | Generated Rust |
-|-----|---------------|
-| `@server fn` | Axum handler + route registration |
-| `@table type` | Struct + Turso `CREATE TABLE` |
-| `@test fn` | `#[test]` function |
-| `@deprecated` | `#[deprecated]` attribute |
-| `@pure` | `/* @pure */` annotation |
-| `actor` | Tokio task + mpsc mailbox struct |
-| `workflow` | Durable state machine |
+| Vox / HIR | Generated Rust |
+|-----------|----------------|
+| `@server` / `HirServerFn` | Axum `post(...)` route + handler |
+| `@table` / `HirTable` | `struct` + async Turso helpers + `CREATE TABLE` in `main` |
+| `@index` / `HirIndex` | `CREATE INDEX` in `main` |
+| `@test` / `module.tests` | `#[test]` or `#[tokio::test]` + emitted body |
+| `actor` / `HirActor` | Message enum + handler scaffolding |
+| `workflow` / `HirWorkflow` | `pub async fn` orchestrator body |
+| JSX in Rust backend | `panic!(\"JSX cannot be rendered via the Rust backend yet\")` placeholder |
 
 ## Usage
 
 ```rust
 use vox_codegen_rust::generate;
 
-let output = generate(&hir_module);
-// output.main_rs — main entry point with Axum routes
-// output.lib_rs  — library module with types and functions
+let output = generate(&hir_module, "my_app")?;
+// output.files["src/main.rs"], output.files["src/lib.rs"], …
+// output.api_client_ts — TS client when server fns exist
 ```

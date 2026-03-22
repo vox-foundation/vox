@@ -102,11 +102,7 @@ impl ContentMerge {
     }
 
     /// Materialize as a conflict marker string (like Git's `<<<<<<<` / `=======` / `>>>>>>>`).
-    pub fn materialize_markers(
-        &self,
-        labels: &[String],
-        path: &str,
-    ) -> String {
+    pub fn materialize_markers(&self, labels: &[String], path: &str) -> String {
         if let Some(resolved) = self.try_resolve_trivial() {
             return String::from_utf8_lossy(resolved).into_owned();
         }
@@ -162,7 +158,7 @@ pub struct DagNodeId(pub u64);
 /// Used by `OpLog::find_by_change_id` and `vox memory graph`.
 #[derive(Debug, Default)]
 pub struct OperationDag {
-    /// parent_edges[node] = list of parent node IDs
+    /// Map each child [`DagNodeId`] to its parent ids (conceptually `parent_edges[node]` in adjacency form).
     parent_edges: std::collections::HashMap<DagNodeId, Vec<DagNodeId>>,
 }
 
@@ -190,7 +186,7 @@ impl OperationDag {
 
         let mut queue: VecDeque<&DagNodeId> = in_degree
             .iter()
-            .filter(|(_, &d)| d == 0)
+            .filter(|(_, d)| **d == 0)
             .map(|(n, _)| *n)
             .collect();
 
@@ -276,11 +272,7 @@ mod tests {
 
     #[test]
     fn two_way_conflict_not_resolved() {
-        let m = ContentMerge::two_way(
-            Some(b"base".to_vec()),
-            b"left".to_vec(),
-            b"right".to_vec(),
-        );
+        let m = ContentMerge::two_way(Some(b"base".to_vec()), b"left".to_vec(), b"right".to_vec());
         assert!(!m.is_resolved());
         assert_eq!(m.conflict_count(), 2);
         assert!(m.try_resolve_trivial().is_none());
@@ -301,7 +293,10 @@ mod tests {
         );
         let labels = vec!["agent-1".to_string(), "agent-2".to_string()];
         let output = m.materialize_markers(&labels, "src/lib.rs");
-        assert!(output.contains("<<<<<<< src/lib.rs"), "missing conflict header");
+        assert!(
+            output.contains("<<<<<<< src/lib.rs"),
+            "missing conflict header"
+        );
         assert!(output.contains("======="), "missing separator");
         assert!(output.contains(">>>>>>> agent-2"), "missing footer");
         assert!(output.contains("left content"), "missing left content");
@@ -316,11 +311,8 @@ mod tests {
         dag.add_edge(DagNodeId(3), DagNodeId(2)); // C's parent is B
         let sorted = dag.topo_sort();
         // A (1) should come before B (2) before C (3)
-        let pos: std::collections::HashMap<_, _> = sorted
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (n.0, i))
-            .collect();
+        let pos: std::collections::HashMap<_, _> =
+            sorted.iter().enumerate().map(|(i, n)| (n.0, i)).collect();
         assert!(pos[&1] < pos[&2]);
         assert!(pos[&2] < pos[&3]);
     }

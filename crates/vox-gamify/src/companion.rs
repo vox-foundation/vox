@@ -15,10 +15,15 @@ const REST_ENERGY_GAIN: i32 = 15;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mood {
+    /// Companion is in great spirits.
     Happy,
+    /// Default steady state.
     Neutral,
+    /// Companion is discouraged after failures.
     Sad,
+    /// High-energy positive state.
     Excited,
+    /// Low energy after idle regen or poor scores.
     Tired,
 }
 
@@ -110,15 +115,21 @@ pub enum Interaction {
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
 pub enum Personality {
+    /// Upbeat and encouraging lines.
     #[default]
     Cheerful,
+    /// Terse, efficiency-oriented voice.
     Focused,
+    /// Sarcastic or blunt reactions.
     Edgy,
+    /// Calm, proverb-style guidance.
     Wise,
+    /// Playful and oddball flavor text.
     Quirky,
 }
 
 impl Personality {
+    /// Lowercase key persisted in JSON and the database.
     pub fn as_str(&self) -> &'static str {
         match self {
             Personality::Cheerful => "cheerful",
@@ -176,20 +187,35 @@ impl std::str::FromStr for Personality {
 /// A code companion — a living representation of a Vox component.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Companion {
+    /// Companion instance id.
     pub id: String,
+    /// Owning user or workspace principal.
     pub user_id: String,
+    /// Display name.
     pub name: String,
+    /// Optional flavor text.
     pub description: Option<String>,
+    /// Optional hash of the backing source artifact.
     pub code_hash: Option<String>,
+    /// Primary language tag for the companion.
     pub language: String,
+    /// Cached ASCII art for the current mood.
     pub ascii_sprite: Option<String>,
+    /// Current emotional state.
     pub mood: Mood,
+    /// Current hit points.
     pub health: i32,
+    /// Maximum hit points.
     pub max_health: i32,
+    /// Current action energy.
     pub energy: i32,
+    /// Maximum energy cap (may grow with level).
     pub max_energy: i32,
+    /// Last measured code quality score (0–100).
     pub code_quality: u8,
+    /// Last interaction time as a UNIX timestamp.
     pub last_active: i64,
+    /// Voice lines and reactions depend on this archetype.
     #[serde(default)]
     pub personality: Personality,
 }

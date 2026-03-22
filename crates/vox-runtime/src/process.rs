@@ -1,5 +1,5 @@
 use crate::mailbox::{
-    new_mailbox, Envelope, MailboxReceiver, MailboxSender, MessagePayload, Request,
+    Envelope, MailboxReceiver, MailboxSender, MessagePayload, Request, new_mailbox,
 };
 use crate::pid::Pid;
 use tokio::sync::oneshot;
@@ -7,14 +7,20 @@ use tokio::task::JoinHandle;
 
 /// Internal state of a running actor process.
 pub struct ProcessContext {
+    /// This actor's process id.
     pub pid: Pid,
+    /// Optional human-readable name registered with a supervisor or registry.
     pub name: Option<String>,
+    /// Inbound mailbox for this actor.
     pub mailbox_rx: MailboxReceiver,
+    /// Count of receives since last scheduler yield (cooperative fairness).
     pub reduction_count: u64,
+    /// Threshold at which the actor yields to Tokio before receiving again.
     pub max_reductions: u64,
 }
 
 impl ProcessContext {
+    /// Creates context for a new actor with default reduction limits.
     pub fn new(pid: Pid, mailbox_rx: MailboxReceiver) -> Self {
         Self {
             pid,
@@ -44,8 +50,11 @@ impl ProcessContext {
 /// External handle to a running actor process, used to send messages.
 #[derive(Clone)]
 pub struct ProcessHandle {
+    /// Target actor process id.
     pub pid: Pid,
+    /// Sender half of the actor mailbox.
     pub mailbox_tx: MailboxSender,
+    /// Spawned Tokio task handle when this handle owns the runtime task.
     pub task: Option<std::sync::Arc<JoinHandle<()>>>,
 }
 
@@ -83,8 +92,10 @@ impl ProcessHandle {
 /// Errors that can occur during a `call()` request.
 #[derive(Debug, thiserror::Error)]
 pub enum CallError {
+    /// Mailbox closed or full so the request envelope could not be sent.
     #[error("Failed to send request to actor")]
     SendFailed,
+    /// Oneshot receiver dropped without a reply (actor exited or ignored the request).
     #[error("Actor did not reply (channel dropped)")]
     NoReply,
 }

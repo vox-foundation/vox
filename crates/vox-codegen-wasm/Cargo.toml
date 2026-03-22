@@ -5,3 +5,7 @@ edition.workspace = true
 
 [dependencies]
 # Wasm backend deferred
+
+[lints]
+workspace = true
+

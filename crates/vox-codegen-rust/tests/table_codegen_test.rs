@@ -2,10 +2,8 @@
 
 use vox_ast::span::Span;
 use vox_hir::*;
+use vox_test_harness::spans::dummy_span;
 
-fn dummy_span() -> Span {
-    Span { start: 0, end: 0 }
-}
 
 fn make_task_table() -> HirTable {
     HirTable {
@@ -29,6 +27,7 @@ fn make_task_table() -> HirTable {
             },
         ],
         is_pub: false,
+        is_deprecated: false,
         span: dummy_span(),
     }
 }
@@ -113,6 +112,10 @@ fn table_struct_in_lib() {
     assert!(lib_rs.contains("pub title: String,"), "str -> String");
     assert!(lib_rs.contains("pub done: bool,"), "bool");
     assert!(lib_rs.contains("pub priority: i64,"), "int -> i64");
+    assert!(
+        lib_rs.contains("pub async fn insert("),
+        "table CRUD should be async Turso"
+    );
 }
 
 #[test]
@@ -125,16 +128,20 @@ fn db_setup_in_main() {
         .get("src/main.rs")
         .expect("main.rs should exist");
 
-    // DB imports
+    // DB imports (Codex + Arc; libSQL via Codex.store().conn)
     assert!(
-        main_rs.contains("use rusqlite::Connection;"),
-        "rusqlite import"
+        main_rs.contains("use vox_db::Codex;"),
+        "main should import Codex"
     );
     assert!(main_rs.contains("use std::sync::Arc;"), "Arc import");
-    assert!(main_rs.contains("use tokio::sync::Mutex;"), "Mutex import");
 
     // DB initialization
-    assert!(main_rs.contains("Connection::open(\"app.db\")"), "db open");
+    assert!(
+        main_rs.contains("vox_db::DbConfig::resolve_standalone")
+            && main_rs.contains("VOX_DB_PATH")
+            && main_rs.contains("vox_db::Codex::connect"),
+        "Codex should resolve config (VOX_DB_*) and connect"
+    );
     assert!(main_rs.contains("PRAGMA journal_mode=WAL"), "WAL mode");
     assert!(
         main_rs.contains("CREATE TABLE IF NOT EXISTS task"),
@@ -145,19 +152,26 @@ fn db_setup_in_main() {
         "index DDL in main"
     );
     assert!(
-        main_rs.contains("Arc::new(Mutex::new(db))"),
-        "wrapped in Arc<Mutex>"
+        main_rs.contains("let db = Arc::new(codex)"),
+        "Codex should be wrapped in Arc for Extension"
     );
 }
 
 #[test]
-fn cargo_toml_includes_rusqlite() {
+fn cargo_toml_includes_turso_and_vox_db() {
     let toml = vox_codegen_rust::emit::emit_cargo_toml("my_app");
     assert!(
-        toml.contains("rusqlite"),
-        "rusqlite dependency should be present"
+        toml.contains("turso"),
+        "turso (libSQL) dependency should be present"
     );
-    assert!(toml.contains("bundled"), "bundled feature flag");
+    assert!(
+        toml.contains("vox-db"),
+        "vox-db path dependency should be present for Codex"
+    );
+    assert!(
+        toml.contains("default-features = false"),
+        "turso default-features off for lean builds"
+    );
 }
 
 #[test]
@@ -183,12 +197,8 @@ fn no_tables_no_db_setup() {
         .expect("main.rs should exist");
 
     assert!(
-        !main_rs.contains("rusqlite"),
-        "no db imports when no tables"
-    );
-    assert!(
-        !main_rs.contains("Connection::open"),
-        "no db open when no tables"
+        !main_rs.contains("vox_db::Codex::connect"),
+        "no Codex DB setup when no tables"
     );
 }
 
@@ -214,6 +224,7 @@ fn id_type_maps_to_i64() {
             },
         ],
         is_pub: false,
+        is_deprecated: false,
         span: dummy_span(),
     };
 
@@ -271,6 +282,7 @@ fn optional_field_nullable() {
             },
         ],
         is_pub: false,
+        is_deprecated: false,
         span: dummy_span(),
     };
 

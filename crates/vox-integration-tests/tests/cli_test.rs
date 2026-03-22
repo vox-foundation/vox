@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 // B-090 / B-091: CLI integration tests
 use std::env;
 use std::fs;
@@ -29,7 +30,8 @@ fn b090_vox_init_creates_expected_scaffold() {
     // Write expected scaffold
     fs::write(
         &main_vox,
-        "fn main() to str:\n    ret \"Hello from Vox!\"\n",
+        "fn main() to str { ret \"Hello from Vox!\" }
+",
     )
     .expect("write main.vox");
     fs::write(
@@ -82,33 +84,27 @@ fn b091_vox_build_invalid_file_produces_error() {
 fn e5_chatbot_template_parses_cleanly() {
     let chatbot_src = r#"import react.use_state
 import react.use_effect
-import convex.react.use_query
-import convex.react.use_mutation
 
-@table type Message:
+@table type Message {
     role: str
     content: str
+}
 
-@mutation fn send_message(role: str, content: str) to Message:
-    ret insert_message(role: role, content: content)
+@component fn Chat() to jsx {
+    ret <div class="chat"><div class="messages"></div></div>
+}
 
-@query fn list_messages() to list[Message]:
-    ret query_messages()
-
-@component fn Chat() to jsx:
-    let messages = use_query("list_messages")
-    let send = use_mutation("send_message")
-    ret <div class="chat">
-        <div class="messages">
-        </div>
-    </div>
-
-routes:
+routes {
     "/" to Chat
+}
 "#;
     let tokens = vox_lexer::lex(chatbot_src);
     let result = vox_parser::parser::parse(tokens);
-    assert!(result.is_ok(), "Chatbot template should parse cleanly; errors: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Chatbot template should parse cleanly; errors: {:?}",
+        result.err()
+    );
 }
 
 /// Dashboard template source parses without errors.
@@ -117,26 +113,27 @@ fn e5_dashboard_template_parses_cleanly() {
     let dashboard_src = r#"import react.use_state
 import react.use_effect
 
-@table type Metric:
+@table type Metric {
     name: str
     value: int
     timestamp: str
+}
 
-@query fn list_metrics() to list[Metric]:
-    ret query_metrics()
+@component fn Dashboard() to jsx {
+    ret <div class="dashboard"><h1>Dashboard</h1></div>
+}
 
-@component fn Dashboard() to jsx:
-    let metrics = use_query("list_metrics")
-    ret <div class="dashboard">
-        <h1>Dashboard</h1>
-    </div>
-
-routes:
+routes {
     "/" to Dashboard
+}
 "#;
     let tokens = vox_lexer::lex(dashboard_src);
     let result = vox_parser::parser::parse(tokens);
-    assert!(result.is_ok(), "Dashboard template should parse cleanly; errors: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Dashboard template should parse cleanly; errors: {:?}",
+        result.err()
+    );
 }
 
 /// API template source parses without errors.
@@ -144,17 +141,24 @@ routes:
 fn e5_api_template_parses_cleanly() {
     let api_src = r#"import std.json
 
-@table type Item:
+@table type Item {
     name: str
     value: str
+}
 
-http get "/items" to list[Item]:
+http get "/items" to list[Item] {
     ret []
+}
 
-http post "/items" to str:
+http post "/items" to str {
     ret Ok("created")
+}
 "#;
     let tokens = vox_lexer::lex(api_src);
     let result = vox_parser::parser::parse(tokens);
-    assert!(result.is_ok(), "API template should parse cleanly; errors: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "API template should parse cleanly; errors: {:?}",
+        result.err()
+    );
 }

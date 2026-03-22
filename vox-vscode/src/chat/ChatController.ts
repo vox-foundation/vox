@@ -3,6 +3,7 @@
 
 import * as vscode from 'vscode';
 import { VoxMcpClient } from '../core/VoxMcpClient';
+import type { CodexHttpClient } from '../core/CodexHttpClient';
 
 export interface ChatMessage {
     id: string;
@@ -21,6 +22,7 @@ export class ChatController {
     constructor(
         private readonly _mcp: VoxMcpClient,
         onUpdate: (messages: ChatMessage[]) => void,
+        private readonly _codexHttp?: CodexHttpClient,
     ) {
         this._onUpdate = onUpdate;
     }
@@ -67,6 +69,19 @@ export class ChatController {
         } else {
             // Fallback: reload history
             await this.loadHistory();
+        }
+
+        if (this._codexHttp) {
+            // Omit repository_id so the Codex API uses its canonical default_repository_id.
+            void this._codexHttp
+                .upsertResearchSession({
+                    session_key: `vscode-${vscode.env.sessionId}`,
+                    title: 'VS Code sidebar chat',
+                    status: 'active',
+                })
+                .catch(() => {
+                    /* optional service */
+                });
         }
     }
 

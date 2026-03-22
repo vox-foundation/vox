@@ -1,6 +1,8 @@
+#![cfg(feature = "gpu")]
+
 use burn::backend::NdArray;
 use burn::tensor::Tensor;
-use vox_tensor::nn::Module;
+use vox_tensor::vox_nn::Module;
 
 type B = NdArray<f32>;
 
@@ -82,7 +84,7 @@ fn test_embedding_forward() {
     // Create an integer input tensor (Burn 0.19 requires Int for Embedding inputs)
     let input = burn::tensor::Tensor::<B, 2, burn::tensor::Int>::from_data(
         [[0i64, 1i64, 2i64], [3i64, 4i64, 5i64]],
-        &device
+        &device,
     );
 
     if let Module::Embedding(em) = em_module {

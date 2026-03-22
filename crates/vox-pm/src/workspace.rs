@@ -90,8 +90,9 @@ impl VoxWorkspace {
         }
 
         let schema_content = std::fs::read_to_string(schema_path)?;
-        let schema: serde_json::Value = serde_json::from_str(&schema_content)
-            .map_err(|e| WorkspaceError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+        let schema: serde_json::Value = serde_json::from_str(&schema_content).map_err(|e| {
+            WorkspaceError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        })?;
 
         let mut violations = Vec::new();
         let crates_map = schema.get("crates").and_then(|v| v.as_object());
@@ -100,13 +101,16 @@ impl VoxWorkspace {
             for member in &self.members {
                 let member_name = member.manifest.package.name.clone();
                 if let Some(crate_config) = crates.get(&member_name) {
-                    if let Some(pattern) = crate_config.get("path_pattern").and_then(|v| v.as_str()) {
+                    if let Some(pattern) = crate_config.get("path_pattern").and_then(|v| v.as_str())
+                    {
                         // Check if member.dir matches the expected pattern
                         // For simplicity, we check if member.dir is a sub-path of the pattern's base
                         let pattern_base = pattern.split("/**").next().unwrap_or(pattern);
                         let expected_dir = self.root_dir.join(pattern_base);
 
-                        if !member.dir.starts_with(&expected_dir) && !expected_dir.starts_with(&member.dir) {
+                        if !member.dir.starts_with(&expected_dir)
+                            && !expected_dir.starts_with(&member.dir)
+                        {
                             violations.push(format!(
                                 "Crate '{}' is in '{}', but vox-schema.json expects it under '{}'",
                                 member_name,

@@ -7,7 +7,8 @@ src = "src"
 [output.html]
 mathjax-support = false
 git-repository-url = "https://github.com/brbrainerd/vox"
-git-repository-icon = "fa-github"
+# mdbook 0.5: use `fab-` (brands) for GitHub. `fa-github` maps to the "regular" set and fails with "Missing font github".
+git-repository-icon = "fab-github"
 edit-url-template = "https://github.com/brbrainerd/vox/edit/main/docs/src/{path}"
 
 [output.html.search]

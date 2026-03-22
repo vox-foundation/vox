@@ -1,7 +1,9 @@
+#![cfg(feature = "gpu")]
+
 use burn::backend::{Autodiff, NdArray};
-use burn::tensor::{Distribution, Tensor};
 use burn::optim::{AdamWConfig, Optimizer};
-use vox_tensor::nn::Module;
+use burn::tensor::{Distribution, Tensor};
+use vox_tensor::vox_nn::Module;
 
 // The backend to use for the smoke test (CPU-only, no Autodiff)
 type B = NdArray<f32>;

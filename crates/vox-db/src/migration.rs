@@ -1,14 +1,24 @@
+//! User-defined SQL migrations sharing the same `schema_version` table as built-in Arca migrations.
+//!
+//! Prefer [`crate::builtin_migrations`] when you need the canonical baseline snapshot as a single
+//! migration row (**version 1**). For custom migrations, ensure [`Migration::up_sql`] is compatible with
+//! [`turso::Connection::execute_batch`] (no row-returning statements).
+
 use vox_pm::store::StoreError;
 
-/// Declarative schema migration entry.
+/// One forward migration applied in monotonically increasing [`Self::version`] order.
 #[derive(Debug, Clone)]
 pub struct Migration {
+    /// Must be unique, greater than zero, and strictly increasing across the slice passed to [`crate::VoxDb::apply_migrations`].
     pub version: i64,
+    /// Human-readable label (logging only; not stored in DB).
     pub name: String,
+    /// Semicolon-separated SQL executed via `execute_batch` when `version` is ahead of the DB.
     pub up_sql: String,
 }
 
 impl Migration {
+    /// Construct a migration entry (does not run SQL until [`crate::VoxDb::apply_migrations`]).
     pub fn new(version: i64, name: impl Into<String>, up_sql: impl Into<String>) -> Self {
         Self {
             version,
@@ -18,7 +28,11 @@ impl Migration {
     }
 }
 
-/// Validate migration ordering and uniqueness.
+/// Validate strictly increasing versions and no duplicates.
+///
+/// **Note:** validation failures are reported as [`StoreError::NotFound`] with a message string for
+/// historical reasons; they are not “not found” semantically. Callers should match on the message
+/// or treat any `Err` as fatal.
 pub fn validate_migrations(migrations: &[Migration]) -> Result<(), StoreError> {
     let mut seen = std::collections::BTreeSet::new();
     let mut last = 0i64;
@@ -44,14 +58,13 @@ pub fn validate_migrations(migrations: &[Migration]) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// Returns the canonical set of built-in schema migrations defined in vox-pm.
-///
-/// These correspond 1:1 with the `MIGRATIONS` constant in `vox_pm::schema`.
+/// Returns the canonical baseline migration (**version 1**) from the `vox-pm` schema manifest.
 pub fn builtin_migrations() -> Vec<Migration> {
-    vox_pm::schema::MIGRATIONS
-        .iter()
-        .map(|&(version, sql)| Migration::new(version, format!("v{version}"), sql))
-        .collect()
+    vec![Migration::new(
+        vox_pm::schema::BASELINE_VERSION,
+        "arca_baseline_v1",
+        vox_pm::schema::baseline_sql().to_string(),
+    )]
 }
 
 #[cfg(test)]

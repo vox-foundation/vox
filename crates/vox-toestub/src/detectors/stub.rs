@@ -21,6 +21,7 @@ impl Default for StubDetector {
 }
 
 impl StubDetector {
+    /// Initializes Rust/Python/TS regexes for `todo!`, `NotImplementedError`, TODO comments, etc.
     pub fn new() -> Self {
         Self {
             rust_todo: Regex::new(r"\btodo!\s*\(").expect("valid regex"),
@@ -31,7 +32,8 @@ impl StubDetector {
             py_pass_stub: Regex::new(r"^\s*pass\s*$").expect("valid regex"),
             ts_throw_not_impl: Regex::new(r#"throw\s+new\s+Error\s*\(\s*["']not\s+implemented"#)
                 .expect("valid regex"),
-            generic_placeholder: Regex::new(r"(?i)\bPLACEHOLDER\b|\bFIXME\b|\bSTUB\b").expect("valid regex"),
+            generic_placeholder: Regex::new(r"(?i)\bPLACEHOLDER\b|\bFIXME\b|\bSTUB\b")
+                .expect("valid regex"),
             stub_comment: Regex::new(r"(?i)//\s*TODO\b|#\s*TODO\b").expect("valid regex"),
         }
     }

@@ -205,11 +205,17 @@ impl OpLog {
         context_snapshot_after: Option<u64>,
     ) -> OperationId {
         self.record_with_provenance(
-            agent_id, kind, description,
-            snapshot_before, snapshot_after,
-            db_snapshot_before, db_snapshot_after,
-            context_snapshot_before, context_snapshot_after,
-            None, None,
+            agent_id,
+            kind,
+            description,
+            snapshot_before,
+            snapshot_after,
+            db_snapshot_before,
+            db_snapshot_after,
+            context_snapshot_before,
+            context_snapshot_after,
+            None,
+            None,
         )
     }
 
@@ -240,7 +246,7 @@ impl OpLog {
             let mut hasher = Sha3_256::new();
             hasher.update(prev.id.0.to_le_bytes());
             hasher.update(prev.timestamp_ms.to_le_bytes());
-            hasher.update(&prev.predecessor_hash.as_deref().unwrap_or("").as_bytes());
+            hasher.update(prev.predecessor_hash.as_deref().unwrap_or("").as_bytes());
             format!("{:x}", hasher.finalize())
         });
 
@@ -431,7 +437,12 @@ impl OpLog {
         self.entries
             .iter()
             .filter_map(|e| {
-                if let OperationKind::AiCall { input_tokens, output_tokens, .. } = &e.kind {
+                if let OperationKind::AiCall {
+                    input_tokens,
+                    output_tokens,
+                    ..
+                } = &e.kind
+                {
                     Some((*input_tokens as u64, *output_tokens as u64))
                 } else {
                     None
@@ -477,6 +488,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
         );
         assert_eq!(log.count(), 1);
         let entries = log.list(None, 10);
@@ -496,6 +509,8 @@ mod tests {
             "submit task",
             Some(snap_before),
             Some(snap_after),
+            None,
+            None,
             None,
             None,
         );
@@ -528,6 +543,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
             );
         }
         assert_eq!(log.count(), 3);
@@ -544,11 +561,15 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
         );
         log.record(
             AgentId(2),
             OperationKind::Rebalance,
             "rebalance",
+            None,
+            None,
             None,
             None,
             None,
@@ -573,6 +594,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
         );
         let _id2 = log.record(
             agent(),
@@ -580,6 +603,8 @@ mod tests {
                 label: "second".into(),
             },
             "second op",
+            None,
+            None,
             None,
             None,
             None,

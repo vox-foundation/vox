@@ -35,7 +35,7 @@ pub enum AiProvider {
         model: String,
     },
     /// Google Gemini Flash free tier — requires a free API key from
-    /// https://aistudio.google.com/apikey (no credit card needed).
+    /// <https://aistudio.google.com/apikey> (no credit card needed).
     Gemini {
         /// API key (can also be set via GEMINI_API_KEY env var)
         #[serde(default)]
@@ -84,6 +84,7 @@ pub struct AiAnalyzer {
 }
 
 impl AiAnalyzer {
+    /// Wraps the given [`AiProvider`]; use [`AiProvider::Disabled`] when AI triage is off.
     pub fn new(provider: AiProvider) -> Self {
         Self { provider }
     }

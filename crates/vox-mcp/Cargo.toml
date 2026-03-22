@@ -14,13 +14,17 @@ wasm = ["dep:wasmtime"]
 
 [dependencies]
 # Workspace dependencies
-vox-orchestrator = { workspace = true }
+vox-orchestrator = { workspace = true, features = ["json-schema"] }
+vox-mesh = { workspace = true, features = ["transport"] }
+vox-repository   = { workspace = true }
 vox-runtime      = { workspace = true }
 vox-config       = { workspace = true }
 vox-gamify       = { workspace = true }
 vox-skills       = { path = "../vox-skills" }
 vox-lsp          = { path = "../vox-lsp" }
+tower-lsp        = "0.20"
 vox-db           = { path = "../vox-db", features = ["local"] }
+vox-socrates-policy = { workspace = true }
 vox-lexer        = { path = "../vox-lexer" }
 vox-parser       = { path = "../vox-parser" }
 vox-ast          = { path = "../vox-ast" }
@@ -33,6 +37,7 @@ anyhow           = { workspace = true }
 thiserror        = { workspace = true }
 reqwest          = { workspace = true }
 vox-toestub      = { workspace = true }
+vox-oratio       = { path = "../vox-oratio" }
 turso            = { workspace = true }
 
 # MCP protocol
@@ -54,6 +59,7 @@ chrono     = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 insta = { workspace = true }
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 
 [lints]
 workspace = true

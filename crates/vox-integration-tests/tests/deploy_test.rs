@@ -1,7 +1,9 @@
 //! Integration tests for the Vox deployment pipeline.
 //! Verifies manifest generation for Kubernetes, Docker, and Bare-metal.
 
-use vox_container::generate::{EnvironmentSpec, generate_kubernetes_manifests, generate_dockerfile_from_spec};
+use vox_container::generate::{
+    EnvironmentSpec, generate_dockerfile_from_spec, generate_kubernetes_manifests,
+};
 
 #[test]
 fn deploy_kubernetes_manifests_correctly_use_spec() {
@@ -10,18 +12,16 @@ fn deploy_kubernetes_manifests_correctly_use_spec() {
         exposed_ports: vec![3003, 8080],
         env_vars: vec![
             ("NODE_ENV".to_string(), "production".to_string()),
-            ("DATABASE_URL".to_string(), "postgresql://localhost".to_string()),
+            (
+                "DATABASE_URL".to_string(),
+                "postgresql://localhost".to_string(),
+            ),
         ],
         workdir: Some("/app".to_string()),
         ..Default::default()
     };
 
-    let manifests = generate_kubernetes_manifests(
-        "my-app",
-        "my-app:latest",
-        "vox-default",
-        &spec
-    );
+    let manifests = generate_kubernetes_manifests("my-app", "my-app:latest", "vox-default", &spec);
 
     // Verify Deployment YAML
     assert!(manifests.contains("kind: Deployment"));
@@ -80,7 +80,7 @@ fn deploy_bare_metal_systemd_template_population() {
     }
 
     let service_file = format!(
-r#"[Unit]
+        r#"[Unit]
 Description=Vox Application: {app_name}
 After=network.target
 

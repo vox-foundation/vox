@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -17,6 +17,7 @@ pub struct NativeToolRegistry {
 }
 
 impl NativeToolRegistry {
+    /// Build an empty registry (handlers added via [`Self::register`]).
     pub fn new() -> Self {
         Self {
             tools: HashMap::new(),
@@ -48,6 +49,7 @@ pub struct McpClient {
 }
 
 impl McpClient {
+    /// Construct a client with built-in native `read_file` / `write_file` fast paths registered.
     pub fn new() -> Self {
         let mut registry = NativeToolRegistry::new();
 
@@ -135,10 +137,14 @@ impl McpClient {
 }
 
 /// A simplified MCP Tool definition schema structure.
+/// Serializable MCP tool descriptor (name, human description, JSON Schema for arguments).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolDefinition {
+    /// MCP tool name exposed to models.
     pub name: String,
+    /// Short human-readable description for prompts.
     pub description: String,
+    /// JSON Schema `parameters` object describing expected tool arguments.
     pub input_schema: serde_json::Value,
 }
 
@@ -151,6 +157,7 @@ pub struct SchemaCache {
 }
 
 impl SchemaCache {
+    /// Create an LRU-ish cache capped at `capacity` `(server_id, tool_name)` entries.
     pub fn new(capacity: usize) -> Self {
         Self {
             capacity,
@@ -159,6 +166,7 @@ impl SchemaCache {
         }
     }
 
+    /// Store `tool` under `server_id:tool.name`, evicting oldest entries when over capacity.
     pub fn insert(&mut self, server_id: &str, tool: ToolDefinition) {
         let key = format!("{}:{}", server_id, tool.name);
         if !self.cache.contains_key(&key) {
@@ -172,6 +180,7 @@ impl SchemaCache {
         self.cache.insert(key, tool);
     }
 
+    /// Touch and return a cloned [`ToolDefinition`] if present.
     pub fn get(&mut self, server_id: &str, tool_name: &str) -> Option<ToolDefinition> {
         let key = format!("{}:{}", server_id, tool_name);
         if self.cache.contains_key(&key) {

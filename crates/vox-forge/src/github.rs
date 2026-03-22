@@ -9,8 +9,8 @@ use serde_json::Value;
 use crate::error::ForgeError;
 use crate::provider::GitForgeProvider;
 use crate::types::{
-    ChangeRequest, ChangeRequestId, ChangeRequestState, ChangeRequestStatus,
-    ForgeRepoInfo, ForgeUser, Label, Review, ReviewState, WebhookEvent,
+    ChangeRequest, ChangeRequestId, ChangeRequestState, ChangeRequestStatus, ForgeRepoInfo,
+    ForgeUser, Label, Review, ReviewState, WebhookEvent,
 };
 
 /// GitHub API base URL (public cloud). Override for GitHub Enterprise.
@@ -59,10 +59,14 @@ impl GitHubProvider {
 
         let status = resp.status().as_u16();
         if status == 404 {
-            return Err(ForgeError::NotFound { resource: url.to_string() });
+            return Err(ForgeError::NotFound {
+                resource: url.to_string(),
+            });
         }
         if status == 401 || status == 403 {
-            return Err(ForgeError::Unauthorized { reason: format!("HTTP {status}") });
+            return Err(ForgeError::Unauthorized {
+                reason: format!("HTTP {status}"),
+            });
         }
         if status == 429 {
             let retry = resp
@@ -71,11 +75,16 @@ impl GitHubProvider {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(60);
-            return Err(ForgeError::RateLimited { retry_after_secs: retry });
+            return Err(ForgeError::RateLimited {
+                retry_after_secs: retry,
+            });
         }
         if !resp.status().is_success() {
             let msg = resp.text().await.unwrap_or_default();
-            return Err(ForgeError::Http { status, message: msg });
+            return Err(ForgeError::Http {
+                status,
+                message: msg,
+            });
         }
         resp.json::<Value>()
             .await
@@ -97,7 +106,10 @@ impl GitHubProvider {
         let status = resp.status().as_u16();
         if !resp.status().is_success() {
             let msg = resp.text().await.unwrap_or_default();
-            return Err(ForgeError::Http { status, message: msg });
+            return Err(ForgeError::Http {
+                status,
+                message: msg,
+            });
         }
         resp.json::<Value>()
             .await
@@ -140,7 +152,7 @@ fn parse_cr(v: &Value) -> Option<ChangeRequest> {
             .as_array()
             .unwrap_or(&vec![])
             .iter()
-            .filter_map(|l| parse_label(l))
+            .filter_map(parse_label)
             .collect(),
         web_url: v["html_url"].as_str().unwrap_or("").to_string(),
         created_at: v["created_at"].as_str().unwrap_or("").to_string(),
@@ -169,15 +181,22 @@ fn parse_review(v: &Value) -> Option<Review> {
     Some(Review {
         reviewer: v["user"]["login"].as_str().unwrap_or("").to_string(),
         state,
-        body: v["body"].as_str().filter(|s| !s.is_empty()).map(String::from),
+        body: v["body"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(String::from),
         submitted_at: v["submitted_at"].as_str().map(String::from),
     })
 }
 
 #[async_trait]
 impl GitForgeProvider for GitHubProvider {
-    fn name(&self) -> &str { "GitHub" }
-    fn api_base_url(&self) -> &str { &self.api_base }
+    fn name(&self) -> &str {
+        "GitHub"
+    }
+    fn api_base_url(&self) -> &str {
+        &self.api_base
+    }
 
     async fn repo_info(&self, owner: &str, repo: &str) -> Result<ForgeRepoInfo, ForgeError> {
         let url = format!("{}/repos/{owner}/{repo}", self.api_base);
@@ -193,14 +212,20 @@ impl GitForgeProvider for GitHubProvider {
             stars: v["stargazers_count"].as_u64().unwrap_or(0),
             forks: v["forks_count"].as_u64().unwrap_or(0),
             open_issues: v["open_issues_count"].as_u64().unwrap_or(0),
-            description: v["description"].as_str().filter(|s| !s.is_empty()).map(String::from),
+            description: v["description"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .map(String::from),
             web_url: v["html_url"].as_str().unwrap_or("").to_string(),
         })
     }
 
     async fn list_change_requests(
-        &self, owner: &str, repo: &str,
-        state: Option<ChangeRequestState>, limit: u32,
+        &self,
+        owner: &str,
+        repo: &str,
+        state: Option<ChangeRequestState>,
+        limit: u32,
     ) -> Result<Vec<ChangeRequest>, ForgeError> {
         let state_param = match state {
             Some(ChangeRequestState::Open) | None => "open",
@@ -210,10 +235,12 @@ impl GitForgeProvider for GitHubProvider {
         };
         let url = format!(
             "{}/repos/{owner}/{repo}/pulls?state={state_param}&per_page={}&sort=updated&direction=desc",
-            self.api_base, limit.min(100)
+            self.api_base,
+            limit.min(100)
         );
         let arr = self.get_json(&url).await?;
-        Ok(arr.as_array()
+        Ok(arr
+            .as_array()
             .unwrap_or(&vec![])
             .iter()
             .filter_map(parse_cr)
@@ -221,27 +248,31 @@ impl GitForgeProvider for GitHubProvider {
     }
 
     async fn get_change_request(
-        &self, owner: &str, repo: &str, number: u64,
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
     ) -> Result<ChangeRequest, ForgeError> {
         let url = format!("{}/repos/{owner}/{repo}/pulls/{number}", self.api_base);
         let v = self.get_json(&url).await?;
-        parse_cr(&v).ok_or_else(|| ForgeError::Parse(
-            serde_json::from_str::<serde_json::Value>("{}").unwrap_err()
-        ))
+        parse_cr(&v).ok_or_else(|| {
+            ForgeError::Parse(serde_json::from_str::<serde_json::Value>("{}").unwrap_err())
+        })
     }
 
     async fn create_change_request(
-        &self, owner: &str, repo: &str,
-        title: &str, body: &str,
-        source_branch: &str, target_branch: &str, draft: bool,
+        &self,
+        owner: &str,
+        repo: &str,
+        request: crate::types::NewChangeRequest<'_>,
     ) -> Result<ChangeRequest, ForgeError> {
         let url = format!("{}/repos/{owner}/{repo}/pulls", self.api_base);
         let payload = serde_json::json!({
-            "title": title,
-            "body": body,
-            "head": source_branch,
-            "base": target_branch,
-            "draft": draft,
+            "title": request.title,
+            "body": request.body,
+            "head": request.source_branch,
+            "base": request.target_branch,
+            "draft": request.draft,
         });
         let v = self.post_json(&url, &payload).await?;
         parse_cr(&v).ok_or_else(|| ForgeError::Http {
@@ -251,21 +282,30 @@ impl GitForgeProvider for GitHubProvider {
     }
 
     async fn update_change_request(
-        &self, owner: &str, repo: &str, number: u64,
-        title: Option<&str>, body: Option<&str>,
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        title: Option<&str>,
+        body: Option<&str>,
         state: Option<ChangeRequestState>,
     ) -> Result<ChangeRequest, ForgeError> {
         let url = format!("{}/repos/{owner}/{repo}/pulls/{number}", self.api_base);
         let mut payload = serde_json::json!({});
-        if let Some(t) = title { payload["title"] = t.into(); }
-        if let Some(b) = body { payload["body"] = b.into(); }
+        if let Some(t) = title {
+            payload["title"] = t.into();
+        }
+        if let Some(b) = body {
+            payload["body"] = b.into();
+        }
         if let Some(s) = state {
             payload["state"] = match s {
                 ChangeRequestState::Closed => "closed".into(),
                 _ => "open".into(),
             };
         }
-        let resp = self.client
+        let resp = self
+            .client
             .patch(&url)
             .bearer_auth(&self.token)
             .header("Accept", "application/vnd.github+json")
@@ -273,17 +313,27 @@ impl GitForgeProvider for GitHubProvider {
             .send()
             .await
             .map_err(|e| ForgeError::Network(e.to_string()))?;
-        let v: Value = resp.json().await.map_err(|e| ForgeError::Network(e.to_string()))?;
+        let v: Value = resp
+            .json()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
         parse_cr(&v).ok_or_else(|| ForgeError::Http {
-            status: 422, message: "Failed to parse updated PR".into(),
+            status: 422,
+            message: "Failed to parse updated PR".into(),
         })
     }
 
     async fn merge_change_request(
-        &self, owner: &str, repo: &str, number: u64,
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
         merge_message: Option<&str>,
     ) -> Result<String, ForgeError> {
-        let url = format!("{}/repos/{owner}/{repo}/pulls/{number}/merge", self.api_base);
+        let url = format!(
+            "{}/repos/{owner}/{repo}/pulls/{number}/merge",
+            self.api_base
+        );
         let mut payload = serde_json::json!({ "merge_method": "squash" });
         if let Some(msg) = merge_message {
             payload["commit_message"] = msg.into();
@@ -293,11 +343,18 @@ impl GitForgeProvider for GitHubProvider {
     }
 
     async fn list_reviews(
-        &self, owner: &str, repo: &str, number: u64,
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
     ) -> Result<Vec<Review>, ForgeError> {
-        let url = format!("{}/repos/{owner}/{repo}/pulls/{number}/reviews", self.api_base);
+        let url = format!(
+            "{}/repos/{owner}/{repo}/pulls/{number}/reviews",
+            self.api_base
+        );
         let arr = self.get_json(&url).await?;
-        Ok(arr.as_array()
+        Ok(arr
+            .as_array()
             .unwrap_or(&vec![])
             .iter()
             .filter_map(parse_review)
@@ -305,12 +362,20 @@ impl GitForgeProvider for GitHubProvider {
     }
 
     async fn add_labels(
-        &self, owner: &str, repo: &str, number: u64, labels: &[String],
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        labels: &[String],
     ) -> Result<Vec<Label>, ForgeError> {
-        let url = format!("{}/repos/{owner}/{repo}/issues/{number}/labels", self.api_base);
+        let url = format!(
+            "{}/repos/{owner}/{repo}/issues/{number}/labels",
+            self.api_base
+        );
         let payload = serde_json::json!({ "labels": labels });
         let arr = self.post_json(&url, &payload).await?;
-        Ok(arr.as_array()
+        Ok(arr
+            .as_array()
             .unwrap_or(&vec![])
             .iter()
             .filter_map(parse_label)
@@ -323,20 +388,22 @@ impl GitForgeProvider for GitHubProvider {
         Ok(ForgeUser {
             login: v["login"].as_str().unwrap_or("").to_string(),
             display_name: v["name"].as_str().map(String::from),
-            email: v["email"].as_str().filter(|s| !s.is_empty()).map(String::from),
+            email: v["email"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .map(String::from),
             avatar_url: v["avatar_url"].as_str().map(String::from),
             web_url: v["html_url"].as_str().unwrap_or("").to_string(),
             is_bot: v["type"].as_str() == Some("Bot"),
         })
     }
 
-    fn parse_webhook(
-        &self, event_type: &str, payload: &[u8],
-    ) -> Result<WebhookEvent, ForgeError> {
+    fn parse_webhook(&self, event_type: &str, payload: &[u8]) -> Result<WebhookEvent, ForgeError> {
         let v: Value = serde_json::from_slice(payload)?;
         let event = match event_type {
             "push" => WebhookEvent::Push {
-                branch: v["ref"].as_str()
+                branch: v["ref"]
+                    .as_str()
                     .unwrap_or("")
                     .strip_prefix("refs/heads/")
                     .unwrap_or("")
@@ -358,31 +425,42 @@ impl GitForgeProvider for GitHubProvider {
                     .to_string();
                 match action {
                     "opened" | "reopened" => WebhookEvent::ChangeRequestOpened {
-                        cr_number: number, author,
+                        cr_number: number,
+                        author,
                     },
-                    "closed" if v["pull_request"]["merged"].as_bool().unwrap_or(false) =>
+                    "closed" if v["pull_request"]["merged"].as_bool().unwrap_or(false) => {
                         WebhookEvent::ChangeRequestMerged {
                             cr_number: number,
                             merged_by: v["pull_request"]["merged_by"]["login"]
                                 .as_str()
                                 .unwrap_or("")
                                 .to_string(),
-                        },
+                        }
+                    }
                     "closed" => WebhookEvent::ChangeRequestClosed { cr_number: number },
-                    _ => WebhookEvent::Unknown { event_type: format!("pull_request.{action}") },
+                    _ => WebhookEvent::Unknown {
+                        event_type: format!("pull_request.{action}"),
+                    },
                 }
-            },
+            }
             "pull_request_review" => {
                 let number = v["pull_request"]["number"].as_u64().unwrap_or(0);
-                let reviewer = v["review"]["user"]["login"].as_str().unwrap_or("").to_string();
+                let reviewer = v["review"]["user"]["login"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 let state = match v["review"]["state"].as_str().unwrap_or("") {
                     "approved" => ReviewState::Approved,
                     "changes_requested" => ReviewState::ChangesRequested,
                     "dismissed" => ReviewState::Dismissed,
                     _ => ReviewState::Commented,
                 };
-                WebhookEvent::ReviewSubmitted { cr_number: number, reviewer, state }
-            },
+                WebhookEvent::ReviewSubmitted {
+                    cr_number: number,
+                    reviewer,
+                    state,
+                }
+            }
             "check_run" => {
                 let conclusion = v["check_run"]["conclusion"].as_str().unwrap_or("unknown");
                 let status = match conclusion {
@@ -395,8 +473,10 @@ impl GitForgeProvider for GitHubProvider {
                     name: v["check_run"]["name"].as_str().unwrap_or("").to_string(),
                     status,
                 }
+            }
+            _ => WebhookEvent::Unknown {
+                event_type: event_type.to_string(),
             },
-            _ => WebhookEvent::Unknown { event_type: event_type.to_string() },
         };
         Ok(event)
     }

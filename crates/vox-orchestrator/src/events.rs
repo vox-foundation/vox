@@ -77,9 +77,14 @@ pub struct AgentEvent {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEventKind {
     /// A new agent was spawned.
-    AgentSpawned { agent_id: AgentId, name: String },
+    AgentSpawned {
+        agent_id: AgentId,
+        name: String,
+    },
     /// An agent was retired/removed.
-    AgentRetired { agent_id: AgentId },
+    AgentRetired {
+        agent_id: AgentId,
+    },
     /// An agent's activity changed.
     ActivityChanged {
         agent_id: AgentId,
@@ -93,9 +98,15 @@ pub enum AgentEventKind {
         description: String,
     },
     /// A task started executing.
-    TaskStarted { task_id: TaskId, agent_id: AgentId },
+    TaskStarted {
+        task_id: TaskId,
+        agent_id: AgentId,
+    },
     /// A task completed successfully.
-    TaskCompleted { task_id: TaskId, agent_id: AgentId },
+    TaskCompleted {
+        task_id: TaskId,
+        agent_id: AgentId,
+    },
     /// A task failed.
     TaskFailed {
         task_id: TaskId,
@@ -110,12 +121,19 @@ pub enum AgentEventKind {
         exclusive: bool,
     },
     /// A file lock was released.
-    LockReleased { agent_id: AgentId, path: PathBuf },
+    LockReleased {
+        agent_id: AgentId,
+        path: PathBuf,
+    },
 
     /// An agent went idle (no pending tasks).
-    AgentIdle { agent_id: AgentId },
+    AgentIdle {
+        agent_id: AgentId,
+    },
     /// An agent started working again.
-    AgentBusy { agent_id: AgentId },
+    AgentBusy {
+        agent_id: AgentId,
+    },
 
     /// An inter-agent message was sent.
     MessageSent {
@@ -125,6 +143,9 @@ pub enum AgentEventKind {
     },
 
     /// A cost was incurred (LLM API call).
+    ///
+    /// **MCP:** when Codex is attached, persisted usage is SSOT in `provider_usage`; bus emission is
+    /// gated by **`VOX_MCP_LLM_COST_EVENTS`** (default off with DB) to avoid dashboards double-counting.
     CostIncurred {
         agent_id: AgentId,
         provider: String,
@@ -135,31 +156,9 @@ pub enum AgentEventKind {
     },
 
     /// Auto-continuation was triggered for an idle agent.
-    ContinuationTriggered { agent_id: AgentId, strategy: String },
-
-    /// A workflow started execution.
-    WorkflowStarted { workflow_id: String, name: String },
-    /// A workflow completed successfully.
-    WorkflowCompleted { workflow_id: String },
-    /// A workflow failed.
-    WorkflowFailed { workflow_id: String, error: String },
-    /// A workflow activity started.
-    ActivityStarted {
-        workflow_id: String,
-        activity_id: String,
-        name: String,
-    },
-    /// A workflow activity completed.
-    ActivityCompleted {
-        workflow_id: String,
-        activity_id: String,
-    },
-    /// A workflow activity was retried due to failure.
-    ActivityRetried {
-        workflow_id: String,
-        activity_id: String,
-        attempt: u32,
-        error: String,
+    ContinuationTriggered {
+        agent_id: AgentId,
+        strategy: String,
     },
 
     /// A plan handoff between agents.
@@ -168,17 +167,6 @@ pub enum AgentEventKind {
         to: AgentId,
         plan_summary: String,
     },
-    /// A plan handoff was accepted by an agent.
-    AgentHandoffAccepted {
-        agent_id: AgentId,
-        from: AgentId,
-        plan_summary: String,
-    },
-    /// A plan handoff was rejected (e.g. timeout or incompatible agent).
-    AgentHandoffRejected {
-        from: AgentId,
-        reason: String,
-    },
 
     /// A scope violation was detected.
     ScopeViolation {
@@ -186,15 +174,6 @@ pub enum AgentEventKind {
         path: PathBuf,
         reason: String,
     },
-
-    /// Prompt canonicalization detected conflicting instructions (for Trust & Safety).
-    PromptConflictDetected {
-        task_id: TaskId,
-        warnings: Vec<String>,
-    },
-
-    /// Safety pass flagged a potential prompt injection (for Trust & Safety).
-    InjectionDetected { detail: String },
 
     /// Context window compaction was triggered.
     CompactionTriggered {
@@ -223,55 +202,87 @@ pub enum AgentEventKind {
         turns_cleared: usize,
     },
 
-    // -- JJ-inspired VCS events --
-    /// A file snapshot was captured (pre- or post-task).
+    /// Workspace / DB snapshot captured for undo or conflict tracking.
     SnapshotCaptured {
         agent_id: AgentId,
         snapshot_id: String,
         file_count: usize,
         description: String,
     },
-
-    /// An operation was undone via the oplog.
-    OperationUndone {
-        agent_id: AgentId,
-        operation_id: String,
-    },
-    /// An operation was redone via the oplog.
-    OperationRedone {
-        agent_id: AgentId,
-        operation_id: String,
-    },
-
-    /// A file conflict was detected between agents.
+    /// Overlapping edits detected between agents.
     ConflictDetected {
         path: PathBuf,
         agent_ids: Vec<AgentId>,
         conflict_id: String,
     },
+    /// Undo stack applied.
+    OperationUndone {
+        agent_id: AgentId,
+        operation_id: String,
+    },
+    /// Redo stack applied.
+    OperationRedone {
+        agent_id: AgentId,
+        operation_id: String,
+    },
+    /// Handoff could not be completed (e.g. spawn failure).
+    AgentHandoffRejected {
+        from: AgentId,
+        reason: String,
+    },
+    /// Handoff completed; target agent resumed work.
+    AgentHandoffAccepted {
+        agent_id: AgentId,
+        from: AgentId,
+        plan_summary: String,
+    },
+    /// Load balancer moved tasks due to urgent queue depth.
+    UrgentRebalanceTriggered {
+        moved: usize,
+    },
+    /// Streaming LLM token chunk (debug / UI).
+    TokenStreamed {
+        agent_id: AgentId,
+        text: String,
+    },
 
-    /// A file conflict was resolved.
+    /// Prompt injection / safety gate rejected input (MCP).
+    InjectionDetected {
+        detail: String,
+    },
+    /// Canonicalized prompt produced warnings (MCP task submit).
+    PromptConflictDetected {
+        task_id: TaskId,
+        warnings: Vec<String>,
+    },
+    /// Durable workflow lifecycle (MCP / dashboard).
+    WorkflowStarted {
+        workflow_id: String,
+    },
+    WorkflowCompleted {
+        workflow_id: String,
+    },
+    WorkflowFailed {
+        workflow_id: String,
+        error: String,
+    },
+    ActivityStarted {
+        activity_id: String,
+    },
+    ActivityCompleted {
+        activity_id: String,
+    },
+    ActivityRetried {
+        activity_id: String,
+        attempt: u32,
+    },
     ConflictResolved {
         conflict_id: String,
         resolution_strategy: String,
     },
-
-    /// A workspace was created for an agent.
     WorkspaceCreated {
         agent_id: AgentId,
-        base_snapshot: String,
-    },
-
-    /// Automatic rebalancing was triggered because an agent's Urgent queue exceeded the threshold.
-    UrgentRebalanceTriggered {
-        /// Number of tasks moved across agents.
-        moved: usize,
-    },
-
-    /// Streaming token text from an agent (e.g. LLM reasoning or chat response).
-    TokenStreamed {
-        agent_id: AgentId,
-        text: String,
+        root: PathBuf,
     },
 }
 

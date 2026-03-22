@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { VoxMcpClient } from './core/VoxMcpClient';
+import type { CodexHttpClient } from './core/CodexHttpClient';
 import { WorkspaceContextEngine } from './context/WorkspaceContextEngine';
 import { ChatController } from './chat/ChatController';
 
@@ -11,10 +12,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _mcp: VoxMcpClient,
+        codexHttp?: CodexHttpClient,
     ) {
-        this._chatController = new ChatController(this._mcp, messages => {
-            this.postMessage({ type: 'chatHistory', value: messages });
-        });
+        this._chatController = new ChatController(
+            this._mcp,
+            messages => {
+                this.postMessage({ type: 'chatHistory', value: messages });
+            },
+            codexHttp,
+        );
     }
 
     resolveWebviewView(view: vscode.WebviewView): void {

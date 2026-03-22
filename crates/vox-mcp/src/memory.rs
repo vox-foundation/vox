@@ -1,69 +1,107 @@
-//! MCP tools for the persistent memory system.
+//! MCP tools: episodic memory, knowledge graph queries, and session-scoped recall.
+//!
+//! **Agents calling these tools:** Use stable, namespaced `key` strings for writes; pair
+//! `MemoryStoreParams::agent_id` with the orchestrator’s agent id when available. Cap graph
+//! fan-out with [`KnowledgeQueryParams::limit`](crate::memory::KnowledgeQueryParams::limit) so tool responses stay bounded. For authoritative
+//! Codex semantics, see repo-root `AGENTS.md` §2.2.1 and ADR 004—not every tool doc repeats the
+//! data-plane glossary.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{ServerState, ToolResult};
 
+fn memory_config_for_state(state: &ServerState) -> vox_orchestrator::MemoryConfig {
+    state.orchestrator_config.memory.clone()
+}
+
 // ---------------------------------------------------------------------------
 // Parameters
 // ---------------------------------------------------------------------------
 
+/// MCP arguments: persist a fact into MEMORY.md / optional Codex graph.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryStoreParams {
+    /// Owning agent id for namespacing.
     pub agent_id: u64,
+    /// Fact key.
     pub key: String,
+    /// Fact value body.
     pub value: String,
+    /// Optional related keys for graph edges.
     pub relations: Option<Vec<String>>,
 }
 
+/// MCP arguments: keyword search against the knowledge graph in VoxDb.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct KnowledgeQueryParams {
+    /// Free-text query string.
     pub query: String,
+    /// Max nodes to return.
     pub limit: Option<i64>,
 }
 
+/// MCP arguments: fetch one MEMORY.md entry by key.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryRecallParams {
+    /// Key previously stored via [`memory_store`].
     pub key: String,
 }
 
+/// MCP arguments: grep-style search across memory logs and MEMORY.md.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemorySearchParams {
+    /// Substring or keyword to search for.
     pub query: String,
 }
 
+/// MCP arguments: append one line to today's rolling log file.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryLogParams {
+    /// Log line content.
     pub entry: String,
 }
 
+/// MCP arguments: compact long-term memory for an agent with a summary string.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CompactParams {
+    /// Agent whose memory shard is compacted.
     pub agent_id: u64,
+    /// Replacement summary text.
     pub summary: String,
 }
 
+/// MCP arguments: create a new persisted session for an agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SessionCreateParams {
+    /// Agent that owns the session.
     pub agent_id: u64,
 }
 
+/// MCP arguments: refer to an existing session by opaque id string.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SessionIdParams {
+    /// Session id returned by create/list tools.
     pub session_id: String,
 }
 
+/// MCP arguments: replace old turns with a single summary turn.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SessionCompactParams {
+    /// Target session id.
     pub session_id: String,
+    /// Summary text inserted as a synthetic turn.
     pub summary: String,
 }
 
+/// MCP arguments: append one chat turn to a session transcript.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SessionAddTurnParams {
+    /// Session receiving the turn.
     pub session_id: String,
+    /// Role label (`user`, `assistant`, ...).
     pub role: String,
+    /// Turn body.
     pub content: String,
 }
 
@@ -73,7 +111,7 @@ pub struct SessionAddTurnParams {
 
 /// Persist a key-value fact to long-term memory (MEMORY.md + VoxDb).
 pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> String {
-    let config = vox_orchestrator::MemoryConfig::default();
+    let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
         Ok(mut mgr) => {
             if let Some(ref db) = state.db {
@@ -97,23 +135,32 @@ pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> Str
 }
 
 /// Retrieve a fact from long-term memory by key.
-pub async fn memory_recall(_state: &ServerState, params: MemoryRecallParams) -> String {
-    let config = vox_orchestrator::MemoryConfig::default();
+///
+/// Uses the same [`MemoryConfig`] as [`memory_store`] (`state.orchestrator_config.memory`).
+/// When `state.db` is set, it is attached for parity with store; [`MemoryManager::recall`] is still
+/// file/cache-first and does **not** query Codex on miss yet.
+pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> String {
+    let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
-        Ok(mgr) => match mgr.recall(&params.key) {
-            Ok(Some(val)) => ToolResult::ok(val).to_json(),
-            Ok(None) => {
-                ToolResult::<String>::err(format!("Key '{}' not found", params.key)).to_json()
+        Ok(mut mgr) => {
+            if let Some(ref db) = state.db {
+                mgr.set_db(db.clone());
             }
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
-        },
+            match mgr.recall(&params.key) {
+                Ok(Some(val)) => ToolResult::ok(val).to_json(),
+                Ok(None) => {
+                    ToolResult::<String>::err(format!("Key '{}' not found", params.key)).to_json()
+                }
+                Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            }
+        }
         Err(e) => ToolResult::<String>::err(format!("memory init failed: {e}")).to_json(),
     }
 }
 
 /// Search memory (daily logs + MEMORY.md) by keyword.
-pub async fn memory_search(_state: &ServerState, params: MemorySearchParams) -> String {
-    let config = vox_orchestrator::MemoryConfig::default();
+pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> String {
+    let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
         Ok(mgr) => match mgr.search(&params.query) {
             Ok(hits) => {
@@ -135,20 +182,27 @@ pub async fn memory_search(_state: &ServerState, params: MemorySearchParams) -> 
 }
 
 /// Append an entry to today's daily memory log.
-pub async fn memory_daily_log(_state: &ServerState, params: MemoryLogParams) -> String {
-    let config = vox_orchestrator::MemoryConfig::default();
+///
+/// Uses the same orchestrator-scoped memory paths as other memory tools.
+pub async fn memory_daily_log(state: &ServerState, params: MemoryLogParams) -> String {
+    let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
-        Ok(mgr) => match mgr.log(&params.entry) {
-            Ok(()) => ToolResult::ok("Entry logged to daily memory.".to_string()).to_json(),
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
-        },
+        Ok(mut mgr) => {
+            if let Some(ref db) = state.db {
+                mgr.set_db(db.clone());
+            }
+            match mgr.log(&params.entry) {
+                Ok(()) => ToolResult::ok("Entry logged to daily memory.".to_string()).to_json(),
+                Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            }
+        }
         Err(e) => ToolResult::<String>::err(format!("memory init failed: {e}")).to_json(),
     }
 }
 
 /// List all memory keys from MEMORY.md.
-pub async fn memory_list_keys(_state: &ServerState) -> String {
-    let config = vox_orchestrator::MemoryConfig::default();
+pub async fn memory_list_keys(state: &ServerState) -> String {
+    let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
         Ok(mgr) => match mgr.list_keys() {
             Ok(keys) => ToolResult::ok(keys).to_json(),
@@ -220,14 +274,20 @@ pub async fn compaction_status(
 // Session tool handlers
 // ---------------------------------------------------------------------------
 
-/// Response type for session info.
+/// Serializable session row for MCP list/info tools.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionInfo {
+    /// Session id string.
     pub id: String,
+    /// Owning agent id.
     pub agent_id: u64,
+    /// Lifecycle state label.
     pub state: String,
+    /// Number of turns stored.
     pub turn_count: usize,
+    /// Accumulated token estimate.
     pub total_tokens: usize,
+    /// Last activity timestamp (epoch ms).
     pub last_active: u64,
 }
 
@@ -316,60 +376,93 @@ pub async fn session_cleanup(state: &ServerState) -> String {
 // Preference & Behavioral Learning tool handlers
 // ---------------------------------------------------------------------------
 
+/// MCP arguments: read one `user_preferences` row.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PreferenceGetParams {
+    /// Codex user id namespace.
     pub user_id: String,
+    /// Preference key.
     pub key: String,
 }
 
+/// MCP arguments: upsert one `user_preferences` row.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PreferenceSetParams {
+    /// Codex user id namespace.
     pub user_id: String,
+    /// Preference key.
     pub key: String,
+    /// New value string.
     pub value: String,
 }
 
+/// MCP arguments: enumerate preferences, optionally filtered by key prefix.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PreferenceListParams {
+    /// Codex user id namespace.
     pub user_id: String,
+    /// When set, only keys starting with this prefix are returned.
     pub prefix: Option<String>,
 }
 
+/// MCP arguments: store a learned pattern row for adaptive tooling.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct LearnPatternParams {
+    /// Subject user id.
     pub user_id: String,
+    /// Pattern classifier string.
     pub pattern_type: String,
+    /// High-level grouping label.
     pub category: String,
+    /// Free-text description stored in Codex.
     pub description: String,
+    /// Optional confidence in `0..1` (defaults in handler).
     pub confidence: Option<f64>,
 }
 
+/// MCP arguments: append a behavior observation for the learner pipeline.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct BehaviorRecordParams {
+    /// Subject user id.
     pub user_id: String,
+    /// Short event label (`task.completed`, ...).
     pub event_type: String,
+    /// Optional human context string.
     pub context: Option<String>,
+    /// Optional JSON metadata blob as string.
     pub metadata: Option<String>,
 }
 
+/// MCP arguments: aggregate patterns for one user.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct BehaviorSummaryParams {
+    /// Subject user id.
     pub user_id: String,
 }
 
+/// MCP arguments: insert into `agent_memory` via Codex SQL API.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemorySaveDbParams {
+    /// Agent id as string (matches DB column type).
     pub agent_id: String,
+    /// Related session id string.
     pub session_id: String,
+    /// Memory category / type label.
     pub memory_type: String,
+    /// Body text persisted.
     pub content: String,
+    /// Optional importance weight.
     pub importance: Option<f64>,
 }
 
+/// MCP arguments: query `agent_memory` rows for one agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryRecallDbParams {
+    /// Agent id filter.
     pub agent_id: String,
+    /// Optional type filter (`None` = all types).
     pub memory_type: Option<String>,
+    /// Max rows.
     pub limit: Option<i64>,
 }
 
@@ -442,6 +535,7 @@ pub async fn learn_pattern(state: &ServerState, params: LearnPatternParams) -> S
                 &params.category,
                 &params.description,
                 params.confidence.unwrap_or(0.5),
+                None,
             )
             .await
         {
@@ -463,6 +557,7 @@ pub async fn behavior_record(state: &ServerState, params: BehaviorRecordParams) 
                     &params.event_type,
                     params.context.as_deref(),
                     params.metadata.as_deref(),
+                    None,
                 )
                 .await
             {
@@ -501,7 +596,7 @@ pub async fn behavior_summary(state: &ServerState, params: BehaviorSummaryParams
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => {
             let learner = db.learner();
-            match learner.analyze(&params.user_id).await {
+            match learner.analyze(&params.user_id, None).await {
                 Ok(patterns) => {
                     if patterns.is_empty() {
                         ToolResult::ok("No patterns detected yet.".to_string()).to_json()
@@ -533,15 +628,15 @@ pub async fn memory_save_db(state: &ServerState, params: MemorySaveDbParams) -> 
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
             .store()
-            .save_memory(
-                &params.agent_id,
-                &params.session_id,
-                &params.memory_type,
-                &params.content,
-                None,
-                params.importance.unwrap_or(1.0),
-                None,
-            )
+            .save_memory(vox_db::MemoryParams {
+                agent_id: &params.agent_id,
+                session_id: &params.session_id,
+                memory_type: &params.memory_type,
+                content: &params.content,
+                metadata: None,
+                importance: params.importance.unwrap_or(1.0),
+                vcs_snapshot_id: None,
+            })
             .await
         {
             Ok(id) => ToolResult::ok(format!("Memory saved with id={id}")).to_json(),
@@ -577,5 +672,62 @@ pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams)
             }
             Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
         },
+    }
+}
+
+#[cfg(test)]
+mod memory_config_tests {
+    use super::memory_config_for_state;
+    use crate::server::ServerState;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
+    use vox_repository::{RepoCapabilities, RepositoryContext};
+    use vox_skills::new_registry_arc;
+
+    #[test]
+    fn memory_config_for_state_matches_orchestrator_memory() {
+        let custom = std::env::temp_dir().join("vox_mcp_memory_config_test");
+        let mut cfg = OrchestratorConfig::default();
+        cfg.memory.log_dir = custom.clone();
+        cfg.memory.memory_md_path = custom.join("MEMORY.md");
+        let orch_cfg = cfg.clone();
+        let groups = AffinityGroupRegistry::new(vec![]);
+        let session_cfg = SessionConfig {
+            persist: false,
+            sessions_dir: std::env::temp_dir().join("vox-mcp-test-sessions"),
+            ..SessionConfig::default()
+        };
+        let session_manager = SessionManager::new(session_cfg).expect("session manager");
+        let repository = RepositoryContext {
+            root: PathBuf::from("."),
+            git_root: None,
+            repository_id: "test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        let state = ServerState::test_stub(
+            cfg.clone(),
+            repository,
+            Arc::new(Mutex::new(Orchestrator::with_groups(orch_cfg, groups))),
+            Arc::new(Mutex::new(session_manager)),
+            new_registry_arc(),
+        );
+        let mc = memory_config_for_state(&state);
+        assert_eq!(mc.log_dir, custom);
+        assert_eq!(mc.memory_md_path, custom.join("MEMORY.md"));
     }
 }

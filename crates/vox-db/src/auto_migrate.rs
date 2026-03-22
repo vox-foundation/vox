@@ -6,23 +6,33 @@
 //!
 //! Destructive operations (DROP TABLE, DROP COLUMN) are never performed automatically
 //! — they are reported as pending manual migrations.
+//!
+//! **Naming:** “VoxDB” here means this crate’s auto-migrate layer, not the [`crate::VoxDb`] type
+//! specifically (though typical use is `db.auto_migrator()`).
 
 use turso::Connection;
 
 /// A column definition as read from `PRAGMA table_info(...)`.
 #[derive(Debug, Clone)]
 pub struct LiveColumn {
+    /// SQLite column name.
     pub name: String,
+    /// Declared type affinity string from SQLite.
     pub col_type: String,
+    /// `NOT NULL` constraint.
     pub not_null: bool,
+    /// Default clause text, if any.
     pub default_value: Option<String>,
+    /// Part of primary key.
     pub is_pk: bool,
 }
 
 /// A table definition as introspected from the live database.
 #[derive(Debug, Clone)]
 pub struct LiveTable {
+    /// Table name as stored in SQLite.
     pub name: String,
+    /// Columns from `PRAGMA table_info`.
     pub columns: Vec<LiveColumn>,
 }
 
@@ -32,23 +42,43 @@ use vox_ast::decl::{CollectionDecl, IndexDecl, TableDecl};
 #[derive(Debug, Clone)]
 pub enum MigrationAction {
     /// Create a new table with all its columns.
-    CreateTable { sql: String },
+    CreateTable {
+        /// Full `CREATE TABLE` statement.
+        sql: String,
+    },
     /// Add a column to an existing table.
     AddColumn {
+        /// Target table (snake_case).
         table: String,
+        /// New column name.
         column: String,
+        /// SQLite type for the column.
         col_type: String,
     },
     /// Create an index.
-    CreateIndex { sql: String },
+    CreateIndex {
+        /// Full `CREATE INDEX` statement.
+        sql: String,
+    },
     /// Create a collection document table.
-    CreateCollection { sql: String },
+    CreateCollection {
+        /// Full `CREATE TABLE` for the collection backing store.
+        sql: String,
+    },
     /// ⚠️ A column was removed from the declaration but still exists in the DB.
     /// Not applied automatically.
-    ManualDropColumn { table: String, column: String },
+    ManualDropColumn {
+        /// Table still holding the column.
+        table: String,
+        /// Orphan column name.
+        column: String,
+    },
     /// ⚠️ A table was removed from declarations but still exists in the DB.
     /// Not applied automatically.
-    ManualDropTable { table: String },
+    ManualDropTable {
+        /// Table name to drop manually if desired.
+        table: String,
+    },
 }
 
 impl MigrationAction {
@@ -105,9 +135,10 @@ impl MigrationAction {
     }
 }
 
-/// Result of a migration plan.
+/// Result of comparing live DB state to desired declarations.
 #[derive(Debug)]
 pub struct MigrationPlan {
+    /// Ordered steps (automatic + manual-only).
     pub actions: Vec<MigrationAction>,
 }
 
@@ -145,15 +176,15 @@ impl MigrationPlan {
     }
 }
 
-/// The auto-migration engine.
+/// Compares AST-backed declarations to `PRAGMA`/`sqlite_master` state.
 pub struct AutoMigrator<'a> {
     conn: &'a Connection,
 }
 
-use crate::schema_digest::{SchemaDigest, IndexKind};
-
+use crate::schema_digest::{IndexKind, SchemaDigest};
 
 impl<'a> AutoMigrator<'a> {
+    /// Create an engine bound to one Turso connection (typically from `VoxDb` / `CodeStore`).
     pub fn new(conn: &'a Connection) -> Self {
         Self { conn }
     }
@@ -217,6 +248,9 @@ impl<'a> AutoMigrator<'a> {
         self.plan_internal(&live_tables, &live_names, tables, collections, indexes)
     }
 
+    /// Like [`Self::plan`], but desired shape comes from a [`SchemaDigest`] (e.g. from codegen/LLM).
+    ///
+    /// Standard indexes from the digest are emitted; vector/search indexes are skipped here.
     pub async fn plan_from_digest(
         &self,
         digest: &SchemaDigest,
@@ -405,6 +439,7 @@ impl<'a> AutoMigrator<'a> {
         Ok(plan)
     }
 
+    /// [`Self::plan_from_digest`] followed by [`Self::apply`] for auto-safe actions only.
     pub async fn sync_from_digest(
         &self,
         digest: &SchemaDigest,

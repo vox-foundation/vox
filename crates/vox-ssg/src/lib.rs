@@ -2,9 +2,10 @@
 //!
 //! Converts Vox modules with `routes:` declarations into static HTML shells
 //! ready for Vite SSR pre-rendering.
+//!
+//! Additional helpers live in this file as private functions; only [`generate_static_site`] is public.
 
 use vox_ast::decl::{Decl, Module};
-
 
 /// Generate static HTML files for all `@page` components and route entries.
 ///
@@ -54,8 +55,8 @@ fn path_to_filename(path: &str) -> String {
         let normalized = trimmed
             .split('/')
             .map(|seg| {
-                if seg.starts_with(':') {
-                    format!("[{}]", &seg[1..])
+                if let Some(rest) = seg.strip_prefix(':') {
+                    format!("[{rest}]")
                 } else {
                     seg.to_string()
                 }
@@ -100,13 +101,22 @@ mod tests {
     #[test]
     fn ssg_generates_index_html() {
         use vox_ast::span::Span;
-        let module = Module { declarations: vec![], span: Span { start: 0, end: 0 } };
+        let module = Module {
+            declarations: vec![],
+            span: Span { start: 0, end: 0 },
+        };
         let pages = generate_static_site(&module);
         assert!(!pages.is_empty(), "Should produce at least one page");
         let (name, html) = &pages[0];
         assert_eq!(name, "index.html");
-        assert!(html.contains("<!DOCTYPE html>"), "Expected DOCTYPE in: {html}");
-        assert!(html.contains("<div id=\"root\">"), "Expected root div in: {html}");
+        assert!(
+            html.contains("<!DOCTYPE html>"),
+            "Expected DOCTYPE in: {html}"
+        );
+        assert!(
+            html.contains("<div id=\"root\">"),
+            "Expected root div in: {html}"
+        );
     }
 
     #[test]
@@ -128,7 +138,7 @@ mod tests {
 
     #[test]
     fn ssg_with_routes_emits_one_page_per_route() {
-        use vox_ast::decl::{Decl, RoutesDecl, RouteEntry};
+        use vox_ast::decl::{Decl, RouteEntry, RoutesDecl};
         use vox_ast::span::Span;
 
         let dummy_span = Span { start: 0, end: 0 };

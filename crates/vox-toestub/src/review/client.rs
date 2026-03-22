@@ -1,14 +1,16 @@
-use std::time::Duration;
-use crate::rules::{Finding, Language, SourceFile};
+use super::formatters::parse_review_response;
+use super::prompts::{build_diff_review_prompt, build_review_prompt, review_system_prompt};
 use super::providers::{ReviewProvider, auto_discover_providers};
 use super::types::ReviewFinding;
-use super::prompts::{build_review_prompt, build_diff_review_prompt, REVIEW_SYSTEM_PROMPT};
-use super::formatters::parse_review_response;
+use crate::rules::{Finding, Language, SourceFile};
+use std::time::Duration;
+use vox_socrates_policy::ConfidencePolicy;
 
 /// Performs AI-powered code review using the configured provider cascade.
 pub struct ReviewClient {
     providers: Vec<ReviewProvider>,
     http: reqwest::Client,
+    confidence_policy: ConfidencePolicy,
 }
 
 impl ReviewClient {
@@ -19,7 +21,27 @@ impl ReviewClient {
             .user_agent("vox-review/0.1")
             .build()
             .expect("Failed to build HTTP client for vox review");
-        Self { providers, http }
+        Self {
+            providers,
+            http,
+            confidence_policy: ConfidencePolicy::workspace_default(),
+        }
+    }
+
+    /// Override review confidence thresholds (prompt text + post-filter floor).
+    pub fn with_confidence_policy(mut self, policy: ConfidencePolicy) -> Self {
+        self.confidence_policy = policy;
+        self
+    }
+
+    /// Like [`Self::call_provider`], using this client's configured [`ConfidencePolicy`].
+    pub async fn call_provider_with_client_policy(
+        &self,
+        provider: &ReviewProvider,
+        prompt: &str,
+    ) -> Result<(String, usize), String> {
+        self.call_provider(provider, prompt, &self.confidence_policy)
+            .await
     }
 
     /// Auto-discover providers from environment variables.
@@ -63,18 +85,34 @@ impl ReviewClient {
         diff_hunk: Option<&str>,
     ) -> Result<(Vec<ReviewFinding>, String, usize), String> {
         let prompt = match diff_hunk {
-            Some(hunk) => build_diff_review_prompt(file, static_findings, max_context_tokens, hunk),
-            None => build_review_prompt(file, static_findings, lang_hint, max_context_tokens),
+            Some(hunk) => build_diff_review_prompt(
+                file,
+                static_findings,
+                max_context_tokens,
+                hunk,
+                &self.confidence_policy,
+            ),
+            None => build_review_prompt(
+                file,
+                static_findings,
+                lang_hint,
+                max_context_tokens,
+                &self.confidence_policy,
+            ),
         };
 
+        let min_finding = self.confidence_policy.min_review_finding_confidence;
         for provider in &self.providers {
-            match self.call_provider(provider, &prompt).await {
+            match self
+                .call_provider(provider, &prompt, &self.confidence_policy)
+                .await
+            {
                 Ok((response, tokens)) => {
                     let mut findings = parse_review_response(&response, &file.path);
                     // Verification pass: remove impossible line numbers
                     findings.retain(|f| f.line == 0 || f.line <= file.lines.len());
-                    // Remove very low confidence findings
-                    findings.retain(|f| f.confidence >= 40);
+                    // Remove findings below the shared Socrates / review policy floor
+                    findings.retain(|f| f.confidence >= min_finding);
                     return Ok((findings, provider.name().to_string(), tokens));
                 }
                 Err(e) => {
@@ -90,10 +128,14 @@ impl ReviewClient {
         Err("All review providers failed. Try setting OPENROUTER_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.".to_string())
     }
 
+    /// Dispatches to the correct chat/completions endpoint and returns `(assistant_text, token_estimate)`.
+    ///
+    /// Empty embedded API keys fall back to environment variables per provider (see each match arm).
     pub async fn call_provider(
         &self,
         provider: &ReviewProvider,
         prompt: &str,
+        policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
         match provider {
             ReviewProvider::OpenRouter {
@@ -111,6 +153,7 @@ impl ReviewClient {
                     model,
                     prompt,
                     Some(site_url),
+                    policy,
                 )
                 .await
             }
@@ -124,7 +167,7 @@ impl ReviewClient {
                     return Err("No OpenAI API key".to_string());
                 }
                 let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
-                self.call_chat_completions(&url, &key, model, prompt, None)
+                self.call_chat_completions(&url, &key, model, prompt, None, policy)
                     .await
             }
             ReviewProvider::Gemini { api_key, model } => {
@@ -132,10 +175,14 @@ impl ReviewClient {
                 if key.is_empty() {
                     return Err("No Gemini API key".to_string());
                 }
-                self.call_gemini(&key, model, prompt).await
+                self.call_gemini(&key, model, prompt, policy).await
             }
-            ReviewProvider::Ollama { url, model } => self.call_ollama(url, model, prompt).await,
-            ReviewProvider::Pollinations { model } => self.call_pollinations(model, prompt).await,
+            ReviewProvider::Ollama { url, model } => {
+                self.call_ollama(url, model, prompt, policy).await
+            }
+            ReviewProvider::Pollinations { model } => {
+                self.call_pollinations(model, prompt, policy).await
+            }
         }
     }
 
@@ -147,13 +194,15 @@ impl ReviewClient {
         model: &str,
         prompt: &str,
         referer: Option<&str>,
+        policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
+        let system = review_system_prompt(policy);
         let body = serde_json::json!({
             "model": model,
             "messages": [
                 {
                     "role": "system",
-                    "content": REVIEW_SYSTEM_PROMPT
+                    "content": system
                 },
                 {
                     "role": "user",
@@ -216,12 +265,13 @@ impl ReviewClient {
         api_key: &str,
         model: &str,
         prompt: &str,
+        policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             model, api_key
         );
-        let full_prompt = format!("{}\n\n{}", REVIEW_SYSTEM_PROMPT, prompt);
+        let full_prompt = format!("{}\n\n{}", review_system_prompt(policy), prompt);
         let body = serde_json::json!({
             "contents": [{ "parts": [{ "text": full_prompt }] }],
             "generationConfig": { "temperature": 0.1, "maxOutputTokens": 4096 }
@@ -262,8 +312,9 @@ impl ReviewClient {
         url: &str,
         model: &str,
         prompt: &str,
+        policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
-        let full_prompt = format!("{}\n\n{}", REVIEW_SYSTEM_PROMPT, prompt);
+        let full_prompt = format!("{}\n\n{}", review_system_prompt(policy), prompt);
         let body = serde_json::json!({
             "model": model,
             "prompt": full_prompt,
@@ -302,11 +353,13 @@ impl ReviewClient {
         &self,
         model: &str,
         prompt: &str,
+        policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
         let url = "https://text.pollinations.ai/";
+        let system = review_system_prompt(policy);
         let body = serde_json::json!({
             "messages": [
-                { "role": "system", "content": REVIEW_SYSTEM_PROMPT },
+                { "role": "system", "content": system },
                 { "role": "user", "content": prompt }
             ],
             "model": model,

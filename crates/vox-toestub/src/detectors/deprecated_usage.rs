@@ -15,6 +15,7 @@ impl Default for DeprecatedUsageDetector {
 }
 
 impl DeprecatedUsageDetector {
+    /// Builds a detector with a precompiled `@deprecated` line regex (see [`Default`] for the same).
     pub fn new() -> Self {
         Self {
             deprecated_re: Regex::new(r"^\s*@deprecated").expect("valid"),

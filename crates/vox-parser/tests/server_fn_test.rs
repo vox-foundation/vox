@@ -3,8 +3,9 @@
 #[test]
 fn parse_server_fn() {
     let source = r#"
-@server fn greet(name: str) to str:
+@server fn greet(name: str) to str {
     ret "hello"
+}
 "#;
     let tokens = vox_lexer::lex(source);
     let module = vox_parser::parser::parse(tokens).expect("should parse @server fn");
@@ -22,8 +23,9 @@ fn parse_server_fn() {
 #[test]
 fn parse_server_fn_multiple_params() {
     let source = r#"
-@server fn add(a: int, b: int) to int:
+@server fn add(a: int, b: int) to int {
     ret a + b
+}
 "#;
     let tokens = vox_lexer::lex(source);
     let module = vox_parser::parser::parse(tokens).expect("should parse");

@@ -34,7 +34,7 @@ jobs:
       - name: Install mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: 'latest'
+          mdbook-version: '0.4.40'
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.5

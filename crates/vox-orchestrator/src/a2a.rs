@@ -6,9 +6,9 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::types::{MessagePriority, ThreadId, VcsContext};
 use crate::types::AgentId;
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
+use crate::types::{MessagePriority, ThreadId, VcsContext};
 
 /// Message bus for A2A communication.
 ///
@@ -389,13 +389,25 @@ mod tests {
         let id_low = bus.next_id();
         let low_msg = A2AMessage::new(id_low, a1, Some(a2), A2AMessageType::FreeForm, "low")
             .with_priority(MessagePriority::Low);
-        bus.inboxes.entry(a2).or_default().push_back(low_msg.clone());
+        bus.inboxes
+            .entry(a2)
+            .or_default()
+            .push_back(low_msg.clone());
         bus.audit_trail.push(low_msg);
 
         let id_crit = bus.next_id();
-        let crit_msg = A2AMessage::new(id_crit, a1, Some(a2), A2AMessageType::ErrorReport, "critical!")
-            .with_priority(MessagePriority::Critical);
-        bus.inboxes.entry(a2).or_default().push_back(crit_msg.clone());
+        let crit_msg = A2AMessage::new(
+            id_crit,
+            a1,
+            Some(a2),
+            A2AMessageType::ErrorReport,
+            "critical!",
+        )
+        .with_priority(MessagePriority::Critical);
+        bus.inboxes
+            .entry(a2)
+            .or_default()
+            .push_back(crit_msg.clone());
         bus.audit_trail.push(crit_msg);
 
         let inbox = bus.inbox(a2);
@@ -425,7 +437,8 @@ mod tests {
         };
 
         bus.send_with_vcs_context(
-            a1, a2,
+            a1,
+            a2,
             A2AMessageType::ConflictDetected,
             "merge conflict on parser",
             ctx,

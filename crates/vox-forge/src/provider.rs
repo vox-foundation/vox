@@ -7,11 +7,11 @@ use async_trait::async_trait;
 
 use crate::error::ForgeError;
 use crate::types::{
-    ChangeRequest, ChangeRequestId, ChangeRequestState, ForgeRepoInfo,
-    ForgeUser, Label, Review, WebhookEvent,
+    ChangeRequest, ChangeRequestState, ForgeRepoInfo, ForgeUser, Label, NewChangeRequest, Review,
+    WebhookEvent,
 };
 
-/// A platform-agnostic interface to a Git forge (GitHub, GitLab, Gitea, Forgejo, …).
+/// A platform-agnostic interface to a Git forge (GitHub, GitLab, and similar REST APIs).
 ///
 /// Implementations must be `Send + Sync` for use across async task boundaries.
 ///
@@ -29,7 +29,7 @@ pub trait GitForgeProvider: Send + Sync {
     /// Human-readable name of this forge (e.g., "GitHub", "GitLab").
     fn name(&self) -> &str;
 
-    /// Base URL of the forge API (e.g., "https://api.github.com").
+    /// Base URL of the forge API (e.g., <https://api.github.com>).
     fn api_base_url(&self) -> &str;
 
     // ── Repository ─────────────────────────────────────────────────────────
@@ -61,11 +61,7 @@ pub trait GitForgeProvider: Send + Sync {
         &self,
         owner: &str,
         repo: &str,
-        title: &str,
-        body: &str,
-        source_branch: &str,
-        target_branch: &str,
-        draft: bool,
+        request: NewChangeRequest<'_>,
     ) -> Result<ChangeRequest, ForgeError>;
 
     /// Update an existing ChangeRequest's title and/or body.
@@ -120,11 +116,7 @@ pub trait GitForgeProvider: Send + Sync {
     ///
     /// The `event_type` is the platform-specific event header
     /// (e.g., `X-GitHub-Event`, `X-Gitlab-Event`).
-    fn parse_webhook(
-        &self,
-        event_type: &str,
-        payload: &[u8],
-    ) -> Result<WebhookEvent, ForgeError>;
+    fn parse_webhook(&self, event_type: &str, payload: &[u8]) -> Result<WebhookEvent, ForgeError>;
 
     // ── Health ─────────────────────────────────────────────────────────────
 
@@ -189,8 +181,12 @@ mod tests {
 
     #[async_trait]
     impl GitForgeProvider for NullForge {
-        fn name(&self) -> &str { "NullForge" }
-        fn api_base_url(&self) -> &str { "https://null.example.com/api" }
+        fn name(&self) -> &str {
+            "NullForge"
+        }
+        fn api_base_url(&self) -> &str {
+            "https://null.example.com/api"
+        }
 
         async fn repo_info(&self, _o: &str, _r: &str) -> Result<ForgeRepoInfo, ForgeError> {
             Err(ForgeError::Unsupported {
@@ -198,33 +194,88 @@ mod tests {
                 operation: "repo_info".into(),
             })
         }
-        async fn list_change_requests(&self, _o: &str, _r: &str, _s: Option<ChangeRequestState>, _l: u32)
-            -> Result<Vec<ChangeRequest>, ForgeError> { Ok(vec![]) }
-        async fn get_change_request(&self, _o: &str, _r: &str, _n: u64)
-            -> Result<ChangeRequest, ForgeError> {
-            Err(ForgeError::NotFound { resource: "cr".into() })
+        async fn list_change_requests(
+            &self,
+            _o: &str,
+            _r: &str,
+            _s: Option<ChangeRequestState>,
+            _l: u32,
+        ) -> Result<Vec<ChangeRequest>, ForgeError> {
+            Ok(vec![])
         }
-        async fn create_change_request(&self, _o: &str, _r: &str, _t: &str, _b: &str, _s: &str, _tg: &str, _d: bool)
-            -> Result<ChangeRequest, ForgeError> {
-            Err(ForgeError::Unsupported { forge: "NullForge".into(), operation: "create_cr".into() })
+        async fn get_change_request(
+            &self,
+            _o: &str,
+            _r: &str,
+            _n: u64,
+        ) -> Result<ChangeRequest, ForgeError> {
+            Err(ForgeError::NotFound {
+                resource: "cr".into(),
+            })
         }
-        async fn update_change_request(&self, _o: &str, _r: &str, _n: u64, _t: Option<&str>, _b: Option<&str>, _s: Option<ChangeRequestState>)
-            -> Result<ChangeRequest, ForgeError> {
-            Err(ForgeError::Unsupported { forge: "NullForge".into(), operation: "update_cr".into() })
+        async fn create_change_request(
+            &self,
+            _o: &str,
+            _r: &str,
+            _req: NewChangeRequest<'_>,
+        ) -> Result<ChangeRequest, ForgeError> {
+            Err(ForgeError::Unsupported {
+                forge: "NullForge".into(),
+                operation: "create_cr".into(),
+            })
         }
-        async fn merge_change_request(&self, _o: &str, _r: &str, _n: u64, _m: Option<&str>)
-            -> Result<String, ForgeError> {
-            Err(ForgeError::Unsupported { forge: "NullForge".into(), operation: "merge_cr".into() })
+        async fn update_change_request(
+            &self,
+            _o: &str,
+            _r: &str,
+            _n: u64,
+            _t: Option<&str>,
+            _b: Option<&str>,
+            _s: Option<ChangeRequestState>,
+        ) -> Result<ChangeRequest, ForgeError> {
+            Err(ForgeError::Unsupported {
+                forge: "NullForge".into(),
+                operation: "update_cr".into(),
+            })
         }
-        async fn list_reviews(&self, _o: &str, _r: &str, _n: u64)
-            -> Result<Vec<Review>, ForgeError> { Ok(vec![]) }
-        async fn add_labels(&self, _o: &str, _r: &str, _n: u64, _l: &[String])
-            -> Result<Vec<Label>, ForgeError> { Ok(vec![]) }
+        async fn merge_change_request(
+            &self,
+            _o: &str,
+            _r: &str,
+            _n: u64,
+            _m: Option<&str>,
+        ) -> Result<String, ForgeError> {
+            Err(ForgeError::Unsupported {
+                forge: "NullForge".into(),
+                operation: "merge_cr".into(),
+            })
+        }
+        async fn list_reviews(
+            &self,
+            _o: &str,
+            _r: &str,
+            _n: u64,
+        ) -> Result<Vec<Review>, ForgeError> {
+            Ok(vec![])
+        }
+        async fn add_labels(
+            &self,
+            _o: &str,
+            _r: &str,
+            _n: u64,
+            _l: &[String],
+        ) -> Result<Vec<Label>, ForgeError> {
+            Ok(vec![])
+        }
         async fn current_user(&self) -> Result<ForgeUser, ForgeError> {
-            Err(ForgeError::Unauthorized { reason: "no auth".into() })
+            Err(ForgeError::Unauthorized {
+                reason: "no auth".into(),
+            })
         }
         fn parse_webhook(&self, _e: &str, _p: &[u8]) -> Result<WebhookEvent, ForgeError> {
-            Ok(WebhookEvent::Unknown { event_type: "test".into() })
+            Ok(WebhookEvent::Unknown {
+                event_type: "test".into(),
+            })
         }
         async fn health_check(&self) -> Result<Option<u32>, ForgeError> {
             Ok(None)

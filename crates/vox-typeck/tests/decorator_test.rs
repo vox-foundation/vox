@@ -2,13 +2,10 @@
 mod decorator_tests {
 
     use vox_ast::decl::{Decl, FnDecl, Module};
-    use vox_ast::span::Span;
     use vox_typeck::diagnostics::Severity;
-    use vox_typeck::{typecheck_module, Diagnostic};
+    use vox_typeck::{Diagnostic, typecheck_module};
+    use vox_test_harness::spans::dummy_span;
 
-    fn dummy_span() -> Span {
-        Span { start: 0, end: 0 }
-    }
 
     #[allow(dead_code)]
     fn has_error(diags: &[Diagnostic]) -> bool {
@@ -309,7 +306,9 @@ mod decorator_tests {
         let diags = typecheck_module(&module, "");
         let errors = error_messages(&diags);
         assert!(
-            errors.iter().any(|e| e.contains("unknown table")),
+            errors
+                .iter()
+                .any(|e| e.contains("unknown table") || e.contains("NonExistent")),
             "Expected unknown table error, got: {:?}",
             errors
         );

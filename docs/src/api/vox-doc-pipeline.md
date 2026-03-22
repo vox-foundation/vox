@@ -26,11 +26,8 @@ This scans `docs/src/` for all `.md` files (excluding `SUMMARY.md` itself), sort
 
 ---
 
-## Module: `vox-doc-pipeline\src\main.rs`
+## Module: `vox-doc-pipeline/src/main.rs`
 
-`vox-doc-pipeline` - Deep Documentation Extraction Tool
-
-This tool parses the Vox codebase to generate a unified, searchable mdBook.
-It uses `syn` for robust Rust parsing and extracts doc comments from all public APIs.
+The crate currently **only** walks `docs/src/*.md`, skips `SUMMARY.md`, title-cases filenames, and writes `docs/src/SUMMARY.md` for mdBook navigation. It does **not** parse Rust with `syn` or extract rustdoc; that paragraph described a future / alternate design and is intentionally not implemented in `main.rs` yet.
 
 

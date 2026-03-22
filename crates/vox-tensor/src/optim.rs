@@ -1,12 +1,11 @@
-use burn::lr_scheduler::linear::{LinearLrScheduler, LinearLrSchedulerConfig};
-use burn::lr_scheduler::cosine::{CosineAnnealingLrScheduler, CosineAnnealingLrSchedulerConfig};
 use burn::lr_scheduler::LrScheduler as BurnLrScheduler;
-use burn::optim::{
-    AdamW as AdamWLogic, Sgd as SgdLogic, Adam as AdamLogic,
-    AdamWConfig, SgdConfig, AdamConfig,
-    GradientsParams, adaptor::OptimizerAdaptor, Optimizer
-};
+use burn::lr_scheduler::cosine::{CosineAnnealingLrScheduler, CosineAnnealingLrSchedulerConfig};
+use burn::lr_scheduler::linear::{LinearLrScheduler, LinearLrSchedulerConfig};
 use burn::module::AutodiffModule;
+use burn::optim::{
+    Adam as AdamLogic, AdamConfig, AdamW as AdamWLogic, AdamWConfig, GradientsParams, Optimizer,
+    Sgd as SgdLogic, SgdConfig, adaptor::OptimizerAdaptor,
+};
 use burn::tensor::backend::AutodiffBackend;
 use std::marker::PhantomData;
 
@@ -101,7 +100,11 @@ impl LinearWarmupScheduler {
     pub fn new(initial_lr: f64, final_lr: f64, n_steps: usize) -> Self {
         let config = LinearLrSchedulerConfig::new(initial_lr, final_lr, n_steps);
         Self {
-            inner: VoxScheduler::Linear(config.init().expect("Failed to initialize LinearLrScheduler")),
+            inner: VoxScheduler::Linear(
+                config
+                    .init()
+                    .expect("Failed to initialize LinearLrScheduler"),
+            ),
         }
     }
 
@@ -119,11 +122,31 @@ impl CosineAnnealingScheduler {
     pub fn new(initial_lr: f64, n_steps: usize) -> Self {
         let config = CosineAnnealingLrSchedulerConfig::new(initial_lr, n_steps);
         Self {
-            inner: VoxScheduler::Cosine(config.init().expect("Failed to initialize CosineAnnealingLrScheduler")),
+            inner: VoxScheduler::Cosine(
+                config
+                    .init()
+                    .expect("Failed to initialize CosineAnnealingLrScheduler"),
+            ),
         }
     }
 
     pub fn step(&mut self) -> f64 {
         self.inner.step()
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod linear_warmup_tests {
+    use super::LinearWarmupScheduler;
+
+    /// Burn `LinearLrScheduler`: `num_iters` steps from `initial_lr` to `final_lr`, then `final_lr`.
+    #[test]
+    fn linear_warmup_sequence_matches_burn_linear_scheduler() {
+        let mut s = LinearWarmupScheduler::new(0.01, 0.05, 4);
+        let expected = [0.01, 0.02, 0.03, 0.04, 0.05, 0.05];
+        for &want in &expected {
+            let got = s.step();
+            assert!((got - want).abs() < 1e-12, "lr got {got} expected {want}");
+        }
     }
 }

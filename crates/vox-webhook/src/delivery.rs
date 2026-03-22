@@ -21,6 +21,7 @@ pub struct OutboundWebhook {
 }
 
 impl OutboundWebhook {
+    /// Default retry policy: 3 attempts, 500ms base backoff.
     pub fn new(url: impl Into<String>) -> Self {
         Self {
             url: url.into(),
@@ -31,11 +32,16 @@ impl OutboundWebhook {
         }
     }
 
+    /// Signs outbound bodies with [`crate::signing::sign_payload`].
     pub fn with_secret(mut self, secret: impl Into<String>) -> Self {
         self.secret = Some(secret.into());
         self
     }
 
+    /// Adds an extra header on every retry attempt (e.g. `Authorization`, `X-Custom-Auth`).
+    ///
+    /// Duplicate keys are allowed; the HTTP client sends each pair in order. Prefer this over
+    /// mutating [`OutboundWebhook::headers`] after construction.
     pub fn with_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.headers.push((key.into(), value.into()));
         self
@@ -45,10 +51,15 @@ impl OutboundWebhook {
 /// The result of a webhook delivery attempt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookDeliveryResult {
+    /// Target URL attempted.
     pub url: String,
+    /// Whether any attempt returned HTTP 2xx.
     pub success: bool,
+    /// Last observed HTTP status, if a response was received.
     pub status_code: Option<u16>,
+    /// Number of attempts performed (≤ configured max).
     pub attempts: u32,
+    /// Transport or HTTP error summary on failure.
     pub error: Option<String>,
 }
 
@@ -58,6 +69,9 @@ pub struct WebhookDelivery {
 }
 
 impl WebhookDelivery {
+    /// Builds a delivery service using a shared `reqwest` client (10s timeout, no cookies).
+    ///
+    /// Reuse one instance across tasks: the client pools connections and is cheap to clone internally.
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
@@ -138,6 +152,7 @@ impl WebhookDelivery {
 }
 
 impl Default for WebhookDelivery {
+    /// Same as [`WebhookDelivery::new`].
     fn default() -> Self {
         Self::new()
     }

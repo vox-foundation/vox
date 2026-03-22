@@ -40,7 +40,9 @@ pub struct SchemaDigest {
 /// Information about a single database table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableInfo {
+    /// Vox `@table` name.
     pub name: String,
+    /// Declared columns / fields.
     pub fields: Vec<FieldInfo>,
     /// User-provided description (from `@describe` decorator, if present).
     pub description: Option<String>,
@@ -60,10 +62,13 @@ pub struct TableInfo {
 /// Information about a single document collection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionInfo {
+    /// Collection / table stem as declared in Vox.
     pub name: String,
+    /// Inferred or declared field shapes for LLM context.
     pub fields: Vec<FieldInfo>,
     /// User-provided description (from `@describe` decorator, if present).
     pub description: Option<String>,
+    /// Whether the collection is public API surface.
     pub is_public: bool,
     /// Sample data (first 3 rows) if populated by the context engine.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -73,6 +78,7 @@ pub struct CollectionInfo {
 /// Information about a single table field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldInfo {
+    /// Column / field name in Vox source.
     pub name: String,
     /// Human-readable type string (e.g. "str", "int", "Option[str]").
     pub type_str: String,
@@ -109,9 +115,13 @@ pub enum RelationshipKind {
 /// Information about an index.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexInfo {
+    /// Table this index is attached to.
     pub table_name: String,
+    /// Declared index name in Vox.
     pub index_name: String,
+    /// Standard, vector, or search index.
     pub kind: IndexKind,
+    /// Indexed columns or vector/search field names.
     pub columns: Vec<String>,
     /// For vector indexes: dimensionality.
     pub dimensions: Option<u32>,
@@ -122,16 +132,22 @@ pub struct IndexInfo {
 /// The kind of index.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexKind {
+    /// B-tree style on listed columns.
     Standard,
+    /// Vector / embedding index with [`IndexInfo::dimensions`].
     Vector,
+    /// Full-text or search-field index.
     Search,
 }
 
 /// Information about a query, mutation, or action function.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionInfo {
+    /// Function name in Vox source.
     pub name: String,
+    /// Formal parameters.
     pub params: Vec<ParamInfo>,
+    /// Pretty-printed return type, if any.
     pub return_type: Option<String>,
     /// Tables this function likely reads from (for queries) or writes to (for mutations).
     pub affected_tables: Vec<String>,
@@ -140,7 +156,9 @@ pub struct FunctionInfo {
 /// A function parameter.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParamInfo {
+    /// Parameter name in source.
     pub name: String,
+    /// Pretty-printed type for LLM context.
     pub type_str: String,
 }
 
@@ -154,6 +172,9 @@ pub struct ParamInfo {
 /// 1. Serialized to JSON and served via MCP tools
 /// 2. Embedded as comments in codegen output
 /// 3. Used for error enrichment
+///
+/// `vcs_snapshot_id` is copied into [`SchemaDigest::vcs_snapshot_id`] for lineage (commit SHA,
+/// export id, etc.); pass `None` when unknown.
 pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) -> SchemaDigest {
     let mut tables = Vec::new();
     let mut collections = Vec::new();
@@ -580,27 +601,6 @@ fn type_expr_to_string(ty: &TypeExpr) -> String {
             format!("({})", el_strs.join(", "))
         }
         TypeExpr::Unit { .. } => "Unit".to_string(),
-        TypeExpr::Union { variants, .. } => {
-            let v_strs: Vec<String> = variants.iter().map(type_expr_to_string).collect();
-            v_strs.join(" | ")
-        }
-        TypeExpr::Map { key, value, .. } => {
-            format!(
-                "Map[{}, {}]",
-                type_expr_to_string(key),
-                type_expr_to_string(value)
-            )
-        }
-        TypeExpr::Set { element, .. } => {
-            format!("Set[{}]", type_expr_to_string(element))
-        }
-        TypeExpr::Intersection { left, right, .. } => {
-            format!(
-                "{} & {}",
-                type_expr_to_string(left),
-                type_expr_to_string(right)
-            )
-        }
     }
 }
 
@@ -742,12 +742,9 @@ fn generate_summary(
 mod tests {
     use super::*;
     use vox_ast::decl::*;
-    use vox_ast::span::Span;
     use vox_ast::types::TypeExpr;
+    use vox_test_harness::spans::dummy_span;
 
-    fn dummy_span() -> Span {
-        Span { start: 0, end: 0 }
-    }
 
     fn make_field(name: &str, type_name: &str) -> TableField {
         TableField {
@@ -818,7 +815,7 @@ mod tests {
             span: dummy_span(),
         };
 
-        let digest = generate_schema_digest(&module);
+        let digest = generate_schema_digest(&module, None);
         assert_eq!(digest.tables.len(), 1);
         assert_eq!(digest.tables[0].name, "Task");
         assert_eq!(digest.tables[0].fields.len(), 3);
@@ -840,7 +837,7 @@ mod tests {
             span: dummy_span(),
         };
 
-        let digest = generate_schema_digest(&module);
+        let digest = generate_schema_digest(&module, None);
         assert_eq!(digest.relationships.len(), 1);
         assert_eq!(digest.relationships[0].from_table, "Task");
         assert_eq!(digest.relationships[0].from_field, "owner");
@@ -857,7 +854,7 @@ mod tests {
             span: dummy_span(),
         };
 
-        let digest = generate_schema_digest(&module);
+        let digest = generate_schema_digest(&module, None);
         let ctx = format_llm_context(&digest);
         assert!(ctx.contains("## Database Context (VoxDB)"));
         assert!(ctx.contains("**Task**"));
@@ -872,7 +869,7 @@ mod tests {
             span: dummy_span(),
         };
 
-        let digest = generate_schema_digest(&module);
+        let digest = generate_schema_digest(&module, None);
         let json = digest_to_json(&digest).unwrap();
         assert!(json.contains("\"name\": \"Note\""));
         assert!(json.contains("\"body\""));
@@ -885,7 +882,7 @@ mod tests {
             span: dummy_span(),
         };
 
-        let digest = generate_schema_digest(&module);
+        let digest = generate_schema_digest(&module, None);
         assert!(digest.tables.is_empty());
         assert_eq!(digest.summary, "No database declarations found.");
     }

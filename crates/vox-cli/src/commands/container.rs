@@ -9,14 +9,16 @@ pub async fn run(action: ContainerAction) -> Result<()> {
         ContainerAction::Init { file, out_dir, dockerfile, project_name } => {
             println!("🛠️ Initializing Python container environment...");
 
-            // 1. Parse Vox file to extract @py.import declarations
-            let source = std::fs::read_to_string(&file)
+            let source = tokio::fs::read_to_string(&file)
+                .await
                 .with_context(|| format!("Failed to read source file: {}", file.display()))?;
             let tokens = vox_lexer::cursor::lex(&source);
             let module = vox_parser::parser::parse(tokens)
                 .map_err(|e| anyhow::anyhow!("Parse errors in {}: {:?}", file.display(), e))?;
 
-            let py_imports: Vec<String> = module.declarations.iter()
+            let py_imports: Vec<String> = module
+                .declarations
+                .iter()
                 .filter_map(|d| match d {
                     Decl::PyImport(p) => Some(p.module.clone()),
                     _ => None,
@@ -24,11 +26,13 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 .collect();
 
             if py_imports.is_empty() {
-                println!("ℹ️ No @py.import declarations found in {}. Nothing to do.", file.display());
+                println!(
+                    "ℹ️ No @py.import declarations found in {}. Nothing to do.",
+                    file.display()
+                );
                 return Ok(());
             }
 
-            // 2. Determine project name
             let name = project_name.unwrap_or_else(|| {
                 file.file_stem()
                     .and_then(|s| s.to_str())
@@ -36,7 +40,6 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                     .to_string()
             });
 
-            // 3. Run setup
             let opts = PySetupOpts {
                 project_name: name,
                 py_imports,
@@ -44,41 +47,48 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 out_dir: out_dir.unwrap_or_else(|| PathBuf::from(".")),
             };
 
-            // run_py_setup is sync, so wrap it if needed, but here we can just call it
-            run_py_setup(&opts).context("Python container setup failed")?;
+            tokio::task::spawn_blocking(move || run_py_setup(&opts))
+                .await
+                .map_err(|e| anyhow::anyhow!("run_py_setup task: {e}"))?
+                .context("Python container setup failed")?;
         }
         ContainerAction::Build { tag, runtime } => {
             let tag = tag.unwrap_or_else(|| "vox-app:latest".to_string());
             println!("📦 Building container image: {}", tag);
 
-            let pref = runtime.unwrap_or_else(|| "auto".to_string())
+            let pref = runtime
+                .unwrap_or_else(|| "auto".to_string())
                 .parse::<vox_container::detect::RuntimePreference>()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-            let rt = vox_container::detect_runtime(pref).context(
-                "No container runtime available. Install Docker or Podman.",
-            )?;
-
+            let cwd = std::env::current_dir()?;
             let opts = vox_container::BuildOpts {
-                context_dir: std::env::current_dir()?,
+                context_dir: cwd,
                 dockerfile: None,
                 tag,
                 build_args: vec![],
             };
-            rt.build(&opts).context("Container build failed")?;
+
+            tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                let rt = vox_container::detect_runtime(pref).context(
+                    "No container runtime available. Install Docker or Podman.",
+                )?;
+                let _ = rt.build(&opts).context("Container build failed")?;
+                Ok(())
+            })
+            .await
+            .map_err(|e| anyhow::anyhow!("container build task: {e}"))??;
+
             println!("✓ Image built successfully.");
         }
         ContainerAction::Run { image, port, runtime } => {
             let image = image.unwrap_or_else(|| "vox-app:latest".to_string());
             println!("🚀 Running container image: {}", image);
 
-            let pref = runtime.unwrap_or_else(|| "auto".to_string())
+            let pref = runtime
+                .unwrap_or_else(|| "auto".to_string())
                 .parse::<vox_container::detect::RuntimePreference>()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-            let rt = vox_container::detect_runtime(pref).context(
-                "No container runtime available. Install Docker or Podman.",
-            )?;
 
             let opts = vox_container::RunOpts {
                 image,
@@ -89,7 +99,16 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 name: None,
                 rm: true,
             };
-            rt.run(&opts).context("Container run failed")?;
+
+            tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                let rt = vox_container::detect_runtime(pref).context(
+                    "No container runtime available. Install Docker or Podman.",
+                )?;
+                rt.run(&opts).context("Container run failed")?;
+                Ok(())
+            })
+            .await
+            .map_err(|e| anyhow::anyhow!("container run task: {e}"))??;
         }
     }
     Ok(())

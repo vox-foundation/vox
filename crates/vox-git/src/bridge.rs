@@ -6,6 +6,7 @@
 //! All Git I/O uses `gix` (pure Rust). All platform API calls
 //! (PRs, webhooks, CI triggers) go through `vox-forge`.
 
+use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -14,6 +15,92 @@ use serde::{Deserialize, Serialize};
 use crate::object::ObjectId;
 use crate::refs::RefName;
 use crate::sync::{SyncStatus, SyncStatusRef};
+
+/// Upper bound on commits visited when computing ahead/behind (guards pathological DAGs / shallow gaps).
+const SYNC_STATUS_GRAPH_CAP: usize = 250_000;
+
+fn gix_ahead_behind(
+    repo: &gix::Repository,
+    local_hex: &str,
+    remote_hex: &str,
+) -> Result<(u32, u32)> {
+    if local_hex == remote_hex {
+        return Ok((0, 0));
+    }
+    let local_oid = gix::hash::ObjectId::from_hex(local_hex.as_bytes())
+        .map_err(|e| anyhow::anyhow!("invalid local commit id: {e}"))?;
+    let remote_oid = gix::hash::ObjectId::from_hex(remote_hex.as_bytes())
+        .map_err(|e| anyhow::anyhow!("invalid remote commit id: {e}"))?;
+    repo.find_commit(local_oid)
+        .context("local ref: missing object or not a commit")?;
+    repo.find_commit(remote_oid)
+        .context("remote ref: missing object or not a commit")?;
+    let base_id = repo
+        .merge_base(local_oid, remote_oid)
+        .context("merge-base failed (unrelated histories, shallow clone, or corrupt object db)")?;
+    let barrier = ancestor_object_ids(repo, base_id, SYNC_STATUS_GRAPH_CAP)?;
+    let ahead = commits_reachable_avoiding_set(repo, local_oid, &barrier, SYNC_STATUS_GRAPH_CAP)?;
+    let behind = commits_reachable_avoiding_set(repo, remote_oid, &barrier, SYNC_STATUS_GRAPH_CAP)?;
+    Ok((ahead, behind))
+}
+
+/// All ancestors of `base` (including `base`), as detached [`gix::hash::ObjectId`]s.
+fn ancestor_object_ids(
+    repo: &gix::Repository,
+    base: gix::Id<'_>,
+    cap: usize,
+) -> Result<HashSet<gix::hash::ObjectId>> {
+    let mut set = HashSet::new();
+    let mut deque = VecDeque::new();
+    deque.push_back(base.detach());
+    while let Some(oid) = deque.pop_front() {
+        if !set.insert(oid) {
+            continue;
+        }
+        if set.len() > cap {
+            anyhow::bail!("ancestor walk exceeded {cap} commits");
+        }
+        let Ok(commit) = repo.find_commit(oid) else {
+            continue;
+        };
+        for p in commit.parent_ids() {
+            deque.push_back(p.detach());
+        }
+    }
+    Ok(set)
+}
+
+/// Count commits reachable from `tip` without crossing into `barrier` (typically ancestors of the merge-base).
+fn commits_reachable_avoiding_set(
+    repo: &gix::Repository,
+    tip: gix::hash::ObjectId,
+    barrier: &HashSet<gix::hash::ObjectId>,
+    cap: usize,
+) -> Result<u32> {
+    let mut visited = HashSet::new();
+    let mut deque = VecDeque::new();
+    deque.push_back(tip);
+    let mut count = 0u32;
+    while let Some(oid) = deque.pop_front() {
+        if barrier.contains(&oid) {
+            continue;
+        }
+        if !visited.insert(oid) {
+            continue;
+        }
+        if visited.len() > cap {
+            anyhow::bail!("reachable walk exceeded {cap} commits");
+        }
+        count += 1;
+        let Ok(commit) = repo.find_commit(oid) else {
+            continue;
+        };
+        for p in commit.parent_ids() {
+            deque.push_back(p.detach());
+        }
+    }
+    Ok(count)
+}
 
 /// Configuration for a `GitBridge` instance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,20 +188,20 @@ impl GitBridge {
         if !head_file.exists() {
             return Ok(None);
         }
-        let content = std::fs::read_to_string(&head_file)
-            .context("Failed to read HEAD")?;
+        let content = std::fs::read_to_string(&head_file).context("Failed to read HEAD")?;
         let content = content.trim();
 
         if let Some(branch) = content.strip_prefix("ref: ") {
             // Symbolic ref — resolve it.
-            let ref_path = self.config.repo_path.join(".git").join(
-                branch.replace('/', std::path::MAIN_SEPARATOR_STR),
-            );
+            let ref_path = self
+                .config
+                .repo_path
+                .join(".git")
+                .join(branch.replace('/', std::path::MAIN_SEPARATOR_STR));
             if !ref_path.exists() {
                 return Ok(None); // unborn branch
             }
-            let sha = std::fs::read_to_string(&ref_path)
-                .context("Failed to read branch ref")?;
+            let sha = std::fs::read_to_string(&ref_path).context("Failed to read branch ref")?;
             Ok(ObjectId::parse(sha.trim().to_string()))
         } else {
             // Detached HEAD — content is the SHA directly.
@@ -124,7 +211,12 @@ impl GitBridge {
 
     /// List local branch names.
     pub fn local_branches(&self) -> Result<Vec<RefName>> {
-        let heads_dir = self.config.repo_path.join(".git").join("refs").join("heads");
+        let heads_dir = self
+            .config
+            .repo_path
+            .join(".git")
+            .join("refs")
+            .join("heads");
         if !heads_dir.exists() {
             return Ok(vec![]);
         }
@@ -141,6 +233,7 @@ impl GitBridge {
     pub fn sync_status(&self) -> Result<SyncStatus> {
         let head = self.head_commit_id()?;
         let branches = self.local_branches()?;
+        let gix_repo = gix::open(&self.config.repo_path).ok();
 
         let mut ref_diffs = vec![];
         for branch in &branches {
@@ -149,12 +242,29 @@ impl GitBridge {
                 let local_sha = self.read_ref(branch)?;
                 let remote_sha = self.read_ref(&remote_ref).ok().flatten();
 
+                let (ahead, behind) =
+                    if let (Some(repo), Some(l), Some(r)) = (&gix_repo, &local_sha, &remote_sha) {
+                        match gix_ahead_behind(repo, l.as_str(), r.as_str()) {
+                            Ok(pair) => pair,
+                            Err(e) => {
+                                tracing::debug!(
+                                    error = %e,
+                                    branch = branch_name,
+                                    "ahead/behind skipped; refs or object db incomplete"
+                                );
+                                (0, 0)
+                            }
+                        }
+                    } else {
+                        (0, 0)
+                    };
+
                 ref_diffs.push(SyncStatusRef {
                     ref_name: branch.as_str().to_string(),
                     local_id: local_sha.map(|id| id.0),
                     remote_id: remote_sha.map(|id| id.0),
-                    ahead: 0,   // TODO: compute via dag_walk
-                    behind: 0,  // TODO: compute via dag_walk
+                    ahead,
+                    behind,
                 });
             }
         }
@@ -170,9 +280,11 @@ impl GitBridge {
 
     /// Read a ref to its target commit ID.
     pub fn read_ref(&self, ref_name: &RefName) -> Result<Option<ObjectId>> {
-        let ref_path = self.config.repo_path
-            .join(".git")
-            .join(ref_name.as_str().replace('/', std::path::MAIN_SEPARATOR_STR));
+        let ref_path = self.config.repo_path.join(".git").join(
+            ref_name
+                .as_str()
+                .replace('/', std::path::MAIN_SEPARATOR_STR),
+        );
         if !ref_path.exists() {
             return Ok(None);
         }
@@ -184,8 +296,7 @@ impl GitBridge {
     /// Get the URL of the configured remote.
     pub fn remote_url(&self) -> Result<String> {
         let config_path = self.config.repo_path.join(".git").join("config");
-        let content = std::fs::read_to_string(&config_path)
-            .unwrap_or_default();
+        let content = std::fs::read_to_string(&config_path).unwrap_or_default();
 
         // Simple parse — find [remote "origin"] section and its url.
         let remote_header = format!("[remote \"{}\"]", self.config.remote_name);
@@ -232,7 +343,11 @@ mod tests {
             "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3\n",
         )
         .unwrap();
-        fs::write(dir.join(".git/config"), "[remote \"origin\"]\n\turl = https://github.com/org/repo.git\n").unwrap();
+        fs::write(
+            dir.join(".git/config"),
+            "[remote \"origin\"]\n\turl = https://github.com/org/repo.git\n",
+        )
+        .unwrap();
     }
 
     #[test]
@@ -257,10 +372,7 @@ mod tests {
         let bridge = GitBridge::open(dir.path()).unwrap();
         let head = bridge.head_commit_id().unwrap();
         assert!(head.is_some());
-        assert_eq!(
-            head.unwrap().short(),
-            "a94a8fe"
-        );
+        assert_eq!(head.unwrap().short(), "a94a8fe");
     }
 
     #[test]
@@ -282,5 +394,17 @@ mod tests {
             bridge.remote_url().unwrap(),
             "https://github.com/org/repo.git"
         );
+    }
+
+    #[test]
+    fn sync_status_graceful_without_object_database() {
+        let dir = tempfile::tempdir().unwrap();
+        make_fake_repo(dir.path());
+        let bridge = GitBridge::open(dir.path()).unwrap();
+        let st = bridge.sync_status().expect("sync_status");
+        assert_eq!(st.ref_diffs.len(), 1);
+        assert_eq!(st.ref_diffs[0].ref_name, "refs/heads/main");
+        assert_eq!(st.ref_diffs[0].ahead, 0);
+        assert_eq!(st.ref_diffs[0].behind, 0);
     }
 }

@@ -240,6 +240,7 @@ mod tests {
             mutations: Vec::new(),
             actions: Vec::new(),
             summary: String::new(),
+            vcs_snapshot_id: None,
         }
     }
 

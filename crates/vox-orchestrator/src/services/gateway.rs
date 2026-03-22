@@ -71,4 +71,57 @@ impl MessageGateway {
     pub fn publish_agent_retired(event_bus: &EventBus, agent_id: AgentId) {
         event_bus.emit(AgentEventKind::AgentRetired { agent_id });
     }
+
+    /// Publish Q&A or broadcast [`AgentMessage`] to the bulletin and mirror a short summary on the event bus.
+    pub fn publish_bulletin_inter_agent(
+        bulletin: &mut BulletinBoard,
+        event_bus: &EventBus,
+        msg: AgentMessage,
+    ) {
+        let preview = match &msg {
+            AgentMessage::Question {
+                from,
+                to,
+                question,
+                correlation_id,
+            } => Some((
+                *from,
+                Some(*to),
+                format!(
+                    "Q[{}]: {}",
+                    correlation_id,
+                    question.chars().take(100).collect::<String>()
+                ),
+            )),
+            AgentMessage::Answer {
+                from,
+                to,
+                answer,
+                correlation_id,
+            } => Some((
+                *from,
+                Some(*to),
+                format!(
+                    "A[{}]: {}",
+                    correlation_id,
+                    answer.chars().take(100).collect::<String>()
+                ),
+            )),
+            AgentMessage::Broadcast { from, message } => Some((
+                *from,
+                None,
+                format!(
+                    "Broadcast: {}",
+                    message.chars().take(100).collect::<String>()
+                ),
+            )),
+            _ => None,
+        };
+
+        bulletin.publish(msg);
+
+        if let Some((from, to, summary)) = preview {
+            event_bus.emit(AgentEventKind::MessageSent { from, to, summary });
+        }
+    }
 }

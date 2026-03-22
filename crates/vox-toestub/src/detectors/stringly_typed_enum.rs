@@ -22,15 +22,14 @@ impl Default for StringlyTypedEnumDetector {
 }
 
 impl StringlyTypedEnumDetector {
+    /// Compiles the `String`/`str` + comment-with-`|` pattern used for Vox-focused detection.
     pub fn new() -> Self {
         Self {
             // Matches lines like:  `field: String  // "x" | "y"` or `field: str  # "x" | "y"`
             // The key signal is a String/str type annotation followed by a comment containing
             // quoted alternatives separated by `|`.
-            pattern: Regex::new(
-                r#":\s*(?:String|str)\s*,?\s*(?://|#)\s*"[^"]+"\s*\|"#,
-            )
-            .expect("valid stringly-typed enum regex"),
+            pattern: Regex::new(r#":\s*(?:String|str)\s*,?\s*(?://|#)\s*"[^"]+"\s*\|"#)
+                .expect("valid stringly-typed enum regex"),
         }
     }
 }
@@ -49,7 +48,12 @@ impl DetectionRule for StringlyTypedEnumDetector {
         Severity::Warning
     }
     fn languages(&self) -> &[Language] {
-        &[Language::Vox, Language::Rust, Language::TypeScript, Language::Python]
+        &[
+            Language::Vox,
+            Language::Rust,
+            Language::TypeScript,
+            Language::Python,
+        ]
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Finding> {
@@ -60,12 +64,7 @@ impl DetectionRule for StringlyTypedEnumDetector {
 
             if self.pattern.is_match(line) {
                 // Extract the field name for a better message
-                let field_name = line
-                    .trim()
-                    .split(':')
-                    .next()
-                    .unwrap_or("field")
-                    .trim();
+                let field_name = line.trim().split(':').next().unwrap_or("field").trim();
 
                 findings.push(Finding {
                     rule_id: "stringly-typed-enum".to_string(),

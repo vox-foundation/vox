@@ -1,25 +1,15 @@
-use anyhow::{Context, Result};
+//! `vox fmt` — **not implemented** in the shipped binary. `vox-fmt` is out of sync with the current AST.
+
+use anyhow::{bail, Context, Result};
 use std::{fs, path};
 
-pub fn run(file: &path::Path, check: bool) -> Result<()> {
-    let source = fs::read_to_string(file)
+/// Read `file` and validate paths; formatting is not applied until `vox-fmt` is rewired.
+pub fn run(file: &path::Path, _check: bool) -> Result<()> {
+    let _source = fs::read_to_string(file)
         .with_context(|| format!("Failed to read source file: {}", file.display()))?;
 
-    let formatted = vox_fmt::format(&source);
-
-    if source != formatted {
-        if check {
-            println!("Diff for {}:", file.display());
-            // ... diff logic remains similar or simplified ...
-            anyhow::bail!("{} is unformatted", file.display());
-        }
-
-        fs::write(file, &formatted)
-            .with_context(|| format!("Failed to write formatted file: {}", file.display()))?;
-        println!("Formatted {}", file.display());
-    } else {
-        println!("{} is already formatted", file.display());
-    }
-
-    Ok(())
+    bail!(
+        "`vox fmt` is not wired to the current AST (the `vox-fmt` crate is behind the parser). \
+See docs/src/ref-cli.md (Formatter / `vox fmt`)."
+    );
 }

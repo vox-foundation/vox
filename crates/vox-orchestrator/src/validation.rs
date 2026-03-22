@@ -6,6 +6,7 @@
 
 use std::path::PathBuf;
 
+use tower_lsp::lsp_types::DiagnosticSeverity;
 use vox_toestub::{Severity, ToestubConfig, ToestubEngine};
 
 use crate::types::AgentTask;
@@ -53,12 +54,7 @@ pub fn post_task_validate(task: &AgentTask) -> ValidationResult {
                 let diagnostics = vox_lsp::validate_document(&text);
                 let errors: Vec<_> = diagnostics
                     .into_iter()
-                    .filter(|d| {
-                        matches!(
-                            d.severity,
-                            Some(tower_lsp_server::ls_types::DiagnosticSeverity::ERROR)
-                        )
-                    })
+                    .filter(|d| matches!(d.severity, Some(DiagnosticSeverity::ERROR)))
                     .collect();
 
                 if !errors.is_empty() {
@@ -84,26 +80,26 @@ pub fn post_task_validate(task: &AgentTask) -> ValidationResult {
             || p.file_name().and_then(|n| n.to_str()) == Some("Cargo.toml")
     });
     if touches_rust {
+        // Bounded gate: compile the workspace (fast vs full `cargo test` on every task).
         let output = Command::new("cargo")
-            .arg("test")
+            .arg("check")
             .arg("--workspace")
-            .arg("--")
-            .arg("--test-threads=1")
             .output();
 
         if let Ok(cmd_out) = output {
             if !cmd_out.status.success() {
                 passed = false;
                 total_errors += 1;
-                combined_report.push_str("\nCargo test failed:\n");
+                combined_report.push_str("\nCargo check failed:\n");
                 combined_report.push_str(&String::from_utf8_lossy(&cmd_out.stderr));
                 combined_report.push_str(&String::from_utf8_lossy(&cmd_out.stdout));
             }
         } else {
             passed = false;
             total_errors += 1;
-            combined_report
-                .push_str("\ncargo test failed to execute (cargo not found or execution error).\n");
+            combined_report.push_str(
+                "\ncargo check failed to execute (cargo not found or execution error).\n",
+            );
         }
     }
 

@@ -25,3 +25,7 @@ semver       = "1"
 default = []
 # Enable the Vox Skills registry bridge (makes HTTP calls to the registry)
 skills-registry = []
+
+[lints]
+workspace = true
+

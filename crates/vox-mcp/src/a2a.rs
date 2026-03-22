@@ -10,35 +10,52 @@ use vox_orchestrator::types::{A2AMessageType, AgentId};
 // Parameters
 // ---------------------------------------------------------------------------
 
+/// MCP tool arguments: point-to-point message on the orchestrator A2A bus.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct A2ASendParams {
+    /// Numeric id of the sending agent.
     pub sender_id: u64,
+    /// Numeric id of the receiving agent.
     pub receiver_id: u64,
+    /// Logical type string (e.g. `plan_handoff`, `scope_request`); unknown values become `FreeForm`.
     pub msg_type: String,
+    /// Opaque UTF-8 payload stored in the message record.
     pub payload: String,
 }
 
+/// MCP tool arguments: fetch unacknowledged inbox entries for one agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct A2AInboxParams {
+    /// Agent whose inbox is read.
     pub agent_id: u64,
 }
 
+/// MCP tool arguments: mark one inbox message as read/processed.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct A2AAckParams {
+    /// Agent holding the inbox entry.
     pub agent_id: u64,
+    /// Message id returned by send/broadcast tools.
     pub message_id: u64,
 }
 
+/// MCP tool arguments: fan-out to every agent except the sender.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct A2ABroadcastParams {
+    /// Originating agent (excluded from delivery list).
     pub sender_id: u64,
+    /// Same semantics as [`A2ASendParams::msg_type`].
     pub msg_type: String,
+    /// Broadcast payload bytes as UTF-8 text.
     pub payload: String,
 }
 
+/// MCP tool arguments: audit trail query (`since_ms` filters by wall-clock ms; `limit` caps rows).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct A2AHistoryParams {
+    /// Only messages at or after this epoch milliseconds (inclusive).
     pub since_ms: Option<u64>,
+    /// Maximum rows to return (default applied in handler when `None`).
     pub limit: Option<usize>,
 }
 
@@ -46,14 +63,22 @@ pub struct A2AHistoryParams {
 // Response types
 // ---------------------------------------------------------------------------
 
+/// JSON row returned in inbox/history tool responses (mirrors orchestrator message bus records).
 #[derive(Debug, Serialize)]
 pub struct A2AMessageInfo {
+    /// Stable message id in the bus.
     pub id: u64,
+    /// Sender agent id.
     pub sender: u64,
+    /// `None` for broadcast-style entries without a single receiver.
     pub receiver: Option<u64>,
+    /// Resolved type name for the payload.
     pub msg_type: String,
+    /// Raw message body.
     pub payload: String,
+    /// Creation time in epoch milliseconds.
     pub timestamp_ms: u64,
+    /// Whether the receiver has acked this message.
     pub acknowledged: bool,
 }
 

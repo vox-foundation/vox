@@ -52,6 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    vox_mcp::mesh_startup::publish_mesh_on_mcp_start(&state).await;
+
     let server = VoxMcpServer::new(state);
     info!("server state initialized, starting stdio transport...");
 
@@ -75,30 +77,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Load orchestrator configuration with the following precedence:
-/// 1. `Vox.toml` in the current directory
-/// 2. `VOX_ORCHESTRATOR_*` environment variables
+/// 1. Nearest `Vox.toml` (manifest root), then CWD `Vox.toml` — each merges `[orchestrator]` + `[mesh]`
+/// 2. `VOX_ORCHESTRATOR_*` / `VOX_MESH_*` environment variables (see mesh SSOT)
 /// 3. Defaults
 fn load_config() -> OrchestratorConfig {
-    let toml_path = PathBuf::from("Vox.toml");
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let mut candidates = Vec::new();
+    if let Some(root) = vox_repository::find_project_manifest_root(&cwd) {
+        candidates.push(root.join("Vox.toml"));
+    }
+    candidates.push(PathBuf::from("Vox.toml"));
 
-    let mut config = if toml_path.exists() {
-        match OrchestratorConfig::load_from_toml(&toml_path) {
-            Ok(cfg) => {
-                info!("loaded config from Vox.toml");
-                cfg
-            }
-            Err(e) => {
-                tracing::warn!("failed to load Vox.toml: {e}, using defaults");
-                OrchestratorConfig::default()
+    let mut config = OrchestratorConfig::default();
+    let mut loaded = false;
+    for toml_path in candidates {
+        if toml_path.is_file() {
+            match OrchestratorConfig::load_from_toml(&toml_path) {
+                Ok(cfg) => {
+                    info!(path = %toml_path.display(), "loaded orchestrator config from Vox.toml");
+                    config = cfg;
+                    loaded = true;
+                    break;
+                }
+                Err(e) => tracing::warn!(
+                    path = %toml_path.display(),
+                    "failed to load Vox.toml: {e}, trying next candidate"
+                ),
             }
         }
-    } else {
-        info!("no Vox.toml found, using defaults");
-        OrchestratorConfig::default()
-    };
+    }
+    if !loaded {
+        info!("no readable Vox.toml found, using defaults");
+    }
 
-    // Apply environment variable overrides
     config.merge_env_overrides();
-
     config
 }

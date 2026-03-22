@@ -1,15 +1,31 @@
 //! Git integration tool handlers for the Vox MCP server.
 //!
 //! Covers: log, diff, status, blame.
+//!
+//! Uses [`tokio::process::Command`] so the async MCP dispatcher does not block the runtime
+//! while waiting on `git` subprocess I/O.
+
+use std::path::PathBuf;
 
 use crate::params::ToolResult;
+use crate::server::ServerState;
+
+fn git_cwd(state: &ServerState) -> PathBuf {
+    state
+        .repository
+        .git_root
+        .clone()
+        .unwrap_or_else(|| state.repository.root.clone())
+}
 
 /// Run `git log` to show recent commits.
-pub fn git_log(max_commits: Option<usize>) -> String {
+pub async fn git_log(state: &ServerState, max_commits: Option<usize>) -> String {
     let n = max_commits.unwrap_or(10).to_string();
-    let output = std::process::Command::new("git")
+    let output = tokio::process::Command::new("git")
+        .current_dir(git_cwd(state))
         .args(["log", "--oneline", "-n", &n])
-        .output();
+        .output()
+        .await;
 
     match output {
         Ok(o) => {
@@ -21,14 +37,15 @@ pub fn git_log(max_commits: Option<usize>) -> String {
 }
 
 /// Run `git diff` for a file or the whole working tree.
-pub fn git_diff(path: Option<&str>) -> String {
-    let mut cmd = std::process::Command::new("git");
+pub async fn git_diff(state: &ServerState, path: Option<&str>) -> String {
+    let mut cmd = tokio::process::Command::new("git");
+    cmd.current_dir(git_cwd(state));
     cmd.arg("diff");
     if let Some(p) = path {
         cmd.arg(p);
     }
 
-    match cmd.output() {
+    match cmd.output().await {
         Ok(o) => {
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             ToolResult::ok(text).to_json()
@@ -38,10 +55,12 @@ pub fn git_diff(path: Option<&str>) -> String {
 }
 
 /// Run `git status` to see working tree status.
-pub fn git_status() -> String {
-    let output = std::process::Command::new("git")
+pub async fn git_status(state: &ServerState) -> String {
+    let output = tokio::process::Command::new("git")
+        .current_dir(git_cwd(state))
         .args(["status", "--short"])
-        .output();
+        .output()
+        .await;
 
     match output {
         Ok(o) => {
@@ -53,10 +72,12 @@ pub fn git_status() -> String {
 }
 
 /// Run `git blame` for a specific file.
-pub fn git_blame(path: &str) -> String {
-    let output = std::process::Command::new("git")
+pub async fn git_blame(state: &ServerState, path: &str) -> String {
+    let output = tokio::process::Command::new("git")
+        .current_dir(git_cwd(state))
         .args(["blame", path])
-        .output();
+        .output()
+        .await;
 
     match output {
         Ok(o) => {

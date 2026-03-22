@@ -1,3 +1,5 @@
+//! Tests for model cost preference and orchestrator economy routing.
+
 use vox_orchestrator::config::{CostPreference, OrchestratorConfig};
 use vox_orchestrator::models::ModelSpec;
 use vox_orchestrator::orchestrator::Orchestrator;
@@ -44,7 +46,7 @@ async fn test_economy_preference_rebalancing() {
 
     // Re-setup: put many tasks on expensive, 0 on cheap
     let expensive_id = orch.spawn_agent("expensive").unwrap(); // id might change if gen increments
-                                                               // Actually, I'll just use the IDs I have.
+    // Actually, I'll just use the IDs I have.
 
     // Manually populate queues for the test
     let task = vox_orchestrator::types::AgentTask::new(
@@ -68,7 +70,7 @@ async fn test_economy_preference_rebalancing() {
     // Cheap agent should have taken tasks
     let cheap_queue = orch.agent_queue(cheap_id).unwrap();
     assert!(
-        cheap_queue.len() > 0,
+        !cheap_queue.is_empty(),
         "Cheap agent should have stolen tasks"
     );
 }

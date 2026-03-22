@@ -15,6 +15,7 @@ pub struct EmptyBodyDetector {
 }
 
 impl EmptyBodyDetector {
+    /// Same as [`Default`]: compiles regexes for empty Rust/TS/Python bodies and empty `impl` blocks.
     pub fn new() -> Self {
         Self::default()
     }
@@ -52,22 +53,22 @@ impl EmptyBodyDetector {
                 // Check for multi-line empty body
                 else if trimmed.ends_with('{') || line.contains('{') {
                     // Find the closing brace
-                    if let Some(body_range) = self.find_brace_body(file, i) {
-                        if body_range.0 <= body_range.1 {
-                            let body_content: String = file.lines[body_range.0..body_range.1]
-                                .iter()
-                                .map(|l| l.trim())
-                                .filter(|l| !l.is_empty() && *l != "{" && *l != "}")
-                                .collect::<Vec<_>>()
-                                .join("");
+                    if let Some(body_range) = self.find_brace_body(file, i)
+                        && body_range.0 <= body_range.1
+                    {
+                        let body_content: String = file.lines[body_range.0..body_range.1]
+                            .iter()
+                            .map(|l| l.trim())
+                            .filter(|l| !l.is_empty() && *l != "{" && *l != "}")
+                            .collect::<Vec<_>>()
+                            .join("");
 
-                            if body_content.is_empty() && !trimmed.contains("main()") {
-                                findings.push(self.make_finding(
-                                    file,
-                                    i + 1,
-                                    "Function has an empty body",
-                                ));
-                            }
+                        if body_content.is_empty() && !trimmed.contains("main()") {
+                            findings.push(self.make_finding(
+                                file,
+                                i + 1,
+                                "Function has an empty body",
+                            ));
                         }
                     }
                 }
@@ -78,19 +79,24 @@ impl EmptyBodyDetector {
         // Detect empty impl blocks: `impl Trait for Type {}`
         for (idx, line) in file.lines.iter().enumerate() {
             let trimmed = line.trim();
-            if self.rust_empty_impl.is_match(trimmed) && (trimmed.ends_with("{}") || trimmed.ends_with("{ }")) {
+            if self.rust_empty_impl.is_match(trimmed)
+                && (trimmed.ends_with("{}") || trimmed.ends_with("{ }"))
+            {
                 findings.push(self.make_finding(file, idx + 1, "Implementation block is empty"));
-            } else if self.rust_empty_impl.is_match(trimmed) && trimmed.ends_with('{') {
-                if let Some(body_range) = self.find_brace_body(file, idx) {
-                    let has_content = file.lines[body_range.0..body_range.1]
-                        .iter()
-                        .any(|l| {
-                            let t = l.trim();
-                            !t.is_empty() && t != "{" && t != "}" && !t.starts_with("//")
-                        });
-                    if !has_content {
-                        findings.push(self.make_finding(file, idx + 1, "Implementation block is empty"));
-                    }
+            } else if self.rust_empty_impl.is_match(trimmed)
+                && trimmed.ends_with('{')
+                && let Some(body_range) = self.find_brace_body(file, idx)
+            {
+                let has_content = file.lines[body_range.0..body_range.1].iter().any(|l| {
+                    let t = l.trim();
+                    !t.is_empty() && t != "{" && t != "}" && !t.starts_with("//")
+                });
+                if !has_content {
+                    findings.push(self.make_finding(
+                        file,
+                        idx + 1,
+                        "Implementation block is empty",
+                    ));
                 }
             }
         }
@@ -229,7 +235,11 @@ mod tests {
         let f = source("rs", "impl Default for MyStruct {}");
         let findings = d.detect(&f);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].message.contains("Implementation block is empty"));
+        assert!(
+            findings[0]
+                .message
+                .contains("Implementation block is empty")
+        );
     }
 
     #[test]

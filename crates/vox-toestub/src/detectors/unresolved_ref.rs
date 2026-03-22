@@ -19,6 +19,7 @@ impl Default for UnresolvedRefDetector {
 }
 
 impl UnresolvedRefDetector {
+    /// Sets up single-file call vs `fn` definition regexes (stdlib names filtered in `is_well_known_fn`).
     pub fn new() -> Self {
         Self {
             rust_fn_call: Regex::new(r"\b([a-z_]\w*)\s*\(").expect("valid regex"),

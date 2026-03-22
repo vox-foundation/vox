@@ -54,9 +54,18 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Usage**: `@component fn MyUI() to Element`
 
 ### `@v0`
-- **Goal**: Hints that a component should be optimized for generative UI.
-- **Effect**: Injects additional metadata for AI layout engines.
-- **Usage**: `@v0 @component fn AIDashboard()`
+- **Goal**: AI-generated React component via v0.dev (`V0_API_KEY`).
+- **Effect**: `vox build` fetches or stubs `.tsx`; output is normalized to a **named** `export function Name` so **`routes:`** / **TanStack Router** can `import { Name } from "./Name.tsx"` (same rule for **`islands/`** v0 output).
+- **Usage**: `@v0 "prompt" fn Dashboard() to Element` or `@v0 from "design.png" fn Dashboard() to Element`
+
+### `@island`
+- **Goal**: Declare a **React island** implemented under repo-root **`islands/`** (TSX), separate from the main Vite app.
+- **Effect**: Parser emits `Decl::Island`; `vox-codegen-ts` writes `vox-islands-meta.ts` with declared names. `vox run` / bundle builds **`island-mount.js`**, which hydrates DOM nodes with **`data-vox-island="Name"`** (optional props via **`data-prop-*`** attributes).
+- **Usage**:
+  ```vox
+  @island Counter:
+    initial?: int
+  ```
 
 ## Testing & Tooling
 

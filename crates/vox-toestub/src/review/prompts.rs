@@ -1,7 +1,15 @@
 use crate::rules::{Finding, Language, SourceFile};
+use vox_socrates_policy::ConfidencePolicy;
 
-pub const REVIEW_SYSTEM_PROMPT: &str =
-    "You are an expert senior code reviewer specializing in safe, high-performance systems programming in Rust, TypeScript, Python, GDScript, \
+/// System message prepended to every review request: Vox idioms, safety rules, and output contract for the model.
+///
+/// Thresholds for "high confidence" reporting are taken from `policy` so prompts stay aligned with
+/// [`ConfidencePolicy::min_prompt_report_confidence`] and downstream filters.
+#[must_use]
+pub fn review_system_prompt(policy: &ConfidencePolicy) -> String {
+    let min_pct = policy.min_prompt_report_confidence;
+    format!(
+        "You are an expert senior code reviewer specializing in safe, high-performance systems programming in Rust, TypeScript, Python, GDScript, \
      and the Vox AI-native programming language. \
      \n\n### VOX LANGUAGE IDIOMS & RULES:\
      \n1. SAFETY FIRST: .unwrap() is strictly forbidden in production code. Always use .expect(\"rich context\") or, preferably, Result propagation with .map_err(|e| anyhow!(...)).\
@@ -17,10 +25,12 @@ pub const REVIEW_SYSTEM_PROMPT: &str =
      \n11. API DESIGN: Flag redundant allocations (e.g., .to_string() on &str literals when &str suffices). Identify excessive use of Box/Arc where stack allocation or simple references would work.\
      \n12. DOCUMENTATION: Public functions and structs MUST have doc comments. Flag missing documentation for exported APIs.\
      \n\n### GENERAL QUALITY GATE:\
-     \n- Report only HIGH-CONFIDENCE issues (≥80%). If uncertain, ignore.\
+     \n- Report only HIGH-CONFIDENCE issues (≥{min_pct}%). If uncertain, ignore.\
      \n- Severity Scale: info (nit) < warning (potential bug) < error (defect) < critical (security/crash).\
      \n- prioritisation: Correctness > Security > Reliability > Performance > Style.\
-     \n- Verification: Check all line numbers against the provided source. Hallucinations result in systemic failure.";
+     \n- Verification: Check all line numbers against the provided source. Hallucinations result in systemic failure."
+    )
+}
 
 /// Build the full review prompt, capped at `max_tokens` chars of source code.
 pub fn build_review_prompt(
@@ -28,8 +38,9 @@ pub fn build_review_prompt(
     static_findings: &[Finding],
     _lang: Language,
     max_context_chars: usize,
+    policy: &ConfidencePolicy,
 ) -> String {
-    build_review_prompt_inner(file, static_findings, max_context_chars, None)
+    build_review_prompt_inner(file, static_findings, max_context_chars, None, policy)
 }
 
 /// Build a prompt focused on a git diff hunk — only the changed lines are reviewed.
@@ -38,8 +49,15 @@ pub fn build_diff_review_prompt(
     static_findings: &[Finding],
     max_context_chars: usize,
     diff_hunk: &str,
+    policy: &ConfidencePolicy,
 ) -> String {
-    build_review_prompt_inner(file, static_findings, max_context_chars, Some(diff_hunk))
+    build_review_prompt_inner(
+        file,
+        static_findings,
+        max_context_chars,
+        Some(diff_hunk),
+        policy,
+    )
 }
 
 fn build_review_prompt_inner(
@@ -47,7 +65,9 @@ fn build_review_prompt_inner(
     static_findings: &[Finding],
     max_context_chars: usize,
     diff_hunk: Option<&str>,
+    policy: &ConfidencePolicy,
 ) -> String {
+    let min_report = policy.min_prompt_report_confidence;
     let static_summary = if static_findings.is_empty() {
         "None (static analysis clean).".to_string()
     } else {
@@ -106,7 +126,7 @@ Where:
 - <line> = 1-indexed line number (0 if file-level)
 - <severity> = info | warning | error | critical
 - <category> = logic | security | error-handling | performance | dead-code | style | vox | deps
-- <confidence> = integer 0-100 (only report if >=80)
+- <confidence> = integer 0-100 (only report if >={min_report})
 - <message> = concise description of the issue
 - <suggestion> = optional fix hint (or "-" if none)
 
@@ -128,5 +148,6 @@ Do NOT repeat static analysis findings. Do NOT explain your reasoning. Do NOT ha
         focus_section = focus_section,
         static_summary = static_summary,
         code = code_snippet,
+        min_report = min_report,
     )
 }

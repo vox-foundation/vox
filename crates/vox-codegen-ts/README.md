@@ -14,7 +14,7 @@ Transforms the typed HIR into TypeScript source files. The emitter is modularize
 | `jsx.rs` | React JSX component rendering |
 | `component.rs` | `@component` declarations and hook wiring |
 | `activity.rs` | Activity and workflow client wrappers |
-| `routes.rs` | React Router route definitions |
+| `routes.rs` | Express-style HTTP + server fn routes → **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** (default off; Axum + Rust `api.ts` is canonical) |
 | `adt.rs` | TypeScript discriminated union types from Vox ADTs |
 
 ## Output Mapping
@@ -24,7 +24,7 @@ Transforms the typed HIR into TypeScript source files. The emitter is modularize
 | `@component fn` | React functional component |
 | `@server fn` | Typed `fetch()` wrapper |
 | `type A = \| B \| C` | Discriminated union type |
-| `routes:` | React Router `<Route>` elements |
+| `routes:` | TanStack Router (`createRoute` / `RouterProvider`) in `App.tsx` |
 | `@deprecated` | `/** @deprecated */` JSDoc |
 | `style:` | CSS-in-JS object |
 

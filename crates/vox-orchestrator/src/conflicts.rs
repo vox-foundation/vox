@@ -76,7 +76,10 @@ pub enum ConflictResolution {
     /// A specific agent should resolve manually.
     DeferToAgent(AgentId),
     /// Manual resolution with the provided content hash.
-    Manual { resolved_snapshot: SnapshotId },
+    Manual {
+        /// Content hash of the merged file chosen by a human or policy.
+        resolved_snapshot: SnapshotId,
+    },
 }
 
 /// A file conflict between two or more agents.

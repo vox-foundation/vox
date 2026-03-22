@@ -2,7 +2,9 @@ use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 
 /// Detects poor file organization, such as too many definitions in lib.rs or pure type dumps.
 pub struct FileOrganizationDetector {
+    /// Maximum allowed top-level `pub` definitions in `lib.rs`-style entrypoints before flagging bloat.
     pub max_lib_defs: usize,
+    /// Lines of contiguous type-only declarations (structs/enums) that suggest an unscoped “type dump”.
     pub max_type_dump_lines: usize,
 }
 
@@ -45,10 +47,14 @@ impl DetectionRule for FileOrganizationDetector {
             let mut def_count = 0;
             for line in &file.lines {
                 let trimmed = line.trim();
-                if trimmed.starts_with("pub struct ") || trimmed.starts_with("struct ") ||
-                   trimmed.starts_with("pub enum ") || trimmed.starts_with("enum ") ||
-                   trimmed.starts_with("pub trait ") || trimmed.starts_with("trait ") ||
-                   trimmed.starts_with("pub type ") || trimmed.starts_with("type ")
+                if trimmed.starts_with("pub struct ")
+                    || trimmed.starts_with("struct ")
+                    || trimmed.starts_with("pub enum ")
+                    || trimmed.starts_with("enum ")
+                    || trimmed.starts_with("pub trait ")
+                    || trimmed.starts_with("trait ")
+                    || trimmed.starts_with("pub type ")
+                    || trimmed.starts_with("type ")
                 {
                     def_count += 1;
                 }
@@ -78,22 +84,25 @@ impl DetectionRule for FileOrganizationDetector {
             let mut type_line_count = 0;
             for line in &file.lines {
                 let trimmed = line.trim();
-                if trimmed.starts_with("pub struct ") || trimmed.starts_with("struct ") ||
-                   trimmed.starts_with("pub enum ") || trimmed.starts_with("enum ") ||
-                   trimmed.starts_with("impl ") || trimmed.starts_with("#[derive")
+                if trimmed.starts_with("pub struct ")
+                    || trimmed.starts_with("struct ")
+                    || trimmed.starts_with("pub enum ")
+                    || trimmed.starts_with("enum ")
+                    || trimmed.starts_with("impl ")
+                    || trimmed.starts_with("#[derive")
                 {
                     type_line_count += 1;
                 }
             }
 
             let type_ratio = type_line_count as f32 / file.lines.len() as f32;
-            let is_allowed_name = file_name.contains("types") ||
-                                 file_name.contains("params") ||
-                                 file_name.contains("schema") ||
-                                 file_name.contains("models");
+            let is_allowed_name = file_name.contains("types")
+                || file_name.contains("params")
+                || file_name.contains("schema")
+                || file_name.contains("models");
 
             if type_ratio > 0.7 && !is_allowed_name {
-                 findings.push(Finding {
+                findings.push(Finding {
                     rule_id: self.id().to_string(),
                     rule_name: self.name().to_string(),
                     severity: Severity::Warning,

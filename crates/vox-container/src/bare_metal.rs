@@ -48,16 +48,32 @@ mod tests {
             base_image: "bare-metal".to_string(),
             workdir: Some("/opt/my-app".to_string()),
             env_vars: vec![("PORT".to_string(), "8080".to_string())],
-            cmd: vec!["./my-app".to_string(), "--port".to_string(), "8080".to_string()],
+            cmd: vec![
+                "./my-app".to_string(),
+                "--port".to_string(),
+                "8080".to_string(),
+            ],
             ..Default::default()
         };
         let unit = generate_systemd_unit(&spec, "my-app");
         assert!(unit.contains("[Unit]"), "Missing [Unit] section");
         assert!(unit.contains("[Service]"), "Missing [Service] section");
-        assert!(unit.contains("WorkingDirectory=/opt/my-app"), "Missing WorkingDirectory");
-        assert!(unit.contains("Environment=\"PORT=8080\""), "Missing env var");
-        assert!(unit.contains("ExecStart=./my-app --port 8080"), "Missing ExecStart");
-        assert!(unit.contains("WantedBy=multi-user.target"), "Missing [Install]");
+        assert!(
+            unit.contains("WorkingDirectory=/opt/my-app"),
+            "Missing WorkingDirectory"
+        );
+        assert!(
+            unit.contains("Environment=\"PORT=8080\""),
+            "Missing env var"
+        );
+        assert!(
+            unit.contains("ExecStart=./my-app --port 8080"),
+            "Missing ExecStart"
+        );
+        assert!(
+            unit.contains("WantedBy=multi-user.target"),
+            "Missing [Install]"
+        );
     }
 
     #[test]
@@ -68,6 +84,9 @@ mod tests {
             ..Default::default()
         };
         let unit = generate_systemd_unit(&spec, "my-server");
-        assert!(unit.contains("ExecStart=./my-server"), "Should fall back to app_name");
+        assert!(
+            unit.contains("ExecStart=./my-server"),
+            "Should fall back to app_name"
+        );
     }
 }

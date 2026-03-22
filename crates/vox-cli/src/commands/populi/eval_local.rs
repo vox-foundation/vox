@@ -1,7 +1,7 @@
 //! `vox populi eval-local` — evaluate trained model against heldout benchmark.
 
 use super::eval_local_prompt::{
-    prepare_bench_item, sort_prepared_benches_lexicographic, PreparedBench,
+    PreparedBench, prepare_bench_item, sort_prepared_benches_lexicographic,
 };
 use anyhow::Result;
 use std::path::PathBuf;
@@ -86,11 +86,7 @@ pub fn run_eval_local(
                 Some(s)
             }
             Err(e) => {
-                eprintln!(
-                    "  {} Failed to load model for eval: {}",
-                    "⚠".yellow(),
-                    e
-                );
+                eprintln!("  {} Failed to load model for eval: {}", "⚠".yellow(), e);
                 None
             }
         };
@@ -130,9 +126,10 @@ pub fn run_eval_local(
                 };
                 match gen_result {
                     Ok(output) => {
-                        let valid = match vox_frontend::run_frontend_str(
+                        let valid = match crate::pipeline::run_frontend_str(
                             &output,
                             std::path::Path::new("__eval__.vox"),
+                            false,
                         ) {
                             Ok(r) => !r.has_errors(),
                             Err(_) => false,
@@ -236,6 +233,18 @@ pub fn run_eval_local(
     } else {
         println!("{}", serde_json::to_string_pretty(&report)?);
     }
+
+    #[cfg(feature = "gpu")]
+    crate::benchmark_telemetry::record_opt_blocking(
+        "eval_local",
+        Some(pass_rate),
+        Some(serde_json::json!({
+            "total": total,
+            "passed": passed,
+            "model": model.to_string_lossy(),
+            "bench": bench.to_string_lossy(),
+        })),
+    );
 
     Ok(())
 }

@@ -18,23 +18,31 @@ pub enum Envelope {
 /// An application-level message sent between actors.
 #[derive(Debug, Clone)]
 pub struct Message {
+    /// Sender process id.
     pub from: Pid,
+    /// Application payload.
     pub payload: MessagePayload,
 }
 
 /// A request expecting a response, carrying a oneshot reply channel.
 #[derive(Debug)]
 pub struct Request {
+    /// Caller process id.
     pub from: Pid,
+    /// Request body.
     pub payload: MessagePayload,
+    /// Channel the callee uses to send the reply string.
     pub reply_tx: oneshot::Sender<String>,
 }
 
 /// Dynamic message payload (typed via serde-like serialization in practice).
 #[derive(Debug, Clone)]
 pub enum MessagePayload {
+    /// UTF-8 text payload.
     Text(String),
-    Json(String), // JSON-serialized data
+    /// JSON-serialized string payload.
+    Json(String),
+    /// Opaque binary payload.
     Binary(Vec<u8>),
 }
 
@@ -54,8 +62,11 @@ pub enum Signal {
 /// Reason a process exited.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExitReason {
+    /// Clean exit without error.
     Normal,
+    /// Cooperative shutdown requested.
     Shutdown,
+    /// Actor failed with a message.
     Error(String),
 }
 

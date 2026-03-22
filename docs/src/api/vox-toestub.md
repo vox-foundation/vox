@@ -26,18 +26,35 @@ TOESTUB mechanically detects AI coding anti-patterns that are banned by `AGENTS.
 | Empty function bodies | `fn handle() {}` |
 | Hardcoded values | Magic numbers, hardcoded URLs |
 | DRY violations | Duplicated code blocks |
-| Unwrap in production | `.unwrap()` outside tests |
+| Unwrap heuristic | `.unwrap()` outside obvious test paths (`rust/unwrap-call`, Info) |
 | Stale comments | Comments that don't match code |
 
 ## CLI
 
+**In the minimal `vox` binary**, the subcommand is behind **`--features stub-check`** (see [`ref-cli.md`](../ref-cli.md#vox-stub-check-feature-stub-check)).
+
 ```bash
-vox stub-check                          # Scan current directory
-vox stub-check --path src/              # Scan specific path
-vox stub-check --format json            # JSON output
-vox stub-check --format markdown        # Markdown report
-vox stub-check --ai-provider ollama     # Enable AI analysis
+cargo build -p vox-cli --features stub-check
+vox stub-check                          # scan `.`
+vox stub-check src/                     # positional scan root
+vox stub-check -p crates/               # or --path
+vox stub-check -f json                  # JSON report
+vox stub-check -f markdown              # Markdown report
 ```
+
+**CI (canonical):** `vox ci toestub-scoped` — default scan root **`crates/vox-repository`**, aligned with GitHub Actions. Bootstrap: `cargo run -p vox-cli --quiet -- ci toestub-scoped`.
+
+**Interactive / full flags:** `vox stub-check …` (same detectors; richer clap surface: formats, baselines, Ludus hooks).
+
+**Standalone crate** (advanced / embedding):
+
+```bash
+cargo run -p vox-toestub --bin toestub -- crates/vox-repository
+```
+
+Optional thin shell `scripts/quality/toestub_scoped.sh` should delegate to **`vox ci toestub-scoped`**; do not treat raw `cargo run -p vox-toestub` as the primary CI entry.
+
+Optional AI triage lives in the **`vox-toestub`** library (`AiAnalyzer` / `AiProvider`); it is not exposed on the current `vox stub-check` clap surface.
 
 ## Severity Levels
 
@@ -64,6 +81,8 @@ The AI layer is **entirely optional** — TOESTUB works fully offline with
 just the static detectors. AI analysis enhances detection for subtle patterns
 that regexes miss: semantic dead code, inconsistent naming, logic gaps, etc.
 
+**MCP / orchestrator routing:** Editor and MCP LLM calls use `models.toml` under the Vox config directory for registry + optional `premium_alias` overrides — not this crate’s `AiProvider` enum. See [`vox-mcp.md`](./vox-mcp.md#llm-model-routing-modelstoml).
+
 
 ### `enum AiProvider`
 
@@ -78,43 +97,30 @@ This is intentionally synchronous and blocking for simplicity —
 AI analysis is opt-in and expected to be slower than static detection.
 
 
-### `struct DeprecatedUsageDetector`
-
-Detects the presence of `@deprecated` annotations in Vox files.
-
-Reminds the developer to remove obsolete code.
-
-
-### `struct DryViolationDetector`
-
-Detects near-duplicate code blocks across a single file.
-
-Uses the `similar` crate to compute text similarity between function bodies.
-Cross-file DRY detection is a Phase 2 feature (requires the engine to pass
-multiple files to a single rule invocation).
-
-
-### `struct EmptyBodyDetector`
-
-Detects functions with empty or trivially-defaulted bodies.
-
-
-### `struct GodObjectDetector`
-
-Detects "God Objects" — files or entities that are too large or have too many responsibilities.
-
-
-### `struct MagicValueDetector`
-
-Detects hardcoded magic values: ports, IPs, filesystem paths, connection strings.
-
-Enforces AGENTS.md line 138:
-> "No magic values: Never hardcode ports, database paths, or file system paths."
-
-
 ## Module: `vox-toestub\src\detectors\mod.rs`
 
-Registry of all built-in detection rules.
+Registry of all built-in detection rules. `all_rules` returns **16** detectors in this order (must match `rule_count()`).
+
+
+### Built-in registry
+
+| # | Rule `id()` | Detector struct | Default severity |
+|---|-------------|-----------------|------------------|
+| 1 | `arch/stub` | `StubDetector` | Error (emitted ids use `stub/*`) |
+| 2 | `arch/empty_body` | `EmptyBodyDetector` | Warning |
+| 3 | `magic-value` | `MagicValueDetector` | Warning |
+| 4 | `victory-claim` | `VictoryClaimDetector` | Warning |
+| 5 | `arch/unwired` | `UnwiredModuleDetector` | Warning |
+| 6 | `dry-violation` | `DryViolationDetector` | Warning |
+| 7 | `unresolved-ref` | `UnresolvedRefDetector` | Info |
+| 8 | `deprecated-usage` | `DeprecatedUsageDetector` | Warning |
+| 9 | `security/hardcoded-secret` | `SecretDetector` | Error |
+| 10 | `arch/god_object` | `GodObjectDetector` | Error |
+| 11 | `arch/sprawl` | `SprawlDetector` | Error |
+| 12 | `arch/schema_compliance` | `SchemaComplianceDetector` | Error |
+| 13 | `arch/organization` | `FileOrganizationDetector` | Warning |
+| 14 | `stringly-typed-enum` | `StringlyTypedEnumDetector` | Warning |
+| 15 | `rust/unwrap-call` | `UnwrapCallDetector` | Info |
 
 
 ### `fn all_rules`
@@ -124,22 +130,7 @@ Returns all built-in detectors.
 
 ### `fn rule_count`
 
-Returns the number of built-in rules.
-
-
-### `struct SchemaComplianceDetector`
-
-Verifies that files are in locations authorized by vox-schema.json.
-
-
-### `struct SecretDetector`
-
-Detects hardcoded secrets, API keys, and credentials.
-
-
-### `struct SprawlDetector`
-
-Detects "Sprawl" — unorganized directory structures, excessive file counts, or forbidden generic names.
+Returns the number of built-in rules (currently **16**).
 
 
 ### `struct StubDetector`
@@ -148,29 +139,74 @@ Detects `todo!()`, `unimplemented!()`, `panic!("not implemented")`,
 Python `pass` / `raise NotImplementedError`, GDScript `pass`.
 
 
-### `struct UnresolvedRefDetector`
+### `struct EmptyBodyDetector`
 
-Detects references to symbols (functions, types, modules) that appear to
-be undefined within the file's scope.
-
-Phase 1: Simple heuristic — looks for `use` imports pointing at unknown
-crate-internal modules and function calls that don't match any `fn` definition
-in the same file. Full cross-crate resolution is a Phase 2 feature.
+Detects functions with empty or trivially-defaulted bodies.
 
 
-### `struct UnwiredModuleDetector`
+### `struct MagicValueDetector`
 
-Detects modules/files that are declared but never imported or referenced.
-
-Catches the classic AI pattern: create a helper module, forget to wire it in.
+Detects hardcoded magic values: ports, IPs, filesystem paths, connection strings.
 
 
 ### `struct VictoryClaimDetector`
 
 Detects suspicious "victory claim" comments near stub or incomplete code.
 
-AI agents love to say "Done!", "Complete!", "All set!" in comments right next
-to code that is clearly not finished. This detector finds those patterns.
+
+### `struct UnwiredModuleDetector`
+
+Detects modules/files that are declared but never imported or referenced.
+
+
+### `struct DryViolationDetector`
+
+Detects near-duplicate code blocks across a single file (uses the `similar` crate).
+
+
+### `struct UnresolvedRefDetector`
+
+Heuristic undefined-symbol detection within a single file (imports / calls).
+
+
+### `struct DeprecatedUsageDetector`
+
+Detects the presence of `@deprecated` annotations in Vox files.
+
+
+### `struct SecretDetector`
+
+Detects hardcoded secrets, API keys, and credentials.
+
+
+### `struct GodObjectDetector`
+
+Detects "God Objects" — files or entities that are too large or have too many responsibilities.
+
+
+### `struct SprawlDetector`
+
+Detects directory sprawl and forbidden generic filenames.
+
+
+### `struct SchemaComplianceDetector`
+
+Verifies that files are in locations authorized by vox-schema.json.
+
+
+### `struct FileOrganizationDetector`
+
+Flags bloated `lib.rs` / module files and unorganized type dumps.
+
+
+### `struct StringlyTypedEnumDetector`
+
+Flags string fields where comments list enum-like alternatives (prefer ADTs).
+
+
+### `struct UnwrapCallDetector`
+
+Informational heuristic for `.unwrap()` outside obvious test-only paths (`rust/unwrap-call`).
 
 
 ### `struct ToestubConfig`
@@ -274,12 +310,12 @@ Performs AI-powered code review using the configured provider cascade.
 
 ### `fn build_review_prompt`
 
-Build the full review prompt, capped at `max_tokens` chars of source code.
+Build the full review prompt, capped at `max_context_chars` of source code. Takes `policy: &ConfidencePolicy` so review instructions (minimum report confidence, etc.) stay aligned with [`vox_socrates_policy`] and orchestrator gating.
 
 
 ### `fn build_diff_review_prompt`
 
-Build a prompt focused on a git diff hunk — only the changed lines are reviewed.
+Build a prompt focused on a git diff hunk — only the changed lines are reviewed. Also accepts `policy: &ConfidencePolicy` for the same SSOT alignment as [`build_review_prompt`].
 
 
 ### `fn parse_review_response`

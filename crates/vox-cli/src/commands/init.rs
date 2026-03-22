@@ -233,8 +233,8 @@ Provide instructions for the Vox LLM on how to use this skill here.
         std::fs::create_dir_all(&modules_dir).with_context(|| "Failed to create .vox_modules/")?;
     }
 
-    let template_note = if template.is_some() {
-        format!(" (template: {})", template.unwrap())
+    let template_note = if let Some(t) = template {
+        format!(" (template: {t})")
     } else {
         String::new()
     };

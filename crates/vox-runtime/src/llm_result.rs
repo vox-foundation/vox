@@ -3,7 +3,7 @@
 //! Activities that return named structs (not `String`) use this type to propagate
 //! parse errors without panicking. The generated code pattern is:
 //!
-//! ```no_run
+//! ```ignore
 //! pub async fn my_activity(msg: String) -> LlmResult<MyStruct> {
 //!     // ... llm_chat call ...
 //!     match result {
@@ -25,10 +25,7 @@ pub enum LlmError {
 
     /// The LLM response could not be parsed as the expected type.
     #[error("JSON parse error: {error} — raw response: {raw}")]
-    ParseError {
-        error: String,
-        raw: String,
-    },
+    ParseError { error: String, raw: String },
 
     /// The activity runner failed entirely (timeout, retries exhausted, etc.).
     #[error("LLM activity failed")]
@@ -47,6 +44,9 @@ pub enum LlmError {
 /// The Vox codegen emits `LlmResult<GistArtifact>` in the generated Rust signature
 /// when the return type is a named struct, enabling callers to handle parse failures
 /// without panicking.
+/// Standard `Result` alias for converting [`LlmResult`] into fallible Rust control flow.
+pub type StdLlmResult<T> = std::result::Result<T, LlmError>;
+
 #[must_use = "LlmResult must be checked — use ok() or match on it"]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LlmResult<T> {
@@ -87,6 +87,14 @@ impl<T: for<'de> Deserialize<'de>> LlmResult<T> {
     /// Returns `true` if this is the `Err` variant.
     pub fn is_err(&self) -> bool {
         !self.is_ok()
+    }
+
+    /// Convert into a standard `Result` for `?` and error propagation (no panic).
+    pub fn into_std_result(self) -> StdLlmResult<T> {
+        match self {
+            LlmResult::Ok(v) => Ok(v),
+            LlmResult::Err(e) => Err(e),
+        }
     }
 
     /// Convert to `Option<T>`, logging a warning on error.

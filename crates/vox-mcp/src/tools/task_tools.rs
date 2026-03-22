@@ -2,9 +2,8 @@
 //!
 //! Covers: submit, status, complete, fail, cancel, reorder, drain, and publish.
 
-use std::path::PathBuf;
-
-use vox_orchestrator::{AgentEventKind, AgentId, FileAffinity, OperationId, TaskId, TaskPriority};
+use vox_orchestrator::{AgentEventKind, AgentId, FileAffinity, TaskId, TaskPriority};
+use vox_repository::{load_agent_scopes, normalize_task_path};
 use vox_runtime::prompt_canonical;
 
 use crate::params::{
@@ -20,47 +19,29 @@ use crate::server::ServerState;
 pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> String {
     // Phase 7.3: Scope enforcement
     if let Some(agent_name) = &params.agent_name {
-        let agent_file = PathBuf::from(".vox/agents").join(format!("{}.md", agent_name));
-        if agent_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(&agent_file) {
-                let mut scopes: Vec<String> = Vec::new();
-                for line in content.lines() {
-                    if line.starts_with("scope:") {
-                        let inside = line.trim_start_matches("scope:").trim();
-                        let inside = inside.trim_start_matches('[').trim_end_matches(']');
-                        for pat in inside.split(',') {
-                            let clean = pat.trim().trim_matches('"').trim_matches('\'');
-                            if !clean.is_empty() {
-                                scopes.push(clean.to_string());
-                            }
-                        }
-                        break;
-                    }
-                }
-
-                if !scopes.is_empty() && !scopes.iter().any(|s| s == "**") {
-                    for f in &params.files {
-                        let mut ok = false;
-                        let path_str = f.path.replace('\\', "/");
-                        for s in &scopes {
-                            if s.ends_with("/**") {
-                                let prefix = s.trim_end_matches("/**");
-                                if path_str.starts_with(prefix) {
-                                    ok = true;
-                                    break;
-                                }
-                            } else if path_str == *s {
+        if let Some(scopes) = load_agent_scopes(&state.repository.root, agent_name) {
+            if !scopes.is_empty() && !scopes.iter().any(|s| s == "**" || s == "**/*") {
+                for f in &params.files {
+                    let mut ok = false;
+                    let path_str = normalize_task_path(&state.repository.root, &f.path);
+                    for s in &scopes {
+                        if s.ends_with("/**") {
+                            let prefix = s.trim_end_matches("/**");
+                            if path_str.starts_with(prefix) {
                                 ok = true;
                                 break;
                             }
+                        } else if path_str == *s {
+                            ok = true;
+                            break;
                         }
-                        if !ok {
-                            return ToolResult::<SubmitTaskResponse>::err(format!(
-                                "Agent '{}' tried to edit outside its scope. File '{}' does not match scope {:?}",
-                                agent_name, f.path, scopes
-                            ))
-                            .to_json();
-                        }
+                    }
+                    if !ok {
+                        return ToolResult::<SubmitTaskResponse>::err(format!(
+                            "Agent '{}' tried to edit outside its scope. File '{}' does not match scope {:?}",
+                            agent_name, f.path, scopes
+                        ))
+                        .to_json();
                     }
                 }
             }
@@ -112,7 +93,13 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     };
 
     match orch
-        .submit_task_with_agent(&description, manifest, priority, params.agent_name.clone())
+        .submit_task_with_agent(
+            &description,
+            manifest,
+            priority,
+            params.agent_name.clone(),
+            params.capabilities.clone(),
+        )
         .await
     {
         Ok(task_id) => {
@@ -129,12 +116,17 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             let agent_id = agent_ids.last().map(|a| a.0).unwrap_or(0);
             let (prompt_canonicalized, conflict_warnings, original_prompt_hash) =
                 canonical_info.unwrap_or((false, None, None));
+            let v2 = state
+                .orchestrator_config
+                .orchestration_migration
+                .orchestration_v2_enabled;
             ToolResult::ok(SubmitTaskResponse {
                 task_id: task_id.0,
                 agent_id,
                 prompt_canonicalized: Some(prompt_canonicalized),
                 conflict_warnings,
                 original_prompt_hash,
+                orchestration_contract: if v2 { Some("v2".to_string()) } else { None },
             })
             .to_json()
         }
@@ -184,19 +176,17 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
             // Gamification: Update companion state
             if let Some(db) = &state.db {
                 let id = "vox-orchestrator";
-                let mut companion =
-                    match vox_gamify::db::list_companions(db, "user").await {
-                        Ok(comps) => comps
-                            .into_iter()
-                            .find(|c: &vox_gamify::companion::Companion| c.id == id),
-                        Err(_) => None,
-                    }
-                    .unwrap_or_else(|| {
-                        vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
-                    });
+                let mut companion = match vox_gamify::db::list_companions(db, "user").await {
+                    Ok(comps) => comps
+                        .into_iter()
+                        .find(|c: &vox_gamify::companion::Companion| c.id == id),
+                    Err(_) => None,
+                }
+                .unwrap_or_else(|| {
+                    vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+                });
 
-                companion
-                    .interact(vox_gamify::companion::Interaction::TaskCompleted);
+                companion.interact(vox_gamify::companion::Interaction::TaskCompleted);
                 let _ = vox_gamify::db::upsert_companion(db, &companion).await;
             }
             ToolResult::ok("task completed".to_string()).to_json()
@@ -216,16 +206,15 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
         Ok(()) => {
             if let Some(db) = &state.db {
                 let id = "vox-orchestrator";
-                let mut companion =
-                    match vox_gamify::db::list_companions(db, "user").await {
-                        Ok(comps) => comps
-                            .into_iter()
-                            .find(|c: &vox_gamify::companion::Companion| c.id == id),
-                        Err(_) => None,
-                    }
-                    .unwrap_or_else(|| {
-                        vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
-                    });
+                let mut companion = match vox_gamify::db::list_companions(db, "user").await {
+                    Ok(comps) => comps
+                        .into_iter()
+                        .find(|c: &vox_gamify::companion::Companion| c.id == id),
+                    Err(_) => None,
+                }
+                .unwrap_or_else(|| {
+                    vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+                });
 
                 companion.interact(vox_gamify::companion::Interaction::TaskFailed);
                 let _ = vox_gamify::db::upsert_companion(db, &companion).await;
@@ -246,10 +235,7 @@ pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskP
 }
 
 /// Change the priority of a queued task.
-pub async fn reorder_task(
-    state: &ServerState,
-    params: crate::params::ReorderTaskParams,
-) -> String {
+pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTaskParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
     let priority = match params.priority.as_str() {
@@ -277,8 +263,6 @@ pub async fn drain_agent(state: &ServerState, params: DrainAgentParams) -> Strin
 pub async fn publish_message(state: &ServerState, _params: PublishMessageParams) -> String {
     let orch = state.orchestrator.lock().await;
     let board = orch.bulletin();
-    board.publish(vox_orchestrator::AgentMessage::DependencyReady {
-        task_id: TaskId(0),
-    });
+    board.publish(vox_orchestrator::AgentMessage::DependencyReady { task_id: TaskId(0) });
     ToolResult::ok("message published".to_string()).to_json()
 }

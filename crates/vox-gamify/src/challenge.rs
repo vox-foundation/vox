@@ -5,14 +5,20 @@ use serde::{Deserialize, Serialize};
 /// Categories of coding challenges.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChallengeType {
+    /// Algorithmic puzzle or implementation task.
     Algorithm,
+    /// Refactor-focused exercise.
     Refactoring,
+    /// Find-and-fix debugging scenario.
     Debugging,
+    /// Performance-oriented challenge.
     Optimization,
+    /// Security-themed challenge.
     Security,
 }
 
 impl ChallengeType {
+    /// Lowercase slug stored in JSON and URLs.
     pub fn as_str(&self) -> &'static str {
         match self {
             ChallengeType::Algorithm => "algorithm",
@@ -27,45 +33,70 @@ impl ChallengeType {
 /// A coding challenge that can be attempted by users for XP and crystals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Challenge {
+    /// Unique challenge id (e.g. daily seed).
     pub id: String,
+    /// Short display title.
     pub title: String,
+    /// Longer instructions for the player.
     pub description: String,
+    /// Category of challenge.
     pub challenge_type: ChallengeType,
+    /// Starter code template shown to the user.
     pub base_code: String,
+    /// Public and hidden tests for evaluation.
     pub test_cases: Vec<TestCase>,
+    /// Crystals awarded on success.
     pub crystal_reward: u64,
+    /// XP awarded on success.
     pub xp_reward: u64,
-    pub expires_at: i64, // Unix timestamp when the challenge expires (e.g., end of week)
+    /// Unix timestamp when the challenge expires (e.g. end of week); `0` if unset.
+    pub expires_at: i64,
 }
 
 /// A specific input/output pair or condition to test a challenge solution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestCase {
+    /// What this case checks.
     pub description: String,
+    /// Serialized or textual input to the solution.
     pub input: String,
+    /// Expected output for comparison.
     pub expected_output: String,
+    /// If true, hide details from the player until after submit.
     pub is_hidden: bool,
 }
 
 /// A user's attempt at solving a challenge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChallengeAttempt {
+    /// Attempt row id.
     pub id: String,
+    /// Challenge that was attempted.
     pub challenge_id: String,
+    /// User or agent who submitted.
     pub user_id: String,
+    /// Source code submitted for grading.
     pub submitted_code: String,
+    /// Whether all tests passed.
     pub success: bool,
-    pub score: u32, // e.g., based on performance/efficiency
+    /// Numeric score (e.g. performance or efficiency).
+    pub score: u32,
+    /// Time spent on the attempt in seconds.
     pub duration_secs: u64,
+    /// Submission time as a UNIX timestamp.
     pub submitted_at: i64,
 }
 
 /// A leaderboard entry for coding challenges.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChallengeLeaderboardEntry {
+    /// User ranked on this entry.
     pub user_id: String,
+    /// Challenge this score applies to.
     pub challenge_id: String,
+    /// Best score achieved.
     pub score: u32,
+    /// Duration associated with that score, in seconds.
     pub duration_secs: u64,
 }
 

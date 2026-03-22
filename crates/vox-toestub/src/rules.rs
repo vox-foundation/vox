@@ -11,9 +11,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
+    /// Informational note or style suggestion.
     Info,
+    /// Likely issue or risk worth addressing.
     Warning,
+    /// Definite problem or policy violation.
     Error,
+    /// Severe issue such as security or crash risk.
     Critical,
 }
 
@@ -32,11 +36,17 @@ impl fmt::Display for Severity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
+    /// Rust source (`.rs`).
     Rust,
+    /// JavaScript/TypeScript (`.ts`, `.tsx`, `.js`, …).
     TypeScript,
+    /// Python (`.py`).
     Python,
+    /// Godot GDScript (`.gd`).
     GDScript,
+    /// Vox source (`.vox`).
     Vox,
+    /// Extension did not map to a known language.
     Unknown,
 }
 
@@ -74,13 +84,18 @@ impl fmt::Display for Language {
 /// A loaded source file ready for analysis.
 #[derive(Debug, Clone)]
 pub struct SourceFile {
+    /// Path to the file on disk.
     pub path: PathBuf,
+    /// Detected language from the path extension.
     pub language: Language,
+    /// Full file text.
     pub content: String,
+    /// Lines of `content`, one string per line (no trailing `\n`).
     pub lines: Vec<String>,
 }
 
 impl SourceFile {
+    /// Loads metadata and splits `content` into lines; language is inferred from `path`.
     pub fn new(path: PathBuf, content: String) -> Self {
         let language = path
             .extension()

@@ -8,20 +8,15 @@ use crate::podman::PodmanRuntime;
 use crate::runtime::ContainerRuntime;
 
 /// Preferred runtime selection strategy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RuntimePreference {
     /// Try Podman first, fall back to Docker.
+    #[default]
     Auto,
     /// Use Docker only.
     Docker,
     /// Use Podman only.
     Podman,
-}
-
-impl Default for RuntimePreference {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl std::str::FromStr for RuntimePreference {
@@ -31,7 +26,9 @@ impl std::str::FromStr for RuntimePreference {
             "auto" => Ok(Self::Auto),
             "docker" => Ok(Self::Docker),
             "podman" => Ok(Self::Podman),
-            other => anyhow::bail!("Unknown runtime preference: {other:?}. Use auto, docker, or podman."),
+            other => {
+                anyhow::bail!("Unknown runtime preference: {other:?}. Use auto, docker, or podman.")
+            }
         }
     }
 }
@@ -48,9 +45,7 @@ impl std::str::FromStr for RuntimePreference {
 /// println!("Using container runtime: {}", runtime.name());
 /// # Ok::<(), anyhow::Error>(())
 /// ```
-pub fn detect_runtime(
-    preference: RuntimePreference,
-) -> anyhow::Result<Box<dyn ContainerRuntime>> {
+pub fn detect_runtime(preference: RuntimePreference) -> anyhow::Result<Box<dyn ContainerRuntime>> {
     match preference {
         RuntimePreference::Docker => {
             let rt = DockerRuntime::new();

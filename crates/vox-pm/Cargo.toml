@@ -3,12 +3,32 @@ name = "vox-pm"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["local"]
+# File-backed and in-process databases (`Builder::new_local`).
+local = []
+# Local path + remote sync (embedded replica).
+replication = []
+
 [dependencies]
 vox-ast = { workspace = true }
 vox-hir = { workspace = true }
-rusqlite = { workspace = true }
 sha3 = { workspace = true }
 bincode = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 data-encoding = { workspace = true }
 thiserror = { workspace = true }
+turso = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+reqwest = { workspace = true }
+glob = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+
+[lints]
+workspace = true
+

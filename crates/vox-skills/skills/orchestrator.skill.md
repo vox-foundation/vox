@@ -26,6 +26,10 @@ Provides full access to the multi-agent task orchestration system.
 - `vox_budget_status` — check token usage and approximate costs
 - `vox_agent_events` — stream event history
 
+## Mesh alignment
+
+For **multi-node** or **GPU-pool** routing hints, keep **`vox_submit_task` → `capabilities.labels`** in sync with worker **`VOX_MESH_LABELS`** / **`Vox.toml` `[mesh].labels`**. See the **`vox.mesh`** built-in skill and **`docs/src/architecture/mesh-ssot.md`**.
+
 ## Usage
 
 Use `vox_submit_task` to delegate work to the most appropriate specialist agent.

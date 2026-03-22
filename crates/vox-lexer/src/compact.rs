@@ -2,40 +2,30 @@ use crate::cursor::lex;
 use crate::token::Token;
 
 /// Compacts Vox source code to be more token-efficient for LLMs.
-/// Removes comments, minimizes whitespace, and preserves only essential indentation.
+///
+/// With brace-delimited syntax, compaction is straightforward: remove comments
+/// and collapse adjacent newlines/whitespace. The resulting output is valid
+/// single-line Vox (braces carry block structure; whitespace is cosmetic).
+///
+/// # Example
+///
+/// ```no_run
+/// // use vox_lexer::compact::compact; // module is pub(crate)
+/// // let src = "fn greet(name: str) to str {\n    ret \"Hello, \" + name\n}";
+/// // let out = compact(src);
+/// // assert!(!out.contains('\n'));
+/// ```
 pub fn compact(source: &str) -> String {
     let tokens = lex(source);
     let mut output = String::with_capacity(source.len());
     let mut last_token: Option<Token> = None;
-    let mut indent_level = 0;
-    let mut pending_newline = false;
 
     for spanned in tokens {
         let token = spanned.token;
-
         match &token {
-            Token::Eof | Token::Comment => continue,
-            Token::Indent => {
-                indent_level += 1;
-                continue;
-            }
-            Token::Dedent => {
-                indent_level -= 1;
-                continue;
-            }
-            Token::Newline => {
-                pending_newline = true;
-                continue;
-            }
+            // Drop EOF and newlines — braces carry structure now.
+            Token::Eof | Token::Newline => continue,
             _ => {}
-        }
-
-        if pending_newline {
-            output.push('\n');
-            output.push_str(&" ".repeat(indent_level));
-            pending_newline = false;
-            // When starting a new line, we don't need a space before the first token
-            last_token = Some(Token::Newline);
         }
 
         // Handle spacing between tokens
@@ -45,8 +35,6 @@ pub fn compact(source: &str) -> String {
             }
         }
 
-        // Special case for StringLit to avoid escaping issues if not handled by Display
-        // Token::to_string() for StringLit(s) is format!("\"{s}\"") which is correct.
         output.push_str(&token.to_string());
         last_token = Some(token);
     }
@@ -54,91 +42,72 @@ pub fn compact(source: &str) -> String {
     output.trim().to_string()
 }
 
-/// Determines if a space is needed between two tokens to prevent them from merging.
+/// Determines if a space is needed between two adjacent tokens.
 fn needs_space(left: &Token, right: &Token) -> bool {
-    // If last token was Newline or start of absolute line, no space needed
-    if matches!(left, Token::Newline) {
-        return false;
-    }
-
-    // Numbers followed by '.' (Dot) should probably have a space if it's not a float member access
-    // But IntLit(10) followed by Dot(.) should be 10. (which might be a range or something)
-    // Actually, in Vox, 10.foo is field access.
-
     let left_is_word = is_word(left);
     let right_is_word = is_word(right);
 
-    // Keyword/Ident followed by Keyword/Ident needs space
+    // Keyword/Ident/Number followed by Keyword/Ident needs space
     if left_is_word && right_is_word {
         return true;
     }
 
-    // Number followed by a word (ident/keyword) needs space (e.g. "ret 10" -> "ret 10")
+    // Number followed by a word needs space (e.g. "ret 10")
     if matches!(left, Token::IntLit(_) | Token::FloatLit(_)) && right_is_word {
         return true;
     }
-
-    // Word followed by Number needs space (e.g. "x = 10")
-    // Wait, "=" is not a word. "let x = 10"
-    // "let x" -> space. "x =" -> no space. "= 10" -> no space.
-    // So "let x=10" is fine.
 
     false
 }
 
 fn is_word(t: &Token) -> bool {
-    match t {
+    matches!(
+        t,
         Token::Fn
-        | Token::Let
-        | Token::Mut
-        | Token::If
-        | Token::Else
-        | Token::Match
-        | Token::For
-        | Token::In
-        | Token::To
-        | Token::Ret
-        | Token::TypeKw
-        | Token::Const
-        | Token::Import
-        | Token::Use
-        | Token::Actor
-        | Token::Workflow
-        | Token::Activity
-        | Token::Spawn
-        | Token::Http
-        | Token::Pub
-        | Token::With
-        | Token::On
-        | Token::Trait
-        | Token::Impl
-        | Token::While
-        | Token::Break
-        | Token::Continue
-        | Token::Try
-        | Token::Catch
-        | Token::Async
-        | Token::Await
-        | Token::Agent
-        | Token::Stream
-        | Token::Emit
-        | Token::Message
-        | Token::Version
-        | Token::Migrate
-        | Token::FromKw
-        | Token::And
-        | Token::Or
-        | Token::Not
-        | Token::Is
-        | Token::Isnt
-        | Token::True
-        | Token::False
-        | Token::Ident(_)
-        | Token::TypeIdent(_) => true,
-        // Numbers are handled separately in needs_space but count as "words" for spacing between them
-        Token::IntLit(_) | Token::FloatLit(_) => true,
-        _ => false,
-    }
+            | Token::Let
+            | Token::Mut
+            | Token::If
+            | Token::Else
+            | Token::Match
+            | Token::For
+            | Token::In
+            | Token::To
+            | Token::Ret
+            | Token::TypeKw
+            | Token::Import
+            | Token::Actor
+            | Token::Workflow
+            | Token::Activity
+            | Token::Spawn
+            | Token::Http
+            | Token::Pub
+            | Token::With
+            | Token::On
+            | Token::And
+            | Token::Or
+            | Token::Not
+            | Token::Is
+            | Token::Isnt
+            | Token::True
+            | Token::False
+            | Token::AtComponent
+            | Token::AtMcpTool
+            | Token::AtExternal
+            | Token::AtTest
+            | Token::AtServer
+            | Token::AtTable
+            | Token::AtIndex
+            | Token::AtV0
+            | Token::AtIsland
+            | Token::Get
+            | Token::Post
+            | Token::Put
+            | Token::Delete
+            | Token::Ident(_)
+            | Token::TypeIdent(_)
+            | Token::IntLit(_)
+            | Token::FloatLit(_)
+    )
 }
 
 #[cfg(test)]
@@ -146,13 +115,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_compaction_basic() {
-        let src = "fn main():\n    let x = 10\n    ret x";
+    fn test_compaction_brace_syntax() {
+        // Brace syntax: the multi-line form compacts to a single-line form
+        let src = "fn main() {\n    let x = 10\n    ret x\n}";
         let compacted = compact(src);
-        println!("Compacted:\n'{}'", compacted);
-        // Should look like: "fn main():\n let x=10\n ret x"
-        assert!(compacted.contains("fn main():"));
-        assert!(compacted.contains("\n let x=10"));
-        assert!(compacted.contains("\n ret x"));
+        // No newlines in output — single-line serialization achieved
+        assert!(!compacted.contains('\n'), "Compacted output should be single-line");
+        assert!(compacted.contains("fn main()"), "Should preserve function name");
+        assert!(compacted.contains('{'), "Should preserve LBrace");
+        assert!(compacted.contains('}'), "Should preserve RBrace");
+        assert!(compacted.contains("ret x"), "Should preserve ret statement");
+    }
+
+    #[test]
+    fn test_compaction_preserves_braces() {
+        let src = "fn f(x: int) to int { ret x }";
+        let compacted = compact(src);
+        // No space before `{` (Ident→LBrace: needs_space=false)
+        // No space before `ret` (LBrace is not a word, ret is: no space added)
+        // No space before `x` or `}` 
+        assert!(compacted.contains("fn f"), "should have fn f");
+        assert!(compacted.contains("to int"), "should have return type");
+        assert!(compacted.contains('{'), "should have LBrace");
+        assert!(compacted.contains('}'), "should have RBrace");
+        assert!(compacted.contains("ret x"), "should have ret x");
+        assert!(!compacted.contains('\n'), "should be single line");
+    }
+
+    #[test]
+    fn test_compaction_strips_comments() {
+        let src = "let x = 1 // trailing comment\nlet y = 2";
+        let compacted = compact(src);
+        assert!(!compacted.contains("trailing"), "Comment should be stripped");
+        assert!(compacted.contains("let x"), "let x should be present");
+        assert!(compacted.contains("let y"), "let y should be present");
+    }
+
+    #[test]
+    fn test_compaction_single_line_serialization() {
+        // Demonstrates that brace syntax enables full single-line serialization
+        // (essential for Populi training data minification and LLM token budget use)
+        let src = r#"fn greet(name: str) to str {
+    if name is "" {
+        ret "Hello, stranger"
+    }
+    ret "Hello, " + name
+}"#;
+        let compacted = compact(src);
+        assert!(
+            !compacted.contains('\n'),
+            "Full program should serialize to single line, got: {}",
+            compacted
+        );
+        assert!(compacted.contains("fn greet"), "Should have function name");
+        assert!(compacted.contains("if name"), "Should have if condition");
     }
 }

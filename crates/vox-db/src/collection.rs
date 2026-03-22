@@ -15,7 +15,7 @@
 //! Queries use `json_extract()` for filtering and indexing.
 
 use serde_json::Value;
-use turso::{params, Connection};
+use turso::{Connection, params};
 
 /// A handle to a schemaless document collection.
 ///
@@ -33,10 +33,13 @@ pub struct Collection<'a> {
 /// Error type for collection operations.
 #[derive(Debug, thiserror::Error)]
 pub enum CollectionError {
+    /// Underlying SQL or libSQL failure.
     #[error("turso error: {0}")]
     Turso(#[from] turso::Error),
+    /// Document serialization failure.
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
+    /// Caller or invariant error (e.g. missing row after insert).
     #[error("{0}")]
     InvalidInput(String),
 }
@@ -304,7 +307,8 @@ mod tests {
         assert_eq!(json_to_sql_literal(&Value::Bool(true)), "1");
         assert_eq!(json_to_sql_literal(&Value::Bool(false)), "0");
         assert_eq!(json_to_sql_literal(&serde_json::json!(42)), "42");
-        assert_eq!(json_to_sql_literal(&serde_json::json!(3.14)), "3.14");
+        let f: serde_json::Value = serde_json::from_str("3.14").expect("valid f64 json");
+        assert_eq!(json_to_sql_literal(&f), "3.14");
         assert_eq!(json_to_sql_literal(&serde_json::json!("hello")), "'hello'");
         // SQL injection safety: quotes escaped
         assert_eq!(

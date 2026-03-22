@@ -13,7 +13,7 @@ use crate::profile::GamifyProfile;
 pub async fn get_profile(db: &VoxDb, user_id: &str) -> Result<Option<GamifyProfile>> {
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT level, xp, crystals, energy, max_energy, CAST(last_energy_regen AS INTEGER), CAST(last_active AS INTEGER)
          FROM gamify_profiles WHERE user_id = ?1",
@@ -41,7 +41,7 @@ pub async fn get_profile(db: &VoxDb, user_id: &str) -> Result<Option<GamifyProfi
 
 /// Upsert a gamify profile to the DB.
 pub async fn upsert_profile(db: &VoxDb, p: &GamifyProfile) -> Result<()> {
-    db.store().conn.execute(
+    db.store().connection().execute(
         "INSERT INTO gamify_profiles (user_id, level, xp, crystals, energy, max_energy, last_energy_regen, last_active)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(user_id) DO UPDATE SET
@@ -70,7 +70,7 @@ pub async fn upsert_profile(db: &VoxDb, p: &GamifyProfile) -> Result<()> {
 
 /// Load all companions for a user.
 pub async fn list_companions(db: &VoxDb, user_id: &str) -> Result<Vec<Companion>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, name, description, code_hash, language, ascii_sprite, mood, health, max_health, energy, max_energy, code_quality, last_active
          FROM gamify_companions WHERE user_id = ?1",
         params![user_id],
@@ -106,7 +106,7 @@ pub async fn list_companions(db: &VoxDb, user_id: &str) -> Result<Vec<Companion>
 
 /// Upsert a companion.
 pub async fn upsert_companion(db: &VoxDb, c: &Companion) -> Result<()> {
-    db.store().conn.execute(
+    db.store().connection().execute(
         "INSERT INTO gamify_companions (id, user_id, name, description, code_hash, language, ascii_sprite, mood, health, max_health, energy, max_energy, code_quality, last_active)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
          ON CONFLICT(id) DO UPDATE SET
@@ -143,7 +143,7 @@ pub async fn upsert_companion(db: &VoxDb, c: &Companion) -> Result<()> {
 
 /// Get a specific companion.
 pub async fn get_companion(db: &VoxDb, id: &str) -> Result<Option<Companion>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, user_id, name, description, code_hash, language, ascii_sprite, mood, health, max_health, energy, max_energy, code_quality, last_active
          FROM gamify_companions WHERE id = ?1",
         params![id],
@@ -178,7 +178,7 @@ pub async fn get_companion(db: &VoxDb, id: &str) -> Result<Option<Companion>> {
 /// Delete a companion.
 pub async fn delete_companion(db: &VoxDb, id: &str) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute("DELETE FROM gamify_companions WHERE id = ?1", params![id])
         .await?;
     Ok(())
@@ -190,7 +190,7 @@ use crate::quest::{Quest, QuestType};
 
 /// Load all active quests for a user.
 pub async fn list_quests(db: &VoxDb, user_id: &str) -> Result<Vec<Quest>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at
          FROM gamify_quests WHERE user_id = ?1",
         params![user_id],
@@ -223,7 +223,7 @@ pub async fn list_quests(db: &VoxDb, user_id: &str) -> Result<Vec<Quest>> {
 
 /// Upsert a quest.
 pub async fn upsert_quest(db: &VoxDb, q: &Quest) -> Result<()> {
-    db.store().conn.execute(
+    db.store().connection().execute(
         "INSERT INTO gamify_quests (id, user_id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT(id) DO UPDATE SET
@@ -249,7 +249,7 @@ pub async fn upsert_quest(db: &VoxDb, q: &Quest) -> Result<()> {
 
 /// Get a specific quest by ID.
 pub async fn get_quest(db: &VoxDb, id: &str) -> Result<Option<Quest>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, user_id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at
          FROM gamify_quests WHERE id = ?1",
         params![id],
@@ -281,7 +281,7 @@ pub async fn get_quest(db: &VoxDb, id: &str) -> Result<Option<Quest>> {
 /// Delete a quest.
 pub async fn delete_quest(db: &VoxDb, id: &str) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute("DELETE FROM gamify_quests WHERE id = ?1", params![id])
         .await?;
     Ok(())
@@ -291,7 +291,7 @@ pub async fn delete_quest(db: &VoxDb, id: &str) -> Result<()> {
 pub async fn count_quests(db: &VoxDb, user_id: &str) -> Result<i64> {
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT COUNT(*) FROM gamify_quests WHERE user_id = ?1 AND completed = 0",
             params![user_id],
@@ -310,7 +310,7 @@ use crate::battle::{Battle, BugType};
 
 /// Load recent battles for a user.
 pub async fn list_battles(db: &VoxDb, user_id: &str, limit: i64) -> Result<Vec<Battle>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at
          FROM gamify_battles WHERE user_id = ?1 ORDER BY created_at DESC LIMIT ?2",
         params![user_id, limit],
@@ -345,7 +345,7 @@ pub async fn list_battles(db: &VoxDb, user_id: &str, limit: i64) -> Result<Vec<B
 
 /// Insert a new battle record.
 pub async fn insert_battle(db: &VoxDb, b: &Battle) -> Result<()> {
-    db.store().conn.execute(
+    db.store().connection().execute(
         "INSERT INTO gamify_battles (id, user_id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
@@ -370,7 +370,7 @@ pub async fn insert_battle(db: &VoxDb, b: &Battle) -> Result<()> {
 
 /// Get a specific battle by ID.
 pub async fn get_battle(db: &VoxDb, id: &str) -> Result<Option<Battle>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, user_id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at
          FROM gamify_battles WHERE id = ?1",
         params![id],
@@ -404,7 +404,7 @@ pub async fn get_battle(db: &VoxDb, id: &str) -> Result<Option<Battle>> {
 /// Update a battle.
 pub async fn update_battle(db: &VoxDb, b: &Battle) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "UPDATE gamify_battles SET
             submitted_code = ?1,
@@ -430,7 +430,7 @@ pub async fn update_battle(db: &VoxDb, b: &Battle) -> Result<()> {
 pub async fn count_battles(db: &VoxDb, user_id: &str) -> Result<i64> {
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT COUNT(*) FROM gamify_battles WHERE user_id = ?1",
             params![user_id],
@@ -447,7 +447,7 @@ pub async fn count_battles(db: &VoxDb, user_id: &str) -> Result<i64> {
 pub async fn leaderboard(db: &VoxDb, limit: i64) -> Result<Vec<(String, u64, u64)>> {
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT user_id, level, xp FROM gamify_profiles ORDER BY xp DESC LIMIT ?1",
             params![limit],
@@ -469,7 +469,7 @@ pub async fn leaderboard(db: &VoxDb, limit: i64) -> Result<Vec<(String, u64, u64
 pub async fn get_profile_stats(db: &VoxDb, user_id: &str) -> Result<serde_json::Value> {
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT COUNT(id) FROM gamify_quests WHERE user_id = ?1 AND completed = 1",
             params![user_id],
@@ -483,7 +483,7 @@ pub async fn get_profile_stats(db: &VoxDb, user_id: &str) -> Result<serde_json::
 
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT COUNT(id) FROM gamify_battles WHERE user_id = ?1 AND success = 1",
             params![user_id],
@@ -521,7 +521,7 @@ pub async fn get_events(
     let limit_val = limit.unwrap_or(50);
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT id, agent_id, event_type, payload, timestamp
          FROM agent_events WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
@@ -551,7 +551,7 @@ pub async fn insert_event(
     payload: Option<&str>,
 ) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "INSERT INTO agent_events (agent_id, event_type, payload) VALUES (?1, ?2, ?3)",
             match payload {
@@ -594,7 +594,7 @@ pub async fn insert_cost_record(
     output_tokens: i64,
     cost_usd: f64,
 ) -> Result<()> {
-    db.store().conn.execute(
+    db.store().connection().execute(
         "INSERT INTO cost_records (agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
@@ -614,7 +614,7 @@ pub async fn insert_cost_record(
 pub async fn get_agent_cost_usd(db: &VoxDb, agent_id: &str) -> Result<f64> {
     let mut rows = db
         .store()
-        .conn
+        .connection()
         .query(
             "SELECT COALESCE(SUM(cost_usd), 0.0) FROM cost_records WHERE agent_id = ?1",
             params![agent_id.to_string()],
@@ -629,7 +629,7 @@ pub async fn get_agent_cost_usd(db: &VoxDb, agent_id: &str) -> Result<f64> {
 
 /// Get cost records for an agent, most recent first.
 pub async fn list_cost_records(db: &VoxDb, agent_id: &str, limit: i64) -> Result<Vec<CostRecord>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, timestamp
          FROM cost_records WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
         params![agent_id.to_string(), limit],
@@ -676,7 +676,7 @@ pub async fn insert_a2a_message(
     correlation_id: Option<&str>,
 ) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "INSERT INTO a2a_messages (sender, receiver, msg_type, payload, correlation_id)
          VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -694,7 +694,7 @@ pub async fn insert_a2a_message(
 
 /// Get unacknowledged messages for a receiver.
 pub async fn get_pending_messages(db: &VoxDb, receiver: &str) -> Result<Vec<A2AMessageRecord>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, sender, receiver, msg_type, payload, correlation_id, acknowledged, timestamp
          FROM a2a_messages WHERE receiver = ?1 AND acknowledged = 0 ORDER BY timestamp ASC",
         params![receiver.to_string()],
@@ -718,7 +718,7 @@ pub async fn get_pending_messages(db: &VoxDb, receiver: &str) -> Result<Vec<A2AM
 
 /// List recent A2A messages (audit trail).
 pub async fn list_a2a_messages(db: &VoxDb, limit: i64) -> Result<Vec<A2AMessageRecord>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, sender, receiver, msg_type, payload, correlation_id, acknowledged, timestamp
          FROM a2a_messages ORDER BY timestamp DESC LIMIT ?1",
         params![limit],
@@ -743,7 +743,7 @@ pub async fn list_a2a_messages(db: &VoxDb, limit: i64) -> Result<Vec<A2AMessageR
 /// Acknowledge an A2A message by ID.
 pub async fn acknowledge_message(db: &VoxDb, id: i64) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "UPDATE a2a_messages SET acknowledged = 1 WHERE id = ?1",
             params![id],
@@ -774,7 +774,7 @@ pub async fn insert_agent_session(
     agent_name: Option<&str>,
 ) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "INSERT OR IGNORE INTO agent_sessions (id, agent_id, agent_name) VALUES (?1, ?2, ?3)",
             params![
@@ -796,7 +796,7 @@ pub async fn update_agent_session(
     context_summary: Option<&str>,
 ) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "UPDATE agent_sessions SET status = ?1, task_snapshot = ?2, context_summary = ?3
          WHERE id = ?4",
@@ -814,7 +814,7 @@ pub async fn update_agent_session(
 /// End a session by setting ended_at and status.
 pub async fn end_agent_session(db: &VoxDb, id: &str, status: &str) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "UPDATE agent_sessions SET status = ?1, ended_at = datetime('now') WHERE id = ?2",
             params![status.to_string(), id.to_string()],
@@ -825,7 +825,7 @@ pub async fn end_agent_session(db: &VoxDb, id: &str, status: &str) -> Result<()>
 
 /// Get active sessions.
 pub async fn list_active_sessions(db: &VoxDb) -> Result<Vec<AgentSessionRecord>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary
          FROM agent_sessions WHERE status = 'active' ORDER BY started_at DESC",
         (),
@@ -858,7 +858,7 @@ pub async fn upsert_agent_metric(
     period: &str,
 ) -> Result<()> {
     db.store()
-        .conn
+        .connection()
         .execute(
             "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
          VALUES (?1, ?2, ?3, ?4)
@@ -882,7 +882,7 @@ pub async fn get_agent_metrics(
     agent_id: &str,
     period: &str,
 ) -> Result<std::collections::HashMap<String, f64>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.store().connection().query(
         "SELECT metric_name, metric_value FROM agent_metrics WHERE agent_id = ?1 AND period = ?2",
         params![agent_id.to_string(), period.to_string()],
     ).await?;
@@ -1057,13 +1057,8 @@ pub async fn process_event_rewards(
                     companion_changed = true;
 
                     // Advance Improve quests
-                    advance_quests(
-                        db,
-                        &mut profile,
-                        user_id,
-                        crate::quest::QuestType::Improve,
-                    )
-                    .await;
+                    advance_quests(db, &mut profile, user_id, crate::quest::QuestType::Improve)
+                        .await;
                 }
             }
         }

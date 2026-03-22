@@ -1,23 +1,20 @@
-//! LoRA (Low-Rank Adaptation) layers for vox-tensor.
+//! **Populi** LoRA transformer stack, HF loaders, and merge (`vox-populi`).
 //!
-//! This implements the core LoRA algorithm from Hu et al. 2021.
-//! All types are Burn-backend-agnostic and work with any `B: Backend`.
+//! This module owns **`LoraVoxTransformer`**, **`LoraAttention`**, merge-to-static-MHA (non-RoPE),
+//! and Burn training-graph wiring — not the lightweight `vox-tensor` LoRA primitives.
 //!
-//! ## Usage
+//! ## Relationship to `vox-tensor`
 //!
-//! ```rust,ignore
-//! use vox_tensor::lora::{LoraConfig, LoraLinear};
+//! `vox_tensor::lora` holds shared **`LoraConfig` / `LoraLinear`**
+//! used elsewhere in the workspace. This file **historically duplicated** that surface for `gpu`-gated
+//! Populi code paths; behavior can drift — when fixing LoRA **linear** math, check **both** trees or
+//! consolidate behind one implementation (see `docs/src/architecture/populi-llm-pr-checklist.md`).
 //!
-//! let config = LoraConfig { rank: 8, alpha: 16.0, dropout: 0.0 };
-//! let layer = LoraLinear::<WgpuBackend>::new(&device, 512, 512, &config);
-//! let out = layer.forward(x); // base(x) + alpha/r * B(A(x))
-//! ```
+//! ## Quantization
 //!
-//! ## Native LoRA (no quantization)
-//!
-//! This crate implements standard LoRA (Hu et al. 2021). There is no NF4/4-bit
-//! quantization — base weights are full precision. True QLoRA would require
-//! a `quant` module (planned). This may be extracted to a `burn-lora` crate.
+//! Burn training here uses **f32** bases (no in-tree NF4 frozen base). Candle QLoRA (NF4) lives under
+//! `candle_qlora_train.rs` + qlora-rs. Burn **0.19** exposes quantization building blocks; wiring
+//! true QLoRA on the full Populi graph is **integration backlog** (see `hf-finetune-gap-matrix-ssot.md`).
 
 #[cfg(feature = "gpu")]
 use burn::module::Module;
@@ -128,7 +125,7 @@ impl<B: Backend> LoraLinear<B> {
     ///
     /// Use this when loading HF weights: the base holds the pre-trained weights;
     /// lora_a and lora_b are initialized for training (zero-init on B).
-    /// Burn Linear weight is [d_input, d_output], so dims()[0]=in, dims()[1]=out.
+    /// Burn Linear weight is `[d_input, d_output]`, so `dims()[0]` = in, `dims()[1]` = out.
     pub fn with_base(base: nn::Linear<B>, config: &LoraConfig) -> Self {
         let in_features = base.weight.dims()[0];
         let out_features = base.weight.dims()[1];
@@ -198,6 +195,10 @@ pub fn lora_memory_estimate(
 /// Wraps query (q), key (k), and value (v) projections with LoRA adapters
 /// while keeping the output projection (o) and RoPE (rotary positional embeddings)
 /// as part of the attention computation.
+///
+/// **`merge()`**: only valid when **`use_rope` is `false`** (e.g. GPT-2 with learned
+/// absolute positions). RoPE-augmented Q/K cannot be folded into static `Linear`
+/// weights for Burn `MultiHeadAttention` without a dedicated RoPE-aware export.
 #[cfg(feature = "gpu")]
 #[derive(Module, Debug)]
 pub struct LoraAttention<B: Backend> {
@@ -374,8 +375,7 @@ impl<B: Backend> LoraAttention<B> {
     /// Apply RoPE with positions `0..seq_len`.
     fn apply_rope(&self, t: Tensor<B, 4>, device: &B::Device) -> Tensor<B, 4> {
         let seq_len = t.dims()[2];
-        let pos_ids =
-            burn::tensor::Tensor::<B, 1, Int>::arange(0..seq_len as i64, device);
+        let pos_ids = burn::tensor::Tensor::<B, 1, Int>::arange(0..seq_len as i64, device);
         self.apply_rope_with_pos_ids(t, pos_ids, device)
     }
 
@@ -448,8 +448,7 @@ impl<B: Backend> LoraAttention<B> {
             .swap_dims(1, 2);
 
         if self.use_rope {
-            let pos_ids =
-                burn::tensor::Tensor::<B, 1, Int>::arange(0..seq_len as i64, &device);
+            let pos_ids = burn::tensor::Tensor::<B, 1, Int>::arange(0..seq_len as i64, &device);
             q = self.apply_rope_with_pos_ids(q, pos_ids.clone(), &device);
             k = self.apply_rope_with_pos_ids(k, pos_ids, &device);
         }
@@ -500,10 +499,8 @@ impl<B: Backend> LoraAttention<B> {
             .swap_dims(1, 2);
 
         if self.use_rope {
-            let pos_id = Tensor::<B, 1, Int>::from_ints(
-                TensorData::new(vec![abs_pos as i32], [1]),
-                &device,
-            );
+            let pos_id =
+                Tensor::<B, 1, Int>::from_ints(TensorData::new(vec![abs_pos as i32], [1]), &device);
             q = self.apply_rope_with_pos_ids(q, pos_id.clone(), &device);
             k_new = self.apply_rope_with_pos_ids(k_new, pos_id, &device);
         }
@@ -525,17 +522,28 @@ impl<B: Backend> LoraAttention<B> {
         out
     }
 
-    /// Returns a placeholder MHA — does NOT merge LoRA weights.
+    /// Merge LoRA into Q/K/V projections and return Burn `MultiHeadAttention` with the same
+    /// merged `Linear` weights as [`LoraLinear::merge`].
     ///
-    /// Burn's `MultiHeadAttention` has private fields; we cannot inject merged
-    /// q/k/v weights via the public API. This returns a freshly-initialized
-    /// MHA with random weights. For correct inference, use `LoraVoxTransformer`
-    /// or `LoraAttention` directly at serve time; do not rely on `merge()` for
-    /// attention.
+    /// **RoPE:** Not supported — `use_rope` must be `false` (e.g. GPT-2 with learned positions).
+    /// Merged MHA uses Burn's attention path; use [`super::burn_stack::TransformerBlock`] with
+    /// [`MhaInput::mask_attn`](nn::attention::MhaInput::mask_attn) and
+    /// [`generate_autoregressive_mask`](nn::attention::generate_autoregressive_mask) for causal LM.
     pub fn merge(&self) -> nn::attention::MultiHeadAttention<B> {
+        assert!(
+            !self.use_rope,
+            "LoraAttention::merge requires use_rope=false (RoPE path cannot be represented as static Q/K/V linears)"
+        );
         let device = self.out.devices()[0].clone();
-        let config = nn::attention::MultiHeadAttentionConfig::new(self.d_model, self.n_heads);
-        config.init(&device)
+        let mut mha = nn::attention::MultiHeadAttentionConfig::new(self.d_model, self.n_heads)
+            .with_dropout(0.0)
+            .with_min_float(-1e9f64)
+            .init(&device);
+        mha.query = self.q.merge();
+        mha.key = self.k.merge();
+        mha.value = self.v.merge();
+        mha.output = self.out.clone();
+        mha
     }
 }
 
@@ -548,14 +556,12 @@ impl<B: Backend> LoraLinear<B> {
     ///
     /// Uses `.val()` (not `.val_device()`) to stay on the current device.
     pub fn merge(&self) -> nn::Linear<B> {
-        // Burn's LinearConfig::new(in, out) stores weight as [out, in].
-        // So: lora_a.weight = [rank, in_features]
-        //     lora_b.weight = [out_features, rank]
-        // delta_W = lora_b.weight @ lora_a.weight → [out_features, in_features]
-        // which matches base.weight shape exactly.
-        let a = self.lora_a.weight.val(); // [rank, in_features]
-        let b = self.lora_b.weight.val(); // [out_features, rank]
-        let delta_w = b.matmul(a) * self.scale as f64;
+        // Burn `linear()` uses `input.matmul(weight)` with weight `[d_input, d_output]`.
+        // lora_a: [in_features, rank], lora_b: [rank, out_features]
+        // delta: [in_features, rank] @ [rank, out_features] → [in_features, out_features]
+        let a = self.lora_a.weight.val();
+        let b = self.lora_b.weight.val();
+        let delta_w = a.matmul(b) * self.scale as f64;
         let merged_w = self.base.weight.val() + delta_w;
         let mut merged = self.base.clone();
         merged.weight = burn::module::Param::from_tensor(merged_w);
@@ -690,13 +696,13 @@ impl<B: Backend> LoraTransformerBlock<B> {
     /// Merge this block into a plain `TransformerBlock`.
     ///
     /// For SwiGLU blocks (Qwen2), merge is not fully supported — returns a placeholder.
-    pub fn merge(&self) -> super::nn::TransformerBlock<B> {
+    pub fn merge(&self) -> super::burn_stack::TransformerBlock<B> {
         if self.ff_gate.is_some() {
             let device = self.ff_linear2.weight.devices()[0].clone();
             let d_model = self.ff_linear2.weight.dims()[1];
             let intermediate = self.ff_linear2.weight.dims()[0];
             let ff1 = nn::LinearConfig::new(d_model, intermediate).init(&device);
-            return super::nn::TransformerBlock {
+            return super::burn_stack::TransformerBlock {
                 attention: self.attention.merge(),
                 norm1: self.norm1.clone(),
                 ff_linear1: ff1,
@@ -708,7 +714,7 @@ impl<B: Backend> LoraTransformerBlock<B> {
             .ff_linear1
             .as_ref()
             .expect("GPT-2 block must have ff_linear1");
-        super::nn::TransformerBlock {
+        super::burn_stack::TransformerBlock {
             attention: self.attention.merge(),
             norm1: self.norm1.clone(),
             ff_linear1: ff1.clone(),
@@ -867,10 +873,8 @@ impl<B: Backend> LoraVoxTransformer<B> {
 
         let mut h = self.embedding.forward(token.clone());
         if !self.use_rope {
-            let pos_id = Tensor::<B, 1, Int>::from_ints(
-                TensorData::new(vec![abs_pos as i32], [1]),
-                &device,
-            );
+            let pos_id =
+                Tensor::<B, 1, Int>::from_ints(TensorData::new(vec![abs_pos as i32], [1]), &device);
             let pos_ids = pos_id.reshape([1, 1]).repeat_dim(0, batch);
             let pos_emb = self.pos_embedding.forward(pos_ids);
             h = h + pos_emb;
@@ -888,13 +892,14 @@ impl<B: Backend> LoraVoxTransformer<B> {
     /// Merge all LoRA adapters back into base weights.
     ///
     /// Returns a plain `VoxTransformer` suitable for inference (no LoRA overhead).
-    pub fn merge(&self) -> super::nn::VoxTransformer<B> {
-        super::nn::VoxTransformer {
+    pub fn merge(&self) -> super::burn_stack::VoxTransformer<B> {
+        super::burn_stack::VoxTransformer {
             embedding: self.embedding.clone(),
             pos_embedding: self.pos_embedding.clone(),
             blocks: self.blocks.iter().map(|b| b.merge()).collect(),
             norm: self.norm.clone(),
             output: self.output.clone(),
+            use_rope: self.use_rope,
         }
     }
 }
@@ -944,5 +949,400 @@ mod tests {
         let expected = 768 * 8 + 8 * 768;
         assert_eq!(lora_params, expected);
         println!("LoRA memory saving for 768×768, rank=8: {saving:.1}%");
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod burn_full_graph_smoke {
+    use burn::backend::wgpu::Wgpu;
+    use burn::tensor::{Int, Tensor, TensorData};
+
+    use super::LoraVoxTransformer;
+
+    /// Deterministic shape smoke: one block, tiny vocab (full-graph forward path).
+    #[test]
+    fn lora_vox_transformer_forward_logits_shape() {
+        type B = Wgpu;
+        let device = <B as burn::tensor::backend::Backend>::Device::default();
+        let vocab = 24usize;
+        let d_model = 16usize;
+        let n_heads = 2usize;
+        let n_layers = 1usize;
+        let model =
+            LoraVoxTransformer::<B>::new(&device, vocab, d_model, n_heads, n_layers, 4, 8.0);
+        let seq = 5usize;
+        let input = Tensor::<B, 2, Int>::from_data(
+            TensorData::new(vec![1i32, 2, 3, 4, 5], [1, seq]),
+            &device,
+        );
+        let logits = model.forward(input);
+        let dims = logits.dims();
+        assert_eq!(
+            dims,
+            [1, seq, vocab],
+            "expected [batch, seq, vocab], got {dims:?}"
+        );
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod lora_linear_merge_numeric {
+    use burn::backend::NdArray;
+    use burn::module::Param;
+    use burn::nn;
+    use burn::tensor::backend::Backend;
+    use burn::tensor::{Tensor, TensorData};
+
+    use super::{LoraConfig, LoraLinear};
+
+    /// `merge()` weight must match `W_base + (alpha/rank) * (lora_a.weight @ lora_b.weight)` (Burn `[in, out]`).
+    #[test]
+    fn lora_linear_merge_matches_base_plus_scaled_ba() {
+        type B = NdArray<f32>;
+        let device = <B as Backend>::Device::default();
+
+        let in_f = 3usize;
+        let out_f = 4usize;
+        let rank = 2usize;
+        let alpha = 4.0f32;
+        let scale = alpha / rank as f32;
+
+        // Row-major `[d_input, d_output]` (Burn Row `Linear`): index (i, o) → i * out_f + o
+        let mut base_w = vec![0f32; in_f * out_f];
+        for i in 0..in_f {
+            for o in 0..out_f {
+                base_w[i * out_f + o] = (o * 10 + i) as f32 * 0.25;
+            }
+        }
+        let mut a_w = vec![0f32; in_f * rank];
+        for i in 0..in_f {
+            for r in 0..rank {
+                a_w[i * rank + r] = (r + 1) as f32 * 0.5 + i as f32 * 0.1;
+            }
+        }
+        let mut b_w = vec![0f32; rank * out_f];
+        for r in 0..rank {
+            for o in 0..out_f {
+                b_w[r * out_f + o] = (o + r) as f32 * 0.3;
+            }
+        }
+
+        let w_base =
+            Tensor::<B, 2>::from_data(TensorData::new(base_w.clone(), [in_f, out_f]), &device);
+        let w_a = Tensor::<B, 2>::from_data(TensorData::new(a_w.clone(), [in_f, rank]), &device);
+        let w_b = Tensor::<B, 2>::from_data(TensorData::new(b_w.clone(), [rank, out_f]), &device);
+
+        let mut base = nn::LinearConfig::new(in_f, out_f)
+            .with_bias(false)
+            .init(&device);
+        base.weight = Param::from_tensor(w_base);
+
+        let config = LoraConfig {
+            rank,
+            alpha,
+            dropout: 0.0,
+        };
+        let mut lora = LoraLinear::with_base(base, &config);
+        lora.lora_a.weight = Param::from_tensor(w_a);
+        lora.lora_b.weight = Param::from_tensor(w_b);
+
+        let merged = lora.merge();
+        let got = merged.weight.val().into_data();
+        let slice = got.as_slice::<f32>().expect("f32 weights");
+
+        for i in 0..in_f {
+            for o in 0..out_f {
+                let mut delta = 0f32;
+                for k in 0..rank {
+                    delta += a_w[i * rank + k] * b_w[k * out_f + o];
+                }
+                delta *= scale;
+                let exp = base_w[i * out_f + o] + delta;
+                let idx = i * out_f + o;
+                assert!(
+                    (slice[idx] - exp).abs() < 1e-4,
+                    "i={i} o={o}: expected {exp} got {}",
+                    slice[idx]
+                );
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod lora_attention_merged_mha_parity {
+    use burn::backend::NdArray;
+    use burn::module::Param;
+    use burn::nn::attention::{MhaInput, generate_autoregressive_mask};
+    use burn::tensor::backend::Backend;
+    use burn::tensor::{Tensor, TensorData};
+
+    use super::LoraAttention;
+
+    #[test]
+    fn merged_multi_head_attention_matches_lora_attention_forward() {
+        type B = NdArray<f32>;
+        let device = <B as Backend>::Device::default();
+        let d_model = 16usize;
+        let n_heads = 4usize;
+        let rank = 3usize;
+        let alpha = 6.0f32;
+        let seq = 5usize;
+        let batch = 2usize;
+
+        let mut attn = LoraAttention::new(&device, d_model, n_heads, rank, alpha);
+
+        let fill_mat = |rows: usize, cols: usize, seed: f32| -> Vec<f32> {
+            let mut v = Vec::with_capacity(rows * cols);
+            let mut t = seed;
+            for _ in 0..(rows * cols) {
+                v.push(t);
+                t += 0.013;
+            }
+            v
+        };
+
+        for (proj, seed) in [
+            (&mut attn.q, 0.02f32),
+            (&mut attn.k, 0.03f32),
+            (&mut attn.v, 0.04f32),
+        ] {
+            proj.lora_a.weight = Param::from_tensor(Tensor::from_data(
+                TensorData::new(fill_mat(d_model, rank, seed), [d_model, rank]),
+                &device,
+            ));
+            proj.lora_b.weight = Param::from_tensor(Tensor::from_data(
+                TensorData::new(fill_mat(rank, d_model, seed + 0.1), [rank, d_model]),
+                &device,
+            ));
+        }
+
+        let mut input_flat: Vec<f32> = Vec::with_capacity(batch * seq * d_model);
+        let mut t = -0.5f32;
+        for _ in 0..(batch * seq * d_model) {
+            input_flat.push(t);
+            t += 0.007;
+        }
+        let x =
+            Tensor::<B, 3>::from_data(TensorData::new(input_flat, [batch, seq, d_model]), &device);
+
+        let y_lora = attn.forward(x.clone());
+        let mha = attn.merge();
+        let mask = generate_autoregressive_mask(batch, seq, &device);
+        let y_mha = mha.forward(MhaInput::self_attn(x).mask_attn(mask)).context;
+
+        let y_lora_s = y_lora.into_data().as_slice::<f32>().unwrap().to_vec();
+        let y_mha_s = y_mha.into_data().as_slice::<f32>().unwrap().to_vec();
+        assert_eq!(y_lora_s.len(), y_mha_s.len());
+        for (i, (&a, &b)) in y_lora_s.iter().zip(y_mha_s.iter()).enumerate() {
+            assert!((a - b).abs() < 1e-4, "divergence at {i}: lora={a} mha={b}");
+        }
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod lora_transformer_block_merge_forward_parity {
+    use burn::backend::NdArray;
+    use burn::module::Param;
+    use burn::tensor::backend::Backend;
+    use burn::tensor::{Tensor, TensorData};
+
+    use super::LoraTransformerBlock;
+
+    #[test]
+    fn merged_transformer_block_matches_lora_block_forward() {
+        type B = NdArray<f32>;
+        let device = <B as Backend>::Device::default();
+        let d = 16usize;
+        let n_heads = 4usize;
+        let rank = 3usize;
+        let alpha = 6.0f32;
+        let seq = 5usize;
+        let batch = 2usize;
+
+        let mut block = LoraTransformerBlock::new(&device, d, n_heads, rank, alpha);
+
+        let fill_mat = |rows: usize, cols: usize, seed: f32| -> Vec<f32> {
+            let mut v = Vec::with_capacity(rows * cols);
+            let mut t = seed;
+            for _ in 0..(rows * cols) {
+                v.push(t);
+                t += 0.011;
+            }
+            v
+        };
+
+        for (proj, seed) in [
+            (&mut block.attention.q, 0.02f32),
+            (&mut block.attention.k, 0.03f32),
+            (&mut block.attention.v, 0.04f32),
+        ] {
+            proj.lora_a.weight = Param::from_tensor(Tensor::from_data(
+                TensorData::new(fill_mat(d, rank, seed), [d, rank]),
+                &device,
+            ));
+            proj.lora_b.weight = Param::from_tensor(Tensor::from_data(
+                TensorData::new(fill_mat(rank, d, seed + 0.1), [rank, d]),
+                &device,
+            ));
+        }
+
+        let mut input_flat: Vec<f32> = Vec::with_capacity(batch * seq * d);
+        let mut t = -0.3f32;
+        for _ in 0..(batch * seq * d) {
+            input_flat.push(t);
+            t += 0.006;
+        }
+        let x = Tensor::<B, 3>::from_data(TensorData::new(input_flat, [batch, seq, d]), &device);
+
+        let y_lora = block.forward(x.clone());
+        let merged = block.merge();
+        let y_plain = merged.forward(x);
+
+        let a = y_lora.into_data().as_slice::<f32>().unwrap().to_vec();
+        let b = y_plain.into_data().as_slice::<f32>().unwrap().to_vec();
+        assert_eq!(a.len(), b.len());
+        for (i, (&u, &v)) in a.iter().zip(b.iter()).enumerate() {
+            assert!(
+                (u - v).abs() < 1e-4,
+                "block merge forward mismatch at {i}: {u} vs {v}"
+            );
+        }
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod lora_checkpoint_roundtrip {
+    use burn::backend::NdArray;
+    use burn::tensor::backend::Backend;
+    use burn::tensor::{Int, Tensor, TensorData};
+    use tempfile::tempdir;
+    use vox_tensor::train::Checkpoint;
+
+    use super::LoraVoxTransformer;
+
+    #[test]
+    fn lora_vox_transformer_checkpoint_roundtrip_preserves_forward() {
+        type B = NdArray<f32>;
+        let device = <B as Backend>::Device::default();
+        let vocab_size = 32usize;
+        let d_model = 16usize;
+        let n_heads = 4usize;
+        let n_layers = 2usize;
+
+        let model =
+            LoraVoxTransformer::<B>::new(&device, vocab_size, d_model, n_heads, n_layers, 2, 4.0);
+        let input = Tensor::<B, 2, Int>::from_data(
+            TensorData::new(vec![1i32, 2, 3, 4, 5i32], [1, 5]),
+            &device,
+        );
+        let logits_before = model.forward(input.clone());
+
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("lora_ckpt.bin");
+        Checkpoint::save(&model, &path).expect("Checkpoint::save");
+
+        let fresh =
+            LoraVoxTransformer::<B>::new(&device, vocab_size, d_model, n_heads, n_layers, 2, 4.0);
+        let loaded = Checkpoint::load(fresh, &path).expect("Checkpoint::load");
+        let logits_after = loaded.forward(input);
+
+        let a = logits_before
+            .into_data()
+            .as_slice::<f32>()
+            .expect("f32")
+            .to_vec();
+        let b = logits_after
+            .into_data()
+            .as_slice::<f32>()
+            .expect("f32")
+            .to_vec();
+        assert_eq!(a.len(), b.len());
+        for (i, (&u, &v)) in a.iter().zip(b.iter()).enumerate() {
+            assert!(
+                (u - v).abs() < 1e-5,
+                "logits differ at {i}: before={u} after={v}"
+            );
+        }
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod lora_full_model_merge_forward_parity {
+    use burn::backend::NdArray;
+    use burn::module::Param;
+    use burn::tensor::backend::Backend;
+    use burn::tensor::{Int, Tensor, TensorData};
+
+    use super::LoraVoxTransformer;
+
+    #[test]
+    fn merged_vox_transformer_matches_lora_full_forward() {
+        type B = NdArray<f32>;
+        let device = <B as Backend>::Device::default();
+        let vocab_size = 24usize;
+        let d_model = 16usize;
+        let n_heads = 4usize;
+        let n_layers = 2usize;
+        let rank = 3usize;
+        let alpha = 6.0f32;
+
+        let mut model = LoraVoxTransformer::<B>::new(
+            &device, vocab_size, d_model, n_heads, n_layers, rank, alpha,
+        );
+
+        let fill_mat = |rows: usize, cols: usize, seed: f32| -> Vec<f32> {
+            let mut v = Vec::with_capacity(rows * cols);
+            let mut t = seed;
+            for _ in 0..(rows * cols) {
+                v.push(t);
+                t += 0.019;
+            }
+            v
+        };
+
+        for block in &mut model.blocks {
+            for (proj, seed) in [
+                (&mut block.attention.q, 0.015f32),
+                (&mut block.attention.k, 0.025f32),
+                (&mut block.attention.v, 0.035f32),
+            ] {
+                proj.lora_a.weight = Param::from_tensor(Tensor::from_data(
+                    TensorData::new(fill_mat(d_model, rank, seed), [d_model, rank]),
+                    &device,
+                ));
+                proj.lora_b.weight = Param::from_tensor(Tensor::from_data(
+                    TensorData::new(fill_mat(rank, d_model, seed + 0.11), [rank, d_model]),
+                    &device,
+                ));
+            }
+        }
+
+        let input = Tensor::<B, 2, Int>::from_data(
+            TensorData::new(vec![2i32, 5, 1, 3, 7i32], [1, 5]),
+            &device,
+        );
+
+        let logits_lora = model.forward(input.clone());
+        let merged = model.merge();
+        let logits_merged = merged.forward(input);
+
+        let a = logits_lora
+            .into_data()
+            .as_slice::<f32>()
+            .expect("f32")
+            .to_vec();
+        let b = logits_merged
+            .into_data()
+            .as_slice::<f32>()
+            .expect("f32")
+            .to_vec();
+        assert_eq!(a.len(), b.len());
+        for (i, (&u, &v)) in a.iter().zip(b.iter()).enumerate() {
+            assert!(
+                (u - v).abs() < 1e-4,
+                "full merge forward mismatch at {i}: {u} vs {v}"
+            );
+        }
     }
 }

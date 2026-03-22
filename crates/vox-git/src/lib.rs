@@ -12,8 +12,7 @@
 //!     │
 //!     ├── gix::Repository ── local .git/
 //!     │
-//!     └── GitForgeProvider ──► GitHub / GitLab / Gitea / Forgejo
-//!             (via vox-forge)
+//!     └── GitForgeProvider ──► GitHub / GitLab (via `vox-forge`)
 //! ```
 //!
 //! ## Design principles
@@ -21,9 +20,13 @@
 //! - **Pure Rust TLS**: reqwest with `rustls-tls` feature.
 //! - **Forge-agnostic**: git operations here; platform API calls go to `vox-forge`.
 
+/// High-level repository operations using gitoxide.
 pub mod bridge;
+/// Git object id / OID helpers.
 pub mod object;
+/// Reference (branch/tag) utilities.
 pub mod refs;
+/// Fetch/push and remote sync orchestration.
 pub mod sync;
 
 pub use bridge::GitBridge;

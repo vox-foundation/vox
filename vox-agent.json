@@ -40,7 +40,7 @@
     }
   },
   "watcher": {
-    "ignore": ["target/**", ".git/**", "*.lock"]
+    "ignore": ["target/**", ".git/**", "*.lock", ".cargo-targets/**", ".cursor/plans/**"]
   },
   "agent": {
     "build": {

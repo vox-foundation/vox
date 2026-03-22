@@ -1,3 +1,7 @@
+//! Regenerate mdBook `SUMMARY.md` from markdown files in `docs/src/`.
+//!
+//! Run from the repository root. Skips `SUMMARY.md` itself; sorts other `.md` files for stable output.
+
 use std::fs;
 use std::path::Path;
 

@@ -1,47 +1,21 @@
-use anyhow::{Context, Result};
-use std::fs;
+//! `vox check` — type-check only (no files written except logs to stderr).
+
+use anyhow::Result;
 use std::path::Path;
 
-pub fn run(file: &Path) -> Result<()> {
-    let source = fs::read_to_string(file)
-        .with_context(|| format!("Failed to read source file: {}", file.display()))?;
+/// Lex, parse, and type-check `file`; fail the process if any error-level diagnostic is reported.
+pub async fn run(file: &Path, emit_training_jsonl: Option<&Path>) -> Result<()> {
+    let result = crate::pipeline::run_frontend(file, false).await?;
+    crate::pipeline::print_diagnostics(&result, file, false);
+    let error_count = result.error_count();
+    let warning_count = result.warning_count();
 
-    // 1. Lex
-    let tokens = vox_lexer::lex(&source);
-    println!("Lexed {} tokens", tokens.len());
-
-    // 2. Parse
-    let module = vox_parser::parser::parse(tokens).map_err(|errors| {
-        for e in &errors {
-            eprintln!("Parse error: {} at {:?}", e.message, e.span);
-        }
-        anyhow::anyhow!("Parsing failed with {} error(s)", errors.len())
-    })?;
-    println!("Parsed {} declarations", module.declarations.len());
-
-    // 3. Type check
-    let diagnostics = vox_typeck::typecheck_module(&module);
-    let error_count = diagnostics
-        .iter()
-        .filter(|d| d.severity == vox_typeck::diagnostics::Severity::Error)
-        .count();
-    let warning_count = diagnostics
-        .iter()
-        .filter(|d| d.severity == vox_typeck::diagnostics::Severity::Warning)
-        .count();
-
-    for d in &diagnostics {
-        match d.severity {
-            vox_typeck::diagnostics::Severity::Error => {
-                eprintln!("error: {} at {:?}", d.message, d.span)
-            }
-            vox_typeck::diagnostics::Severity::Warning => {
-                eprintln!("warning: {} at {:?}", d.message, d.span)
-            }
-        }
+    if let Some(output_path) = emit_training_jsonl {
+        crate::training::append_jsonl(output_path, file, &result)?;
+        println!("Appended training record to {}", output_path.display());
     }
 
-    if error_count > 0 {
+    if result.has_errors() {
         anyhow::bail!("Check failed with {error_count} error(s) and {warning_count} warning(s)");
     }
 

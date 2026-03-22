@@ -1,4 +1,5 @@
-use crate::{execute_activity, ActivityOptions, ActivityResult};
+use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
+use crate::{ActivityOptions, ActivityResult, execute_activity};
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -10,20 +11,29 @@ use tokio_stream::Stream;
 /// Message format for the chat API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
+    /// Chat role string (`system`, `user`, `assistant`, …).
     pub role: String,
+    /// Message body text.
     pub content: String,
 }
 
 /// A configuration block for an LLM provider integration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmConfig {
-    pub provider: String, // e.g. "openrouter", "openai", "anthropic"
-    pub model: String,    // e.g. "anthropic/claude-3.5-sonnet"
+    /// Provider key (e.g. `openrouter`, `openai`, `anthropic`, `hf_router`).
+    pub provider: String,
+    /// Provider-specific model id (e.g. `anthropic/claude-3.5-sonnet`).
+    pub model: String,
+    /// Override chat completions URL; defaults are chosen from `provider`.
     pub base_url: Option<String>,
+    /// API key or bearer token when the provider requires one.
     pub api_key: Option<String>,
+    /// Sampling temperature when supported by the endpoint.
     pub temperature: Option<f32>,
+    /// Maximum tokens to generate when supported.
     pub max_tokens: Option<u64>,
-    pub response_format: Option<serde_json::Value>, // Structured JSON output
+    /// Optional JSON Schema / response-format object for structured output.
+    pub response_format: Option<serde_json::Value>,
 }
 
 impl LlmConfig {
@@ -53,6 +63,19 @@ impl LlmConfig {
         }
     }
 
+    /// Hugging Face Inference Providers router (OpenAI-compatible chat completions).
+    pub fn huggingface_router(model: impl Into<String>) -> Self {
+        Self {
+            provider: "hf_router".into(),
+            model: model.into(),
+            base_url: Some(HF_ROUTER_CHAT_COMPLETIONS_URL.to_string()),
+            api_key: vox_config::inference::huggingface_hub_token(),
+            temperature: None,
+            max_tokens: None,
+            response_format: None,
+        }
+    }
+
     /// Resolve from a model registry alias.
     ///
     /// `registry` maps alias names (e.g. `"fast"`, `"smart"`) to
@@ -72,6 +95,9 @@ impl LlmConfig {
                 "openrouter" => std::env::var("OPENROUTER_API_KEY").ok(),
                 "openai" => std::env::var("OPENAI_API_KEY").ok(),
                 "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+                "hf_router" | "huggingface" | "hf_endpoint" => {
+                    vox_config::inference::huggingface_hub_token()
+                }
                 _ => None,
             });
         let base_url = entry
@@ -80,6 +106,8 @@ impl LlmConfig {
             .or_else(|| match entry.provider.as_str() {
                 "openrouter" => Some("https://openrouter.ai/api/v1/chat/completions".into()),
                 "openai" => Some("https://api.openai.com/v1/chat/completions".into()),
+                "hf_router" | "huggingface" => Some(HF_ROUTER_CHAT_COMPLETIONS_URL.to_string()),
+                "hf_endpoint" => None,
                 _ => None,
             });
         Ok(Self {
@@ -97,11 +125,17 @@ impl LlmConfig {
 /// An entry in a Vox `@config model_registry:` block, deserialized at compile time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelRegistryEntry {
+    /// Provider family for this alias.
     pub provider: String,
+    /// Model id passed to the provider API.
     pub model: String,
+    /// Default temperature for this alias.
     pub temperature: Option<f32>,
+    /// Default max output tokens for this alias.
     pub max_tokens: Option<u64>,
+    /// Name of an environment variable holding the API key, if any.
     pub api_key_env: Option<String>,
+    /// Optional override for the chat completions URL.
     pub base_url: Option<String>,
 }
 
@@ -111,9 +145,13 @@ pub struct ModelRegistryEntry {
 pub struct ModelMetric {
     /// Millisecond-timestamp of the completion.
     pub ts: u64,
+    /// Model id as reported by the provider response.
     pub model: String,
+    /// Provider key used for the call.
     pub provider: String,
+    /// Prompt (input) token count from usage metadata.
     pub prompt_tokens: u32,
+    /// Completion (output) token count from usage metadata.
     pub completion_tokens: u32,
     /// Estimated cost in USD (computed from a model registry lookup if available).
     pub estimated_cost_usd: f64,
@@ -140,11 +178,20 @@ impl ModelMetric {
 /// The standard parsed response from an LLM chat operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmResponse {
+    /// Assistant message text from the first choice.
     pub content: String,
+    /// Prompt token usage when the API returned it.
     pub prompt_tokens: u32,
+    /// Completion token usage when the API returned it.
     pub completion_tokens: u32,
+    /// Model id from the response body, or the configured model as fallback.
     pub model: String,
 }
+
+type LlmChatActivityFuture =
+    Pin<Box<dyn Future<Output = Result<Result<LlmResponse, String>, String>> + Send>>;
+type LlmEmbedActivityFuture =
+    Pin<Box<dyn Future<Output = Result<Result<Vec<f32>, String>, String>> + Send>>;
 
 #[derive(Serialize)]
 struct OpenRouterRequest<'a> {
@@ -182,6 +229,25 @@ struct OpenRouterUsage {
     completion_tokens: u32,
 }
 
+fn resolve_chat_api_key(config: &LlmConfig) -> String {
+    config
+        .api_key
+        .clone()
+        .unwrap_or_else(|| match config.provider.as_str() {
+            "openrouter" => env::var("OPENROUTER_API_KEY").unwrap_or_default(),
+            "openai" => env::var("OPENAI_API_KEY").unwrap_or_default(),
+            "anthropic" => env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+            "hf_router" | "huggingface" | "hf_endpoint" => {
+                vox_config::inference::huggingface_hub_token().unwrap_or_default()
+            }
+            _ => String::new(),
+        })
+}
+
+fn chat_requires_nonempty_api_key(provider: &str) -> bool {
+    matches!(provider, "openrouter" | "openai" | "anthropic")
+}
+
 /// Core durable wrapper for LLM chat (single complete response).
 pub async fn llm_chat(
     options: &ActivityOptions,
@@ -195,25 +261,30 @@ pub async fn llm_chat(
         let config = config.clone();
 
         let fut = async move {
-            let api_key = config
-                .api_key
-                .unwrap_or_else(|| match config.provider.as_str() {
-                    "openrouter" => env::var("OPENROUTER_API_KEY").unwrap_or_default(),
-                    "openai" => env::var("OPENAI_API_KEY").unwrap_or_default(),
-                    _ => String::new(),
-                });
+            let api_key = resolve_chat_api_key(&config);
 
-            if api_key.is_empty() {
+            if chat_requires_nonempty_api_key(&config.provider) && api_key.is_empty() {
                 return Ok(Err("No API key available for LLM provider".to_string()));
             }
 
             let base_url = config
                 .base_url
+                .clone()
                 .unwrap_or_else(|| match config.provider.as_str() {
                     "openrouter" => "https://openrouter.ai/api/v1/chat/completions".to_string(),
                     "openai" => "https://api.openai.com/v1/chat/completions".to_string(),
+                    "hf_router" | "huggingface" => HF_ROUTER_CHAT_COMPLETIONS_URL.to_string(),
                     _ => "https://openrouter.ai/api/v1/chat/completions".to_string(),
                 });
+            if matches!(config.provider.as_str(), "hf_endpoint")
+                && (base_url.trim().is_empty()
+                    || !base_url.contains("chat/completions"))
+            {
+                return Ok(Err(
+                    "hf_endpoint requires a non-empty chat completions base_url (e.g. …/v1/chat/completions)"
+                        .to_string(),
+                ));
+            }
 
             let client = Client::new();
             let req_body = OpenRouterRequest {
@@ -225,16 +296,20 @@ pub async fn llm_chat(
                 stream: false,
             };
 
-            let res = client
-                .post(&base_url)
-                .bearer_auth(api_key)
-                .json(&req_body)
+            let mut req = client.post(&base_url).json(&req_body);
+            if !api_key.is_empty() {
+                req = req.bearer_auth(api_key);
+            }
+            let res = req
                 .send()
                 .await
                 .map_err(|e| format!("HTTP request failed: {}", e))?;
 
             if !res.status().is_success() {
-                let err_text = res.text().await.unwrap_or_default();
+                let err_text = res
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| String::from("<no body>"));
                 return Ok(Err(format!("LLM API returned error: {}", err_text)));
             }
 
@@ -263,9 +338,7 @@ pub async fn llm_chat(
                 model: llm_res.model.unwrap_or_else(|| config.model.clone()),
             }))
         };
-        let fut_typed: Pin<
-            Box<dyn Future<Output = Result<Result<LlmResponse, String>, String>> + Send>,
-        > = Box::pin(fut);
+        let fut_typed: LlmChatActivityFuture = Box::pin(fut);
         fut_typed
     })
     .await
@@ -276,25 +349,29 @@ pub async fn llm_stream(
     messages: Vec<ChatMessage>,
     config: LlmConfig,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<String, String>> + Send>>, String> {
-    let api_key = config
-        .api_key
-        .unwrap_or_else(|| match config.provider.as_str() {
-            "openrouter" => env::var("OPENROUTER_API_KEY").unwrap_or_default(),
-            "openai" => env::var("OPENAI_API_KEY").unwrap_or_default(),
-            _ => String::new(),
-        });
+    let api_key = resolve_chat_api_key(&config);
 
-    if api_key.is_empty() {
+    if chat_requires_nonempty_api_key(&config.provider) && api_key.is_empty() {
         return Err("No API key available for LLM provider".to_string());
     }
 
     let base_url = config
         .base_url
+        .clone()
         .unwrap_or_else(|| match config.provider.as_str() {
             "openrouter" => "https://openrouter.ai/api/v1/chat/completions".to_string(),
             "openai" => "https://api.openai.com/v1/chat/completions".to_string(),
+            "hf_router" | "huggingface" => HF_ROUTER_CHAT_COMPLETIONS_URL.to_string(),
             _ => "https://openrouter.ai/api/v1/chat/completions".to_string(),
         });
+    if matches!(config.provider.as_str(), "hf_endpoint")
+        && (base_url.trim().is_empty() || !base_url.contains("chat/completions"))
+    {
+        return Err(
+            "hf_endpoint requires a non-empty chat completions base_url (e.g. …/v1/chat/completions)"
+                .to_string(),
+        );
+    }
 
     let client = Client::new();
     let req_body = OpenRouterRequest {
@@ -308,18 +385,24 @@ pub async fn llm_stream(
 
     let body = serde_json::to_string(&req_body).map_err(|e| e.to_string())?;
 
-    let res = client
-        .post(&base_url)
-        .bearer_auth(api_key)
+    let mut req = client
+        .post(base_url)
         .header("Content-Type", "application/json")
         .header("Accept", "text/event-stream")
-        .body(body)
+        .body(body);
+    if !api_key.is_empty() {
+        req = req.bearer_auth(api_key);
+    }
+    let res = req
         .send()
         .await
         .map_err(|e| format!("HTTP request failed: {}", e))?;
 
     if !res.status().is_success() {
-        let err_text = res.text().await.unwrap_or_default();
+        let err_text = res
+            .text()
+            .await
+            .unwrap_or_else(|_| String::from("<no body>"));
         return Err(format!("LLM API returned error: {}", err_text));
     }
 
@@ -394,25 +477,32 @@ pub async fn llm_embed(
         let config = config.clone();
 
         let fut = async move {
-            let api_key = config
-                .api_key
-                .unwrap_or_else(|| match config.provider.as_str() {
-                    "openrouter" => env::var("OPENROUTER_API_KEY").unwrap_or_default(),
-                    "openai" => env::var("OPENAI_API_KEY").unwrap_or_default(),
-                    _ => String::new(),
-                });
+            let api_key = resolve_chat_api_key(&config);
 
-            if api_key.is_empty() {
+            if chat_requires_nonempty_api_key(&config.provider) && api_key.is_empty() {
                 return Ok(Err("No API key available for LLM provider".to_string()));
             }
 
-            let base_url = config
-                .base_url
-                .unwrap_or_else(|| match config.provider.as_str() {
-                    "openrouter" => "https://openrouter.ai/api/v1/embeddings".to_string(),
-                    "openai" => "https://api.openai.com/v1/embeddings".to_string(),
-                    _ => "https://openrouter.ai/api/v1/embeddings".to_string(),
-                });
+            let base_url =
+                config
+                    .base_url
+                    .clone()
+                    .unwrap_or_else(|| match config.provider.as_str() {
+                        "openrouter" => "https://openrouter.ai/api/v1/embeddings".to_string(),
+                        "openai" => "https://api.openai.com/v1/embeddings".to_string(),
+                        "hf_router" | "huggingface" => {
+                            "https://router.huggingface.co/v1/embeddings".to_string()
+                        }
+                        _ => "https://openrouter.ai/api/v1/embeddings".to_string(),
+                    });
+            if matches!(config.provider.as_str(), "hf_endpoint")
+                && (base_url.trim().is_empty() || !base_url.contains("embeddings"))
+            {
+                return Ok(Err(
+                    "hf_endpoint embeddings require base_url pointing to …/v1/embeddings"
+                        .to_string(),
+                ));
+            }
 
             let client = Client::new();
             let req_body = OpenRouterEmbedRequest {
@@ -420,16 +510,20 @@ pub async fn llm_embed(
                 input: &text,
             };
 
-            let res = client
-                .post(&base_url)
-                .bearer_auth(api_key)
-                .json(&req_body)
+            let mut req = client.post(&base_url).json(&req_body);
+            if !api_key.is_empty() {
+                req = req.bearer_auth(api_key);
+            }
+            let res = req
                 .send()
                 .await
                 .map_err(|e| format!("HTTP request failed: {}", e))?;
 
             if !res.status().is_success() {
-                let err_text = res.text().await.unwrap_or_default();
+                let err_text = res
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| String::from("<no body>"));
                 return Ok(Err(format!("LLM API returned error: {}", err_text)));
             }
 
@@ -451,9 +545,7 @@ pub async fn llm_embed(
 
             Ok(Ok(vector))
         };
-        let fut_typed: Pin<
-            Box<dyn Future<Output = Result<Result<Vec<f32>, String>, String>> + Send>,
-        > = Box::pin(fut);
+        let fut_typed: LlmEmbedActivityFuture = Box::pin(fut);
         fut_typed
     })
     .await

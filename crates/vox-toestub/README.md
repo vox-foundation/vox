@@ -29,13 +29,24 @@ TOESTUB mechanically detects AI coding anti-patterns that are banned by `AGENTS.
 
 ## CLI
 
+**`vox stub-check`** (minimal `vox` binary): enable **`--features stub-check`**, then e.g.:
+
 ```bash
-vox stub-check                          # Scan current directory
-vox stub-check --path src/              # Scan specific path
-vox stub-check --format json            # JSON output
-vox stub-check --format markdown        # Markdown report
-vox stub-check --ai-provider ollama     # Enable AI analysis
+cargo build -p vox-cli --features stub-check
+vox stub-check                    # scan `.`
+vox stub-check src/               # positional root
+vox stub-check -p crates/         # or --path
+vox stub-check -f json            # JSON output
+vox stub-check -f markdown        # Markdown report
 ```
+
+**This crate’s binary** (CI default):
+
+```bash
+cargo run -p vox-toestub --bin toestub -- crates/vox-repository
+```
+
+Library AI triage (`AiAnalyzer`) is separate from the current `vox` clap surface.
 
 ## Severity Levels
 

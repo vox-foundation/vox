@@ -532,5 +532,3 @@ Shared utility functions for the gamification crate.
 ### `fn now_unix`
 
 Current Unix timestamp in seconds.
-
-

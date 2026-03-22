@@ -4,6 +4,8 @@
 
 Multi-agent file-affinity queue system. Routes tasks to AI agents based on file ownership, preventing race conditions when multiple agents work concurrently.
 
+**Process model:** `Orchestrator` is a library type in this crate; the usual MCP-facing process is **`vox-mcp`** (stdio server) which embeds orchestrator state. See [`agents/orchestrator.md`](../../agents/orchestrator.md) and [`crates/vox-mcp/src/tools/mod.rs`](../../../crates/vox-mcp/src/tools/mod.rs) (`TOOL_REGISTRY`).
+
 ## Architecture
 
 ```
@@ -15,6 +17,15 @@ Orchestrator ──► FileAffinityMap ──► route to Agent
     ▼                                    ▼
 BulletinBoard ◄──── AgentQueue ──► FileLockManager
 ```
+
+## Authoritative sources
+
+| Topic | Location |
+|-------|----------|
+| Architecture SSOT | [`AGENTS.md`](../../../AGENTS.md) (repo root) |
+| Multi-repo layout, `repository_id`, MCP paths | [`architecture/external-repositories-ssot.md`](../architecture/external-repositories-ssot.md) |
+| Batch doc / comment inventory (LLM tooling) | [`agents/doc-inventory.json`](../../agents/doc-inventory.json) — regenerate with **`cargo run -p vox-cli -- ci doc-inventory generate`** |
+| Doc rewrite rubric and playbook | [`agents/documentation-rubric.md`](../../agents/documentation-rubric.md), [`agents/llm-documentation-playbook.md`](../../agents/llm-documentation-playbook.md) |
 
 ## Key Modules
 
@@ -317,7 +328,7 @@ Dynamic auto-assign of a workspace mapping directly reading `Vox.toml` and creat
 
 ### `fn load_from_config`
 
-Try to load Affinity Groups directly from a `Vox.toml` or similar file format.
+Parses `affinity_groups` from a `Vox.toml` path when the top-level `affinity_groups` array is non-empty. Each element is a table with `name` (string) and `patterns` (array of glob strings, or a single string). Rows with missing/empty `name` or `patterns` are skipped; a wrong type for `patterns` fails the whole parse (`None`). Returns `None` when the file is missing, TOML is invalid, or no valid groups remain. MCP uses this before falling back to `AffinityGroupRegistry::detect_from_repository_layout`.
 
 
 ## Module: `vox-orchestrator\src\handoff.rs`

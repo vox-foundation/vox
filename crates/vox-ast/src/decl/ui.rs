@@ -94,10 +94,25 @@ pub struct ThemeDecl {
     pub span: Span,
 }
 
-/// Static Site Generation (SSG) page hint.
+/// Static site generation (SSG) page hint: URL path + handler body in Vox.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PageDecl {
     pub path: String,
     pub func: FnDecl,
     pub span: Span,
+}
+
+/// React island component stub.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IslandDecl {
+    pub name: String,
+    pub props: Vec<IslandProp>,
+    pub span: Span,
+}
+/// Prop declaration for an island.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IslandProp {
+    pub name: String,
+    pub ty: TypeExpr,
+    pub is_optional: bool,
 }

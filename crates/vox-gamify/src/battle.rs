@@ -9,9 +9,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BugType {
+    /// Parse/syntax-level issues (stubs, empty bodies).
     Syntax,
+    /// Logic and design smells (magic numbers, DRY violations).
     Logic,
+    /// Performance and wiring problems.
     Performance,
+    /// Security-sensitive or unresolved references.
     Security,
 }
 
@@ -72,7 +76,10 @@ impl BugType {
             BugType::Syntax
         } else if rule_id.starts_with("magic/") || rule_id.starts_with("dry/") {
             BugType::Logic
-        } else if rule_id.starts_with("victory/") || rule_id.starts_with("unwired/") || rule_id.starts_with("clone/") {
+        } else if rule_id.starts_with("victory/")
+            || rule_id.starts_with("unwired/")
+            || rule_id.starts_with("clone/")
+        {
             BugType::Performance
         } else if rule_id.starts_with("unresolved/")
             || rule_id.starts_with("ai/")
@@ -98,17 +105,29 @@ impl std::fmt::Display for BugType {
 /// A bug battle instance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Battle {
+    /// Stable battle row id.
     pub id: String,
+    /// Player or agent owning this battle.
     pub user_id: String,
+    /// Companion involved in the battle.
     pub companion_id: String,
+    /// Inferred category of bug being fought.
     pub bug_type: BugType,
+    /// Human-readable description of the finding.
     pub bug_description: String,
+    /// Optional snippet of code where the bug was found.
     pub bug_code: Option<String>,
+    /// Code the user submitted to fix the bug, if any.
     pub submitted_code: Option<String>,
+    /// Whether the battle was won.
     pub success: bool,
+    /// Crystals granted on success.
     pub crystals_earned: u64,
+    /// Experience points granted on success.
     pub xp_earned: u64,
+    /// How long the attempt took, in seconds.
     pub duration_secs: u64,
+    /// Creation time as a UNIX timestamp.
     pub created_at: i64,
 }
 

@@ -9,3 +9,7 @@ vox-ast    = { path = "../vox-ast" }
 vox-parser = { path = "../vox-parser" }
 vox-lexer  = { path = "../vox-lexer" }
 vox-codegen-ts = { path = "../vox-codegen-ts" }
+
+[lints]
+workspace = true
+

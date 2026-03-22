@@ -7,3 +7,7 @@ edition.workspace = true
 vox-lexer = { workspace = true }
 vox-ast = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]
+workspace = true
+

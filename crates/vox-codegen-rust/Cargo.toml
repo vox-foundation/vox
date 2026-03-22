@@ -9,3 +9,9 @@ vox-hir = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 miette = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+vox-test-harness = { workspace = true }

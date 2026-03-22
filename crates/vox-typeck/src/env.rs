@@ -25,6 +25,20 @@ pub struct Binding {
     pub ty: Ty,
     pub mutable: bool,
     pub kind: BindingKind,
+    /// `@deprecated` top-level fn / table / etc.
+    pub is_deprecated: bool,
+}
+
+impl Binding {
+    #[must_use]
+    pub fn new(ty: Ty, mutable: bool, kind: BindingKind) -> Self {
+        Self {
+            ty,
+            mutable,
+            kind,
+            is_deprecated: false,
+        }
+    }
 }
 
 /// What kind of name this binding refers to.
@@ -204,6 +218,7 @@ impl TypeEnv {
                     ty,
                     mutable: false,
                     kind: BindingKind::Constructor,
+                    is_deprecated: false,
                 },
             );
         }
@@ -234,6 +249,7 @@ impl TypeEnv {
                 ty: Ty::Named(name.clone()),
                 mutable: false,
                 kind: BindingKind::Actor,
+                is_deprecated: false,
             },
         );
         self.actors.insert(name, handlers);
@@ -259,6 +275,7 @@ impl TypeEnv {
                 ty,
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
             },
         );
         self.workflows.insert(name, sig);
@@ -267,6 +284,16 @@ impl TypeEnv {
     /// Look up a workflow signature.
     pub fn lookup_workflow(&self, name: &str) -> Option<&WorkflowSig> {
         self.workflows.get(name)
+    }
+
+    /// Field types for an ADT constructor name (e.g. `Some`, `Ok`, or a user variant).
+    pub fn lookup_adt_variant(&self, constructor_name: &str) -> Option<Vec<(String, Ty)>> {
+        for adt in self.types.values() {
+            if let Some(v) = adt.variants.iter().find(|v| v.name == constructor_name) {
+                return Some(v.fields.clone());
+            }
+        }
+        None
     }
 }
 
@@ -289,6 +316,7 @@ mod tests {
                 ty: Ty::Int,
                 mutable: false,
                 kind: BindingKind::Variable,
+                is_deprecated: false,
             },
         );
         assert!(env.lookup("x").is_some());
@@ -304,6 +332,7 @@ mod tests {
                 ty: Ty::Str,
                 mutable: false,
                 kind: BindingKind::Variable,
+                is_deprecated: false,
             },
         );
         assert_eq!(env.lookup("x").unwrap().ty, Ty::Str);
@@ -393,6 +422,7 @@ mod tests {
                 ty: Ty::Int,
                 mutable: false,
                 kind: BindingKind::Variable,
+                is_deprecated: false,
             },
         );
         assert!(env.defined_in_current_scope("x"));

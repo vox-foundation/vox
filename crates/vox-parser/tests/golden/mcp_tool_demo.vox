@@ -1,0 +1,31 @@
+# Vox MCP Tool Demo — v0.3 brace syntax
+# Demonstrates @mcp.tool declarations — AI-native tools exposed via the
+# Model Context Protocol.
+
+type SearchResult =
+    | Found(text: str, score: int)
+    | NotFound(query: str)
+
+type SystemStatus =
+    | Healthy(message: str)
+    | Degraded(service: str, reason: str)
+
+# Search the knowledge base for relevant documents.
+@mcp.tool "Search the knowledge base for relevant documents matching the query" fn search_knowledge(query: str, max_results: int) to SearchResult {
+    Found("Result for: " + query, 95)
+}
+
+# Get the current health status of all backend services.
+@mcp.tool "Get the current system health status across all microservices" fn system_status() to SystemStatus {
+    Healthy("All services operational")
+}
+
+# Execute a read-only SQL query against the data layer.
+@mcp.tool "Run a read-only SQL query and return results as JSON" fn run_query(sql: str) to str {
+    ret "[]"
+}
+
+# Summarize a document given its ID.
+@mcp.tool "Summarize a document by ID using the configured LLM" fn summarize_document(doc_id: str) to str {
+    ret "Summary for document " + doc_id
+}

@@ -11,6 +11,10 @@
 //! - [`pyproject`] — generate `pyproject.toml` from `@py.import` declarations.
 //! - [`python_dockerfile`] — generate CUDA-aware Dockerfiles.
 //! - [`setup::run_py_setup`] — orchestrate the full Python setup flow.
+//!
+//! Submodules document their own `pub` items; the facade re-exports ergonomic names for CLI/embedders.
+
+#![allow(clippy::collapsible_if)]
 
 /// Support for bare metal deployments (systemd, etc.)
 pub mod bare_metal;
@@ -36,4 +40,4 @@ pub use env::PythonEnv;
 pub use pyproject::generate_pyproject_toml;
 pub use python_dockerfile::generate_python_dockerfile;
 pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};
-pub use setup::{run_py_setup, PySetupOpts};
+pub use setup::{PySetupOpts, run_py_setup};

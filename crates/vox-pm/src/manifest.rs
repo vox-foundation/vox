@@ -182,6 +182,9 @@ pub struct DeploySection {
     /// Kubernetes deployment configuration.
     #[serde(default)]
     pub kubernetes: Option<KubernetesDeployConfig>,
+    /// [Coolify](https://coolify.io/) PaaS deployment configuration.
+    #[serde(default)]
+    pub coolify: Option<crate::deploy_coolify::CoolifyDeployConfig>,
 }
 
 impl DeploySection {

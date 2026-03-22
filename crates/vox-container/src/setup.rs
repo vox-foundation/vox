@@ -4,10 +4,10 @@
 //! `uv sync`, and (optionally) a Python-capable Dockerfile generation into a
 //! single call from `vox container init`.
 
-use std::path::Path;
 use crate::env::{PythonEnv, SetupPlan};
 use crate::pyproject::generate_pyproject_toml;
 use crate::python_dockerfile::generate_python_dockerfile;
+use std::path::Path;
 
 /// Options for the Python environment setup step.
 #[derive(Debug, Clone, Default)]
@@ -57,7 +57,9 @@ pub fn run_py_setup(opts: &PySetupOpts) -> anyhow::Result<()> {
         .status();
     match py_install {
         Ok(s) if s.success() => println!("✓ Python 3.12 ready"),
-        Ok(_) => println!("⚠  `uv python install 3.12` exited with a non-zero code — continuing anyway"),
+        Ok(_) => {
+            println!("⚠  `uv python install 3.12` exited with a non-zero code — continuing anyway")
+        }
         Err(e) => println!("⚠  Could not run `uv python install 3.12`: {e} — continuing anyway"),
     }
 
@@ -67,11 +69,7 @@ pub fn run_py_setup(opts: &PySetupOpts) -> anyhow::Result<()> {
 
     // Generate pyproject.toml
     let pyproject_path = opts.out_dir.join("pyproject.toml");
-    let pyproject_content = generate_pyproject_toml(
-        &opts.project_name,
-        &opts.py_imports,
-        &env,
-    );
+    let pyproject_content = generate_pyproject_toml(&opts.project_name, &opts.py_imports, &env);
     std::fs::write(&pyproject_path, &pyproject_content)
         .map_err(|e| anyhow::anyhow!("Could not write pyproject.toml: {e}"))?;
     println!("✓ Wrote {}", pyproject_path.display());
@@ -83,7 +81,8 @@ pub fn run_py_setup(opts: &PySetupOpts) -> anyhow::Result<()> {
     // Optionally generate a Dockerfile
     if opts.generate_dockerfile {
         let dockerfile_path = opts.out_dir.join("Dockerfile");
-        let dockerfile_content = generate_python_dockerfile(&opts.project_name, &env, &opts.py_imports);
+        let dockerfile_content =
+            generate_python_dockerfile(&opts.project_name, &env, &opts.py_imports);
         std::fs::write(&dockerfile_path, &dockerfile_content)
             .map_err(|e| anyhow::anyhow!("Could not write Dockerfile: {e}"))?;
         println!("✓ Wrote {}", dockerfile_path.display());
@@ -91,7 +90,10 @@ pub fn run_py_setup(opts: &PySetupOpts) -> anyhow::Result<()> {
 
     println!("\n✅ Python environment ready");
     if env.has_gpu {
-        println!("   GPU detected — CUDA {} wheels installed", env.cuda_version.as_deref().unwrap_or("unknown"));
+        println!(
+            "   GPU detected — CUDA {} wheels installed",
+            env.cuda_version.as_deref().unwrap_or("unknown")
+        );
     } else {
         println!("   CPU-only wheels installed (no GPU detected)");
     }

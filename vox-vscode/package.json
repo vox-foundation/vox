@@ -92,6 +92,16 @@
           "default": true,
           "description": "Enable Vox Language Server."
         },
+        "vox.codex.enableHttpSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "After each MCP chat round-trip, upsert research_sessions on the Codex HTTP API (if reachable)."
+        },
+        "vox.codex.apiBaseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:3847",
+          "description": "Codex HTTP API base (`vox-codex-dashboard`). Ignored when enableHttpSync is false."
+        },
         "vox.models.byok.anthropic": {
           "type": "string",
           "default": "",

@@ -17,7 +17,7 @@ ensures no critical state is lost between agent lifecycles.
   "plan_summary": "Fixed compilation errors in vox-tensor. Now need to resolve remaining warnings in vox-cli.",
   "completed_tasks": [
     "DOC-01: Created docs/agents/ modular files",
-    "ORCH-03: Renamed vox_map_opencode_session → vox_map_vscode_session"
+    "ORCH-03: Canonical MCP tool is vox_map_agent_session (replaces older opencode/vscode names)"
   ],
   "pending_tasks": [
     "ORCH-01: Decompose orchestrator.rs into sub-modules",
@@ -27,9 +27,15 @@ ensures no critical state is lost between agent lifecycles.
     "crates/vox-tensor/src/optim.rs",
     "crates/vox-cli/src/training/native.rs"
   ],
-  "context_notes": "VoxBackend type alias uses conditional compilation: wgpu when 'gpu' feature enabled, ndarray otherwise. The Burn 0.19 Optimizer trait must be in scope for .step() to resolve."
+  "context_notes": "VoxBackend type alias uses conditional compilation: wgpu when 'gpu' feature enabled, ndarray otherwise. The Burn 0.19 Optimizer trait must be in scope for .step() to resolve.",
+  "verification_criteria": [
+    "cargo check -p vox-orchestrator passes",
+    "No new missing_docs warnings in touched crates"
+  ]
 }
 ```
+
+**Invariant (enforced in Rust):** if `pending_tasks` is non-empty, `verification_criteria` must list at least one concrete check the receiver must perform before closing the work. Otherwise `execute_handoff` fails and MCP `vox_agent_handoff` returns an error.
 
 ## MCP Tools
 

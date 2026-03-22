@@ -1,8 +1,11 @@
+//! `vox test` — runs `cargo test` in the generated Rust crate under `target/generated`.
+
 use crate::commands::build;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Build `file` into `dist/` / `target/generated`, then execute `cargo test` in the backend workspace.
 pub async fn run(file: &Path) -> Result<()> {
     // 1. Build
     let out_dir = PathBuf::from("dist");

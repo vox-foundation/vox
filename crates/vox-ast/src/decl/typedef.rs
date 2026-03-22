@@ -1,5 +1,5 @@
-use crate::expr::Param;
 use super::fundecl::FnDecl;
+use crate::expr::Param;
 use crate::span::Span;
 use crate::types::TypeExpr;
 

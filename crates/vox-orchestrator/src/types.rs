@@ -1,3 +1,8 @@
+//! Core orchestrator value types: ids, tasks, file affinity, and bulletin messages.
+//!
+//! These structs serialize cleanly for dashboards and Codex snapshots; prefer them over
+//! ad-hoc tuples when crossing crate boundaries.
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::PathBuf;
@@ -132,10 +137,12 @@ impl FromStr for LockToken {
 pub struct TaskIdGenerator(AtomicU64);
 
 impl TaskIdGenerator {
+    /// Starts issuing ids at `1`.
     pub fn new() -> Self {
         Self(AtomicU64::new(1))
     }
 
+    /// Returns the next monotonic task id.
     pub fn next(&self) -> TaskId {
         TaskId(self.0.fetch_add(1, Ordering::Relaxed))
     }
@@ -151,10 +158,12 @@ impl Default for TaskIdGenerator {
 pub struct AgentIdGenerator(AtomicU64);
 
 impl AgentIdGenerator {
+    /// Starts issuing ids at `1`.
     pub fn new() -> Self {
         Self(AtomicU64::new(1))
     }
 
+    /// Returns the next monotonic agent id.
     pub fn next(&self) -> AgentId {
         AgentId(self.0.fetch_add(1, Ordering::Relaxed))
     }
@@ -170,10 +179,12 @@ impl Default for AgentIdGenerator {
 pub struct CorrelationIdGenerator(AtomicU64);
 
 impl CorrelationIdGenerator {
+    /// Starts issuing ids at `1`.
     pub fn new() -> Self {
         Self(AtomicU64::new(1))
     }
 
+    /// Returns the next monotonic correlation id for Q/A pairing.
     pub fn next(&self) -> CorrelationId {
         CorrelationId(self.0.fetch_add(1, Ordering::Relaxed))
     }
@@ -255,11 +266,14 @@ pub enum AccessKind {
 /// A file path paired with the access kind required for a task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FileAffinity {
+    /// Path the task touches.
     pub path: PathBuf,
+    /// Required lock / sharing mode.
     pub access: AccessKind,
 }
 
 impl FileAffinity {
+    /// Read-only affinity for `path`.
     pub fn read(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
@@ -267,6 +281,7 @@ impl FileAffinity {
         }
     }
 
+    /// Exclusive write affinity for `path`.
     pub fn write(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
@@ -282,13 +297,20 @@ impl FileAffinity {
 /// General category of a task to guide model selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum TaskCategory {
+    /// Parser / syntax work.
     Parsing,
+    /// Static analysis and type system work.
     TypeChecking,
+    /// Debugger-driven investigation.
     Debugging,
+    /// Open-ended information gathering.
     Research,
+    /// Test authoring and execution.
     Testing,
+    /// Default — codegen and implementation tasks.
     #[default]
     CodeGen,
+    /// Code review and critique.
     Review,
 }
 
@@ -299,11 +321,19 @@ pub enum TaskCategory {
 /// Description of a task before it is assigned an ID and routed in the orchestrator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskDescriptor {
+    /// Human-readable work summary.
     pub description: String,
+    /// Optional queue priority override.
     pub priority: Option<TaskPriority>,
+    /// Files read or written by this task.
     pub file_manifest: Vec<FileAffinity>,
-    pub depends_on: Vec<TaskId>, // dependencies on ALREADY submitted tasks
-    pub temp_deps: Vec<usize>,   // indices within the same batch
+    /// Dependencies on tasks already in the orchestrator.
+    pub depends_on: Vec<TaskId>,
+    /// Intra-batch dependencies by index in the same submit call.
+    pub temp_deps: Vec<usize>,
+    /// Optional capability requirements for routing (same semantics as [`AgentTask::capability_requirements`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability_requirements: Option<crate::contract::TaskCapabilityHints>,
 }
 
 /// A unit of work to be executed by an agent.
@@ -336,6 +366,12 @@ pub struct AgentTask {
     /// When the task was created (not serialized — reconstructed on load).
     #[serde(skip)]
     pub created_at: Option<Instant>,
+    /// Optional Socrates evidence contract for factual completion gating.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub socrates: Option<crate::socrates::SocratesTaskContext>,
+    /// Optional GPU / hardware routing hints for distributed execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability_requirements: Option<crate::contract::TaskCapabilityHints>,
 }
 
 impl AgentTask {
@@ -360,6 +396,8 @@ impl AgentTask {
             debug_iterations: 0,
             retry_count: 0,
             created_at: Some(Instant::now()),
+            socrates: None,
+            capability_requirements: None,
         }
     }
 
@@ -407,48 +445,98 @@ impl AgentTask {
 pub enum AgentMessage {
     /// An agent changed a file.
     FileChanged {
+        /// Path that changed.
         path: PathBuf,
+        /// Agent that performed the edit.
         agent: AgentId,
+        /// Short description of the change.
         summary: String,
     },
     /// An agent completed a task.
-    TaskCompleted { task_id: TaskId, agent_id: AgentId },
+    TaskCompleted {
+        /// Finished task.
+        task_id: TaskId,
+        /// Agent that completed it.
+        agent_id: AgentId,
+    },
     /// A dependency is now satisfied — unblock waiting tasks.
-    DependencyReady { task_id: TaskId },
+    DependencyReady {
+        /// Task that became runnable.
+        task_id: TaskId,
+    },
     /// Interrupt: an agent should pause or re-plan.
-    Interrupt { agent_id: AgentId, reason: String },
+    Interrupt {
+        /// Target agent.
+        agent_id: AgentId,
+        /// Operator or scheduler reason.
+        reason: String,
+    },
     /// An agent was spawned in the pool.
-    AgentSpawned { agent_id: AgentId, name: String },
+    AgentSpawned {
+        /// New agent id.
+        agent_id: AgentId,
+        /// Worker display name.
+        name: String,
+    },
     /// A task was assigned to an agent.
-    TaskAssigned { agent_id: AgentId, task_id: TaskId },
+    TaskAssigned {
+        /// Assignee.
+        agent_id: AgentId,
+        /// Task now owned by the agent.
+        task_id: TaskId,
+    },
     /// A file lock was acquired.
-    LockAcquired { agent_id: AgentId, path: PathBuf },
+    LockAcquired {
+        /// Lock holder.
+        agent_id: AgentId,
+        /// Locked path.
+        path: PathBuf,
+    },
     /// A task failed.
     TaskFailed {
+        /// Agent that was executing the task.
         agent_id: AgentId,
+        /// Failed task id.
         task_id: TaskId,
+        /// Failure message.
         error: String,
     },
     /// Phase 9: A question directed from one agent to another/user.
     Question {
+        /// Asking agent.
         from: AgentId,
+        /// Intended answerer.
         to: AgentId,
+        /// Question body.
         question: String,
+        /// Correlation id for matching answers.
         correlation_id: CorrelationId,
     },
     /// Phase 9: An answer back to the requesting agent.
     Answer {
+        /// Answering agent.
         from: AgentId,
+        /// Original asker.
         to: AgentId,
+        /// Answer body.
         answer: String,
+        /// Matches the question's correlation id.
         correlation_id: CorrelationId,
     },
     /// Phase 9: A persistent announcement across all agents.
-    Broadcast { from: AgentId, message: String },
+    Broadcast {
+        /// Sender.
+        from: AgentId,
+        /// Announcement text.
+        message: String,
+    },
     /// Phase 9: A context key update notification.
     ContextUpdate {
+        /// Agent publishing the update.
         from: AgentId,
+        /// Context key.
         key: String,
+        /// Serialized value.
         value: String,
     },
     /// A structured agent-to-agent message (Integrates A2A into Bulletin).

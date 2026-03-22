@@ -3,8 +3,8 @@
 //! Provides construct extraction, JSONL record emission, and instruction
 //! template generation. Used by `vox check --emit-training-jsonl` and
 //! `vox corpus` subcommands.
+#[cfg(feature = "gpu")]
 pub mod native;
-pub mod datagen;
 
 use anyhow::Result;
 use std::fs;
@@ -31,21 +31,15 @@ fn walk_recursive(dir: &Path, out: &mut Vec<PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             walk_recursive(&path, out);
-        } else if path.extension().map_or(false, |e| e == "vox") {
+        } else if path.extension().is_some_and(|e| e == "vox") {
             out.push(path);
         }
     }
 }
 
-/// Generate a UTC timestamp string like "20260302T064530Z" without chrono.
+/// UTC timestamp for run IDs and logs (SSOT: [`vox_corpus::training::timestamp_string`]).
 pub fn timestamp_string() -> String {
-    use std::time::SystemTime;
-    let dur = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = dur.as_secs();
-    // Simple epoch-seconds based ID — good enough for run tags
-    format!("ts_{}", secs)
+    vox_corpus::training::timestamp_string()
 }
 
 /// Extract construct tags from AST declarations for training data categorization.
@@ -56,6 +50,7 @@ pub fn extract_constructs(module: &vox_ast::decl::Module) -> Vec<String> {
         let tag = match decl {
             Decl::Function(_) => "function",
             Decl::Component(_) => "component",
+            Decl::Island(_) => "island",
             Decl::TypeDef(_) => "type",
             Decl::Import(_) => "import",
             Decl::PyImport(_) => "py_import",
@@ -188,9 +183,7 @@ pub fn instruction_templates(construct: &str) -> &[&str] {
             "Write a Vox database mutation called {name}",
             "Create a {name} mutation in Vox for data modification",
         ],
-        "action" => &[
-            "Write a Vox server action called {name}",
-        ],
+        "action" => &["Write a Vox server action called {name}"],
         "type" => &[
             "Define a Vox tagged union type called {name}",
             "Create a {name} ADT in Vox with typed variants",
@@ -203,31 +196,17 @@ pub fn instruction_templates(construct: &str) -> &[&str] {
             "Write a Vox MCP tool called {name}",
             "Create an MCP-compatible tool in Vox for AI assistants",
         ],
-        "mcp_resource" => &[
-            "Write a Vox MCP resource for {name}",
-        ],
+        "mcp_resource" => &["Write a Vox MCP resource for {name}"],
         "http_route" => &[
             "Write an HTTP route in Vox",
             "Create an HTTP endpoint in Vox",
         ],
-        "routes" => &[
-            "Define client-side routes in Vox",
-        ],
-        "server_fn" => &[
-            "Write a Vox server function called {name}",
-        ],
-        "skill" => &[
-            "Write a Vox skill called {name}",
-        ],
-        "agent_def" => &[
-            "Define a Vox AI agent called {name}",
-        ],
-        "trait" => &[
-            "Define a Vox trait called {name}",
-        ],
-        _ => &[
-            "Write Vox code demonstrating {name}",
-        ],
+        "routes" => &["Define client-side routes in Vox"],
+        "server_fn" => &["Write a Vox server function called {name}"],
+        "skill" => &["Write a Vox skill called {name}"],
+        "agent_def" => &["Define a Vox AI agent called {name}"],
+        "trait" => &["Define a Vox trait called {name}"],
+        _ => &["Write Vox code demonstrating {name}"],
     }
 }
 
@@ -235,15 +214,24 @@ pub fn instruction_templates(construct: &str) -> &[&str] {
 pub fn extract_name_from_source(code: &str) -> String {
     // Try keywords that precede a name: fn, actor, type, workflow, etc.
     let keywords = [
-        "fn ", "actor ", "type ", "workflow ", "activity ",
-        "trait ", "agent ", "skill ", "hook ", "layout ",
+        "fn ",
+        "actor ",
+        "type ",
+        "workflow ",
+        "activity ",
+        "trait ",
+        "agent ",
+        "skill ",
+        "hook ",
+        "layout ",
     ];
     for line in code.lines() {
         let trimmed = line.trim();
         for kw in &keywords {
             if let Some(rest) = trimmed.strip_prefix(kw) {
                 // Also check after decorators like "@component fn Name"
-                let name: String = rest.chars()
+                let name: String = rest
+                    .chars()
                     .take_while(|c| c.is_alphanumeric() || *c == '_')
                     .collect();
                 if !name.is_empty() {
@@ -254,7 +242,8 @@ pub fn extract_name_from_source(code: &str) -> String {
             if trimmed.starts_with('@') {
                 if let Some(idx) = trimmed.find(kw) {
                     let rest = &trimmed[idx + kw.len()..];
-                    let name: String = rest.chars()
+                    let name: String = rest
+                        .chars()
                         .take_while(|c| c.is_alphanumeric() || *c == '_')
                         .collect();
                     if !name.is_empty() {
@@ -271,38 +260,98 @@ pub fn extract_name_from_source(code: &str) -> String {
 
 /// Construct reference docs for system prompt generation.
 pub const CONSTRUCT_DOCS: &[(&str, &str)] = &[
-    ("action", "`@action fn name() to Type:` — server-side logic calling queries/mutations"),
-    ("activity", "`activity name() to Result[Type]:` — retryable side-effectful operation"),
-    ("actor", "`actor Name:` with `state` and `on handler()` — message-passing concurrency"),
-    ("agent_def", "`@agent_def fn Name() to Type:` — AI agent with memory and tool access"),
-    ("component", "`@component fn Name() to Element:` — React-like UI component returning JSX"),
+    (
+        "action",
+        "`@action fn name() to Type:` — server-side logic calling queries/mutations",
+    ),
+    (
+        "activity",
+        "`activity name() to Result[Type]:` — retryable side-effectful operation",
+    ),
+    (
+        "actor",
+        "`actor Name:` with `state` and `on handler()` — message-passing concurrency",
+    ),
+    (
+        "agent_def",
+        "`@agent_def fn Name() to Type:` — AI agent with memory and tool access",
+    ),
+    (
+        "component",
+        "`@component fn Name() to Element:` — React-like UI component returning JSX",
+    ),
     ("config", "`config:` — configuration block"),
-    ("const", "`const name: type = value` — compile-time constant"),
+    (
+        "const",
+        "`const name: type = value` — compile-time constant",
+    ),
     ("fixture", "`@fixture fn name()` — test fixture"),
-    ("function", "`fn name(param: type) to ReturnType:` — standard function"),
+    (
+        "function",
+        "`fn name(param: type) to ReturnType:` — standard function",
+    ),
     ("hook", "`@hook fn name()` — lifecycle hook"),
-    ("http_route", "`http get \"/path\" to Type:` — HTTP endpoint"),
+    (
+        "http_route",
+        "`http get \"/path\" to Type:` — HTTP endpoint",
+    ),
     ("import", "`import module.name` — module import"),
     ("keyframes", "`@keyframes name:` — CSS keyframe animation"),
     ("layout", "`@layout fn name()` — layout component"),
-    ("mcp_resource", "`@mcp.resource(\"uri\", \"desc\") fn name() to Type:` — MCP read-only resource"),
-    ("mcp_tool", "`@mcp.tool(\"name\", \"desc\") fn name() to Type:` — MCP tool for AI assistants"),
+    (
+        "mcp_resource",
+        "`@mcp.resource(\"uri\", \"desc\") fn name() to Type:` — MCP read-only resource",
+    ),
+    (
+        "mcp_tool",
+        "`@mcp.tool(\"name\", \"desc\") fn name() to Type:` — MCP tool for AI assistants",
+    ),
     ("message", "`message Name:` — typed message declaration"),
     ("mock", "`@mock fn name()` — mock function for testing"),
-    ("mutation", "`@mutation fn name() to Type:` — database write operation"),
+    (
+        "mutation",
+        "`@mutation fn name() to Type:` — database write operation",
+    ),
     ("page", "`@page fn name()` — page declaration"),
     ("provider", "`@provider fn name()` — context provider"),
-    ("query", "`@query fn name() to Type:` — read-only database query"),
-    ("routes", "`routes: \"/\" to Component` — client-side routing"),
-    ("scheduled", "`@scheduled fn name()` — scheduled/cron function"),
-    ("server_fn", "`@server fn name() to Type:` — generates API route + typed client wrapper"),
-    ("skill", "`@skill fn Name() to Type:` — reusable publishable skill"),
-    ("table", "`@table type Name:` — database table with typed fields"),
-    ("test", "`@test fn name() to Unit:` — unit test with `assert()` for validation"),
+    (
+        "query",
+        "`@query fn name() to Type:` — read-only database query",
+    ),
+    (
+        "routes",
+        "`routes: \"/\" to Component` — client-side routing",
+    ),
+    (
+        "scheduled",
+        "`@scheduled fn name()` — scheduled/cron function",
+    ),
+    (
+        "server_fn",
+        "`@server fn name() to Type:` — generates API route + typed client wrapper",
+    ),
+    (
+        "skill",
+        "`@skill fn Name() to Type:` — reusable publishable skill",
+    ),
+    (
+        "table",
+        "`@table type Name:` — database table with typed fields",
+    ),
+    (
+        "test",
+        "`@test fn name() to Unit:` — unit test with `assert()` for validation",
+    ),
     ("theme", "`theme:` — theme definition"),
     ("trait", "`trait Name:` — trait definition for polymorphism"),
-    ("type", "`type Name = | Variant(field: type)` — tagged union / ADT"),
-    ("workflow", "`workflow name() to Result[Type]:` — durable multi-step orchestration"),
+    (
+        "type",
+        "`type Name = | Variant(field: type)` — tagged union / ADT",
+    ),
+    (
+        "workflow",
+        "`workflow name() to Result[Type]:` — durable multi-step orchestration",
+    ),
 ];
 
 /// The hand-maintained philosophy preamble for the system prompt.
@@ -314,7 +363,11 @@ pub const SYSTEM_PROMPT_PREAMBLE: &str = r#"You are a Vox programming language e
 - **Durable by default**: Workflows and activities survive process crashes
 - **AI-native**: First-class support for agents, MCP tools, and skills"#;
 
-/// Generate the full system prompt string.
+/// Generate the full system prompt string (taxonomy / eval fingerprint).
+///
+/// Populi training and file-backed prompts use [`vox_corpus::training::generate_system_prompt`]
+/// (`scripts/vox_system_prompt.txt` when present). Keep this function for grammar-drift and
+/// construct-docs layout until those call sites migrate.
 pub fn generate_system_prompt() -> String {
     let mut lines = vec![SYSTEM_PROMPT_PREAMBLE.to_string()];
 
@@ -389,14 +442,51 @@ workflow name(param: type) to Result[Type]:
 
 /// The full taxonomy of construct types for coverage reporting.
 pub const TAXONOMY: &[&str] = &[
-    "action", "activity", "actor", "agent", "agent_def", "collection",
-    "component", "config", "const", "context", "environment",
-    "error_boundary", "fixture", "function", "hook", "http_route",
-    "import", "impl", "index", "keyframes", "layout", "loading",
-    "mcp_resource", "mcp_tool", "message", "mock", "mutation",
-    "not_found", "page", "provider", "py_import", "query", "routes",
-    "scheduled", "search_index", "server_fn", "skill", "table", "test",
-    "theme", "trait", "type", "v0_component", "vector_index", "workflow",
+    "action",
+    "activity",
+    "actor",
+    "agent",
+    "agent_def",
+    "collection",
+    "component",
+    "config",
+    "const",
+    "context",
+    "environment",
+    "error_boundary",
+    "fixture",
+    "function",
+    "hook",
+    "http_route",
+    "import",
+    "impl",
+    "index",
+    "keyframes",
+    "layout",
+    "loading",
+    "mcp_resource",
+    "mcp_tool",
+    "message",
+    "mock",
+    "mutation",
+    "not_found",
+    "page",
+    "provider",
+    "py_import",
+    "query",
+    "routes",
+    "scheduled",
+    "search_index",
+    "server_fn",
+    "skill",
+    "table",
+    "test",
+    "theme",
+    "trait",
+    "type",
+    "v0_component",
+    "vector_index",
+    "workflow",
 ];
 
 // ── Curriculum difficulty scoring ────────────────────────────────────────
@@ -457,11 +547,7 @@ pub fn generate_negative_examples(code: &str) -> Vec<(String, String)> {
     for line in code.lines() {
         let trimmed = line.trim();
         if let Some(colon_idx) = trimmed.find(") to ") {
-            let broken = code.replacen(
-                &trimmed[colon_idx..],
-                "):",
-                1,
-            );
+            let broken = code.replacen(&trimmed[colon_idx..], "):", 1);
             // Make sure we actually changed something
             if broken != code {
                 negatives.push((broken, "Missing return type annotation".to_string()));
@@ -473,7 +559,10 @@ pub fn generate_negative_examples(code: &str) -> Vec<(String, String)> {
     // Strategy 4: Mangle an identifier
     if code.contains("let ") {
         let broken = code.replacen("let ", "lett ", 1);
-        negatives.push((broken, "Misspelled keyword 'lett' (should be 'let')".to_string()));
+        negatives.push((
+            broken,
+            "Misspelled keyword 'lett' (should be 'let')".to_string(),
+        ));
     }
 
     negatives

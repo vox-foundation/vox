@@ -106,10 +106,10 @@ impl Scanner {
             }
 
             // Apply language filter
-            if let Some(ref filter) = self.language_filter {
-                if !filter.contains(&lang) {
-                    continue;
-                }
+            if let Some(ref filter) = self.language_filter
+                && !filter.contains(&lang)
+            {
+                continue;
             }
 
             // Read file contents

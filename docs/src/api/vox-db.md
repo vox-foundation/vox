@@ -388,9 +388,8 @@ Validate migration ordering and uniqueness.
 
 ### `fn builtin_migrations`
 
-Returns the canonical set of built-in schema migrations defined in vox-pm.
-
-These correspond 1:1 with the `MIGRATIONS` constant in `vox_pm::schema`.
+Returns the canonical Arca baseline as a single migration (**version 1**), sourced from
+`vox_pm::schema::baseline_sql` / [`SCHEMA_FRAGMENTS`](../../../crates/vox-pm/src/schema/manifest.rs).
 
 
 ## Module: `vox-db\src\paths.rs`
@@ -506,5 +505,3 @@ understand the database without reading source code.
 ### `fn digest_to_json`
 
 Generate a JSON representation of the schema digest.
-
-

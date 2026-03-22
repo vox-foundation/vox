@@ -1,44 +1,67 @@
+//! MCP tools for file affinity: resolve owners, claim paths, transfer ownership, list files.
+//!
+//! All handlers return JSON via [`crate::ToolResult`]. Mutating calls update the in-memory
+//! orchestrator affinity map (not the filesystem).
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::AgentId;
 
+/// MCP arguments: workspace-relative or absolute path to inspect for an owning agent.
 #[derive(Debug, Deserialize)]
 pub struct FileOwnerParams {
+    /// Repository file path as sent by the client (string form).
     pub path: String,
 }
 
+/// MCP arguments: list paths currently assigned to one agent.
 #[derive(Debug, Deserialize)]
 pub struct MyFilesParams {
+    /// Numeric orchestrator agent id.
     pub agent_id: u64,
 }
 
+/// MCP arguments: agent takes exclusive affinity for `path` if unowned or already owned by them.
 #[derive(Debug, Deserialize)]
 pub struct ClaimFileParams {
+    /// Agent claiming exclusive affinity.
     pub agent_id: u64,
+    /// File path to assign.
     pub path: String,
 }
 
+/// MCP arguments: move affinity from `from_agent` to `to_agent` when the source owns the file.
 #[derive(Debug, Deserialize)]
 pub struct TransferFileParams {
+    /// Current owner agent id.
     pub from_agent: u64,
+    /// Recipient agent id.
     pub to_agent: u64,
+    /// File path to move between agents.
     pub path: String,
 }
 
+/// JSON fragment: resolved owner for a single path (`owner` is `None` if unassigned).
 #[derive(Debug, Serialize)]
 pub struct FileOwnerResponse {
+    /// Path that was queried.
     pub path: String,
+    /// Owning agent id when the affinity map has an entry.
     pub owner: Option<u64>,
 }
 
+/// JSON fragment: paths the affinity map associates with `agent_id`.
 #[derive(Debug, Serialize)]
 pub struct MyFilesResponse {
+    /// Agent whose file list is returned.
     pub agent_id: u64,
+    /// Owned paths as strings.
     pub files: Vec<String>,
 }
 
+/// Return JSON describing which agent (if any) owns `params.path` in the affinity map.
 pub async fn file_owner(state: &ServerState, params: FileOwnerParams) -> String {
     let orch = state.orchestrator.lock().await;
 
@@ -52,6 +75,7 @@ pub async fn file_owner(state: &ServerState, params: FileOwnerParams) -> String 
     .to_json()
 }
 
+/// Return JSON listing all file paths owned by `params.agent_id`.
 pub async fn my_files(state: &ServerState, params: MyFilesParams) -> String {
     let orch = state.orchestrator.lock().await;
 
@@ -67,6 +91,7 @@ pub async fn my_files(state: &ServerState, params: MyFilesParams) -> String {
     .to_json()
 }
 
+/// Assign `params.path` to `params.agent_id` when not owned by another agent; mutates affinity map.
 pub async fn claim_file(state: &ServerState, params: ClaimFileParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
@@ -87,6 +112,7 @@ pub async fn claim_file(state: &ServerState, params: ClaimFileParams) -> String 
     ToolResult::ok(format!("Successfully claimed {}", params.path)).to_json()
 }
 
+/// Release then re-assign `params.path` from `from_agent` to `to_agent`; errors if ownership mismatches.
 pub async fn transfer_file(state: &ServerState, params: TransferFileParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 

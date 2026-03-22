@@ -1,6 +1,8 @@
 # Ecosystem & Tooling
 
-Vox ships with a complete development toolchain: compiler, bundler, test runner, formatter, package manager, and language server — all accessed through the `vox` CLI.
+> **Note:** This page describes the **intended** developer experience. The **`crates/vox-cli`** binary implements a **subset** of commands today (`build`, `check`, `test`, `run`, `bundle`; `fmt` / `install` fail until wired; `lsp`). Authoritative current flags: **[`ref-cli.md`](ref-cli.md)**.
+
+Vox ships with a complete development toolchain: compiler, bundler, test runner, formatter, package manager, and language server — converging on the **`vox`** CLI as the primary entry point.
 
 ---
 
@@ -13,12 +15,11 @@ Compile a `.vox` file to Rust and TypeScript:
 ```bash
 # Basic build
 vox build app.vox -o dist
-
-# Watch mode with live-reload
-vox build app.vox -o dist --watch
 ```
 
-**Output structure**:
+Watch mode and other flags may land later; use `vox build --help` and [`ref-cli.md`](ref-cli.md) for what the binary exposes **now**.
+
+**Typical output layout (minimal CLI)** — filenames vary by program; Rust lands under `target/generated/`:
 ```
 dist/
 ├── backend/      # Generated Rust (Axum server)
@@ -55,13 +56,13 @@ This compiles the test functions to Rust `#[test]` blocks and runs them with `ca
 
 ### `vox fmt`
 
-Format `.vox` source files using the integrated lexical span formatter:
+**Minimal binary today:** `vox fmt` **exits with an error** until `vox-fmt` matches the current AST. Formatting work lives in the `vox-fmt` crate.
 
 ```bash
 vox fmt app.vox
 ```
 
-The formatter preserves inline indentation logic while normalizing whitespace and alignment.
+See [`ref-cli.md`](ref-cli.md).
 
 ### `vox lsp`
 
@@ -75,19 +76,15 @@ See [Language Server](#language-server-lsp) below for details.
 
 ### `vox install`
 
-Install packages from the Vox registry:
+**Minimal binary today:** `vox install` **exits with an error**. Registry install flows are tracked for **`vox-pm`**.
 
 ```bash
-# Install a package
 vox install my-package
-
-# Install with offline-only mode (cached packages only)
-vox install my-package --offline
 ```
 
 ### `vox vendor`
 
-Bundle all dependencies into a local `vendor/` directory for fully offline builds:
+**Not in the minimal `vox` binary** today. This section describes a **target** offline workflow; use `ref-cli.md` for commands that actually exist in `crates/vox-cli`.
 
 ```bash
 vox vendor
@@ -180,15 +177,17 @@ recall_memory(agent, type, limit, min_importance)  # Query with relevance filter
 # Linux / macOS
 ./scripts/install.sh          # End-user install
 ./scripts/install.sh --dev    # Full contributor setup
+./scripts/install.sh plan     # JSON install plan (CI/tooling)
 
 # Windows (PowerShell)
 .\scripts\install.ps1         # End-user install
 .\scripts\install.ps1 -Dev    # Full contributor setup
+.\scripts\install.ps1 plan    # JSON install plan (CI/tooling)
 ```
 
 ### Manual
 
-Prerequisites: Rust >= 1.75, Node.js >= 18, C compiler (gcc/clang/MSVC)
+Prerequisites: Rust >= 1.75, Node.js >= 18, C compiler (gcc/clang/MSVC). Full workspace + **Turso** crates: **clang** on Linux/macOS; **clang-cl** (LLVM) on Windows — see `docs/src/how-to-setup.md`.
 
 ```bash
 cargo install --path crates/vox-cli

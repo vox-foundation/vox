@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use std::fmt;
-use serde::{Deserialize, Serialize};
 use crate::rules::{Finding, Severity};
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::path::PathBuf;
 
 /// Configuration for a single review run.
 #[derive(Debug, Clone)]
@@ -39,13 +39,18 @@ impl Default for ReviewConfig {
 /// Output format for review results.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReviewOutputFormat {
+    /// Pretty-printed findings to stderr/stdout for local runs.
     Terminal,
+    /// JSON document with metadata + structured findings.
     Json,
+    /// SARIF 2.1.0 for GitHub Advanced Security / compatible viewers.
     Sarif,
+    /// Markdown report suitable for pasting into PRs or docs.
     Markdown,
 }
 
 impl ReviewOutputFormat {
+    /// Parses `json`, `sarif`, `markdown`/`md`; unknown input maps to [`ReviewOutputFormat::Terminal`].
     pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "json" => ReviewOutputFormat::Json,
@@ -59,10 +64,15 @@ impl ReviewOutputFormat {
 /// The output of a review run.
 #[derive(Debug)]
 pub struct ReviewResult {
+    /// Number of files sent to the model in this run.
     pub files_reviewed: usize,
+    /// Label of the provider that produced the review (see [`super::providers::ReviewProvider::name`]).
     pub provider_used: String,
+    /// Structured issues returned by the reviewer.
     pub findings: Vec<ReviewFinding>,
+    /// Rough USD cost estimate from token usage (provider-specific heuristics).
     pub cost_estimate_usd: f64,
+    /// Total tokens attributed to the review request/response.
     pub tokens_used: usize,
 }
 
@@ -94,11 +104,17 @@ impl ReviewResult {
 /// A single issue identified during review.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewFinding {
+    /// Taxonomy bucket (logic, security, …) used for SARIF rule ids and grouping.
     pub category: ReviewCategory,
+    /// Same severity scale as static TOESTUB [`Finding`]s for unified reporting.
     pub severity: Severity,
+    /// File path the issue refers to (as collected by the scanner).
     pub file: PathBuf,
+    /// 1-based line number in that file when known; use `0` when only file-level.
     pub line: usize,
+    /// Primary explanation from the reviewer model.
     pub message: String,
+    /// Optional concrete fix or refactor hint.
     pub suggestion: Option<String>,
     /// Confidence 0–100 from the LLM.
     pub confidence: u8,
@@ -127,6 +143,7 @@ pub enum ReviewCategory {
 }
 
 impl ReviewCategory {
+    /// Short slug embedded in `review/{prefix}` rule ids when converting to [`Finding`].
     pub fn rule_prefix(self) -> &'static str {
         match self {
             ReviewCategory::Logic => "logic",
@@ -140,6 +157,7 @@ impl ReviewCategory {
         }
     }
 
+    /// Lenient CLI/config parsing: accepts synonyms (`sec`, `perf`, …); unknown → [`ReviewCategory::Logic`].
     pub fn parse_category(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "logic" | "correctness" => ReviewCategory::Logic,

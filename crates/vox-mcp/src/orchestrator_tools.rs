@@ -1,16 +1,24 @@
-use crate::{ServerState, ToolResult, AgentInfo, StatusResponse};
+//! Live orchestrator inspection and lightweight control surfaces exposed as MCP tools.
+//!
+//! Covers agent queues, lock/budget summaries, Gamify-backed history, affinity graphs,
+//! JSON config patch, task submission shims, session heartbeats, and cost recording.
+
+use crate::{AgentInfo, ServerState, StatusResponse, ToolResult};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::path::PathBuf;
 use vox_gamify::companion::Companion;
 use vox_gamify::db::{list_companions, upsert_companion};
-use std::path::PathBuf;
-use vox_orchestrator::{AgentId, TaskId, OrchestratorConfig};
+use vox_orchestrator::{AgentId, OrchestratorConfig, TaskId};
 
+/// MCP arguments: serialize one agent's task queue as JSON.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QueueStatusParams {
+    /// Target agent id.
     pub agent_id: u64,
 }
 
+/// Return the queue snapshot for `params.agent_id`.
 pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> String {
     let orch = state.orchestrator.lock().await;
     if let Some(queue) = orch.agent_queue(AgentId(params.agent_id)) {
@@ -20,12 +28,14 @@ pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> Str
     }
 }
 
+/// Count exclusive/read locks currently held across the orchestrator.
 pub async fn lock_status(state: &ServerState) -> String {
     let orch = state.orchestrator.lock().await;
     let count = orch.lock_manager().active_lock_count();
     ToolResult::ok(format!("{} active locks", count)).to_json()
 }
 
+/// Aggregate token and USD spend tracked in agent budgets.
 pub async fn budget_status(state: &ServerState) -> String {
     let orch = state.orchestrator.lock().await;
 
@@ -47,11 +57,14 @@ pub async fn budget_status(state: &ServerState) -> String {
     .to_json()
 }
 
+/// MCP arguments: cancel helper used by some JSON-RPC shims (prefer [`crate::CancelTaskParams`]).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CancelTaskParams {
+    /// Task id to cancel.
     pub task_id: u64,
 }
 
+/// Cancel a task by numeric id (wrapper around orchestrator APIs).
 pub async fn cancel_task(state: &ServerState, params: crate::CancelTaskParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
@@ -61,6 +74,7 @@ pub async fn cancel_task(state: &ServerState, params: crate::CancelTaskParams) -
     ToolResult::ok(format!("Task {} cancelled", params.task_id)).to_json()
 }
 
+/// Change the priority of a queued task.
 pub async fn reorder_task(state: &ServerState, params: crate::ReorderTaskParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
@@ -80,6 +94,7 @@ pub async fn reorder_task(state: &ServerState, params: crate::ReorderTaskParams)
     .to_json()
 }
 
+/// Drop all queued (not running) tasks for an agent.
 pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
@@ -94,17 +109,21 @@ pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -
     }
 }
 
+/// Re-run the global task balancer and report how many tasks moved.
 pub async fn rebalance(state: &ServerState) -> String {
     let mut orch = state.orchestrator.lock().await;
     let moved = orch.rebalance();
     ToolResult::ok(format!("Rebalanced {} tasks", moved)).to_json()
 }
 
+/// MCP arguments: fetch Gamify event rows for one agent id string.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AgentEventsParams {
+    /// Agent id as u64 (stringified for DB lookup).
     pub agent_id: u64,
 }
 
+/// Return historical [`vox_gamify::db::AgentEventRecord`] rows when Codex is configured.
 pub async fn agent_events(state: &ServerState, params: AgentEventsParams) -> String {
     if let Some(db) = &state.db {
         match vox_gamify::db::get_events(db, &params.agent_id.to_string(), None).await {
@@ -116,6 +135,7 @@ pub async fn agent_events(state: &ServerState, params: AgentEventsParams) -> Str
     }
 }
 
+/// Bind `params.session_id` to `params.agent_id` inside the orchestrator.
 pub async fn map_agent_session(
     state: &ServerState,
     params: crate::MapAgentSessionParams,
@@ -135,11 +155,14 @@ pub async fn map_agent_session(
     }
 }
 
+/// MCP arguments: cap rows pulled per pseudo-agent when listing spend history.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CostHistoryParams {
+    /// Per-agent SQL `LIMIT` before global merge.
     pub limit_per_agent: Option<i64>,
 }
 
+/// Merge recent cost rows across orchestrator + agents (requires Codex).
 pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> String {
     if let Some(db) = &state.db {
         let limit = params.limit_per_agent.unwrap_or(100);
@@ -177,6 +200,8 @@ pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> Str
     }
 }
 
+/// Dump the affinity map as JSON (path → owner relationships).
+/// Serialize the orchestrator affinity map to JSON (path keys → owning agent ids).
 pub async fn file_graph(state: &ServerState) -> String {
     let orch = state.orchestrator.lock().await;
 
@@ -184,6 +209,8 @@ pub async fn file_graph(state: &ServerState) -> String {
     ToolResult::ok(map).to_json()
 }
 
+/// Merge orchestrator config with on-disk `VoxConfig` toolchain map.
+/// Return merged JSON: live `OrchestratorConfig` plus `VoxConfig` toolchain map from disk.
 pub async fn config_get(state: &ServerState) -> String {
     let orch = state.orchestrator.lock().await;
     let orch_cfg = serde_json::to_value(orch.config().clone()).unwrap_or_default();
@@ -194,18 +221,23 @@ pub async fn config_get(state: &ServerState) -> String {
 
     let mut merged = serde_json::Map::new();
     merged.insert("orchestrator".to_string(), orch_cfg);
-    merged.insert("toolchain".to_string(), serde_json::to_value(toolchain).unwrap_or_default());
+    merged.insert(
+        "toolchain".to_string(),
+        serde_json::to_value(toolchain).unwrap_or_default(),
+    );
 
     ToolResult::ok(serde_json::Value::Object(merged)).to_json()
 }
 
+/// Patch [`OrchestratorConfig`] by shallow-merging JSON keys into the live instance.
+/// Deep-merge `params` into the current orchestrator JSON config (mutates in-memory orchestrator).
 pub async fn config_set(state: &ServerState, params: serde_json::Value) -> String {
     let mut orch = state.orchestrator.lock().await;
 
     let config = orch.config().clone();
     let mut current_json = serde_json::to_value(&config).unwrap_or_default();
 
-    if let (serde_json::Value::Object(ref mut current), serde_json::Value::Object(patch)) =
+    if let (serde_json::Value::Object(current), serde_json::Value::Object(patch)) =
         (&mut current_json, params)
     {
         for (k, v) in patch {
@@ -222,7 +254,8 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
     }
 }
 
-
+/// Idempotent "fleet running" probe returning the current agent count.
+/// Report agent count for the embedded orchestrator (no separate process spawn in this crate).
 pub async fn orchestrator_start(state: &ServerState) -> String {
     let orch = state.orchestrator.lock().await;
 
@@ -248,6 +281,8 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         vcs_active_conflicts,
         vcs_active_workspaces,
         vcs_active_changes,
+        mesh_control_url,
+        mesh_http_timeout_ms,
     ) = {
         let orch = state.orchestrator.lock().await;
         let cfg = orch.config();
@@ -263,8 +298,45 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
             orch.workspace_manager()
                 .list_changes(None, usize::MAX)
                 .len(),
+            cfg.mesh_control_url.clone(),
+            cfg.mesh_http_timeout_ms,
         )
     };
+
+    let mesh_federation_cache =
+        serde_json::to_value(state.mesh_remote_snapshot.read().await.clone()).ok();
+
+    let max_stale_ms: Option<u64> = std::env::var("VOX_MESH_MAX_STALE_MS")
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .filter(|n| *n > 0);
+
+    let mesh_snapshot = if let Some(url) = mesh_control_url.filter(|s| !s.trim().is_empty()) {
+        let timeout = std::time::Duration::from_millis(mesh_http_timeout_ms.max(500));
+        let client =
+            vox_mesh::http_client::MeshHttpClient::new_with_timeout(url, timeout).with_env_token();
+        match client.list_nodes().await {
+            Ok(f) => {
+                let f = vox_mesh::filter_registry_by_max_stale_ms(f, max_stale_ms);
+                Some(serde_json::json!({
+                    "ok": true,
+                    "schema_version": f.schema_version,
+                    "node_count": f.nodes.len(),
+                    "nodes": f.nodes,
+                }))
+            }
+            Err(e) => Some(serde_json::json!({
+                "ok": false,
+                "error": e.to_string(),
+            })),
+        }
+    } else {
+        None
+    };
+
+    if let Some(ref snap) = mesh_snapshot {
+        persist_mesh_snapshot_codex_opt(state, snap).await;
+    }
 
     let agents: Vec<AgentInfo> = status
         .agents
@@ -354,9 +426,47 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         active_conflicts: vcs_active_conflicts,
         active_workspaces: vcs_active_workspaces,
         active_changes: vcs_active_changes,
+        mesh_snapshot,
+        mesh_federation_cache,
     };
 
     ToolResult::ok(response).to_json()
+}
+
+fn mesh_codex_telemetry_enabled() -> bool {
+    std::env::var("VOX_MESH_CODEX_TELEMETRY")
+        .map(|v| {
+            let v = v.trim();
+            v == "1" || v.eq_ignore_ascii_case("true")
+        })
+        .unwrap_or(false)
+}
+
+async fn persist_mesh_snapshot_codex_opt(state: &ServerState, snap: &serde_json::Value) {
+    if !mesh_codex_telemetry_enabled() {
+        return;
+    }
+    let Some(db) = state.db.as_ref() else {
+        return;
+    };
+    let rid = state.repository.repository_id.clone();
+    let details = serde_json::json!({
+        "event": "orchestrator_status_mesh_snapshot",
+        "ok": snap.get("ok"),
+        "node_count": snap.get("node_count"),
+        "schema_version": snap.get("schema_version"),
+        "error": snap.get("error"),
+    });
+    if let Err(e) = db
+        .record_mesh_control_event(&rid, "orchestrator_status_mesh_snapshot", Some(details))
+        .await
+    {
+        tracing::debug!(
+            target: "vox.mesh_codex",
+            error = %e,
+            "record_mesh_control_event failed (best-effort)"
+        );
+    }
 }
 
 /// Check which agent owns a given file path (async).
@@ -449,11 +559,14 @@ pub async fn vcs_status(state: &ServerState) -> String {
     ToolResult::ok(result).to_json()
 }
 
+/// MCP arguments: cap merged event rows from Codex + transient buffer.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PollEventsParams {
+    /// Maximum rows after sorting newest-first.
     pub limit: Option<i64>,
 }
 
+/// Pull recent Gamify rows for every live agent plus in-memory `transient_events`.
 pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> String {
     if let Some(db) = &state.db {
         let limit = params.limit.unwrap_or(50);
@@ -477,12 +590,22 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
             transient = std::mem::take(&mut *q);
         }
 
+        let repo_id = state.repository.repository_id.clone();
         for ev in transient {
             let (agent_id, event_type) = match &ev.kind {
-                vox_orchestrator::AgentEventKind::TokenStreamed { agent_id, .. } => (agent_id.0, "TokenStreamed"),
+                vox_orchestrator::AgentEventKind::TokenStreamed { agent_id, .. } => {
+                    (agent_id.0, "TokenStreamed")
+                }
                 _ => (0, "Unknown"),
             };
-            let payload = serde_json::to_string(&ev.kind).unwrap_or_default();
+            let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
+            if let Some(obj) = kind_json.as_object_mut() {
+                obj.insert(
+                    "repository_id".to_string(),
+                    serde_json::Value::String(repo_id.clone()),
+                );
+            }
+            let payload = serde_json::to_string(&kind_json).unwrap_or_default();
             all_events.push(vox_gamify::db::AgentEventRecord {
                 id: ev.id.0 as i64,
                 agent_id: agent_id.to_string(),
@@ -500,13 +623,18 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
     }
 }
 
+/// MCP arguments: lightweight task submit (string description + optional affinities).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SubmitTaskParams {
+    /// Raw task description (not canonicalized here).
     pub description: String,
+    /// Optional file path hints (`write(...)` affinity strings).
     pub affinites: Option<Vec<String>>,
+    /// Optional forced routing target.
     pub agent_id: Option<u64>,
 }
 
+/// Submit a task through the orchestrator (simpler shape than [`crate::params::SubmitTaskParams`]).
 pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
@@ -518,17 +646,23 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         .collect();
     let agent_id = params.agent_id.map(vox_orchestrator::AgentId);
 
-    match orch.submit_task(&params.description, affinities, None).await {
+    match orch
+        .submit_task(&params.description, affinities, None)
+        .await
+    {
         Ok(task_id) => ToolResult::ok(format!("Submitted task {}", task_id.0)).to_json(),
         Err(e) => ToolResult::<String>::err(format!("Submit failed: {}", e)).to_json(),
     }
 }
 
+/// MCP arguments: correlate IDE session ids with orchestrator agents.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct HeartbeatParams {
+    /// Client session string previously mapped via [`map_agent_session`].
     pub session_id: String,
 }
 
+/// Emit a synthetic busy event for the agent mapped to `session_id`.
 pub async fn heartbeat(state: &ServerState, params: HeartbeatParams) -> String {
     let mut orch = state.orchestrator.lock().await;
 
@@ -551,16 +685,24 @@ pub async fn heartbeat(state: &ServerState, params: HeartbeatParams) -> String {
     }
 }
 
+/// MCP arguments: attribute spend to the agent tied to a session id.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RecordCostParams {
+    /// Session key used to resolve the target agent.
     pub session_id: String,
+    /// LLM provider slug (`openrouter`, ...).
     pub provider: String,
+    /// Concrete model name/id.
     pub model: String,
+    /// Total USD charged for the call.
     pub cost_usd: f64,
+    /// Prompt tokens billed.
     pub input_tokens: u32,
+    /// Completion tokens billed.
     pub output_tokens: u32,
 }
 
+/// Persist a cost row (when DB present) and emit `CostIncurred` on the orchestrator bus.
 pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> String {
     let (target_id, event_bus) = {
         let orch = state.orchestrator.lock().await;

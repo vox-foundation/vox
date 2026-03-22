@@ -40,9 +40,13 @@ impl std::fmt::Display for ContinuationStrategy {
 /// A continuation prompt generated for an idle agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContinuationPrompt {
+    /// Agent that should receive this nudge.
     pub agent_id: AgentId,
+    /// Which continuation template was applied.
     pub strategy: ContinuationStrategy,
+    /// Full text injected into the agent loop (system or user preamble).
     pub prompt_text: String,
+    /// Unix milliseconds when the prompt was generated.
     pub generated_at: u64,
 }
 

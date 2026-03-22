@@ -3,10 +3,10 @@
 //! These are embedded at compile time via `include_str!` so the registry
 //! works even without a filesystem. They are installed on first startup.
 
+use crate::SkillError;
 use crate::bundle::VoxSkillBundle;
 use crate::parser::parse_skill_md;
 use crate::registry::SkillRegistry;
-use crate::SkillError;
 
 /// All built-in skill SKILL.md contents.
 const BUILTIN_SKILLS: &[(&str, &str)] = &[
@@ -18,6 +18,7 @@ const BUILTIN_SKILLS: &[(&str, &str)] = &[
         "vox.orchestrator",
         include_str!("../skills/orchestrator.skill.md"),
     ),
+    ("vox.mesh", include_str!("../skills/mesh.skill.md")),
     ("vox.v0", include_str!("../skills/v0.skill.md")),
 ];
 
@@ -53,13 +54,14 @@ mod tests {
     #[test]
     fn all_builtins_parse() {
         let bundles = builtin_bundles().expect("parse all built-ins");
-        assert_eq!(bundles.len(), 6);
+        assert_eq!(bundles.len(), 7);
         let ids: Vec<_> = bundles.iter().map(|b| b.manifest.id.as_str()).collect();
         assert!(ids.contains(&"vox.compiler"));
         assert!(ids.contains(&"vox.testing"));
         assert!(ids.contains(&"vox.memory"));
         assert!(ids.contains(&"vox.git"));
         assert!(ids.contains(&"vox.orchestrator"));
+        assert!(ids.contains(&"vox.mesh"));
         assert!(ids.contains(&"vox.v0"));
     }
 
@@ -67,9 +69,10 @@ mod tests {
     async fn install_builtins_into_empty_registry() {
         let reg = SkillRegistry::new();
         let count = install_builtins(&reg).await.expect("install");
-        assert_eq!(count, 6);
+        assert_eq!(count, 7);
         assert!(reg.get("vox.compiler").is_some());
         assert!(reg.get("vox.memory").is_some());
+        assert!(reg.get("vox.mesh").is_some());
     }
 
     #[tokio::test]

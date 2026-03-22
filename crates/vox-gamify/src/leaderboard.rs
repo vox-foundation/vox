@@ -40,14 +40,23 @@ impl std::fmt::Display for LeaderboardMetric {
 /// Per-agent stats tracked for the leaderboard.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AgentStats {
+    /// Stable agent identifier.
     pub agent_id: String,
+    /// Display name shown in leaderboard rows.
     pub agent_name: String,
+    /// Successfully finished tasks.
     pub tasks_completed: u32,
+    /// Tasks that ended in failure.
     pub tasks_failed: u32,
+    /// Running sum of code quality scores (0–100 each).
     pub code_quality_sum: u32,
+    /// Number of quality samples in `code_quality_sum`.
     pub code_quality_count: u32,
+    /// Total wall time spent on completed tasks, in milliseconds.
     pub total_duration_ms: u64,
+    /// Cumulative spend in USD across completed tasks.
     pub total_cost_usd: f64,
+    /// Successful handoffs to another agent.
     pub handoffs_completed: u32,
 }
 
@@ -105,10 +114,15 @@ impl AgentStats {
 /// A row in the leaderboard.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaderboardEntry {
+    /// 1-based position after sorting.
     pub rank: u32,
+    /// Agent identifier for this row.
     pub agent_id: String,
+    /// Display name copied from stats.
     pub agent_name: String,
+    /// Pre-formatted metric value for display.
     pub value: String,
+    /// Which metric this row was sorted by.
     pub metric: LeaderboardMetric,
 }
 

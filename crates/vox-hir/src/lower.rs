@@ -119,6 +119,11 @@ impl LowerCtx {
                 Decl::Routes(_) => {
                     // Client-side routing is handled by the TS codegen directly from AST.
                 }
+                Decl::Island(_) => {
+                    // Props-only island contract; implementation ships in `islands/` and hydrates via
+                    // `island-mount.js` (see `vox-cli` templates).
+                }
+                _ => {}
             }
         }
 
@@ -154,6 +159,7 @@ impl LowerCtx {
             is_component,
             is_async: false,
             is_pub: f.is_pub,
+            is_deprecated: f.is_deprecated,
             span: f.span,
         }
     }
@@ -589,6 +595,7 @@ impl LowerCtx {
                 })
                 .collect(),
             is_pub: t.is_pub,
+            is_deprecated: t.is_deprecated,
             span: t.span,
         }
     }

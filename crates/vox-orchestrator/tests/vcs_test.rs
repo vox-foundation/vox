@@ -4,8 +4,8 @@
 
 use std::path::PathBuf;
 use vox_orchestrator::{
-    conflicts::ConflictResolution, snapshot::SnapshotId, workspace::ChangeStatus, AgentId,
-    FileAffinity, Orchestrator, OrchestratorConfig,
+    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, conflicts::ConflictResolution,
+    snapshot::SnapshotId, workspace::ChangeStatus,
 };
 
 fn test_config() -> OrchestratorConfig {
@@ -26,7 +26,8 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
         .await
         .expect("submit should succeed");
     let agent_a = *orch.agent_ids().first().expect("should have an agent");
-    orch.complete_task(task_id).await
+    orch.complete_task(task_id)
+        .await
         .expect("complete should succeed");
 
     // 1. Create workspace for agent A
@@ -61,7 +62,8 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
     assert!(orch.snapshot_store().count() >= 2);
 
     // 3. Complete the task — should capture post-task snapshot
-    orch.complete_task(task_id).await
+    orch.complete_task(task_id)
+        .await
         .expect("complete should succeed");
 
     {

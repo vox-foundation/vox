@@ -78,10 +78,15 @@ impl std::fmt::Display for QuestType {
 /// A template for generating quests, with difficulty tiers.
 #[derive(Debug, Clone)]
 pub struct QuestTemplate {
+    /// What kind of quest this is.
     pub quest_type: QuestType,
+    /// Player-facing objective text.
     pub description: &'static str,
+    /// Number of actions required to complete.
     pub target: u32,
+    /// Crystals granted on completion.
     pub crystal_reward: u64,
+    /// XP granted on completion.
     pub xp_reward: u64,
 }
 
@@ -226,16 +231,26 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
 /// An active quest instance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quest {
+    /// Quest instance id.
     pub id: String,
+    /// Player this quest belongs to.
     pub user_id: String,
+    /// Category of quest.
     pub quest_type: QuestType,
+    /// Objective description copied from the template.
     pub description: String,
+    /// Count needed to complete.
     pub target: u32,
+    /// Progress toward `target`.
     pub progress: u32,
+    /// Crystal payout when completed.
     pub crystal_reward: u64,
+    /// XP payout when completed.
     pub xp_reward: u64,
+    /// Whether rewards were already granted.
     pub completed: bool,
-    pub expires_at: i64, // unix timestamp
+    /// Expiration time as a UNIX timestamp.
+    pub expires_at: i64,
 }
 
 impl Quest {

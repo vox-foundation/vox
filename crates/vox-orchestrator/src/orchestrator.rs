@@ -1,3 +1,8 @@
+//! Central coordinator for queues, affinity, locks, scope, and JJ-style undo metadata.
+//!
+//! [`Orchestrator`] is the integration point for routing services, Codex-backed stores,
+//! and runtime agent processes when the `runtime` feature is enabled.
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -6,35 +11,46 @@ use crate::bulletin::BulletinBoard;
 use crate::config::OrchestratorConfig;
 use crate::groups::AffinityGroupRegistry;
 use crate::locks::{FileLockManager, LockKind};
+use crate::oplog::{OperationId, OperationKind};
 use crate::queue::AgentQueue;
 use crate::scope::{ScopeEnforcement, ScopeGuard};
 use crate::services::{
     MessageGateway, PolicyCheckResult, PolicyEngine, RouteResult, RoutingService,
 };
+use crate::snapshot::SnapshotId;
 use crate::types::{
     AccessKind, AgentId, AgentIdGenerator, AgentTask, FileAffinity, TaskId, TaskIdGenerator,
     TaskPriority, TaskStatus,
 };
-use crate::oplog::{OperationId, OperationKind};
-use crate::snapshot::SnapshotId;
 
 /// Error type for orchestrator operations.
 #[derive(Debug, thiserror::Error)]
 pub enum OrchestratorError {
+    /// Orchestrator is turned off via configuration.
     #[error("Orchestrator is disabled")]
     Disabled,
+    /// No additional agent slots remain.
     #[error("Maximum agents ({max}) reached")]
-    MaxAgentsReached { max: usize },
+    MaxAgentsReached {
+        /// Configured hard cap on concurrent agents.
+        max: usize,
+    },
+    /// Lookup failed for the given agent id.
     #[error("Agent {0} not found")]
     AgentNotFound(AgentId),
+    /// Lookup failed for the given task id.
     #[error("Task {0} not found")]
     TaskNotFound(TaskId),
+    /// File lock could not be acquired.
     #[error("Lock conflict: {0}")]
     LockConflict(#[from] crate::locks::LockConflict),
+    /// Path violated scope / affinity rules.
     #[error("Scope denied: {0}")]
     ScopeDenied(String),
+    /// Undo/redo referenced a missing oplog entry.
     #[error("Operation not found")]
     OperationNotFound,
+    /// Persistent layer failure surfaced to callers.
     #[error("Database error: {0}")]
     DatabaseError(String),
 }
@@ -44,8 +60,11 @@ pub enum OrchestratorError {
 /// → move to orchestrator/types.rs when decomposing this file into sub-modules.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TaskTraceStep {
+    /// Pipeline stage name (submit, route, verify, complete, …).
     pub stage: String,
+    /// When this step was recorded (Unix ms).
     pub timestamp_ms: u64,
+    /// Optional structured payload or error text.
     pub detail: Option<String>,
 }
 
@@ -54,36 +73,62 @@ const MAX_TASK_TRACES: usize = 200;
 /// Snapshot of the orchestrator state for display.
 #[derive(Debug, serde::Serialize)]
 pub struct OrchestratorStatus {
+    /// Whether the orchestrator accepts new work.
     pub enabled: bool,
+    /// Registered agents (static + dynamic).
     pub agent_count: usize,
+    /// Tasks waiting across all queues.
     pub total_queued: usize,
+    /// Tasks currently executing.
     pub total_in_progress: usize,
+    /// Tasks finished since start (approximate counter).
     pub total_completed: usize,
+    /// Distinct paths under lock.
     pub locked_files: usize,
+    /// Aggregate lock wait / conflict events (policy-specific).
     pub total_contention: usize,
+    /// Sum of weighted queue depths for scaling heuristics.
     pub total_weighted_load: f64,
+    /// Smoothed forecast of near-future load.
     pub predicted_load: f64,
+    /// Agents pinned or reserved for scaling policy.
     pub reserved_agents: usize,
+    /// Ephemeral agents spawned for burst handling.
     pub dynamic_agents: usize,
+    /// Shared context keys visible to dashboards.
     pub context_entries: std::collections::HashMap<String, crate::context::ContextEntry>,
+    /// Per-agent rollups for UI tables.
     pub agents: Vec<AgentSummary>,
 }
 
 /// Summary info for one agent.
 #[derive(Debug, serde::Serialize)]
 pub struct AgentSummary {
+    /// Agent id.
     pub id: AgentId,
+    /// Display name.
     pub name: String,
+    /// Tasks waiting in this agent's queue.
     pub queued: usize,
+    /// Urgent-priority backlog depth.
     pub urgent_count: usize,
+    /// Normal-priority backlog depth.
     pub normal_count: usize,
+    /// Background-priority backlog depth.
     pub background_count: usize,
+    /// Whether a task is actively running.
     pub in_progress: bool,
+    /// Completed tasks attributed to this agent.
     pub completed: usize,
+    /// Operator paused this agent.
     pub paused: bool,
+    /// Files this agent currently owns for writing.
     pub owned_files: usize,
+    /// True if spawned dynamically for overflow.
     pub dynamic: bool,
+    /// Load score combining priorities and in-flight work.
     pub weighted_load: f64,
+    /// Linked Codex session id when known.
     pub agent_session_id: Option<String>,
 }
 
@@ -121,7 +166,7 @@ pub struct Orchestrator {
     scope_guard: ScopeGuard,
     /// Per-task timeline (ingress → route → outcome), capped at MAX_TASK_TRACES.
     task_traces: HashMap<TaskId, Vec<TaskTraceStep>>,
-    /// Content-addressed code store (TursoDB).
+    /// **Arca** content-addressed store (`vox_pm::CodeStore`, Turso). Prefer **`vox_db::Codex`** for app-facing APIs.
     code_store: Option<vox_pm::CodeStore>,
     // -- JJ-inspired subsystems --
     /// Auto-snapshot store for tracking file state changes.
@@ -134,6 +179,8 @@ pub struct Orchestrator {
     workspace_manager: crate::workspace::WorkspaceManager,
     /// Timestamp of the last rebalance (for cooldown enforcement).
     last_rebalance_at: Option<std::time::Instant>,
+    /// Last remote mesh snapshot hints (from MCP federation poller); read-only placement signals.
+    remote_mesh_routing_hints: Vec<crate::mesh_federation::RemoteMeshRoutingHint>,
 }
 
 impl Orchestrator {
@@ -183,6 +230,7 @@ impl Orchestrator {
             workspace_manager: crate::workspace::WorkspaceManager::new(),
             code_store: None,
             last_rebalance_at: None,
+            remote_mesh_routing_hints: Vec::new(),
         }
     }
 
@@ -225,6 +273,7 @@ impl Orchestrator {
             workspace_manager: crate::workspace::WorkspaceManager::new(),
             code_store: None,
             last_rebalance_at: None,
+            remote_mesh_routing_hints: Vec::new(),
         }
     }
 
@@ -249,7 +298,7 @@ impl Orchestrator {
         file_manifest: Vec<FileAffinity>,
         priority: Option<TaskPriority>,
     ) -> Result<TaskId, OrchestratorError> {
-        self.submit_task_with_agent(description, file_manifest, priority, None)
+        self.submit_task_with_agent(description, file_manifest, priority, None, None)
             .await
     }
 
@@ -260,6 +309,7 @@ impl Orchestrator {
         file_manifest: Vec<FileAffinity>,
         priority: Option<TaskPriority>,
         target_agent: Option<String>,
+        capability_requirements: Option<crate::contract::TaskCapabilityHints>,
     ) -> Result<TaskId, OrchestratorError> {
         if !self.config.enabled {
             return Err(OrchestratorError::Disabled);
@@ -268,10 +318,17 @@ impl Orchestrator {
         let task_id = self.task_id_gen.next();
         let priority = priority.unwrap_or(self.config.default_priority);
 
-        let task = AgentTask::new(task_id, description, priority, file_manifest.clone());
+        let mut task = AgentTask::new(task_id, description, priority, file_manifest.clone());
+        task.capability_requirements = capability_requirements.clone();
 
         // Route to the right agent via RoutingService
-        let agent_id = self.resolve_route(&file_manifest, target_agent.as_deref())?;
+        let agent_id = self
+            .resolve_route(
+                &file_manifest,
+                target_agent.as_deref(),
+                capability_requirements.as_ref(),
+            )
+            .await?;
 
         // Pre-queue policy check (locks; scope when enforcement enabled)
         let scope_guard = (self.config.scope_enforcement != ScopeEnforcement::Disabled)
@@ -341,8 +398,16 @@ impl Orchestrator {
 
             // Notify the agent process to wake up and process
             if let Some(handle) = self.agent_handles.get(&agent_id) {
-                let cmd = crate::runtime::AgentCommand::ProcessQueue;
-                let _ = handle.send_json(cmd);
+                let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
+                    .unwrap_or_else(|e| {
+                        tracing::warn!("serialize ProcessQueue: {e}");
+                        "{}".to_string()
+                    });
+                let env = vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
+                    from: vox_runtime::Pid::new(),
+                    payload: vox_runtime::mailbox::MessagePayload::Json(json),
+                });
+                let _ = handle.send(env).await;
             }
 
             tracing::info!(
@@ -423,6 +488,7 @@ impl Orchestrator {
                 priority,
                 desc.file_manifest.clone(),
             );
+            task.capability_requirements = desc.capability_requirements.clone();
 
             // Add all collected deps
             for dep in desc.depends_on {
@@ -430,7 +496,13 @@ impl Orchestrator {
             }
 
             // Route to best agent via RoutingService
-            let agent_id = self.resolve_route(&desc.file_manifest, None)?;
+            let agent_id = self
+                .resolve_route(
+                    &desc.file_manifest,
+                    None,
+                    desc.capability_requirements.as_ref(),
+                )
+                .await?;
 
             let scope_guard = (self.config.scope_enforcement != ScopeEnforcement::Disabled)
                 .then_some(&self.scope_guard);
@@ -443,10 +515,10 @@ impl Orchestrator {
             ) {
                 PolicyCheckResult::Allowed => {}
                 PolicyCheckResult::LockConflict(e) => {
-                    return Err(OrchestratorError::LockConflict(e))
+                    return Err(OrchestratorError::LockConflict(e));
                 }
                 PolicyCheckResult::ScopeDenied(msg) => {
-                    return Err(OrchestratorError::ScopeDenied(msg))
+                    return Err(OrchestratorError::ScopeDenied(msg));
                 }
             }
 
@@ -491,8 +563,17 @@ impl Orchestrator {
 
                 // Notify
                 if let Some(handle) = self.agent_handles.get(&agent_id) {
-                    let cmd = crate::runtime::AgentCommand::ProcessQueue;
-                    let _ = handle.send_json(cmd);
+                    let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
+                        .unwrap_or_else(|e| {
+                            tracing::warn!("serialize ProcessQueue: {e}");
+                            "{}".to_string()
+                        });
+                    let env =
+                        vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
+                            from: vox_runtime::Pid::new(),
+                            payload: vox_runtime::mailbox::MessagePayload::Json(json),
+                        });
+                    let _ = handle.send(env).await;
                 }
             }
 
@@ -529,7 +610,12 @@ impl Orchestrator {
     }
 
     /// Resolve route via RoutingService and spawn if needed.
-    fn resolve_route(&mut self, manifest: &[FileAffinity], target_agent: Option<&str>) -> Result<AgentId, OrchestratorError> {
+    async fn resolve_route(
+        &mut self,
+        manifest: &[FileAffinity],
+        target_agent: Option<&str>,
+        task_capability_requirements: Option<&crate::contract::TaskCapabilityHints>,
+    ) -> Result<AgentId, OrchestratorError> {
         if let Some(agent_name) = target_agent {
             // First check if an agent with this name exists
             for (id, queue) in &self.agents {
@@ -541,12 +627,34 @@ impl Orchestrator {
             return self.spawn_agent(agent_name);
         }
 
+        let reliability_map: Option<HashMap<AgentId, f64>> =
+            if self.config.socrates_reputation_routing {
+                self.code_store.as_ref().map(|store| {
+                    store
+                        .block_on(async { store.list_agent_reliability().await })
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|(id, r)| (AgentId(id), r))
+                        .collect()
+                })
+            } else {
+                None
+            };
+
+        let remote = if self.remote_mesh_routing_hints.is_empty() {
+            None
+        } else {
+            Some(self.remote_mesh_routing_hints.as_slice())
+        };
         let result = RoutingService::route(
             manifest,
             &self.affinity_map,
             &self.groups,
             &self.agents,
             &self.config,
+            reliability_map.as_ref(),
+            task_capability_requirements,
+            remote,
         );
         match result {
             RouteResult::Existing(id) => Ok(id),
@@ -563,7 +671,12 @@ impl Orchestrator {
         }
 
         let agent_id = self.agent_id_gen.next();
-        let queue = AgentQueue::new(agent_id, name);
+        let mut queue = AgentQueue::new(agent_id, name);
+        let probed = crate::capability_probe::probe_host_capabilities();
+        queue.capabilities = crate::capability_probe::merge_agent_capabilities(
+            &self.config.default_agent_capabilities,
+            probed,
+        );
         self.agents.insert(agent_id, queue);
         self.heartbeat_monitor.register(agent_id);
         MessageGateway::publish_agent_spawned(
@@ -574,6 +687,16 @@ impl Orchestrator {
         );
         tracing::info!("Spawned agent {} (name: {})", agent_id, name);
         Ok(agent_id)
+    }
+
+    /// Replace cached remote mesh capability hints (typically from a background `GET /v1/mesh/nodes` poll).
+    ///
+    /// Does **not** enable remote task execution; see `OrchestratorConfig::mesh_routing_experimental`.
+    pub fn set_remote_mesh_routing_hints(
+        &mut self,
+        hints: Vec<crate::mesh_federation::RemoteMeshRoutingHint>,
+    ) {
+        self.remote_mesh_routing_hints = hints;
     }
 
     /// Spawn a dynamic (transient) agent.
@@ -595,11 +718,7 @@ impl Orchestrator {
             .get_mut(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
         queue.set_agent_session(session_id.clone());
-        tracing::info!(
-            "Mapped agent session {} to agent {}",
-            session_id,
-            agent_id
-        );
+        tracing::info!("Mapped agent session {} to agent {}", session_id, agent_id);
         Ok(())
     }
 
@@ -659,7 +778,10 @@ impl Orchestrator {
     }
 
     /// Accept a handoff from another agent.
-    pub fn accept_handoff(&mut self, payload: crate::handoff::HandoffPayload) -> Result<AgentId, OrchestratorError> {
+    pub fn accept_handoff(
+        &mut self,
+        payload: crate::handoff::HandoffPayload,
+    ) -> Result<AgentId, OrchestratorError> {
         let from_agent = payload.from_agent;
 
         // Resolve target agent or spawn new one
@@ -670,10 +792,11 @@ impl Orchestrator {
                 match self.spawn_agent(&format!("ResumingAgent-{}", id.0)) {
                     Ok(new_id) => new_id,
                     Err(e) => {
-                        self.event_bus.emit(crate::events::AgentEventKind::AgentHandoffRejected {
-                            from: from_agent,
-                            reason: format!("Spawn failed: {}", e),
-                        });
+                        self.event_bus
+                            .emit(crate::events::AgentEventKind::AgentHandoffRejected {
+                                from: from_agent,
+                                reason: format!("Spawn failed: {}", e),
+                            });
                         return Err(e);
                     }
                 }
@@ -682,10 +805,11 @@ impl Orchestrator {
             match self.spawn_agent("AdaptiveResumer") {
                 Ok(new_id) => new_id,
                 Err(e) => {
-                    self.event_bus.emit(crate::events::AgentEventKind::AgentHandoffRejected {
-                        from: from_agent,
-                        reason: format!("Spawn failed: {}", e),
-                    });
+                    self.event_bus
+                        .emit(crate::events::AgentEventKind::AgentHandoffRejected {
+                            from: from_agent,
+                            reason: format!("Spawn failed: {}", e),
+                        });
                     return Err(e);
                 }
             }
@@ -695,7 +819,9 @@ impl Orchestrator {
         for path in &payload.owned_files {
             self.affinity_map.assign(path, target_id);
             self.scope_guard.assign_file(target_id, path.clone());
-            let _ = self.lock_manager.try_acquire(path, target_id, LockKind::Exclusive);
+            let _ = self
+                .lock_manager
+                .try_acquire(path, target_id, LockKind::Exclusive);
         }
 
         // Re-submit pending tasks
@@ -703,13 +829,20 @@ impl Orchestrator {
 
         // In a real system, we'd need to re-construct the task descriptions or have them in the payload.
         // For now, we emit an event that the handoff was accepted and the agent is resuming.
-        self.event_bus.emit(crate::events::AgentEventKind::AgentHandoffAccepted {
-            agent_id: target_id,
-            from: from_agent,
-            plan_summary: payload.plan_summary.clone(),
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::AgentHandoffAccepted {
+                agent_id: target_id,
+                from: from_agent,
+                plan_summary: payload.plan_summary.clone(),
+            });
 
-        tracing::info!("Agent {} accepted handoff from {} ({} tasks resumed: {:?})", target_id, from_agent, resumed_ids.len(), resumed_ids);
+        tracing::info!(
+            "Agent {} accepted handoff from {} ({} tasks resumed: {:?})",
+            target_id,
+            from_agent,
+            resumed_ids.len(),
+            resumed_ids
+        );
         Ok(target_id)
     }
 
@@ -760,10 +893,7 @@ impl Orchestrator {
     }
 
     /// Mark a task as completed (async).
-    pub async fn complete_task(
-        &mut self,
-        task_id: TaskId,
-    ) -> Result<(), OrchestratorError> {
+    pub async fn complete_task(&mut self, task_id: TaskId) -> Result<(), OrchestratorError> {
         let agent_id = self
             .task_assignments
             .get(&task_id)
@@ -818,6 +948,50 @@ impl Orchestrator {
             return Ok(());
         }
 
+        let mut socrates_requeue: Option<AgentTask> = None;
+        {
+            let policy = self.config.effective_socrates_policy();
+            if let Some(task) = queue.current_task() {
+                if let Some(ref ctx) = task.socrates {
+                    let outcome = crate::socrates::evaluate_socrates_gate(ctx, &policy);
+                    if self.config.socrates_gate_shadow {
+                        tracing::info!(
+                            target: "vox_orchestrator::socrates",
+                            task_id = task_id.0,
+                            agent_id = agent_id.0,
+                            decision = ?outcome.decision,
+                            confidence = outcome.confidence,
+                            contradiction = outcome.contradiction_ratio,
+                            "socrates gate (shadow)"
+                        );
+                    }
+                    if self.config.socrates_gate_enforce
+                        && outcome.decision != vox_socrates_policy::RiskDecision::Answer
+                        && task.debug_iterations < self.config.max_debug_iterations
+                    {
+                        let mut t = task.clone();
+                        t.debug_iterations += 1;
+                        t.description.push_str(&format!(
+                            "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.\n",
+                            outcome.decision, outcome.confidence, outcome.contradiction_ratio
+                        ));
+                        t.status = TaskStatus::Queued;
+                        socrates_requeue = Some(t);
+                    }
+                }
+            }
+        }
+
+        if let Some(requeue_task) = socrates_requeue {
+            tracing::warn!(
+                task_id = task_id.0,
+                "Socrates gate blocked completion; requeueing"
+            );
+            queue.mark_failed(task_id, "Socrates risk gate blocked completion".to_string());
+            queue.enqueue(requeue_task);
+            return Ok(());
+        }
+
         let desc = queue
             .current_task()
             .map(|t| t.description.clone())
@@ -840,7 +1014,9 @@ impl Orchestrator {
 
         // Find pre-task snapshots from the oplog to link this completion
         let (snap_before, db_snap_before) = self.oplog.find_task_snapshots(task_id.0);
-        let db_snap_after = self.take_db_snapshot(agent_id, format!("post-task-complete: {}", task_id)).await;
+        let db_snap_after = self
+            .take_db_snapshot(agent_id, format!("post-task-complete: {}", task_id))
+            .await;
 
         self.record_operation(
             agent_id,
@@ -913,12 +1089,20 @@ impl Orchestrator {
             queue.unblock(task_id);
         }
 
+        if let Some(store) = &self.code_store {
+            let _ = store.block_on(store.record_task_reliability_observation(agent_id.0, true));
+        }
+
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
         Ok(())
     }
 
     /// Mark a task as failed (async).
-    pub async fn fail_task(&mut self, task_id: TaskId, reason: String) -> Result<(), OrchestratorError> {
+    pub async fn fail_task(
+        &mut self,
+        task_id: TaskId,
+        reason: String,
+    ) -> Result<(), OrchestratorError> {
         let agent_id = self
             .task_assignments
             .get(&task_id)
@@ -931,6 +1115,10 @@ impl Orchestrator {
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
 
         queue.mark_failed(task_id, reason.clone());
+
+        if let Some(store) = &self.code_store {
+            let _ = store.block_on(store.record_task_reliability_observation(agent_id.0, false));
+        }
 
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -1162,7 +1350,7 @@ impl Orchestrator {
     }
 
     /// Run periodic orchestrator maintenance (like timed-out lock release).
-    pub fn tick(&mut self) {
+    pub async fn tick(&mut self) {
         // Refresh system metrics
         #[cfg(feature = "system-metrics")]
         {
@@ -1198,7 +1386,11 @@ impl Orchestrator {
                 );
                 let _ = self.retire_agent(id);
             } else {
-                tracing::error!("Tick: reserved agent {} is unresponsive at level {}! Immediate attention required.", id, level);
+                tracing::error!(
+                    "Tick: reserved agent {} is unresponsive at level {}! Immediate attention required.",
+                    id,
+                    level
+                );
             }
         }
 
@@ -1208,16 +1400,25 @@ impl Orchestrator {
                 .iter()
                 .map(|(id, queue)| (*id, queue.len()))
                 .collect();
-            let intents = self.monitor
+            let intents = self
+                .monitor
                 .check_idle_agents(&active_agents, &self.event_bus);
 
             for (agent_id, prompt) in intents {
-                let _ = self.submit_task_with_agent(
-                    format!("[Auto-Continuation] {}", prompt),
-                    vec![], // No specific file affinity for continuation
-                    Some(crate::types::TaskPriority::Background),
-                    Some(self.agents.get(&agent_id).map(|q| q.name.clone()).unwrap_or_default()),
-                );
+                let _ = self
+                    .submit_task_with_agent(
+                        format!("[Auto-Continuation] {}", prompt),
+                        vec![], // No specific file affinity for continuation
+                        Some(crate::types::TaskPriority::Background),
+                        Some(
+                            self.agents
+                                .get(&agent_id)
+                                .map(|q| q.name.clone())
+                                .unwrap_or_default(),
+                        ),
+                        None,
+                    )
+                    .await;
             }
         }
 
@@ -1245,7 +1446,9 @@ impl Orchestrator {
                     for (agent_id, depth) in &overloaded_urgent {
                         tracing::warn!(
                             "Tick: agent {} has {} urgent tasks (threshold {}), triggering urgent rebalance",
-                            agent_id, depth, urgent_threshold
+                            agent_id,
+                            depth,
+                            urgent_threshold
                         );
                     }
                     let moved = self.rebalance();
@@ -1277,14 +1480,15 @@ impl Orchestrator {
         let model_str: String = model.into();
 
         // 1. Emit real-time event (dashboard / monitor consumers)
-        self.event_bus.emit(crate::events::AgentEventKind::CostIncurred {
-            agent_id,
-            provider: provider_str.clone(),
-            model: model_str.clone(),
-            input_tokens,
-            output_tokens,
-            cost_usd,
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::CostIncurred {
+                agent_id,
+                provider: provider_str.clone(),
+                model: model_str.clone(),
+                input_tokens,
+                output_tokens,
+                cost_usd,
+            });
 
         // 2. Update in-memory budget
         self.budget_manager
@@ -1303,7 +1507,12 @@ impl Orchestrator {
 
         tracing::debug!(
             "AI usage recorded: agent={} {}/{} in={} out={} cost=${:.6}",
-            agent_id, provider_str, model_str, input_tokens, output_tokens, cost_usd
+            agent_id,
+            provider_str,
+            model_str,
+            input_tokens,
+            output_tokens,
+            cost_usd
         );
     }
 
@@ -1422,6 +1631,7 @@ impl Orchestrator {
         &self.models
     }
 
+    /// Mutable access for updating model registry overrides at runtime.
     pub fn models_mut(&mut self) -> &mut crate::models::ModelRegistry {
         &mut self.models
     }
@@ -1495,7 +1705,10 @@ impl Orchestrator {
         let desc = description.into();
         let db_snap_before = match db_snapshot_before {
             Some(id) => Some(id),
-            None => self.take_db_snapshot(agent_id, format!("pre-op: {}", desc)).await,
+            None => {
+                self.take_db_snapshot(agent_id, format!("pre-op: {}", desc))
+                    .await
+            }
         };
 
         self.oplog.record(
@@ -1593,7 +1806,10 @@ impl Orchestrator {
     }
 
     /// Internal helper to restore files from a snapshot ID (async).
-    pub async fn restore_fs_snapshot(&self, snapshot_id: SnapshotId) -> Result<(), OrchestratorError> {
+    pub async fn restore_fs_snapshot(
+        &self,
+        snapshot_id: SnapshotId,
+    ) -> Result<(), OrchestratorError> {
         let snap = self
             .snapshot_store
             .get(snapshot_id)
@@ -1620,13 +1836,14 @@ impl Orchestrator {
                 std::fs::write(&entry.path, data).map_err(|e| {
                     OrchestratorError::DatabaseError(format!(
                         "Restore: write {} failed: {}",
-                        entry.path.display(), e
+                        entry.path.display(),
+                        e
                     ))
                 })?;
             }
         }
         Ok(())
-}
+    }
 
     /// Access the operation log.
     pub fn oplog(&self) -> &crate::oplog::OpLog {
@@ -1890,11 +2107,13 @@ mod tests {
         assert!(steps.len() >= 2);
         assert_eq!(steps[0].stage, "ingress");
         assert_eq!(steps[1].stage, "routed");
-        assert!(steps[1]
-            .detail
-            .as_ref()
-            .map(|d| d.starts_with("agent "))
-            .unwrap_or(false));
+        assert!(
+            steps[1]
+                .detail
+                .as_ref()
+                .map(|d| d.starts_with("agent "))
+                .unwrap_or(false)
+        );
     }
 
     #[tokio::test]
@@ -1924,16 +2143,57 @@ mod tests {
             .unwrap();
         let agent_id = *orch.task_assignments().get(&task_id).unwrap();
         orch.get_agent_queue_mut(agent_id).unwrap().dequeue();
-        orch.fail_task(task_id, "timeout".to_string()).await.unwrap();
+        orch.fail_task(task_id, "timeout".to_string())
+            .await
+            .unwrap();
         let steps = orch.task_trace(task_id).expect("trace exists");
         let outcome = steps
             .iter()
             .find(|s| s.stage == "outcome")
             .expect("outcome step");
-        assert!(outcome
-            .detail
-            .as_deref()
-            .map(|d| d.starts_with("failed: "))
-            .unwrap_or(false));
+        assert!(
+            outcome
+                .detail
+                .as_deref()
+                .map(|d| d.starts_with("failed: "))
+                .unwrap_or(false)
+        );
+    }
+
+    #[tokio::test]
+    async fn socrates_enforced_gate_requeues_low_confidence_task() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.socrates_gate_enforce = true;
+        cfg.socrates_gate_shadow = true;
+        cfg.max_debug_iterations = 2;
+        let mut orch = Orchestrator::new(cfg);
+        let agent_id = orch.spawn_agent("socrates").expect("spawn");
+
+        let task_id = TaskId(9001);
+        let mut task = AgentTask::new(
+            task_id,
+            "grounded answer required",
+            TaskPriority::Normal,
+            vec![FileAffinity::write("facts.md")],
+        );
+        task.socrates = Some(crate::socrates::SocratesTaskContext {
+            factual_mode: true,
+            required_citations: 3,
+            evidence_count: 0,
+            contradiction_hints: 0,
+            risk_budget: "high".to_string(),
+        });
+        {
+            let queue = orch.get_agent_queue_mut(agent_id).expect("queue");
+            queue.enqueue(task);
+            let _ = queue.dequeue();
+        }
+        orch.task_assignments.insert(task_id, agent_id);
+
+        orch.complete_task(task_id).await.expect("gate path");
+
+        let q = orch.agent_queue(agent_id).expect("queue snapshot");
+        assert_eq!(q.completed_count(), 0);
+        assert!(!q.is_empty());
     }
 }

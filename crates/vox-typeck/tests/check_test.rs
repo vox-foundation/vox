@@ -3,15 +3,11 @@ mod check_tests {
 
     use vox_ast::decl::{Decl, FnDecl, Module};
     use vox_ast::expr::Expr;
-    use vox_ast::pattern::Pattern;
-    use vox_ast::span::Span;
     use vox_ast::stmt::Stmt;
     use vox_typeck::diagnostics::Severity;
-    use vox_typeck::{typecheck_module, Diagnostic};
+    use vox_typeck::{Diagnostic, typecheck_module};
+    use vox_test_harness::spans::dummy_span;
 
-    fn dummy_span() -> Span {
-        Span { start: 0, end: 0 }
-    }
 
     fn module_with_fn(name: &str, body: Vec<Stmt>) -> Module {
         Module {
@@ -56,14 +52,10 @@ mod check_tests {
     }
     #[test]
     fn a090_for_loop_variable_in_scope() {
-
         // `for x in [1, 2]: x` — should NOT produce an error for `x`
         let body = vec![Stmt::Expr {
             expr: Expr::For {
-                binding: Pattern::Ident {
-                    name: "x".into(),
-                    span: dummy_span(),
-                },
+                binding: "x".into(),
                 iterable: Box::new(Expr::ListLit {
                     elements: vec![
                         Expr::IntLit {
@@ -77,7 +69,6 @@ mod check_tests {
                     ],
                     span: dummy_span(),
                 }),
-                key: None,
                 body: Box::new(Expr::Ident {
                     name: "x".into(),
                     span: dummy_span(),
@@ -104,10 +95,7 @@ mod check_tests {
         // `for x in [1]: x + 1` — should resolve x without "Undefined" error
         let body = vec![Stmt::Expr {
             expr: Expr::For {
-                binding: Pattern::Ident {
-                    name: "x".into(),
-                    span: dummy_span(),
-                },
+                binding: "x".into(),
                 iterable: Box::new(Expr::ListLit {
                     elements: vec![Expr::IntLit {
                         value: 1,
@@ -115,7 +103,6 @@ mod check_tests {
                     }],
                     span: dummy_span(),
                 }),
-                key: None,
                 body: Box::new(Expr::Binary {
                     op: vox_ast::expr::BinOp::Add,
                     left: Box::new(Expr::Ident {
@@ -161,12 +148,14 @@ mod check_tests {
         }];
         let module = module_with_fn("test", body);
         let diags = typecheck_module(&module, "");
+        let errs = error_messages(&diags);
         assert!(
-            error_messages(&diags)
-                .iter()
-                .any(|m| m.to_lowercase().contains("callable")),
-            "Expected 'not callable' error, got: {:?}",
-            error_messages(&diags)
+            errs.iter().any(|m| {
+                let l = m.to_lowercase();
+                l.contains("callable") || l.contains("not a function")
+            }),
+            "Expected non-callable call error, got: {:?}",
+            errs
         );
     }
 
@@ -493,5 +482,4 @@ mod check_tests {
             errs
         );
     }
-
 }

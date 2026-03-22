@@ -1,5 +1,5 @@
-use burn::tensor::backend::{Backend, AutodiffBackend};
 use burn::record::{BinFileRecorder, FullPrecisionSettings, Recorder};
+use burn::tensor::backend::{AutodiffBackend, Backend};
 use std::path::Path;
 
 /// Gradient clipping by norm.
@@ -35,12 +35,11 @@ impl Checkpoint {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vox_nn::Module;
     use burn::backend::NdArray;
-    use crate::nn::Module;
 
     type TestBackend = NdArray<f32>;
 
@@ -49,7 +48,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let path = temp_dir.path().join("model.bin");
 
-        let device: <TestBackend as Backend>::Device = Default::default();
+        let _device: <TestBackend as Backend>::Device = Default::default();
         let module: Module<TestBackend> = Module::linear(4, 4, true);
 
         // Save

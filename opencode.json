@@ -41,7 +41,7 @@
     }
   },
   "watcher": {
-    "ignore": ["target/**", ".git/**", "*.lock"]
+    "ignore": ["target/**", ".git/**", "*.lock", ".cargo-targets/**", ".cursor/plans/**"]
   },
   "agent": {
     "build": {
@@ -132,7 +132,7 @@
       "description": "Meta-orchestrator agent: manages other agents, delegates, monitors",
       "mode": "subagent",
       "model": "anthropic/claude-sonnet-4-20250514",
-      "prompt": "{file:.opencode/agents/orchestrator.md}",
+      "prompt": "{file:.vox/agents/orchestrator.md}",
       "tools": {
         "vox_*": true,
         "bash": false,
@@ -148,7 +148,7 @@
       "description": "Read-only agent for dashboard data generation",
       "mode": "subagent",
       "model": "anthropic/claude-sonnet-4-20250514",
-      "prompt": "{file:.opencode/agents/visualizer.md}",
+      "prompt": "{file:.vox/agents/visualizer.md}",
       "tools": {
         "vox_agent_status": true,
         "vox_orchestrator_status": true,

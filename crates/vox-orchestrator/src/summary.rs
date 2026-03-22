@@ -7,25 +7,33 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use crate::sync_lock;
 use crate::types::AgentId;
 
 /// A single interaction within a context window.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Interaction {
+    /// User or system prompt text.
     pub prompt: String,
+    /// Model completion text.
     pub response: String,
+    /// Heuristic token estimate for this turn pair.
     pub token_count: usize,
 }
 
 /// A progressively summarized chain of agent context.
 #[derive(Debug, Clone)]
 pub struct SummaryChain {
+    /// Owner of this rolling transcript.
     pub agent_id: AgentId,
+    /// Recent turns not yet folded into the compressed tail.
     pub interactions: Vec<Interaction>,
+    /// Older material replaced by summarization passes.
     pub compressed_summary: String,
 }
 
 impl SummaryChain {
+    /// Empty chain ready for [`SummaryChain::add_interaction`].
     pub fn new(agent_id: AgentId) -> Self {
         Self {
             agent_id,
@@ -77,6 +85,7 @@ pub struct SummaryManager {
 }
 
 impl SummaryManager {
+    /// Creates an empty manager; chains are created lazily per agent.
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RwLock::new(HashMap::new())),
@@ -91,7 +100,7 @@ impl SummaryManager {
         response: String,
         token_count: usize,
     ) {
-        let mut map = self.inner.write().expect("summary lock poisoned");
+        let mut map = sync_lock::rw_write(&self.inner);
         let chain = map
             .entry(agent_id)
             .or_insert_with(|| SummaryChain::new(agent_id));
@@ -100,7 +109,7 @@ impl SummaryManager {
 
     /// Retrieve the current summarized context string for an agent.
     pub fn get_summary(&self, agent_id: AgentId) -> String {
-        let map = self.inner.read().expect("summary lock poisoned");
+        let map = sync_lock::rw_read(&self.inner);
         if let Some(chain) = map.get(&agent_id) {
             chain.get_summary()
         } else {
@@ -110,7 +119,7 @@ impl SummaryManager {
 
     /// Hands off compressed context from one agent to another.
     pub fn handoff(&self, from_agent: AgentId, to_agent: AgentId) {
-        let mut map = self.inner.write().expect("summary lock poisoned");
+        let mut map = sync_lock::rw_write(&self.inner);
         // We cannot borrow two items mutably natively without split or removing,
         // so we remove the source or clone it. Let's clone the summary string.
         let summary = if let Some(chain) = map.get(&from_agent) {

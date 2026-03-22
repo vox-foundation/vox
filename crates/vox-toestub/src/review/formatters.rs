@@ -1,6 +1,6 @@
-use std::path::Path;
+use super::types::{ReviewCategory, ReviewFinding, ReviewResult};
 use crate::rules::Severity;
-use super::types::{ReviewFinding, ReviewResult, ReviewCategory};
+use std::path::Path;
 
 /// Parse the structured `ISSUE|...` response format into findings.
 pub fn parse_review_response(response: &str, file_path: &Path) -> Vec<ReviewFinding> {

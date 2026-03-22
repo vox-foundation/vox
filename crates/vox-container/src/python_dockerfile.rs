@@ -61,7 +61,7 @@ pub fn generate_python_dockerfile(
 
     // Copy the Vox-compiled binary / app code
     lines.push("# Copy compiled application".to_string());
-    lines.push(format!("COPY . ."));
+    lines.push("COPY . .".to_string());
     lines.push(String::new());
 
     // Expose standard port
@@ -69,9 +69,7 @@ pub fn generate_python_dockerfile(
     lines.push(String::new());
 
     // Default entrypoint — runs the compiled Vox binary
-    lines.push(format!(
-        "CMD [\"./{project_name}\"]"
-    ));
+    lines.push(format!("CMD [\"./{project_name}\"]"));
 
     lines.join("\n") + "\n"
 }
@@ -84,18 +82,14 @@ fn pick_base_image(env: &PythonEnv, needs_torch: bool) -> (String, Option<String
         // Use the official PyTorch CUDA image — includes everything needed
         // for GPU inference without manual CUDA toolkit installation.
         let cuda_tag = match env.cuda_version.as_deref() {
-            Some(v) if v.starts_with("13.") => {
-                "pytorch/pytorch:2.6.0-cuda13.0-cudnn9-runtime"
-            }
+            Some(v) if v.starts_with("13.") => "pytorch/pytorch:2.6.0-cuda13.0-cudnn9-runtime",
             Some(v) if v.starts_with("12.4") || v.starts_with("12.5") || v.starts_with("12.6") => {
                 "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime"
             }
             Some(v) if v.starts_with("12.1") || v.starts_with("12.2") || v.starts_with("12.3") => {
                 "pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime"
             }
-            Some(v) if v.starts_with("11.8") => {
-                "pytorch/pytorch:2.3.0-cuda11.8-cudnn8-runtime"
-            }
+            Some(v) if v.starts_with("11.8") => "pytorch/pytorch:2.3.0-cuda11.8-cudnn8-runtime",
             _ => {
                 // Unknown CUDA version — fall back to latest stable GPU build
                 "pytorch/pytorch:2.6.0-cuda13.0-cudnn9-runtime"
@@ -103,7 +97,7 @@ fn pick_base_image(env: &PythonEnv, needs_torch: bool) -> (String, Option<String
         };
 
         let env_line = Some(
-            "ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility".to_string()
+            "ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility".to_string(),
         );
         (cuda_tag.to_string(), env_line)
     } else if needs_torch {
@@ -165,7 +159,10 @@ mod tests {
     fn contains_uv_install() {
         let env = make_env(None);
         let df = generate_python_dockerfile("myapp", &env, &["torch".to_string()]);
-        assert!(df.contains("astral.sh/uv/install.sh"), "Should install uv via official installer");
+        assert!(
+            df.contains("astral.sh/uv/install.sh"),
+            "Should install uv via official installer"
+        );
     }
 
     #[test]

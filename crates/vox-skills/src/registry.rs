@@ -6,23 +6,29 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
+use crate::SkillError;
 use crate::bundle::VoxSkillBundle;
 use crate::manifest::{SkillCategory, SkillManifest};
-use crate::SkillError;
 
 /// Result of a skill installation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstallResult {
+    /// Installed skill id.
     pub id: String,
+    /// Installed version string.
     pub version: String,
+    /// True when this id+version was already present (no-op install).
     pub already_installed: bool,
+    /// Content hash of the bundle at install time.
     pub hash: String,
 }
 
 /// Result of a skill uninstallation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UninstallResult {
+    /// Skill id passed to [`SkillRegistry::uninstall`].
     pub id: String,
+    /// True when a manifest was removed from the in-memory map.
     pub was_installed: bool,
 }
 
@@ -33,6 +39,7 @@ pub struct SkillRegistry {
 }
 
 impl SkillRegistry {
+    /// In-memory registry without Codex persistence.
     pub fn new() -> Self {
         Self {
             skills: Mutex::new(HashMap::new()),
@@ -40,12 +47,13 @@ impl SkillRegistry {
         }
     }
 
+    /// Fluent constructor: same as [`SkillRegistry::new`] then [`SkillRegistry::set_db`].
     pub fn with_db(self, db: Arc<vox_db::VoxDb>) -> Self {
         *self.db.lock().unwrap_or_else(|e| e.into_inner()) = Some(db);
         self
     }
 
-    /// Attach a VoxDb after construction (safe interior mutation).
+    /// Attach **Codex** (`vox_db::VoxDb`) after construction (safe interior mutation).
     pub fn set_db(&self, db: Arc<vox_db::VoxDb>) {
         *self.db.lock().unwrap_or_else(|e| e.into_inner()) = Some(db);
     }
@@ -62,16 +70,16 @@ impl SkillRegistry {
 
         {
             let mut skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(existing) = skills.get(&id) {
-                if existing.version == version {
-                    info!(skill = %id, "Skill already installed at same version");
-                    return Ok(InstallResult {
-                        id,
-                        version,
-                        already_installed: true,
-                        hash,
-                    });
-                }
+            if let Some(existing) = skills.get(&id)
+                && existing.version == version
+            {
+                info!(skill = %id, "Skill already installed at same version");
+                return Ok(InstallResult {
+                    id,
+                    version,
+                    already_installed: true,
+                    hash,
+                });
             }
             info!(skill = %id, version = %version, "Installing skill");
             let mut manifest = bundle.manifest.clone();
@@ -156,7 +164,7 @@ impl SkillRegistry {
         skills.get(id).cloned()
     }
 
-    /// Load all skills from the VoxDB skills table into memory.
+    /// Load all skills from the Codex `skill_manifests` table into memory.
     pub async fn hydrate_from_db(&self) -> Result<usize, SkillError> {
         let db = match self.get_db() {
             Some(db) => db,
@@ -171,7 +179,7 @@ impl SkillRegistry {
         let count = entries.len();
         for entry in entries {
             if let Ok(manifest) = serde_json::from_str::<SkillManifest>(&entry.manifest_json) {
-                debug!(skill = %manifest.id, "Hydrated from VoxDB");
+                debug!(skill = %manifest.id, "Hydrated from Codex");
                 skills.insert(manifest.id.clone(), manifest);
             }
         }

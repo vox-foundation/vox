@@ -1,0 +1,13 @@
+{
+  "description": "Soft wall-clock budgets (ms) for vox ci build-timings lanes — aggressive cold-check upper bounds; see crate-build-lanes-migration.md",
+  "lanes": {
+    "check_vox_cli_default": 600000,
+    "check_vox_cli_gpu_stub": 1320000,
+    "check_vox_cli_gpu_populi_candle_cuda": 2400000,
+    "check_vox_cli_no_default_features": 360000,
+    "check_vox_db": 240000,
+    "check_vox_oratio": 900000,
+    "check_vox_populi_train": 1200000,
+    "check_vox_cli_populi_oratio": 1080000
+  }
+}

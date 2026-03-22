@@ -6,12 +6,16 @@ use crate::task_queue::TaskQueue;
 /// Output format for the report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
+    /// Human-readable colored terminal output for local `vox` runs.
     Terminal,
+    /// Machine-readable JSON array of findings (CI parsers, dashboards).
     Json,
+    /// GitHub-flavored Markdown sections per file/rule (reports, PR comments).
     Markdown,
 }
 
 impl OutputFormat {
+    /// Parses CLI strings: `json`, `markdown`/`md`, anything else → [`OutputFormat::Terminal`].
     pub fn parse_format(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "json" => OutputFormat::Json,

@@ -41,7 +41,10 @@ If you cannot fix it, return the original source code unchanged."#,
 
     // Try providers in sequence
     for provider in &providers {
-        match client.call_provider(provider, &prompt).await {
+        match client
+            .call_provider_with_client_policy(provider, &prompt)
+            .await
+        {
             Ok((fixed_source, _)) => {
                 // Strip potential markdown code blocks if the LLM included them
                 let mut stripped = fixed_source.clone();

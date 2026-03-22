@@ -1,61 +1,28 @@
 # Documentation Gaps
 
+> **Maintenance:** Hand-curated (not generated). For per-file doc density, hotspot tiers, and `symbol_hints` (schema v3: `containing_symbol`, `quality_tag`, …), regenerate [`agents/doc-inventory.json`](../../agents/doc-inventory.json) with **`cargo run -p vox-cli -- ci doc-inventory generate`**.
+
 Identified public items without documentation. This report helps maintain API coverage.
 
 | File | Item |
 |------|------|
 | `vox-ast\src\decl\ui.rs` | `struct RouteEntry` |
-| `vox-cli\src\commands\architect.rs` | `fn run` |
 | `vox-cli\src\commands\build.rs` | `fn run` |
 | `vox-cli\src\commands\build.rs` | `fn run_once` |
 | `vox-cli\src\commands\check.rs` | `fn run` |
-| `vox-cli\src\commands\compact.rs` | `fn run` |
-| `vox-cli\src\commands\dashboard.rs` | `fn run` |
 | `vox-cli\src\commands\dev.rs` | `fn run` |
 | `vox-cli\src\commands\doctor.rs` | `fn run` |
 | `vox-cli\src\commands\fmt.rs` | `fn run` |
-| `vox-cli\src\commands\hud.rs` | `fn run` |
-| `vox-cli\src\commands\learn.rs` | `fn run` |
 | `vox-cli\src\commands\lsp.rs` | `fn run` |
 | `vox-cli\src\commands\run.rs` | `fn run` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct WorkflowListResponse` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct WorkflowItem` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SkillListResponse` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SkillItem` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct AgentListResponse` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct AgentItem` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SnippetListResponse` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SnippetItem` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct MarketplaceResponse` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct MarketplaceItem` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct FeedbackListResponse` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct FeedbackItem` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct CreateAgentRequest` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SaveSnippetRequest` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SubmitFeedbackRequest` |
-| `vox-cli\src\commands\serve_dashboard\api.rs` | `struct SearchQuery` |
-| `vox-cli\src\commands\skill.rs` | `fn list` |
-| `vox-cli\src\commands\skill.rs` | `fn install` |
-| `vox-cli\src\commands\skill.rs` | `fn uninstall` |
-| `vox-cli\src\commands\skill.rs` | `fn search` |
-| `vox-cli\src\commands\skill.rs` | `fn info` |
-| `vox-cli\src\commands\skill.rs` | `fn create` |
+| `vox-cli\src\commands\extras\ars\mod.rs` | `fn list` |
+| `vox-cli\src\commands\extras\ars\mod.rs` | `fn install` |
+| `vox-cli\src\commands\extras\ars\mod.rs` | `fn uninstall` |
+| `vox-cli\src\commands\extras\ars\mod.rs` | `fn search` |
+| `vox-cli\src\commands\extras\ars\mod.rs` | `fn info` |
+| `vox-cli\src\commands\extras\ars\mod.rs` | `fn create` |
 | `vox-cli\src\commands\test.rs` | `fn run` |
-| `vox-cli\src\commands\vendor.rs` | `fn run` |
 | `vox-codegen-rust\src\emit.rs` | `struct CodegenOutput` |
-| `vox-codegen-rust\src\emit_agent.rs` | `fn emit_activity` |
-| `vox-codegen-rust\src\emit_agent.rs` | `fn emit_workflow` |
-| `vox-codegen-rust\src\emit_agent.rs` | `fn emit_actor` |
-| `vox-codegen-rust\src\emit_expr.rs` | `fn emit_stmt` |
-| `vox-codegen-rust\src\emit_expr.rs` | `fn emit_pattern` |
-| `vox-codegen-rust\src\emit_expr.rs` | `fn emit_expr` |
-| `vox-codegen-rust\src\emit_lib.rs` | `fn emit_lib` |
-| `vox-codegen-rust\src\emit_main.rs` | `fn emit_main` |
-| `vox-codegen-rust\src\emit_main.rs` | `fn route_handler_name` |
-| `vox-codegen-rust\src\emit_main.rs` | `fn emit_route_handler` |
-| `vox-codegen-rust\src\emit_main.rs` | `fn generate_hir_digest` |
-| `vox-codegen-rust\src\emit_trait.rs` | `fn emit_trait` |
-| `vox-codegen-rust\src\emit_trait.rs` | `fn emit_impl` |
 | `vox-codegen-ts\src\component.rs` | `fn to_camel_case` |
 | `vox-codegen-ts\src\emitter\infra.rs` | `fn generate_tsconfig` |
 | `vox-codegen-ts\src\emitter\infra.rs` | `fn generate_vitest_config` |

@@ -11,30 +11,42 @@ use serde::{Deserialize, Serialize};
 // ChangeRequest (PR/MR abstraction)
 // ---------------------------------------------------------------------------
 
-/// Forge-neutral identifier for a ChangeRequest.
+/// Forge-neutral identifier for a ChangeRequest (distinct from the human-facing `number`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ChangeRequestId(pub u64);
+pub struct ChangeRequestId(
+    /// Raw numeric id returned by the forge API.
+    pub u64,
+);
 
 /// State of a ChangeRequest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChangeRequestState {
+    /// Open for review and merge.
     Open,
+    /// Closed without merge.
     Closed,
+    /// Merged into the target branch.
     Merged,
+    /// Work-in-progress / not yet ready for merge (when the forge models drafts separately).
     Draft,
 }
 
 /// CI/merge status of a ChangeRequest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChangeRequestStatus {
+    /// Checks still running or not reported.
     Pending,
+    /// Required checks passed.
     Success,
+    /// One or more checks failed.
     Failure,
+    /// Check system reported an error.
     Error,
+    /// Status could not be mapped from the forge payload.
     Unknown,
 }
 
-/// A forge-neutral Change Request (PR on GitHub, MR on GitLab, PR on Gitea/Forgejo).
+/// A forge-neutral change request (e.g. GitHub pull request or GitLab merge request).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangeRequest {
     /// Forge-internal numeric ID.
@@ -78,6 +90,21 @@ impl ChangeRequest {
     }
 }
 
+/// Arguments for `GitForgeProvider::create_change_request`.
+#[derive(Debug, Clone, Copy)]
+pub struct NewChangeRequest<'a> {
+    /// Change request title.
+    pub title: &'a str,
+    /// Markdown body / description.
+    pub body: &'a str,
+    /// Head branch (contains the commits to merge).
+    pub source_branch: &'a str,
+    /// Base branch to merge into.
+    pub target_branch: &'a str,
+    /// Open as a draft when supported by the forge.
+    pub draft: bool,
+}
+
 // ---------------------------------------------------------------------------
 // Label
 // ---------------------------------------------------------------------------
@@ -85,8 +112,11 @@ impl ChangeRequest {
 /// A label on a ChangeRequest or issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Label {
+    /// Short label text as shown in the forge UI.
     pub name: String,
+    /// Hex color string from the forge API (often without leading `#`).
     pub color: String,
+    /// Optional longer description for the label.
     pub description: Option<String>,
 }
 
@@ -97,19 +127,28 @@ pub struct Label {
 /// State of a code review.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReviewState {
+    /// Reviewer approved the change.
     Approved,
+    /// Reviewer requested changes before merge.
     ChangesRequested,
+    /// Comment-only review.
     Commented,
+    /// Review was dismissed.
     Dismissed,
+    /// Review is pending / not yet submitted.
     Pending,
 }
 
 /// A code review on a ChangeRequest.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Review {
+    /// Reviewer login on the forge.
     pub reviewer: String,
+    /// Outcome of the review.
     pub state: ReviewState,
+    /// Optional review comment body.
     pub body: Option<String>,
+    /// ISO 8601 timestamp when submitted, if known.
     pub submitted_at: Option<String>,
 }
 
@@ -153,11 +192,17 @@ pub struct ForgeRepoInfo {
 /// A forge user account.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ForgeUser {
+    /// Primary handle / login.
     pub login: String,
+    /// Display name, if different from login.
     pub display_name: Option<String>,
+    /// Public email when exposed by the forge.
     pub email: Option<String>,
+    /// Avatar image URL.
     pub avatar_url: Option<String>,
+    /// Profile URL on the forge website.
     pub web_url: String,
+    /// Whether this account is an app/bot user.
     pub is_bot: bool,
 }
 
@@ -170,30 +215,55 @@ pub struct ForgeUser {
 pub enum WebhookEvent {
     /// A push to a branch.
     Push {
+        /// Branch that received commits.
         branch: String,
+        /// Commit SHAs included in the push (best-effort; forge-dependent).
         commits: Vec<String>,
+        /// Actor that pushed.
         pusher: String,
     },
     /// A ChangeRequest was opened.
-    ChangeRequestOpened { cr_number: u64, author: String },
+    ChangeRequestOpened {
+        /// Human-facing CR number (e.g. PR number).
+        cr_number: u64,
+        /// Login of the author.
+        author: String,
+    },
     /// A ChangeRequest was merged.
-    ChangeRequestMerged { cr_number: u64, merged_by: String },
+    ChangeRequestMerged {
+        /// Human-facing CR number.
+        cr_number: u64,
+        /// Login of the user who merged.
+        merged_by: String,
+    },
     /// A ChangeRequest was closed (without merge).
-    ChangeRequestClosed { cr_number: u64 },
+    ChangeRequestClosed {
+        /// Human-facing CR number.
+        cr_number: u64,
+    },
     /// A review was submitted.
     ReviewSubmitted {
+        /// Target CR number.
         cr_number: u64,
+        /// Reviewer login.
         reviewer: String,
+        /// Review outcome.
         state: ReviewState,
     },
     /// A CI check completed.
     CheckCompleted {
+        /// Related CR number when the payload associates a check with a CR.
         cr_number: Option<u64>,
+        /// Check or workflow name.
         name: String,
+        /// Normalized check status.
         status: ChangeRequestStatus,
     },
     /// An unknown event type.
-    Unknown { event_type: String },
+    Unknown {
+        /// Raw event type string from the forge.
+        event_type: String,
+    },
 }
 
 #[cfg(test)]

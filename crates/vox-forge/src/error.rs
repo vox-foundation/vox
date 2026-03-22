@@ -7,23 +7,42 @@ use thiserror::Error;
 pub enum ForgeError {
     /// HTTP request failed.
     #[error("HTTP error {status}: {message}")]
-    Http { status: u16, message: String },
+    Http {
+        /// HTTP status code from the forge API.
+        status: u16,
+        /// Human-readable error body or message.
+        message: String,
+    },
 
     /// The forge API returned a rate-limit response.
     #[error("Rate limited by forge (retry after {retry_after_secs}s)")]
-    RateLimited { retry_after_secs: u64 },
+    RateLimited {
+        /// Suggested retry delay from `Retry-After` or forge metadata.
+        retry_after_secs: u64,
+    },
 
     /// Authentication failed (bad token, expired, missing scope).
     #[error("Authentication failed: {reason}")]
-    Unauthorized { reason: String },
+    Unauthorized {
+        /// Why auth failed (token, scope, expiry, etc.).
+        reason: String,
+    },
 
     /// The requested resource was not found.
     #[error("Resource not found: {resource}")]
-    NotFound { resource: String },
+    NotFound {
+        /// Resource identifier or path that was missing.
+        resource: String,
+    },
 
     /// The operation is not supported by this forge.
     #[error("Operation not supported by {forge}: {operation}")]
-    Unsupported { forge: String, operation: String },
+    Unsupported {
+        /// Forge kind or hostname label (e.g. `github`).
+        forge: String,
+        /// Operation that was requested (e.g. `merge`).
+        operation: String,
+    },
 
     /// JSON deserialization error.
     #[error("Failed to parse forge response: {0}")]

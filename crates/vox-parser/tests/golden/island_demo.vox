@@ -1,0 +1,59 @@
+# Vox Island Architecture Demo — v0.3 brace syntax
+# Demonstrates @island declarations — interactive client-side components
+# whose implementations live in islands/src/<Name>/ as TSX files.
+# The .vox file declares the prop contract; codegen emits vox-islands-meta.ts.
+
+# A chart island that renders interactive data visualizations.
+@island InteractiveChart {
+    data: str
+    title: str
+    width?: int
+    height?: int
+    theme?: str
+}
+
+# A search widget with typeahead and filtering.
+@island SearchWidget {
+    placeholder: str
+    endpoint: str
+    debounce_ms?: int
+}
+
+# A media player island for audio/video content.
+@island MediaPlayer {
+    src: str
+    autoplay?: bool
+    controls?: bool
+    loop?: bool
+}
+
+# Shell page that hosts the islands. Server-rendered.
+@component fn IslandHost() to Element {
+    <div class="island_host">
+        <h1>"Interactive Islands Demo"</h1>
+        <p>"Islands below are hydrated client-side from the islands/ Vite bundle."</p>
+        <div class="island_slot">
+            <p>"Chart island mounts here"</p>
+        </div>
+    </div>
+}
+
+style {
+    .island_host {
+        fontFamily: "sans-serif"
+        maxWidth: "960px"
+        margin: "0 auto"
+        padding: "2rem"
+    }
+    .island_slot {
+        border: "2px dashed #ccc"
+        borderRadius: "8px"
+        padding: "2rem"
+        textAlign: "center"
+        color: "#888"
+    }
+}
+
+routes {
+    "/" to IslandHost
+}

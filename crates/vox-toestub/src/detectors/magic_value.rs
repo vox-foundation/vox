@@ -29,6 +29,7 @@ impl Default for MagicValueDetector {
 }
 
 impl MagicValueDetector {
+    /// Precompiles port/path/DB-string patterns; skips comments, `const` lines, and `#[test]` regions.
     pub fn new() -> Self {
         Self {
             port_re: Regex::new(

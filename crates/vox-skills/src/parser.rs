@@ -19,9 +19,9 @@
 //! ... instructions ...
 //! ```
 
+use crate::SkillError;
 use crate::bundle::VoxSkillBundle;
 use crate::manifest::{SkillCategory, SkillManifest, SkillPermission};
-use crate::SkillError;
 
 /// Parse a full SKILL.md file into a `VoxSkillBundle`.
 pub fn parse_skill_md(content: &str) -> Result<VoxSkillBundle, SkillError> {
@@ -198,14 +198,18 @@ Run all tests in the workspace using `cargo test`.
         assert_eq!(bundle.manifest.category, SkillCategory::Testing);
         assert_eq!(bundle.manifest.tools, vec!["vox_run_tests", "vox_test_all"]);
         assert_eq!(bundle.manifest.tags, vec!["testing", "ci"]);
-        assert!(bundle
-            .manifest
-            .permissions
-            .contains(&SkillPermission::ReadFiles));
-        assert!(bundle
-            .manifest
-            .permissions
-            .contains(&SkillPermission::ShellExec));
+        assert!(
+            bundle
+                .manifest
+                .permissions
+                .contains(&SkillPermission::ReadFiles)
+        );
+        assert!(
+            bundle
+                .manifest
+                .permissions
+                .contains(&SkillPermission::ShellExec)
+        );
     }
 
     #[test]

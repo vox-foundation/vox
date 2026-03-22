@@ -38,19 +38,19 @@ crates/
 | `vox test` | Run `@test` functions |
 | `vox run` | Execute a Vox source file |
 | `vox bundle` | Full-stack bundle |
-| `vox dev` | Build + watch + hot-reload |
+| `vox dev` | Watch + rebuild via **`vox-compilerd`** (stdio JSON-RPC; daemon on `PATH` or next to `vox`) |
 | `vox lsp` | Start Language Server over stdio |
-| `vox stub-check` | TOESTUB scan (alias: `vox toestub self`) |
+| `vox stub-check` | TOESTUB scan — **`cargo build -p vox-cli --features stub-check`** (see `docs/src/ref-cli.md`) |
 | `vox review` | AI code review |
 | `vox train` | Orchestrate fine-tuning |
 | `vox train --native` | Burn-based Rust training loop |
 | `vox learn` | Behavioral learning / dogfood export |
-| `vox corpus` | Training corpus management |
+| `vox populi corpus` | Training corpus (extract, validate, pairs, mix, eval) |
 | `vox generate` | LLM code generation |
 | `vox chat` | Interactive AI chat |
 | `vox config get/set` | Read/write VoxConfig SSOT |
 | `vox agent status` | Query Orchestrator agent states (headless) |
-| `vox doctor` | Environment diagnostic |
+| `vox doctor` | Environment diagnostic (`tokio::process` / `tokio::fs` from the async handler) |
 | `vox setup` | First-run wizard |
 | `vox init / new` | Project scaffolding |
 | `vox add / remove` | Dependency management |
@@ -74,11 +74,15 @@ crates/
 
 ## TOESTUB Self-Enforcement
 
-The CLI enforces its own architectural rules:
+Canonical CI/agents path: **`bash scripts/quality/toestub_scoped.sh`** (or `cargo run -p vox-toestub --bin toestub -- <PATH>`).
+
+With **`cargo build -p vox-cli --features stub-check`**, the same rules are available as:
+
+```text
+vox stub-check --path .
 ```
-vox toestub self           # scan the vox workspace
-vox stub-check --path .    # equivalent
-```
+
+See `docs/src/ref-cli.md` for flags (`--suggest-fixes`, not `--fix`).
 God-object thresholds (from `vox-schema.json`):
 - Files > 500 lines → warning
 - Structs > 12 methods → warning

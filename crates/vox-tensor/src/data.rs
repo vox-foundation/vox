@@ -7,7 +7,13 @@ use serde::Deserialize;
 /// A single prompt→response training pair (matches dogfood JSONL schema).
 #[derive(Debug, Deserialize, Clone)]
 pub struct TrainingPair {
+    /// User-side prompt text as loaded from dogfood JSONL (typically the instruction or prior context).
+    ///
+    /// Paired with [`TrainingPair::response`] for supervised fine-tuning or evaluation.
+    #[serde(alias = "instruction")]
     pub prompt: String,
+    /// Target assistant completion for the same record (what the model should emit for `prompt`).
+    #[serde(alias = "output")]
     pub response: String,
     /// Optional quality rating (1-5). Absent means unrated.
     pub rating: Option<u8>,
@@ -141,6 +147,16 @@ impl VoxTokenizer {
             "<|im_start|>system\n{system}<|im_end|>\n\
              <|im_start|>user\n{user}<|im_end|>\n\
              <|im_start|>assistant\n{assistant}<|im_end|>"
+        );
+        Self::encode(&text)
+    }
+
+    /// ChatML prefix through user turn (open assistant slot) — for native inference with `VoxTokenizer`.
+    pub fn encode_chatml_inference_prefix(system: &str, user: &str) -> Vec<u32> {
+        let text = format!(
+            "<|im_start|>system\n{system}<|im_end|>\n\
+             <|im_start|>user\n{user}<|im_end|>\n\
+             <|im_start|>assistant\n"
         );
         Self::encode(&text)
     }
@@ -306,7 +322,11 @@ pub fn load_all<P: AsRef<Path>>(path: P, min_rating: u8) -> std::io::Result<Vec<
             continue;
         }
         if let Ok(pair) = serde_json::from_str::<TrainingPair>(trimmed) {
-            if pair.rating.map_or(true, |r| r >= min_rating) {
+            let passes = match pair.rating {
+                None => true,
+                Some(r) => r >= min_rating,
+            };
+            if passes {
                 out.push(pair);
             }
         }
@@ -362,7 +382,7 @@ mod tests {
         // Labels should have at least one real (non -100, non-pad) token
         assert!(labels.iter().any(|&l| l >= 0 && l != PAD_ID as i64));
         // Labels should have -100 for prompt region
-        assert!(labels.iter().any(|&l| l == -100));
+        assert!(labels.contains(&-100));
     }
 
     #[test]
@@ -371,13 +391,41 @@ mod tests {
         let path = dir.join("vox_dl_test.jsonl");
         {
             let mut f = std::fs::File::create(&path).unwrap();
-            writeln!(f, r#"{{"prompt":"write a fn","response":"fn foo() to int: ret 1"}}"#).unwrap();
+            writeln!(
+                f,
+                r#"{{"prompt":"write a fn","response":"fn foo() to int: ret 1"}}"#
+            )
+            .unwrap();
             writeln!(f, r#"{{"prompt":"another","response":"actor Foo:"}}"#).unwrap();
         }
         let loader = JsonlDataLoader::new(&path).unwrap();
         let rows: Vec<_> = loader.collect();
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].2.prompt, "write a fn");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn training_pair_accepts_instruction_and_output_aliases() {
+        let p: TrainingPair =
+            serde_json::from_str(r#"{"instruction":"fix this","output":"fn ok() to int: ret 0"}"#)
+                .expect("instruction/output aliases");
+        assert_eq!(p.prompt, "fix this");
+        assert_eq!(p.response, "fn ok() to int: ret 0");
+    }
+
+    #[test]
+    fn load_all_accepts_instruction_rows() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("vox_load_instruction_test.jsonl");
+        {
+            let mut f = std::fs::File::create(&path).unwrap();
+            writeln!(f, r#"{{"instruction":"hello","response":"world"}}"#).unwrap();
+        }
+        let pairs = load_all(&path, 0).unwrap();
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].prompt, "hello");
+        assert_eq!(pairs[0].response, "world");
         let _ = std::fs::remove_file(&path);
     }
 

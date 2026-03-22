@@ -11,6 +11,7 @@ pub struct ProcessRegistry {
 }
 
 impl ProcessRegistry {
+    /// Returns an empty registry.
     pub fn new() -> Self {
         Self {
             by_pid: Arc::new(RwLock::new(HashMap::new())),
@@ -55,6 +56,7 @@ impl ProcessRegistry {
         self.by_pid.read().unwrap().len()
     }
 
+    /// Returns true when no [`ProcessHandle`]s are registered.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

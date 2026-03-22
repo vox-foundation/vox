@@ -14,6 +14,10 @@ use serde::{Deserialize, Serialize};
 // CompactionStrategy
 // ---------------------------------------------------------------------------
 
+fn default_complexity_token_weight() -> usize {
+    32
+}
+
 /// Strategy that controls how aggressively stale context is trimmed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,6 +62,9 @@ pub struct CompactionConfig {
     pub head_preserve_tokens: usize,
     /// Number of tail tokens to always preserve. Default: 8 000.
     pub tail_preserve_tokens: usize,
+    /// Extra token weight per complexity unit (1–10) on a turn for budgeting / compaction. Default: 32.
+    #[serde(default = "default_complexity_token_weight")]
+    pub complexity_token_weight: usize,
 }
 
 impl Default for CompactionConfig {
@@ -70,6 +77,7 @@ impl Default for CompactionConfig {
             strategy: CompactionStrategy::Balanced,
             head_preserve_tokens: 2_000,
             tail_preserve_tokens: 8_000,
+            complexity_token_weight: default_complexity_token_weight(),
         }
     }
 }
@@ -140,7 +148,9 @@ pub struct CompactionResult {
 /// Errors from the compaction engine.
 #[derive(Debug, thiserror::Error)]
 pub enum CompactionError {
-    #[error("Context window guard exceeded: {current} tokens in use, only {available} available (min viable: {min})")]
+    #[error(
+        "Context window guard exceeded: {current} tokens in use, only {available} available (min viable: {min})"
+    )]
     ContextWindowExceeded {
         current: usize,
         available: usize,
@@ -379,7 +389,7 @@ mod tests {
     fn estimate_tokens_reasonable() {
         let s = "Hello, world!"; // 13 chars → ~3 tokens
         let est = CompactionEngine::estimate_tokens(s);
-        assert!(est >= 1 && est <= 10);
+        assert!((1..=10).contains(&est));
     }
 
     #[test]
@@ -401,6 +411,7 @@ mod tests {
             strategy: CompactionStrategy::Balanced,
             head_preserve_tokens: 10,
             tail_preserve_tokens: 15,
+            complexity_token_weight: 32,
         };
         let engine = CompactionEngine::new(cfg);
         let turns = make_turns(&[5, 5, 20, 20, 5, 5]); // total 60, over threshold
@@ -420,6 +431,7 @@ mod tests {
             strategy: CompactionStrategy::Aggressive,
             head_preserve_tokens: 5,
             tail_preserve_tokens: 15,
+            complexity_token_weight: 32,
         };
         let engine = CompactionEngine::new(cfg);
         let turns = make_turns(&[5, 5, 5, 5, 10]);

@@ -23,6 +23,7 @@ impl Default for DryViolationDetector {
 }
 
 impl DryViolationDetector {
+    /// Default thresholds: 0.80 similarity, blocks ≥5 lines (see struct fields for tuning).
     pub fn new() -> Self {
         Self {
             similarity_threshold: 0.80,
@@ -60,24 +61,26 @@ impl DryViolationDetector {
                 || line.starts_with("export async function ")
                 || line.starts_with("async function ");
 
-            if is_fn {
-                if let Some((start, end)) = self.find_brace_body_range(file, i) {
-                    if end - start >= self.min_block_lines {
-                        let body: String = file.lines[start..end]
-                            .iter()
-                            .map(|l| l.trim())
-                            .collect::<Vec<_>>()
-                            .join("\n");
-                        blocks.push(CodeBlock {
-                            start_line: i + 1,
-                            end_line: end + 1,
-                            body,
-                            header: file.lines[i].trim().to_string(),
-                        });
-                    }
-                    i = end + 1;
-                    continue;
+            if is_fn && let Some((start, end)) = self.find_brace_body_range(file, i) {
+                if end >= start && end - start >= self.min_block_lines {
+                    let body: String = file.lines[start..end]
+                        .iter()
+                        .map(|l| l.trim())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    blocks.push(CodeBlock {
+                        start_line: i + 1,
+                        end_line: end + 1,
+                        body,
+                        header: file.lines[i].trim().to_string(),
+                    });
                 }
+                if end >= start {
+                    i = end.saturating_add(1);
+                } else {
+                    i += 1;
+                }
+                continue;
             }
             i += 1;
         }

@@ -1,71 +1,53 @@
-//! Shared file-watcher helper for `vox build --watch`, `vox check --watch`, etc.
-//!
-//! Eliminates the ~30-line `notify::recommended_watcher` + `recv_timeout` loop
-//! that was previously copy-pasted in `build.rs`, `check.rs`, and `dev.rs`.
+//! Notify-based file watch for rebuild loops (`vox-compilerd` `dev`, future `--watch` flags).
 
-use anyhow::Result;
-use notify::{Event, EventKind, RecursiveMode, Watcher};
-use std::path::Path;
-use std::sync::mpsc::channel;
-use std::time::Duration;
+use anyhow::Context;
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::path::PathBuf;
 
-/// Run `callback` whenever `file` is modified on disk.
+/// For each filesystem modify event that targets `file_canon`, call `on_hit`.
 ///
-/// Blocks indefinitely; use `Ctrl-C` to stop.  The callback receives a reference
-/// to the watched file path so the caller does not need to capture it separately.
-///
-/// # Example
-/// ```ignore
-/// watch_file(Path::new("App.vox"), |path| async move {
-///     build::run_once(path, &out_dir, false).await.ok();
-/// }).await?;
-/// ```
-pub async fn watch_file<F, Fut>(file: &Path, label: &str, mut callback: F) -> Result<()>
+/// Runs until the notify channel closes (normally never while the watcher lives).
+pub(crate) async fn each_modify_hit<F, Fut>(
+    file_canon: PathBuf,
+    watch_dir: PathBuf,
+    mut on_hit: F,
+) -> anyhow::Result<()>
 where
-    F: FnMut(&Path) -> Fut,
-    Fut: std::future::Future<Output = ()>,
+    F: FnMut() -> Fut + Send,
+    Fut: std::future::Future<Output = ()> + Send,
 {
-    use owo_colors::OwoColorize;
-    println!("{} {}", label.cyan().bold(), file.display());
-
-    // Run once immediately before starting to watch.
-    callback(file).await;
-
-    let (tx, rx) = channel();
-    let mut watcher = notify::recommended_watcher(tx)?;
-
-    let watch_dir = file.parent().unwrap_or(Path::new("."));
-    let effective_dir = if watch_dir.as_os_str().is_empty() {
-        Path::new(".")
-    } else {
-        watch_dir
-    };
-    watcher.watch(effective_dir, RecursiveMode::NonRecursive)?;
-
-    let absolute_file = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
-
-    loop {
-        match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Ok(Event {
-                kind: EventKind::Modify(_),
-                paths,
-                ..
-            })) => {
-                for path in paths {
-                    let abs = std::fs::canonicalize(&path).unwrap_or(path);
-                    if abs == absolute_file {
-                        println!("\n{} {}", "File changed:".cyan(), file.display());
-                        callback(file).await;
-                        break;
-                    }
-                }
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<notify::Event>();
+    let mut watcher = RecommendedWatcher::new(
+        move |res: notify::Result<notify::Event>| {
+            if let Ok(ev) = res {
+                let _ = tx.send(ev);
             }
-            Ok(Ok(_)) => {}
-            Ok(Err(e)) => eprintln!("{} {:?}", "Watch error:".red(), e),
-            Err(_) => {
-                // recv_timeout elapsed — just keep looping
-                tokio::time::sleep(Duration::from_millis(100)).await;
+        },
+        Config::default(),
+    )
+    .context("failed to create notify watcher")?;
+    watcher
+        .watch(&watch_dir, RecursiveMode::NonRecursive)
+        .with_context(|| format!("failed to watch {}", watch_dir.display()))?;
+
+    let _keep_watcher_alive = watcher;
+
+    while let Some(event) = rx.recv().await {
+        if !matches!(event.kind, EventKind::Modify(_)) {
+            continue;
+        }
+        let mut hit = false;
+        for path in &event.paths {
+            let abs = std::fs::canonicalize(path).unwrap_or_else(|_| path.clone());
+            if abs == file_canon {
+                hit = true;
+                break;
             }
         }
+        if hit {
+            on_hit().await;
+        }
     }
+
+    Ok(())
 }

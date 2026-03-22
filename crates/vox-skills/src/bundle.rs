@@ -8,8 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::manifest::SkillManifest;
 use crate::SkillError;
+use crate::manifest::SkillManifest;
 
 /// A fully-loaded skill bundle ready for installation.
 #[derive(Debug, Clone, Serialize, Deserialize)]

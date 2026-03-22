@@ -1,51 +1,105 @@
 //! MCP Server state and protocol handler implementation.
 
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use rmcp::{model as protocol, ServerHandler, RoleServer, ErrorData};
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, Content, Implementation, InitializeRequestParams,
     InitializeResult, ListToolsResult, PaginatedRequestParams, ProtocolVersion, ServerCapabilities,
     ToolsCapability,
 };
 use rmcp::service::RequestContext;
+use rmcp::{ErrorData, RoleServer, ServerHandler, model as protocol};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex as SyncMutex;
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
-use vox_orchestrator::{Orchestrator, OrchestratorConfig, SessionManager, SessionConfig, AgentEvent};
 use vox_db::VoxDb;
-use vox_skills::{SkillRegistry, install_builtins};
+use vox_orchestrator::{
+    AffinityGroupRegistry, AgentEvent, BudgetManager, MeshNodeBrief, Orchestrator,
+    OrchestratorConfig, RemoteMeshRoutingHint, RemoteMeshSnapshot, SessionConfig, SessionManager,
+    load_from_config,
+};
+use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
-use crate::params::{ToolResult, SubmitTaskParams, TaskStatusParams};
+use crate::params::{SubmitTaskParams, TaskStatusParams, ToolResult};
 use crate::tools;
 
+/// When `Vox.toml` declares a non-empty `affinity_groups` array, use it; otherwise derive from repo layout.
+fn affinity_groups_for_repository(
+    repository: &vox_repository::RepositoryContext,
+) -> AffinityGroupRegistry {
+    repository
+        .vox_toml
+        .as_deref()
+        .and_then(load_from_config)
+        .unwrap_or_else(|| AffinityGroupRegistry::detect_from_repository_layout(&repository.root))
+}
+
+/// Process-wide MCP server context: orchestrator, repository discovery, optional Codex, sessions, skills.
 #[derive(Clone)]
 pub struct ServerState {
+    /// Snapshot of [`OrchestratorConfig`] used to construct the orchestrator (for rare re-rooting).
+    pub orchestrator_config: OrchestratorConfig,
+    /// Discovered repository root, stable id, and stack capabilities.
+    pub repository: vox_repository::RepositoryContext,
+    /// Mutex around the live orchestrator (tasks, agents, VCS, event bus).
     pub orchestrator: Arc<Mutex<Orchestrator>>,
+    /// Optional Turso/Codex handle for gamify, preferences, and knowledge graph tools.
     pub db: Option<Arc<VoxDb>>,
+    /// Persists chat/session turns under `.sessions/<repository_id>/` when enabled.
     pub session_manager: Arc<Mutex<SessionManager>>,
+    /// Installed vox-skills registry (also used for MCP skill tools).
     pub skill_registry: Arc<SkillRegistry>,
+    /// In-memory buffer of recent token-stream events merged into `poll_events` responses.
     pub transient_events: Arc<Mutex<Vec<AgentEvent>>>,
     /// Root directory of the workspace, used for @mention resolution and PLAN.md writing.
-    pub workspace_root: Option<std::path::PathBuf>,
+    pub workspace_root: Option<PathBuf>,
+    /// Sticky MCP chat model id override (empty string clears in tools that support it).
+    pub mcp_chat_model_override: Arc<RwLock<Option<String>>>,
+    /// In-memory token/cost caps for MCP LLM calls (paired with Codex usage when `db` is set).
+    pub budget_manager: Arc<BudgetManager>,
+    /// Shared HTTP client for OpenRouter/Gemini chat completions inside MCP tools.
+    pub http_client: reqwest::Client,
+    /// Cached basename → path map for `@file` mention resolution.
+    pub mention_path_cache: Arc<SyncMutex<Option<(PathBuf, Arc<HashMap<String, PathBuf>>)>>>,
+    /// Aborted and replaced when the orchestrator is re-rooted so stale event sinks do not leak.
+    event_log_sink_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Last background fetch of `GET /v1/mesh/nodes` (read-only federation; see mesh SSOT).
+    pub mesh_remote_snapshot: Arc<RwLock<RemoteMeshSnapshot>>,
+    /// Stops [`Self::spawn_mesh_federation_poller`] when re-rooting.
+    mesh_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl ServerState {
+    /// Discover the repository from CWD, wire sessions under `.sessions/<repository_id>/`, and boot the orchestrator.
     pub fn new(config: OrchestratorConfig) -> Self {
-        let session_cfg = SessionConfig::default();
-        let session_manager =
-            SessionManager::new(session_cfg).unwrap_or_else(|_| {
-                // Fallback: in-memory only if disk is unavailable
-                SessionManager::new(SessionConfig {
-                    persist: false,
-                    ..Default::default()
-                })
-                .unwrap_or_else(|e| {
-                    panic!(
-                        "in-memory session manager (fallback when persist fails): {}",
-                        e
-                    )
-                })
-            });
-        let registry = Arc::new(SkillRegistry::new());
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let hint = vox_repository::find_project_manifest_root(&cwd).unwrap_or_else(|| cwd.clone());
+        let repository = vox_repository::discover_repository_or_fallback(&hint);
+        let workspace_root = Some(repository.root.clone());
+        let groups = affinity_groups_for_repository(&repository);
+
+        let session_cfg = SessionConfig {
+            sessions_dir: vox_config::mcp_sessions_dir(&repository.repository_id),
+            repository_id: Some(repository.repository_id.clone()),
+            ..SessionConfig::default()
+        };
+        let session_manager = SessionManager::new(session_cfg.clone()).unwrap_or_else(|_| {
+            SessionManager::new(SessionConfig {
+                persist: false,
+                sessions_dir: session_cfg.sessions_dir.clone(),
+                repository_id: session_cfg.repository_id.clone(),
+                ..Default::default()
+            })
+            .unwrap_or_else(|e| {
+                panic!(
+                    "in-memory session manager (fallback when persist fails): {}",
+                    e
+                )
+            })
+        });
+        let registry = new_registry_arc();
 
         // Auto-install built-in skills in the background
         let registry_for_builtins = registry.clone();
@@ -57,33 +111,272 @@ impl ServerState {
             }
         });
 
-        // Auto-detect workspace root from CWD or a Vox.toml search
-        let workspace_root = find_workspace_root();
+        let mut orch_cfg = config;
+        let mem_shard = repository
+            .root
+            .join(".vox")
+            .join("cache")
+            .join("repos")
+            .join(&repository.repository_id);
+        orch_cfg.memory.log_dir = mem_shard.join("memory");
+        orch_cfg.memory.memory_md_path = mem_shard.join("memory").join("MEMORY.md");
+        let orchestrator_config = orch_cfg.clone();
 
-        Self {
-            orchestrator: Arc::new(Mutex::new(Orchestrator::new(config))),
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .expect("reqwest client for vox-mcp");
+
+        let state = Self {
+            orchestrator_config,
+            repository: repository.clone(),
+            orchestrator: Arc::new(Mutex::new(Orchestrator::with_groups(orch_cfg, groups))),
             db: None,
             session_manager: Arc::new(Mutex::new(session_manager)),
             skill_registry: registry,
             transient_events: Arc::new(Mutex::new(Vec::new())),
             workspace_root,
+            mcp_chat_model_override: Arc::new(RwLock::new(None)),
+            budget_manager: Arc::new(BudgetManager::new()),
+            http_client,
+            mention_path_cache: Arc::new(SyncMutex::new(None)),
+            event_log_sink_join: Arc::new(SyncMutex::new(None)),
+            mesh_remote_snapshot: Arc::new(RwLock::new(RemoteMeshSnapshot::default())),
+            mesh_poll_join: Arc::new(SyncMutex::new(None)),
+        };
+        state.spawn_orchestrator_event_log_sink();
+        state.spawn_mesh_federation_poller();
+        state
+    }
+
+    /// Background poll of mesh control plane when `mesh_control_url` is set and `mesh_poll_interval_secs` &gt; 0.
+    pub fn spawn_mesh_federation_poller(&self) {
+        let url = match self
+            .orchestrator_config
+            .mesh_control_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(u) => u.to_string(),
+            None => return,
+        };
+        if self.orchestrator_config.mesh_poll_interval_secs == 0 {
+            return;
         }
+        let interval_secs = self.orchestrator_config.mesh_poll_interval_secs.max(1);
+        let timeout_ms = self.orchestrator_config.mesh_http_timeout_ms.max(500);
+        let snap = self.mesh_remote_snapshot.clone();
+        let orch = self.orchestrator.clone();
+        let mut guard = self
+            .mesh_poll_join
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(h) = guard.take() {
+            h.abort();
+        }
+        let handle = tokio::spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                tick.tick().await;
+                let timeout = std::time::Duration::from_millis(timeout_ms);
+                let client = vox_mesh::http_client::MeshHttpClient::new_with_timeout(&url, timeout)
+                    .with_env_token();
+                let now = vox_mesh::wall_clock_unix_ms();
+                match client.list_nodes().await {
+                    Ok(f) => {
+                        let brief: Vec<MeshNodeBrief> = f
+                            .nodes
+                            .iter()
+                            .map(|n| MeshNodeBrief {
+                                id: n.id.clone(),
+                                last_seen_unix_ms: n.last_seen_unix_ms,
+                            })
+                            .collect();
+                        let routing_hints: Vec<RemoteMeshRoutingHint> = f
+                            .nodes
+                            .iter()
+                            .map(|n| RemoteMeshRoutingHint {
+                                node_id: n.id.clone(),
+                                labels: n.capabilities.labels.clone(),
+                                gpu_cuda: n.capabilities.gpu_cuda,
+                                gpu_metal: n.capabilities.gpu_metal,
+                            })
+                            .collect();
+                        {
+                            let mut g = orch.lock().await;
+                            g.set_remote_mesh_routing_hints(routing_hints);
+                        }
+                        let mut w = snap.write().await;
+                        *w = RemoteMeshSnapshot::success(now, f.schema_version, brief);
+                    }
+                    Err(e) => {
+                        {
+                            let mut g = orch.lock().await;
+                            g.set_remote_mesh_routing_hints(Vec::new());
+                        }
+                        let mut w = snap.write().await;
+                        *w = RemoteMeshSnapshot::failure(now, e.to_string());
+                    }
+                }
+            }
+        });
+        *guard = Some(handle);
+    }
+
+    /// Append JSON lines for every [`AgentEvent`] when **`VOX_ORCHESTRATOR_EVENT_LOG`** is set to a file path.
+    ///
+    /// This is the shared sink for external consumers (for example `vox live` can tail the same file while
+    /// MCP is running). [`Self::with_workspace_root`] aborts the previous sink task before starting a new one
+    /// so only the current orchestrator's bus is tailed. High-volume [`vox_orchestrator::AgentEventKind::TokenStreamed`]
+    /// events are omitted to avoid log blowup during LLM streaming.
+    pub fn spawn_orchestrator_event_log_sink(&self) {
+        let Ok(raw) = std::env::var("VOX_ORCHESTRATOR_EVENT_LOG") else {
+            return;
+        };
+        let path = PathBuf::from(raw);
+        let orch = self.orchestrator.clone();
+        let mut guard = self
+            .event_log_sink_join
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(h) = guard.take() {
+            h.abort();
+        }
+        let handle = tokio::spawn(async move {
+            let mut rx = {
+                let g = orch.lock().await;
+                g.event_bus().subscribe()
+            };
+            use tokio::io::AsyncWriteExt;
+            while let Ok(event) = rx.recv().await {
+                if matches!(
+                    event.kind,
+                    vox_orchestrator::AgentEventKind::TokenStreamed { .. }
+                ) {
+                    continue;
+                }
+                let Ok(line) = serde_json::to_string(&event) else {
+                    continue;
+                };
+                if let Ok(mut f) = tokio::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                    .await
+                {
+                    let _ = f.write_all(line.as_bytes()).await;
+                    let _ = f.write_all(b"\n").await;
+                }
+            }
+        });
+        *guard = Some(handle);
     }
 
     /// Override the workspace root (useful for tests or when the extension provides it explicitly).
-    pub fn with_workspace_root(mut self, path: std::path::PathBuf) -> Self {
-        self.workspace_root = Some(path);
+    ///
+    /// Rediscovers [`ServerState::repository`], reapplies orchestrator memory paths under
+    /// `repo/.vox/cache/repos/<repository_id>/memory/`, rebuilds affinity groups from layout, and
+    /// reinitializes the session manager for `.sessions/<repository_id>/`. Replaces the
+    /// orchestrator instance (in-flight agent state is not preserved).
+    pub fn with_workspace_root(mut self, path: PathBuf) -> Self {
+        self.workspace_root = Some(path.clone());
+        self.repository = vox_repository::discover_repository_or_fallback(&path);
+        let groups = affinity_groups_for_repository(&self.repository);
+
+        let session_cfg = SessionConfig {
+            sessions_dir: vox_config::mcp_sessions_dir(&self.repository.repository_id),
+            ..SessionConfig::default()
+        };
+        self.session_manager = Arc::new(Mutex::new(
+            SessionManager::new(session_cfg.clone()).unwrap_or_else(|_| {
+                SessionManager::new(SessionConfig {
+                    persist: false,
+                    sessions_dir: session_cfg.sessions_dir.clone(),
+                    ..Default::default()
+                })
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "in-memory session manager (fallback when persist fails): {}",
+                        e
+                    )
+                })
+            }),
+        ));
+
+        let mem_base = vox_config::repo_memory_cache_dir(
+            &self.repository.root,
+            &self.repository.repository_id,
+        );
+        let mut orch_cfg = self.orchestrator_config.clone();
+        orch_cfg.memory.log_dir = mem_base.clone();
+        orch_cfg.memory.memory_md_path = mem_base.join("MEMORY.md");
+        self.orchestrator_config = orch_cfg.clone();
+        self.orchestrator = Arc::new(Mutex::new(Orchestrator::with_groups(orch_cfg, groups)));
+        self.spawn_orchestrator_event_log_sink();
         self
     }
 
+    /// Minimal `ServerState` for integration tests (default orchestrator config, no DB).
     pub async fn new_test() -> Self {
         let config = OrchestratorConfig::default();
         Self::new(config)
     }
 
+    /// Assemble state for unit tests without running repository discovery (no event-log sink).
+    #[cfg(test)]
+    pub(crate) fn test_stub(
+        orchestrator_config: OrchestratorConfig,
+        repository: vox_repository::RepositoryContext,
+        orchestrator: Arc<Mutex<Orchestrator>>,
+        session_manager: Arc<Mutex<SessionManager>>,
+        skill_registry: Arc<SkillRegistry>,
+    ) -> Self {
+        let workspace_root = Some(repository.root.clone());
+        Self {
+            orchestrator_config,
+            repository,
+            orchestrator,
+            db: None,
+            session_manager,
+            skill_registry,
+            transient_events: Arc::new(Mutex::new(Vec::new())),
+            workspace_root,
+            mcp_chat_model_override: Arc::new(RwLock::new(None)),
+            budget_manager: Arc::new(BudgetManager::new()),
+            http_client: reqwest::Client::new(),
+            mention_path_cache: Arc::new(SyncMutex::new(None)),
+            event_log_sink_join: Arc::new(SyncMutex::new(None)),
+            mesh_remote_snapshot: Arc::new(RwLock::new(RemoteMeshSnapshot::default())),
+            mesh_poll_join: Arc::new(SyncMutex::new(None)),
+        }
+    }
+
+    /// Attach Codex, stream orchestrator events into Gamify tables, and enable skill persistence.
     pub fn with_db(mut self, db: VoxDb) -> Self {
         let db_arc = Arc::new(db);
         self.db = Some(db_arc.clone());
+
+        // Dual-write sessions to Codex when DB is attached (rebuild manager with same paths).
+        let mut session_cfg = self.orchestrator_config.session.clone();
+        session_cfg.sessions_dir = vox_config::mcp_sessions_dir(&self.repository.repository_id);
+        session_cfg.repository_id = Some(self.repository.repository_id.clone());
+        self.session_manager = Arc::new(Mutex::new(
+            SessionManager::new(session_cfg.clone())
+                .unwrap_or_else(|_| {
+                    SessionManager::new(SessionConfig {
+                        persist: false,
+                        sessions_dir: session_cfg.sessions_dir.clone(),
+                        repository_id: session_cfg.repository_id.clone(),
+                        ..SessionConfig::default()
+                    })
+                    .unwrap_or_else(|e| {
+                        panic!("session manager (fallback when persist fails): {}", e)
+                    })
+                })
+                .with_db(db_arc.clone()),
+        ));
 
         // Stream orchestrator events to gamify database
         let mut rx = {
@@ -96,9 +389,10 @@ impl ServerState {
 
         let db_for_task = db_arc.clone();
         let transient = self.transient_events.clone();
+        let repository_id = self.repository.repository_id.clone();
         tokio::spawn(async move {
             while let Ok(event) = rx.recv().await {
-                let agent_and_type = match &event.kind {
+                let agent_and_type: Option<(u64, &'static str)> = match &event.kind {
                     vox_orchestrator::AgentEventKind::AgentSpawned { agent_id, .. } => {
                         Some((agent_id.0, "AgentSpawned"))
                     }
@@ -222,7 +516,14 @@ impl ServerState {
                 };
 
                 if let Some((agent_id, event_type)) = agent_and_type {
-                    let payload = serde_json::to_string(&event.kind).unwrap_or_default();
+                    let mut kind_json = serde_json::to_value(&event.kind).unwrap_or_default();
+                    if let Some(obj) = kind_json.as_object_mut() {
+                        obj.insert(
+                            "repository_id".to_string(),
+                            serde_json::Value::String(repository_id.clone()),
+                        );
+                    }
+                    let payload = serde_json::to_string(&kind_json).unwrap_or_default();
                     let _ = vox_gamify::db::insert_event(
                         &db_for_task,
                         &agent_id.to_string(),
@@ -232,7 +533,6 @@ impl ServerState {
                     .await;
 
                     // Process rewards
-                    let kind_json = serde_json::to_value(&event.kind).unwrap_or_default();
                     let _ = vox_gamify::db::process_event_rewards(
                         &db_for_task,
                         vox_gamify::util::DEFAULT_USER_ID,
@@ -250,24 +550,13 @@ impl ServerState {
     }
 }
 
-/// Walk up from CWD to find the workspace root (directory containing Vox.toml or Cargo.toml).
-fn find_workspace_root() -> Option<std::path::PathBuf> {
-    let mut current = std::env::current_dir().ok()?;
-    loop {
-        if current.join("Vox.toml").exists() || current.join("Cargo.toml").exists() {
-            return Some(current);
-        }
-        if !current.pop() {
-            return std::env::current_dir().ok();
-        }
-    }
-}
-
+/// RMCP [`ServerHandler`] implementation listing tools and dispatching `call_tool`.
 pub struct VoxMcpServer {
     state: ServerState,
 }
 
 impl VoxMcpServer {
+    /// Wrap `state` for use with `rmcp` transport loops.
     pub fn new(state: ServerState) -> Self {
         Self { state }
     }
@@ -356,15 +645,56 @@ impl ServerHandler for VoxMcpServer {
             .map(serde_json::Value::Object)
             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
         let name_str = params.name.to_string();
-        let result_json = tools::handle_tool_call(&self.state, &name_str, args)
-            .await
-            .unwrap_or_else(|e| format!("{{\"success\":false,\"error\":\"{}\"}}", e));
+        let (result_json, is_error) =
+            match tools::handle_tool_call(&self.state, &name_str, args).await {
+                Ok(json) => {
+                    let is_err = tool_json_envelope_is_error(&json);
+                    (json, is_err)
+                }
+                Err(e) => (
+                    ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+                    true,
+                ),
+            };
 
         Ok(CallToolResult {
             content: vec![Content::text(result_json)],
-            is_error: Some(false),
+            is_error: Some(is_error),
             meta: None,
             structured_content: None,
         })
+    }
+}
+
+/// Returns true when JSON looks like [`ToolResult`] with `success: false` (MCP `is_error` signal).
+fn tool_json_envelope_is_error(json: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(json)
+        .ok()
+        .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
+        == Some(false)
+}
+
+#[cfg(test)]
+mod call_tool_tests {
+    use super::tool_json_envelope_is_error;
+
+    #[test]
+    fn envelope_error_when_success_false() {
+        assert!(tool_json_envelope_is_error(
+            r#"{"success":false,"error":"nope"}"#
+        ));
+    }
+
+    #[test]
+    fn envelope_ok_when_success_true() {
+        assert!(!tool_json_envelope_is_error(
+            r#"{"success":true,"data":"x"}"#
+        ));
+    }
+
+    #[test]
+    fn envelope_ok_when_not_tool_result_shape() {
+        assert!(!tool_json_envelope_is_error("not json"));
+        assert!(!tool_json_envelope_is_error(r#"{"foo":1}"#));
     }
 }

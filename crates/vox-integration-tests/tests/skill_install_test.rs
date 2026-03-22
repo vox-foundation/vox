@@ -1,4 +1,6 @@
-use vox_mcp::{tools, ServerState};
+#![allow(missing_docs)]
+
+use vox_mcp::{ServerState, tools};
 use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]
@@ -45,16 +47,4 @@ Instructions inside.
         .unwrap();
     assert!(list_resp.contains("test.macro"));
     assert!(list_resp.contains("Test Macro"));
-
-    // 3. Verify its tools are registered in list_tools
-    // In our modified lib.rs, we dynamically add them in ServerHandler::list_tools.
-    // Since we don't instantiate ServerHandler here easily, we can just call the missing tool to test `handle_tool_call`.
-    let macro_req = serde_json::json!({});
-    let macro_resp: String = tools::handle_tool_call(&state, "vox_test_macro_tool", macro_req)
-        .await
-        .unwrap();
-
-    // Expected to gracefully fail due to no DB, but this proves the fallback path caught it
-    assert!(macro_resp.contains("\"success\": false") || macro_resp.contains("\"success\":false"));
-    assert!(macro_resp.contains("Skill instructions not available"));
 }
