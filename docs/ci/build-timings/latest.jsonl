@@ -1,7 +1,0 @@
-{"lane":"check_vox_cli_default","ok":true,"duration_ms":8845}
-{"lane":"check_vox_cli_gpu_stub","ok":true,"duration_ms":11376}
-{"lane":"check_vox_cli_no_default_features","ok":true,"duration_ms":4144}
-{"lane":"check_vox_db","ok":true,"duration_ms":3892}
-{"lane":"check_vox_oratio","ok":true,"duration_ms":826}
-{"lane":"check_vox_populi_train","ok":true,"duration_ms":2444}
-{"lane":"check_vox_cli_populi_oratio","ok":true,"duration_ms":9448}
