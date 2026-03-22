@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "description": "Canonical script / guard inventory: ownership, CI usage, replacement command.",
+  "families": [
+    {
+      "id": "ci-guards-rust",
+      "owner": "platform-ci",
+      "replacement": "cargo run -p vox-cli -- ci <subcommand>",
+      "notes": "Primary path for SSOT guards; shell twins are thin delegates only."
+    },
+    {
+      "id": "populi-gates",
+      "owner": "populi",
+      "replacement": "cargo run -p vox-cli -- ci populi-gate --profile ci_full|m1m4|training",
+      "manifest": "scripts/populi/gates.yaml"
+    },
+    {
+      "id": "doc-inventory",
+      "owner": "docs-agents",
+      "replacement": "cargo run -p vox-cli -- ci doc-inventory generate|verify",
+      "crate": "vox-doc-inventory"
+    },
+    {
+      "id": "workflow-allowlist",
+      "owner": "platform-ci",
+      "replacement": "cargo run -p vox-cli -- ci workflow-scripts",
+      "allowlist": "docs/agents/workflow-script-allowlist.txt"
+    }
+  ],
+  "scripts": [
+    {
+      "path": "scripts/verify_workspace_manifest.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci manifest",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_docs_ssot.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci check-docs-ssot",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_docs_ssot.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox ci check-docs-ssot",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_codex_ssot.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci check-codex-ssot",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_codex_ssot.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox ci check-codex-ssot",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_vox_cli_feature_matrix.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci feature-matrix",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_vox_cli_no_vox_dei.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci no-vox-dei-import",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/check_cuda_feature_builds.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci cuda-features",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/examples_strict_parse.sh",
+      "invoked_by_ci": false,
+      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-parser --test parity_test",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/examples_strict_parse.ps1",
+      "invoked_by_ci": false,
+      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-parser --test parity_test",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/quality/toestub_scoped.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci toestub-scoped",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/populi_release_gate.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci populi-gate --profile m1m4",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/populi_release_gate.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox ci populi-gate --profile m1m4",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/populi/release_training_gate.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci populi-gate --profile training",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/populi/release_training_gate.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox ci populi-gate --profile training",
+      "status": "wrapper"
+    },
+    {
+      "path": "scripts/docs/generate_doc_inventory.py",
+      "invoked_by_ci": false,
+      "replacement": "vox ci doc-inventory generate",
+      "status": "removed"
+    },
+    {
+      "path": "scripts/docs/verify_doc_inventory_fresh.py",
+      "invoked_by_ci": false,
+      "replacement": "vox ci doc-inventory verify",
+      "status": "removed"
+    },
+    {
+      "path": "scripts/vox_system_prompt.txt",
+      "invoked_by_ci": true,
+      "replacement": null,
+      "status": "data",
+      "notes": "ML workflow output; allowlisted in workflow-script-allowlist.txt"
+    },
+    {
+      "path": "scripts/run_qwen25_qlora_real_4080.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox populi train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir target/dogfood --output-dir populi/runs/qwen25_real --device cuda (build: cargo vox-cuda-release)",
+      "status": "operator",
+      "notes": "Windows helper: build + background QLoRA; SSOT: docs/src/architecture/populi-training-ssot.md"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-03-21",
+  "description": "Baseline + post hybrid-migration QA recovery snapshot.",
+  "metrics": {
+    "github_workflow_script_invocations_before": 9,
+    "python_ci_guards_before": 1,
+    "populi_sequential_ci_steps_before": 18,
+    "target_vox_ci_guard_commands": 12,
+    "github_workflow_script_invocations_after": 0,
+    "python_doc_inventory_ci_after": 0,
+    "populi_gate_profiles_after": 1,
+    "script_execution_feature_matrix_entries_after": 2,
+    "compilerd_run_mode_json_after": true,
+    "stale_doc_workflow_ref_scan_after": true
+  }
+}
