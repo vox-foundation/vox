@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/schemas/command-registry.schema.json",
+  "title": "Vox command registry",
+  "type": "object",
+  "required": ["schema_version", "operations"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation" }
+    },
+    "script_duals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/script_dual" }
+    },
+    "env_var_ssot_index": {
+      "type": "array",
+      "description": "Environment variable names documented in docs/src/reference/env-vars-ssot.md (cross-check when adding web/tooling knobs).",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      }
+    }
+  },
+  "$defs": {
+    "operation": {
+      "type": "object",
+      "required": ["surface", "path", "status"],
+      "properties": {
+        "id": { "type": "string" },
+        "surface": {
+          "type": "string",
+          "enum": [
+            "vox-cli",
+            "compilerd",
+            "dei-daemon",
+            "mcp",
+            "ci",
+            "internal-binary"
+          ]
+        },
+        "path": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "latin_ns": {
+          "type": "string",
+          "description": "Canonical Latin namespace (fabrica, mens, ars, recensio, …)"
+        },
+        "feature_gate": { "type": ["string", "null"] },
+        "status": {
+          "type": "string",
+          "enum": ["active", "deprecated", "retired", "internal"]
+        },
+        "handler_rust": { "type": "string" },
+        "ref_cli_required": { "type": "boolean" },
+        "reachability_required": { "type": "boolean" }
+      }
+    },
+    "script_dual": {
+      "type": "object",
+      "required": ["script_glob", "canonical_cli"],
+      "properties": {
+        "script_glob": { "type": "string" },
+        "canonical_cli": { "type": "string" }
+      }
+    }
+  }
+}
