@@ -4,15 +4,16 @@
 type Greeting =
     | Hello(message: str)
 
-@server fn greet(name: str) to Greeting:
+@server fn greet(name: str) to Greeting {
     ret Hello("Welcome, " + name + "!")
+}
 
-@server fn add(a: int, b: int) to int:
+@server fn add(a: int, b: int) to int {
     ret a + b
+}
 
-@component fn App() to Element:
+@component fn App() to Element {
     let result = use_state("")
-    let handle_click = fn(_e):
-        let greeting = greet("Alice")
-        set_result(greeting)
+    let handle_click = fn(_e) (set_result(greet("Alice")))
     ret <div><button onClick={handle_click}>Greet</button><p>{result}</p></div>
+}
