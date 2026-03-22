@@ -1,5 +1,0 @@
-# Clippy configuration
-too-many-arguments-threshold = 8
-type-complexity-threshold = 500
-excessive-nesting-threshold = 5
-cognitive-complexity-threshold = 30
