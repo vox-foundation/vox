@@ -27,7 +27,23 @@ scripts/.venv/
 # CodeRabbit CLI worktrees and state (`vox review coderabbit`, `--features coderabbit`)
 .coderabbit/
 
-# Vox (version `.vox/agents/` in-repo; ignore local cache only)
-.vox/cache/
-bundle_out*.txt
+# Dist / JS Islands
+islands/
+crates/*/pkg/
+dist/app/node_modules/
+
+# Populi / AI Models
+populi/runs/
+
+# Jujutsu VCS
+.jj/
+
+# Scratch files
 bundle_err*.txt
+bundle_out*.txt
+cargo-out.txt
+test_all.txt
+vox_analyze.log
+*.log
+*.bak
+*.orig
