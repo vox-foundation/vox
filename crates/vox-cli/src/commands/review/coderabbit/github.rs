@@ -333,6 +333,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
 /// Create a review PR from an isolated worktree: baseline → worktree, overlay files from `source_tree`, push, open PR.
 ///
 /// Does not modify the main working tree other than registering a git worktree under `.coderabbit/worktrees/`.
+/// This function is **fully idempotent** — safe to call after a prior crash or partial run.
 pub async fn create_chunk_pr_via_worktree(
     repo_root: &Path,
     source_tree: &Path,
@@ -346,16 +347,50 @@ pub async fn create_chunk_pr_via_worktree(
     let token = github_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
+    // ── 1. Prune stale git worktree metadata (survives directory deletion) ────
+    let _ = tokio::process::Command::new("git")
+        .args(["worktree", "prune"])
+        .current_dir(repo_root)
+        .status()
+        .await;
+
     let wt = worktree_dir(repo_root, review_branch);
+
+    // ── 2. Remove pre-existing worktree directory (and its git ref) ───────────
     if wt.exists() {
-        git_worktree_remove(repo_root, &wt)
-            .await
-            .with_context(|| format!("remove stale worktree {}", wt.display()))?;
+        // Try graceful removal first (updates git metadata)
+        let _ = tokio::process::Command::new("git")
+            .args(["worktree", "remove", "--force"])
+            .arg(&wt)
+            .current_dir(repo_root)
+            .status()
+            .await;
+        // Forcibly wipe directory even if git command failed
+        if wt.exists() {
+            let _ = tokio::fs::remove_dir_all(&wt).await;
+        }
     }
+
+    // ── 3. Force-delete stale local branch (may be "checked out" in deleted wt) ─
+    let _ = tokio::process::Command::new("git")
+        .args(["branch", "-D", review_branch])
+        .current_dir(repo_root)
+        .output()
+        .await;
+
+    // Re-prune after forced dir deletion so git doesn't see stale refs
+    let _ = tokio::process::Command::new("git")
+        .args(["worktree", "prune"])
+        .current_dir(repo_root)
+        .status()
+        .await;
+
+    // ── 4. Ensure worktrees parent directory exists ───────────────────────────
     if let Some(parent) = wt.parent() {
         fs::create_dir_all(parent).with_context(|| format!("mkdir {}", parent.display()))?;
     }
 
+    // ── 5. Fetch baseline branch ──────────────────────────────────────────────
     let fetch_baseline = tokio::process::Command::new("git")
         .args(["fetch", "origin", baseline_branch])
         .current_dir(repo_root)
@@ -366,6 +401,7 @@ pub async fn create_chunk_pr_via_worktree(
         anyhow::bail!("git fetch origin {baseline_branch} failed");
     }
 
+    // ── 6. Create fresh worktree ──────────────────────────────────────────────
     let wt_str = wt.to_str().with_context(|| "worktree path utf-8")?;
     let status = tokio::process::Command::new("git")
         .args([
@@ -384,6 +420,7 @@ pub async fn create_chunk_pr_via_worktree(
         anyhow::bail!("git worktree add failed for {review_branch}");
     }
 
+    // ── 7. Overlay files from source tree ────────────────────────────────────
     for rel in files {
         let rel_norm = rel.replace('\\', "/");
         if path_policy::is_coderabbit_local_tool_path(&rel_norm) {
@@ -401,17 +438,16 @@ pub async fn create_chunk_pr_via_worktree(
                 fs::remove_dir_all(&dst)?;
             }
             copy_dir_recursive(&src, &dst)?;
-        } else {
-            if dst.exists() {
-                if dst.is_dir() {
-                    fs::remove_dir_all(&dst)?;
-                } else {
-                    fs::remove_file(&dst)?;
-                }
+        } else if dst.exists() {
+            if dst.is_dir() {
+                fs::remove_dir_all(&dst)?;
+            } else {
+                fs::remove_file(&dst)?;
             }
         }
     }
 
+    // ── 8. Stage & commit ─────────────────────────────────────────────────────
     if !files.is_empty() {
         for batch in files.chunks(80) {
             let mut args: Vec<&str> = vec!["add", "--"];
@@ -441,8 +477,9 @@ pub async fn create_chunk_pr_via_worktree(
         anyhow::bail!("git commit failed in worktree (nothing staged?)");
     }
 
+    // ── 9. Force push (safe — these are ephemeral review branches) ────────────
     let push_st = tokio::process::Command::new("git")
-        .args(["push", "-u", "origin", review_branch])
+        .args(["push", "-uf", "origin", review_branch])
         .current_dir(&wt)
         .status()
         .await
@@ -451,6 +488,7 @@ pub async fn create_chunk_pr_via_worktree(
         anyhow::bail!("git push failed for {review_branch}");
     }
 
+    // ── 10. Open PR ───────────────────────────────────────────────────────────
     let pr_title = format!("CodeRabbit review: {review_branch}");
     let body = format!(
         "Automated semantic PR for CodeRabbit.\n\n@coderabbitai {}",

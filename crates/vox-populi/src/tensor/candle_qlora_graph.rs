@@ -3,6 +3,7 @@
 /// Logits tensor rank-3 shape after `QLoraTrainer::training_step_lm` chains all stacked layers:
 /// `[batch, seq, d_model]` through square middle blocks, then LM head → `[batch, seq, vocab]`.
 #[must_use]
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn stacked_lm_logits_shape(batch: usize, seq: usize, vocab: usize) -> [usize; 3] {
     [batch, seq, vocab]
 }

@@ -1,3 +1,11 @@
+//! Single-module recursive-descent parser implementation.
+//!
+//! **This is the only parser implementation** for `vox-parser`. There is no
+//! secondary parser, no multi-module rewrite, and no separate LSP tree-sitter
+//! layer in this crate. The public entry point is [`parse`].
+//!
+//! See `crate` (lib.rs) for the scope table — what constructs are in/out of scope.
+
 use crate::error::ParseError;
 use vox_ast::decl::*;
 use vox_ast::expr::*;

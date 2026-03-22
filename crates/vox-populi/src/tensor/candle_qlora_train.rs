@@ -23,7 +23,7 @@ use safetensors::tensor::{Dtype, TensorView};
 use tokenizers::Tokenizer;
 use vox_tensor::data::{TrainingPair, VOCAB_SIZE};
 
-use super::candle_qlora_graph::{adapter_names_for_stack, stacked_lm_logits_shape};
+use super::candle_qlora_graph::adapter_names_for_stack;
 use super::candle_qlora_merge::QloraAdapterMetaV2;
 use super::candle_qlora_weights::{
     filter_keys_in_shard, log_key_inventory_from_present, middle_projection_coverage,

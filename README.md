@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/src/assets/logo.png" alt="Vox Logo" width="200" height="auto" />
   <h1>Vox Programming Language</h1>
-  <p>Full-stack. AI-native. Single binary.</p>
+  <p>Your backend, frontend, and database. One file. One binary.</p>
 </div>
 
 <img src="docs/src/assets/hero_bg.png" alt="Vox Hero Banner" width="100%" />
@@ -12,60 +12,27 @@
 
 ---
 
-Vox is a compiled, statically typed programming language where your database schema, server endpoints, frontend components, background workflows, and AI agent tools all live in the same file and compile to the same artifact.
+Most full-stack projects are really three projects stitched together: a database, a backend, and a frontend, each with its own tooling, its own type definitions, and its own deployment step. Most bugs live at the seams between them.
 
-The backend emits Rust (Tokio + Axum). The frontend emits TypeScript (React). The output of `vox bundle` is a single, statically-linked binary that includes your application and an embedded SQLite engine. There is no separate build step for the frontend, no ORM to configure, and no API layer to maintain by hand.
+Vox is a single language for all three layers. You define your data shapes once. Your server functions and your UI components share those types directly. The compiler enforces that every piece fits together. The output is one binary.
 
-The language is opinionated in one significant way: `null` does not exist. The type system enforces exhaustive pattern matching through Algebraic Data Types (ADTs) and `Option[T]`. This is true both for human authors and for LLMs generating Vox — the compiler gives you the same guarantees either way.
+```bash
+vox bundle app.vox --release --target x86_64-unknown-linux-musl
+```
+
+That binary contains your backend (Rust/Axum), your frontend (React/TypeScript), and an embedded SQLite database. Deploy it anywhere that runs a Linux binary. No runtime, no Docker required, no npm install on the server.
+
+The other big decision Vox makes for you: there is no `null`. Every value that might be absent is explicit. Every error path that might fail is explicit. If you forget to handle a case, it is a compile error. This removes a whole class of bugs that typically show up in production, not in tests.
 
 ---
 
-## The Language
+## What Vox saves you
 
-### Types and Pattern Matching
+### No more duplicate type definitions
 
-Basic types are defined with `type`. ADTs support tagged variants with named fields.
+In a typical project, a database schema lives in SQL, a matching struct lives in your server code, and a matching TypeScript type lives in your frontend. Three places to update when the shape of your data changes.
 
-```vox
-type OrderStatus =
-    | Pending
-    | Processing(started_at: int)
-    | Shipped(tracking_id: str)
-    | Failed(reason: str)
-
-fn status_label(s: OrderStatus) to str {
-    match s {
-        Pending              -> "Awaiting processing"
-        Processing(t)        -> "Started at " + str(t)
-        Shipped(tracking_id) -> "Tracking: " + tracking_id
-        Failed(reason)       -> "Failed: " + reason
-    }
-}
-```
-
-The `match` expression must cover every variant. Missing a case is a compile error, not a runtime exception.
-
-```vox
-// Option[T] replaces null checks.
-fn unwrap_or(opt: Option, default: str) to str {
-    match opt {
-        Some(value) -> value
-        None        -> default
-    }
-}
-
-// Result[T, E] replaces thrown exceptions.
-fn chain(first: Result, second: Result) to Result {
-    match first {
-        Ok(v)    -> second
-        Err(msg) -> Err(msg)
-    }
-}
-```
-
-### Data Layer
-
-Tables are declared with `@table` and indexed via `@index`. The `db` module exposes typed query, insert, and patch operations that map directly to the declared schema.
+In Vox, the schema and the type are the same declaration:
 
 ```vox
 @table type Task {
@@ -75,11 +42,15 @@ Tables are declared with `@table` and indexed via `@index`. The `db` module expo
     owner:    str
 }
 
-@index Task.by_done  on (done, priority)
+// This index is created automatically in SQLite.
 @index Task.by_owner on (owner)
 ```
 
-Server functions that operate on the database compile to Axum HTTP handlers.
+Server functions read and write that type directly, and frontend components receive it as-is. No mapping layer in between.
+
+### No separate API layer
+
+When a frontend component calls a backend function, there is no endpoint definition to write, no fetch call to wrap, no contract to keep in sync.
 
 ```vox
 @server fn add_task(title: str, owner: str) to Id[Task] {
@@ -92,9 +63,7 @@ Server functions that operate on the database compile to Axum HTTP handlers.
 }
 ```
 
-### Frontend Components
-
-Components compile to React. State is managed with `use_state`. The compiler knows the types of your backend functions, so data flowing from `@server` to `@component` is type-checked across the boundary.
+The compiler generates the HTTP endpoint, the TypeScript client call, and the serialization. Your component just calls the function.
 
 ```vox
 import react.use_state
@@ -126,9 +95,69 @@ routes {
 }
 ```
 
-### Actors
+### No null checks, no runtime surprises
 
-An `actor` is an isolated entity with a mailbox and durable state. State is persisted through `state_load` / `state_save` and survives process restarts. The frontend can `spawn` an actor and call its methods directly.
+In most languages, `null` or `undefined` can appear anywhere. You find out about it at runtime. Vox does not have `null`. A value that might be absent is `Option`, and you must handle both cases to compile.
+
+```vox
+fn find_owner(tasks: List[Task], name: str) to Option {
+    tasks.find(fn(t) t.owner == name)
+}
+
+// Both branches must be covered. Missing either is a compile error.
+match find_owner(tasks, "alice") {
+    Some(task) -> show_task(task)
+    None       -> show_empty_state()
+}
+```
+
+The same applies to errors. Functions that can fail return `Result`. The `match` expression makes you handle both the success and failure path before the code compiles.
+
+```vox
+match complete_task(task_id) {
+    Ok(())    -> "Done"
+    Err(msg)  -> "Failed: " + msg
+}
+```
+
+### Long-running tasks that survive crashes
+
+If your server processes a multi-step operation — charge a card, send an email, update a ledger — and crashes halfway through, the typical outcome is inconsistent state. You build retry logic, idempotency keys, and recovery handlers to compensate.
+
+Vox has a first-class construct for this: `workflow`. Each step is an `activity`. If the process dies after step 2 of 4, on restart it picks up at step 3. Steps are not re-executed.
+
+```vox
+activity validate_order(data: str) to Result[str] {
+    ret Ok("validated-" + data)
+}
+
+activity charge_payment(amount: int, token: str) to Result[str] {
+    ret Ok("tx-" + token)
+}
+
+activity send_confirmation(recipient: str, order_id: str) to Result[str] {
+    ret Ok("Confirmed " + order_id + " for " + recipient)
+}
+
+workflow process_order(customer: str, data: str, amount: int) to Result[str] {
+    let validated = validate_order(data)
+        with { timeout: "5s" }
+
+    let payment = charge_payment(amount, "card-tok")
+        with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
+
+    let confirmation = send_confirmation(customer, "order-001")
+        with { retries: 2, activity_id: "confirm-order-001" }
+
+    ret confirmation
+}
+```
+
+The `with` expression sets per-step retry and timeout policy inline. No separate configuration file. No wrapper library.
+
+### Persistent actors
+
+Actors are the right model for things with long-lived state: a counter, a cart, a session, a rate limiter. A Vox `actor` persists its state automatically. You do not write serialization, storage, or cache invalidation code.
 
 ```vox
 actor PersistentCounter {
@@ -151,43 +180,11 @@ actor PersistentCounter {
 }
 ```
 
-### Workflows
+`spawn(PersistentCounter)` gives you a handle to the actor. Its internal state survives server restarts.
 
-Workflows model multi-step operations as durable state machines. Each step is an `activity`. The `with` expression applies retry and timeout policies per-step.
+### AI agent tools, without a framework
 
-If the process dies between `validate_order` and `charge_payment`, the workflow resumes from the last successfully completed activity — not from the beginning. Side effects are not replayed.
-
-```vox
-activity validate_order(data: str) to Result[str] {
-    ret Ok("validated-" + data)
-}
-
-activity charge_payment(amount: int, token: str) to Result[str] {
-    let tx = "tx-" + token
-    ret Ok(tx)
-}
-
-activity send_confirmation(recipient: str, order_id: str) to Result[str] {
-    ret Ok("Confirmed " + order_id + " for " + recipient)
-}
-
-workflow process_order(customer: str, data: str, amount: int) to Result[str] {
-    let validated = validate_order(data)
-        with { timeout: "5s" }
-
-    let payment = charge_payment(amount, "card-tok")
-        with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
-
-    let confirmation = send_confirmation(customer, "order-001")
-        with { retries: 2, activity_id: "confirm-order-001" }
-
-    ret confirmation
-}
-```
-
-### Agent Tools (MCP)
-
-The `@mcp.tool` decorator registers a function with the Model Context Protocol. The description string is included in the tool schema delivered to language models. This is the mechanism through which LLMs running in agent mode can call into your application.
+If you want a language model to be able to call one of your functions, you add one decorator. The compiler generates the tool schema and registers it with the Model Context Protocol server automatically.
 
 ```vox
 type SearchResult =
@@ -205,9 +202,11 @@ fn run_query(sql: str) to str {
 }
 ```
 
-### Built-in Testing
+The description string becomes part of the tool schema that the model sees. The types flow through unchanged.
 
-`@test` functions are first-class. Run them with `vox test`.
+### Built-in testing
+
+Tests live in the same file as the code they test. No test runner to configure.
 
 ```vox
 type Shape =
@@ -216,8 +215,8 @@ type Shape =
 
 fn area(s: Shape) to int {
     match s {
-        Circle(r)           -> r * r
-        Rectangle(w, h)     -> w * h
+        Circle(r)        -> r * r
+        Rectangle(w, h)  -> w * h
     }
 }
 
@@ -230,87 +229,73 @@ fn area(s: Shape) to int {
 }
 ```
 
----
-
-## The CLI
-
-The `vox` binary is the single entry point for the full lifecycle.
-
-```
-vox build <file>           Compile .vox → Rust + TypeScript
-vox run <file>             Build and run locally
-vox bundle <file>          Produce a statically linked binary
-vox test <file>            Execute @test functions
-vox check <file>           Type-check without output
-vox fmt <file>             Format source (in development)
-vox compact <file>         Compact source for LLM context windows
-vox lsp                    Launch the Language Server (tower-lsp)
-vox doc                    Generate documentation
-vox init [name]            Scaffold a new project
-vox install <pkg>          Install a package
-vox audit                  Check dependencies for advisories
-vox clean                  Remove build artifacts
-vox stub-check             Run TOESTUB anti-pattern detection
-vox orchestrator <action>  Manage multi-agent task queues
-vox dashboard              Open the orchestrator HUD web UI
-vox agent <action>         Register and manage AI agents
-vox populi train           Train a Populi model locally
-vox populi review          Run an AI-assisted code review
-vox scientia               Research and query the local knowledge store
-vox share <action>         Publish or browse shared artifacts
-vox snippet <action>       Save and search code snippets
-vox review coderabbit …    Submit semantic batched PRs to CodeRabbit
-```
-
-Build and deploy:
-
 ```bash
-# Development with live-reload
-vox build app.vox -o dist --watch
-
-# Single statically-linked binary: backend + frontend + SQLite
-vox bundle app.vox --release --target x86_64-unknown-linux-musl
-
-# Scaffold a new project
-vox init my-project
-
-# Run all @test functions in a file
 vox test app.vox
 ```
 
 ---
 
-## Vox Populi — Native ML
+## The CLI
 
-Populi is the native ML subsystem. It runs entirely in Rust — no Python runtime, no subprocess — using Burn for training and Candle for inference.
-
-```bash
-# Fine-tune a local model with QLoRA (CPU baseline, also supports CUDA)
-vox populi train --backend qlora --tokenizer hf --model ./model
-
-# Run inference against the local Populi model
-vox populi run --prompt "Write a Vox server function that returns all tasks"
-
-# Inspect model and quota status
-vox populi status --quotas
 ```
-
-Populi accepts training data in JSONL format. Categories are filterable via `context_filter`. Checkpoints emit with a configurable `adapter_tag`. Training state is reported to the orchestrator in real time.
+vox build <file>           Compile .vox to Rust + TypeScript
+vox run <file>             Build and run locally
+vox bundle <file>          Produce a statically-linked binary
+vox test <file>            Run @test functions
+vox check <file>           Type-check without producing output
+vox fmt <file>             Format (in development)
+vox compact <file>         Compact source for LLM context windows
+vox lsp                    Launch the Language Server
+vox doc                    Generate documentation
+vox init [name]            Scaffold a new project
+vox install <pkg>          Install a package
+vox audit                  Check dependencies for security advisories
+vox clean                  Remove build artifacts
+vox stub-check             Run TOESTUB anti-pattern detection
+vox orchestrator <action>  Manage multi-agent task queues
+vox dashboard              Open the orchestrator web UI
+vox agent <action>         Register and manage AI agents
+vox populi train           Train a local Populi model
+vox populi review          AI-assisted code review
+vox scientia               Query the local knowledge store
+vox share <action>         Publish or browse shared artifacts
+vox snippet <action>       Save and search code snippets
+vox review coderabbit …    Submit semantic batched PRs to CodeRabbit
+```
 
 ---
 
-## Vox Dei — Distributed Execution Intelligence
+## Vox Populi — Local ML
 
-The Dei orchestrator manages multi-agent task coordination. Agents are assigned to file affinities (matched by path scope), dispatched to task queues, and their messaging is logged transparently for replay and debugging.
+Populi is a Rust-native machine learning layer. It runs entirely in-process — no Python subprocess, no external model server.
 
 ```bash
-vox orchestrator status          # View active agents and current task state
-vox orchestrator dispatch <task> # Push a task into the queue
-vox dashboard                    # Open the real-time HUD
-vox agent list                   # Show registered agents and their capabilities
+# Fine-tune a local model with QLoRA
+vox populi train --backend qlora --tokenizer hf --model ./model
+
+# Run inference against the trained model
+vox populi run --prompt "Write a Vox server function that returns all tasks"
+
+# Check model status and token quotas
+vox populi status --quotas
 ```
 
-The orchestrator integrates with TOESTUB — a rule engine that detects known anti-patterns in Vox code before they propagate. Run it standalone or as part of CI:
+QLoRA fine-tuning accepts training data in JSONL format. GPU training on NVIDIA hardware is supported with the `gpu` feature flag (see Installation).
+
+---
+
+## Vox Dei — Agent Orchestration
+
+Dei coordinates multi-agent execution. Agents are assigned to task queues by file scope, their messaging is logged for replay, and the orchestrator maintains execution history for debugging.
+
+```bash
+vox orchestrator status          # View active agents and queued tasks
+vox orchestrator dispatch <task> # Add a task to the queue
+vox dashboard                    # Open the real-time web UI
+vox agent list                   # Show registered agents
+```
+
+TOESTUB is a static rule engine that checks Vox source for known anti-patterns before they land in a PR:
 
 ```bash
 vox stub-check --all
@@ -320,49 +305,43 @@ vox stub-check --all
 
 ## Installation
 
-Install from source via Cargo:
-
 ```bash
 cargo install --path crates/vox-cli
 ```
 
-**Windows (Turso integration):** The Turso embedded database requires LLVM/clang-cl. Use `scripts/install.ps1` to configure the C-toolchain automatically. Full notes in the [Setup Guide](docs/src/how-to-setup.md).
+**Windows (Turso):** Requires LLVM/clang-cl. Use `scripts/install.ps1` to configure the C-toolchain. See the [Setup Guide](docs/src/how-to-setup.md).
 
-**CUDA (Populi QLoRA on NVIDIA):** Build with the `gpu` feature:
+**NVIDIA GPU (QLoRA training):** Build from a Visual Studio Developer shell:
 
 ```bash
 cargo build -p vox-cli --release --features gpu
 ```
-
-Run this from a Visual Studio Developer shell on Windows so `nvcc` resolves MSVC correctly.
 
 ---
 
 ## Architecture
 
 ```
-Lexer (logos) → Parser (Rowan CST) → AST → HIR → Typeck → Codegen
-                                                              ├── Rust (Axum/Tokio)
-                                                              └── TypeScript (React)
+Lexer → Parser (lossless CST) → AST → HIR → Typeck → Codegen
+                                                        ├── Rust (Axum/Tokio)
+                                                        └── TypeScript (React)
 ```
 
-The parser produces a lossless Rowan-based green tree for full LSP support with error recovery. Type checking is bidirectional with Hindley-Milner inference and unification. Codegen emits Rust via `quote!` and structured TypeScript.
-
-For a complete reference: [AGENTS.md](./AGENTS.md).
+The parser is error-recovering, meaning the Language Server can provide diagnostics on incomplete files. Type inference is bidirectional. For a full breakdown: [AGENTS.md](./AGENTS.md).
 
 ---
 
 ## Resources
 
-- **First full-stack application walkthrough:** [docs/src/how-to/first-full-stack-app.md](docs/src/how-to/first-full-stack-app.md)
-- **Language syntax and style:** [examples/STYLE.md](examples/STYLE.md)
+- **First application walkthrough:** [docs/src/how-to/first-full-stack-app.md](docs/src/how-to/first-full-stack-app.md)
+- **Language syntax reference:** [examples/STYLE.md](examples/STYLE.md)
 - **CLI reference:** [docs/src/ref-cli.md](docs/src/ref-cli.md)
-- **Architecture and roadmap:** [AGENTS.md](./AGENTS.md)
+- **Architecture:** [AGENTS.md](./AGENTS.md)
 
 ---
 
-## License and Support
+## License
 
-Apache-2.0. Source is at [github.com/brbrainerd/vox](https://github.com/brbrainerd/vox).
+Apache-2.0. Source: [github.com/brbrainerd/vox](https://github.com/brbrainerd/vox).
 
-Sponsorship links will appear here when the GitHub Sponsors and Open Collective pages are live.
+Sponsorship links (GitHub Sponsors, Open Collective) will appear here when live.
