@@ -52,6 +52,23 @@ fmt:
   script:
     - cargo fmt --all -- --check
 
+# ── vox ci guards (parity with GitHub Actions) ─────────────────────────────
+vox-ci-guards:
+  extends: .base
+  stage: check
+  script:
+    - cargo build -p vox-cli
+    - cargo run -p vox-cli --quiet -- ci manifest
+    - cargo run -p vox-cli --quiet -- ci check-codex-ssot
+    - cargo run -p vox-cli --quiet -- ci check-docs-ssot
+    - cargo run -p vox-cli --quiet -- ci doc-inventory verify
+    - cargo run -p vox-cli --quiet -- ci workflow-scripts
+    - cargo run -p vox-cli --quiet -- ci feature-matrix
+    - cargo run -p vox-cli --quiet -- ci no-vox-dei-import
+    - cargo run -p vox-cli --quiet -- ci toestub-scoped
+    - cargo run -p vox-cli --quiet -- ci cuda-features
+    - cargo run -p vox-cli --quiet -- ci populi-gate --profile ci_full
+
 # ── build ─────────────────────────────────────────────────────────────────
 build:
   extends: .base
@@ -123,47 +140,14 @@ coverage:
         path: lcov.info
     expire_in: 1 week
 
-# ── guards ────────────────────────────────────────────────────────────────
-guards:
-  extends: .base
-  stage: check
-  script:
-    # Guard: No Ty::TypeVar(0)
-    - |
-      if grep -r "TypeVar(0)" crates/ --include="*.rs" 2>/dev/null; then
-        echo "ERROR: Found Ty::TypeVar(0) hardcoded — use uf.fresh_var() instead"
-        exit 1
-      fi
-      echo "OK: No Ty::TypeVar(0) found"
-    # Guard: No opencode references
-    - |
-      FOUND=$(grep -rn "opencode" crates/ --include="*.rs" \
-        | grep -v "tests_agent_session" \
-        | grep -v "// formerly" \
-        | grep -v "how-to-opencode" \
-        || true)
-      if [ -n "$FOUND" ]; then
-        echo "ERROR: Found opencode references:"; echo "$FOUND"; exit 1
-      fi
-      echo "OK: No opencode references"
-    # Guard: No stray files at root
-    - |
-      FOUND=$(find . -maxdepth 1 \( -name "*.txt" -o -name "*.log" -o -name "*.err" \
-        -o -name "patch_*.py" -o -name "fix_*.py" -o -name "temp*.vox" \
-        -o -name "test_*.vox" -o -name "debug_*.vox" \) 2>/dev/null | grep -v "^\.$" || true)
-      if [ -n "$FOUND" ]; then
-        echo "ERROR: Stray files at root: $FOUND"; exit 1
-      fi
-      echo "OK: No stray files at root"
-
 # ── TOESTUB ───────────────────────────────────────────────────────────────
 toestub:
   extends: .base
   stage: check
   script:
-    - cargo build -p vox-cli --quiet 2>/dev/null || true
+    - cargo build -p vox-cli --bin vox --features stub-check --quiet 2>/dev/null || true
     - |
-      if cargo run -p vox-cli --quiet -- stub-check --path crates/ --severity error 2>/dev/null; then
+      if cargo run -p vox-cli --bin vox --features stub-check --quiet -- stub-check crates/ --severity error 2>/dev/null; then
         echo "OK: TOESTUB passed"
       else
         echo "WARN: TOESTUB found issues"
@@ -214,16 +198,7 @@ ml-extract:
   stage: ml-extract
   script:
     - cargo build -p vox-cli --release --quiet
-    # Detect grammar drift
-    - |
-      FINGERPRINT=$(./target/release/vox corpus prompt --output /dev/stdout 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "unknown")
-      STORED=$(cat populi/data/grammar_fingerprint.txt 2>/dev/null || echo "")
-      if [ "$FINGERPRINT" != "$STORED" ]; then
-        echo "drift=true" > drift.env
-        echo "$FINGERPRINT" > populi/data/grammar_fingerprint.txt
-      else
-        echo "drift=false" > drift.env
-      fi
+    - ./target/release/vox ci grammar-drift --emit gitlab
     # Extract corpus (canonical flow aligned with GitHub Actions)
     - mkdir -p populi/data target/dogfood
     - ./target/release/vox corpus extract examples/ -o populi/data/validated.jsonl
@@ -231,7 +206,7 @@ ml-extract:
     - ./target/release/vox corpus validate populi/data/validated.jsonl --no-recheck -o populi/data/validated.jsonl
     - ./target/release/vox corpus pairs populi/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/
     - ./target/release/vox corpus prompt -o scripts/vox_system_prompt.txt
-    - ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json 2>/dev/null || true
+    - ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json --print-summary 2>/dev/null || true
     # Compute train hash for change detection
     - |
       if [ -f target/dogfood/train.jsonl ]; then
@@ -262,14 +237,14 @@ ml-extract:
   # Set up a GitLab Pipeline Schedule at 4 AM UTC in CI/CD → Schedules
 
 # ── ML: train (GPU, self-hosted) ──────────────────────────────────────────
-# Native Rust training is default. Set NATIVE_TRAIN=false for legacy Python QLoRA (>7B).
+# Native-only training (parity with GitHub). `NATIVE_TRAIN=false` is rejected.
 ml-train:
   stage: ml-train
   needs: [ml-extract]
   tags:
     - gpu  # requires a self-hosted GitLab Runner with GPU
   variables:
-    NATIVE_TRAIN: "true"  # default: native Rust; set false for legacy Python QLoRA
+    NATIVE_TRAIN: "true"
   rules:
     - if: '$FORCE_TRAIN == "true"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -284,24 +259,45 @@ ml-train:
         exit 0
       fi
     - |
-      if [ "$NATIVE_TRAIN" != "false" ]; then
-        export VOX_BACKEND=cpu
-        export VOX_EVAL_MIN_PARSE_RATE=0.70
-        export VOX_EVAL_MIN_COVERAGE=0.50
-        export VOX_EVAL_STRICT=1
-        ./target/release/vox train --native \
-          --data-dir target/dogfood \
-          --output-dir target/dogfood/run
-      else
-        pip install uv && uv sync --project scripts
-        export VOX_EVAL_MIN_PARSE_RATE=0.70
-        export VOX_EVAL_MIN_COVERAGE=0.50
-        export VOX_EVAL_STRICT=1
-        ./target/release/vox train --native false --provider local \
-          --data-dir target/dogfood \
-          --output-dir target/dogfood/run
+      if [ "${NATIVE_TRAIN:-true}" = "false" ]; then
+        echo "ERROR: NATIVE_TRAIN=false is not supported; native training only (parity with GitHub)."
+        exit 1
       fi
+    - |
+      export VOX_BACKEND=cpu
+      export VOX_EVAL_MIN_PARSE_RATE=0.70
+      export VOX_EVAL_MIN_COVERAGE=0.50
+      export VOX_EVAL_STRICT=1
+      ./target/release/vox train --native \
+        --data-dir target/dogfood \
+        --output-dir target/dogfood/run
   artifacts:
     paths:
       - target/dogfood/run/
     expire_in: 90 days
+
+# ── Docker / Compose (parity with GitHub Actions; see docs/src/ci/workflow-enumeration.md) ──
+mesh-compose-config:
+  stage: check
+  image: docker:26-cli
+  variables:
+    GIT_STRATEGY: fetch
+  script:
+    - docker compose -f examples/mesh-compose.yml config
+
+docker-vox-image-smoke:
+  stage: check
+  image: docker:26-cli
+  services:
+    - name: docker:26-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    GIT_STRATEGY: fetch
+  script:
+    - |
+      for i in $(seq 1 30); do docker info && break || sleep 1; done
+    - docker build -t vox:ci-smoke .
+    - docker build --build-arg VOX_CLI_FEATURES=mesh,script-execution -t vox:ci-mesh .
+  allow_failure: true
