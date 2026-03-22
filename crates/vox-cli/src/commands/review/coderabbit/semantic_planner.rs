@@ -742,7 +742,9 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     eprintln!("══════════════════════════════════════════════\n");
 
     // Write manifest to disk (always, even in dry-run mode — useful for resumption)
-    let manifest_path = repo.join(".coderabbit-semantic-manifest.json");
+    let cr_dir = repo.join(".coderabbit");
+    std::fs::create_dir_all(&cr_dir).ok();
+    let manifest_path = cr_dir.join("semantic-manifest.json");
     let json = serde_json::to_string_pretty(&manifest).context("serialize manifest")?;
     std::fs::write(&manifest_path, &json).context("write manifest")?;
     eprintln!("[manifest] Written to: {}", manifest_path.display());
