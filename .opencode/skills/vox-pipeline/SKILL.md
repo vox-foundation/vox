@@ -19,7 +19,7 @@ description: Complete Vox compiler pipeline knowledge — lexer, parser, AST, HI
 2. Add AST node wrappers in `crates/vox-ast/src/`
 3. Map AST→HIR in `crates/vox-hir/src/lower.rs`
 4. Add inference rules in `crates/vox-typeck/src/check.rs`
-5. Add emission in both `crates/vox-codegen-rust/src/emit_expr.rs` and `crates/vox-codegen-ts/src/jsx.rs`
+5. Add emission in `crates/vox-codegen-rust/src/emit.rs` (`emit_expr` / `emit_stmt`) and `crates/vox-codegen-ts/src/jsx.rs` (or the relevant TS emitter module)
 6. Add integration test in `crates/vox-integration-tests/tests/`
 
 ## Key Rules
