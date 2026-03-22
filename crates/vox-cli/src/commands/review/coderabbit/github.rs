@@ -97,13 +97,13 @@ pub async fn submit(
     }
 
     let status = tokio::process::Command::new("git")
-        .args(["push", "-u", "origin", &branch_name])
+        .args(["push", "-uf", "origin", &branch_name])
         .current_dir(path)
         .status()
         .await
         .context("git push")?;
     if !status.success() {
-        anyhow::bail!("git push failed");
+        anyhow::bail!("git push failed for {}", branch_name);
     }
 
     let token = github_token()?;

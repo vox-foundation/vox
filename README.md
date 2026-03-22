@@ -2,71 +2,147 @@
   <img src="docs/src/assets/logo.png" alt="Vox Logo" width="200" height="auto" />
   <h1>Vox Programming Language</h1>
   <p><strong>The Native Language of the AI Era.</strong></p>
-  <p>Write full-stack, durable, type-safe applications in a single file designed for LLMs to generate flawlessly.</p>
 </div>
 
 <img src="docs/src/assets/hero_bg.png" alt="Vox Hero" width="100%" />
 
+> *"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence! Or, shall we say, it is itself a thought, nothing but thought, and no longer the substance which we deemed it!"*  
+> — **Nathaniel Hawthorne**, *The House of the Seven Gables* (1851)
+
 ---
 
-## 🚀 The Vox Philosophy
+## The Vox Ecosystem
 
-The software development workflow is fundamentally changing. Humans are transitioning from typists to architects. **Vox** is built from the ground up to be the ultimate target compilation language for frontier models (like Populi, Claude, and GPT-4).
+Vox is an aggressively type-safe, AI-native systems language that compiles directly into high-performance **Rust (Tokio/Axum)** on the backend and **TypeScript (React)** on the frontend. 
 
-- **Type-Safe & Predictable**: Strong static typing, Algebraic Data Types (ADTs), and an exhaustive match guarantee prevent hallucinations.
-- **Zero-Boilerplate Full-Stack**: Define your data layer natively (`@table`), write your backend (`@server fn`), and compose your React UI (`@component`) — all compiled natively into Rust and TypeScript.
-- **Next-Gen Durable Execution**: Integrated workflow and actor systems ensure that your process is robust. Awaiting an `activity` behaves locally, but compiles to distributed, retryable task execution.
-- **Built for Agents**: Natively integrated `@mcp.tool` decorators directly export functions into the Model Context Protocol format.
+But it’s far more than just a programming language. It is a unified, end-to-end framework designed from the ground up for small engineering teams and autonomous AI agents building modern, distributed, intelligence-driven software.
 
-## ⚡ Quick Start
+### Why Adopt Vox?
 
-### Installation
+Vox solves the core friction points of modern development by unifying your entire stack. It is engineered both for exceptional developer ergonomics—reducing cognitive load for humans—and strict predictability—eliminating ambiguity for Large Language Models.
 
-```bash
-cargo install --path crates/vox-cli
-```
+Here are the dimensions that make the Vox ecosystem unmatched:
 
-**Contributors (bootstrap Rust + LLVM/clang-cl on Windows for Turso):** `scripts/install.sh` / `scripts/install.ps1` — see [`docs/src/how-to-setup.md`](docs/src/how-to-setup.md).
+- **Unmatched Developer Ergonomics**: Define your data schema, your frontend React components, and your backend server logic in a single, cohesive file. Avoid the boilerplate of GraphQL schemas, ORMs, and context-switching between different repositories.
+- **Vox Dei (Distributed Execution Intelligence)**: The orchestrator is built straight into the system. Vox Dei provides transparent agent-to-agent messaging protocols and real-time execution recording. Building complex, durable workflow orchestration is no longer an infrastructure challenge; it is a native language primitive. 
+- **Vox Populi (Native ML)**: Vox features a completely native Rust/Burn machine learning ecosystem. You can execute high-throughput inference, perform QLoRA fine-tuning, and coordinate model states directly from the language workspace, bridging the gap between application logic and raw tensor performance.
+- **Zero-Null Type Safety (No Bugs)**: `null` and `undefined` states are unconditionally banned. Vox enforces rigorous, exhaustive pattern matching via Algebraic Data Types (ADTs) and `Option[T]`. This absolutely guarantees no sudden runtime NPE crashes, creating an ironclad predictability contract that ensures AI coding agents output flawless syntax.
+- **A Fully-Loaded CLI Hub**: The `vox` CLI acts as your command center. Access instantaneous local live-reloading (`vox build`), compile highly-optimized statically linked applications (`vox bundle`), trace execution routes, and manage LLM data pipelines all from one terminal window.
 
-### The "All-in-One" Experience
+---
+
+## Code That Looks Like Magic (v0.3 Brace Syntax)
+
+With the modernized v0.2/v0.3 brace syntax, writing code feels intuitive, lightweight, and structured. 
+
+### 1. Unified Types and Server Logic
+No external ORMs needed. Your types safely map to the embedded SQLite backend through the `db.` API.
 
 ```vox
-@table type Task:
+type UserStatus = 
+    | Active(last_login: int)
+    | Suspended(reason: str)
+    | Pending
+
+@table type Task {
     title: str
     done: bool
+}
 
-@server fn toggle_task(id: int) to Result[Unit]:
-    // Built-in SQL execution mapped from your ADTs
+@server fn toggle_task(id: int) to Result[Unit] {
     let task = db.query_one("SELECT * FROM Task WHERE id = ?", id)
     db.execute("UPDATE Task SET done = ? WHERE id = ?", !task.done, id)
     ret Ok(())
-
-@component fn TaskItem(task: Task) to Element:
-    ret <li>
-        <input type="checkbox" checked={task.done} onChange={fn(e) toggle_task(task.id)} />
-        {task.title}
-    </li>
+}
 ```
 
-### Build, Bundle, Ship
+### 2. Frontend Components and Clean Routing
+Components fluidly return JSX blocks without verbose `render` functions. Define your frontend layout alongside your logic, and attach top-level routes seamlessly.
+
+```vox
+import react.use_state
+
+@component fn TaskItem(task: Task) to Element {
+    let (checked, set_checked) = use_state(task.done)
+    
+    <div class="task-ui">
+        <input 
+            type="checkbox" 
+            checked={checked} 
+            onChange={fn(_e) {
+                set_checked(!checked)
+                toggle_task(task.id)
+            }} 
+        />
+        <p>{task.title}</p>
+    </div>
+}
+
+routes {
+    "/" to TaskItem
+}
+```
+
+### 3. Agent Tooling and Durable Workflows
+An `activity` inside Vox is a durable step that reliably survives sudden process crashes. Concurrently, empowering an autonomous AI agent to access your backend logic is as trivial as attaching an `@mcp.tool` decorator for automated Model Context Protocol mapping.
+
+```vox
+// Automatically survives server drops via the Orchestrator
+@workflow fn process_payment(amount: float) to Result[Receipt] {
+    let intent = await stripe.create_intent(amount)
+    let receipt = await finalize_transaction(intent)
+    ret Ok(receipt)
+}
+
+// Instantly exported as a tool to the internal Vox Dei agent system
+@mcp.tool fn evaluate_system_health() to float {
+    ret system.cpu_usage() * 100.0
+}
+```
+
+---
+
+## Build and Deployment
+
+Go from local iteration to a globally distributed native binary with incredible velocity.
 
 ```bash
-# Develop instantly with live-reload
+# Iterative local development with instantaneous live-reload
 vox build app.vox -o dist --watch
 
-# Ship a single statically-linked binary containing Frontend + Backend + SQLite
+# Compile an entirely independent, statically-linked binary containing Frontend + Backend + SQLite
 vox bundle app.vox --release --target x86_64-unknown-linux-musl
+
+# Engage the Vox Populi native tensor capabilities directly
+vox populi train --backend qlora
 ```
 
-## 🧠 Documentation & Internals
+### Installation
 
-Vox is powered by a robust compiler pipeline written in pure Rust:
-Lexer (`logos`) ➔ Parser ➔ HIR Lowering ➔ Typeck (Hindley-Milner) ➔ Codegen (`axum` / `react`).
+Vox is designed in Rust for ultimate performance.
 
-For a deep dive into the language architecture, development roadmap, and the Populi LLM model, see [AGENTS.md](./AGENTS.md).
+```bash
+# Securely install directly via Cargo
+cargo install --path crates/vox-cli
+```
 
-**First full-stack sample:** [docs/src/how-to/first-full-stack-app.md](docs/src/how-to/first-full-stack-app.md) (from [`examples/full_stack_minimal.vox`](examples/full_stack_minimal.vox)). **Example style & corpus:** [`examples/STYLE.md`](examples/STYLE.md), [`docs/src/how-to/examples-corpus.md`](docs/src/how-to/examples-corpus.md).
+*Are you bootstrapping natively on Windows against Turso pipelines? Use `scripts/install.ps1` for an enforced toolchain configuration.* See the complete [Setup Instructions](docs/src/how-to-setup.md).
 
-## 🌍 Community & License
+---
 
-Vox is open-source under the **Apache-2.0** License. Join us in building the language of the AI era.
+## Deep Dive Documentation
+
+Delve into the underlying architecture. The compiler stack is built purely in Rust (Lexer `logos` ➔ Parser ➔ HIR Lowering ➔ Typeck ➔ Codegen backends).
+
+- **Architecture Roadmap & Guidelines:** [AGENTS.md](./AGENTS.md)
+- **Walking Through Your First Application:** [First App Documentation](docs/src/how-to/first-full-stack-app.md)
+- **Syntax and Coding Standard Corpus:** [STYLE.md](examples/STYLE.md)
+
+---
+
+## Support and Open Source
+
+Vox is proudly open-source under the **Apache-2.0** License. Help us build the unified technology stack of the AI era.
+
+- 🌱 [Sponsor us on GitHub](https://github.com/sponsors)
+- ☕ [Support the Vox Engineering Team on Open Collective](https://opencollective.com)

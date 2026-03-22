@@ -808,7 +808,7 @@ pub(super) fn run_candle_qlora_train(
                                 serde_json::Value::Null,
                             )
                         };
-                    let loss_f = loss.to_scalar::<f32>().unwrap_or(f32::NAN);
+                    let loss_f = loss;
                     let sps_val = ema_steps_per_sec.unwrap_or(0.0);
                     let tps_val = sps_val * config.seq_len as f64;
                     telemetry::append(
@@ -816,7 +816,7 @@ pub(super) fn run_candle_qlora_train(
                         telemetry_schema::events::TRAIN_STEP,
                         serde_json::json!({
                             "epoch": epoch,
-                            telemetry_schema::keys::GLOBAL_STEP: global_step,
+                            telemetry_schema::keys::STEP: global_step,
                             "loss": loss_f,
                             "tokens_per_sec": tps_val,
                             "eta_sec": eta_val,
