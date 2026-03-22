@@ -742,26 +742,32 @@ pub(super) fn run_candle_qlora_train(
                         let remaining = planned_steps_total.saturating_sub(global_step as u64);
                         if global_step < QLORA_ETA_MIN_STEPS {
                             format!(
-                                " | ETA: warming up (step {global_step}, show after step {QLORA_ETA_MIN_STEPS}; {pct:.2}% of planned)"
+                                " warming up (step {global_step}, {pct:.2}% of planned)"
                             )
                         } else if let Some(sps) = ema_steps_per_sec
                             && sps > 1e-6
                         {
                             let eta_sec = remaining as f64 / sps;
                             let eta_hms = format_eta_hms(eta_sec);
+                            let tps = sps * config.seq_len as f64;
                             format!(
-                                " | ETA_smoothed≈{eta_hms} ~{sps:.2} step/s ({pct:.2}% of planned)"
+                                " ETA≈{eta_hms} • {sps:.2} step/s • ~{tps:.1} tok/s ({pct:.2}%)"
                             )
                         } else {
-                            format!(" | ETA: calibrating… ({pct:.2}% of planned)")
+                            format!(" calibrating… ({pct:.2}% of planned)")
                         }
                     } else {
                         String::new()
                     };
-                    train_log::info(&format!(
-                        "candle qlora-rs progress epoch {epoch} step {global_step} loss={loss_s} \
-                         skips_vocab={skips_bad_vocab} skips_hidden={skips_last_hidden} skips_short_seq={skips_short_seq}{eta_suffix}"
-                    ));
+                    
+                    // Non-spammy \r output direct to stderr
+                    use std::io::Write;
+                    let _ = write!(
+                        std::io::stderr(),
+                        "\r\x1b[2K[Epoch {}/{} Step {}] Loss: {} | Skips: VCB:{} HID:{} SEQ:{} |{}",
+                        epoch, config.epochs, global_step, loss_s, skips_bad_vocab, skips_last_hidden, skips_short_seq, eta_suffix
+                    );
+                    let _ = std::io::stderr().flush();
                 }
 
                 if global_step.is_multiple_of(20) {
@@ -802,22 +808,20 @@ pub(super) fn run_candle_qlora_train(
                                 serde_json::Value::Null,
                             )
                         };
+                    let loss_f = loss.to_scalar::<f32>().unwrap_or(f32::NAN);
+                    let sps_val = ema_steps_per_sec.unwrap_or(0.0);
+                    let tps_val = sps_val * config.seq_len as f64;
                     telemetry::append(
                         &out,
                         telemetry_schema::events::TRAIN_STEP,
                         serde_json::json!({
-                            telemetry_schema::keys::EXECUTION_KERNEL: "candle_qlora",
-                            telemetry_schema::keys::EPOCH: epoch,
-                            telemetry_schema::keys::STEP: global_step,
-                            telemetry_schema::keys::LOSS: loss,
-                            "logits_shape": stacked_lm_logits_shape(1, 1, bundle.vocab),
-                            "skips_bad_vocab": skips_bad_vocab,
-                            "skips_last_hidden": skips_last_hidden,
-                            "skips_short_seq": skips_short_seq,
-                            telemetry_schema::keys::PLANNED_STEPS_TOTAL: planned_steps_total,
-                            telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_val,
-                            telemetry_schema::keys::PROGRESS_FRACTION: frac_val,
-                            telemetry_schema::keys::STEPS_PER_SEC_EMA: sps_ema_val,
+                            "epoch": epoch,
+                            telemetry_schema::keys::GLOBAL_STEP: global_step,
+                            "loss": loss_f,
+                            "tokens_per_sec": tps_val,
+                            "eta_sec": eta_val,
+                            "fraction": frac_val,
+                            "sps_ema": sps_ema_val,
                         }),
                     )?;
                 }

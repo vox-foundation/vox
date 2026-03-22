@@ -175,10 +175,13 @@ pub async fn trigger_coderabbit(
 }
 
 /// Push `refs/heads/<baseline_name>` to the same commit as `origin/<default_branch>` (after fetch).
+/// If `empty` is true, an empty-tree commit descending from `origin/<default_branch>` is created
+/// and pushed instead. This is critical for full-repo reviews so files are seen as added.
 pub fn push_baseline_from_origin(
     repo: &Path,
     baseline_name: &str,
     default_branch: &str,
+    empty: bool,
 ) -> Result<String> {
     let status = Command::new("git")
         .args(["fetch", "origin", default_branch])
@@ -201,7 +204,36 @@ pub fn push_baseline_from_origin(
         );
     }
     let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    let refspec = format!("{sha}:refs/heads/{baseline_name}");
+
+    let push_sha = if empty {
+        // Create an empty tree
+        let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"; // git mktree < NUL
+        
+        let commit_out = Command::new("git")
+            .args([
+                "commit-tree",
+                empty_tree,
+                "-p",
+                &sha,
+                "-m",
+                "Empty baseline for full-repo review"
+            ])
+            .current_dir(repo)
+            .output()
+            .context("git commit-tree")?;
+        
+        if !commit_out.status.success() {
+            anyhow::bail!(
+                "commit-tree: {}",
+                String::from_utf8_lossy(&commit_out.stderr)
+            );
+        }
+        String::from_utf8_lossy(&commit_out.stdout).trim().to_string()
+    } else {
+        sha.clone()
+    };
+
+    let refspec = format!("{push_sha}:refs/heads/{baseline_name}");
     let status = Command::new("git")
         .args(["push", "origin", &refspec])
         .current_dir(repo)
@@ -210,8 +242,8 @@ pub fn push_baseline_from_origin(
     if !status.success() {
         anyhow::bail!("git push origin {refspec} failed");
     }
-    eprintln!("[baseline] {baseline_name} -> {sha} (from {remote_ref})");
-    Ok(sha)
+    eprintln!("[baseline] {baseline_name} -> {push_sha} (from {remote_ref}, empty={empty})");
+    Ok(push_sha)
 }
 
 /// Worktree checkout directory for `review_branch` (slashes escaped for filesystem safety).

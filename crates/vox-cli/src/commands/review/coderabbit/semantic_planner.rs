@@ -777,8 +777,13 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
         "\n[phase-1] Publishing baseline `{}` at origin/{default_branch} tip",
         baseline_branch
     );
-    super::github::push_baseline_from_origin(repo, &baseline_branch, &default_branch)
-        .context("push baseline from origin")?;
+    let baseline_sha = super::github::push_baseline_from_origin(
+        repo,
+        &baseline_branch,
+        &default_branch,
+        cfg.full_repo,
+    )
+    .context("push baseline from origin")?;
 
     // Optional legacy: commit everything to default branch (broad `git add -u`).
     if cfg.commit_main {
