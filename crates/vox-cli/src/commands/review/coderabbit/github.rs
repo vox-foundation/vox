@@ -235,7 +235,7 @@ pub fn push_baseline_from_origin(
 
     let refspec = format!("{push_sha}:refs/heads/{baseline_name}");
     let status = Command::new("git")
-        .args(["push", "origin", &refspec])
+        .args(["push", "-f", "origin", &refspec])
         .current_dir(repo)
         .status()
         .context("git push baseline")?;
