@@ -3,7 +3,7 @@ use anyhow::Result;
 /// `vox search <query>` — search the VoxPM registry for packages.
 pub async fn run(query: &str, registry_url: Option<&str>) -> Result<()> {
     let url =
-        registry_url.unwrap_or("https://raw.githubusercontent.com/brbrainerd/vox/main/registry");
+        registry_url.unwrap_or("https://raw.githubusercontent.com/vox-foundation/vox/main/registry");
     let client = vox_pm::RegistryClient::new(url);
 
     println!("Searching for `{query}`...\n");

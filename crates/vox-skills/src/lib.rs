@@ -37,7 +37,7 @@ pub use registry::{InstallResult, SkillRegistry, UninstallResult};
 
 /// The canonical Vox Skills marketplace registry URL.
 pub const SKILLS_REGISTRY_BASE: &str =
-    "https://raw.githubusercontent.com/brbrainerd/vox/main/skills";
+    "https://raw.githubusercontent.com/vox-foundation/vox/main/skills";
 
 /// Errors from the skill system.
 #[derive(Debug, thiserror::Error)]

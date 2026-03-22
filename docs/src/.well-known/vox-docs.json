@@ -1,7 +1,7 @@
 {
   "project": "Vox",
   "version": "1.0.0",
-  "docs_root": "https://github.com/brbrainerd/vox/docs/src",
+  "docs_root": "https://github.com/vox-foundation/vox/docs/src",
   "pillars": {
     "tutorials": {
       "path": "tut-*.md",

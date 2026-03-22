@@ -64,7 +64,7 @@ pub fn default_openrouter_model() -> String {
 }
 /// `HTTP-Referer` value required by OpenRouter; embedded in serde defaults for configs.
 pub fn default_site_url() -> String {
-    "https://github.com/brbrainerd/vox".to_string()
+    "https://github.com/vox-foundation/vox".to_string()
 }
 /// Default OpenAI chat model when `OPENAI_MODEL` is unset.
 pub fn default_openai_model() -> String {

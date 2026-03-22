@@ -5,7 +5,7 @@ This guide covers everything you need to get Vox running on any platform.
 ## Quick Install (30 seconds)
 
 ```bash
-git clone https://github.com/brbrainerd/vox && cd vox
+git clone https://github.com/vox-foundation/vox && cd vox
 
 # Linux / macOS / WSL
 ./scripts/install.sh

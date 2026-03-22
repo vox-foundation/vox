@@ -2,7 +2,7 @@
 name = "vox-workspace"
 version = "1.0.0"
 kind = "workspace"
-repository = "https://github.com/brbrainerd/vox"
+repository = "https://github.com/vox-foundation/vox"
 
 # Rust crate graph (build, `cargo metadata`, CI): **root `Cargo.toml` is authoritative**
 # (`members = ["crates/*"]`, `exclude` includes `crates/vox-codegen-html`, `crates/vox-dei`, `crates/vox-py`, `crates/vox-wasm`). `vox-codegen-html` was retired; use `vox-ssg` + React stack (ADR 010).

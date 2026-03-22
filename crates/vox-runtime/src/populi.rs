@@ -5,7 +5,7 @@
 //!
 //! ## Modes
 //! - **Local**: `http://localhost:11434` (Ollama-compatible API)
-//! - **Remote**: `https://raw.githubusercontent.com/brbrainerd/vox/main/populi` (configurable)
+//! - **Remote**: `https://raw.githubusercontent.com/vox-foundation/vox/main/populi` (configurable)
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -33,7 +33,7 @@ pub enum PopuliError {
 /// Configuration for connecting to Populi.
 #[derive(Debug, Clone)]
 pub struct PopuliConfig {
-    /// Base URL of the Populi API (e.g., `http://localhost:11434` or `https://raw.githubusercontent.com/brbrainerd/vox/main/populi`).
+    /// Base URL of the Populi API (e.g., `http://localhost:11434` or `https://raw.githubusercontent.com/vox-foundation/vox/main/populi`).
     pub base_url: String,
     /// Optional API key for remote authentication.
     pub api_key: Option<String>,

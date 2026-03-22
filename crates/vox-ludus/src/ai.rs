@@ -512,7 +512,7 @@ impl FreeAiClient {
             match http
                 .post(OPENROUTER_BASE)
                 .header("Authorization", format!("Bearer {}", resolved_key))
-                .header("HTTP-Referer", "https://github.com/brbrainerd/vox")
+                .header("HTTP-Referer", "https://github.com/vox-foundation/vox")
                 .header("X-Title", "Vox Gamify")
                 .json(&body)
                 .send()

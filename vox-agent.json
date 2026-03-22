@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/brbrainerd/vox/main/schemas/agent-config.json",
+  "$schema": "https://raw.githubusercontent.com/vox-foundation/vox/main/schemas/agent-config.json",
   "instructions": ["AGENTS.md"],
   "compaction": {
     "auto": true,

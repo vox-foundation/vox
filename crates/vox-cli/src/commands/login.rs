@@ -105,7 +105,7 @@ async fn interactive_wizard(default_registry: &str) -> Result<(String, String, O
         println!("  Get a key here: \x1b[36mhttps://openrouter.ai/settings/keys\x1b[0m");
     } else if registry == "voxpm" {
         println!("  \x1b[1mVoxPM\x1b[0m requires an API token to publish packages.");
-        println!("  Copy token from: \x1b[36mhttps://github.com/brbrainerd/vox/settings\x1b[0m");
+        println!("  Copy token from: \x1b[36mhttps://github.com/vox-foundation/vox/settings\x1b[0m");
     }
 
     println!();

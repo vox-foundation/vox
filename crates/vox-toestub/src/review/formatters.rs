@@ -126,7 +126,7 @@ pub fn format_sarif(result: &ReviewResult) -> String {
                 "id": format!("vox-review/{}", cat.rule_prefix()),
                 "name": cat.to_string(),
                 "shortDescription": { "text": format!("vox review: {}", cat) },
-                "helpUri": "https://github.com/brbrainerd/vox"
+                "helpUri": "https://github.com/vox-foundation/vox"
             })
         })
         .collect();

@@ -370,7 +370,7 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
     {
         println!("  [auto-heal] Creating default Vox configuration...");
         let _ = tokio::fs::create_dir_all(dir).await;
-        let default_config = "[registry]\nurl = \"https://raw.githubusercontent.com/brbrainerd/vox/main/registry\"\n";
+        let default_config = "[registry]\nurl = \"https://raw.githubusercontent.com/vox-foundation/vox/main/registry\"\n";
         if tokio::fs::write(dir.join("config.toml"), default_config)
             .await
             .is_ok()

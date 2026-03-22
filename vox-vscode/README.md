@@ -1,6 +1,6 @@
 # Vox Language Extension for VS Code
 
-> Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/brbrainerd/vox) — the AI-native, full-stack programming language.
+> Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/vox-foundation/vox) — the AI-native, full-stack programming language.
 
 ## Features
 

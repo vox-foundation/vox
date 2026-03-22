@@ -16,7 +16,7 @@ Before you begin, make sure you have:
 
 ```bash
 # Clone and build from source
-git clone https://github.com/brbrainerd/vox.git
+git clone https://github.com/vox-foundation/vox.git
 cd vox
 cargo build --release
 
