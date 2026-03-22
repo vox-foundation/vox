@@ -4,28 +4,30 @@ version = "1.0.0"
 kind = "workspace"
 repository = "https://github.com/brbrainerd/vox"
 
+# Rust crate graph (build, `cargo metadata`, CI): **root `Cargo.toml` is authoritative**
+# (`members = ["crates/*"]`, `exclude` includes `crates/vox-codegen-html`, `crates/vox-dei`, `crates/vox-py`, `crates/vox-wasm`). `vox-codegen-html` was retired; use `vox-ssg` + React stack (ADR 010).
+#
+# This `[workspace]` section is only for `vox-pm::VoxWorkspace` discovery of optional per-crate
+# `crates/<name>/Vox.toml` manifests. The glob yields members when those files exist; it does not
+# replace Cargo workspace membership.
 [workspace]
-members = [
-    "crates/vox-ast",
-    "crates/vox-cli",
-    "crates/vox-codegen-rust",
-    "crates/vox-codegen-ts",
-    "crates/vox-config",
-    "crates/vox-db",
-    "crates/vox-doc-pipeline",
-    "crates/vox-gamify",
-    "crates/vox-hir",
-    "crates/vox-integration-tests",
-    "crates/vox-lexer",
-    "crates/vox-lsp",
-    "crates/vox-mcp",
-    "crates/vox-orchestrator",
-    "crates/vox-parser",
-    "crates/vox-pm",
-    "crates/vox-py",
-    "crates/vox-runtime",
-    "crates/vox-skills",
-    "crates/vox-toestub",
-    "crates/vox-typeck",
-    "crates/vox-webhook"
-]
+members = ["crates/*/Vox.toml"]
+
+# ── CodeRabbit Review Configuration ──────────────────────────────────────────
+# Tier determines rate-limit defaults; CLI flags override these per-invocation.
+#
+# Pro tier: 300 files/review, 8 reviews/hour → 450s minimum between PRs.
+#
+# Run a full-codebase review from scratch:
+#   vox review coderabbit semantic-submit --full-repo --execute
+#
+# Resume an interrupted run:
+#   vox review coderabbit semantic-submit --full-repo --resume --execute
+[review.coderabbit]
+tier = "pro"
+# delay_between_prs_secs and max_files_per_pr auto-populate from `tier` when omitted.
+# Uncomment to override:
+# delay_between_prs_secs = 450
+# max_files_per_pr = 250
+# exclude_prefixes = ["populi/data/", ".vox-research-data/"]
+
