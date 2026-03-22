@@ -7,10 +7,18 @@ target-*/
 Cargo.lock
 
 # Node
+**/node_modules/
+**/out/
 node_modules/
 dist/
 dist1/
 .env
+
+# Tests and Scratch Output
+test_output*.txt
+bundle_*.txt
+*.log
+
 
 # Editor / IDE artifacts (keep shared `settings.json` for terminal PATH / CUDA)
 .vscode/*
@@ -32,18 +40,22 @@ islands/
 crates/*/pkg/
 dist/app/node_modules/
 
-# Populi / AI Models
+# Populi / AI Models / Data
 populi/runs/
+populi/data/*.jsonl
+.vox-research-data/
+.vox/cache/
+*.db-wal
+*.db-shm
+
 
 # Jujutsu VCS
 .jj/
 
 # Scratch files
-bundle_err*.txt
-bundle_out*.txt
 cargo-out.txt
 test_all.txt
-vox_analyze.log
-*.log
 *.bak
 *.orig
+crates/*/target/
+crates/*/target_*/
