@@ -1,0 +1,20 @@
+[package]
+name = "vox-test-harness"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+vox-ast = { workspace = true }
+vox-hir = { workspace = true }
+vox-lexer = { workspace = true }
+vox-parser = { workspace = true }
+vox-typeck = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
+

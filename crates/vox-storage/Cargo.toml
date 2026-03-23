@@ -1,0 +1,22 @@
+[package]
+name = "vox-storage"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+futures-util = { workspace = true, optional = true }
+object_store = { version = "0.11.2", default-features = false, features = ["aws"], optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+default = ["local"]
+local = []
+r2 = ["dep:object_store", "dep:futures-util"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
