@@ -1,0 +1,22 @@
+[package]
+name = "vox-typeck"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-ast = { workspace = true }
+vox-hir = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+miette = { workspace = true }
+
+[dev-dependencies]
+vox-lexer = { workspace = true }
+vox-parser = { workspace = true }
+vox-test-harness = { path = "../vox-test-harness" }
+
+
+[lints]
+workspace = true
+
