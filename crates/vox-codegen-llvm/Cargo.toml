@@ -1,0 +1,11 @@
+[package]
+name = "vox-codegen-llvm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-hir = { workspace = true }
+
+[lints]
+workspace = true
+

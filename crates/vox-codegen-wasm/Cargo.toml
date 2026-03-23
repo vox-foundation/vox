@@ -1,0 +1,11 @@
+[package]
+name = "vox-codegen-wasm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+# Wasm backend deferred
+
+[lints]
+workspace = true
+

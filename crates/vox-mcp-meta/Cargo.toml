@@ -1,0 +1,13 @@
+[package]
+name = "vox-mcp-meta"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Registries, taxonomy structs, and enums natively derived for Vox MCP and Corpus."
+
+[dependencies]
+strum = { workspace = true, optional = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,9 @@
+[package]
+name = "vox-metal-shim"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[target.'cfg(target_os = "macos")'.dependencies]
+candle-core = { workspace = true, features = ["metal"] }
+candle-nn = { workspace = true, features = ["metal"] }
