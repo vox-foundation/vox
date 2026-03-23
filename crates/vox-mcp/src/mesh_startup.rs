@@ -1,0 +1,67 @@
+//! Best-effort mesh local registry publish when MCP starts (mirrors `vox run`), plus optional HTTP
+//! control-plane **join** and **heartbeat** when a client-suitable base URL is configured.
+
+use crate::server::ServerState;
+use vox_mesh::http_lifecycle::{MeshHttpJoinSpawnOutcome, mesh_http_join_best_effort};
+
+/// If **`VOX_MESH_ENABLED`**, write this process into the local mesh registry; optional Codex row when
+/// **`VOX_MESH_CODEX_TELEMETRY`** is set (uses [`vox_db::mesh_registry_telemetry`]).
+///
+/// When **`VOX_MESH_HTTP_JOIN`** is not disabled and a URL from **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`**
+/// or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base, also **`POST /v1/mesh/join`**
+/// and (unless **`VOX_MESH_HTTP_HEARTBEAT_SECS=0`**) a background **`POST /v1/mesh/heartbeat`** loop.
+pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
+    if !vox_mesh::mesh_enabled_from_env() {
+        return;
+    }
+    let node_id = vox_mesh::mesh_env().node_id.clone();
+    let path = vox_mesh::local_registry_path();
+    match vox_mesh::publish_local_registry_best_effort() {
+        Ok(()) => {
+            tracing::info!(
+                target: "vox.mesh",
+                path = %path.display(),
+                node_id = node_id.as_deref().unwrap_or("(generated)"),
+                "mesh registry publish (vox-mcp)"
+            );
+            vox_db::mesh_registry_telemetry::record_local_registry_publish_opt(
+                &state.repository.repository_id,
+                &path,
+                node_id.as_deref(),
+            )
+            .await;
+        }
+        Err(e) => {
+            tracing::debug!(
+                target: "vox.mesh",
+                error = %e,
+                "mesh registry publish failed (best-effort)"
+            );
+        }
+    }
+
+    let record = vox_mesh::mesh_registration_record_for_process();
+    match mesh_http_join_best_effort(record, "vox-mcp").await {
+        MeshHttpJoinSpawnOutcome::Skipped => {}
+        MeshHttpJoinSpawnOutcome::Joined { base, node_id } => {
+            vox_db::mesh_registry_telemetry::record_mesh_http_join_opt(
+                &state.repository.repository_id,
+                true,
+                &base,
+                Some(node_id.as_str()),
+                None,
+            )
+            .await;
+        }
+        MeshHttpJoinSpawnOutcome::Failed { base, node_id, err } => {
+            vox_db::mesh_registry_telemetry::record_mesh_http_join_opt(
+                &state.repository.repository_id,
+                false,
+                &base,
+                Some(node_id.as_str()),
+                Some(&err.to_string()),
+            )
+            .await;
+        }
+    }
+}
