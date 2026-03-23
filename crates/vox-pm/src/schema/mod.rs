@@ -20,6 +20,7 @@ mod v14;
 mod v15;
 mod v16;
 mod v17;
+pub(crate) mod v18;
 mod v2;
 mod v3;
 mod v4;
@@ -29,10 +30,13 @@ mod v7;
 mod v8;
 mod v9;
 
+pub mod domains;
+
 pub use manifest::{
     BASELINE_VERSION, CODEX_API_REQUIRED_TABLES, CODEX_CHAT_TABLES, CODEX_REACTIVITY_TABLES,
     SCHEMA_FRAGMENTS, SchemaFragment, baseline_sql, schema_baseline_digest_hex,
 };
+pub use domains::coordination::SCHEMA_COORDINATION;
 
 #[cfg(test)]
 mod migration_chain_tests {
@@ -40,7 +44,7 @@ mod migration_chain_tests {
 
     #[test]
     fn fragments_strictly_ordered_and_nonempty_except_v7() {
-        assert_eq!(SCHEMA_FRAGMENTS.len(), 17);
+        assert_eq!(SCHEMA_FRAGMENTS.len(), 18);
         for (i, f) in SCHEMA_FRAGMENTS.iter().enumerate() {
             let n = i + 1;
             assert_eq!(f.name, format!("v{n}"));
@@ -107,6 +111,15 @@ mod migration_chain_tests {
                 && v17.contains("conversation_edges")
                 && v17.contains("topic_evolution_events"),
             "v17 must define graph/research/topic-evolution DDL"
+        );
+        let v18 = SCHEMA_FRAGMENTS
+            .iter()
+            .find(|f| f.name == "v18")
+            .map(|f| f.sql)
+            .expect("v18");
+        assert!(
+            v18.contains("corpus_snapshots"),
+            "v18 must define corpus_snapshots DDL"
         );
     }
 }

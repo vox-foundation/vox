@@ -2,13 +2,13 @@ use std::time::Duration;
 
 /// Authentication configuration used by generated Vox services.
 #[derive(Debug, Clone)]
-pub struct AuthConfig {
+pub struct ServiceAuthConfig {
     pub api_key: Option<String>,
     pub bearer_token: Option<String>,
     pub allow_unauthenticated: bool,
 }
 
-impl AuthConfig {
+impl ServiceAuthConfig {
     /// Build auth config from environment variables.
     ///
     /// - `VOX_API_KEY`
@@ -35,7 +35,7 @@ impl AuthConfig {
 pub fn authorize_request(
     api_key_header: Option<&str>,
     auth_header: Option<&str>,
-    cfg: &AuthConfig,
+    cfg: &ServiceAuthConfig,
 ) -> bool {
     if cfg.allow_unauthenticated {
         return true;
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn authorize_request_with_api_key() {
-        let cfg = AuthConfig {
+        let cfg = ServiceAuthConfig {
             api_key: Some("k123".into()),
             bearer_token: None,
             allow_unauthenticated: false,
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn authorize_request_with_bearer() {
-        let cfg = AuthConfig {
+        let cfg = ServiceAuthConfig {
             api_key: None,
             bearer_token: Some("tok".into()),
             allow_unauthenticated: false,

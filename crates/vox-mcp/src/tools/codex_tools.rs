@@ -12,7 +12,7 @@ fn require_db(state: &ServerState) -> Result<&std::sync::Arc<vox_db::VoxDb>, Str
         .ok_or_else(|| "VoxDb is not connected (Codex tools need a Turso-backed DB).".to_string())
 }
 
-/// `vox_codex_research_session_upsert`
+/// `vox_db_research_session_upsert`
 pub async fn codex_research_session_upsert(state: &ServerState, args: serde_json::Value) -> String {
     let db = match require_db(state) {
         Ok(d) => d,
@@ -65,7 +65,7 @@ pub async fn codex_research_session_upsert(state: &ServerState, args: serde_json
     }
 }
 
-/// `vox_codex_conversation_version_append`
+/// `vox_db_conversation_version_append`
 pub async fn codex_conversation_version_append(
     state: &ServerState,
     args: serde_json::Value,
@@ -100,7 +100,7 @@ pub async fn codex_conversation_version_append(
     }
 }
 
-/// `vox_codex_conversation_edge_insert`
+/// `vox_db_conversation_edge_insert`
 pub async fn codex_conversation_edge_insert(
     state: &ServerState,
     args: serde_json::Value,
@@ -134,7 +134,7 @@ pub async fn codex_conversation_edge_insert(
     }
 }
 
-/// `vox_codex_topic_evolution_append`
+/// `vox_db_topic_evolution_append`
 pub async fn codex_topic_evolution_append(state: &ServerState, args: serde_json::Value) -> String {
     let db = match require_db(state) {
         Ok(d) => d,
@@ -175,7 +175,7 @@ pub async fn codex_topic_evolution_append(state: &ServerState, args: serde_json:
     }
 }
 
-/// `vox_codex_research_metric_linked` — ensures `research_sessions.session_key` aligns with `research_metrics.session_id`.
+/// `vox_db_research_metric_linked` — ensures `research_sessions.session_key` aligns with `research_metrics.session_id`.
 pub async fn codex_research_metric_linked(state: &ServerState, args: serde_json::Value) -> String {
     let db = match require_db(state) {
         Ok(d) => d,

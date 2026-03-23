@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use vox_orchestrator::TaskCapabilityHints;
+use vox_repository::TaskCapabilityHints;
 
 /// Whether mesh hooks are enabled (`VOX_MESH_ENABLED=1` or `true`).
 #[must_use]
@@ -287,34 +287,34 @@ impl LocalRegistry {
     }
 
     /// Load or return empty registry.
-    pub fn load(&self) -> Result<MeshRegistryFile, RegistryError> {
+    pub fn load(&self) -> Result<MeshRegistryFile, MeshRegistryError> {
         if !self.path.is_file() {
             return Ok(MeshRegistryFile {
                 schema_version: 1,
                 nodes: Vec::new(),
             });
         }
-        let raw = std::fs::read_to_string(&self.path).map_err(RegistryError::Io)?;
+        let raw = std::fs::read_to_string(&self.path).map_err(MeshRegistryError::Io)?;
         let parsed: MeshRegistryFile =
-            serde_json::from_str(&raw).map_err(|e| RegistryError::Json(e.to_string()))?;
+            serde_json::from_str(&raw).map_err(|e| MeshRegistryError::Json(e.to_string()))?;
         Ok(parsed)
     }
 
     /// Replace registry contents atomically (write temp + rename).
-    pub fn save(&self, reg: &MeshRegistryFile) -> Result<(), RegistryError> {
+    pub fn save(&self, reg: &MeshRegistryFile) -> Result<(), MeshRegistryError> {
         if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent).map_err(RegistryError::Io)?;
+            std::fs::create_dir_all(parent).map_err(MeshRegistryError::Io)?;
         }
         let json =
-            serde_json::to_string_pretty(reg).map_err(|e| RegistryError::Json(e.to_string()))?;
+            serde_json::to_string_pretty(reg).map_err(|e| MeshRegistryError::Json(e.to_string()))?;
         let tmp = self.path.with_extension("json.tmp");
-        std::fs::write(&tmp, json.as_bytes()).map_err(RegistryError::Io)?;
-        std::fs::rename(&tmp, &self.path).map_err(RegistryError::Io)?;
+        std::fs::write(&tmp, json.as_bytes()).map_err(MeshRegistryError::Io)?;
+        std::fs::rename(&tmp, &self.path).map_err(MeshRegistryError::Io)?;
         Ok(())
     }
 
     /// Upsert a node by `id` and persist.
-    pub fn upsert_node(&self, mut record: NodeRecord) -> Result<(), RegistryError> {
+    pub fn upsert_node(&self, mut record: NodeRecord) -> Result<(), MeshRegistryError> {
         record.last_seen_unix_ms = now_ms();
         let mut reg = self.load()?;
         reg.schema_version = 1;
@@ -343,7 +343,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
     let vox = resolve_vox_toml_best_effort();
     let vox_ref = vox.as_deref();
     let env = mesh_env_resolved(vox_ref);
-    let mut caps = vox_orchestrator::capability_probe::probe_host_capabilities();
+    let mut caps = vox_repository::probe_host_capabilities();
     if mesh_advertise_gpu_effective(vox_ref) {
         caps.gpu_cuda = true;
     }
@@ -363,7 +363,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
 }
 
 /// Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off).
-pub fn publish_local_registry_best_effort() -> Result<(), RegistryError> {
+pub fn publish_local_registry_best_effort() -> Result<(), MeshRegistryError> {
     if !mesh_enabled_from_env() {
         return Ok(());
     }
@@ -393,7 +393,7 @@ pub fn mesh_registration_record_for_process() -> NodeRecord {
 
 /// Registry I/O errors.
 #[derive(Debug, thiserror::Error)]
-pub enum RegistryError {
+pub enum MeshRegistryError {
     /// Filesystem error.
     #[error("mesh registry I/O: {0}")]
     Io(#[from] std::io::Error),

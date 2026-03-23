@@ -10,5 +10,10 @@ sources:
   - path: populi/data/tool_traces.example.jsonl
     weight: 2
     record_format: tool_trace
+  - path: populi/data/synthetic.jsonl
+    weight: 2
+    record_format: tool_trace
+  - path: populi/data/golden_pairs.jsonl
+    weight: 3
 
 output: target/dogfood/train_mixed.jsonl

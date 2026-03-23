@@ -12,6 +12,11 @@ serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
+schemars = { workspace = true, optional = true }
+
+[features]
+default = []
+json-schema = ["dep:schemars"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

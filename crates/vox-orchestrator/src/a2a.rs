@@ -1,14 +1,193 @@
-//! Agent-to-Agent (A2A) structured messaging.
-//!
-//! Enables typed message exchange between agents with inbox/outbox
-//! support, routing (unicast, broadcast, multicast), and an audit trail.
-
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+use serde::{Deserialize, Serialize};
 
 use crate::types::AgentId;
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 use crate::types::{MessagePriority, ThreadId, VcsContext};
+
+/// Database-persisted A2A message row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbA2AMessage {
+    pub id: u64,
+    pub message_uuid: String,
+    pub sender_agent: String,
+    pub receiver_agent: String,
+    pub msg_type: String,
+    pub payload: String,
+    pub priority: i64,
+    pub thread_id: Option<String>,
+    pub acknowledged: bool,
+    pub created_at: String,
+    pub repository_id: String,
+}
+
+
+
+/// Relay a message to another mesh node via HTTP.
+pub async fn relay_to_mesh(
+    client: &vox_mesh::http_client::MeshHttpClient,
+    sender: AgentId,
+    receiver: AgentId,
+    msg_type: A2AMessageType,
+    payload: impl Into<String>,
+) -> Result<(), String> {
+    client
+        .relay_a2a(&vox_mesh::transport::A2ADeliverRequest {
+            sender_agent_id: sender.0.to_string(),
+            receiver_agent_id: receiver.0.to_string(),
+            message_type: msg_type.to_string(),
+            payload: payload.into(),
+        })
+        .await
+        .map_err(|e: vox_mesh::RegistryError| e.to_string())
+}
+
+/// Send a message to the database with circuit breaker protection.
+pub async fn send_to_db_with_breaker(
+    db: &vox_db::VoxDb,
+    sender: AgentId,
+    receiver: AgentId,
+    msg_type: A2AMessageType,
+    payload: impl Into<String> + Clone,
+    priority: MessagePriority,
+    thread_id: Option<ThreadId>,
+    repository_id: &str,
+) -> Result<String, String> {
+    db.breaker()
+        .call(|| async {
+            send_to_db(
+                db.store().connection(),
+                sender,
+                receiver,
+                msg_type,
+                payload.clone(),
+                priority,
+                thread_id,
+                repository_id,
+            )
+            .await
+        })
+        .await
+}
+
+/// Send a message to the database for delivery (cross-node).
+pub async fn send_to_db(
+    conn: &turso::Connection,
+    sender: AgentId,
+    receiver: AgentId,
+    msg_type: A2AMessageType,
+    payload: impl Into<String>,
+    priority: MessagePriority,
+    thread_id: Option<ThreadId>,
+    repository_id: &str,
+) -> Result<String, String> {
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let priority_val = match priority {
+        MessagePriority::Low => 0,
+        MessagePriority::Normal => 1,
+        MessagePriority::High => 2,
+        MessagePriority::Critical => 3,
+    };
+    let payload = payload.into();
+    let thread_str = thread_id.map(|t| t.0);
+
+    conn.execute(
+        "INSERT INTO a2a_messages (
+            message_uuid, sender_agent, receiver_agent, msg_type, payload, priority, thread_id, repository_id
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        (
+            uuid.as_str(),
+            sender.0.to_string(),
+            receiver.0.to_string(),
+            msg_type.into_str(),
+            payload.as_str(),
+            priority_val,
+            thread_str,
+            repository_id,
+        ),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(uuid)
+}
+
+/// Poll for new unacknowledged messages for an agent from the database.
+pub async fn poll_inbox_from_db(
+    conn: &turso::Connection,
+    agent_id: AgentId,
+    repository_id: &str,
+) -> Result<Vec<DbA2AMessage>, String> {
+    let mut rows = conn
+        .query(
+            "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload, priority, thread_id, acknowledged, created_at, repository_id
+             FROM a2a_messages
+             WHERE receiver_agent = ?1 AND acknowledged = 0 AND repository_id = ?2
+             ORDER BY priority DESC, created_at ASC",
+            (agent_id.0.to_string(), repository_id),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut msgs = Vec::new();
+    while let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
+        msgs.push(DbA2AMessage {
+            id: row.get::<i64>(0).map_err(|e| e.to_string())? as u64,
+            message_uuid: row.get(1).map_err(|e| e.to_string())?,
+            sender_agent: row.get(2).map_err(|e| e.to_string())?,
+            receiver_agent: row.get(3).map_err(|e| e.to_string())?,
+            msg_type: row.get(4).map_err(|e| e.to_string())?,
+            payload: row.get(5).map_err(|e| e.to_string())?,
+            priority: row.get(6).map_err(|e| e.to_string())?,
+            thread_id: row.get(7).map_err(|e| e.to_string())?,
+            acknowledged: row.get::<i64>(8).map_err(|e| e.to_string())? != 0,
+            created_at: row.get(9).map_err(|e| e.to_string())?,
+            repository_id: row.get(10).map_err(|e| e.to_string())?,
+        });
+    }
+    Ok(msgs)
+}
+
+/// Mark a message as acknowledged in the database.
+pub async fn acknowledge_db_message(
+    conn: &turso::Connection,
+    message_uuid: &str,
+) -> Result<(), String> {
+    conn.execute(
+        "UPDATE a2a_messages SET acknowledged = 1 WHERE message_uuid = ?1",
+        (message_uuid,),
+    )
+    .await
+    .map_err(|e| e.to_string())
+    .map(|_| ())
+}
+
+/// Remove old acknowledged messages from the database.
+pub async fn prune_old_a2a_messages(
+    conn: &turso::Connection,
+    older_than_days: u32,
+) -> Result<u64, String> {
+    let result = conn.execute(
+        "DELETE FROM a2a_messages WHERE acknowledged = 1 AND created_at < datetime('now', '-' || ?1 || ' days')",
+        (older_than_days,),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(result as u64)
+}
+
+/// Routing hint for mesh messaging.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum A2ARoute {
+    /// Local in-memory delivery to an agent on the same node.
+    Local,
+    /// Send via direct HTTP relay to node.
+    Relay(String),
+    /// Persist in database for polling.
+    Db,
+}
 
 /// Message bus for A2A communication.
 ///
@@ -134,7 +313,18 @@ impl MessageBus {
         let mut msgs: Vec<_> = self
             .inboxes
             .get(&agent_id)
-            .map(|inbox| inbox.iter().filter(|m| !m.acknowledged).collect())
+            .map(|inbox| {
+                inbox.iter().filter(|m| {
+                    if m.acknowledged {
+                        return false;
+                    }
+                    if m.elapsed_ms() > 300_000 {
+                        tracing::debug!("Skipping expired A2A message {}", m.id);
+                        return false;
+                    }
+                    true
+                }).collect()
+            })
             .unwrap_or_default();
         // Sort descending by priority (Critical=3 > High=2 > Normal=1 > Low=0).
         msgs.sort_by(|a, b| b.priority.cmp(&a.priority));

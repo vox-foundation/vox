@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS knowledge_nodes (
     label TEXT NOT NULL,
     content TEXT,
     node_type TEXT NOT NULL DEFAULT 'concept',
+    media_url TEXT,
+    media_type TEXT,
     metadata TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -219,6 +221,8 @@ CREATE TABLE IF NOT EXISTS eval_runs (
     format_validity REAL,
     safety_rejection_rate REAL,
     quality_proxy REAL,
+    skills_discovered INTEGER,
+    workflows_discovered INTEGER,
     metadata_json TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

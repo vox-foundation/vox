@@ -7,7 +7,7 @@
 //! [`CodeStore::apply_pragmas`]. Migration bodies must be DDL/DML only; empty strings in a fragment
 //! are skipped.
 
-use crate::schema::{BASELINE_VERSION, baseline_sql};
+use crate::schema::{BASELINE_VERSION, baseline_sql, SCHEMA_COORDINATION};
 use crate::store::CodeStore;
 use crate::store::types::StoreError;
 
@@ -66,6 +66,20 @@ impl CodeStore {
         Ok(())
     }
 
+    /// Apply coordination DDL separately. Idempotent.
+    pub(crate) async fn migrate_coordination(conn: &turso::Connection) -> Result<(), StoreError> {
+        let sql = SCHEMA_COORDINATION.trim();
+        if !sql.is_empty() {
+            for stmt in sql.split(';') {
+                let s = stmt.trim();
+                if !s.is_empty() {
+                    conn.execute(s, ()).await.map_err(|e: turso::Error| StoreError::Db(e.to_string()))?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Open local file **without** running `migrate` (export tools only — reads legacy multi-version DBs).
     #[cfg(feature = "local")]
     pub async fn open_local_legacy_export(path: &str) -> Result<Self, StoreError> {
@@ -85,6 +99,7 @@ impl CodeStore {
         let conn = db.connect()?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
+        Self::migrate_coordination(&conn).await?;
         Ok(Self {
             conn,
             sync_db: None,
@@ -107,6 +122,7 @@ impl CodeStore {
         let conn = db.connect().await?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
+        Self::migrate_coordination(&conn).await?;
         Ok(Self {
             conn,
             sync_db: Some(std::sync::Arc::new(db)),
@@ -146,6 +162,7 @@ impl CodeStore {
         let conn = db.connect().await?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
+        Self::migrate_coordination(&conn).await?;
         Ok(Self {
             conn,
             sync_db: Some(std::sync::Arc::new(db)),

@@ -97,6 +97,9 @@ pub enum SessionEvent {
         turns_removed: usize,
         at: u64,
     },
+    ExpensiveOpRecorded {
+        at: u64,
+    },
     PluginStateUpdated {
         plugin_id: String,
         state: serde_json::Value,
@@ -121,6 +124,8 @@ pub struct Session {
     pub state: SessionState,
     pub created_at: u64,
     pub last_active: u64,
+    #[serde(default)]
+    pub last_expensive_op_at: Option<u64>,
     /// Conversation history (cleared on reset, pruned on compaction).
     pub turns: Vec<SessionTurn>,
     /// Arbitrary per-session key-value metadata.
@@ -144,6 +149,7 @@ impl Session {
             state: SessionState::Active,
             created_at: now,
             last_active: now,
+            last_expensive_op_at: None,
             turns: Vec::new(),
             meta: HashMap::new(),
             plugin_state: HashMap::new(),
@@ -222,6 +228,27 @@ impl Session {
     /// Returns true if session has been idle longer than `timeout_secs`.
     pub fn is_timed_out(&self, timeout_secs: u64) -> bool {
         timeout_secs > 0 && now_secs().saturating_sub(self.last_active) >= timeout_secs
+    }
+
+    /// Record that an expensive operation occurred during this session.
+    pub fn record_expensive_op(&mut self) {
+        self.last_expensive_op_at = Some(now_secs());
+        self.last_active = now_secs();
+    }
+
+    /// Seconds since the last expensive operation in this session, if any.
+    pub fn expensive_op_age_secs(&self) -> Option<u64> {
+        self.last_expensive_op_at.map(|t| now_secs().saturating_sub(t))
+    }
+
+    /// Produces a summary string summarizing temporal freshness of the session.
+    pub fn temporal_summary(&self) -> String {
+        let idle = now_secs().saturating_sub(self.last_active);
+        let exp = self
+            .expensive_op_age_secs()
+            .map(|s| format!("{}s ago", s))
+            .unwrap_or_else(|| "never".to_string());
+        format!("Session active. Last user interaction: {}s ago. Last expensive operation (compile/index): {}.", idle, exp)
     }
 }
 
@@ -482,6 +509,22 @@ impl SessionManager {
         Ok(removed)
     }
 
+    /// Record an expensive op for the session and persist the event.
+    pub fn record_expensive_op(&mut self, session_id: &str) -> Result<(), SessionError> {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        session.record_expensive_op();
+
+        if self.config.persist {
+            let event = SessionEvent::ExpensiveOpRecorded { at: now_secs() };
+            self.append_event(session_id, &event)?;
+        }
+        Ok(())
+    }
+
     /// List all session IDs currently in memory.
     pub fn list(&self) -> Vec<&str> {
         self.sessions.keys().map(|s| s.as_str()).collect()
@@ -542,6 +585,13 @@ impl SessionManager {
                     fs::remove_file(&path)?;
                 }
             }
+            if let Some(db) = &self.db {
+                let db_clone = db.clone();
+                let sid = id.clone();
+                tokio::spawn(async move {
+                    let _ = db_clone.store().close_session(&sid, "archived").await;
+                });
+            }
         }
         Ok(count)
     }
@@ -578,6 +628,7 @@ impl SessionManager {
                         state: SessionState::Active,
                         created_at,
                         last_active: now,
+                        last_expensive_op_at: None,
                         turns: Vec::new(),
                         meta: HashMap::new(),
                         plugin_state: HashMap::new(),
@@ -640,6 +691,11 @@ impl SessionManager {
                             at,
                         });
                         s.state = SessionState::Compacted;
+                    }
+                }
+                SessionEvent::ExpensiveOpRecorded { at } => {
+                    if let Some(ref mut s) = session {
+                        s.last_expensive_op_at = Some(at);
                     }
                 }
             }

@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use crate::http_client::MeshHttpClient;
-use crate::{NodeRecord, RegistryError};
+use crate::{NodeRecord, MeshRegistryError};
 
 /// Result of [`mesh_http_join_best_effort`].
 #[derive(Debug)]
@@ -26,7 +26,7 @@ pub enum MeshHttpJoinSpawnOutcome {
         /// Node id from the join payload.
         node_id: String,
         /// Transport or HTTP-layer error from the client.
-        err: RegistryError,
+        err: MeshRegistryError,
     },
 }
 

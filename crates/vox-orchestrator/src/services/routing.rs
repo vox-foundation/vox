@@ -94,10 +94,31 @@ impl RoutingService {
         // 4. Optional reliability blend (Arca `agent_reliability`, schema V10)
         let rep_w = config.socrates_reputation_weight;
         if config.socrates_reputation_routing {
-            if let Some(rel) = agent_reliability {
-                for (agent_id, score) in scores.iter_mut() {
+            for (agent_id, score) in scores.iter_mut() {
+                let mut agent_base = 0.5;
+                if let Some(rel) = agent_reliability {
                     if let Some(r) = rel.get(agent_id) {
-                        *score += (*r) * rep_w;
+                        agent_base = *r;
+                    }
+                }
+                *score += agent_base * rep_w;
+
+                // Blend in skill & workflow EWMA scores if present
+                if let Some(queue) = agents.get(agent_id) {
+                    let mut skill_rel_sum = 0.0;
+                    let mut skill_count = 0;
+                    for rel in queue.active_skills.values() {
+                        skill_rel_sum += *rel;
+                        skill_count += 1;
+                    }
+                    if skill_count > 0 {
+                        // Blend average skill reliability at 50% reputation weight
+                        *score += (skill_rel_sum / skill_count as f64) * rep_w * 0.5;
+                    }
+                    
+                    // Small contextual boost if this agent is dedicated to a workflow
+                    if queue.workflow_context.is_some() {
+                        *score += rep_w * 0.1;
                     }
                 }
             }

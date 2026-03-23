@@ -55,6 +55,7 @@ futures-util = "0.3.32"
 regex      = "1"
 walkdir    = "2"
 chrono     = { workspace = true }
+vox-pm = { version = "0.1.0", path = "../vox-pm" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

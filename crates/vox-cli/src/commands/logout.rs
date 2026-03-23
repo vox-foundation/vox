@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 
 /// `vox logout` — remove stored credentials for a registry.
 pub async fn run(registry: Option<&str>) -> Result<()> {
-    use crate::commands::login::{AuthConfig, dirs_path};
+    use crate::commands::login::{CliCredentials, dirs_path};
 
     let config_dir = dirs_path();
     let auth_path = config_dir.join("auth.json");
@@ -13,7 +13,7 @@ pub async fn run(registry: Option<&str>) -> Result<()> {
     }
 
     let content = std::fs::read_to_string(&auth_path).context("Failed to read auth config")?;
-    let mut config: AuthConfig =
+    let mut config: CliCredentials =
         serde_json::from_str(&content).unwrap_or_default();
 
     let reg_name = registry.unwrap_or("voxpm");

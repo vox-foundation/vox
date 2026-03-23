@@ -14,6 +14,7 @@
 4.  **AI-Native**: The syntax and semantics are designed to be easily generated and reasoned about by LLMs.
 5.  **Performance**: Compiles to native code (Rust) and optimized WASM/JS, not an interpreted runtime.
 6.  **ZERO Null States**: The presence of `null` severely breaks AI generative capabilities, leads to fatal NPE logic flaws, and produces ambiguous reasoning gaps. All states must strictly utilize `Option[T]` (lowering to TS `undefined`), `Result`, strict structurally-typed Discriminated Unions, or definitive error types. `null` is permanently banned from generation logic and the Vox ecosystem payload lifecycle.
+7.  **Time Awareness**: Agents and automated workflows must explicitly track and reason about elapsed time. Expensive operations (e.g., codebase re-indexing, full compilation) must be gated by temporal freshness checks (e.g., "has the workspace changed since the last check 5 seconds ago?"). Continuous blind polling without elapsed-time context is forbidden.
 
 ## 2. Architecture
 

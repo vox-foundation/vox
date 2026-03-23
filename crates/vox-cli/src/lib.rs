@@ -100,35 +100,42 @@ pub struct GlobalOpts {
     version = VOX_VERSION
 )]
 pub struct VoxCliRoot {
+    /// Global application options.
     #[command(flatten)]
     pub global: GlobalOpts,
+    /// Core parsed CLI subcommand execution variant.
     #[command(subcommand)]
     pub cmd: Cli,
 }
 
+/// Collection of subcommands exposing all features of the `vox` binary.
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Cli {
     /// Emit shell completions for `vox` (bash, zsh, fish, powershell, elvish).
     Completions {
+        /// Target shell.
         #[arg(value_enum)]
         shell: Shell,
     },
     /// Workshop lane — same as top-level `build` (`fabrica` = Latin *workshop*).
     #[command(name = "fabrica", visible_alias = "fab")]
     Fabrica {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: latin_cmd::FabricaCmd,
     },
     /// Mind / diagnostics lane — doctor, architect, stub-check (`mens`).
     #[command(name = "mens")]
     Mens {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: latin_cmd::MensCmd,
     },
     /// Craft / skills lane — snippet, share, skill, … (`ars`).
     #[command(name = "ars")]
     Ars {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: latin_cmd::ArsCmd,
     },
@@ -136,37 +143,44 @@ pub enum Cli {
     #[cfg(feature = "coderabbit")]
     #[command(name = "recensio", visible_alias = "rec")]
     Recensio {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
     },
     /// Build a Vox source file, producing TypeScript output
     Build {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::BuildArgs,
     },
     /// Type-check a Vox source file without producing output
     Check {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::CheckArgs,
     },
     /// Run tests for the Vox program
     Test {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::TestArgs,
     },
     /// Run a Vox source file (build + cargo run in generated project)
     Run {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::RunArgs,
     },
     /// Run a `.vox` script (`fn main()`) via the native script cache (needs `--features script-execution`).
     #[cfg(feature = "script-execution")]
     Script {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::ScriptArgs,
     },
     /// Watch and rebuild via `vox-compilerd` (install daemon next to `vox` or on PATH)
     Dev {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::DevArgs,
     },
@@ -175,16 +189,19 @@ pub enum Cli {
     Live,
     /// Bundle a Vox source file into a complete web application
     Bundle {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::BundleArgs,
     },
     /// Format a Vox source file in place
     Fmt {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::FmtArgs,
     },
     /// Install a component or package via vox-pm
     Install {
+        /// Target package name.
         #[arg(required = true)]
         package_name: String,
     },
@@ -192,101 +209,119 @@ pub enum Cli {
     Lsp,
     /// Check toolchain and local environment readiness (`--build-perf` / `--json` need `--features codex`)
     Doctor {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::DoctorArgs,
     },
     /// Workspace layout validation + god-object scan (needs `--features codex` or `stub-check`)
     #[cfg(any(feature = "codex", feature = "stub-check"))]
     Architect {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: cli_actions::ArchitectAction,
     },
     /// Snippet helpers (local Arca `CodeStore`; `VOX_DB_*` / Turso aliases or project `.vox/store.db`)
     Snippet {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::extras::snippet_cli::SnippetCli,
     },
     /// Share / search packages via local Arca index
     Share {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::extras::share_cli::ShareCli,
     },
     /// Codex / Arca database tools (verify, legacy JSONL export/import)
     Codex {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: CodexCmd,
     },
     /// Local VoxDB: schema, samples, research ingest, preferences
     Db {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::db_cli::DbCli,
     },
     /// Vox Scientia — research / capability map facade (delegates to `vox db` tools)
     Scientia {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::scientia::ScientiaCmd,
     },
     /// OpenClaw / ClawHub gateway (skill import, approvals); requires `--features ars`
     #[cfg(feature = "ars")]
     Openclaw {
+        /// Action.
         #[command(subcommand)]
         action: commands::openclaw::OpenClawAction,
     },
     /// ARS skill registry + promote / context (`--features ars`)
     #[cfg(feature = "ars")]
     Skill {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::extras::skill_cmd::SkillCmd,
     },
     /// Ludus gamification (`--features extras-ludus`)
     #[cfg(feature = "extras-ludus")]
     Ludus {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::extras::ludus_cli::LudusCli,
     },
     /// TOESTUB scan + Codex baselines / Ludus rewards (`--features stub-check`)
     #[cfg(feature = "stub-check")]
     StubCheck {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::StubCheckArgs,
     },
     /// CI guards: manifest, SSOT checks, feature matrix, doc inventory (no shell/Python required).
     Ci {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::ci::CiCmd,
     },
     /// Populi: train, serve, corpus, eval (`populi-base` default; native train needs `gpu`)
     #[cfg(any(feature = "populi-base", feature = "gpu"))]
     Populi {
+        /// Action.
         #[command(subcommand)]
         action: commands::populi::PopuliAction,
     },
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
     Review {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
     },
     /// v0.dev React islands under `islands/` (`--features island`; needs `V0_API_KEY` for generate/upgrade).
     #[cfg(feature = "island")]
     Island {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: cli_actions::IslandCli,
     },
     /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox populi train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `populi-dei`). **Canonical native QLoRA:** `vox populi train`.
     #[cfg(all(feature = "gpu", feature = "populi-dei"))]
     Train {
+        /// Arguments.
         #[command(flatten)]
         args: cli_args::TrainLegacyArgs,
     },
     /// Mesh registry + HTTP control plane (`--features mesh`).
     #[cfg(feature = "mesh")]
     Mesh {
+        /// Subcommand.
         #[command(subcommand)]
         cmd: commands::mesh_cli::MeshCli,
     },
 }
 
+/// Subcommands for the legacy `vox codex` facade.
 #[derive(Subcommand)]
 pub enum CodexCmd {
     /// Print schema version and whether Codex reactivity (V8) tables exist
@@ -319,8 +354,10 @@ pub enum CodexCmd {
         /// Stable id for this snapshot (e.g. `daily-2026-03-21` or CI build id)
         #[arg(long)]
         eval_id: String,
+        /// Optional repository constraint.
         #[arg(long)]
         repository_id: Option<String>,
+        /// Number of recent metrics to pull into the snapshot.
         #[arg(long, default_value_t = 500)]
         limit: i64,
     },

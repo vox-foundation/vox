@@ -58,6 +58,8 @@ pub mod auto_migrate;
 pub mod benchmark_telemetry;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
 mod codex_chat;
+/// Circuit breaker for write operations.
+pub mod circuit_breaker;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 /// Legacy import/export planning and verification for greenfield Codex releases.
@@ -98,6 +100,7 @@ pub mod workflow_journal;
 use crate::paths::local_user_id;
 
 pub use auto_migrate::AutoMigrator;
+pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
@@ -148,6 +151,7 @@ pub type Codex = VoxDb;
 /// the underlying Turso client serializes access (typical for one handle per task).
 pub struct VoxDb {
     store: CodeStore,
+    breaker: DbCircuitBreaker,
 }
 
 /// Default maximum number of connection retry attempts.
@@ -158,7 +162,10 @@ const DEFAULT_RETRY_BASE_MS: u64 = 500;
 impl VoxDb {
     /// Wrap an already-open [`CodeStore`] (e.g. after custom Turso setup).
     pub fn from_store(store: CodeStore) -> Self {
-        Self { store }
+        Self {
+            store,
+            breaker: DbCircuitBreaker::from_env(),
+        }
     }
 
     /// Connect to a database using the given configuration, with retry logic.
@@ -236,7 +243,10 @@ impl VoxDb {
                 Err(e) => return Err(e),
             }
         };
-        Ok(Self { store })
+        Ok(Self {
+            store,
+            breaker: DbCircuitBreaker::from_env(),
+        })
     }
 
     /// Open the configured store **without** running the Arca baseline migration.
@@ -264,7 +274,10 @@ impl VoxDb {
                 ));
             }
         };
-        Ok(Self { store })
+        Ok(Self {
+            store,
+            breaker: DbCircuitBreaker::from_env(),
+        })
     }
 
     /// Access the underlying [`CodeStore`] (Arca / `vox_pm`) for CRUD not wrapped here.
@@ -273,6 +286,11 @@ impl VoxDb {
     /// [`CodeStore::store`].
     pub fn store(&self) -> &CodeStore {
         &self.store
+    }
+
+    /// Access the circuit breaker for this database.
+    pub fn breaker(&self) -> &DbCircuitBreaker {
+        &self.breaker
     }
 
     /// Apply a [`SchemaDigest`]-driven plan: create missing tables/columns/indexes, never drop.
@@ -480,9 +498,28 @@ impl VoxDb {
                 p.format_validity,
                 p.safety_rejection_rate,
                 p.quality_proxy,
+                p.skills_discovered,
+                p.workflows_discovered,
                 p.metadata_json,
             )
             .await
+    }
+
+    /// Record a generated corpus snapshot (fingerprint) into `corpus_snapshots`.
+    pub async fn record_corpus_snapshot(
+        &self,
+        fingerprint: &str,
+        total_pairs: i64,
+        breakdown_json: Option<&str>,
+    ) -> Result<i64, vox_pm::store::StoreError> {
+        self.store
+            .record_corpus_snapshot(fingerprint, env!("CARGO_PKG_VERSION"), total_pairs, breakdown_json)
+            .await
+    }
+
+    /// Return true if the given fingerprint is already recorded in Arca `corpus_snapshots`.
+    pub async fn is_corpus_fresh(&self, fingerprint: &str) -> Result<bool, vox_pm::store::StoreError> {
+        self.store.is_corpus_fresh(fingerprint).await
     }
 
     /// Run `f` between `BEGIN` and `COMMIT` on this connection; `ROLLBACK` on error.

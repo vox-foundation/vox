@@ -191,4 +191,32 @@ impl DbConfig {
             }
         }
     }
+
+    /// Resolve configuration specifically for a mesh node:
+    /// - If `VOX_DB_URL`, `VOX_DB_TOKEN`, AND `VOX_DB_PATH` are set, use [`Self::EmbeddedReplica`].
+    /// - If only `VOX_DB_URL` + `VOX_DB_TOKEN` are set, use [`Self::Remote`].
+    /// - Otherwise, fall back to [`Self::resolve_standalone`] (local file).
+    pub fn resolve_for_mesh() -> Result<Self, String> {
+        let url = std::env::var("VOX_DB_URL").ok();
+        let token = std::env::var("VOX_DB_TOKEN").ok();
+        let path = std::env::var("VOX_DB_PATH").ok();
+
+        match (url, token, path) {
+            (Some(u), Some(t), Some(_p)) => {
+                #[cfg(feature = "replication")]
+                return Ok(Self::EmbeddedReplica {
+                    local_path: _p,
+                    url: u,
+                    token: t,
+                });
+                #[cfg(not(feature = "replication"))]
+                {
+                    tracing::warn!("EmbeddedReplica requested for mesh but 'replication' feature is disabled; falling back to Remote");
+                    Ok(Self::Remote { url: u, token: t })
+                }
+            }
+            (Some(u), Some(t), None) => Ok(Self::Remote { url: u, token: t }),
+            _ => Self::resolve_standalone(),
+        }
+    }
 }

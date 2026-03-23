@@ -30,6 +30,10 @@ pub struct MemoryStoreParams {
     pub value: String,
     /// Optional related keys for graph edges.
     pub relations: Option<Vec<String>>,
+    /// Optional multimodal URL (e.g. data URI or remote asset).
+    pub media_url: Option<String>,
+    /// Optional MIME type for the media.
+    pub media_type: Option<String>,
 }
 
 /// MCP arguments: keyword search against the knowledge graph in VoxDb.
@@ -124,6 +128,8 @@ pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> Str
                 &params.key,
                 &params.value,
                 &rel_strs,
+                params.media_url.as_deref(),
+                params.media_type.as_deref(),
             ) {
                 Ok(()) => ToolResult::ok(format!("Stored '{}' = '{}'", params.key, params.value))
                     .to_json(),

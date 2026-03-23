@@ -411,6 +411,8 @@ impl MemoryManager {
         key: impl Into<String>,
         value: impl Into<String>,
         relations: &[&str],
+        media_url: Option<&str>,
+        media_type: Option<&str>,
     ) -> Result<(), MemoryError> {
         let key = key.into();
         let value = value.into();
@@ -424,6 +426,8 @@ impl MemoryManager {
             let v = value.clone();
             let rels: Vec<String> = relations.iter().map(|s| s.to_string()).collect();
             let embed_svc = self.embedding_service.clone();
+            let m_url = media_url.map(|s| s.to_string());
+            let m_type = media_type.map(|s| s.to_string());
 
             tokio::spawn(async move {
                 // 1. Save standard agent_memory fact
@@ -445,14 +449,21 @@ impl MemoryManager {
                 // 2. Upsert a knowledge_node for this fact
                 let _ = db
                     .store()
-                    .upsert_knowledge_node(&k, "fact", &k, Some(&format!("{{\"value\":\"{v}\"}}")))
+                    .upsert_knowledge_node(
+                        &k, 
+                        "fact", 
+                        &k, 
+                        Some(&format!("{{\"value\":\"{v}\"}}")), 
+                        m_url.as_deref(), 
+                        m_type.as_deref()
+                    )
                     .await;
 
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
                     let _ = db
                         .store()
-                        .upsert_knowledge_node(&r, "concept", &r, None)
+                        .upsert_knowledge_node(&r, "concept", &r, None, None, None)
                         .await;
                     let _ = db
                         .store()
@@ -656,6 +667,10 @@ impl MemoryManager {
         }
 
         let mut out = String::new();
+        
+        // Temporal preamble
+        let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        out.push_str(&format!("Current date: {}.\nCurrent timestamp: {}s.\n\n", today_str(), secs));
 
         // MEMORY.md
         if let Ok(mem) = self.long_term.read_all() {
@@ -704,7 +719,7 @@ impl MemoryManager {
         let count = facts.len();
         let mut summary = String::new();
         for (key, value) in facts {
-            self.persist_fact(agent_id, &key, &value, &[])?;
+            self.persist_fact(agent_id, &key, &value, &[], None, None)?;
             let _ = write!(summary, "{key}, ");
         }
         if count > 0 {
@@ -869,7 +884,7 @@ mod tests {
             enabled: true,
         })
         .expect("create");
-        mgr.persist_fact(AgentId(1), "last_task", "fix parser", &[])
+        mgr.persist_fact(AgentId(1), "last_task", "fix parser", &[], None, None)
             .expect("persist");
         let val = mgr.recall("last_task").expect("recall");
         assert_eq!(val.as_deref(), Some("fix parser"));
@@ -885,7 +900,7 @@ mod tests {
             enabled: true,
         })
         .expect("create");
-        mgr.persist_fact(AgentId(1), "project", "vox", &[])
+        mgr.persist_fact(AgentId(1), "project", "vox", &[], None, None)
             .expect("persist");
         mgr.log("started session").expect("log");
         let ctx = mgr.bootstrap_context();
@@ -904,7 +919,7 @@ mod tests {
         })
         .expect("create");
         mgr.log("fixed the parser bug").expect("log");
-        mgr.persist_fact(AgentId(1), "active_branch", "feat/parser-fix", &[])
+        mgr.persist_fact(AgentId(1), "active_branch", "feat/parser-fix", &[], None, None)
             .expect("persist");
         let hits = mgr.search("parser").expect("search");
         assert!(!hits.is_empty(), "should find 'parser' in memory");

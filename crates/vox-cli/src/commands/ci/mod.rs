@@ -57,6 +57,7 @@ fn nvcc_available() -> bool {
         .unwrap_or(false)
 }
 
+/// Command variations for Continuous Integration guards and internal codebase hygiene.
 #[derive(Subcommand)]
 pub enum CiCmd {
     /// `cargo metadata --locked --format-version 1 --no-deps` (workspace manifest resolves).
@@ -75,6 +76,7 @@ pub enum CiCmd {
     NoVoxDeiImport,
     /// Doc inventory (schema v3): generate or verify.
     DocInventory {
+        /// Subcommand execution variant.
         #[command(subcommand)]
         cmd: DocInventoryCmd,
     },
@@ -105,6 +107,7 @@ pub enum CiCmd {
     /// Scoped TOESTUB: `cargo run -p vox-toestub --bin toestub -- <ROOT>`.
     #[command(name = "toestub-scoped")]
     ToestubScoped {
+        /// Root path for structural scope testing.
         #[arg(default_value = "crates/vox-repository")]
         root: PathBuf,
     },
@@ -145,10 +148,12 @@ pub enum GrammarDriftEmit {
     Gitlab,
 }
 
+/// Subcommands for the doc inventory schema verifier.
 #[derive(Subcommand)]
 pub enum DocInventoryCmd {
     /// Write `docs/agents/doc-inventory.json` (or `--output`).
     Generate {
+        /// Optional path to override the default JSON inventory location.
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
@@ -157,6 +162,7 @@ pub enum DocInventoryCmd {
 }
 
 const DOCS_SSOT_FILES: &[&str] = &[
+
     "docs/src/architecture/forward-migration-charter.md",
     "docs/src/architecture/codex-arca-compatibility-boundaries.md",
     "docs/src/architecture/codex-arca-import-policy.md",

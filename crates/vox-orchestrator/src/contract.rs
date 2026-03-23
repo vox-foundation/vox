@@ -19,54 +19,7 @@ pub enum OrchestrationContractVersion {
     V2,
 }
 
-/// Hardware hints for a **task** requirement or an **agent** queue capability profile.
-///
-/// **CPU-first mesh:** `cpu_cores`, `arch`, `hostname`, and `labels` describe the host; GPU / NPU
-/// fields remain optional extensions. Deserialization fills missing fields from defaults so older
-/// JSON/TOML remains valid.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
-pub struct TaskCapabilityHints {
-    /// Task requires CUDA-capable execution; agent provides CUDA when true.
-    #[serde(default)]
-    pub gpu_cuda: bool,
-    /// Task requires Metal; agent provides Metal when true.
-    #[serde(default)]
-    pub gpu_metal: bool,
-    /// Agent advertises Vulkan-class GPU (typical Android / Linux).
-    #[serde(default)]
-    pub gpu_vulkan: bool,
-    /// Agent advertises WebGPU-capable browser or host (soft; policy may disable WebGPU).
-    #[serde(default)]
-    pub gpu_webgpu: bool,
-    /// Agent advertises an on-device NPU / neural accelerator.
-    #[serde(default)]
-    pub npu: bool,
-    /// Optional host class label (`server`, `desktop`, `mobile`, `browser`, …).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub device_class: Option<String>,
-    /// Minimum VRAM in MiB when GPU is required (soft hint for routing).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_vram_mb: Option<u32>,
-    /// Logical CPU count observed on the host (or operator override via config).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cpu_cores: Option<u32>,
-    /// Target architecture string (e.g. `x86_64`, `aarch64`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub arch: Option<String>,
-    /// Host name when known (mesh / placement visibility).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hostname: Option<String>,
-    /// Optional scheduler labels (mesh, region, pool, …).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub labels: Vec<String>,
-    /// Task requires at least this many logical cores (soft routing penalty when unmet).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_cpu_cores: Option<u32>,
-    /// Soft routing hint: deprioritize agents without any GPU capability (Populi-style training intent).
-    #[serde(default)]
-    pub prefer_gpu_compute: bool,
-}
+pub use vox_repository::TaskCapabilityHints;
 
 /// Session envelope for tools and Codex dual-write (repository-scoped).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -127,17 +80,4 @@ mod tests {
         assert_eq!(MCP_PLAN_TOOL_NAMES.len(), 3);
     }
 
-    #[test]
-    fn task_capability_hints_deserialize_omitted_fields() {
-        let j = r#"{"gpu_cuda":true}"#;
-        let h: TaskCapabilityHints = serde_json::from_str(j).unwrap();
-        assert!(h.gpu_cuda);
-        assert!(!h.gpu_metal);
-        assert!(!h.gpu_vulkan);
-        assert!(!h.gpu_webgpu);
-        assert!(!h.npu);
-        assert!(h.device_class.is_none());
-        assert!(h.cpu_cores.is_none());
-        assert!(h.labels.is_empty());
-    }
 }

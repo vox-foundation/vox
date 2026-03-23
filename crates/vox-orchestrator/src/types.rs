@@ -10,6 +10,13 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
+fn now_unix_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
 // ---------------------------------------------------------------------------
 // Identity types
 // ---------------------------------------------------------------------------
@@ -366,6 +373,12 @@ pub struct AgentTask {
     /// When the task was created (not serialized — reconstructed on load).
     #[serde(skip)]
     pub created_at: Option<Instant>,
+    /// Unix timestamp (ms) when agent began executing this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at_ms: Option<u64>,
+    /// Unix timestamp (ms) of the last expensive operation (e.g. full build).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_expensive_op_ms: Option<u64>,
     /// Optional Socrates evidence contract for factual completion gating.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub socrates: Option<crate::socrates::SocratesTaskContext>,
@@ -396,6 +409,8 @@ impl AgentTask {
             debug_iterations: 0,
             retry_count: 0,
             created_at: Some(Instant::now()),
+            started_at_ms: None,
+            last_expensive_op_ms: None,
             socrates: None,
             capability_requirements: None,
         }
@@ -432,6 +447,22 @@ impl AgentTask {
             .filter(|f| f.access == AccessKind::Write)
             .map(|f| &f.path)
             .collect()
+    }
+
+    /// Mark the task as started, recording the start timestamp.
+    pub fn start(&mut self) -> &mut Self {
+        self.started_at_ms = Some(now_unix_ms());
+        self
+    }
+
+    /// Record that an expensive operation occurred during this task.
+    pub fn record_expensive_op(&mut self) {
+        self.last_expensive_op_ms = Some(now_unix_ms());
+    }
+
+    /// Milliseconds since the last expensive operation in this task, if any.
+    pub fn elapsed_since_last_expensive_op_ms(&self) -> Option<u64> {
+        self.last_expensive_op_ms.map(|t| now_unix_ms().saturating_sub(t))
     }
 }
 
@@ -585,6 +616,33 @@ pub enum A2AMessageType {
     SnapshotShare,
 }
 
+impl A2AMessageType {
+    /// Return the snake_case string representation of the message type.
+    pub fn into_str(&self) -> &'static str {
+        match self {
+            Self::PlanHandoff => "plan_handoff",
+            Self::ScopeRequest => "scope_request",
+            Self::ScopeGrant => "scope_grant",
+            Self::ProgressUpdate => "progress_update",
+            Self::HelpRequest => "help_request",
+            Self::CompletionNotice => "completion_notice",
+            Self::ErrorReport => "error_report",
+            Self::FreeForm => "free_form",
+            Self::ConflictDetected => "conflict_detected",
+            Self::ConflictResolved => "conflict_resolved",
+            Self::VcsEvent => "vcs_event",
+            Self::CancelRequest => "cancel_request",
+            Self::SnapshotShare => "snapshot_share",
+        }
+    }
+}
+
+impl std::fmt::Display for A2AMessageType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.into_str())
+    }
+}
+
 /// Priority of an A2A message, mirroring task priority but for messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -712,11 +770,7 @@ impl A2AMessage {
         msg_type: A2AMessageType,
         payload: impl Into<String>,
     ) -> Self {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
+        let timestamp_ms = now_unix_ms();
 
         Self {
             id,
@@ -753,9 +807,20 @@ impl A2AMessage {
     }
 
     /// Attach VCS context (snapshot IDs, touched paths, change ID).
+    pub fn sub_vcs_context(mut self, ctx: VcsContext) -> Self {
+        self.vcs_context = Some(ctx);
+        self
+    }
+
+    /// Attach VCS context (snapshot IDs, touched paths, change ID).
     pub fn with_vcs_context(mut self, ctx: VcsContext) -> Self {
         self.vcs_context = Some(ctx);
         self
+    }
+
+    /// Milliseconds since this message was created.
+    pub fn elapsed_ms(&self) -> u64 {
+        now_unix_ms().saturating_sub(self.timestamp_ms)
     }
 }
 

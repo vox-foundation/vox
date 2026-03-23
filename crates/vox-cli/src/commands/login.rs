@@ -6,7 +6,7 @@ use std::io::{self, Write};
 
 /// Authentication configuration stored in ~/.vox/auth.json
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct AuthConfig {
+pub struct CliCredentials {
     pub registries: HashMap<String, RegistryAuth>,
 }
 
@@ -41,9 +41,9 @@ pub async fn run(token: Option<&str>, registry: Option<&str>, username: Option<&
     let auth_path = config_dir.join("auth.json");
     let mut config = if auth_path.exists() {
         let content = std::fs::read_to_string(&auth_path)?;
-        serde_json::from_str::<AuthConfig>(&content).unwrap_or_default()
+        serde_json::from_str::<CliCredentials>(&content).unwrap_or_default()
     } else {
-        AuthConfig::default()
+        CliCredentials::default()
     };
 
     config.registries.insert(
@@ -153,7 +153,7 @@ pub fn get_auth(registry: &str) -> Option<RegistryAuth> {
     }
 
     let content = std::fs::read_to_string(auth_path).ok()?;
-    let config = serde_json::from_str::<AuthConfig>(&content).ok()?;
+    let config = serde_json::from_str::<CliCredentials>(&content).ok()?;
     config.registries.get(registry).map(|a| RegistryAuth {
         token: a.token.clone(),
         username: a.username.clone(),

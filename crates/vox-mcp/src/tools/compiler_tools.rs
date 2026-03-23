@@ -311,8 +311,9 @@ pub async fn generate_vox_code(args: serde_json::Value) -> String {
         Err(e) => return ToolResult::<String>::err(format!("HTTP client error: {e}")).to_json(),
     };
 
+    let final_prompt = format!("{}{}", prompt, crate::tools::chat_tools::ANTI_LAZINESS_RIDER);
     let body = serde_json::json!({
-        "prompt": prompt,
+        "prompt": final_prompt,
         "validate": validate,
         "max_retries": max_retries,
     });

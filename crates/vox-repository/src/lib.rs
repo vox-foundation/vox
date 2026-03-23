@@ -14,7 +14,9 @@ mod workspace_layout;
 pub use agent_scope::{
     agents_dir, agents_glob_repo_relative, load_agent_scopes, normalize_task_path,
 };
-pub use capabilities::RepoCapabilities;
+pub use capabilities::{
+    RepoCapabilities, TaskCapabilityHints, merge_agent_capabilities, probe_host_capabilities,
+};
 pub use discover::{discover_repository, discover_repository_or_fallback};
 pub use error::RepositoryError;
 pub use git_root::find_git_work_tree;

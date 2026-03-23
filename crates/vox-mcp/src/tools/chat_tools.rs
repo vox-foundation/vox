@@ -24,14 +24,8 @@ use vox_socrates_policy::ConfidencePolicy;
 
 static MENTION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap());
-static TASK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?m)^(\d+)\.\s+\*\*(.+?)\*\*.*?\[files?:\s*([^\]]*)\].*?\[complexity:\s*(\d+)/10\](?:.*?\[depends?:\s*([^\]]*)\])?",
-    )
-    .unwrap()
-});
-static SUMMARY_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\*\*Overall Summary\*\*:\s*(.+)").unwrap());
+// Regexes for @mentions. TASK_RE and SUMMARY_RE were removed in favor of strict JSON schema decoding.
+pub const ANTI_LAZINESS_RIDER: &str = "\nCRITICAL DIRECTIVE: You must output the COMPLETE, fully-implemented replacement code. DO NOT under any circumstances use placeholders, stubs, 'TODOs', or elide implementation details. Writing partial code is a catastrophic failure.";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +74,19 @@ pub struct ChatMessageParams {
     /// Active LSP diagnostics to inject as context
     #[serde(default)]
     pub diagnostics: Vec<Value>,
+    /// Optional logical grouping identifier for this chat thread.
+    #[serde(default)]
+    pub session_id: Option<String>,
+    /// Optionally selects a specific LLM routing profile (e.g. "reasoning", "fast", "creative").
+    #[serde(default)]
+    pub cognitive_profile: Option<String>,
+}
+
+/// Retrieve history for a specific session ID.
+#[derive(Debug, Deserialize)]
+pub struct ChatHistoryParams {
+    /// Logical grouping identifier to fetch history for.
+    pub session_id: String,
 }
 
 /// Arguments for `vox_inline_edit` (range replacement inside one file).
@@ -158,7 +165,7 @@ pub struct PlanStatusParams {
     pub session_id: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// One row inside a generated plan (dependencies + complexity estimate).
 pub struct PlanTask {
     /// Monotonic task index inside the plan.
@@ -364,6 +371,18 @@ fn build_system_prompt(state: &ServerState) -> String {
 
 /// Handle a user chat message. Resolves @mentions, injects context from the editor,
 /// calls the best available LLM, persists to session history, and returns the updated history.
+///
+/// **Session Isolation**: History is keyed by `params.session_id` (defaulting to `"default"`).
+/// Each unique session_id maintains a completely independent chat transcript in the
+/// orchestrator `ContextStore`. Pass a stable UUID/slug per-window to prevent context bleeding.
+///
+/// **Autonomous Research**: Before invoking the LLM, this function silently queries the
+/// `MemoryManager` and knowledge graph for facts related to the prompt. High-relevance hits
+/// are injected as `[AUTONOMOUS RESEARCH]` preamble blocks so the model has evidence without
+/// the user needing to explicitly invoke search tools.
+///
+/// **Cognitive Profile Routing**: Pass `"fast"`, `"reasoning"`, or `"creative"` to influence
+/// model selection and temperature without changing the MCP tool contract.
 pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> String {
     // 1. Resolve @mentions in the prompt
     let workspace_root = state
@@ -374,7 +393,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
     let mention_count = mention_files.len();
 
-    // 2. Build context preamble from editor state
+    // 2a. Build context preamble from editor state
     let mut context_parts = Vec::new();
 
     if let Some(active_file) = &params.active_file {
@@ -414,6 +433,61 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         context_parts.push(format!("[OPEN FILES]: {}", params.open_files.join(", ")));
     }
 
+    // 2b. Autonomous Research Injection:
+    // Silently query MemoryManager (MEMORY.md + daily logs) for facts related to the
+    // expanded prompt. Inject top-3 hits as a labelled preamble block so the LLM has
+    // project-local evidence without the user needing to call `vox_memory_search`.
+    let mem_config = state.orchestrator_config.memory.clone();
+    if let Ok(mgr) = vox_orchestrator::MemoryManager::new(mem_config) {
+        if let Ok(hits) = mgr.search(&expanded_prompt) {
+            let relevant: Vec<_> = hits.into_iter().take(3).collect();
+            if !relevant.is_empty() {
+                let snippets = relevant
+                    .iter()
+                    .map(|h| format!("- [{}:{}] {}", h.source, h.line, h.content))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                context_parts.push(format!(
+                    "[AUTONOMOUS RESEARCH — MEMORY.md]:\n{snippets}"
+                ));
+                tracing::debug!(
+                    target: "vox_mcp::autonomous_research",
+                    hits = relevant.len(),
+                    "memory search injected into chat context"
+                );
+            }
+        }
+    }
+
+    // 2c. Autonomous Knowledge Graph Search:
+    // When Codex/VoxDb is attached, also probe the knowledge graph for related concepts.
+    if let Some(ref db) = state.db {
+        match db.store().query_knowledge_nodes(&expanded_prompt, 3).await {
+            Ok(nodes) if !nodes.is_empty() => {
+                let formatted = nodes
+                    .into_iter()
+                    .map(|(id, ntype, label)| format!("- [node:{id}] {label} ({ntype})"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                context_parts.push(format!(
+                    "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
+                ));
+                tracing::debug!(
+                    target: "vox_mcp::autonomous_research",
+                    "knowledge graph nodes injected into chat context"
+                );
+            }
+            Ok(_) => {}
+            Err(e) => {
+                tracing::debug!(
+                    target: "vox_mcp::autonomous_research",
+                    error = %e,
+                    "knowledge graph query failed — skipping injection"
+                );
+            }
+        }
+    }
+
     let all_context_files: Vec<String> = {
         let mut v = params.context_files.clone();
         v.extend(mention_files);
@@ -427,30 +501,99 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         format!("{}\n\n{}", context_parts.join("\n"), expanded_prompt)
     };
 
-    // 3. Call LLM
+    // 3. Call LLM with cognitive-profile aware routing.
+    // When cognitive_profile is set we use mcp_infer_completion() with an explicit
+    // resolution template — the same pattern already used by inline_edit() and ghost_text().
     let system_prompt = build_system_prompt(state);
     let llm_started = std::time::Instant::now();
-    let (response_text, model_used, tokens) =
-        match call_llm(state, &system_prompt, &user_prompt).await {
+
+    let (response_text, model_used, tokens) = match params.cognitive_profile.as_deref() {
+        Some(profile) => {
+            let resolution_template = McpChatModelResolution {
+                allow_cheapest_fallback: profile == "fast",
+                complexity: match profile {
+                    "reasoning" => 9,
+                    "creative" => 7,
+                    _ => 5,
+                },
+                ..Default::default()
+            };
+            let temperature = if profile == "creative" { 0.8_f32 } else { 0.3_f32 };
+            match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
+                Ok((model, free_only)) => {
+                    let pref = state.mcp_chat_model_override.read().await.clone();
+                    let max_tokens =
+                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                    let routing = McpInferRouting {
+                        user_prompt: &user_prompt,
+                        sticky_model_pref: pref.as_deref(),
+                        resolution_template,
+                        free_only,
+                        allow_cloud_ollama_fallback: true,
+                    };
+                    match crate::llm_bridge::mcp_infer_completion(
+                        state,
+                        model,
+                        "vox_chat_message",
+                        &system_prompt,
+                        &routing,
+                        max_tokens,
+                        temperature,
+                    )
+                    .await
+                    {
+                        Ok(r) => r,
+                        Err(e) => {
+                            return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "vox_mcp::cognitive_routing",
+                        profile,
+                        error = %e,
+                        "cognitive profile model resolution failed — using standard routing"
+                    );
+                    match call_llm(state, &system_prompt, &user_prompt).await {
+                        Ok(r) => r,
+                        Err(e2) => {
+                            return ToolResult::<String>::err(format!("LLM error: {e2}")).to_json();
+                        }
+                    }
+                }
+            }
+        }
+        None => match call_llm(state, &system_prompt, &user_prompt).await {
             Ok(r) => r,
             Err(e) => {
                 return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
             }
-        };
+        },
+    };
+
     tracing::info!(
         target: "vox_mcp::populi_kpi",
         tool = "vox_chat_message",
         model_id = %model_used,
         tokens,
         elapsed_ms = llm_started.elapsed().as_millis() as u64,
+        cognitive_profile = params.cognitive_profile.as_deref().unwrap_or("standard"),
         "mcp chat LLM round-trip"
     );
 
-    // 4. Persist to session history via memory store
+    // 4. Persist to session-scoped history.
+    //
+    // The history key is derived from `params.session_id` (defaulting to `"default"`).
+    // Each distinct value yields an independent key, preventing context bleeding
+    // across concurrent VS Code windows, agent threads, or other logical sessions.
+    let session_id = params.session_id.as_deref().unwrap_or("default");
+    let history_key = format!("chat_history:{session_id}");
+
     let user_msg = ChatMessage {
         id: format!("usr-{}", now_ts()),
         role: "user".to_string(),
-        content: params.prompt.clone(), // store the original, not expanded
+        content: params.prompt.clone(),
         timestamp: now_ts(),
         context_files: all_context_files,
         model_used: None,
@@ -466,12 +609,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         tokens: Some(tokens),
     };
 
-    // Load existing history from context store, append, re-save
-    let history_key = "chat_history:default";
     let orch = state.orchestrator.lock().await;
     let existing_history: Vec<ChatMessage> = orch
         .context()
-        .get(history_key)
+        .get(&history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     drop(orch);
@@ -479,7 +620,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     let mut history = existing_history;
     history.push(user_msg);
     history.push(asst_msg.clone());
-    // Keep last 100 messages only
+    // Keep last 100 messages per session to bound memory usage.
     if history.len() > 100 {
         let trim_to = history.len() - 100;
         history.drain(0..trim_to);
@@ -489,11 +630,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         Ok(history_json) => {
             let orch = state.orchestrator.lock().await;
             orch.context()
-                .set(AgentId(0), history_key, &history_json, 0);
+                .set(AgentId(0), &history_key, &history_json, 0);
         }
         Err(e) => {
             tracing::warn!(
                 error = %e,
+                session_id,
                 "chat_message: failed to serialize chat history — \
                  history will not persist for this turn"
             );
@@ -515,19 +657,25 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "history": history,
         "model_used": model_used,
         "tokens": tokens,
+        "session_id": session_id,
         "socrates": soc,
     });
 
     ToolResult::ok(result).to_json()
 }
 
-/// Return the full chat history for the default session.
-pub async fn chat_history(state: &ServerState) -> String {
-    let history_key = "chat_history:default";
+/// Return the full chat history for a session.
+///
+/// Pass `params.session_id` to retrieve the isolated transcript for a specific session.
+/// When `session_id` is `None`, falls back to `"default"` which matches the baseline
+/// session used by `chat_message` when no session id is provided.
+pub async fn chat_history(state: &ServerState, params: ChatHistoryParams) -> String {
+    let session_id = &params.session_id;
+    let history_key = format!("chat_history:{session_id}");
     let orch = state.orchestrator.lock().await;
     let history: Vec<ChatMessage> = orch
         .context()
-        .get(history_key)
+        .get(&history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     ToolResult::ok(history).to_json()
@@ -575,7 +723,9 @@ OUTPUT RULES:
 
     let pol = state.orchestrator_config.effective_socrates_policy();
     let system_prompt = format!(
-        "You are an expert inline code editor. You output ONLY replacement code, no markdown fences, no explanation.\n{}",
+        "You are the Vox AI, an expert agentic coding assistant.{}{}\n{}",
+        if !params.context_files.is_empty() { "\nUse the provided file context to answer the user's request." } else { "" },
+        ANTI_LAZINESS_RIDER,
         socrates_system_rider(&pol)
     );
 
@@ -651,34 +801,36 @@ pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
     };
 
     let user_prompt = format!(
-        r"You are an expert software architect and planner.
+        r#"You are an expert software architect and planner.
 
 GOAL: {goal}{scope_note}
 
-Generate a comprehensive, ordered task list to achieve this goal. Follow this exact output format:
+Generate a comprehensive, ordered task list to achieve this goal. You MUST output a valid JSON object matching this schema, embedded in a ```json codeblock.
 
-## Plan: [GOAL SUMMARY]
-
-**Overall Summary**: [2-3 sentence summary of the approach]
-
-### Tasks
-
-1. **[Task Title]** — [files: path/to/file.rs, path/to/other.ts] [complexity: N/10]
-   [One-sentence description of exactly what to implement. No placeholders.]
-
-2. **[Task Title]** — [files: ...] [complexity: N/10] [depends: 1]
-   [Description]
-
-... (up to {max_tasks} tasks)
+{{
+  "summary": "2-3 sentence executive summary of the approach",
+  "tasks": [
+    {{
+      "id": 1,
+      "description": "Short imperative description of what to implement.",
+      "files": ["path/to/file.rs"],
+      "estimated_complexity": 5,
+      "depends_on": []
+    }}
+  ]
+}}
 
 Rules:
 - Every task must be atomic and independently verifiable.
-- Mark complexity 1 (trivial edit) to 10 (full subsystem build).
-- Use `depends: N,M` when a task requires prior tasks to be done first.
-- If files are unknown, use `[files: TBD]`.
+- "estimated_complexity" must be an integer from 1 (trivial edit) to 10 (full subsystem build).
+- "depends_on" must be an array of prior task IDs that must complete first.
+- If files are unknown, leave the array empty or use `["TBD"]`.
 - Include test tasks explicitly.
-- Do NOT include filler tasks like 'Review and refactor'.",
+- Maximum {max_tasks} tasks.
+- Do NOT include filler tasks like 'Review and refactor'."#,
         goal = params.goal,
+        max_tasks = max_tasks,
+        scope_note = scope_note
     );
 
     let system_prompt = build_system_prompt(state);
@@ -687,8 +839,8 @@ Rules:
         Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
     };
 
-    // Parse tasks from markdown (best-effort)
-    let tasks = parse_plan_tasks(&plan_md);
+    // Extract and parse the JSON block
+    let (summary, tasks, base_plan_md) = parse_plan_json(&plan_md);
 
     // Optionally write PLAN.md
     let written_to_disk = if params.write_to_disk {
@@ -703,7 +855,7 @@ Rules:
             chrono::Local::now().format("%Y-%m-%d %H:%M"),
             model_used,
         );
-        let full = header + &plan_md;
+        let full = header + &base_plan_md;
         std::fs::write(&plan_path, &full).is_ok()
     } else {
         false
@@ -712,8 +864,8 @@ Rules:
     let result = PlanResult {
         goal: params.goal,
         tasks,
-        summary: extract_summary(&plan_md),
-        plan_md: plan_md.clone(),
+        summary,
+        plan_md: base_plan_md,
         written_to_disk,
     };
 
@@ -771,46 +923,68 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
     }
 }
 
-/// Parse a best-effort list of `PlanTask` structs from the LLM markdown output.
-fn parse_plan_tasks(plan_md: &str) -> Vec<PlanTask> {
-    let mut tasks = Vec::new();
-    for cap in TASK_RE.captures_iter(plan_md) {
-        let id: usize = cap[1].parse().unwrap_or(tasks.len() + 1);
-        let title = cap[2].trim().to_string();
-        let files: Vec<String> = cap[3]
-            .split(',')
-            .map(|f| f.trim().to_string())
-            .filter(|f| !f.is_empty() && f != "TBD")
-            .collect();
-        let complexity: u8 = cap[4].parse().unwrap_or(5).min(10);
-        let depends_on: Vec<usize> = cap
-            .get(5)
-            .map_or("", |m| m.as_str())
-            .split(',')
-            .filter_map(|s| s.trim().parse::<usize>().ok())
-            .collect();
-
-        tasks.push(PlanTask {
-            id,
-            description: title,
-            files,
-            estimated_complexity: complexity,
-            depends_on,
-        });
-    }
-
-    tasks
+#[derive(Deserialize)]
+struct PlanResponseSchema {
+    #[serde(default)]
+    summary: String,
+    #[serde(default)]
+    tasks: Vec<PlanTask>,
 }
 
-/// Extract the summary from the plan markdown.
-fn extract_summary(plan_md: &str) -> String {
-    SUMMARY_RE
-        .captures(plan_md)
-        .and_then(|c| c.get(1))
-        .map_or_else(
-            || "See plan for details.".to_string(),
-            |m| m.as_str().trim().to_string(),
-        )
+/// Parse the JSON block returned by the LLM and generate a canonical Markdown representation.
+fn parse_plan_json(response: &str) -> (String, Vec<PlanTask>, String) {
+    let mut block = response;
+    if let Some(start) = response.find("```json") {
+        let rest = &response[start + 7..];
+        if let Some(end) = rest.find("```") {
+            block = &rest[..end];
+        } else {
+            block = rest;
+        }
+    } else if let Some(start) = response.find("```") {
+        let rest = &response[start + 3..];
+        if let Some(end) = rest.find("```") {
+            block = &rest[..end];
+        } else {
+            block = rest;
+        }
+    }
+
+    let (summary, tasks) = match serde_json::from_str::<PlanResponseSchema>(block.trim()) {
+        Ok(parsed) => {
+            let s = if parsed.summary.is_empty() { "See plan for details.".to_string() } else { parsed.summary };
+            (s, parsed.tasks)
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "failed to parse plan JSON");
+            ("Failed to parse the LLM's plan response. See raw output.".to_string(), vec![])
+        }
+    };
+
+    let mut generated_md = format!("## Plan\n\n**Overall Summary**: {summary}\n\n### Tasks\n\n");
+    if tasks.is_empty() {
+        generated_md.push_str("*(No tasks parsed or generation failed. Raw response below)*\n\n```json\n");
+        generated_md.push_str(response.trim());
+        generated_md.push_str("\n```\n");
+    } else {
+        for t in &tasks {
+            let deps = if t.depends_on.is_empty() {
+                String::new()
+            } else {
+                let dep_strs: Vec<String> = t.depends_on.iter().map(|d| d.to_string()).collect();
+                format!(" [depends: {}]", dep_strs.join(", "))
+            };
+            let desc = if t.description.is_empty() { "TBD" } else { &t.description };
+            let files = if t.files.is_empty() { "TBD".to_string() } else { t.files.join(", ") };
+            let line = format!(
+                "{}. **{}** — [files: {}] [complexity: {}/10]{}\n\n",
+                t.id, desc, files, t.estimated_complexity, deps
+            );
+            generated_md.push_str(&line);
+        }
+    }
+
+    (summary, tasks, generated_md)
 }
 
 // ─── Ghost Text (IDE inference bridge) ───────────────────────────────────────
@@ -1167,22 +1341,26 @@ mod routing_tests {
     #[test]
     fn grounding_score_increases_with_context() {
         let empty = ChatMessageParams {
-            prompt: "x".to_string(),
+            prompt: "Hi".into(),
             context_files: vec![],
             open_files: vec![],
             active_file: None,
             active_line: None,
             selected_text: None,
             diagnostics: vec![],
+            session_id: None,
+            cognitive_profile: None,
         };
         let rich = ChatMessageParams {
-            prompt: "x".to_string(),
-            context_files: vec!["a.rs".to_string()],
-            open_files: vec!["a.rs".to_string(), "b.rs".to_string()],
-            active_file: Some("a.rs".to_string()),
-            active_line: Some(12),
-            selected_text: Some("let x = 1;".to_string()),
-            diagnostics: vec![serde_json::json!({"message":"err"})],
+            prompt: "Hi".into(),
+            context_files: vec!["foo.rs".into()],
+            open_files: vec!["bar.rs".into()],
+            active_file: Some("src/main.rs".into()),
+            active_line: Some(42),
+            selected_text: Some("let x = 1;".into()),
+            diagnostics: vec![],
+            session_id: None,
+            cognitive_profile: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

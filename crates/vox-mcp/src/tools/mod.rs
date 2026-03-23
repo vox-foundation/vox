@@ -397,23 +397,23 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "Suggest the correct Vox query expression for an intent.",
     ),
     (
-        "vox_codex_research_session_upsert",
+        "vox_db_research_session_upsert",
         "Upsert research_sessions by session_key (V17). Empty repository_id defaults to workspace repository_id.",
     ),
     (
-        "vox_codex_conversation_version_append",
+        "vox_db_conversation_version_append",
         "Append conversation_versions for a conversation_id (V17).",
     ),
     (
-        "vox_codex_conversation_edge_insert",
+        "vox_db_conversation_edge_insert",
         "Insert conversation_edges between two conversations (V17).",
     ),
     (
-        "vox_codex_topic_evolution_append",
+        "vox_db_topic_evolution_append",
         "Append topic_evolution_events for a topic_id (V17).",
     ),
     (
-        "vox_codex_research_metric_linked",
+        "vox_db_research_metric_linked",
         "Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).",
     ),
     (
@@ -505,13 +505,33 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
         .collect()
 }
 
-/// Dispatch `name` to the matching submodule handler and return JSON text for MCP clients.
+/// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
 pub async fn handle_tool_call(
     state: &ServerState,
     name: &str,
     args: serde_json::Value,
 ) -> Result<String, anyhow::Error> {
-    let name = tool_aliases::canonical_tool_name(name);
+    let start_time = std::time::Instant::now();
+    let name_canonical = tool_aliases::canonical_tool_name(name);
+    
+    // Check if the agent ID or session ID is included in meta arguments
+    let agent_id = args.get("agent_id").and_then(|v| v.as_str());
+    let session_id = args.get("session_id").and_then(|v| v.as_str());
+    
+    let result = handle_tool_call_inner(state, name_canonical, args).await;
+    let duration_ms = start_time.elapsed().as_millis() as i64;
+    
+
+    
+    result
+}
+
+/// Internal core dispatch
+async fn handle_tool_call_inner(
+    state: &ServerState,
+    name: &str,
+    args: serde_json::Value,
+) -> Result<String, anyhow::Error> {
     match name {
         "vox_submit_task" => {
             Ok(task_tools::submit_task(state, serde_json::from_value(args)?).await)
@@ -561,8 +581,8 @@ pub async fn handle_tool_call(
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
         )
         .await),
-        "vox_repo_index_status" => Ok(repo_index::repo_index_status(state)),
-        "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state)),
+        "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
+        "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
 
         "vox_snapshot_list" => Ok(vcs_tools::snapshot_list(state, args).await),
         "vox_snapshot_diff" => Ok(vcs_tools::snapshot_diff(state, args).await),
@@ -587,19 +607,19 @@ pub async fn handle_tool_call(
         "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(args).await),
         "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(args).await),
 
-        "vox_codex_research_session_upsert" => {
+        "vox_db_research_session_upsert" => {
             Ok(codex_tools::codex_research_session_upsert(state, args).await)
         }
-        "vox_codex_conversation_version_append" => {
+        "vox_db_conversation_version_append" => {
             Ok(codex_tools::codex_conversation_version_append(state, args).await)
         }
-        "vox_codex_conversation_edge_insert" => {
+        "vox_db_conversation_edge_insert" => {
             Ok(codex_tools::codex_conversation_edge_insert(state, args).await)
         }
-        "vox_codex_topic_evolution_append" => {
+        "vox_db_topic_evolution_append" => {
             Ok(codex_tools::codex_topic_evolution_append(state, args).await)
         }
-        "vox_codex_research_metric_linked" => {
+        "vox_db_research_metric_linked" => {
             Ok(codex_tools::codex_research_metric_linked(state, args).await)
         }
 
@@ -637,7 +657,9 @@ pub async fn handle_tool_call(
         "vox_chat_message" => {
             Ok(chat_tools::chat_message(state, serde_json::from_value(args)?).await)
         }
-        "vox_chat_history" => Ok(chat_tools::chat_history(state).await),
+        "vox_chat_history" => {
+            Ok(chat_tools::chat_history(state, serde_json::from_value(args)?).await)
+        }
         "vox_inline_edit" => {
             Ok(chat_tools::inline_edit(state, serde_json::from_value(args)?).await)
         }

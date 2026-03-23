@@ -6,8 +6,8 @@
 
 use std::time::Duration;
 
-use crate::transport::LeaveRequest;
-use crate::{MeshRegistryFile, NodeRecord, RegistryError};
+use crate::transport::{LeaveRequest, A2ADeliverRequest};
+use crate::{MeshRegistryFile, NodeRecord, MeshRegistryError};
 
 /// Call the mesh HTTP API (join / list / heartbeat / leave).
 #[derive(Debug, Clone)]
@@ -74,55 +74,55 @@ impl MeshHttpClient {
     }
 
     /// `GET /v1/mesh/nodes`
-    pub async fn list_nodes(&self) -> Result<MeshRegistryFile, RegistryError> {
+    pub async fn list_nodes(&self) -> Result<MeshRegistryFile, MeshRegistryError> {
         let url = format!("{}/v1/mesh/nodes", self.base);
         let v = self
             .auth(self.client.get(url))
             .send()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
             .error_for_status()
-            .map_err(|e| RegistryError::Http(e.to_string()))?
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
             .json()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?;
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?;
         Ok(v)
     }
 
     /// `POST /v1/mesh/join`
-    pub async fn join(&self, node: &NodeRecord) -> Result<NodeRecord, RegistryError> {
+    pub async fn join(&self, node: &NodeRecord) -> Result<NodeRecord, MeshRegistryError> {
         let url = format!("{}/v1/mesh/join", self.base);
         let v = self
             .auth(self.client.post(url).json(node))
             .send()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
             .error_for_status()
-            .map_err(|e| RegistryError::Http(e.to_string()))?
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
             .json()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?;
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?;
         Ok(v)
     }
 
     /// `POST /v1/mesh/heartbeat`
-    pub async fn heartbeat(&self, node: &NodeRecord) -> Result<NodeRecord, RegistryError> {
+    pub async fn heartbeat(&self, node: &NodeRecord) -> Result<NodeRecord, MeshRegistryError> {
         let url = format!("{}/v1/mesh/heartbeat", self.base);
         let v = self
             .auth(self.client.post(url).json(node))
             .send()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
             .error_for_status()
-            .map_err(|e| RegistryError::Http(e.to_string()))?
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
             .json()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?;
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?;
         Ok(v)
     }
 
     /// `POST /v1/mesh/leave` — returns `true` if the node was present and removed.
-    pub async fn leave(&self, node_id: &str) -> Result<bool, RegistryError> {
+    pub async fn leave(&self, node_id: &str) -> Result<bool, MeshRegistryError> {
         let url = format!("{}/v1/mesh/leave", self.base);
         let resp = self
             .auth(self.client.post(url).json(&LeaveRequest {
@@ -130,14 +130,26 @@ impl MeshHttpClient {
             }))
             .send()
             .await
-            .map_err(|e| RegistryError::Http(e.to_string()))?;
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?;
         match resp.status() {
             reqwest::StatusCode::NO_CONTENT => Ok(true),
             reqwest::StatusCode::NOT_FOUND => Ok(false),
-            _ => Err(RegistryError::Http(format!(
+            _ => Err(MeshRegistryError::Http(format!(
                 "leave: unexpected status {}",
                 resp.status()
             ))),
         }
+    }
+
+    /// `POST /v1/mesh/a2a/deliver` — forward an A2A message to a remote node.
+    pub async fn relay_a2a(&self, req: &A2ADeliverRequest) -> Result<(), MeshRegistryError> {
+        let url = format!("{}/v1/mesh/a2a/deliver", self.base);
+        self.auth(self.client.post(url).json(req))
+            .send()
+            .await
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?
+            .error_for_status()
+            .map_err(|e| MeshRegistryError::Http(e.to_string()))?;
+        Ok(())
     }
 }

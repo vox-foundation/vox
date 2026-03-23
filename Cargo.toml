@@ -32,7 +32,7 @@ vox-ars                   = { path = "crates/vox-ars" }
 vox-bootstrap             = { path = "crates/vox-bootstrap" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-cli                   = { path = "crates/vox-cli" }
-vox-codex                 = { path = "crates/vox-codex" }
+
 vox-codex-api             = { path = "crates/vox-codex-api" }
 vox-codegen-llvm          = { path = "crates/vox-codegen-llvm" }
 vox-codegen-rust          = { path = "crates/vox-codegen-rust" }
@@ -55,6 +55,7 @@ vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
 vox-mesh                  = { path = "crates/vox-mesh" }
 vox-mcp                   = { path = "crates/vox-mcp" }
+vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-parser                = { path = "crates/vox-parser" }
@@ -129,6 +130,7 @@ bytes              = "1"
 schemars           = { version = "1", features = ["derive"] }
 jsonschema         = { version = "0.26", default-features = false }
 twox-hash          = "2"
+strum              = { version = "0.26", features = ["derive"] }
 
 # Turso / libsql pulls `aegis`; patch uses **pure-rust** defaults so MSVC builds skip the C backend (no clang-cl).
 [patch.crates-io]

@@ -15,8 +15,23 @@ use std::path::Path;
 
 use clap::Parser;
 
+/// Subcommands for invoking native Populi training data pipelines.
 #[derive(Parser)]
 pub enum CorpusAction {
+    /// Generate synthetic training pairs (tools, orchestrator, A2A, etc)
+    Generate {
+        /// Output JSONL file
+        #[arg(short, long, default_value = "populi/data/synthetic.jsonl")]
+        output: std::path::PathBuf,
+        /// Force regeneration even if corpus fingerprint is fresh
+        #[arg(long)]
+        force_regen: bool,
+        /// Dry-run mode (print pairs generated but do not write output or update fingerprint)
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Print current corpus fingerprint based on AST/generator files
+    Fingerprint,
     /// Extract training corpus from .vox files
     Extract {
         /// Directory containing .vox files (recursive)
@@ -76,8 +91,71 @@ pub enum CorpusAction {
     },
 }
 
+/// Execute the native training data extraction or validation logic.
 pub async fn run(action: CorpusAction) -> Result<()> {
     match action {
+        CorpusAction::Fingerprint => {
+            let workspace_root = vox_corpus::training::contract::find_workspace_root();
+            if let Some(ref root) = workspace_root {
+                let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
+                println!("{}", current_fp);
+            } else {
+                eprintln!("Could not determine workspace root");
+            }
+            Ok(())
+        }
+        CorpusAction::Generate { output, force_regen, dry_run } => {
+            let workspace_root = vox_corpus::training::contract::find_workspace_root();
+            let mut current_fp = String::new();
+            if let Some(ref root) = workspace_root {
+                current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
+            }
+            
+            let is_fresh = if !force_regen && !current_fp.is_empty() {
+                if let Ok(db) = vox_db::VoxDb::connect_default().await {
+                    db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
+                } else if let Some(ref root) = workspace_root {
+                    let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
+                    vox_corpus::corpus::preflight::corpus_is_fresh(root, &fp_file)
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            if is_fresh && !force_regen {
+                eprintln!("  {} Corpus is fresh (fingerprint: {}). Use --force-regen to rebuild.", "✓".green(), current_fp);
+                return Ok(());
+            }
+
+            if dry_run {
+                eprintln!("  {} Dry-run mode: would regenerate corpus", "ℹ".blue());
+                return Ok(());
+            }
+
+            // Cleanup stale targets before regeneration
+            if let Some(ref root) = workspace_root {
+                vox_corpus::corpus::preflight::clean_corpus_targets(root)?;
+            }
+
+            let cfg = vox_corpus::synthetic_gen::SyntheticGenConfig::default();
+            let count = vox_corpus::synthetic_gen::generate_all(&cfg, &output)?;
+            eprintln!("  {} Synthesized {} pairs", "✓".green(), count);
+
+            // Record snapshot in Arca and local file
+            if !current_fp.is_empty() {
+                if let Ok(db) = vox_db::VoxDb::connect_default().await {
+                    let _ = db.record_corpus_snapshot(&current_fp, count as i64, None).await;
+                }
+                if let Some(ref root) = workspace_root {
+                    let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
+                    let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                }
+            }
+
+            Ok(())
+        }
         CorpusAction::Extract { dir, output } => run_extract(&dir, &output).await,
         CorpusAction::Validate {
             input,

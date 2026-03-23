@@ -12,10 +12,10 @@ pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{
     AgentDefEntry, ArtifactEntry, BehaviorEventEntry, BuilderSessionEntry, CodexChangeLogEntry,
-    CommandFrequencyEntry, ComponentEntry, EmbeddingEntry, ExecutionEntry, KnowledgeNodeSummary,
+    CommandFrequencyEntry, ComponentEntry, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary,
     LearnedPatternEntry, LogExecutionParams, LogInteractionParams, MemoryEntry,
     PackageSearchResult, PublishArtifactParams, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
-    SaveSnippetParams, ScheduledEntry, SessionTurnEntry, SkillManifestEntry, SnippetEntry,
+    SaveSnippetParams, ScheduledEntry, SessionTurnEntry, SkillExecutionParams, SkillManifestEntry, SkillReliabilityReport, SnippetEntry,
     StoreError, TrainingPair, TypedStreamEventEntry, UserEntry,
 };
 

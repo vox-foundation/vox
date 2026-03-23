@@ -104,7 +104,6 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_skill_list"
         | "vox_test_all"
         | "vox_check_workspace"
-        | "vox_chat_history"
         | "vox_get_active_model" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // Handler ignores args today; keep the schema strict so clients send `{}` only.
@@ -163,7 +162,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Memory (MEMORY.md / search) ─────────────────────────────────────
         "vox_memory_store" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"key":{"type":"string"},"value":{"type":"string"},"relations":{"type":"array","items":{"type":"string"}}},"required":["agent_id","key","value"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"key":{"type":"string"},"value":{"type":"string"},"relations":{"type":"array","items":{"type":"string"}},"media_url":{"type":"string"},"media_type":{"type":"string"}},"required":["agent_id","key","value"],"additionalProperties":false}"#,
         ),
         "vox_memory_recall" => parse_obj(
             r#"{"type":"object","properties":{"key":{"type":"string"}},"required":["key"],"additionalProperties":false}"#,
@@ -274,19 +273,19 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
 
-        "vox_codex_research_session_upsert" => parse_obj(
+        "vox_db_research_session_upsert" => parse_obj(
             r#"{"type":"object","properties":{"session_key":{"type":"string"},"title":{"type":"string"},"status":{"type":"string"},"repository_id":{"type":"string"},"config_json":{"type":"object"},"summary_json":{"type":"object"}},"required":["session_key"],"additionalProperties":false}"#,
         ),
-        "vox_codex_conversation_version_append" => parse_obj(
+        "vox_db_conversation_version_append" => parse_obj(
             r#"{"type":"object","properties":{"conversation_id":{"type":"integer"},"version_index":{"type":"integer"},"label":{"type":"string"},"snapshot_json":{"type":"object"}},"required":["conversation_id","version_index"],"additionalProperties":false}"#,
         ),
-        "vox_codex_conversation_edge_insert" => parse_obj(
+        "vox_db_conversation_edge_insert" => parse_obj(
             r#"{"type":"object","properties":{"from_conversation_id":{"type":"integer"},"to_conversation_id":{"type":"integer"},"edge_kind":{"type":"string"},"weight":{"type":"number"},"metadata_json":{"type":"object"}},"required":["from_conversation_id","to_conversation_id"],"additionalProperties":false}"#,
         ),
-        "vox_codex_topic_evolution_append" => parse_obj(
+        "vox_db_topic_evolution_append" => parse_obj(
             r#"{"type":"object","properties":{"topic_id":{"type":"integer"},"event_kind":{"type":"string"},"prior_label":{"type":"string"},"new_label":{"type":"string"},"detail_json":{"type":"object"}},"required":["topic_id","event_kind"],"additionalProperties":false}"#,
         ),
-        "vox_codex_research_metric_linked" => parse_obj(
+        "vox_db_research_metric_linked" => parse_obj(
             r#"{"type":"object","properties":{"session_key":{"type":"string"},"metric_type":{"type":"string"},"metric_value":{"type":"number"},"metadata_json":{"type":["string","object","null"]},"repository_id":{"type":"string"}},"required":["session_key","metric_type"],"additionalProperties":false}"#,
         ),
 
@@ -330,7 +329,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Chat & plan ──────────────────────────────────────────────────────
         "vox_chat_message" => parse_obj(
-            r#"{"type":"object","anyOf":[{"required":["prompt"]},{"required":["message"]}],"properties":{"prompt":{"type":"string","minLength":1,"maxLength":262144},"message":{"type":"string","minLength":1,"maxLength":262144,"description":"Alias for prompt (serde maps to prompt)"},"context_files":{"type":"array","items":{"type":"string","maxLength":4096}},"open_files":{"type":"array","items":{"type":"string","maxLength":4096}},"active_file":{"type":"string","maxLength":4096},"active_line":{"type":"integer"},"selected_text":{"type":"string","maxLength":1048576},"diagnostics":{"type":"array"}},"additionalProperties":true}"#,
+            r#"{"type":"object","anyOf":[{"required":["prompt"]},{"required":["message"]}],"properties":{"prompt":{"type":"string","minLength":1,"maxLength":262144},"message":{"type":"string","minLength":1,"maxLength":262144,"description":"Alias for prompt (serde maps to prompt)"},"context_files":{"type":"array","items":{"type":"string","maxLength":4096}},"open_files":{"type":"array","items":{"type":"string","maxLength":4096}},"active_file":{"type":"string","maxLength":4096},"active_line":{"type":"integer"},"selected_text":{"type":"string","maxLength":1048576},"diagnostics":{"type":"array"},"session_id":{"type":"string","maxLength":2048,"description":"Opaque session isolation key. Independent sessions maintain separate history transcripts. Omit or pass null to use the shared default session."},"cognitive_profile":{"type":"string","enum":["fast","reasoning","creative"],"description":"Optional routing hint: fast=lowest latency model, reasoning=high-tier model, creative=high temperature. Omit for standard automatic resolution."}},"additionalProperties":true}"#,
+        ),
+        "vox_chat_history" => parse_obj(
+            r#"{"type":"object","properties":{"session_id":{"type":"string","maxLength":2048,"description":"Session isolation key. Omit to retrieve the shared default session history."}},"additionalProperties":false}"#,
         ),
         "vox_inline_edit" => parse_obj(
             r#"{"type":"object","properties":{"prompt":{"type":"string"},"instruction":{"type":"string"},"file":{"type":"string"},"file_path":{"type":"string"},"start_line":{"type":"integer"},"end_line":{"type":"integer"},"current_text":{"type":"string"},"selection":{"type":"string"},"language":{"type":"string"},"context_before":{"type":"string"},"context_after":{"type":"string"}},"required":["start_line","end_line","current_text"],"additionalProperties":true}"#,

@@ -71,6 +71,7 @@ async fn mesh_publish_best_effort_for_run() {
     }
 }
 
+/// Execute the `vox run` command (dispatch to App or Script mode).
 pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     mesh_publish_best_effort_for_run().await;
 

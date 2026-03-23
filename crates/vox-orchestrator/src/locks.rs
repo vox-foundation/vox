@@ -1,8 +1,3 @@
-//! Per-file exclusive and shared read locks for multi-agent editing.
-//!
-//! [`FileLockManager`](crate::locks::FileLockManager) coordinates with affinity routing so only compatible
-//! agents can write the same path concurrently.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -10,6 +5,158 @@ use std::time::Instant;
 
 use crate::sync_lock;
 use crate::types::AgentId;
+
+/// Snapshot of a distributed lock from the DB.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DbLock {
+    pub lock_key: String,
+    pub holder_node: String,
+    pub holder_agent: AgentId,
+    pub fence_token: i64,
+    pub acquired_at: String,
+    pub expires_at: String,
+    pub repository_id: String,
+}
+
+/// Attempt to acquire a distributed lock in Turso with circuit breaker protection.
+pub async fn acquire_distributed_lock_with_breaker(
+    db: &vox_db::VoxDb,
+    lock_key: &str,
+    node_id: &str,
+    agent_id: AgentId,
+    ttl_secs: u64,
+    repository_id: &str,
+) -> Result<Result<i64, String>, String> {
+    db.breaker()
+        .call(|| async {
+            acquire_distributed_lock(
+                db.store().connection(),
+                lock_key,
+                node_id,
+                agent_id,
+                ttl_secs,
+                repository_id,
+            )
+            .await
+        })
+        .await
+}
+
+/// Release a distributed lock in the database with circuit breaker protection.
+pub async fn release_distributed_lock_with_breaker(
+    db: &vox_db::VoxDb,
+    lock_key: &str,
+    node_id: &str,
+    repository_id: &str,
+) -> Result<(), String> {
+    db.breaker()
+        .call(|| async {
+            release_distributed_lock(db.store().connection(), lock_key, node_id, repository_id).await
+        })
+        .await
+}
+
+/// Remove all locks that have passed their `expires_at` with circuit breaker protection.
+pub async fn prune_stale_distributed_locks_with_breaker(
+    db: &vox_db::VoxDb,
+) -> Result<u64, String> {
+    db.breaker()
+        .call(|| async { prune_stale_distributed_locks(db.store().connection()).await })
+        .await
+}
+
+/// Attempt to acquire a distributed lock in Turso.
+///
+/// Returns `Ok(fence_token)` if successful, or `Err(holder_node_id)` if already held.
+pub async fn acquire_distributed_lock(
+    conn: &turso::Connection,
+    lock_key: &str,
+    node_id: &str,
+    agent_id: AgentId,
+    ttl_secs: u64,
+    repository_id: &str,
+) -> Result<Result<i64, String>, String> {
+    // 1. Check if it's already held by someone else and still valid.
+    let mut rows = conn
+        .query(
+            "SELECT holder_node, fence_token FROM distributed_locks
+             WHERE lock_key = ?1 AND repository_id = ?2 AND expires_at > datetime('now')",
+            (lock_key, repository_id),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
+        let holder: String = row.get(0).map_err(|e| e.to_string())?;
+        if holder != node_id {
+            return Ok(Err(holder));
+        }
+        // If we already hold it, just refresh TTL (below).
+    }
+
+    // 2. Either new or refreshing our own.
+    // Use an incrementing fence token if it exists, otherwise 1.
+    let mut rows = conn
+        .query(
+            "SELECT COALESCE(MAX(fence_token), 0) + 1 FROM distributed_locks WHERE lock_key = ?1",
+            (lock_key,),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    let next_fence: i64 = if let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
+        row.get(0).map_err(|e| e.to_string())?
+    } else {
+        1
+    };
+
+    conn.execute(
+        "INSERT INTO distributed_locks (lock_key, holder_node, holder_agent, fence_token, expires_at, repository_id)
+         VALUES (?1, ?2, ?3, ?4, datetime('now', '+' || ?5 || ' seconds'), ?6)
+         ON CONFLICT(lock_key, repository_id) DO UPDATE SET
+            holder_node = excluded.holder_node,
+            holder_agent = excluded.holder_agent,
+            fence_token = excluded.fence_token,
+            acquired_at = datetime('now'),
+            expires_at = excluded.expires_at",
+        (
+            lock_key,
+            node_id,
+            agent_id.0.to_string(),
+            next_fence,
+            ttl_secs,
+            repository_id,
+        ),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(Ok(next_fence))
+}
+
+/// Release a distributed lock in the database.
+pub async fn release_distributed_lock(
+    conn: &turso::Connection,
+    lock_key: &str,
+    node_id: &str,
+    repository_id: &str,
+) -> Result<(), String> {
+    conn.execute(
+        "DELETE FROM distributed_locks WHERE lock_key = ?1 AND holder_node = ?2 AND repository_id = ?3",
+        (lock_key, node_id, repository_id),
+    )
+    .await
+    .map_err(|e| e.to_string())
+    .map(|_| ())
+}
+
+/// Remove all locks that have passed their `expires_at`.
+pub async fn prune_stale_distributed_locks(conn: &turso::Connection) -> Result<u64, String> {
+    let result = conn
+        .execute("DELETE FROM distributed_locks WHERE expires_at <= datetime('now')", ())
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(result as u64)
+}
 
 /// Kind of lock an agent holds on a file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

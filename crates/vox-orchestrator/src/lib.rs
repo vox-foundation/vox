@@ -135,6 +135,10 @@ pub mod runtime;
 pub mod lsp;
 
 // Re-export key public types for ergonomic access.
+pub use a2a::{
+    send_to_db, poll_inbox_from_db, acknowledge_db_message,
+    prune_old_a2a_messages, DbA2AMessage, A2ARoute,
+};
 pub use budget::{AgentBudgetAllocation, BudgetManager, ContextBudget};
 pub use compaction::{
     CompactionConfig, CompactionEngine, CompactionResult, CompactionStrategy, Turn,
@@ -154,7 +158,7 @@ pub use groups::{AffinityGroup, AffinityGroupRegistry, load_from_config};
 pub use handoff::{
     HandoffInvariantError, HandoffPayload, execute_handoff, validate_handoff_invariants,
 };
-pub use heartbeat::{AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel};
+pub use heartbeat::{persist_heartbeat, live_nodes_from_db, evict_dead_heartbeats, AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel};
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
 pub use memory::{DailyLog, LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
 pub use memory_search::{HybridSearchHit, MemorySearchEngine};

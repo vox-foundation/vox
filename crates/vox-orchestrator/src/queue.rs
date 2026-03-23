@@ -31,6 +31,12 @@ pub struct AgentQueue {
     pub agent_session_id: Option<String>,
     /// Hardware capabilities this agent queue provides (for GPU-aware routing).
     pub capabilities: TaskCapabilityHints,
+    /// Active skills bound to this agent queue with their EWMA reliability scores.
+    pub active_skills: std::collections::HashMap<String, f64>,
+    /// Workflow context ID/name if this agent is dedicated to a specific durable workflow.
+    pub workflow_context: Option<String>,
+    /// Optional identifier linking this agent to a specific provider endpoint, used for reliability metrics.
+    pub endpoint_reliability_key: Option<String>,
 }
 
 impl AgentQueue {
@@ -46,6 +52,9 @@ impl AgentQueue {
             last_active: std::time::SystemTime::now(),
             agent_session_id: None,
             capabilities: TaskCapabilityHints::default(),
+            active_skills: std::collections::HashMap::new(),
+            workflow_context: None,
+            endpoint_reliability_key: None,
         }
     }
 

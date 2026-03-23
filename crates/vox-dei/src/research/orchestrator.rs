@@ -11,7 +11,7 @@
 //!   when a Codex handle is present). Progress and completion metrics are written through the same
 //!   Codex surface; the underlying `research_metrics.session_id` column is **TEXT** (see
 //!   `vox_pm::store` `append_research_metric`).
-//! - **Agent memory bridge** — `vox_codex::MemoryParams.session_id` is set to
+//! - **Agent memory bridge** — `vox_db::MemoryParams.session_id` is set to
 //!   `format!("research_{}", session_id)` with `memory_type` `research_result` so MCP memory tools
 //!   can recall past answers (matches content keyed in this module).
 //! - **Chunk partitioning** — ingest paths may set `kb_id` to `research_session_{session_id}` for
@@ -26,7 +26,7 @@ use std::time::Instant;
 
 use anyhow::Result;
 use serde_json::json;
-use vox_codex::Codex;
+use vox_db::Codex;
 use vox_socrates_policy::ConfidencePolicy;
 
 use super::{
@@ -259,7 +259,7 @@ pub async fn run_research(
                 .await
             {
                 // Find the youngest qualifying cache hit rather than the first.
-                let mut best: Option<(f64, vox_codex::MemoryEntry)> = None;
+                let mut best: Option<(f64, vox_db::MemoryEntry)> = None;
                 for mem in memories {
                     // Require at least one meaningful query word to appear as a whole word in content.
                     let content_lower = mem.content.to_lowercase();
@@ -508,11 +508,11 @@ pub async fn run_research(
                     if !h.raw_content.is_empty() {
                         let mut chunk_embeddings = Vec::new();
                         if let Some(ref embedder) = config.embedder {
-                            let chunker_config = vox_codex::chunker::ChunkerConfig {
+                            let chunker_config = vox_db::chunker::ChunkerConfig {
                                 max_chars: config.chunk_max_chars,
                                 overlap_chars: config.chunk_overlap_chars,
                             };
-                            let chunks = vox_codex::chunker::chunk(&h.raw_content, &chunker_config);
+                            let chunks = vox_db::chunker::chunk(&h.raw_content, &chunker_config);
                             for c in chunks {
                                 if let Ok(v) = embedder.embed_query(&c.text).await {
                                     chunk_embeddings.push(v);
@@ -522,8 +522,8 @@ pub async fn run_research(
                             }
                         }
 
-                        let _ = db.ingest_research_document(&vox_codex::ResearchIngestRequest {
-                            packet: vox_codex::ExternalResearchPacket {
+                        let _ = db.ingest_research_document(&vox_db::ResearchIngestRequest {
+                            packet: vox_db::ExternalResearchPacket {
                                 topic: query.query.chars().take(80).collect(),
                                 vendor: provider_used.clone(),
                                 area: None,
@@ -781,7 +781,7 @@ pub async fn run_research(
             );
             let _ = db
                 .store()
-                .save_memory(vox_codex::MemoryParams {
+                .save_memory(vox_db::MemoryParams {
                     agent_id: "research_pipeline",
                     session_id: &format!("research_{}", session_id),
                     memory_type: "research_result",
@@ -901,22 +901,34 @@ async fn judge_quality(params: JudgeParams<'_>) -> i32 {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let prompt = format!(
-        "You are a research quality evaluator. Score the following answer strictly.
+    let sys_prompt = "You are a research quality evaluator. Score the following answer strictly based on the rubric.
+You MUST output your evaluation as a valid JSON object embedded in a ```json codeblock. Do not output anything else.
 
-Query: {}
+Schema required:
+{
+  \"factual_accuracy_reasoning\": \"string\",
+  \"factual_accuracy_score\": integer (0-33),
+  \"citation_density_reasoning\": \"string\",
+  \"citation_density_score\": integer (0-33),
+  \"coverage_reasoning\": \"string\",
+  \"coverage_score\": integer (0-34),
+  \"total_score\": integer (0-100)
+}";
+
+    let user_prompt = format!(
+        "Query: {}
 Answer: {}
 
 Citations used:
-{citation_snippets}
+{}
 
-Scoring rubric (each dimension 0-33 points):
+Scoring rubric:
 1. Factual accuracy: Does the answer align with the cited sources?
 2. Citation density: Are key claims backed by at least one citation?
-3. Coverage: Does the answer address all major aspects of the query?
-
-Return ONLY a single integer 1-100 (sum of rubric scores). No explanation.",
-        params.query, params.answer
+3. Coverage: Does the answer address all major aspects of the query?",
+        sanitize_evidence(params.query),
+        sanitize_evidence(params.answer),
+        sanitize_evidence(&citation_snippets)
     );
 
     let client = reqwest::Client::new();
@@ -926,7 +938,10 @@ Return ONLY a single integer 1-100 (sum of rubric scores). No explanation.",
         .bearer_auth(key)
         .json(&serde_json::json!({
             "model": params.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
             "max_tokens": params.max_tokens,
             "temperature": params.temperature
         }))
@@ -938,9 +953,35 @@ Return ONLY a single integer 1-100 (sum of rubric scores). No explanation.",
         && let Some(content) = json
             .pointer("/choices/0/message/content")
             .and_then(|v| v.as_str())
-        && let Ok(score) = content.trim().parse::<i32>()
     {
-        return score.clamp(1, 100);
+        let mut block = content;
+        if let Some(start) = content.find("```json") {
+            let rest = &content[start + 7..];
+            if let Some(end) = rest.find("```") {
+                block = &rest[..end];
+            } else {
+                block = rest;
+            }
+        } else if let Some(start) = content.find("```") {
+            let rest = &content[start + 3..];
+            if let Some(end) = rest.find("```") {
+                block = &rest[..end];
+            } else {
+                block = rest;
+            }
+        }
+
+        #[derive(serde::Deserialize)]
+        struct JudgeResponse {
+            #[serde(default)]
+            total_score: i32,
+        }
+
+        if let Ok(parsed) = serde_json::from_str::<JudgeResponse>(block.trim()) {
+            if parsed.total_score > 0 {
+                return parsed.total_score.clamp(1, 100);
+            }
+        }
     }
 
     params.fallback_score

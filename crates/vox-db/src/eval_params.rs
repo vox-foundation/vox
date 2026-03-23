@@ -13,6 +13,10 @@ pub struct EvalRunParams<'a> {
     pub safety_rejection_rate: Option<f64>,
     /// Optional proxy score for “quality” when gold labels are absent.
     pub quality_proxy: Option<f64>,
+    /// Optional metric tracking the number of skills discovered dynamically.
+    pub skills_discovered: Option<i64>,
+    /// Optional metric tracking the number of workflows discovered dynamically.
+    pub workflows_discovered: Option<i64>,
     /// Optional JSON blob for extra columns / tooling.
     pub metadata_json: Option<&'a str>,
 }

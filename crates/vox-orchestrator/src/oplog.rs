@@ -1,9 +1,3 @@
-//! Operation log — inspired by Jujutsu's operation log and `UnpublishedOperation` model.
-//!
-//! Records every agent action as an immutable entry with before/after snapshots,
-//! enabling universal undo/redo.  This is the safety net that lets agents
-//! experiment fearlessly.
-
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -15,6 +9,157 @@ use sha3::{Digest, Sha3_256};
 use crate::snapshot::SnapshotId;
 use crate::types::AgentId;
 use crate::workspace::ChangeId;
+
+/// Append an operation entry to the database with circuit breaker protection.
+pub async fn append_to_db_with_breaker(
+    db: &vox_db::VoxDb,
+    agent_id: AgentId,
+    op_id_str: &str,
+    kind: &OperationKind,
+    description: &str,
+    predecessor_hash: Option<&str>,
+    model_id: Option<&str>,
+    change_id: Option<ChangeId>,
+    timestamp_ms: u64,
+    repository_id: &str,
+) -> Result<(), String> {
+    db.breaker()
+        .call(|| async {
+            append_to_db(
+                db.store().connection(),
+                agent_id,
+                op_id_str,
+                kind,
+                description,
+                predecessor_hash,
+                model_id,
+                change_id,
+                timestamp_ms,
+                repository_id,
+            )
+            .await
+        })
+        .await
+}
+
+/// Append an operation entry to the database.
+pub async fn append_to_db(
+    conn: &turso::Connection,
+    agent_id: AgentId,
+    op_id_str: &str,
+    kind: &OperationKind,
+    description: &str,
+    predecessor_hash: Option<&str>,
+    model_id: Option<&str>,
+    change_id: Option<ChangeId>,
+    timestamp_ms: u64,
+    repository_id: &str,
+) -> Result<(), String> {
+    let kind_json = serde_json::to_string(kind).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO agent_oplog (
+            agent_id, operation_id, kind, description, predecessor_hash, model_id, change_id, timestamp_ms, repository_id
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        (
+            agent_id.0.to_string(),
+            op_id_str,
+            kind_json,
+            description,
+            predecessor_hash,
+            model_id,
+            change_id.map(|c| c.0 as i64),
+            timestamp_ms as i64,
+            repository_id,
+        ),
+    )
+    .await
+    .map_err(|e| e.to_string())
+    .map(|_| ())
+}
+
+/// List operations from the database for a repository/agent.
+pub async fn list_from_db(
+    conn: &turso::Connection,
+    agent_id: Option<AgentId>,
+    repository_id: &str,
+    limit: u32,
+) -> Result<Vec<OperationEntry>, String> {
+    let mut sql = "SELECT
+        operation_id, agent_id, kind, description, predecessor_hash, model_id, change_id, timestamp_ms, undone
+        FROM agent_oplog
+        WHERE repository_id = ?1".to_string();
+
+    let mut rows = if let Some(aid) = agent_id {
+        sql.push_str(" AND agent_id = ?2 ORDER BY timestamp_ms DESC LIMIT ?3");
+        conn.query(&sql, (repository_id, aid.0.to_string(), limit))
+            .await
+            .map_err(|e| e.to_string())?
+    } else {
+        sql.push_str(" ORDER BY timestamp_ms DESC LIMIT ?2");
+        conn.query(&sql, (repository_id, limit))
+            .await
+            .map_err(|e| e.to_string())?
+    };
+
+    let mut entries = Vec::new();
+    while let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
+        let op_id_str: String = row.get(0).map_err(|e| e.to_string())?;
+        let agent_id_str: String = row.get(1).map_err(|e| e.to_string())?;
+        let kind_json: String = row.get(2).map_err(|e| e.to_string())?;
+        let description: String = row.get(3).map_err(|e| e.to_string())?;
+        let predecessor_hash: Option<String> = row.get(4).map_err(|e| e.to_string())?;
+        let model_id: Option<String> = row.get(5).map_err(|e| e.to_string())?;
+        let change_id: Option<i64> = row.get(6).map_err(|e| e.to_string())?;
+        let timestamp_ms: i64 = row.get(7).map_err(|e| e.to_string())?;
+        let undone: i64 = row.get(8).map_err(|e| e.to_string())?;
+
+        let op_id = OperationId(
+            op_id_str
+                .strip_prefix("OP-")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0),
+        );
+        let agent_id = AgentId(agent_id_str.parse().unwrap_or(0));
+        let kind = serde_json::from_str(&kind_json).map_err(|e| e.to_string())?;
+
+        entries.push(OperationEntry {
+            id: op_id,
+            agent_id,
+            kind,
+            description,
+            predecessor_hash,
+            model_id,
+            change_id: change_id.map(|c| ChangeId(c as u64)),
+            timestamp_ms: timestamp_ms as u64,
+            undone: undone != 0,
+            // These are in-memory only in this schema fragment, or can be added to kind if needed
+            snapshot_before: None,
+            snapshot_after: None,
+            db_snapshot_before: None,
+            db_snapshot_after: None,
+            context_snapshot_before: None,
+            context_snapshot_after: None,
+        });
+    }
+
+    Ok(entries)
+}
+
+/// Mark an operation as undone in the database.
+pub async fn mark_undone_in_db(
+    conn: &turso::Connection,
+    operation_id: &str,
+    undone: bool,
+) -> Result<(), String> {
+    conn.execute(
+        "UPDATE agent_oplog SET undone = ?1 WHERE operation_id = ?2",
+        (if undone { 1i64 } else { 0i64 }, operation_id),
+    )
+    .await
+    .map_err(|e| e.to_string())
+    .map(|_| ())
+}
 
 // ---------------------------------------------------------------------------
 // Identity

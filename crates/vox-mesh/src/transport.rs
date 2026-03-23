@@ -24,13 +24,26 @@ use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetReques
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-use crate::{MeshRegistryFile, NodeRecord, RegistryError};
+use crate::{MeshRegistryFile, NodeRecord, MeshRegistryError};
 
 /// Body for [`leave_node`]: remove a node id from the in-memory registry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaveRequest {
     /// Node id to remove (same as [`NodeRecord::id`]).
     pub id: String,
+}
+
+/// Request to deliver an A2A message to a local agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2ADeliverRequest {
+    /// Sender agent ID.
+    pub sender_agent_id: String,
+    /// Receiver agent ID.
+    pub receiver_agent_id: String,
+    /// The message type/schema name.
+    pub message_type: String,
+    /// The JSON or raw payload.
+    pub payload: String,
 }
 
 /// Shared registry state for the HTTP server (in-memory; optionally persisted by callers).
@@ -71,10 +84,10 @@ impl MeshTransportState {
     }
 
     /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
-    pub async fn load_from_path(path: &std::path::Path) -> Result<Self, RegistryError> {
+    pub async fn load_from_path(path: &std::path::Path) -> Result<Self, MeshRegistryError> {
         let reg = if path.is_file() {
-            let raw = std::fs::read_to_string(path).map_err(RegistryError::Io)?;
-            serde_json::from_str(&raw).map_err(|e| RegistryError::Json(e.to_string()))?
+            let raw = std::fs::read_to_string(path).map_err(MeshRegistryError::Io)?;
+            serde_json::from_str(&raw).map_err(|e| MeshRegistryError::Json(e.to_string()))?
         } else {
             MeshRegistryFile {
                 schema_version: 1,
@@ -179,6 +192,15 @@ async fn leave_node(
     }
 }
 
+async fn deliver_a2a(
+    State(_st): State<MeshTransportState>,
+    Json(_req): Json<A2ADeliverRequest>,
+) -> StatusCode {
+    // This route is a stub in the control plane itself; 
+    // real delivery happens in the local node's proxy or orchestrator.
+    StatusCode::ACCEPTED
+}
+
 fn mesh_control_token_from_env() -> Option<String> {
     std::env::var("VOX_MESH_TOKEN")
         .ok()
@@ -215,6 +237,7 @@ pub fn router(state: MeshTransportState) -> Router {
         .route("/v1/mesh/join", post(join_node))
         .route("/v1/mesh/heartbeat", post(heartbeat))
         .route("/v1/mesh/leave", post(leave_node))
+        .route("/v1/mesh/a2a/deliver", post(deliver_a2a))
         .with_state(state)
 }
 

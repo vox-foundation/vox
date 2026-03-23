@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use sha3::{Digest, Keccak256};
 
-use super::{v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17};
+use super::{v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18};
 
 /// Row written to `schema_version` for a database on the baseline-V1 model.
 pub const BASELINE_VERSION: i64 = 1;
@@ -90,6 +90,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "v17",
         sql: v17::SCHEMA_V17,
+    },
+    SchemaFragment {
+        name: "v18",
+        sql: v18::SCHEMA_V18,
     },
 ];
 
@@ -179,7 +183,7 @@ mod tests {
 
     #[test]
     fn fragments_match_historical_v_labels() {
-        assert_eq!(SCHEMA_FRAGMENTS.len(), 17);
+        assert_eq!(SCHEMA_FRAGMENTS.len(), 18);
         for (i, f) in SCHEMA_FRAGMENTS.iter().enumerate() {
             assert_eq!(f.name, format!("v{}", i + 1));
         }

@@ -10,22 +10,28 @@ use clap::Parser;
 pub enum SnippetCli {
     /// Save a snippet from a file (store integration in progress).
     Save {
+        /// Input file path for the snippet source.
         #[arg(required = true)]
         file: PathBuf,
+        /// Primary display title.
         #[arg(required = true)]
         title: String,
+        /// Extended context or explanation.
         #[arg(long)]
         description: Option<String>,
+        /// Comma-separated indexing strings.
         #[arg(long)]
         tags: Option<String>,
     },
     /// Search saved snippets.
     Search {
+        /// Substring query for the search.
         #[arg(required = true)]
         query: String,
     },
     /// Export snippets as JSON (from local/remote Arca store).
     Export {
+        /// Maximum number of snippets to export.
         #[arg(long, default_value_t = 100)]
         limit: i64,
     },

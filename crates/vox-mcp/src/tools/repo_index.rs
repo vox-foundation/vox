@@ -22,6 +22,10 @@ pub struct RepoIndexSummary {
     pub stopped_at_cap: bool,
     /// Top file extensions by count (trimmed list).
     pub by_extension_top: Vec<(String, usize)>,
+    /// Number of SKILL.md files discovered.
+    pub skills_discovered: usize,
+    /// Number of workflows discovered (`workflows/**/*.md` or `*.yaml`).
+    pub workflows_discovered: usize,
 }
 
 fn index_cache_path(state: &ServerState) -> std::path::PathBuf {
@@ -41,6 +45,8 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
     let mut files_scanned = 0usize;
     let mut ext_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     let mut stopped = false;
+    let mut skills_discovered = 0usize;
+    let mut workflows_discovered = 0usize;
 
     for ent in WalkDir::new(root)
         .follow_links(false)
@@ -66,6 +72,17 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
                 .and_then(|e| e.to_str())
                 .unwrap_or("")
                 .to_string();
+                
+            let name_str = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name_str == "SKILL.md" {
+                skills_discovered += 1;
+            } else if p.components().any(|c| {
+                let s = c.as_os_str().to_str().unwrap_or("");
+                s == "workflows" || s == "_workflows" || s == ".agents" || s == "_agents"
+            }) && (ext == "md" || ext == "yaml" || ext == "yml") {
+                workflows_discovered += 1;
+            }
+                
             let key = if ext.is_empty() {
                 "(no ext)".to_string()
             } else {
@@ -85,19 +102,56 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
         files_scanned,
         stopped_at_cap: stopped,
         by_extension_top: pairs,
+        skills_discovered,
+        workflows_discovered,
     })
 }
 
 /// Walk `state.repository.root` (bounded), return JSON summary of file counts.
-pub fn repo_index_status(state: &ServerState) -> String {
-    match build_summary(state) {
+pub async fn repo_index_status(state: &ServerState) -> String {
+    let fresh_check = {
+        let orch = state.orchestrator.lock().await;
+        if orch.context_store().is_fresh("workspace_index_status", 30) {
+            let entry = orch.context_store().get_entry("workspace_index_status");
+            entry.map(|e| e.value)
+        } else {
+            None
+        }
+    };
+    if let Some(cached) = fresh_check {
+        return cached;
+    }
+
+    let summary = match build_summary(state) {
         Ok(s) => ToolResult::ok(s).to_json(),
         Err(e) => ToolResult::<RepoIndexSummary>::err(e).to_json(),
-    }
+    };
+    
+    let orch = state.orchestrator.lock().await;
+    orch.context_store().set(
+        vox_orchestrator::AgentId(0),
+        "workspace_index_status",
+        summary.clone(),
+        30
+    );
+    summary
 }
 
 /// Refresh on-disk cache under `.vox/cache/repos/<repository_id>/repo_index.json`.
-pub fn repo_index_refresh(state: &ServerState) -> String {
+pub async fn repo_index_refresh(state: &ServerState) -> String {
+    let fresh_check = {
+        let orch = state.orchestrator.lock().await;
+        if orch.context_store().is_fresh("workspace_index_refresh", 30) {
+            let entry = orch.context_store().get_entry("workspace_index_refresh");
+            entry.map(|e| e.value)
+        } else {
+            None
+        }
+    };
+    if let Some(cached) = fresh_check {
+        return cached;
+    }
+
     let summary = match build_summary(state) {
         Ok(s) => s,
         Err(e) => return ToolResult::<String>::err(e).to_json(),
@@ -112,8 +166,17 @@ pub fn repo_index_refresh(state: &ServerState) -> String {
         Ok(t) => t,
         Err(e) => return ToolResult::<String>::err(format!("serialize: {e}")).to_json(),
     };
-    match fs::write(&path, &text) {
+    let res = match fs::write(&path, &text) {
         Ok(()) => ToolResult::ok(format!("wrote {}", path.display())).to_json(),
         Err(e) => ToolResult::<String>::err(format!("write {}: {e}", path.display())).to_json(),
-    }
+    };
+    
+    let orch = state.orchestrator.lock().await;
+    orch.context_store().set(
+        vox_orchestrator::AgentId(0),
+        "workspace_index_refresh",
+        res.clone(),
+        30
+    );
+    res
 }

@@ -13,12 +13,20 @@ use thiserror::Error;
 pub struct LogExecutionParams<'a> {
     /// Workflow identifier.
     pub workflow_id: &'a str,
+    /// Owning agent id.
+    pub agent_id: Option<&'a str>,
+    /// Skill identifier.
+    pub skill_id: Option<&'a str>,
     /// Activity or step name.
     pub activity_name: &'a str,
     /// Outcome label (e.g. `ok`, `error`).
     pub status: &'a str,
     /// Attempt number (1-based).
     pub attempt: u32,
+    /// Wall-clock latency in milliseconds.
+    pub duration_ms: i64,
+    /// Output payload size in bytes.
+    pub output_size: i64,
     /// Serialized input payload, if any.
     pub input: Option<&'a [u8]>,
     /// Serialized output payload, if any.
@@ -485,4 +493,64 @@ pub struct CodexChangeLogEntry {
     pub payload_json: Option<String>,
     /// Insertion timestamp.
     pub created_at: String,
+}
+
+/// Parameters for `record_skill_execution`.
+#[derive(Debug, Clone)]
+pub struct SkillExecutionParams<'a> {
+    pub skill_id: &'a str,
+    pub version: &'a str,
+    pub session_id: Option<&'a str>,
+    pub workflow_id: Option<&'a str>,
+    pub agent_id: Option<&'a str>,
+    pub status: &'a str,
+    pub duration_ms: i64,
+    pub input_hash: Option<&'a str>,
+    pub output_size: i64,
+    pub error_kind: Option<&'a str>,
+    pub reflection_score: Option<f64>,
+}
+
+/// A report on the reliability of a given skill.
+#[derive(Debug, Clone)]
+pub struct SkillReliabilityReport {
+    pub skill_id: String,
+    pub total: u64,
+    pub success_rate: f64,
+    pub median_duration_ms: i64,
+    pub p99_duration_ms: i64,
+    pub last_error_kind: Option<String>,
+}
+
+/// One row from `endpoint_reliability`.
+#[derive(Debug, Clone)]
+pub struct EndpointReliabilityEntry {
+    pub endpoint_url: String,
+    pub model_id: String,
+    pub total_requests: u64,
+    pub hallucination_proxy_ewma: f64,
+    pub contradiction_ratio_ewma: f64,
+    pub infra_failure_ewma: f64,
+    pub rate_limit_hits: u64,
+    pub timeout_hits: u64,
+    pub updated_at_ms: i64,
+}
+
+/// A single training data row exported from the database for Populi.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CorpusRow {
+    pub category: String,
+    pub language: String,
+    pub source_id: String,
+    pub instruction: String,
+    pub output: String,
+    pub quality_score: f64,
+    pub tags: Vec<String>,
+}
+
+impl CorpusRow {
+    /// Serialize the row to a plain JSON line for streaming.
+    pub fn to_jsonl(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
 }

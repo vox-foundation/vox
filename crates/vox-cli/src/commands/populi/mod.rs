@@ -604,6 +604,39 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             } else {
                 vram_limit_fraction
             };
+
+            // Preflight auto-regen check
+            let workspace_root = vox_corpus::training::contract::find_workspace_root();
+            if let Some(ref root) = workspace_root {
+                use owo_colors::OwoColorize;
+                let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
+                
+                let is_fresh = if let Ok(db) = vox_db::VoxDb::open_from_env() {
+                    db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
+                } else {
+                    let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
+                    vox_corpus::corpus::preflight::corpus_is_fresh(root, &fp_file)
+                };
+
+                let skip_regen = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX").map(|v| v == "1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
+                if !is_fresh && !skip_regen {
+                    eprintln!("  {} Stale corpus detected (fingerprint: {}). Regenerating...", "🔄".cyan(), current_fp);
+                    let _ = vox_corpus::corpus::preflight::clean_corpus_targets(root);
+                    
+                    let cfg = vox_corpus::synthetic_gen::SyntheticGenConfig::default();
+                    let out_path = root.join("populi/data/synthetic.jsonl");
+                    if let Ok(pairs) = vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
+                        eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), pairs);
+                        if let Ok(db) = vox_db::VoxDb::open_from_env() {
+                            let _ = db.record_corpus_snapshot(&current_fp, pairs as i64, None).await;
+                        } else {
+                            let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
+                            let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                        }
+                    }
+                }
+            }
+
             // If context_filter is not explicitly set, default it to adapter_tag
             // so --adapter-tag target automatically filters to target records.
             let context_filter = context_filter.or_else(|| adapter_tag.clone());

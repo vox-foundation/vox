@@ -240,6 +240,8 @@ impl VoxDb {
             format_validity: Some(answer_rate),
             safety_rejection_rate: Some(abstain_rate),
             quality_proxy: Some(quality),
+            skills_discovered: None,
+            workflows_discovered: None,
             metadata_json: Some(&meta),
         })
         .await

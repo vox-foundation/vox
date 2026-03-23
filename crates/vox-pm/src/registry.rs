@@ -51,7 +51,7 @@ pub struct DownloadResponse {
 }
 
 #[derive(Debug)]
-pub enum RegistryError {
+pub enum PmRegistryError {
     Http(reqwest::Error),
     Api(String),
     Auth(String),
@@ -59,7 +59,7 @@ pub enum RegistryError {
     Conflict(String),
 }
 
-impl std::fmt::Display for RegistryError {
+impl std::fmt::Display for PmRegistryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Http(e) => write!(f, "HTTP error: {e}"),
@@ -71,9 +71,9 @@ impl std::fmt::Display for RegistryError {
     }
 }
 
-impl std::error::Error for RegistryError {}
+impl std::error::Error for PmRegistryError {}
 
-impl From<reqwest::Error> for RegistryError {
+impl From<reqwest::Error> for PmRegistryError {
     fn from(e: reqwest::Error) -> Self {
         Self::Http(e)
     }
@@ -126,7 +126,7 @@ impl RegistryClient {
         query: &str,
         limit: u32,
         offset: u32,
-    ) -> Result<SearchResult, RegistryError> {
+    ) -> Result<SearchResult, PmRegistryError> {
         let url = format!(
             "{}/api/v1/packages?q={}&limit={}&offset={}",
             self.base_url, query, limit, offset
@@ -143,12 +143,12 @@ impl RegistryClient {
             })
         } else {
             let text = resp.text().await.unwrap_or_default();
-            Err(RegistryError::Api(text))
+            Err(PmRegistryError::Api(text))
         }
     }
 
     /// Get info about a specific package.
-    pub async fn info(&self, name: &str) -> Result<RegistryPackageInfo, RegistryError> {
+    pub async fn info(&self, name: &str) -> Result<RegistryPackageInfo, PmRegistryError> {
         let url = format!("{}/api/v1/packages/{}", self.base_url, name);
         let resp = self.authed_get(&url).send().await?;
 
@@ -156,10 +156,10 @@ impl RegistryClient {
             let info: RegistryPackageInfo = resp.json().await?;
             Ok(info)
         } else if resp.status().as_u16() == 404 {
-            Err(RegistryError::NotFound(name.to_string()))
+            Err(PmRegistryError::NotFound(name.to_string()))
         } else {
             let text = resp.text().await.unwrap_or_default();
-            Err(RegistryError::Api(text))
+            Err(PmRegistryError::Api(text))
         }
     }
 
@@ -168,7 +168,7 @@ impl RegistryClient {
         &self,
         name: &str,
         version: &str,
-    ) -> Result<DownloadResponse, RegistryError> {
+    ) -> Result<DownloadResponse, PmRegistryError> {
         let url = format!(
             "{}/api/v1/packages/{}/{}/download",
             self.base_url, name, version
@@ -179,17 +179,17 @@ impl RegistryClient {
             let dl: DownloadResponse = resp.json().await?;
             Ok(dl)
         } else if resp.status().as_u16() == 404 {
-            Err(RegistryError::NotFound(format!("{name}@{version}")))
+            Err(PmRegistryError::NotFound(format!("{name}@{version}")))
         } else {
             let text = resp.text().await.unwrap_or_default();
-            Err(RegistryError::Api(text))
+            Err(PmRegistryError::Api(text))
         }
     }
 
     /// Publish a package to the registry (requires auth).
-    pub async fn publish(&self, req: PublishRequest) -> Result<(), RegistryError> {
+    pub async fn publish(&self, req: PublishRequest) -> Result<(), PmRegistryError> {
         if self.auth_token.is_none() {
-            return Err(RegistryError::Auth(
+            return Err(PmRegistryError::Auth(
                 "Authentication required for publishing. Run `vox login` first.".to_string(),
             ));
         }
@@ -199,13 +199,13 @@ impl RegistryClient {
         if resp.status().is_success() {
             Ok(())
         } else if resp.status().as_u16() == 409 {
-            Err(RegistryError::Conflict(format!(
+            Err(PmRegistryError::Conflict(format!(
                 "{}@{} already exists",
                 req.name, req.version
             )))
         } else {
             let text = resp.text().await.unwrap_or_default();
-            Err(RegistryError::Api(text))
+            Err(PmRegistryError::Api(text))
         }
     }
 }

@@ -19,6 +19,9 @@ pub struct ContextEntry {
     /// Absolute expiration timestamp (Unix timestamp in seconds).
     /// If 0, the context never expires.
     pub expires_at: u64,
+    /// Absolute set timestamp (Unix timestamp in seconds).
+    #[serde(default)]
+    pub set_at: u64,
     /// Optional VCS state this context refers to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vcs_context: Option<VcsContext>,
@@ -72,12 +75,9 @@ impl ContextStore {
         ttl_seconds: u64,
         vcs_context: Option<VcsContext>,
     ) {
+        let now = current_timestamp();
         let expires_at = if ttl_seconds > 0 {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-                + ttl_seconds
+            now + ttl_seconds
         } else {
             0
         };
@@ -86,6 +86,7 @@ impl ContextStore {
             agent_id,
             value: value.into(),
             expires_at,
+            set_at: now,
             vcs_context,
         };
 
@@ -120,6 +121,16 @@ impl ContextStore {
             .filter(|(k, v)| k.starts_with(prefix) && (v.expires_at == 0 || v.expires_at > now))
             .map(|(k, _)| k.clone())
             .collect()
+    }
+
+    /// Age in seconds of a given context entry.
+    pub fn age_secs(&self, key: &str) -> Option<u64> {
+        self.get_entry(key).map(|e| current_timestamp().saturating_sub(e.set_at))
+    }
+
+    /// Check if the context entry is fresh (age <= max_age_secs).
+    pub fn is_fresh(&self, key: &str, max_age_secs: u64) -> bool {
+        self.age_secs(key).map_or(false, |a| a <= max_age_secs)
     }
 
     /// Clear out items that have expired their TTL.
@@ -187,6 +198,7 @@ mod tests {
 
         let entry = store.get_entry("vcs_key").unwrap();
         assert_eq!(entry.value, "data");
+        assert_eq!(entry.set_at > 0, true);
         let vcs = entry.vcs_context.unwrap();
         assert_eq!(vcs.snapshot_before, Some(10));
         assert_eq!(vcs.touched_paths.len(), 1);

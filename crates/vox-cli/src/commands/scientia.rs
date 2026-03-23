@@ -13,20 +13,26 @@ pub enum ScientiaCmd {
     /// List stored research packets (`vox db research-list`).
     #[command(name = "research-list")]
     ResearchList {
+        /// Optional namespace/vendor filter.
         #[arg(long)]
         vendor: Option<String>,
+        /// Optional specific topic filter.
         #[arg(long)]
         topic: Option<String>,
+        /// Row limit for listing.
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
     /// List capability-map rows (`vox db research-map-list`).
     #[command(name = "research-map-list")]
     ResearchMapList {
+        /// Optional namespace/vendor filter.
         #[arg(long)]
         vendor: Option<String>,
+        /// Optional specific topic filter.
         #[arg(long)]
         topic: Option<String>,
+        /// Row limit for listing.
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
@@ -36,8 +42,10 @@ pub enum ScientiaCmd {
     /// Refresh bundled research sources (`vox db research-refresh`).
     #[command(name = "research-refresh")]
     ResearchRefresh {
+        /// Specific vendor/provider path to refresh.
         #[arg(long)]
         vendor: String,
+        /// Only check sync status without executing the refresh.
         #[arg(long, default_value_t = false)]
         dry_run: bool,
     },

@@ -57,6 +57,21 @@ impl std::fmt::Display for AgentActivity {
     }
 }
 
+impl std::str::FromStr for AgentActivity {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "writing" => Ok(Self::Writing),
+            "reading" => Ok(Self::Reading),
+            "executing" => Ok(Self::Executing),
+            "thinking" => Ok(Self::Thinking),
+            "waiting_for_input" => Ok(Self::WaitingForInput),
+            "idle" => Ok(Self::Idle),
+            _ => Err(format!("unknown activity: {s}")),
+        }
+    }
+}
+
 /// A structured event emitted by the orchestrator.
 ///
 /// Each event carries a unique ID, timestamp, and typed payload.

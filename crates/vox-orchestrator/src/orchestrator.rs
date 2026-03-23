@@ -166,8 +166,8 @@ pub struct Orchestrator {
     scope_guard: ScopeGuard,
     /// Per-task timeline (ingress → route → outcome), capped at MAX_TASK_TRACES.
     task_traces: HashMap<TaskId, Vec<TaskTraceStep>>,
-    /// **Arca** content-addressed store (`vox_pm::CodeStore`, Turso). Prefer **`vox_db::Codex`** for app-facing APIs.
-    code_store: Option<vox_pm::CodeStore>,
+    /// **Codex** database handle (Turso/libSQL).
+    db: Option<std::sync::Arc<vox_db::VoxDb>>,
     // -- JJ-inspired subsystems --
     /// Auto-snapshot store for tracking file state changes.
     snapshot_store: crate::snapshot::SnapshotStore,
@@ -228,7 +228,7 @@ impl Orchestrator {
             oplog: crate::oplog::OpLog::default(),
             conflict_manager: crate::conflicts::ConflictManager::new(),
             workspace_manager: crate::workspace::WorkspaceManager::new(),
-            code_store: None,
+            db: None,
             last_rebalance_at: None,
             remote_mesh_routing_hints: Vec::new(),
         }
@@ -271,18 +271,41 @@ impl Orchestrator {
             oplog: crate::oplog::OpLog::default(),
             conflict_manager: crate::conflicts::ConflictManager::new(),
             workspace_manager: crate::workspace::WorkspaceManager::new(),
-            code_store: None,
+            db: None,
             last_rebalance_at: None,
             remote_mesh_routing_hints: Vec::new(),
         }
     }
 
-    /// Initialize the orchestrator database schema.
-    pub async fn init_db(&self, db: &vox_db::VoxDb) -> Result<(), OrchestratorError> {
+    /// Initialize the orchestrator database schema and set the DB handle.
+    pub async fn init_db(&mut self, db: std::sync::Arc<vox_db::VoxDb>) -> Result<(), OrchestratorError> {
         db.sync_schema_from_digest(&crate::schema::orchestrator_schema())
             .await
-            .map_err(|e| OrchestratorError::ScopeDenied(format!("DB sync failed: {}", e)))?;
+            .map_err(|e| OrchestratorError::DatabaseError(format!("DB sync failed: {}", e)))?;
+        self.db = Some(db);
         Ok(())
+    }
+
+    /// Access the underlying database handle if connected.
+    pub fn db(&self) -> Option<&vox_db::VoxDb> {
+        self.db.as_deref()
+    }
+
+    /// Access the internal context store.
+    pub fn context_store(&self) -> &crate::context::ContextStore {
+        &self.context_store
+    }
+
+    /// Build temporal context string for system prompt injection.
+    pub fn build_temporal_context(session: &crate::session::Session, task: &crate::types::AgentTask) -> String {
+        let mut base = session.temporal_summary();
+        if let Some(created) = task.created_at {
+            let elapsed_secs = std::time::Instant::now()
+                .duration_since(created)
+                .as_secs();
+            base.push_str(&format!(" Task created: {}s ago.", elapsed_secs));
+        }
+        base
     }
 
     /// Submit a new task to the orchestrator (async).
@@ -629,12 +652,15 @@ impl Orchestrator {
 
         let reliability_map: Option<HashMap<AgentId, f64>> =
             if self.config.socrates_reputation_routing {
-                self.code_store.as_ref().map(|store| {
-                    store
-                        .block_on(async { store.list_agent_reliability().await })
+                self.db.as_ref().map(|db| {
+                    db.store()
+                        .block_on(async { db.store().list_agent_reliability().await })
                         .unwrap_or_default()
                         .into_iter()
-                        .map(|(id, r)| (AgentId(id), r))
+                        .map(|(id, r)| {
+                            let numeric_id = id.parse::<u64>().unwrap_or(0);
+                            (AgentId(numeric_id), r)
+                        })
                         .collect()
                 })
             } else {
@@ -720,6 +746,13 @@ impl Orchestrator {
         queue.set_agent_session(session_id.clone());
         tracing::info!("Mapped agent session {} to agent {}", session_id, agent_id);
         Ok(())
+    }
+
+    /// Bind a provider endpoint key to an agent for reliability tracking.
+    pub fn set_agent_endpoint(&mut self, agent_id: AgentId, provider: &str, model: &str) {
+        if let Some(queue) = self.agents.get_mut(&agent_id) {
+            queue.endpoint_reliability_key = Some(format!("{}:{}", provider, model));
+        }
     }
 
     /// Retire an agent, redistributing its remaining tasks to other agents.
@@ -1089,8 +1122,8 @@ impl Orchestrator {
             queue.unblock(task_id);
         }
 
-        if let Some(store) = &self.code_store {
-            let _ = store.block_on(store.record_task_reliability_observation(agent_id.0, true));
+        if let Some(db) = &self.db {
+            let _ = db.store().block_on(db.store().record_task_reliability_observation(&agent_id.0.to_string(), true));
         }
 
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
@@ -1116,8 +1149,8 @@ impl Orchestrator {
 
         queue.mark_failed(task_id, reason.clone());
 
-        if let Some(store) = &self.code_store {
-            let _ = store.block_on(store.record_task_reliability_observation(agent_id.0, false));
+        if let Some(db) = &self.db {
+            let _ = db.store().block_on(db.store().record_task_reliability_observation(&agent_id.0.to_string(), false));
         }
 
         let now_ms = std::time::SystemTime::now()
@@ -1664,8 +1697,9 @@ impl Orchestrator {
     }
 
     /// Set the code store for database persistence and snapshotting.
-    pub fn set_code_store(&mut self, code_store: vox_pm::CodeStore) {
-        self.code_store = Some(code_store);
+    pub fn with_db(mut self, db: std::sync::Arc<vox_db::VoxDb>) -> Self {
+        self.db = Some(db);
+        self
     }
 
     /// Take a snapshot of the database state (async).
@@ -1680,10 +1714,10 @@ impl Orchestrator {
         let snap_id = self.snapshot_store.take_snapshot(agent_id, paths, &desc);
 
         // Persist contents to CodeStore if available
-        if let Some(store) = &self.code_store {
+        if let Some(db) = &self.db {
             for p in paths {
                 if let Ok(data) = std::fs::read(p) {
-                    let _ = store.store("file", &data).await;
+                    let _ = db.store().store("file", &data).await;
                 }
             }
         }
@@ -1730,11 +1764,11 @@ impl Orchestrator {
         agent_id: AgentId,
         description: impl Into<String>,
     ) -> Option<u64> {
-        if let Some(store) = &self.code_store {
+        if let Some(db) = &self.db {
             let snap_id = self.oplog.next_db_snapshot_id();
 
             let desc = description.into();
-            if store
+            if db.store()
                 .take_db_snapshot(snap_id, &agent_id.to_string(), &desc)
                 .await
                 .is_ok()
@@ -1754,8 +1788,8 @@ impl Orchestrator {
 
         // 1. Restore Database Snapshot if present
         if let Some(db_id) = db_snap {
-            if let Some(store) = &self.code_store {
-                store.restore_db_snapshot(db_id).await.map_err(|e| {
+            if let Some(db) = &self.db {
+                db.store().restore_db_snapshot(db_id).await.map_err(|e| {
                     OrchestratorError::DatabaseError(format!("Undo: DB restore failed: {}", e))
                 })?;
             }
@@ -1784,8 +1818,8 @@ impl Orchestrator {
 
         // 1. Restore Database Snapshot if present
         if let Some(db_id) = db_snap {
-            if let Some(store) = &self.code_store {
-                store.restore_db_snapshot(db_id).await.map_err(|e| {
+            if let Some(db) = &self.db {
+                db.store().restore_db_snapshot(db_id).await.map_err(|e| {
                     OrchestratorError::DatabaseError(format!("Redo: DB restore failed: {}", e))
                 })?;
             }
@@ -1814,8 +1848,8 @@ impl Orchestrator {
             .snapshot_store
             .get(snapshot_id)
             .ok_or(OrchestratorError::OperationNotFound)?;
-        let store = self.code_store.as_ref().ok_or_else(|| {
-            OrchestratorError::DatabaseError("CodeStore not initialized for restore".into())
+        let db = self.db.as_ref().ok_or_else(|| {
+            OrchestratorError::DatabaseError("Database not initialized for restore".into())
         })?;
 
         for entry in snap.files.values() {
@@ -1824,7 +1858,7 @@ impl Orchestrator {
                     let _ = std::fs::remove_file(&entry.path);
                 }
             } else {
-                let data = store.get(&entry.content_hash).await.map_err(|e| {
+                let data = db.store().get(&entry.content_hash).await.map_err(|e| {
                     OrchestratorError::DatabaseError(format!(
                         "Restore: object {} missing: {}",
                         entry.content_hash, e

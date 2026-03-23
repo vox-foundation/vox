@@ -1,10 +1,113 @@
-//! Agent heartbeat monitor with auto-stale detection and graduated response.
-
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use crate::events::{AgentActivity, AgentEventKind, EventBus};
 use crate::types::AgentId;
+
+/// Record a heartbeat for a node/agent pair in the database with circuit breaker protection.
+pub async fn persist_heartbeat_with_breaker(
+    db: &vox_db::VoxDb,
+    node_id: &str,
+    agent_id: AgentId,
+    activity: crate::events::AgentActivity,
+    repository_id: &str,
+) -> Result<(), String> {
+    db.breaker()
+        .call(|| async {
+            persist_heartbeat(db.store().connection(), node_id, agent_id, activity, repository_id).await
+        })
+        .await
+}
+
+/// Record a heartbeat for a node/agent pair in the database.
+pub async fn persist_heartbeat(
+    conn: &turso::Connection,
+    node_id: &str,
+    agent_id: AgentId,
+    activity: AgentActivity,
+    repository_id: &str,
+) -> Result<(), String> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    conn.execute(
+        "INSERT INTO mesh_heartbeats (node_id, agent_id, last_seen_ms, activity, repository_id)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(node_id, repository_id) DO UPDATE SET
+            agent_id = excluded.agent_id,
+            last_seen_ms = excluded.last_seen_ms,
+            activity = excluded.activity",
+        (
+            node_id,
+            agent_id.0.to_string(),
+            now_ms as i64,
+            activity.to_string(),
+            repository_id,
+        ),
+    )
+    .await
+    .map_err(|e| e.to_string())
+    .map(|_| ())
+}
+
+/// Retrieve all heartbeats from the database that are NOT dead (last seen within threshold).
+pub async fn live_nodes_from_db(
+    conn: &turso::Connection,
+    threshold_ms: u64,
+    repository_id: &str,
+) -> Result<Vec<(String, AgentId, AgentActivity, u64)>, String> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let min_seen = now_ms.saturating_sub(threshold_ms);
+
+    let mut rows = conn
+        .query(
+            "SELECT node_id, agent_id, activity, last_seen_ms
+             FROM mesh_heartbeats
+             WHERE last_seen_ms >= ?1 AND repository_id = ?2",
+            (min_seen, repository_id),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut nodes = Vec::new();
+    while let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
+        let node_id: String = row.get(0).map_err(|e| e.to_string())?;
+        let agent_id_str: String = row.get(1).map_err(|e| e.to_string())?;
+        let activity_str: String = row.get(2).map_err(|e| e.to_string())?;
+        let last_seen: u64 = row.get::<i64>(3).map_err(|e| e.to_string())? as u64;
+
+        let agent_id = AgentId(agent_id_str.parse().unwrap_or(0));
+        let activity = activity_str.parse().unwrap_or(AgentActivity::Idle);
+        nodes.push((node_id, agent_id, activity, last_seen));
+    }
+    Ok(nodes)
+}
+
+/// Remove heartbeats older than max_age_ms (dead nodes).
+pub async fn evict_dead_heartbeats(
+    conn: &turso::Connection,
+    max_age_ms: u64,
+) -> Result<u64, String> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let min_seen = now_ms.saturating_sub(max_age_ms);
+
+    let result = conn
+        .execute(
+            "DELETE FROM mesh_heartbeats WHERE last_seen_ms < ?1",
+            (min_seen,),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(result as u64)
+}
 
 const DEFAULT_STALE_THRESHOLD_MS: u64 = 60_000;
 
@@ -190,6 +293,16 @@ impl HeartbeatMonitor {
         self.agents
             .get(&agent_id)
             .map(|hb| Instant::now().duration_since(hb.last_seen).as_millis() as u64)
+    }
+
+    /// Seconds since the last heartbeat for this agent.
+    pub fn seconds_since_last_seen(&self, agent_id: AgentId) -> Option<u64> {
+        self.last_seen_ms(agent_id).map(|ms| ms / 1000)
+    }
+
+    /// Checks if a recheck is warranted based on the gap since the last heartbeat.
+    pub fn should_recheck_workspace(&self, agent_id: AgentId, min_gap_secs: u64) -> bool {
+        self.seconds_since_last_seen(agent_id).map_or(true, |secs| secs > min_gap_secs)
     }
 
     /// True if the agent has exceeded the stale interval right now.

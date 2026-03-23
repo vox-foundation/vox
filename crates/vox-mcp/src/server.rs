@@ -667,7 +667,7 @@ impl ServerHandler for VoxMcpServer {
 }
 
 /// Returns true when JSON looks like [`ToolResult`] with `success: false` (MCP `is_error` signal).
-fn tool_json_envelope_is_error(json: &str) -> bool {
+pub fn tool_json_envelope_is_error(json: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(json)
         .ok()
         .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
