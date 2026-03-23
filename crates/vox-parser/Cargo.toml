@@ -1,0 +1,14 @@
+[package]
+name = "vox-parser"
+version.workspace = true
+edition.workspace = true
+description = "Primary recursive-descent parser for the Vox compiler: tokens → vox-ast. Handles the brace-delimited core language surface (fn, type, @component, @island, @table, JSX, actors, workflows). Extended full-stack syntax (@page, @partial, @theme, @layout) is parsed by vox-codegen-ts and related downstream crates that depend on this one."
+
+[dependencies]
+vox-lexer = { workspace = true }
+vox-ast = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+

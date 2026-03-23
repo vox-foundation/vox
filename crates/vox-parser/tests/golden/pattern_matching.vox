@@ -1,0 +1,73 @@
+# Vox Pattern Matching Demo — v0.3 brace syntax
+# Demonstrates exhaustive pattern matching on ADTs.
+
+type Shape =
+    | Circle(radius: int)
+    | Rectangle(width: int, height: int)
+    | Triangle(base: int, height: int)
+
+fn area(s: Shape) to int {
+    match s {
+        Circle(radius) -> radius * radius
+        Rectangle(width, height) -> width * height
+        Triangle(base, height) -> base * height
+    }
+}
+
+fn describe(s: Shape) to str {
+    match s {
+        Circle(radius) -> "Circle with radius " + str(radius)
+        Rectangle(width, height) -> "Rectangle " + str(width) + "x" + str(height)
+        Triangle(base, height) -> "Triangle base=" + str(base) + " h=" + str(height)
+    }
+}
+
+type ParseResult =
+    | ParseOk(value: int)
+    | ParseErr(input: str)
+
+fn parse_answer(s: str) to ParseResult {
+    match s {
+        "42" -> ParseOk(42)
+        input -> ParseErr(input)
+    }
+}
+
+@test fn test_circle_area() to Unit {
+    let c = Circle(5)
+    let a = area(c)
+    assert(a is 25)
+}
+
+@test fn test_rectangle_area() to Unit {
+    let r = Rectangle(4, 6)
+    let a = area(r)
+    assert(a is 24)
+}
+
+@test fn test_triangle_area() to Unit {
+    let t = Triangle(8, 3)
+    let a = area(t)
+    assert(a is 24)
+}
+
+@test fn test_describe_circle() to Unit {
+    let s = describe(Circle(10))
+    assert(s is "Circle with radius 10")
+}
+
+@test fn test_parse_ok() to Unit {
+    let r = parse_answer("42")
+    match r {
+        ParseOk(value) -> assert(value is 42)
+        ParseErr(input) -> assert(false)
+    }
+}
+
+@test fn test_parse_err() to Unit {
+    let r = parse_answer("abc")
+    match r {
+        ParseOk(value) -> assert(false)
+        ParseErr(input) -> assert(input is "abc")
+    }
+}
