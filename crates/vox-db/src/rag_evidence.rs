@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::RetrievalResult;
 use crate::VoxDb;
-use vox_pm::store::StoreError;
+use crate::arca_store::StoreError;
 
 // ── Domain type ───────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ impl VoxDb {
         &self,
         bundle_key: &str,
     ) -> Result<Option<Vec<TrustedHit>>, StoreError> {
-        match self.store().get_trusted_evidence_bundle(bundle_key).await? {
+        match self.get_trusted_evidence_bundle(bundle_key).await? {
             Some(json) => {
                 let hits: Vec<TrustedHit> = serde_json::from_str(&json)
                     .map_err(|e| StoreError::Serialization(e.to_string()))?;
@@ -142,7 +142,7 @@ impl VoxDb {
     ///
     /// This is the **only** call path for network-level (infra) failures; Socrates-derived
     /// hallucination scores flow through [`VoxDb::record_socrates_surface_event`] which also
-    /// calls [`vox_pm::store::CodeStore::record_endpoint_observation`].
+    /// calls [`crate::arca_store::CodeStore::record_endpoint_observation`].
     pub async fn record_endpoint_infra_failure(
         &self,
         endpoint_url: &str,
@@ -151,7 +151,7 @@ impl VoxDb {
         is_timeout: bool,
     ) -> Result<(), StoreError> {
         let infra = if is_rate_limit || is_timeout { 1.0_f64 } else { 0.0_f64 };
-        self.store()
+        self
             .record_endpoint_observation(
                 endpoint_url,
                 model_id,
@@ -170,8 +170,8 @@ impl VoxDb {
     pub async fn aggregate_endpoint_reliability(
         &self,
         limit: i64,
-    ) -> Result<Vec<vox_pm::store::EndpointReliabilityEntry>, StoreError> {
-        self.store().list_endpoint_reliability(limit).await
+    ) -> Result<Vec<crate::arca_store::EndpointReliabilityEntry>, StoreError> {
+        self.list_endpoint_reliability(limit).await
     }
 }
 

@@ -110,7 +110,7 @@ pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
                 .map(|p| format!("{}: {:?}", p.name, p.type_ann))
                 .collect();
             println!(
-                "    {} ({}) — callable with 'with {{ retries, timeout, activity_id }}'",
+                "    {} ({}) \u{2014} callable with 'with {{ retries, timeout, activity_id }}'",
                 act.name,
                 act_params.join(", ")
             );
@@ -119,10 +119,10 @@ pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
     }
 
     println!("  Tip: 'with' options supported:");
-    println!("    retries: int         — retry attempts on failure");
-    println!("    timeout: str         — e.g. \"30s\", \"5m\"");
-    println!("    initial_backoff: str — delay before first retry e.g. \"500ms\"");
-    println!("    activity_id: str     — unique ID for deduplication / idempotency");
+    println!("    retries: int         \u{2014} retry attempts on failure");
+    println!("    timeout: str         \u{2014} e.g. \"30s\", \"5m\"");
+    println!("    initial_backoff: str \u{2014} delay before first retry e.g. \"500ms\"");
+    println!("    activity_id: str     \u{2014} unique ID for deduplication / idempotency");
 
     Ok(())
 }
@@ -140,7 +140,7 @@ pub async fn check(file: &Path) -> Result<()> {
 
     if errors == 0 {
         println!(
-            "✓ {} — {} activity(ies), {} workflow(s), {} warning(s)",
+            "v {} \u{2014} {} activity(ies), {} workflow(s), {} warning(s)",
             file.display(),
             result.hir.activities.len(),
             result.hir.workflows.len(),
@@ -181,9 +181,82 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
 
     #[cfg(feature = "workflow-runtime")]
     {
-        let journal = vox_workflow_runtime::interpret_workflow(&result.hir, workflow_name).await?;
+        use crate::workflow_journal_codex;
+        
+        struct CliTracker {
+            db: Option<vox_db::VoxDb>,
+        }
+
+        impl vox_workflow_runtime::WorkflowTracker for CliTracker {
+            async fn is_activity_completed(&self, wf: &str, act_id: &str) -> anyhow::Result<bool> {
+                if let Some(db) = &self.db {
+                    return Ok(db.is_activity_completed(wf, act_id).await?);
+                }
+                Ok(false)
+            }
+            async fn on_workflow_started(&mut self, wf: &str, len: usize) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    db.start_workflow_execution(wf, len as i64).await?;
+                }
+                Ok(())
+            }
+            async fn on_activity_started(&mut self, wf: &str, act: &str, act_id: &str) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    let p = vox_pm::LogExecutionParams {
+                        workflow_id: wf,
+                        agent_id: None,
+                        skill_id: None,
+                        activity_name: act_id,
+                        status: "running",
+                        attempt: 1,
+                        duration_ms: 0,
+                        output_size: 0,
+                        input: None,
+                        output: None,
+                        error: None,
+                        options: Some(act),
+                    };
+                    db.log_execution(&p).await?;
+                }
+                Ok(())
+            }
+            async fn on_activity_completed(&mut self, wf: &str, act: &str, act_id: &str, res: &serde_json::Value) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    let out_json = res.to_string();
+                    let p = vox_pm::LogExecutionParams {
+                        workflow_id: wf,
+                        agent_id: None,
+                        skill_id: None,
+                        activity_name: act_id,
+                        status: "ok",
+                        attempt: 1,
+                        duration_ms: 0,
+                        output_size: out_json.len() as i64,
+                        input: None,
+                        output: Some(out_json.as_bytes()),
+                        error: None,
+                        options: Some(act),
+                    };
+                    db.log_execution(&p).await?;
+                }
+                Ok(())
+            }
+            async fn on_workflow_completed(&mut self, wf: &str) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    db.finish_workflow_execution(wf, "completed", 0).await?;
+                }
+                Ok(())
+            }
+        }
+
+        let db = vox_db::VoxDb::connect_default()
+            .await
+            .context("Failed to connect to VoxDB for workflow tracking")?;
+        let mut tracker = CliTracker { db: Some(db) };
+        
+        let journal = vox_workflow_runtime::interpret_workflow_durable(&result.hir, workflow_name, &mut tracker).await?;
         for entry in &journal {
-            crate::workflow_journal_codex::persist_workflow_journal_entry_opt(workflow_name, entry)
+            workflow_journal_codex::persist_workflow_journal_entry_opt(workflow_name, entry)
                 .await;
         }
         println!(

@@ -10,11 +10,11 @@
 //! |------|------------|
 //! | **[`VoxDb`]** | Stable **Rust type** for this facade; use it in signatures and tests. |
 //! | **[`Codex`]** | **Type alias** for `VoxDb` — same type, product-facing name in docs/UI. |
-//! | **[`CodeStore`]** | Lower-level **`vox_pm`** store: content-addressed blobs + SQL tables. |
+//! | **[`VoxDb`]** | Lower-level **`vox_pm`** store: content-addressed blobs + SQL tables. |
 //! | **Arca** | Historical / internal name for the `vox_pm` store stack (see `vox-pm` docs). |
 //!
-//! [`VoxDb::store`] returns `&CodeStore` (the field is named like the type). It is **not** the
-//! verb “store data”; use [`CodeStore::store`] on that reference for content hashing.
+//! [`VoxDb::store`] returns `&VoxDb` (the field is named like the type). It is **not** the
+//! verb “store data”; use [`VoxDb::store`] on that reference for content hashing.
 //!
 //! ## Connection modes
 //!
@@ -40,7 +40,7 @@
 //!         token: "my-token".to_string(),
 //!     }).await?;
 //!
-//!     let hash = db.store().store("fn", b"fn hello(): ret 42").await?;
+//!     let hash = db.store("fn", b"fn hello(): ret 42").await?;
 //!     println!("Stored: {hash}");
 //!     Ok(())
 //! }
@@ -63,6 +63,10 @@ pub mod circuit_breaker;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 /// Legacy import/export planning and verification for greenfield Codex releases.
+pub mod arca_store;
+pub mod schema;
+
+pub mod hash;
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
@@ -80,7 +84,7 @@ pub mod memory;
 pub mod mesh_control_telemetry;
 /// Opt-in mesh local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
 pub mod mesh_registry_telemetry;
-/// Declarative SQL migrations using the `schema_version` table (see `vox_pm::schema`).
+/// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
 pub mod paths;
@@ -131,12 +135,14 @@ pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
 };
-pub use vox_pm::store::{
-    AgentDefEntry, ArtifactEntry, BehaviorEventEntry, BuilderSessionEntry, CodeStore,
+pub use arca_store::{
+    AgentDefEntry, ArtifactEntry, BehaviorEventEntry, BuilderSessionEntry, 
     CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, EmbeddingEntry, ExecutionEntry,
-    KnowledgeNodeSummary, LearnedPatternEntry, LogExecutionParams, MemoryEntry,
-    PackageSearchResult, ReviewEntry, ScheduledEntry, SessionTurnEntry, SkillManifestEntry,
-    SnippetEntry, StoreError, TrainingPair, TypedStreamEventEntry, UserEntry,
+    KnowledgeNodeSummary, LearnedPatternEntry, LogExecutionParams, LogInteractionParams, MemoryEntry,
+    PackageSearchResult, PublishArtifactParams, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
+    SaveSnippetParams, ScheduledEntry, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
+    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, TrainingPair,
+    TypedStreamEventEntry, UserEntry, WorkflowExecutionRow,
 };
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
@@ -146,14 +152,16 @@ pub type Codex = VoxDb;
 
 /// High-level database facade for the Vox ecosystem (**Codex**).
 ///
-/// Owns a single [`CodeStore`] (one Turso connection). Higher-level helpers (memory, learner,
+/// Owns a single [`VoxDb`] (one Turso connection). Higher-level helpers (memory, learner,
 /// schema sync) delegate to that store; advanced callers use [`Self::store`] for direct access.
 ///
 /// **Concurrency:** one connection per `VoxDb` handle; not `Sync` across concurrent writers unless
 /// the underlying Turso client serializes access (typical for one handle per task).
+#[derive(Clone)]
 pub struct VoxDb {
-    store: CodeStore,
-    breaker: DbCircuitBreaker,
+    pub(crate) conn: turso::Connection,
+    pub(crate) sync_db: Option<turso::sync::Database>,
+    pub(crate) breaker: std::sync::Arc<DbCircuitBreaker>,
 }
 
 /// Default maximum number of connection retry attempts.
@@ -162,11 +170,14 @@ const DEFAULT_MAX_RETRIES: u64 = 3;
 const DEFAULT_RETRY_BASE_MS: u64 = 500;
 
 impl VoxDb {
-    /// Wrap an already-open [`CodeStore`] (e.g. after custom Turso setup).
-    pub fn from_store(store: CodeStore) -> Self {
+    
+
+    /// Wrap an already-open [`VoxDb`] (e.g. after custom Turso setup).
+    pub fn from_store(conn: turso::Connection, sync_db: Option<turso::sync::Database>) -> Self {
         Self {
-            store,
-            breaker: DbCircuitBreaker::from_env(),
+            conn,
+            sync_db,
+            breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
         }
     }
 
@@ -204,7 +215,6 @@ impl VoxDb {
 
     /// Optional hook before dropping a database handle (flush/sync); currently a no-op.
     pub fn shutdown_for_drop(&self) {
-        let _ = &self.store;
     }
 
     /// Connect with configurable retry parameters.
@@ -216,24 +226,53 @@ impl VoxDb {
         retry_base_ms: u64,
     ) -> Result<Self, StoreError> {
         let mut attempts = 0u64;
-        let store = loop {
+        loop {
             attempts += 1;
             let result = match &config {
-                DbConfig::Remote { url, token } => CodeStore::open_remote(url, token).await,
                 #[cfg(feature = "local")]
-                DbConfig::Local { path } => CodeStore::open(path).await,
+                DbConfig::Local { path } => {
+                    let db = turso::Builder::new_local(path).build().await.map_err(StoreError::from)?;
+                    let conn = db.connect().map_err(StoreError::from)?;
+                    Ok((conn, None))
+                }
                 #[cfg(feature = "local")]
-                DbConfig::Memory => CodeStore::open_memory().await,
+                DbConfig::Memory => {
+                    let db = turso::Builder::new_local(":memory:").build().await.map_err(StoreError::from)?;
+                    let conn = db.connect().map_err(StoreError::from)?;
+                    Ok((conn, None))
+                }
+                DbConfig::Remote { url, token } => {
+                    let db = turso::sync::Builder::new_remote(":memory:")
+                        .with_remote_url(url)
+                        .with_auth_token(token)
+                        .build()
+                        .await.map_err(StoreError::from)?;
+                    let conn = db.connect().await.map_err(StoreError::from)?;
+                    Ok((conn, Some(db)))
+                }
                 #[cfg(feature = "replication")]
-                DbConfig::EmbeddedReplica {
-                    local_path,
-                    url,
-                    token,
-                } => CodeStore::open_embedded_replica(local_path, url, token).await,
+                DbConfig::EmbeddedReplica { local_path, url, token } => {
+                    let db = turso::sync::Builder::new_remote(local_path)
+                        .with_remote_url(url)
+                        .with_auth_token(token)
+                        .build()
+                        .await.map_err(StoreError::from)?;
+                    let conn = db.connect().await.map_err(StoreError::from)?;
+                    Ok((conn, Some(db)))
+                }
             };
 
             match result {
-                Ok(store) => break store,
+                Ok((conn, sync_db)) => {
+                    Self::apply_pragmas(&conn).await?;
+                    Self::migrate(&conn).await?;
+                    Self::migrate_coordination(&conn).await?;
+                    return Ok(Self {
+                        conn,
+                        sync_db,
+                        breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
+                    });
+                }
                 Err(e) if attempts < max_retries => {
                     eprintln!(
                         "Failed to connect to Codex, retrying ({}/{})... Error: {}",
@@ -244,11 +283,7 @@ impl VoxDb {
                 }
                 Err(e) => return Err(e),
             }
-        };
-        Ok(Self {
-            store,
-            breaker: DbCircuitBreaker::from_env(),
-        })
+        }
     }
 
     /// Open the configured store **without** running the Arca baseline migration.
@@ -256,12 +291,21 @@ impl VoxDb {
     /// Used by `vox codex export-legacy` so databases that still have the historical multi-version
     /// `schema_version` chain can be read. Normal apps should use [`Self::connect`].
     pub async fn connect_legacy_export_only(config: DbConfig) -> Result<Self, StoreError> {
-        let store = match config {
+        let conn = match config {
             DbConfig::Remote { url, token } => {
-                CodeStore::open_remote_legacy_export(&url, &token).await?
+                turso::sync::Builder::new_remote(":memory:")
+                    .with_remote_url(url)
+                    .with_auth_token(token)
+                    .build()
+                    .await?
+                    .connect()
+                    .await?
             }
             #[cfg(feature = "local")]
-            DbConfig::Local { path } => CodeStore::open_local_legacy_export(&path).await?,
+            DbConfig::Local { path } => {
+                let db = turso::Builder::new_local(&path).build().await?;
+                db.connect()?
+            }
             #[cfg(feature = "local")]
             DbConfig::Memory => {
                 return Err(StoreError::NotFound(
@@ -269,26 +313,22 @@ impl VoxDb {
                 ));
             }
             #[cfg(feature = "replication")]
-            DbConfig::EmbeddedReplica { .. } => {
-                return Err(StoreError::NotFound(
-                    "legacy export is not supported for embedded replica; use remote or local path"
-                        .into(),
-                ));
+            DbConfig::EmbeddedReplica { url, token, .. } => {
+                turso::Connection::open_remote(url, token).await?
             }
         };
         Ok(Self {
-            store,
-            breaker: DbCircuitBreaker::from_env(),
+            conn,
+            sync_db: None,
+            breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
         })
     }
 
-    /// Access the underlying [`CodeStore`] (Arca / `vox_pm`) for CRUD not wrapped here.
+    /// Access the underlying [`VoxDb`] (Arca / `vox_pm`) for CRUD not wrapped here.
     ///
     /// Naming: this method is spelled like the type; the content-addressed write API is
-    /// [`CodeStore::store`].
-    pub fn store(&self) -> &CodeStore {
-        &self.store
-    }
+    /// [`VoxDb::store`].
+    
 
     /// Access the circuit breaker for this database.
     pub fn breaker(&self) -> &DbCircuitBreaker {
@@ -297,7 +337,7 @@ impl VoxDb {
 
     /// Apply a [`SchemaDigest`]-driven plan: create missing tables/columns/indexes, never drop.
     pub async fn sync_schema_from_digest(&self, digest: &SchemaDigest) -> Result<(), StoreError> {
-        let migrator = AutoMigrator::new(self.store.connection());
+        let migrator = AutoMigrator::new(&self.conn);
         migrator.sync_from_digest(digest).await?;
         Ok(())
     }
@@ -307,9 +347,6 @@ impl VoxDb {
         paths::data_dir()
     }
     /// Pull remote changes for sync-backed stores; no-op for pure local file or memory.
-    pub async fn sync(&self) -> Result<(), StoreError> {
-        self.store.sync().await
-    }
 
     // ── Collection & Schema Methods ─────────────────────
 
@@ -319,7 +356,7 @@ impl VoxDb {
     /// based querying. Call `ensure_table()` on the returned handle to create the
     /// backing table if it doesn't exist.
     pub fn collection(&self, name: impl Into<String>) -> collection::Collection<'_> {
-        collection::Collection::new(name, self.store.connection())
+        collection::Collection::new(name, &self.conn)
     }
 
     /// Create an auto-migrator for schema synchronization.
@@ -327,7 +364,7 @@ impl VoxDb {
     /// Use this to introspect the live database schema and diff it against your
     /// desired `@table` declarations, then apply non-destructive migrations.
     pub fn auto_migrator(&self) -> auto_migrate::AutoMigrator<'_> {
-        auto_migrate::AutoMigrator::new(self.store.connection())
+        auto_migrate::AutoMigrator::new(&self.conn)
     }
 
     /// Automatically sync the database schema derived from AST declarations.
@@ -348,22 +385,12 @@ impl VoxDb {
 
     /// Persist an agent memory row (`memories` table). See [`MemoryParams`] for fields.
     pub async fn store_memory(&self, params: MemoryParams<'_>) -> Result<i64, StoreError> {
-        self.store.save_memory(params).await
+        self.save_memory(params).await
     }
 
     /// Load recent memories for an agent, optionally filtered by `memory_type`.
-    pub async fn recall_memory(
-        &self,
-        agent_id: &str,
-        memory_type: Option<&str>,
-        limit: i64,
-    ) -> Result<Vec<MemoryEntry>, StoreError> {
-        self.store
-            .recall_memory(agent_id, memory_type, limit, None)
-            .await
-    }
 
-    /// Full-text-ish search over knowledge nodes (delegates to `CodeStore::query_knowledge_nodes`).
+    /// Full-text-ish search over knowledge nodes (delegates to `VoxDb::query_knowledge_nodes`).
     ///
     /// Returns `(id, title, snippet)` tuples as produced by the store layer.
     pub async fn search_memories(
@@ -371,7 +398,7 @@ impl VoxDb {
         query: &str,
         limit: i64,
     ) -> Result<Vec<(String, String, String)>, StoreError> {
-        self.store.query_knowledge_nodes(query, limit).await
+        self.query_knowledge_nodes(query, limit).await
     }
 
     /// Vector similarity search in `embeddings` (optional `source_type` filter).
@@ -381,14 +408,14 @@ impl VoxDb {
         source_type: Option<&str>,
         limit: i64,
     ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
-        self.store
+        self
             .search_similar_embeddings(vector, source_type, limit)
             .await
     }
 
     /// Return a behavioral learner for this database.
     pub fn learner(&self) -> learning::BehavioralLearner<'_> {
-        learning::BehavioralLearner::new(&self.store)
+        learning::BehavioralLearner::new(&self)
     }
 
     /// Run a parameterized `SELECT` and collect all rows (for small result sets).
@@ -397,7 +424,7 @@ impl VoxDb {
         sql: &str,
         params: impl turso::IntoParams + Send,
     ) -> Result<Vec<turso::Row>, StoreError> {
-        let mut cursor = self.store.connection().query(sql, params).await?;
+        let mut cursor = self.conn.query(sql, params).await?;
         let mut rows = Vec::new();
         while let Some(row) = cursor.next().await? {
             rows.push(row);
@@ -406,47 +433,12 @@ impl VoxDb {
     }
 
     /// Highest `schema_version` row from built-in `vox_pm` migrations (baseline Codex uses **1**).
-    pub async fn schema_version(&self) -> Result<i64, StoreError> {
-        self.store.schema_version().await
-    }
 
     /// Append a **Codex** change-log row (`codex_change_log`) for reactive invalidation / SSE. Schema V8+.
-    pub async fn append_codex_change(
-        &self,
-        topic: &str,
-        entity_kind: Option<&str>,
-        entity_id: Option<&str>,
-        change_kind: &str,
-        payload_json: Option<&str>,
-    ) -> Result<i64, StoreError> {
-        self.store
-            .append_codex_change(topic, entity_kind, entity_id, change_kind, payload_json)
-            .await
-    }
 
     /// Read `codex_change_log` rows with `id > after_id`, optionally filtered by `topic`.
-    pub async fn list_codex_changes_since(
-        &self,
-        topic: Option<&str>,
-        after_id: i64,
-        limit: i64,
-    ) -> Result<Vec<CodexChangeLogEntry>, StoreError> {
-        self.store
-            .list_codex_changes_since(topic, after_id, limit)
-            .await
-    }
 
     /// Record schema lineage for a greenfield baseline or import. Schema V8+.
-    pub async fn record_codex_schema_lineage(
-        &self,
-        baseline_id: &str,
-        schema_digest: &str,
-        provenance: Option<&str>,
-    ) -> Result<i64, StoreError> {
-        self.store
-            .record_codex_schema_lineage(baseline_id, schema_digest, provenance)
-            .await
-    }
 
     /// Apply ordered migrations that have not yet been executed (same `schema_version` table as Arca).
     ///
@@ -459,7 +451,7 @@ impl VoxDb {
     /// docs.
     pub async fn apply_migrations(&self, migrations: &[Migration]) -> Result<Vec<i64>, StoreError> {
         validate_migrations(migrations)?;
-        self.store
+        self
             .connection()
             .execute_batch(
                 "CREATE TABLE IF NOT EXISTS schema_version (
@@ -475,11 +467,11 @@ impl VoxDb {
             if migration.version <= current {
                 continue;
             }
-            self.store
+            self
                 .connection()
                 .execute_batch(&migration.up_sql)
                 .await?;
-            self.store
+            self
                 .connection()
                 .execute(
                     "INSERT INTO schema_version (version) VALUES (?1)",
@@ -492,32 +484,9 @@ impl VoxDb {
     }
 
     /// Record an eval run row (`eval_runs`, schema V3+) for regression / RLHF-style tracking.
-    pub async fn record_eval_run(&self, p: EvalRunParams<'_>) -> Result<i64, StoreError> {
-        self.store
-            .record_eval_run(
-                p.eval_id,
-                p.model_path,
-                p.format_validity,
-                p.safety_rejection_rate,
-                p.quality_proxy,
-                p.skills_discovered,
-                p.workflows_discovered,
-                p.metadata_json,
-            )
-            .await
-    }
+    
 
     /// Record a generated corpus snapshot (fingerprint) into `corpus_snapshots`.
-    pub async fn record_corpus_snapshot(
-        &self,
-        fingerprint: &str,
-        total_pairs: i64,
-        breakdown_json: Option<&str>,
-    ) -> Result<i64, vox_pm::store::StoreError> {
-        self.store
-            .record_corpus_snapshot(fingerprint, env!("CARGO_PKG_VERSION"), total_pairs, breakdown_json)
-            .await
-    }
 
     /// Append a training telemetry event to `agent_events` for orchestrator visibility.
     ///
@@ -528,8 +497,8 @@ impl VoxDb {
         run_id: &str,
         event_kind: &str,
         payload: serde_json::Value,
-    ) -> Result<(), vox_pm::store::StoreError> {
-        let store = self.store();
+    ) -> Result<(), arca_store::StoreError> {
+        let store = self;
         store.record_agent_event(
             &format!("populi_train:{run_id}"),
             event_kind,
@@ -546,7 +515,7 @@ impl VoxDb {
         epoch: u32,
         global_step: u32,
         adapter_path: &str,
-    ) -> Result<(), vox_pm::store::StoreError> {
+    ) -> Result<(), arca_store::StoreError> {
         self.record_training_event(run_id, "checkpoint_saved", serde_json::json!({
             "run_id": run_id,
             "epoch": epoch,
@@ -556,9 +525,6 @@ impl VoxDb {
     }
 
     /// Return true if the given fingerprint is already recorded in Arca `corpus_snapshots`.
-    pub async fn is_corpus_fresh(&self, fingerprint: &str) -> Result<bool, vox_pm::store::StoreError> {
-        self.store.is_corpus_fresh(fingerprint).await
-    }
 
     /// Run `f` between `BEGIN` and `COMMIT` on this connection; `ROLLBACK` on error.
     ///
@@ -568,14 +534,14 @@ impl VoxDb {
     where
         F: std::future::Future<Output = Result<T, StoreError>>,
     {
-        self.store.connection().execute("BEGIN", ()).await?;
+        let _ = self.conn.execute("BEGIN", ()).await?;
         match f.await {
             Ok(val) => {
-                self.store.connection().execute("COMMIT", ()).await?;
+                let _ = self.conn.execute("COMMIT", ()).await?;
                 Ok(val)
             }
             Err(e) => {
-                self.store.connection().execute("ROLLBACK", ()).await.ok();
+                let _ = self.conn.execute("ROLLBACK", ()).await.ok();
                 Err(e)
             }
         }
@@ -593,7 +559,7 @@ impl VoxDb {
         let abs_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         let path_str = abs_path.to_string_lossy();
 
-        self.store
+        self
             .register_component(
                 name,
                 "local", // namespace for local projects
@@ -605,8 +571,7 @@ impl VoxDb {
 
         // Also store the path in user_preferences as a 'known_project'
         let _ = self
-            .store
-            .connection()
+            .conn
             .execute(
                 "INSERT OR REPLACE INTO user_preferences (user_id, key, value) VALUES (?1, ?2, ?3)",
                 (
@@ -637,7 +602,41 @@ mod tests {
     use super::*;
     use crate::codex_legacy::verify_legacy_store;
     use crate::codex_schema::missing_codex_reactivity_tables;
-    use vox_pm::schema::{BASELINE_VERSION, CODEX_CHAT_TABLES};
+    use crate::schema::{BASELINE_VERSION, CODEX_CHAT_TABLES};
+
+
+    #[tokio::test]
+    async fn cas_store_and_load_is_idempotent() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("db");
+        let hash = db
+            .store("test_kind", b"test_data")
+            .await
+            .expect("store");
+        let data = db
+            .get(&hash)
+            .await
+            .expect("get");
+        assert_eq!(data, b"test_data");
+    }
+
+    #[tokio::test]
+    async fn schema_init_v7_is_ok() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+        let v = db.schema_version().await.expect("version");
+        assert_eq!(v, BASELINE_VERSION);
+    }
+
+    #[tokio::test]
+    async fn append_codex_change_is_ok() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let id = db
+            .append_codex_change("test.topic", None, None, "upsert", None)
+            .await
+            .expect("append");
+        assert!(id > 0);
+    }
 
     #[tokio::test]
     async fn test_connect_memory() {
@@ -645,7 +644,6 @@ mod tests {
             .await
             .expect("Failed to connect to memory DB");
         let hash = db
-            .store()
             .store("test_kind", b"test_data")
             .await
             .expect("Store failed");
@@ -663,7 +661,7 @@ mod tests {
                 .expect("cap")
                 .is_empty()
         );
-        let leg = verify_legacy_store(db.store()).await.expect("verify");
+        let leg = verify_legacy_store(&db).await.expect("verify");
         assert!(leg.has_codex_reactivity);
         assert!(!leg.is_legacy_schema_chain);
         let id = db
@@ -681,7 +679,7 @@ mod tests {
 
     #[tokio::test]
     async fn baseline_schema_includes_chat_and_search_tables() {
-        use turso::params;
+
 
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
         assert_eq!(
@@ -692,7 +690,7 @@ mod tests {
             let rows = db
                 .query_all(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-                    params![t],
+                    (t.to_string(),),
                 )
                 .await
                 .expect("sqlite_master");
@@ -706,7 +704,7 @@ mod tests {
             let rows = db
                 .query_all(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-                    params![t],
+                    (t.to_string(),),
                 )
                 .await
                 .expect("sqlite_master");
@@ -716,7 +714,7 @@ mod tests {
             let rows = db
                 .query_all(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-                    params![t],
+                    (t.to_string(),),
                 )
                 .await
                 .expect("sqlite_master");
@@ -731,7 +729,7 @@ mod tests {
             let rows = db
                 .query_all(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-                    params![t],
+                    (t.to_string(),),
                 )
                 .await
                 .expect("sqlite_master");
@@ -747,7 +745,7 @@ mod tests {
         use std::io::Cursor;
         use tempfile::tempdir;
         use turso::Builder;
-        use vox_pm::schema::BASELINE_VERSION;
+        use crate::schema::BASELINE_VERSION;
 
         let dir = tempdir().expect("tempdir");
         let legacy_path = dir.path().join("legacy.db");
@@ -802,7 +800,7 @@ mod tests {
             .await
             .expect("legacy export open");
         let mut jsonl = Vec::<u8>::new();
-        let n = export_legacy_jsonl(export_db.store(), &mut jsonl)
+        let n = export_legacy_jsonl(&export_db, &mut jsonl)
             .await
             .expect("export");
         assert!(n >= 1, "expected at least one exported row");
@@ -811,14 +809,13 @@ mod tests {
             .await
             .expect("fresh baseline");
         assert_eq!(fresh.schema_version().await.expect("sv"), BASELINE_VERSION);
-        let imported = import_legacy_jsonl(fresh.store(), Cursor::new(&jsonl))
+        let imported = import_legacy_jsonl(&fresh, Cursor::new(&jsonl))
             .await
             .expect("import");
         assert!(imported >= 1);
 
         let mut q = fresh
-            .store()
-            .connection()
+            .conn
             .query(
                 "SELECT kind, hex(data) FROM objects WHERE hash = ?1",
                 turso::params!["legacy_row_h"],
@@ -831,7 +828,7 @@ mod tests {
         assert_eq!(kind, "legacy_kind");
         assert_eq!(hex_data.to_uppercase(), "01020304");
 
-        let leg = verify_legacy_store(fresh.store()).await.expect("verify");
+        let leg = verify_legacy_store(&fresh).await.expect("verify");
         assert_eq!(leg.schema_version, BASELINE_VERSION);
         assert!(!leg.is_legacy_schema_chain);
     }

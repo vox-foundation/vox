@@ -1,12 +1,12 @@
 //! `vox share` — share artifacts (workflows, skills, code) via the Vox marketplace.
 
 use anyhow::{Context, Result};
-use vox_pm::{ArtifactEntry, CodeStore};
+use vox_pm::{ArtifactEntry, VoxDb};
 
-async fn connect() -> Result<CodeStore> {
+async fn connect() -> Result<VoxDb> {
     vox_db::open_project_code_store()
         .await
-        .context("Failed to open Arca CodeStore (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
 }
 
 fn print_artifact(a: &ArtifactEntry) {
@@ -28,7 +28,7 @@ pub async fn publish(
     description: Option<&str>,
     tags: Option<&str>,
 ) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let id = format!("{name}-{version}");
     store
         .publish_artifact(
@@ -49,7 +49,7 @@ pub async fn publish(
 
 /// Run the `vox share search` subcommand.
 pub async fn search(query: &str) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let results = store.search_artifacts(query).await?;
     if results.is_empty() {
         println!("No artifacts found for '{query}'");
@@ -64,7 +64,7 @@ pub async fn search(query: &str) -> Result<()> {
 
 /// Run the `vox share list` subcommand.
 pub async fn list(artifact_type: &str) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let results = store.list_artifacts(artifact_type).await?;
     if results.is_empty() {
         println!("No {artifact_type} artifacts found.");
@@ -79,7 +79,7 @@ pub async fn list(artifact_type: &str) -> Result<()> {
 
 /// Run the `vox share review` subcommand.
 pub async fn review(artifact_id: &str, rating: i64, comment: Option<&str>) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     store
         .submit_review(artifact_id, "local-user", "approved", comment, Some(rating))
         .await?;

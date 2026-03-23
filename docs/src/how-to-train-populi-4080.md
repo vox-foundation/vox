@@ -18,7 +18,9 @@ This runbook covers **two** native paths:
 
 ## Recommended Path (Qwen2.5-Coder-3B, RTX 4080-class 16GB)
 
-- **Build** (CUDA): from repo root, **`cargo vox-cuda-release`** (alias in `.cargo/config.toml` — same as `cargo build -p vox-cli --release --features gpu,populi-candle-cuda`). On Windows use a VS **Developer** shell so `nvcc` sees MSVC. Plain `cargo build -p vox-cli --release` still produces a **non-CUDA** Candle build (`--device cuda` may CPU-fallback); re-run **`cargo vox-cuda-release`** whenever you need the NVIDIA path after cleaning or switching machines.
+- **Build** (CUDA): from repo root, **`cargo vox-cuda-release`** (alias in `.cargo/config.toml` — same as `cargo build -p vox-cli --release --features gpu,populi-candle-cuda`). 
+  > [!WARNING]
+  > On Windows, you **MUST** use an interactive VS Developer Command Prompt or PowerShell shell explicitly bootstrapped with `vcvars64.bat`. Passing `vcvars64.bat` via nested subshells (e.g. `cmd.exe /c "vcvars64.bat && cargo..."`) aggressively drops the PATH configurations preventing `nvcc` from correctly executing `cl.exe`. 
 - **Data**: `target/dogfood/train.jsonl` (from corpus pairs/mix); optional `record_format: tool_trace` in mix for command/tool supervision rows (`category` `tool_trace`). See **`populi/schemas/tool_trace_record.schema.json`** and **`populi/data/tool_traces.example.jsonl`**.
 - **Train**:
   ```powershell
@@ -168,7 +170,7 @@ uv run --project scripts render-model-card --run-dir populi/runs/v1
 Use this before claiming a full dogfood run is complete (CI cannot substitute for your GPU box).
 
 1. **Corpus**: `populi corpus mix --config populi/config/mix.yaml` → copy/rename to **`target/dogfood/train.jsonl`** (preflight requires that filename in `--data-dir`).
-2. **Build**: **`cargo vox-cuda-release`** (or `cargo build -p vox-cli --release --features gpu,populi-candle-cuda`) so **`--device cuda`** is real CUDA, not CPU fallback.
+2. **Build**: **`cargo vox-cuda-release`** natively from a `vcvars64.bat` loaded interactive terminal (`nvcc` relies on absolute discovery and crashes in subshells).
 3. **Train**: `vox populi train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; add `--qlora-require-full-proxy-stack` for strict full proxy stack.
 4. **Artifacts**: Confirm **`candle_qlora_adapter.safetensors`**, **`candle_qlora_adapter_meta.json`**, **`populi_adapter_manifest_v3.json`**, **`training_manifest.json`**, **`telemetry.jsonl`** under the output dir.
 5. **Merge / serve**: Candle merge is **`vox populi merge-qlora`** (f32 shard subsets); **`vox populi serve`** stays Burn-only — see SSOT [Merge / export](architecture/populi-training-ssot.md#merge--export--inference).

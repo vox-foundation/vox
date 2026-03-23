@@ -174,8 +174,7 @@ async fn reset_combo(db: &Codex, user_id: &str, combo_id: &str) {
 /// Overwrite a daily counter to an exact value (used for resets and timestamps).
 async fn set_counter_exact(db: &Codex, user_id: &str, key: &str, value: i64) -> Result<()> {
     let day = crate::util::now_unix() / 86_400;
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "INSERT INTO gamify_daily_counters (user_id, event_type, day, count)
          VALUES (?1, ?2, ?3, ?4)

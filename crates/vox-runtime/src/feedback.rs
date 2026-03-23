@@ -5,7 +5,7 @@
 //!
 //! ```no_run
 //! use vox_runtime::feedback::FeedbackCollector;
-//! use vox_pm::store::CodeStore;
+//! use vox_db::CodeStore;
 //!
 //! async fn example(store: CodeStore) {
 //!     let collector = FeedbackCollector::new(store, "session-1", Some("alice".to_string()));

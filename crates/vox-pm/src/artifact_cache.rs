@@ -20,7 +20,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::hash::content_hash;
+use vox_db::hash::content_hash;
 
 /// A content-addressed cache for Vox build artifacts.
 ///

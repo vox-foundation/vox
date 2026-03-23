@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::OrchestratorConfig;
-use crate::types::{AgentTask, TaskPriority, FileAffinity, TaskId, AgentId};
+use crate::types::{AgentTask, TaskPriority, FileAffinity, TaskId};
 
 #[cfg(test)]
 mod tests {

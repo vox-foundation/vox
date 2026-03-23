@@ -434,8 +434,7 @@ impl MemoryManager {
                 let fact_line = format!("{k}: {v}");
                 let fact_meta = format!("{{\"key\":\"{k}\"}}");
                 let _ = db
-                    .store()
-                    .save_memory(vox_pm::SaveMemoryParams {
+                    .save_memory(vox_db::arca_store::SaveMemoryParams {
                         agent_id: &agent_str,
                         session_id: "global",
                         memory_type: "fact",
@@ -448,7 +447,6 @@ impl MemoryManager {
 
                 // 2. Upsert a knowledge_node for this fact
                 let _ = db
-                    .store()
                     .upsert_knowledge_node(
                         &k, 
                         "fact", 
@@ -462,11 +460,9 @@ impl MemoryManager {
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
                     let _ = db
-                        .store()
                         .upsert_knowledge_node(&r, "concept", &r, None, None, None)
                         .await;
                     let _ = db
-                        .store()
                         .create_knowledge_edge(&k, &r, "related_to", 1.0, None)
                         .await;
                 }
@@ -525,8 +521,7 @@ impl MemoryManager {
                 let fact_line = format!("{key}: {value}");
                 let fact_meta = format!("{{\"key\":\"{key}\"}}");
                 let _ = db
-                    .store()
-                    .save_memory(vox_pm::SaveMemoryParams {
+                    .save_memory(vox_db::arca_store::SaveMemoryParams {
                         agent_id: "global",
                         session_id: "sync",
                         memory_type: "fact",
@@ -551,7 +546,6 @@ impl MemoryManager {
             None => return Ok(0),
         };
         let entries = db
-            .store()
             .recall_memory("global", Some("fact"), 500, None)
             .await
             .unwrap_or_default();
@@ -597,7 +591,7 @@ impl MemoryManager {
                 continue;
             }
 
-            if let Ok(neighbors) = db.store().get_knowledge_neighbors(&node_id).await {
+            if let Ok(neighbors) = db.get_knowledge_neighbors(&node_id).await {
                 for (target_id, target_label, _relation, _weight) in neighbors {
                     if visited.insert(target_id.clone()) {
                         let indent = "  ".repeat(current_depth + 1);

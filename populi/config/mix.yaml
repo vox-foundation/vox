@@ -12,8 +12,11 @@ sources:
     record_format: tool_trace
   - path: populi/data/synthetic.jsonl
     weight: 2
-    record_format: tool_trace
   - path: populi/data/golden_pairs.jsonl
     weight: 3
+  - path: populi/data/synthetic_search.jsonl
+    weight: 2
+  - path: populi/data/golden_validated.jsonl
+    weight: 1
 
 output: target/dogfood/train_mixed.jsonl

@@ -331,8 +331,7 @@ async fn query_named(
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
     let mut rows = st
         .codex
-        .store()
-        .conn
+        .connection()
         .query(
             "SELECT snapshot_json, digest, created_at FROM codex_query_snapshots WHERE query_name = ?1 ORDER BY created_at DESC LIMIT 1",
             turso::params![name.as_str()],

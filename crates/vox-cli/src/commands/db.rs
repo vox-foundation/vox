@@ -22,7 +22,7 @@ pub async fn reset(file: Option<&PathBuf>) -> Result<()> {
     println!("Resetting database...");
 
     // Get list of tables to drop (excluding internal ones)
-    let mut rows = db.store().conn.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'vox_%'", ()).await?;
+    let mut rows = db.connection().query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'vox_%'", ()).await?;
     let mut tables_to_drop = Vec::new();
     while let Some(row) = rows.next().await? {
         tables_to_drop.push(row.get::<String>(0)?);
@@ -30,8 +30,7 @@ pub async fn reset(file: Option<&PathBuf>) -> Result<()> {
 
     for table in tables_to_drop {
         println!("  Dropping table: {}", table);
-        db.store()
-            .conn
+        db.connection()
             .execute(&format!("DROP TABLE IF EXISTS {}", table), ())
             .await?;
     }
@@ -74,7 +73,7 @@ pub async fn sample(table: &str, limit: i64) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     println!("Sample data from '{}' (limit {}):", table, limit);
 
-    let conn = &db.store().conn;
+    let conn = &db.connection();
 
     // Get column names via PRAGMA table_info since Row::column_name is missing.
     let info_sql = format!("PRAGMA table_info({})", table);
@@ -149,7 +148,7 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
         }
     }
 
-    let migrator = vox_db::AutoMigrator::new(&db.store().conn);
+    let migrator = vox_db::AutoMigrator::new(&db.connection());
     let plan = migrator
         .sync_schema(&tables, &collections, &indexes)
         .await?;
@@ -163,9 +162,9 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
 pub async fn export(user_id: &str, output: Option<&PathBuf>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
 
-    let prefs = db.store().list_user_preferences(user_id, None).await?;
-    let memories = db.recall_memory(user_id, None, 200).await?;
-    let patterns = db.store().get_learned_patterns(user_id, 200).await?;
+    let prefs = db.list_user_preferences(user_id, None).await?;
+    let memories = db.recall_memory(user_id, None, 200, None).await?;
+    let patterns = db.get_learned_patterns(user_id, 200).await?;
 
     let data = serde_json::json!({
         "user_id": user_id,
@@ -210,7 +209,7 @@ pub async fn import(path: &PathBuf) -> Result<()> {
             let key = pref["key"].as_str().unwrap_or("");
             let value = pref["value"].as_str().unwrap_or("");
             if !key.is_empty() {
-                db.store().set_user_preference(user_id, key, value).await?;
+                db.set_user_preference(user_id, key, value).await?;
                 pref_count += 1;
             }
         }
@@ -222,8 +221,7 @@ pub async fn import(path: &PathBuf) -> Result<()> {
             let content = m["content"].as_str().unwrap_or("");
             let importance = m["importance"].as_f64().unwrap_or(1.0);
             if !content.is_empty() {
-                db.store()
-                    .save_memory(vox_db::MemoryParams {
+                db.save_memory(vox_db::MemoryParams {
                         agent_id: user_id,
                         session_id: "import",
                         memory_type: mtype,
@@ -247,8 +245,7 @@ pub async fn import(path: &PathBuf) -> Result<()> {
 /// Run SQLite VACUUM to reclaim space and defragment the database.
 pub async fn vacuum() -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    db.store()
-        .conn
+    db.connection()
         .execute("VACUUM", ())
         .await
         .map_err(|e| anyhow::anyhow!("VACUUM failed: {e}"))?;
@@ -264,8 +261,7 @@ pub async fn prune(user_id: &str, days: u32) -> Result<()> {
         .unwrap_or(chrono::Utc::now());
     let threshold_str = threshold.format("%Y-%m-%d %H:%M:%S").to_string();
     let deleted = db
-        .store()
-        .conn
+        .connection()
         .execute(
             "DELETE FROM agent_memory WHERE agent_id = ?1 AND created_at < ?2",
             turso::params![user_id, threshold_str],
@@ -279,7 +275,7 @@ pub async fn prune(user_id: &str, days: u32) -> Result<()> {
 /// Get a user preference by key.
 pub async fn pref_get(user_id: &str, key: &str) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    match db.store().get_user_preference(user_id, key).await? {
+    match db.get_user_preference(user_id, key).await? {
         Some(val) => println!("{key} = {val}"),
         None => println!("(not set)"),
     }
@@ -289,7 +285,7 @@ pub async fn pref_get(user_id: &str, key: &str) -> Result<()> {
 /// Set a user preference key/value.
 pub async fn pref_set(user_id: &str, key: &str, value: &str) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    db.store().set_user_preference(user_id, key, value).await?;
+    db.set_user_preference(user_id, key, value).await?;
     println!("Set '{key}' = '{value}' for user '{user_id}'.");
     Ok(())
 }
@@ -297,7 +293,7 @@ pub async fn pref_set(user_id: &str, key: &str, value: &str) -> Result<()> {
 /// List all preferences for a user.
 pub async fn pref_list(user_id: &str, prefix: Option<&str>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let prefs = db.store().list_user_preferences(user_id, prefix).await?;
+    let prefs = db.list_user_preferences(user_id, prefix).await?;
     let filtered: Vec<_> = prefs
         .iter()
         .filter(|(k, _)| prefix.map(|p| k.starts_with(p)).unwrap_or(true))

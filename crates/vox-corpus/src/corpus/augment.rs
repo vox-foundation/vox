@@ -148,11 +148,13 @@ static SYNONYMS: &[(&str, &[&str])] = &[
 /// Apply a single character-level typo mutation to `word`.
 /// Returns the mutated string. Preserves length boundaries.
 fn typo_mutate(word: &str, rng: &mut impl Rng) -> String {
-    if word.len() < 2 {
-        return word.to_string();
-    }
     let chars: Vec<char> = word.chars().collect();
     let len = chars.len();
+    // Guard on char count (not byte length) so multi-byte Unicode chars like →
+    // do not bypass the guard and cause `gen_range(0..0)` panics.
+    if len < 2 {
+        return word.to_string();
+    }
     // Pick a mutation strategy
     match rng.gen_range(0u8..=3) {
         0 => {
@@ -381,7 +383,26 @@ pub fn augment_jsonl_lines(
         let Some(response) = v.get("response").and_then(|x| x.as_str()) else {
             continue;
         };
-        let variants = augment_prompt(prompt, config, seed);
+        
+        let category = v.get("category").and_then(|x| x.as_str()).unwrap_or("");
+        if category == "negative_preference" {
+            continue;
+        }
+        
+        let variants_to_gen = if category == "documentation" {
+            1.min(config.variants_per_prompt)
+        } else {
+            config.variants_per_prompt
+        };
+        
+        if variants_to_gen == 0 {
+            continue;
+        }
+        
+        let mut local_config = config.clone();
+        local_config.variants_per_prompt = variants_to_gen;
+
+        let variants = augment_prompt(prompt, &local_config, seed);
         for variant_prompt in variants {
             let mut row = v
                 .as_object()

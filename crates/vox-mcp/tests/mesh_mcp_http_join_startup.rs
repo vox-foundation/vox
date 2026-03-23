@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Mutex;
-use std::time::Duration;
 
 use vox_mcp::ServerState;
 use vox_mesh::http_client::MeshHttpClient;
@@ -15,8 +14,21 @@ use vox_orchestrator::OrchestratorConfig;
 
 static MESH_ENV_MUTEX: Mutex<()> = Mutex::new(());
 
-/// Restore a key after the test; call only while [`MESH_ENV_MUTEX`] is held.
+/// Poll TCP connectivity until Axum is ready to serve requests, bounded to avoid hangs.
+async fn wait_for_tcp(addr: std::net::SocketAddr) {
+    use std::net::TcpStream;
+    use std::time::Duration;
+    for _ in 0..100 {
+        if TcpStream::connect_timeout(&addr, Duration::from_millis(10)).is_ok() {
+            return;
+        }
+        tokio::task::yield_now().await;
+    }
+}
+
+/// Restore an env key after the test finishes; call only while [`MESH_ENV_MUTEX`] is held.
 fn restore_env(key: &str, previous: Option<String>) {
+    // SAFETY: called only while MESH_ENV_MUTEX is held and the test thread is the sole writer.
     unsafe {
         match previous {
             Some(v) => std::env::set_var(key, v),
@@ -62,7 +74,8 @@ async fn mesh_startup_registers_on_http_control_plane() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    // Deterministic server readiness — no sleep.
+    wait_for_tcp(bound).await;
 
     let base = format!("http://{}", bound);
 

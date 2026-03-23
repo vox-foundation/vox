@@ -222,7 +222,7 @@ pub async fn memory_list_keys(state: &ServerState) -> String {
 pub async fn knowledge_query(state: &ServerState, params: KnowledgeQueryParams) -> String {
     if let Some(ref db) = state.db {
         let limit = params.limit.unwrap_or(10);
-        match db.store().query_knowledge_nodes(&params.query, limit).await {
+        match db.query_knowledge_nodes(&params.query, limit).await {
             Ok(nodes) => {
                 if nodes.is_empty() {
                     ToolResult::ok("No related knowledge nodes found.".to_string()).to_json()
@@ -477,7 +477,6 @@ pub async fn preference_get(state: &ServerState, params: PreferenceGetParams) ->
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
-            .store()
             .get_user_preference(&params.user_id, &params.key)
             .await
         {
@@ -494,7 +493,6 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
-            .store()
             .set_user_preference(&params.user_id, &params.key, &params.value)
             .await
         {
@@ -511,7 +509,6 @@ pub async fn preference_list(state: &ServerState, params: PreferenceListParams) 
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
-            .store()
             .list_user_preferences(&params.user_id, params.prefix.as_deref())
             .await
         {
@@ -530,7 +527,6 @@ pub async fn learn_pattern(state: &ServerState, params: LearnPatternParams) -> S
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
-            .store()
             .store_learned_pattern(
                 &params.user_id,
                 &params.pattern_type,
@@ -629,7 +625,6 @@ pub async fn memory_save_db(state: &ServerState, params: MemorySaveDbParams) -> 
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
-            .store()
             .save_memory(vox_db::MemoryParams {
                 agent_id: &params.agent_id,
                 session_id: &params.session_id,
@@ -652,7 +647,6 @@ pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams)
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
         Some(db) => match db
-            .store()
             .recall_memory(
                 &params.agent_id,
                 params.memory_type.as_deref(),

@@ -68,6 +68,9 @@ static IGNORED_EXTENSIONS: &[&str] = &[
     ".db", ".db-wal", ".db-shm", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so",
     ".dylib", ".bin", ".svg", ".woff", ".woff2",
     ".csv", // data export / error dumps (errors.csv etc.) — not source code
+    ".md",  // documentation — excluded from code review PRs
+    ".txt", // text files — excluded from code review PRs
+    ".hbs", // handlebars templates — excluded from code review PRs
 ];
 
 /// Root-level files (no `/`) that are always excluded — scratch/agent artefacts.
@@ -777,7 +780,7 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
         "\n[phase-1] Publishing baseline `{}` at origin/{default_branch} tip",
         baseline_branch
     );
-    let baseline_sha = super::github::push_baseline_from_origin(
+    let _baseline_sha = super::github::push_baseline_from_origin(
         repo,
         &baseline_branch,
         &default_branch,

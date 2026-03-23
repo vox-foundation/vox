@@ -95,6 +95,8 @@ island = ["dep:comfy-table", "dep:dirs", "dep:walkdir", "dep:which"]
 mesh = ["dep:vox-mesh", "vox-mesh/transport"]
 # Interpreted `vox populi workflow run` (journal + mesh activities); implies mesh hooks.
 workflow-runtime = ["populi-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mesh"]
+# Stub for non-functional inference server when refactoring or debugging.
+broken_inference_stub = []
 
 [dependencies]
 vox-lexer = { workspace = true }

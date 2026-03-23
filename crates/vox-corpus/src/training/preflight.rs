@@ -126,10 +126,23 @@ pub fn resolve_train_input(
 /// Validate that a training file exists and is non-empty; returns resolved path + counts.
 pub fn validate_train_preflight(
     data_dir: &Path,
-    _contract_override: Option<&Path>,
+    contract_override: Option<&Path>,
     workspace_root: Option<&Path>,
 ) -> anyhow::Result<ResolvedTrainInput> {
-    let resolved = resolve_train_input(data_dir, workspace_root)?;
+    let resolved = if let Some(override_path) = contract_override {
+        if !override_path.is_file() {
+            anyhow::bail!("Training contract override `{}` does not exist.", override_path.display());
+        }
+        let n = count_nonempty_lines(override_path).ok();
+        ResolvedTrainInput {
+            path: override_path.to_path_buf(),
+            source: ResolveSource::Contract,
+            sample_count: n,
+        }
+    } else {
+        resolve_train_input(data_dir, workspace_root)?
+    };
+    
     let count = resolved.sample_count.unwrap_or(0);
     if count == 0 {
         anyhow::bail!(

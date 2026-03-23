@@ -10,16 +10,17 @@ pub mod manifest;
 pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
+
+#[cfg(feature = "candle-qlora")]
+pub mod candle_inference_serve;
+#[cfg(feature = "candle-qlora")]
+pub mod candle_model_qwen;
 pub mod train_log;
 pub mod training_text;
 
 pub mod lora;
 
-#[cfg(feature = "gpu")]
-pub mod burn_hf_load;
 
-#[cfg(feature = "gpu")]
-pub mod burn_inference_load;
 #[cfg(feature = "gpu")]
 pub mod burn_stack;
 #[cfg(feature = "gpu")]
@@ -45,10 +46,7 @@ pub use device::{
 pub use lora::{LoraAttentionKvCache, LoraLinear, LoraTransformerKvCache, LoraVoxTransformer};
 pub use lora::{LoraConfig, lora_memory_estimate};
 
-#[cfg(feature = "gpu")]
-pub use burn_inference_load::{
-    BurnInferenceLoadSpec, BurnInferenceModel, load_burn_inference_model,
-};
+
 #[cfg(feature = "gpu")]
 pub use burn_stack::{IGNORE_INDEX, Sequential, VoxTransformer, cross_entropy_loss};
 #[cfg(feature = "gpu")]
@@ -60,10 +58,12 @@ pub mod adapter_schema_v3;
 pub mod artifact_bridge;
 #[cfg(feature = "train")]
 pub mod backend;
-#[cfg(feature = "train")]
-mod backend_burn_lora;
+
+
 #[cfg(feature = "train")]
 mod backend_candle_qlora;
+#[cfg(feature = "train")]
+pub mod checkpoint_state;
 // QLoRA stack needs `LoraTrainingConfig` / preflight; `train` implies `candle-qlora` in this crate.
 #[cfg(feature = "train")]
 mod candle_qlora_graph;

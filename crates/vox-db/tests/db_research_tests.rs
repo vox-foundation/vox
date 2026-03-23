@@ -67,7 +67,7 @@ async fn test_capability_map_crud() {
 async fn test_retrieval_diagnostics() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     
-    let diag = vox_db::retrieval_diagnostics(db.store()).unwrap();
+    let diag = vox_db::retrieval_diagnostics(&db).unwrap();
     // Fresh DB should have 0/0/0
     assert_eq!(diag.knowledge_nodes_count, 0);
     
@@ -96,6 +96,6 @@ async fn test_retrieval_diagnostics() {
     };
     db.ingest_research_document_async(&mut req).await.unwrap();
     
-    let diag2 = vox_db::retrieval_diagnostics(db.store()).unwrap();
+    let diag2 = vox_db::retrieval_diagnostics(&db).unwrap();
     assert_eq!(diag2.knowledge_nodes_count, 1);
 }

@@ -20,7 +20,7 @@
 mod config;
 #[cfg(feature = "execution-api")]
 mod handlers;
-#[cfg(feature = "gpu")]
+#[cfg(all(feature = "gpu", feature = "broken_inference_stub"))]
 pub(crate) mod inference;
 mod prompt;
 mod schema;

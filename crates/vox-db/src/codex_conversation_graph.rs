@@ -1,7 +1,7 @@
 //! Structured **research sessions**, **conversation version** snapshots, **conversation edges**, and
 //! **topic evolution** events (Arca manifest fragment `v17`).
 
-use vox_pm::store::StoreError;
+use crate::arca_store::StoreError;
 
 use crate::VoxDb;
 
@@ -16,7 +16,7 @@ impl VoxDb {
         config_json: Option<&str>,
         summary_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .upsert_research_session(
                 session_key,
                 title,
@@ -36,7 +36,7 @@ impl VoxDb {
         label: &str,
         snapshot_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .append_conversation_version(conversation_id, version_index, label, snapshot_json)
             .await
     }
@@ -50,7 +50,7 @@ impl VoxDb {
         weight: f64,
         metadata_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .insert_conversation_edge(
                 from_conversation_id,
                 to_conversation_id,
@@ -70,7 +70,7 @@ impl VoxDb {
         new_label: Option<&str>,
         detail_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .append_topic_evolution_event(topic_id, event_kind, prior_label, new_label, detail_json)
             .await
     }
@@ -89,7 +89,7 @@ impl VoxDb {
             .research_session_upsert(session_key, "", "active", repository_id, None, None)
             .await?;
         let metric_row_id = self
-            .store()
+            
             .append_research_metric(session_key, metric_type, metric_value, metadata_json)
             .await?;
         Ok(serde_json::json!({
@@ -108,7 +108,7 @@ mod tests {
     async fn v17_research_session_conversation_graph_round_trip() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
 
-        db.store()
+        db
             .connection()
             .execute(
                 "INSERT OR IGNORE INTO users (id, display_name, role) VALUES ('u1', 'u1', 'user')",
@@ -164,7 +164,7 @@ mod tests {
             .expect("edge");
         assert!(eid > 0);
 
-        db.store()
+        db
             .connection()
             .execute(
                 "INSERT OR IGNORE INTO topics (slug, label) VALUES ('t1', 'T1')",
@@ -173,7 +173,7 @@ mod tests {
             .await
             .expect("topic");
         let mut rows = db
-            .store()
+            
             .connection()
             .query("SELECT id FROM topics WHERE slug = 't1'", ())
             .await

@@ -116,7 +116,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
     };
 
     let info_sql = format!("PRAGMA table_info({})", table);
-    let mut info_rows = match db.store().conn.query(&info_sql, ()).await {
+    let mut info_rows = match db.connection().query(&info_sql, ()).await {
         Ok(r) => r,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err(format!("DB error (table info): {e}"))
@@ -139,7 +139,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
     }
 
     let sql = format!("SELECT * FROM {} LIMIT {}", table, limit);
-    let mut rows = match db.store().conn.query(&sql, ()).await {
+    let mut rows = match db.connection().query(&sql, ()).await {
         Ok(r) => r,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err(format!("DB error (select): {e}"))

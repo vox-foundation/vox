@@ -41,7 +41,7 @@ pub async fn run(query: &str, registry_url: Option<&str>) -> Result<()> {
             println!("⚠ Registry unavailable ({e}), searching locally...");
 
             let store_path = ".vox_modules/local_store.db";
-            if let Ok(store) = vox_pm::CodeStore::open(store_path).await {
+            if let Ok(store) = vox_db::VoxDb::open(store_path).await {
                 let artifacts = store.search_artifacts(query).await.unwrap_or_default();
                 if artifacts.is_empty() {
                     println!("No local packages found matching `{query}`.");

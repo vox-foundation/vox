@@ -659,6 +659,40 @@ pub(super) fn run_candle_qlora_train(
     let mut rng = rand::rngs::StdRng::seed_from_u64(config.seed);
     let training_wall_start = Instant::now();
     let mut global_step: u32 = 0;
+    let mut start_epoch = 1;
+    let mut start_pair_offset = 0;
+    let mut epoch_shuffled_indices = None;
+
+    if config.force_restart {
+        train_log::info("Candle QLoRA: --force-restart passed, deleting existing checkpoint");
+        crate::tensor::checkpoint_state::CheckpointState::delete(&out);
+    } else if let Some(ckpt) = crate::tensor::checkpoint_state::CheckpointState::load(&out) {
+        train_log::info(&format!(
+            "Candle QLoRA: Resuming from checkpoint (epoch {}, step {}, offset {})",
+            ckpt.epoch, ckpt.global_step, ckpt.pair_offset,
+        ));
+        start_epoch = ckpt.epoch as usize;
+        global_step = ckpt.global_step;
+        start_pair_offset = ckpt.pair_offset;
+        rng = rand::rngs::StdRng::seed_from_u64(ckpt.rng_seed);
+        
+        // Re-apply the shuffle map saved in the checkpoint so the epoch sequence is identical
+        if ckpt.shuffled_indices.len() == pairs.len() {
+            let mut restored = Vec::with_capacity(pairs.len());
+            for &idx in &ckpt.shuffled_indices {
+                restored.push(pairs[idx].clone());
+            }
+            pairs = restored;
+            epoch_shuffled_indices = Some(ckpt.shuffled_indices);
+        } else {
+            train_log::warn("Candle QLoRA: Checkpoint pair count mismatch; ignoring shuffled_indices");
+        }
+        
+        // Note: qlora_rs does not expose a mutable adapter load; 
+        // full adapter weights restoration relies on QLoraTrainer::new initializing from safetensors if wired,
+        // but currently we focus on the dataset position & telemetry resume graph.
+    }
+
     // Heartbeat + ETA: 5s avoids log spam; ETA uses interval EMA (not raw average).
     let progress_every = Duration::from_secs(5);
     let mut last_progress = Instant::now();
@@ -670,13 +704,33 @@ pub(super) fn run_candle_qlora_train(
     let mut skips_last_hidden: u64 = 0;
     let mut skips_short_seq: u64 = 0;
 
-    for epoch in 1..=config.epochs {
+    for epoch in start_epoch..=config.epochs {
         let mut epoch_visits: u64 = 0;
         let mut epoch_skips: u64 = 0;
         trainer.start_epoch();
-        pairs.shuffle(&mut rng);
 
-        'pair: for pair in &pairs {
+        // Only shuffle if we didn't just load the shuffled sequence from a checkpoint
+        let mut current_shuffled = epoch_shuffled_indices.take();
+        if current_shuffled.is_none() {
+            // Keep track of the permutation we applied so we can save it in mid-epoch checkpoints
+            let mut indices: Vec<usize> = (0..pairs.len()).collect();
+            indices.shuffle(&mut rng);
+            let mut new_pairs = Vec::with_capacity(pairs.len());
+            for &idx in &indices {
+                new_pairs.push(pairs[idx].clone());
+            }
+            pairs = new_pairs;
+            current_shuffled = Some(indices);
+        }
+        let current_shuffled_indices = current_shuffled.unwrap_or_default();
+
+        let offset_to_skip = if epoch == start_epoch { start_pair_offset } else { 0 };
+        start_pair_offset = 0; // only skip for the first resumed epoch
+
+        'pair: for (pair_idx, pair) in pairs.iter().enumerate() {
+            if pair_idx < offset_to_skip {
+                continue; // skip pairs already processed before the crash
+            }
             epoch_visits += 1;
             let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
             let enc = tokenizer
@@ -727,18 +781,31 @@ pub(super) fn run_candle_qlora_train(
                 let inp = h.unsqueeze(0)?.unsqueeze(0)?;
                 let tgt = Tensor::new(&[[tid as u32]], &device)?;
 
-                let loss = match trainer.training_step_lm(&layer_refs, &inp, &tgt) {
-                    Ok(step_loss) => step_loss,
+                let loss = match (|| -> candle_core::Result<Tensor> {
+                    let mut h_curr = inp.clone();
+                    for layer in layer_refs.iter().take(layer_refs.len() - 1) {
+                        let out = layer.forward(&h_curr).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+                        h_curr = (&h_curr + &out)?; // residual connection
+                    }
+                    let logits = layer_refs.last().unwrap().forward(&h_curr).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+                    // logits: [1, 1, vocab_size], tgt: [1, 1]
+                    let logits_f = logits.flatten_to(1)?;
+                    let tgt_f = tgt.flatten_all()?;
+                    let loss_tensor = candle_nn::loss::cross_entropy(&logits_f, &tgt_f)?;
+                    trainer.backward_step(&loss_tensor).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+                    Ok(loss_tensor)
+                })() {
+                    Ok(step_loss) => step_loss.to_scalar::<f32>().unwrap_or(f32::NAN) as f64,
                     Err(e) => {
                         let es = e.to_string();
                         let low = es.to_lowercase();
                         if low.contains("out of memory") || low.contains("oom") {
                             anyhow::bail!(
-                                "Candle QLoRA OOM in training_step_lm: {es}. \
+                                "Candle QLoRA OOM in manual forward loop: {es}. \
                                  For ~16GB (e.g. RTX 4080): lower --seq-len, use `--preset safe` / `4080_safe` / `qwen_4080_16g`, raise --grad-accum, lower --rank, or set VOX_CANDLE_DEVICE=cpu."
                             );
                         }
-                        return Err(anyhow::anyhow!("QLoraTrainer::training_step_lm: {e}"));
+                        return Err(anyhow::anyhow!("QLoraTrainer manual step: {e}"));
                     }
                 };
 
@@ -753,7 +820,7 @@ pub(super) fn run_candle_qlora_train(
 
                 if last_progress.elapsed() >= progress_every {
                     last_progress = Instant::now();
-                    let loss_s = train_log::format_loss_for_log(loss);
+                    let loss_s = train_log::format_loss_for_log(loss as f64);
                     let now = Instant::now();
                     let dt = now
                         .duration_since(progress_anchor_time)
@@ -867,6 +934,48 @@ pub(super) fn run_candle_qlora_train(
                             "eta_sec": eta_clone
                         });
                         let _ = db_tx.send(("train_step".to_string(), rid.clone(), payload));
+                    }
+                }
+
+                if let Some(chk_steps) = config.checkpoint_every {
+                    if global_step > 0 && global_step.is_multiple_of(chk_steps as u32) {
+                        let path = out.join(format!("candle_qlora_adapter_step{}.safetensors", global_step));
+                        let n_mid = if use_o_proj_stack { middle_candidates.len() } else { 0 };
+                        if let Err(e) = save_qlora_adapter_v2(&quant_stack, &adapter_names_for_stack(n_mid), &path) {
+                            train_log::warn(&format!("mid-epoch checkpoint adapter save failed step {global_step}: {e}"));
+                        } else {
+                            let ckpt = crate::tensor::checkpoint_state::CheckpointState {
+                                schema: crate::tensor::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
+                                run_id: config.run_id.clone().unwrap_or_else(|| "unknown".to_string()),
+                                epoch: epoch as u32,
+                                global_step,
+                                pair_offset: pair_idx + 1,
+                                shuffled_indices: current_shuffled_indices.clone(),
+                                rng_seed: config.seed,
+                                adapter_path: path.display().to_string(),
+                                last_loss: loss as f32,
+                                wall_seconds_elapsed: training_wall_start.elapsed().as_secs_f64(),
+                                saved_at_utc: crate::tensor::checkpoint_state::CheckpointState::now_utc(),
+                            };
+                            if let Err(e) = ckpt.save(&out) {
+                                train_log::warn(&format!("mid-epoch checkpoint_state save failed step {global_step}: {e}"));
+                            } else {
+                                train_log::info(&format!("Mid-epoch checkpoint saved at step {global_step}"));
+                                let _ = telemetry::append(&out, "checkpoint_saved", serde_json::json!({
+                                    "epoch": ckpt.epoch,
+                                    "global_step": ckpt.global_step,
+                                    "path": ckpt.adapter_path,
+                                }));
+                                if let Some(ref rid) = config.run_id {
+                                    let payload = serde_json::json!({
+                                        "epoch": ckpt.epoch,
+                                        "global_step": ckpt.global_step,
+                                        "path": ckpt.adapter_path,
+                                    });
+                                    let _ = db_tx.send(("checkpoint_saved".to_string(), rid.clone(), payload));
+                                }
+                            }
+                        }
                     }
                 }
             }

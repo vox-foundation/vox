@@ -24,7 +24,6 @@ mod eval_local;
 mod eval_local_prompt;
 #[cfg(feature = "gpu")]
 mod merge_qlora;
-mod merge_weights;
 #[cfg(feature = "populi-oratio")]
 pub mod oratio_cmd;
 #[cfg(feature = "populi-base")]
@@ -171,9 +170,9 @@ pub enum PopuliAction {
         /// LoRA alpha scaling factor. Default: 32 (or r*2)
         #[arg(long)]
         alpha: Option<f32>,
-        /// Maximum sequence length. Default: 512 (or auto-tuned)
-        #[arg(long)]
-        seq_len: Option<usize>,
+        /// Maximum sequence length. Default: 512 (auto-tuned if omitted for specific pipelines).
+        #[arg(long, default_value_t = 512)]
+        seq_len: usize,
         /// Batch size per step. Default: 4 (or auto-tuned)
         #[arg(long)]
         batch_size: Option<usize>,
@@ -244,9 +243,29 @@ pub enum PopuliAction {
         /// Candle QLoRA: max middle `o_proj` layers in the proxy stack (ablation / VRAM). Omit for full stack when keys are complete; `0` = LM-head-only.
         #[arg(long)]
         qlora_proxy_max_layers: Option<usize>,
-        /// Candle QLoRA: next-token CE on the last **K** positions per JSONL row (default 1). Capped by effective `--seq-len` and 64.
-        #[arg(long, default_value_t = 1)]
+        /// Candle QLoRA: next-token CE on the last **K** positions per JSONL row (default 64). Capped by effective `--seq-len` and 64.
+        #[arg(long, default_value_t = 64)]
         qlora_ce_last_k: usize,
+        /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`.
+        #[arg(long)]
+        checkpoint_every: Option<usize>,
+        /// Ignore existing resume state and force a fresh run from step 0.
+        #[arg(long)]
+        force_restart: bool,
+    },
+
+    /// Dogfood training alias. A zero-config command to execute the canonical Qwen QLoRA training pipeline.
+    #[cfg(feature = "gpu")]
+    Dogfood {
+        /// Where to save checkpoints
+        #[arg(long, default_value = "populi/runs/v1")]
+        output_dir: PathBuf,
+        /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`.
+        #[arg(long, default_value_t = 500)]
+        checkpoint_every: usize,
+        /// Ignore existing resume state and force a fresh run from step 0.
+        #[arg(long)]
+        force_restart: bool,
     },
 
     /// Run UV-managed Python quantized training (bitsandbytes/Unsloth-style).
@@ -321,26 +340,7 @@ pub enum PopuliAction {
         config: bool,
     },
 
-    /// Merge LoRA adapter weights into the base model for faster inference
-    ///
-    /// Takes a LoRA checkpoint (LoraVoxTransformer) and folds A/B matrices
-    /// into the base weights, producing a standalone VoxTransformer checkpoint
-    /// that can be served without adapter overhead.
-    #[cfg(feature = "gpu")]
-    MergeWeights {
-        /// Path to LoRA checkpoint (.bin from `vox populi train`)
-        #[arg(long, required = true)]
-        model: PathBuf,
-        /// Where to save the merged model (default: <model_dir>/model_merged.bin)
-        #[arg(long)]
-        output: Option<PathBuf>,
-        /// LoRA rank used during training
-        #[arg(long, default_value = "16")]
-        rank: usize,
-        /// LoRA alpha used during training
-        #[arg(long, default_value = "32")]
-        alpha: f32,
-    },
+
 
     /// Merge Candle QLoRA adapter v2 (`candle_qlora_adapter*.safetensors`) into base f32 weights (writes merged keys only).
     /// Canonical: `merge-qlora`. Alias: `merge-adapter` (same flags).
@@ -561,6 +561,49 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             );
         }
         #[cfg(feature = "gpu")]
+        PopuliAction::Dogfood {
+            output_dir,
+            checkpoint_every,
+            force_restart,
+        } => {
+            let data_dir = PathBuf::from(vox_corpus::training::CANONICAL_TRAIN_DATA_DIR);
+            
+            crate::commands::populi::train::run_train(
+                PopuliTrainBackendCli::Qlora.into(),
+                Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
+                "cuda".into(),
+                data_dir,
+                output_dir,
+                None, // rank
+                None, // alpha
+                None, // seq_len
+                None, // batch_size
+                None, // grad_accum
+                None, // resume
+                None, // epochs
+                None, // lr
+                None, // warmup
+                42, // seed
+                None, // min_rating
+                Some("qwen_4080_16g".into()), // preset
+                TrainingDeploymentTargetCli::Workstation.into(),
+                "normal".into(), // process_priority
+                None, // vram_limit_fraction
+                Some("vox_dogfood_gpu_v1".into()), // adapter_tag
+                Some("vox".into()), // context_filter
+                PopuliTokenizerCli::Hf.into(),
+                false, // qlora_no_double_quant
+                false, // qlora_require_full_proxy_stack
+                None, // qlora_max_skip_rate
+                false, // qlora_lm_head_only
+                None, // qlora_proxy_max_layers
+                16, // qlora_ce_last_k
+                Some(checkpoint_every),
+                force_restart,
+            )?;
+            Ok(())
+        }
+        #[cfg(feature = "gpu")]
         PopuliAction::Train {
             model,
             device,
@@ -593,6 +636,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             qlora_max_skip_rate,
             qlora_proxy_max_layers,
             qlora_ce_last_k,
+            checkpoint_every,
+            force_restart,
         } => {
             let process_priority = if background {
                 "low".to_string()
@@ -656,7 +701,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 output_dir,
                 rank,
                 alpha,
-                seq_len,
+                Some(seq_len),
                 batch_size,
                 grad_accum,
                 resume,
@@ -678,6 +723,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 qlora_lm_head_only,
                 qlora_proxy_max_layers,
                 qlora_ce_last_k,
+                checkpoint_every,
+                force_restart,
             )
         }
 
@@ -719,13 +766,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             status::run_status(run_dir, _global_json, quotas, config).await
         }
 
-        #[cfg(feature = "gpu")]
-        PopuliAction::MergeWeights {
-            model,
-            output,
-            rank,
-            alpha,
-        } => merge_weights::run_merge_weights(model, output, rank, alpha),
+
 
         #[cfg(feature = "gpu")]
         PopuliAction::MergeQlora {

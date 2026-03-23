@@ -1,13 +1,13 @@
 //! `vox share` — share artifacts (workflows, skills, code) via the Vox marketplace.
 
 use anyhow::{Context, Result};
-use vox_pm::CodeStore;
+use vox_db::VoxDb;
 
-/// Get a CodeStore connection (`VOX_DB_*` / Turso aliases / project `.vox/store.db`).
-async fn connect() -> Result<CodeStore> {
+/// Get a VoxDb connection (`VOX_DB_*` / Turso aliases / project `.vox/store.db`).
+async fn connect() -> Result<VoxDb> {
     vox_db::open_project_code_store()
         .await
-        .context("Failed to open Arca CodeStore (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
 }
 
 /// Run the `vox share publish` subcommand.
@@ -26,7 +26,7 @@ pub async fn publish(
 
 /// Run the `vox share search` subcommand.
 pub async fn search(query: &str) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let packages = store.search_packages(query, 100).await.unwrap_or_default();
     if packages.is_empty() {
         println!("No artifacts found for '{query}'");
@@ -42,7 +42,7 @@ pub async fn search(query: &str) -> Result<()> {
 
 /// Run the `vox share list` subcommand.
 pub async fn list(artifact_type: &str) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let packages = store.search_packages("", 500).await.unwrap_or_default();
     let filtered: Vec<_> = packages
         .into_iter()

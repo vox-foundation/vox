@@ -40,7 +40,7 @@ pub async fn run(package_name: &str, registry_url: Option<&str>) -> Result<()> {
             println!("⚠ Registry unavailable ({e}), checking locally...");
 
             let store_path = ".vox_modules/local_store.db";
-            if let Ok(store) = vox_pm::CodeStore::open(store_path).await {
+            if let Ok(store) = vox_db::VoxDb::open(store_path).await {
                 let versions = store
                     .get_package_versions(package_name)
                     .await

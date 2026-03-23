@@ -1,12 +1,12 @@
 //! `vox agent` — register, list, and inspect AI agent definitions.
 
 use anyhow::{Context, Result};
-use vox_pm::{AgentDefEntry, CodeStore};
+use vox_pm::{AgentDefEntry, VoxDb};
 
-async fn connect() -> Result<CodeStore> {
+async fn connect() -> Result<VoxDb> {
     vox_db::open_project_code_store()
         .await
-        .context("Failed to open Arca CodeStore (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
 }
 
 fn print_agent(a: &AgentDefEntry) {
@@ -26,7 +26,7 @@ pub async fn create(
     model_config: Option<&str>,
     is_public: bool,
 ) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let id = format!("agent-{name}");
     store
         .register_agent(
@@ -47,7 +47,7 @@ pub async fn create(
 
 /// List all registered agents.
 pub async fn list() -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let agents = store.list_agents().await?;
     if agents.is_empty() {
         println!("No agents registered.");
@@ -62,7 +62,7 @@ pub async fn list() -> Result<()> {
 
 /// Get details of a specific agent.
 pub async fn info(id: &str) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let agent = store.get_agent(id).await?;
     println!("Agent: {} (v{})", agent.name, agent.version);
     if let Some(ref desc) = agent.description {

@@ -95,7 +95,6 @@ impl SkillRegistry {
             let ver2 = version.clone();
             tokio::spawn(async move {
                 let _ = db
-                    .store()
                     .publish_skill(&id2, &ver2, &manifest_json, &skill_md)
                     .await;
             });
@@ -120,7 +119,7 @@ impl SkillRegistry {
             if let Some(db) = self.get_db() {
                 let id_owned = id.to_string();
                 tokio::spawn(async move {
-                    let _ = db.store().unpublish_skill(&id_owned).await;
+                    let _ = db.unpublish_skill(&id_owned).await;
                 });
             }
         } else {
@@ -171,7 +170,6 @@ impl SkillRegistry {
             None => return Ok(0),
         };
         let entries = db
-            .store()
             .list_skill_manifests()
             .await
             .map_err(|e| SkillError::Http(e.to_string()))?;

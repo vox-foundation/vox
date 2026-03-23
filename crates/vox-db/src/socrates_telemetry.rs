@@ -2,10 +2,10 @@
 //! and proxy “hallucination risk” tracking when gold labels are absent.
 
 use serde::{Deserialize, Serialize};
-use vox_pm::store::StoreError;
+use crate::arca_store::StoreError;
 use vox_socrates_policy::RiskDecision;
 
-use crate::{EvalRunParams, VoxDb};
+use crate::VoxDb;
 
 /// Higher values ⇒ more conservative outputs (abstain / contradiction) — useful as a **proxy** when
 /// ground-truth hallucination labels are not available.
@@ -64,17 +64,7 @@ pub struct SocratesSurfaceAggregate {
 
 impl VoxDb {
     /// Low-level append to `research_metrics`.
-    pub async fn append_research_metric(
-        &self,
-        session_id: &str,
-        metric_type: &str,
-        metric_value: Option<f64>,
-        metadata_json: Option<&str>,
-    ) -> Result<i64, StoreError> {
-        self.store
-            .append_research_metric(session_id, metric_type, metric_value, metadata_json)
-            .await
-    }
+
 
     /// Record one Socrates tool turn under session `mcp:<repository_id>`, metric type `socrates_surface`.
     pub async fn record_socrates_surface_event(
@@ -146,7 +136,7 @@ impl VoxDb {
         let prefix = repository_id
             .map(|r| format!("mcp:{r}"))
             .unwrap_or_default();
-        self.store
+        self
             .list_research_metrics_by_type("socrates_surface", &prefix, limit)
             .await
     }
@@ -234,16 +224,16 @@ impl VoxDb {
             0.0
         };
         let quality = (1.0 - agg.mean_hallucination_risk_proxy).clamp(0.0, 1.0);
-        self.record_eval_run(EvalRunParams {
+        self.record_eval_run(
             eval_id,
-            model_path: repository_id,
-            format_validity: Some(answer_rate),
-            safety_rejection_rate: Some(abstain_rate),
-            quality_proxy: Some(quality),
-            skills_discovered: None,
-            workflows_discovered: None,
-            metadata_json: Some(&meta),
-        })
+            repository_id,
+            Some(answer_rate),
+            Some(abstain_rate),
+            Some(quality),
+            None,
+            None,
+            Some(&meta),
+        )
         .await
     }
 }
@@ -251,7 +241,7 @@ impl VoxDb {
 #[cfg(all(test, feature = "local"))]
 mod db_tests {
     use crate::{DbConfig, VoxDb};
-    use vox_pm::store::StoreError;
+    use crate::arca_store::StoreError;
     use vox_socrates_policy::RiskDecision;
 
     #[tokio::test]

@@ -567,19 +567,17 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
     let mut reg_detail = "not registered — run: vox setup".to_string();
     if let Ok(db) = vox_db::Codex::connect_default().await {
         let key = "project.vox-workspace.path".to_string();
-        if let Ok(path) = db.store().get_object_metadata("vox-workspace", &key).await {
+        if let Ok(path) = db.get_object_metadata("vox-workspace", &key).await {
             reg_pass = true;
             reg_detail = format!("registered at {}", path);
         } else if let Ok(path) = db
-            .store()
             .get_object_metadata("vox-workspace", "path")
             .await
         {
             reg_pass = true;
             reg_detail = format!("registered at {}", path);
         } else if let Ok(mut rows) = db
-            .store()
-            .conn
+            .connection()
             .query(
                 "SELECT value FROM user_preferences WHERE key = ?1",
                 (key.clone(),),

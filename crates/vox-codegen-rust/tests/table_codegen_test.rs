@@ -128,7 +128,7 @@ fn db_setup_in_main() {
         .get("src/main.rs")
         .expect("main.rs should exist");
 
-    // DB imports (Codex + Arc; libSQL via Codex.store().conn)
+    // DB imports (Codex + Arc; libSQL via Codex.connection())
     assert!(
         main_rs.contains("use vox_db::Codex;"),
         "main should import Codex"

@@ -7,7 +7,7 @@
 use crate::VoxDb;
 use serde::{Deserialize, Serialize};
 use turso::params;
-use vox_pm::StoreError;
+use crate::arca_store::StoreError;
 
 const CAP_TABLE: &str = "
 CREATE TABLE IF NOT EXISTS codex_capability_map (
@@ -141,7 +141,7 @@ fn chunk_text(body: &str, max_chunk: usize) -> Vec<String> {
 }
 
 async fn ensure_cap_table(db: &VoxDb) -> Result<(), StoreError> {
-    db.store().connection().execute_batch(CAP_TABLE).await?;
+    db.connection().execute_batch(CAP_TABLE).await?;
     Ok(())
 }
 
@@ -159,7 +159,7 @@ impl VoxDb {
         let meta = serde_json::to_string(&req.packet)
             .map_err(|e| StoreError::Serialization(e.to_string()))?;
 
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT OR REPLACE INTO knowledge_nodes (id, label, content, category, metadata, created_at)
@@ -173,13 +173,13 @@ impl VoxDb {
             )
             .await?;
 
-        let packet_rowid = self.store().connection().last_insert_rowid();
+        let packet_rowid = self.conn.last_insert_rowid();
 
         let chunks = chunk_text(&req.body, 2048);
         let mut chunk_ids = Vec::new();
         for (i, chunk) in chunks.iter().enumerate() {
             let title = format!("{}#{}", req.packet.topic, i);
-            self.store()
+            self
                 .connection()
                 .execute(
                     "INSERT INTO snippets (language, title, code, description, tags, author_id, source_ref, embedding_ref)
@@ -193,7 +193,7 @@ impl VoxDb {
                     ],
                 )
                 .await?;
-            chunk_ids.push(self.store().connection().last_insert_rowid());
+            chunk_ids.push(self.conn.last_insert_rowid());
         }
 
         Ok(ResearchIngestResult {
@@ -210,7 +210,7 @@ impl VoxDb {
         &self,
         req: &mut ResearchIngestRequest,
     ) -> Result<ResearchIngestResult, StoreError> {
-        self.store()
+        self
             .block_on(self.ingest_research_document_async(req))
     }
 
@@ -224,11 +224,11 @@ impl VoxDb {
         let limit = limit.clamp(1, 50_000);
         let vendor = vendor.map(str::to_string);
         let topic = topic.map(str::to_string);
-        self.store().block_on(async {
+        self.block_on(async {
             let lim = limit;
             let mut rows = match (&vendor, &topic) {
                 (Some(v), Some(t)) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
@@ -239,7 +239,7 @@ impl VoxDb {
                         .await?
                 }
                 (Some(v), None) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
@@ -250,7 +250,7 @@ impl VoxDb {
                         .await?
                 }
                 (None, Some(t)) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
@@ -261,7 +261,7 @@ impl VoxDb {
                         .await?
                 }
                 (None, None) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
@@ -287,13 +287,13 @@ impl VoxDb {
         &self,
         rec: &CapabilityMapRecord,
     ) -> Result<i64, StoreError> {
-        self.store().block_on(async {
+        self.block_on(async {
             ensure_cap_table(self).await?;
             let linked = serde_json::to_string(&rec.linked_paths)
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
             let meta = serde_json::to_string(&rec.metadata)
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
-            self.store()
+            self
                 .connection()
                 .execute(
                     "INSERT INTO codex_capability_map (
@@ -314,7 +314,7 @@ impl VoxDb {
                     ],
                 )
                 .await?;
-            Ok(self.store().connection().last_insert_rowid())
+            Ok(self.conn.last_insert_rowid())
         })
     }
 
@@ -328,11 +328,11 @@ impl VoxDb {
         let limit = limit.clamp(1, 50_000);
         let vendor = vendor.map(str::to_string);
         let topic = topic.map(str::to_string);
-        self.store().block_on(async {
+        self.block_on(async {
             ensure_cap_table(self).await?;
             let mut rows = match (&vendor, &topic) {
                 (Some(v), Some(t)) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT topic, vendor, area, openclaw_capability, vox_evidence, status,
@@ -344,7 +344,7 @@ impl VoxDb {
                         .await?
                 }
                 (Some(v), None) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT topic, vendor, area, openclaw_capability, vox_evidence, status,
@@ -356,7 +356,7 @@ impl VoxDb {
                         .await?
                 }
                 (None, Some(t)) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT topic, vendor, area, openclaw_capability, vox_evidence, status,
@@ -368,7 +368,7 @@ impl VoxDb {
                         .await?
                 }
                 (None, None) => {
-                    self.store()
+                    self
                         .connection()
                         .query(
                             "SELECT topic, vendor, area, openclaw_capability, vox_evidence, status,
@@ -421,7 +421,7 @@ pub struct RetrievalDiagnostics {
 
 /// Cheap `COUNT(*)` snapshots over retrieval-related tables.
 pub fn retrieval_diagnostics(
-    store: &vox_pm::CodeStore,
+    store: &crate::VoxDb,
 ) -> Result<RetrievalDiagnostics, StoreError> {
     store.block_on(async {
         let mut r1 = store

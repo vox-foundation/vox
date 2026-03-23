@@ -27,7 +27,6 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
     };
     let rid = state.repository.repository_id.clone();
     match db
-        .store()
         .list_research_metrics_by_type("benchmark_event", &format!("bench:{rid}"), params.limit)
         .await
     {

@@ -9841,8 +9841,11 @@ dependencies = [
  "syn",
  "tempfile",
  "tracing",
+ "turso",
  "vox-db",
+ "vox-lexer",
  "vox-mcp-meta",
+ "vox-parser",
  "vox-repository",
  "xxhash-rust",
 ]
@@ -9851,11 +9854,13 @@ dependencies = [
 name = "vox-db"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "blake3",
  "data-encoding",
  "keyring",
  "serde",
  "serde_json",
+ "sha3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -9863,7 +9868,6 @@ dependencies = [
  "turso",
  "vox-ast",
  "vox-config",
- "vox-pm",
  "vox-socrates-policy",
  "vox-test-harness",
 ]
@@ -10094,6 +10098,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-metal-shim"
+version = "0.1.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+]
+
+[[package]]
 name = "vox-oratio"
 version = "0.1.0"
 dependencies = [
@@ -10176,6 +10188,7 @@ dependencies = [
  "toml 0.8.23",
  "turso",
  "vox-ast",
+ "vox-db",
  "vox-hir",
 ]
 
@@ -10203,6 +10216,7 @@ dependencies = [
  "tracing",
  "vox-corpus",
  "vox-db",
+ "vox-metal-shim",
  "vox-tensor",
 ]
 

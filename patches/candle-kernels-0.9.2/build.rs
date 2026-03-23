@@ -10,7 +10,7 @@ fn main() {
     // Build for PTX
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let ptx_path = out_dir.join("ptx.rs");
-    let mut builder = bindgen_cuda::Builder::default()
+    let builder = bindgen_cuda::Builder::default()
         .arg("--expt-relaxed-constexpr")
         .arg("-std=c++17")
         .arg("-O3");
@@ -19,6 +19,7 @@ fn main() {
         .arg("--expt-relaxed-constexpr")
         .arg("-std=c++17")
         .arg("-O3");
+
     // Discover MSVC toolchain to run headless on Windows without a Developer Prompt
     if let Ok(target) = env::var("TARGET") {
         if target.contains("msvc") {
@@ -34,6 +35,31 @@ fn main() {
                 } else {
                     std::env::set_var(key, val);
                 }
+            }
+        }
+    }
+
+    // Ergonomics: Fast-fail if cl.exe is missing on Windows to avoid cryptic nvcc errors
+    if let Ok(target) = env::var("TARGET") {
+        if target.contains("msvc") {
+            if let Err(e) = std::process::Command::new("cl.exe").arg("/?").output() {
+                panic!(
+                    "\n\n\
+                    ========================================================================\n\
+                    FATAL: Microsoft C++ Compiler (cl.exe) not found in PATH!\n\
+                    \n\
+                    You are targeting MSVC, but 'cl.exe' is inaccessible. \n\
+                    NVCC requires cl.exe to compile CUDA kernels natively.\n\
+                    \n\
+                    FIX:\n\
+                    You MUST run this build from within a Developer Command Prompt.\n\
+                    Do not use nested shell calls (e.g. `cmd /c vcvars64.bat && cargo ...`).\n\
+                    \n\
+                    Open your Start Menu, search for 'x64 Native Tools Command Prompt \n\
+                    for VS 2022', and execute your cargo build from there.\n\
+                    ========================================================================\n\
+                    Error trace: {e}\n\n"
+                );
             }
         }
     }

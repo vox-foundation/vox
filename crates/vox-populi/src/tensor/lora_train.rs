@@ -8,7 +8,7 @@
 use std::path::Path;
 
 use crate::tensor::backend::TrainingBackend;
-use crate::tensor::backend_burn_lora::BurnLoraBackend;
+
 use crate::tensor::backend_candle_qlora::CandleQloraBackend;
 use crate::tensor::device::DeviceKind;
 use crate::tensor::execution_planner::ExecutionPlanner;
@@ -38,7 +38,7 @@ pub fn run_populi_training(
 
     match plan.kernel {
         PopuliTrainBackend::BurnLora => {
-            BurnLoraBackend.run(data_dir, output_dir, &cfg, device_kind, system_prompt)
+            anyhow::bail!("Burn LoRA backend is deprecated. Please use Candle QLoRA backend.");
         }
         PopuliTrainBackend::CandleQlora => {
             CandleQloraBackend.run(data_dir, output_dir, &cfg, device_kind, system_prompt)

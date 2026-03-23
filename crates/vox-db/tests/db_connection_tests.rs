@@ -6,7 +6,7 @@ async fn test_db_memory_smoke() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     assert_eq!(db.schema_version().await.unwrap(), 1);
     
-    let hash = db.store().store("test", b"hello").await.unwrap();
+    let hash = db.store("test", b"hello").await.unwrap();
     assert!(!hash.is_empty());
 }
 
@@ -19,12 +19,12 @@ async fn test_db_local_file_persistence() {
 
     {
         let db = VoxDb::connect(DbConfig::Local { path: path_str.clone() }).await.unwrap();
-        hash = db.store().store("perm", b"data").await.unwrap();
+        hash = db.store("perm", b"data").await.unwrap();
     }
 
     // Reopen and check if it still works
     let db = VoxDb::connect(DbConfig::Local { path: path_str }).await.unwrap();
-    let obj = db.store().get(&hash).await.unwrap();
+    let obj = db.get(&hash).await.unwrap();
     assert_eq!(obj, b"data");
 }
 
@@ -43,7 +43,7 @@ async fn test_db_transaction_success() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     
     db.transaction(async {
-        db.store().save_memory(vox_db::MemoryParams {
+        db.save_memory(vox_db::MemoryParams {
             agent_id: "tx_agent",
             session_id: "sess_1",
             memory_type: "observation",
@@ -55,6 +55,6 @@ async fn test_db_transaction_success() {
         Ok(())
     }).await.unwrap();
 
-    let recalled = db.recall_memory("tx_agent", None, 10).await.unwrap();
+    let recalled = db.recall_memory("tx_agent", None, 10, None).await.unwrap();
     assert_eq!(recalled.len(), 1);
 }

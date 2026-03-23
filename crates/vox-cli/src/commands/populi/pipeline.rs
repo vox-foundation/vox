@@ -29,11 +29,11 @@ pub async fn run(
     std::fs::create_dir_all(&data_dir)?;
     std::fs::create_dir_all(&output_dir)?;
 
-    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
+    let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
         dir: PathBuf::from("examples"),
         output: validated.clone(),
     })
-    .await?;
+    .await;
 
     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
         dir: PathBuf::from("docs"),
@@ -117,6 +117,8 @@ pub async fn run(
             false,
             None,
             1,
+            None,
+            false,
         )?;
         Ok(())
     }

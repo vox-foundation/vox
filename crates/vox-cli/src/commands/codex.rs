@@ -24,7 +24,7 @@ pub async fn verify() -> anyhow::Result<()> {
         }
         Err(e) => return Err(anyhow::anyhow!("{e}")),
     };
-    let v: LegacyVerification = verify_legacy_store(db.store())
+    let v: LegacyVerification = verify_legacy_store(&db)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("schema_version: {}", v.schema_version);
@@ -44,7 +44,7 @@ pub async fn export_legacy(out: &PathBuf) -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     let mut buf = Vec::<u8>::new();
-    let n = export_legacy_jsonl(db.store(), &mut buf)
+    let n = export_legacy_jsonl(&db, &mut buf)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     tokio::fs::write(out, buf)
@@ -61,7 +61,7 @@ pub async fn import_legacy(path: &PathBuf) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     let file = std::fs::File::open(path).with_context(|| format!("open {}", path.display()))?;
     let reader = std::io::BufReader::new(file);
-    let n = import_legacy_jsonl(db.store(), reader)
+    let n = import_legacy_jsonl(&db, reader)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("Imported {n} row(s) from {}", path.display());

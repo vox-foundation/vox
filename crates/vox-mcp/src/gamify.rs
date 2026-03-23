@@ -118,7 +118,6 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
 
     if let Some(db) = &state.db {
         if let Ok(Some(pref)) = db
-            .store()
             .get_user_preference(&user_id, "task.estimate_ms")
             .await
         {

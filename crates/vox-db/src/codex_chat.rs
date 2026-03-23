@@ -5,7 +5,7 @@
 use turso::params;
 
 use crate::VoxDb;
-use vox_pm::store::StoreError;
+use crate::arca_store::StoreError;
 
 impl VoxDb {
     /// Insert a `conversations` row (V11+). Returns SQLite `rowid` / `id`.
@@ -14,19 +14,19 @@ impl VoxDb {
         user_id: Option<&str>,
         title: &str,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT INTO conversations (user_id, title) VALUES (?1, ?2)",
                 params![user_id, title],
             )
             .await?;
-        Ok(self.store().connection().last_insert_rowid())
+        Ok(self.connection().last_insert_rowid())
     }
 
     /// Bump `conversations.updated_at` for listing recency (V11+).
     pub async fn chat_touch_conversation(&self, conversation_id: i64) -> Result<(), StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?1",
@@ -44,7 +44,7 @@ impl VoxDb {
         content_text: &str,
         payload_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT INTO conversation_messages (conversation_id, role, content_text, payload_json)
@@ -52,7 +52,7 @@ impl VoxDb {
                 params![conversation_id, role, content_text, payload_json],
             )
             .await?;
-        let id = self.store().connection().last_insert_rowid();
+        let id = self.connection().last_insert_rowid();
         self.chat_touch_conversation(conversation_id).await?;
         Ok(id)
     }
@@ -70,7 +70,7 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT INTO conversation_tool_calls
@@ -86,7 +86,7 @@ impl VoxDb {
                 ],
             )
             .await?;
-        Ok(self.store().connection().last_insert_rowid())
+        Ok(self.connection().last_insert_rowid())
     }
 
     /// Update result / terminal state for a tool call (V12+).
@@ -101,7 +101,7 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        self.store()
+        self
             .connection()
             .execute(
                 "UPDATE conversation_tool_calls
@@ -123,7 +123,7 @@ impl VoxDb {
         limit_value: i64,
         enforcement: &str,
     ) -> Result<(), StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT INTO usage_limit_definitions
@@ -155,7 +155,7 @@ impl VoxDb {
         period_start: &str,
         delta: i64,
     ) -> Result<i64, StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT INTO usage_counter_snapshots
@@ -167,9 +167,7 @@ impl VoxDb {
                 params![metric_key, scope_kind, scope_id, period_start, delta],
             )
             .await?;
-        let mut rows = self
-            .store()
-            .connection()
+        let mut rows = self.connection()
             .query(
                 "SELECT amount FROM usage_counter_snapshots
                  WHERE metric_key = ?1 AND scope_kind = ?2 AND scope_id = ?3 AND period_start = ?4",
@@ -192,9 +190,7 @@ impl VoxDb {
         scope_id: &str,
         period_start: &str,
     ) -> Result<i64, StoreError> {
-        let mut rows = self
-            .store()
-            .connection()
+        let mut rows = self.connection()
             .query(
                 "SELECT COALESCE(
                     (SELECT amount FROM usage_counter_snapshots
@@ -219,9 +215,7 @@ impl VoxDb {
         scope_id: &str,
         period_kind: &str,
     ) -> Result<Option<i64>, StoreError> {
-        let mut rows = self
-            .store()
-            .connection()
+        let mut rows = self.connection()
             .query(
                 "SELECT limit_value FROM usage_limit_definitions
                  WHERE metric_key = ?1 AND scope_kind = ?2 AND scope_id = ?3 AND period_kind = ?4
@@ -239,16 +233,14 @@ impl VoxDb {
 
     /// `INSERT OR IGNORE` then return `topics.id` for `slug` (V14+).
     pub async fn chat_ensure_topic(&self, slug: &str, label: &str) -> Result<i64, StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT OR IGNORE INTO topics (slug, label) VALUES (?1, ?2)",
                 params![slug, label],
             )
             .await?;
-        let mut rows = self
-            .store()
-            .connection()
+        let mut rows = self.connection()
             .query(
                 "SELECT id FROM topics WHERE slug = ?1 LIMIT 1",
                 params![slug],
@@ -269,7 +261,7 @@ impl VoxDb {
         topic_id: i64,
         weight: f64,
     ) -> Result<(), StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT INTO conversation_topics (conversation_id, topic_id, weight)
@@ -287,7 +279,7 @@ impl VoxDb {
         conversation_message_id: i64,
         topic_id: i64,
     ) -> Result<(), StoreError> {
-        self.store()
+        self
             .connection()
             .execute(
                 "INSERT OR IGNORE INTO conversation_message_topics (conversation_message_id, topic_id)
@@ -308,10 +300,10 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
         assert_eq!(
             db.schema_version().await.expect("v"),
-            vox_pm::schema::BASELINE_VERSION
+            crate::schema::BASELINE_VERSION
         );
 
-        db.store()
+        db
             .connection()
             .execute(
                 "INSERT OR IGNORE INTO users (id, display_name, role) VALUES ('u1', 'u1', 'user')",

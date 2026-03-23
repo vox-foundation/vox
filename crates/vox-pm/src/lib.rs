@@ -6,17 +6,6 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::manual_unwrap_or_default)]
 
-/// SHA3-512 content hashes encoded as Base32Hex (CAS object identity).
-pub mod hash;
-/// Dot-separated logical namespaces for named bindings in the store.
-pub mod namespace;
-/// Source normalization before hashing (comments/whitespace stripping).
-pub mod normalize;
-/// Arca SQL schema manifest + baseline V1 (`schema_version` records a single baseline row).
-pub mod schema;
-/// Turso-backed [`CodeStore`](store::CodeStore) and related types.
-pub mod store;
-
 /// Content-addressed artifact cache (`.vox-cache`).
 pub mod artifact_cache;
 /// `[deploy.coolify]` manifest shapes (serde-only).
@@ -36,18 +25,8 @@ pub use artifact_cache::{ArtifactCache, CacheLookup, CacheManifest};
 pub use deploy_coolify::{
     CoolifyDeployConfig, CoolifyEnvReconciliationMode, CoolifyEnvVarDetail, CoolifyEnvVarSpec,
 };
-pub use store::{
-    AgentDefEntry, ArtifactEntry, BehaviorEventEntry, BuilderSessionEntry, CodeStore,
-    CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, EmbeddingEntry,
-    EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry,
-    LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
-    PublishArtifactParams, RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
-    ScheduledEntry, SessionTurnEntry, SkillExecutionParams, SkillManifestEntry,
-    SkillReliabilityReport, SnippetEntry, StoreError, TrainingPair, TypedStreamEventEntry,
-    UserEntry,
-};
 
-pub use hash::content_hash;
+pub use vox_db::hash::content_hash;
 pub use lockfile::Lockfile;
 pub use manifest::{DependencySpec, DeploySection, DetailedDependency, ManifestError, VoxManifest};
 pub use registry::{

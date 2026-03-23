@@ -48,6 +48,34 @@ pub fn layer_mlp_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> 
     }
 }
 
+/// RoPE (Rotary Position Embedding) keys for one block.
+#[must_use]
+pub fn layer_rope_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> {
+    match arch {
+        HfArchitecture::Gpt2 => vec![],
+        HfArchitecture::Qwen2 => vec![
+            format!("model.layers.{layer}.self_attn.rotary_emb.inv_freq"),
+        ],
+    }
+}
+
+/// Norm keys (RMSNorm or LayerNorm) for one block.
+#[must_use]
+pub fn layer_norm_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> {
+    match arch {
+        HfArchitecture::Gpt2 => vec![
+            format!("h.{layer}.ln_1.weight"),
+            format!("h.{layer}.ln_1.bias"),
+            format!("h.{layer}.ln_2.weight"),
+            format!("h.{layer}.ln_2.bias"),
+        ],
+        HfArchitecture::Qwen2 => vec![
+            format!("model.layers.{layer}.input_layernorm.weight"),
+            format!("model.layers.{layer}.post_attention_layernorm.weight"),
+        ],
+    }
+}
+
 /// All non-embedding tensor name **candidates** for a full transformer (attention + MLP per layer).
 #[must_use]
 pub fn ordered_full_block_weight_keys(layout: &HfTransformerLayout) -> Vec<String> {
@@ -55,6 +83,8 @@ pub fn ordered_full_block_weight_keys(layout: &HfTransformerLayout) -> Vec<Strin
     for i in 0..layout.dims.n_layer {
         v.extend(layer_attention_weight_keys(layout.architecture, i));
         v.extend(layer_mlp_weight_keys(layout.architecture, i));
+        v.extend(layer_rope_weight_keys(layout.architecture, i));
+        v.extend(layer_norm_weight_keys(layout.architecture, i));
     }
     v
 }

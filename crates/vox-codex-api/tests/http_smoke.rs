@@ -131,7 +131,6 @@ async fn post_research_session_defaults_repository_id_when_omitted() {
     assert_eq!(v["repository_id"], default_id);
 
     let mut rows = codex
-        .store()
         .connection()
         .query(
             "SELECT repository_id FROM research_sessions WHERE session_key = 'session-without-repo-body'",
@@ -153,7 +152,6 @@ async fn post_research_session_defaults_repository_id_when_omitted() {
 async fn post_conversation_version_and_edge_and_topic_evolution() {
     let codex = Arc::new(Codex::connect(DbConfig::Memory).await.expect("db"));
     codex
-        .store()
         .connection()
         .execute(
             "INSERT OR IGNORE INTO users (id, display_name, role) VALUES ('u1', 'u1', 'user')",
@@ -170,7 +168,6 @@ async fn post_conversation_version_and_edge_and_topic_evolution() {
         .await
         .expect("c2");
     codex
-        .store()
         .connection()
         .execute(
             "INSERT OR IGNORE INTO topics (slug, label) VALUES ('http-smoke-topic', 'L')",
@@ -179,7 +176,6 @@ async fn post_conversation_version_and_edge_and_topic_evolution() {
         .await
         .expect("topic");
     let mut rows = codex
-        .store()
         .connection()
         .query("SELECT id FROM topics WHERE slug = 'http-smoke-topic'", ())
         .await

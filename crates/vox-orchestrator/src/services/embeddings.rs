@@ -32,7 +32,6 @@ impl EmbeddingService {
 
         let id = self
             .db
-            .store()
             .store_embedding(
                 source_type,
                 source_id,

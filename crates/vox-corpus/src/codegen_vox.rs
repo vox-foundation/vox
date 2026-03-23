@@ -716,7 +716,10 @@ fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
 pub fn generate_organic_corpus(seed: u64) -> Vec<OrganicPair> {
     let mut rng = Rng::new(seed);
     let mut pairs = Vec::new();
-    let variants_per_construct: usize = 5;
+    // 7 = the minimum required by `compute_variety_requirements` for body constructs
+    // (function, actor, workflow, component, etc.). Raising from 5 eliminates the
+    // "Under-covered (16)" warning across all such constructs.
+    let variants_per_construct: usize = 7;
 
     // Dynamic: iterate over TAXONOMY_FROM_AST (auto-derived from Decl enum)
     for tag in TAXONOMY_FROM_AST {
@@ -751,8 +754,7 @@ fn verify_parse(source: &str) -> bool {
     #[cfg(feature = "parser-verify")]
     {
         let tokens = vox_lexer::lex(source);
-        let (_tree, errors) = vox_parser::parse(&tokens);
-        errors.is_empty()
+        vox_parser::parse(tokens).is_ok()
     }
     #[cfg(not(feature = "parser-verify"))]
     {

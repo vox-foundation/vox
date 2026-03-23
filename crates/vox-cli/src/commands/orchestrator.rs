@@ -278,8 +278,8 @@ pub async fn undo(count: usize) -> Result<()> {
     let config = load_config();
     let mut orch = Orchestrator::new(config);
 
-    // Ensure CodeStore is connected for DB undo
-    if let Ok(store) = vox_pm::CodeStore::open_default().await {
+    // Ensure VoxDb is connected for DB undo
+    if let Ok(store) = vox_db::VoxDb::open_default().await {
         orch.set_code_store(store);
     }
 
@@ -323,8 +323,8 @@ pub async fn redo(count: usize) -> Result<()> {
     let config = load_config();
     let mut orch = Orchestrator::new(config);
 
-    // Ensure CodeStore is connected for DB redo
-    if let Ok(store) = vox_pm::CodeStore::open_default().await {
+    // Ensure VoxDb is connected for DB redo
+    if let Ok(store) = vox_db::VoxDb::open_default().await {
         orch.set_code_store(store);
     }
 

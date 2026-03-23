@@ -391,8 +391,7 @@ impl Orchestrator {
         let reliability_map: Option<HashMap<AgentId, f64>> =
             if self.config.socrates_reputation_routing {
                 self.db.as_ref().map(|db| {
-                    db.store()
-                        .block_on(async { db.store().list_agent_reliability().await })
+                    db.block_on(async { db.list_agent_reliability().await })
                         .unwrap_or_default()
                         .into_iter()
                         .map(|(id, r)| {
@@ -629,7 +628,7 @@ impl Orchestrator {
         }
 
         if let Some(db) = &self.db {
-            let _ = db.store().block_on(db.store().record_task_reliability_observation(&agent_id.0.to_string(), true));
+            let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
         }
 
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
@@ -657,7 +656,7 @@ impl Orchestrator {
         queue.mark_failed(task_id, reason.clone());
 
         if let Some(db) = &self.db {
-            let _ = db.store().block_on(db.store().record_task_reliability_observation(&agent_id.0.to_string(), false));
+            let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
         }
 
         let now_ms = std::time::SystemTime::now()

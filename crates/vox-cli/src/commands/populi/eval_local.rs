@@ -74,22 +74,7 @@ pub fn run_eval_local(
         std::collections::HashMap::new();
 
     #[cfg(feature = "gpu")]
-    let mut eval_session: Option<crate::commands::ai::serve::inference::LoadedPopuliEvalModel> =
-        match crate::commands::ai::serve::inference::LoadedPopuliEvalModel::load(&model) {
-            Ok(s) => {
-                eprintln!(
-                    "  {} Model loaded once for {} benchmark sample(s)",
-                    "✓".green(),
-                    benchmarks.len()
-                );
-                eprintln!();
-                Some(s)
-            }
-            Err(e) => {
-                eprintln!("  {} Failed to load model for eval: {}", "⚠".yellow(), e);
-                None
-            }
-        };
+    let _eval_session: Option<String> = None;
 
     let mut prepared: Vec<PreparedBench> = benchmarks
         .iter()
@@ -112,28 +97,11 @@ pub fn run_eval_local(
         } else {
             #[cfg(feature = "gpu")]
             {
-                let sys = vox_corpus::training::generate_training_system_prompt();
-                let gen_result = if let Some(ref mut session) = eval_session {
-                    session.generate(&sys, &prompt, max_tokens, temperature)
-                } else {
-                    crate::commands::ai::serve::inference::generate_one(
-                        &model,
-                        &sys,
-                        &prompt,
-                        max_tokens,
-                        temperature,
-                    )
-                };
+                let _sys = vox_corpus::training::generate_training_system_prompt();
+                let gen_result: std::result::Result<String, String> = Err("Native inference was removed. Please use a candle-based runner or python CLI.".to_string());
                 match gen_result {
                     Ok(output) => {
-                        let valid = match crate::pipeline::run_frontend_str(
-                            &output,
-                            std::path::Path::new("__eval__.vox"),
-                            false,
-                        ) {
-                            Ok(r) => !r.has_errors(),
-                            Err(_) => false,
-                        };
+                        let valid = false; // Stub
                         (valid, output)
                     }
                     Err(e) => {

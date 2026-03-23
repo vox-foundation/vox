@@ -385,7 +385,7 @@ pub async fn interpret_workflow_durable(
             "activity_id": activity_id,
         }));
         
-        let mut entry = if step.mesh {
+        let entry = if step.mesh {
             #[cfg(feature = "mesh")]
             {
                 let m = MeshActivity {

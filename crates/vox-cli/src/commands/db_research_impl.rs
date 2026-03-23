@@ -2,8 +2,7 @@
 pub async fn capability_list() -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let mut rows = db
-        .store()
-        .conn
+        .connection()
         .query(
             "SELECT name, hash FROM names WHERE namespace = 'invocable' ORDER BY name ASC",
             (),
@@ -84,7 +83,7 @@ fn html_to_text_lossy(input: &str) -> String {
 /// Show retrieval diagnostics (embeddings/graph/adaptive fusion state).
 pub async fn retrieval_status() -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let diag = vox_db::retrieval_diagnostics(db.store()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let diag = vox_db::retrieval_diagnostics(&db).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("Retrieval diagnostics");
     println!("  Embeddings      : {}", diag.embeddings_count);
     println!("  KnowledgeNodes  : {}", diag.knowledge_nodes_count);
@@ -674,7 +673,6 @@ pub async fn research_metrics(session_id: i64, metric_type: Option<&str>) -> any
     let sid = session_id.to_string();
     let mt = metric_type.unwrap_or("");
     let metrics = db
-        .store()
         .list_research_metrics_by_type(mt, &sid, 500)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -696,7 +694,7 @@ pub async fn research_metrics(session_id: i64, metric_type: Option<&str>) -> any
 /// List reliability scores for LLM endpoints, skills, workflows, or repositories.
 pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let conn = &db.store().conn;
+    let conn = &db.connection();
 
     let (query, headers, fields) = match domain {
         "endpoints" => (
@@ -754,7 +752,7 @@ pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
 /// List reliability scores for execution agents.
 pub async fn reliability_agents(limit: i64, min_score: Option<f64>) -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let conn = &db.store().conn;
+    let conn = &db.connection();
 
     let min = min_score.unwrap_or(0.0);
     let mut rows = conn.query(

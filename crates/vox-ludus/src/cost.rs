@@ -5,62 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-/// A single cost record for an API call.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CostRecord {
-    /// Agent that incurred the cost.
-    pub agent_id: String,
-    /// Session identifier (for grouping).
-    pub session_id: Option<String>,
-    /// Provider name (e.g., "openrouter", "ollama", "gemini").
-    pub provider: String,
-    /// Model used.
-    pub model: String,
-    /// Input tokens consumed.
-    pub input_tokens: u32,
-    /// Output tokens generated.
-    pub output_tokens: u32,
-    /// Cost in USD.
-    pub cost_usd: f64,
-    /// Timestamp in unix milliseconds.
-    pub timestamp_ms: u64,
-}
-
-impl CostRecord {
-    /// Create a new cost record with current timestamp.
-    pub fn new(
-        agent_id: impl Into<String>,
-        provider: impl Into<String>,
-        model: impl Into<String>,
-        input_tokens: u32,
-        output_tokens: u32,
-        cost_usd: f64,
-    ) -> Self {
-        let timestamp_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
-
-        Self {
-            agent_id: agent_id.into(),
-            session_id: None,
-            provider: provider.into(),
-            model: model.into(),
-            input_tokens,
-            output_tokens,
-            cost_usd,
-            timestamp_ms,
-        }
-    }
-
-    /// Set the session ID.
-    pub fn with_session(mut self, session_id: impl Into<String>) -> Self {
-        self.session_id = Some(session_id.into());
-        self
-    }
-}
+pub use crate::db::CostRecord;
 
 /// Aggregated cost summary for an agent or session.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -87,7 +33,9 @@ impl CostSummary {
         self.total_output_tokens += record.output_tokens as u64;
         self.total_cost_usd += record.cost_usd;
         *self.by_provider.entry(record.provider.clone()).or_default() += record.cost_usd;
-        *self.by_model.entry(record.model.clone()).or_default() += record.cost_usd;
+        if let Some(m) = &record.model {
+            *self.by_model.entry(m.clone()).or_default() += record.cost_usd;
+        }
     }
 
     /// Average cost per call.
@@ -100,10 +48,6 @@ impl CostSummary {
     }
 }
 
-/// In-memory cost aggregator.
-///
-/// Tracks costs per agent (and optionally per session) and provides
-/// budget alert functionality.
 #[derive(Debug, Default)]
 pub struct CostAggregator {
     /// Per-agent records.
@@ -242,24 +186,24 @@ mod tests {
     fn record_and_summarize() {
         let mut agg = CostAggregator::new();
 
-        agg.record(CostRecord::new(
+        agg.record(CostRecord::new_ephemeral(
             "agent-1",
             "openrouter",
-            "claude-3",
+            Some("claude-3".to_string()),
             100,
             50,
             0.005,
         ));
-        agg.record(CostRecord::new(
+        agg.record(CostRecord::new_ephemeral(
             "agent-1",
             "openrouter",
-            "claude-3",
+            Some("claude-3".to_string()),
             200,
             100,
             0.010,
         ));
-        agg.record(CostRecord::new(
-            "agent-2", "ollama", "llama3", 500, 200, 0.0,
+        agg.record(CostRecord::new_ephemeral(
+            "agent-2", "ollama", Some("llama3".to_string()), 500, 200, 0.0,
         ));
 
         let summary = agg.agent_summary("agent-1");
@@ -277,20 +221,20 @@ mod tests {
         let mut agg = CostAggregator::new();
         agg.set_budget_limit("agent-1", 1.00);
 
-        agg.record(CostRecord::new(
+        agg.record(CostRecord::new_ephemeral(
             "agent-1",
             "openrouter",
-            "gpt4",
+            Some("gpt4".to_string()),
             100,
             50,
             0.50,
         ));
         assert!(!agg.budget_alert("agent-1")); // 50% used
 
-        agg.record(CostRecord::new(
+        agg.record(CostRecord::new_ephemeral(
             "agent-1",
             "openrouter",
-            "gpt4",
+            Some("gpt4".to_string()),
             100,
             50,
             0.40,
@@ -311,16 +255,16 @@ mod tests {
     #[test]
     fn markdown_report() {
         let mut agg = CostAggregator::new();
-        agg.record(CostRecord::new(
+        agg.record(CostRecord::new_ephemeral(
             "agent-1",
             "openrouter",
-            "claude-3",
-            100,
-            50,
-            0.005,
+            Some("gpt4".to_string()),
+            1000,
+            500,
+            5.0,
         ));
         let report = agg.report_markdown();
         assert!(report.contains("# Cost Report"));
-        assert!(report.contains("$0.0050"));
+        assert!(report.contains("$5.0000"));
     }
 }

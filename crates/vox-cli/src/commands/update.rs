@@ -25,7 +25,7 @@ pub async fn run() -> Result<()> {
     }
 
     let db_path = store_dir.join("local_store.db");
-    let store = vox_pm::CodeStore::open(db_path.to_str().expect("valid utf8 path"))
+    let store = vox_db::VoxDb::open(db_path.to_str().expect("valid utf8 path"))
         .await
         .with_context(|| "Failed to open local store")?;
 

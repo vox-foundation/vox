@@ -789,7 +789,7 @@ pub fn emit_table_struct(table: &HirTable) -> String {
         }
     }
     out.push_str(&format!(
-        "        db.store().conn.execute(\n            \"INSERT INTO {} ({}) VALUES ({})\",\n            turso::params![",
+        "        db.connection().execute(\n            \"INSERT INTO {} ({}) VALUES ({})\",\n            turso::params![",
         tn,
         col_names
             .iter()
@@ -809,7 +809,7 @@ pub fn emit_table_struct(table: &HirTable) -> String {
         }
     }
     out.push_str("],\n        ).await?;\n");
-    out.push_str("        Ok(db.store().conn.last_insert_rowid())\n");
+    out.push_str("        Ok(db.connection().last_insert_rowid())\n");
     out.push_str("    }\n\n");
 
     // -- get
@@ -817,7 +817,7 @@ pub fn emit_table_struct(table: &HirTable) -> String {
         "    pub async fn get(db: &Codex, id: i64) -> Result<Option<Self>, turso::Error> {\n",
     );
     out.push_str(&format!(
-        "        let mut rows = db.store().conn.query(\"SELECT * FROM {} WHERE _id = ?1\", turso::params![id]).await?;\n",
+        "        let mut rows = db.connection().query(\"SELECT * FROM {} WHERE _id = ?1\", turso::params![id]).await?;\n",
         tn
     ));
     out.push_str("        Ok(match rows.next().await? {\n");
@@ -835,14 +835,14 @@ pub fn emit_table_struct(table: &HirTable) -> String {
         tn
     ));
     out.push_str(
-        "        let mut rows = db.store().conn.query(&sql, ()).await?;\n        let mut out = Vec::new();\n        while let Some(row) = rows.next().await? {\n            out.push(Self::from_row(&row)?);\n        }\n        Ok(out)\n",
+        "        let mut rows = db.connection().query(&sql, ()).await?;\n        let mut out = Vec::new();\n        while let Some(row) = rows.next().await? {\n            out.push(Self::from_row(&row)?);\n        }\n        Ok(out)\n",
     );
     out.push_str("    }\n\n");
 
     // -- delete
     out.push_str("    pub async fn delete(db: &Codex, id: i64) -> Result<usize, turso::Error> {\n");
     out.push_str(&format!(
-        "        let n = db.store().conn.execute(\"DELETE FROM {} WHERE _id = ?1\", turso::params![id]).await?;\n",
+        "        let n = db.connection().execute(\"DELETE FROM {} WHERE _id = ?1\", turso::params![id]).await?;\n",
         tn
     ));
     out.push_str("        Ok(n as usize)\n");
@@ -919,9 +919,9 @@ fn emit_db_setup(module: &HirModule) -> String {
         "    let codex = vox_db::Codex::connect(cfg).await.expect(\"Failed to open Codex database\");\n",
     );
     out.push_str(
-        "    codex.store().conn.execute_batch(\"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\").await.expect(\"PRAGMA failed\");\n",
+        "    codex.connection().execute_batch(\"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\").await.expect(\"PRAGMA failed\");\n",
     );
-    out.push_str("    codex.store().conn.execute_batch(r#\"\n");
+    out.push_str("    codex.connection().execute_batch(r#\"\n");
     for table in &module.tables {
         out.push_str(&emit_table_ddl(table));
         out.push('\n');

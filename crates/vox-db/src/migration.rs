@@ -4,7 +4,7 @@
 //! migration row (**version 1**). For custom migrations, ensure [`Migration::up_sql`] is compatible with
 //! [`turso::Connection::execute_batch`] (no row-returning statements).
 
-use vox_pm::store::StoreError;
+use crate::arca_store::StoreError;
 
 /// One forward migration applied in monotonically increasing [`Self::version`] order.
 #[derive(Debug, Clone)]
@@ -61,9 +61,9 @@ pub fn validate_migrations(migrations: &[Migration]) -> Result<(), StoreError> {
 /// Returns the canonical baseline migration (**version 1**) from the `vox-pm` schema manifest.
 pub fn builtin_migrations() -> Vec<Migration> {
     vec![Migration::new(
-        vox_pm::schema::BASELINE_VERSION,
+        crate::schema::BASELINE_VERSION,
         "arca_baseline_v1",
-        vox_pm::schema::baseline_sql().to_string(),
+        crate::schema::baseline_sql().to_string(),
     )]
 }
 

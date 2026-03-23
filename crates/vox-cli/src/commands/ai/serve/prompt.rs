@@ -2,6 +2,7 @@
 
 /// P015: Returns true if s is a prefix of valid JSON (can be extended to complete JSON).
 #[cfg(feature = "execution-api")]
+#[allow(dead_code)]
 pub fn is_valid_json_prefix(s: &str) -> bool {
     let s = s.trim_start();
     if s.is_empty() {
@@ -18,6 +19,7 @@ pub fn is_valid_json_prefix(s: &str) -> bool {
 
 /// P015: Mask logits for invalid JSON tokens. Sets logits to NEG_INFINITY for tokens that would break JSON.
 #[cfg(feature = "execution-api")]
+#[allow(dead_code)]
 pub fn mask_logits_for_json(logits: &mut [f32], current_text: &str) {
     use vox_populi::tensor::data::{VOCAB_SIZE, VoxTokenizer};
     for id in 0..VOCAB_SIZE.min(logits.len()) {

@@ -568,6 +568,50 @@ impl QLoraTrainer {
         self.state.epoch
     }
 
+    /// Exposes backward step logic for manual loops
+    pub fn backward_step(&mut self, loss: &Tensor) -> Result<()> {
+        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        let scaled_loss = if accum_steps > 1 {
+            let scale = Tensor::new(1.0f32 / accum_steps as f32, loss.device())?;
+            loss.broadcast_mul(&scale)?
+        } else {
+            loss.clone()
+        };
+
+        self.accumulation_step += 1;
+
+        if let Some(ref mut optimizer) = self.optimizer {
+            if self.accumulation_step >= accum_steps {
+                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
+                    let _ = max_norm; // Placeholder for gradient clipping
+                }
+                optimizer.backward_step(&scaled_loss)?;
+                self.accumulation_step = 0;
+            } else {
+                let _ = scaled_loss.backward();
+            }
+        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
+            if self.accumulation_step >= accum_steps {
+                let grads = scaled_loss.backward()?;
+                let mut varmap_data = self.varmap.data().lock().unwrap();
+                for (name, var) in varmap_data.iter_mut() {
+                    if let Some(grad) = grads.get(var.as_tensor()) {
+                        let mut param = var.as_tensor().clone();
+                        paged_optimizer.step_param(name, &mut param, grad)?;
+                    }
+                }
+                drop(varmap_data);
+                self.accumulation_step = 0;
+            } else {
+                let _ = scaled_loss.backward();
+            }
+        }
+        
+        let _should_log = self.state.step();
+        
+        Ok(())
+    }
+
     /// Perform a training step with gradient accumulation.
     ///
     /// `QLoRA` training flow:

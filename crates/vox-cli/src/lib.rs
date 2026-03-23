@@ -29,7 +29,7 @@ mod island_paths;
 mod isolation;
 mod latin_cmd;
 /// Lock-wait JSONL metrics (`vox lock-report`, recursive script guard).
-#[cfg(any(feature = "codex", feature = "stub-check"))]
+#[cfg(any(feature = "codex", feature = "stub-check", feature = "script-execution"))]
 mod lock_telemetry;
 #[cfg(feature = "mesh")]
 mod mesh_codex_telemetry;
@@ -220,7 +220,7 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: cli_actions::ArchitectAction,
     },
-    /// Snippet helpers (local Arca `CodeStore`; `VOX_DB_*` / Turso aliases or project `.vox/store.db`)
+    /// Snippet helpers (local Arca `VoxDb`; `VOX_DB_*` / Turso aliases or project `.vox/store.db`)
     Snippet {
         /// Subcommand.
         #[command(subcommand)]

@@ -95,6 +95,7 @@ fn merge_agent_event(stats: &mut LiveStats, event: &AgentEvent) {
             task_id,
             agent_id,
             description,
+            ..
         } => {
             stats.tasks_submitted += 1;
             let short: String = description.chars().take(36).collect();
@@ -103,7 +104,7 @@ fn merge_agent_event(stats: &mut LiveStats, event: &AgentEvent) {
                 a = agent_id.0
             ));
         }
-        AgentEventKind::TaskCompleted { task_id, agent_id } => {
+        AgentEventKind::TaskCompleted { task_id, agent_id, .. } => {
             stats.tasks_completed += 1;
             stats.push_event(format!(
                 "{GREEN}✓ completed{RESET}  #{task_id}  agent={}",
@@ -114,6 +115,7 @@ fn merge_agent_event(stats: &mut LiveStats, event: &AgentEvent) {
             task_id,
             agent_id,
             error,
+            ..
         } => {
             stats.tasks_failed += 1;
             let short: String = error.chars().take(38).collect();

@@ -179,7 +179,6 @@ async fn record_cli_event_inner(
         })
         .to_string();
         let _ = db
-            .store()
             .record_behavior_event(&user_id, "cli_command", Some(cmd_path), Some(&metadata))
             .await;
     }

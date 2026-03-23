@@ -128,7 +128,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                     // let score = check_session_score(db, &session_id).await.unwrap_or(0.0);
                     // if _min_score > 0.0 && score < _min_score { continue; }
                     
-                    if let Some(mut chatml_row) = compile_chatml_session(&session_id, &events) {
+                    if let Some(chatml_row) = compile_chatml_session(&session_id, &events) {
                         rows.push(chatml_row);
                     }
                 }

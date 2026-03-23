@@ -544,7 +544,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
         db::upsert_companion(&db_conn, &companion).await?;
 
         // Update battle record
-        db_conn.store().conn.execute(
+        db_conn.connection().execute(
             "UPDATE gamify_battles SET success = 1, crystals_earned = ?1, xp_earned = ?2, submitted_code = ?3 WHERE id = ?4",
             params![battle.crystals_earned as i64, battle.xp_earned as i64, battle.submitted_code.clone(), battle.id.clone()]
         ).await?;

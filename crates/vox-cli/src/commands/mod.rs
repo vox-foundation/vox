@@ -71,8 +71,7 @@ pub mod runtime;
 pub mod scientia;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
-/// Standalone workflow helpers (interpreted run when `workflow-runtime` is enabled).
-pub mod workflow;
+
 
 /// ML tooling specific commands (`vox populi`).
 #[cfg(any(feature = "populi-base", feature = "gpu"))]

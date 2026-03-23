@@ -25,7 +25,7 @@ impl crate::orchestrator::Orchestrator {
         if let Some(db) = &self.db {
             for p in paths {
                 if let Ok(data) = std::fs::read(p) {
-                    let _ = db.store().store("file", &data).await;
+                    let _ = db.store("file", &data).await;
                 }
             }
         }
@@ -79,7 +79,6 @@ impl crate::orchestrator::Orchestrator {
             let snap_id = self.oplog.next_db_snapshot_id();
             let desc = description.into();
             if db
-                .store()
                 .take_db_snapshot(snap_id, &agent_id.to_string(), &desc)
                 .await
                 .is_ok()
@@ -99,8 +98,7 @@ impl crate::orchestrator::Orchestrator {
 
         if let Some(db_id) = db_snap {
             if let Some(db) = &self.db {
-                db.store()
-                    .restore_db_snapshot(db_id)
+                db.restore_db_snapshot(db_id)
                     .await
                     .map_err(|e| {
                         OrchestratorError::DatabaseError(format!("Undo: DB restore failed: {}", e))
@@ -130,8 +128,7 @@ impl crate::orchestrator::Orchestrator {
 
         if let Some(db_id) = db_snap {
             if let Some(db) = &self.db {
-                db.store()
-                    .restore_db_snapshot(db_id)
+                db.restore_db_snapshot(db_id)
                     .await
                     .map_err(|e| {
                         OrchestratorError::DatabaseError(format!("Redo: DB restore failed: {}", e))
@@ -171,7 +168,7 @@ impl crate::orchestrator::Orchestrator {
                     let _ = std::fs::remove_file(&entry.path);
                 }
             } else {
-                let data = db.store().get(&entry.content_hash).await.map_err(|e| {
+                let data = db.get(&entry.content_hash).await.map_err(|e| {
                     OrchestratorError::DatabaseError(format!(
                         "Restore: object {} missing: {}",
                         entry.content_hash, e

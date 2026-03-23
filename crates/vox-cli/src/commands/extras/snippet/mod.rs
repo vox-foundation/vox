@@ -1,12 +1,13 @@
 //! `vox snippet` — save, search, and manage code snippets.
 
 use anyhow::{Context, Result};
-use vox_pm::{CodeStore, SaveSnippetParams};
+use vox_db::VoxDb;
+use vox_db::arca_store::SaveSnippetParams;
 
-async fn connect() -> Result<CodeStore> {
+async fn connect() -> Result<VoxDb> {
     vox_db::open_project_code_store()
         .await
-        .context("Failed to open Arca CodeStore (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
 }
 
 fn language_from_path(path: &std::path::Path) -> &'static str {
@@ -28,7 +29,7 @@ pub async fn save(
     description: Option<&str>,
     tags: Option<&str>,
 ) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let code = std::fs::read_to_string(file)?;
     let lang = language_from_path(file);
     let id = store
@@ -50,7 +51,7 @@ pub async fn save(
 
 /// Search code snippets.
 pub async fn search(query: &str) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let rows = store
         .search_snippets(query, None)
         .await
@@ -73,7 +74,7 @@ pub async fn search(query: &str) -> Result<()> {
 
 /// Export snippets as JSON (for RLHF/RAG pipelines).
 pub async fn export(limit: i64) -> Result<()> {
-    let store = connect().await?;
+    let store: VoxDb = connect().await?;
     let rows = store
         .search_snippets("%", None)
         .await

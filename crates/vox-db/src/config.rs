@@ -156,10 +156,10 @@ impl DbConfig {
         }
     }
 
-    /// Resolve config for the **project** Arca [`vox_pm::store::CodeStore`] (snippets, share, etc.).
+    /// Resolve config for the **project** Arca [`crate::arca_store::CodeStore`] (snippets, share, etc.).
     ///
     /// Uses canonical [`Self::from_env`] (`VOX_DB_*`), mapping an empty environment to the project
-    /// file [`vox_pm::store::DEFAULT_PROJECT_STORE_PATH`] instead of the user data default from
+    /// file [`crate::arca_store::DEFAULT_PROJECT_STORE_PATH`] instead of the user data default from
     /// [`Self::resolve_standalone`]. On failure of `from_env`, applies the same Turso compatibility
     /// aliases as [`Self::resolve_standalone`], then falls back to the project store path.
     pub fn resolve_project_code_store_config() -> Result<Self, String> {
@@ -168,7 +168,7 @@ impl DbConfig {
                 #[cfg(feature = "local")]
                 if matches!(cfg, Self::Memory) {
                     return Ok(Self::local(
-                        vox_pm::store::DEFAULT_PROJECT_STORE_PATH.to_string(),
+                        crate::arca_store::DEFAULT_PROJECT_STORE_PATH.to_string(),
                     ));
                 }
                 Ok(cfg)
@@ -180,7 +180,7 @@ impl DbConfig {
                 #[cfg(feature = "local")]
                 {
                     Ok(Self::local(
-                        vox_pm::store::DEFAULT_PROJECT_STORE_PATH.to_string(),
+                        crate::arca_store::DEFAULT_PROJECT_STORE_PATH.to_string(),
                     ))
                 }
                 #[cfg(not(feature = "local"))]

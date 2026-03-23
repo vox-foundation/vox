@@ -76,11 +76,27 @@ fn selective_flag_no_tools_excludes_tool_traces() {
         emit_tool_traces: false,
         emit_orchestrator_rows: false,
         emit_skill_rows: false,
+        emit_agent_rows: false,
+        emit_cli_rows: false,
+        emit_script_rows: false,
+        emit_routing_decisions: false,
+        emit_negative_expanded: false,
+        emit_error_recovery: false,
+        emit_multi_agent_convos: false,
+        emit_telemetry_pairs: false,
+        emit_a2a_traces: false,
+        emit_workflow_traces: false,
+        emit_organic_vox: false,
+        augment_after_generate: false,
         ..Default::default()
     };
     let out = run_to_string(&cfg);
-    // vox_submit_task is a pure tool_trace entry and should be absent
-    assert!(!out.contains("vox_submit_task"), "vox_submit_task should be excluded when emit_tool_traces=false");
+    // With all trace generators disabled, vox_build_crate should be absent
+    // (it only appears in pure tool_trace rows, not in curated scenarios)
+    assert!(
+        !out.contains("vox_build_crate"),
+        "vox_build_crate should be excluded when all trace generators are disabled"
+    );
 }
 
 #[test]

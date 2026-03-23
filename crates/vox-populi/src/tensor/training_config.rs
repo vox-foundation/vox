@@ -76,6 +76,10 @@ pub struct LoraTrainingConfig {
     pub qlora_proxy_max_layers: Option<usize>,
     /// Candle QLoRA: next-token CE over the last **K** positions per JSONL row (default 1).
     pub qlora_ce_last_k: usize,
+    /// Steps between mid-epoch checkpoints. None means only epoch-boundary checkpoints.
+    pub checkpoint_every: Option<usize>,
+    /// Ignore existing checkpoints and force a fresh run.
+    pub force_restart: bool,
     /// Intended deployment surface for trained artifacts (planner gates + manifest).
     pub deployment_target: TrainingDeploymentTarget,
 }
@@ -89,7 +93,7 @@ impl Default for LoraTrainingConfig {
             train_file: None,
             rank: 16,
             alpha: 32.0,
-            seq_len: 512,
+            seq_len: 256,
             batch_size: 4,
             grad_accum: 4,
             resume_from: None,
@@ -111,7 +115,9 @@ impl Default for LoraTrainingConfig {
             qlora_max_skip_rate: None,
             qlora_lm_head_only: false,
             qlora_proxy_max_layers: None,
-            qlora_ce_last_k: 1,
+            qlora_ce_last_k: 16,
+            checkpoint_every: None,
+            force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),
         }
     }

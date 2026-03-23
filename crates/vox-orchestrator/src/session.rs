@@ -369,7 +369,6 @@ impl SessionManager {
             tokio::spawn(async move {
                 let meta = format!("{{\"agent_id\":\"{aid}\",\"state\":\"active\"}}");
                 let _ = db
-                    .store()
                     .create_session(&sid, &aid, Some(meta.as_str()))
                     .await;
             });
@@ -589,7 +588,7 @@ impl SessionManager {
                 let db_clone = db.clone();
                 let sid = id.clone();
                 tokio::spawn(async move {
-                    let _ = db_clone.store().close_session(&sid, "archived").await;
+                    let _ = db_clone.close_session(&sid, "archived").await;
                 });
             }
         }

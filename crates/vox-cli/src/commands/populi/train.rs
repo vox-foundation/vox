@@ -112,6 +112,8 @@ pub fn run_train(
     qlora_lm_head_only: bool,
     qlora_proxy_max_layers: Option<usize>,
     qlora_ce_last_k: usize,
+    checkpoint_every: Option<usize>,
+    force_restart: bool,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -263,6 +265,7 @@ pub fn run_train(
                 "⏭".cyan()
             );
         }
+        let mut contract_override = None;
         if let Some(ref cfg_path) = mix_config_path {
             if !skip_mix && cfg_path.exists() {
                 eprintln!(
@@ -276,14 +279,11 @@ pub fn run_train(
                         e
                     );
                 } else if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(cfg_path) {
-                    // Copy mix output to primary train file so preflight uses fresh corpus
+                    // Use mix output directly without corrupting primary train file
                     let cwd = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
                     let mix_output = cwd.join(&mix_cfg.output);
                     if mix_output.exists() {
-                        let dest = data_dir.join("train.jsonl");
-                        if std::fs::copy(&mix_output, &dest).is_ok() {
-                            eprintln!("  {} Corpus refreshed → {}", "✓".green(), dest.display());
-                        }
+                        contract_override = Some(mix_output);
                     }
                 }
             }
@@ -292,7 +292,7 @@ pub fn run_train(
         // Preflight: resolve canonical train input, abort on ambiguity/stale/empty
         let resolved = vox_corpus::training::preflight::validate_train_preflight(
             &data_dir,
-            None,
+            contract_override.as_deref(),
             workspace_root.as_deref(),
         )?;
         tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
@@ -452,6 +452,8 @@ pub fn run_train(
             qlora_lm_head_only,
             qlora_proxy_max_layers,
             qlora_ce_last_k: qlora_ce_last_k.max(1),
+            checkpoint_every,
+            force_restart,
             deployment_target,
         };
         let system_prompt = vox_corpus::training::generate_training_system_prompt();
@@ -498,6 +500,8 @@ pub fn run_train(
             qlora_lm_head_only,
             qlora_proxy_max_layers,
             qlora_ce_last_k,
+            checkpoint_every,
+            force_restart,
         );
         eprintln!(
             "  {} LoRA training requires the 'gpu' feature.",

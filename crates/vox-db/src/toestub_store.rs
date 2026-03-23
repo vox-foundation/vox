@@ -2,7 +2,7 @@
 
 use crate::VoxDb;
 use turso::params;
-use vox_pm::StoreError;
+use crate::arca_store::StoreError;
 
 const ENSURE_SQL: &str = "
 CREATE TABLE IF NOT EXISTS toestub_task_queue (
@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_toestub_suppressions_path ON toestub_suppressions
 ";
 
 async fn ensure_tables(db: &VoxDb) -> Result<(), StoreError> {
-    db.store().connection().execute_batch(ENSURE_SQL).await?;
+    db.connection().execute_batch(ENSURE_SQL).await?;
     Ok(())
 }
 
@@ -57,7 +57,7 @@ pub async fn add_suppression(
     reason: Option<&str>,
 ) -> Result<(), StoreError> {
     ensure_tables(db).await?;
-    db.store()
+    db
         .connection()
         .execute(
             "INSERT INTO toestub_suppressions (path, line, rule_id, reason) VALUES (?1, ?2, ?3, ?4)",
@@ -70,9 +70,7 @@ pub async fn add_suppression(
 /// Load baseline JSON by logical name (any `run_scope`).
 pub async fn load_baseline(db: &VoxDb, name: &str) -> Result<Option<(String, String)>, StoreError> {
     ensure_tables(db).await?;
-    let mut rows = db
-        .store()
-        .connection()
+    let mut rows = db.connection()
         .query(
             "SELECT run_scope, findings_json FROM toestub_baselines WHERE name = ?1 ORDER BY updated_at DESC LIMIT 1",
             params![name],
@@ -93,7 +91,7 @@ pub async fn save_baseline(
     findings_json: &str,
 ) -> Result<(), StoreError> {
     ensure_tables(db).await?;
-    db.store()
+    db
         .connection()
         .execute(
             "INSERT OR REPLACE INTO toestub_baselines (name, run_scope, findings_json, updated_at)
@@ -110,9 +108,7 @@ pub async fn load_latest_task_queue(
     user_id: &str,
 ) -> Result<Option<(i64, String)>, StoreError> {
     ensure_tables(db).await?;
-    let mut rows = db
-        .store()
-        .connection()
+    let mut rows = db.connection()
         .query(
             "SELECT total_findings, fix_suggestions_json FROM toestub_task_queue
              WHERE user_id = ?1 ORDER BY updated_at DESC LIMIT 1",
@@ -135,7 +131,7 @@ pub async fn save_task_queue(
     fix_suggestions_json: &str,
 ) -> Result<(), StoreError> {
     ensure_tables(db).await?;
-    db.store()
+    db
         .connection()
         .execute(
             "INSERT OR REPLACE INTO toestub_task_queue (user_id, run_scope, total_findings, fix_suggestions_json, updated_at)
@@ -153,11 +149,9 @@ pub fn get_file_cache_blocking(
     content_hash: &str,
     rules_version: &str,
 ) -> Result<Option<String>, StoreError> {
-    db.store().block_on(async {
+    db.block_on(async {
         ensure_tables(db).await?;
-        let mut rows = db
-            .store()
-            .connection()
+        let mut rows = db.connection()
             .query(
                 "SELECT findings_json FROM toestub_file_cache WHERE path = ?1 AND content_hash = ?2 AND rules_version = ?3",
                 params![path, content_hash, rules_version],
@@ -179,9 +173,9 @@ pub fn set_file_cache_blocking(
     rules_version: &str,
     findings_json: &str,
 ) -> Result<(), StoreError> {
-    db.store().block_on(async {
+    db.block_on(async {
         ensure_tables(db).await?;
-        db.store()
+        db
             .connection()
             .execute(
                 "INSERT OR REPLACE INTO toestub_file_cache (path, content_hash, rules_version, findings_json, updated_at)
@@ -198,11 +192,9 @@ pub fn list_suppressions_blocking(
     db: &VoxDb,
     path: &str,
 ) -> Result<Vec<(i64, String, Option<String>)>, StoreError> {
-    db.store().block_on(async {
+    db.block_on(async {
         ensure_tables(db).await?;
-        let mut rows = db
-            .store()
-            .connection()
+        let mut rows = db.connection()
             .query(
                 "SELECT line, rule_id, reason FROM toestub_suppressions WHERE path = ?1 ORDER BY line ASC, id ASC",
                 params![path],

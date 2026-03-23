@@ -22,7 +22,7 @@ pub async fn reliability_list(state: &ServerState, params: ReliabilityListParams
     let Some(db) = state.db.as_ref() else {
         return ToolResult::<String>::err("Codex not attached; reliability tracking requires Turso.").to_json();
     };
-    match db.store().list_endpoint_reliability(params.limit).await {
+    match db.list_endpoint_reliability(params.limit).await {
         Ok(rows) => ToolResult::ok(rows).to_json(),
         Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
     }
@@ -33,7 +33,7 @@ pub async fn reliability_agents(state: &ServerState) -> String {
     let Some(db) = state.db.as_ref() else {
         return ToolResult::<String>::err("Codex not attached.").to_json();
     };
-    match db.store().list_agent_reliability().await {
+    match db.list_agent_reliability().await {
         Ok(rows) => ToolResult::ok(rows).to_json(),
         Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
     }

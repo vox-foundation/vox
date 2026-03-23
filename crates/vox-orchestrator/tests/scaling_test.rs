@@ -69,7 +69,10 @@ async fn test_dynamic_scaling_and_retirement() {
         }
     }
 
-    // Wait for idle retirement
+    // CONTROLLED-DURATION SLEEP: idle_retirement_ms=100 is an elapsed-time gate inside
+    // AgentFleet::check_scaling(). There is no polling seam to replace this without adding
+    // a MockClock to AgentFleet. At 200ms this is well above the 100ms threshold and
+    // below CI timeout risk. Do not remove without also adding a ClockSeam trait to AgentFleet.
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     fleet.check_scaling().await;
 

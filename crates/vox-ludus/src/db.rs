@@ -4,8 +4,9 @@ use anyhow::Result;
 use turso::params;
 use vox_db::Codex;
 
-use crate::companion::{Companion, Mood};
+use crate::companion::{Companion, Mood, Personality};
 use crate::profile::LudusProfile;
+use crate::quest::{Quest, QuestModifier};
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -51,44 +52,29 @@ fn parse_quest_type(s: &str) -> crate::quest::QuestType {
 
 /// Load a gamify profile from the DB.
 pub async fn get_profile(db: &Codex, user_id: &str) -> Result<Option<LudusProfile>> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT level, xp, crystals, energy, max_energy,
-                    CAST(last_energy_regen AS INTEGER), CAST(last_active AS INTEGER),
-                    COALESCE(streak_days, 0), COALESCE(longest_streak, 0),
-                    COALESCE(streak_last_ts, 0), COALESCE(grace_available, 1), COALESCE(grace_used, 0),
-                    COALESCE(total_xp_earned, 0), COALESCE(prestige_level, 0),
-                    COALESCE(lumens, 0), COALESCE(generosity_lumens, 0), COALESCE(streak_shields, 0)
-             FROM gamify_profiles WHERE user_id = ?1",
-            params![user_id],
-        )
-        .await?;
-
-    if let Some(row) = rows.next().await? {
+    if let Some(row) = db.get_gamify_profile_raw(user_id).await? {
         let streak = crate::streak::StreakTracker {
-            current_streak: row.get::<Option<i64>>(7)?.unwrap_or(0) as u64,
-            longest_streak: row.get::<Option<i64>>(8)?.unwrap_or(0) as u64,
-            last_activity_ts: row.get::<Option<i64>>(9)?.unwrap_or(0),
-            grace_periods_available: row.get::<Option<i64>>(10)?.unwrap_or(1) as u64,
-            grace_periods_used: row.get::<Option<i64>>(11)?.unwrap_or(0) as u64,
+            current_streak: row[7] as u64,
+            longest_streak: row[8] as u64,
+            last_activity_ts: row[9],
+            grace_periods_available: row[10] as u64,
+            grace_periods_used: row[11] as u64,
         };
         Ok(Some(LudusProfile {
             user_id: user_id.to_string(),
-            level: row.get::<i64>(0)? as u64,
-            xp: row.get::<i64>(1)? as u64,
-            crystals: row.get::<i64>(2)? as u64,
-            energy: row.get::<i64>(3)? as u64,
-            max_energy: row.get::<i64>(4)? as u64,
-            last_energy_regen: row.get::<Option<i64>>(5)?.unwrap_or_default(),
-            last_active: row.get::<Option<i64>>(6)?.unwrap_or_default(),
+            level: row[0] as u64,
+            xp: row[1] as u64,
+            crystals: row[2] as u64,
+            energy: row[3] as u64,
+            max_energy: row[4] as u64,
+            last_energy_regen: row[5],
+            last_active: row[6],
             streak,
-            total_xp_earned: row.get::<i64>(12)? as u64,
-            prestige_level: row.get::<i64>(13)? as u32,
-            lumens: row.get::<i64>(14)?,
-            generosity_lumens: row.get::<i64>(15)?,
-            streak_shields: row.get::<i64>(16)? as i32,
+            total_xp_earned: row[12] as u64,
+            prestige_level: row[13] as u32,
+            lumens: row[14],
+            generosity_lumens: row[15],
+            streak_shields: row[16] as i32,
         }))
     } else {
         Ok(None)
@@ -97,52 +83,25 @@ pub async fn get_profile(db: &Codex, user_id: &str) -> Result<Option<LudusProfil
 
 /// Upsert a gamify profile to the DB (includes streak state).
 pub async fn upsert_profile(db: &Codex, p: &LudusProfile) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "INSERT INTO gamify_profiles
-             (user_id, level, xp, crystals, energy, max_energy, last_energy_regen, last_active,
-              streak_days, longest_streak, streak_last_ts, grace_available, grace_used,
-              total_xp_earned, prestige_level, lumens, generosity_lumens, streak_shields)
-          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
-          ON CONFLICT(user_id) DO UPDATE SET
-            level = excluded.level,
-            xp = excluded.xp,
-            crystals = excluded.crystals,
-            energy = excluded.energy,
-            max_energy = excluded.max_energy,
-            last_energy_regen = excluded.last_energy_regen,
-            last_active = excluded.last_active,
-            streak_days = excluded.streak_days,
-            longest_streak = excluded.longest_streak,
-            streak_last_ts = excluded.streak_last_ts,
-            grace_available = excluded.grace_available,
-            grace_used = excluded.grace_used,
-            total_xp_earned = excluded.total_xp_earned,
-            prestige_level = excluded.prestige_level,
-            lumens = excluded.lumens,
-            generosity_lumens = excluded.generosity_lumens,
-            streak_shields = excluded.streak_shields",
-            params![
-                p.user_id.clone(),
-                p.level as i64,
-                p.xp as i64,
-                p.crystals as i64,
-                p.energy as i64,
-                p.max_energy as i64,
-                p.last_energy_regen,
-                p.last_active,
-                p.streak.current_streak as i64,
-                p.streak.longest_streak as i64,
-                p.streak.last_activity_ts,
-                p.streak.grace_periods_available as i64,
-                p.streak.grace_periods_used as i64,
-                p.total_xp_earned as i64,
-                p.prestige_level as i64,
-                p.lumens,
-                p.generosity_lumens,
-                p.streak_shields as i64,
-            ],
+    db.upsert_gamify_profile(
+            &p.user_id,
+            p.level as i64,
+            p.xp as i64,
+            p.crystals as i64,
+            p.energy as i64,
+            p.max_energy as i64,
+            p.last_energy_regen,
+            p.last_active,
+            p.streak.current_streak as i64,
+            p.streak.longest_streak as i64,
+            p.streak.last_activity_ts,
+            p.streak.grace_periods_available as i64,
+            p.streak.grace_periods_used as i64,
+            p.total_xp_earned as i64,
+            p.prestige_level as i64,
+            p.lumens,
+            p.generosity_lumens,
+            p.streak_shields as i64,
         )
         .await?;
     Ok(())
@@ -158,13 +117,13 @@ pub async fn unlock_achievement(
     crystals: u32,
 ) -> Result<bool> {
     let now = crate::util::now_unix();
-    let rows_affected = db.store().conn.execute(
-        "INSERT OR IGNORE INTO gamify_achievements (id, user_id, unlocked_at, xp_rewarded, crystals_rewarded)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![achievement_id, user_id, now, xp as i64, crystals as i64],
-    ).await?;
-    // rows_affected > 0 means it was newly inserted (not already unlocked)
-    Ok(rows_affected > 0)
+    Ok(db.unlock_gamify_achievement(
+        user_id,
+        achievement_id,
+        now,
+        xp as i64,
+        crystals as i64,
+    ).await?)
 }
 
 /// Record a level-up event in the level history table.
@@ -176,69 +135,47 @@ pub async fn record_level_up(
     xp_at_level: u64,
 ) -> Result<()> {
     let now = crate::util::now_unix();
-    db.store()
-        .conn
-        .execute(
-            "INSERT INTO gamify_level_history (user_id, level, title, xp_at_level, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![user_id, level as i64, title, xp_at_level as i64, now],
-        )
-        .await?;
+    db.record_gamify_level_up(
+        user_id,
+        level as i64,
+        title,
+        xp_at_level as i64,
+        now,
+    ).await?;
     Ok(())
 }
 
 /// Load all unlocked achievement IDs for a user.
 pub async fn list_unlocked_achievements(db: &Codex, user_id: &str) -> Result<Vec<(String, i64)>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, unlocked_at FROM gamify_achievements WHERE user_id = ?1 ORDER BY unlocked_at ASC",
-        params![user_id],
-    ).await?;
-    let mut out = Vec::new();
-    while let Some(row) = rows.next().await? {
-        let id: String = row.get(0)?;
-        let ts: i64 = row.get(1)?;
-        out.push((id, ts));
-    }
-    Ok(out)
+    Ok(db.list_gamify_achievements(user_id).await?)
 }
 
 // ── Companion ────────────────────────────────────────────
 
 /// Load all companions for a user.
 pub async fn list_companions(db: &Codex, user_id: &str) -> Result<Vec<Companion>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, name, description, code_hash, language, ascii_sprite, mood, health, max_health, energy, max_energy, code_quality, last_active,
-                COALESCE(personality, '{}')
-         FROM gamify_companions WHERE user_id = ?1",
-        params![user_id],
-    ).await?;
-
+    let rows = db.list_gamify_companions(user_id).await?;
     let mut comps = Vec::new();
-    while let Some(row) = rows.next().await? {
-        let personality_json: String = row
-            .get::<Option<String>>(13)?
-            .unwrap_or_else(|| "{}".to_string());
-        let personality = serde_json::from_str::<crate::companion::Personality>(&personality_json)
-            .unwrap_or_default();
+
+    for row in rows {
+        let personality_str = row[14].as_deref().unwrap_or("focused");
+        let personality = personality_str.parse::<Personality>().unwrap_or_default();
+
         comps.push(Companion {
-            id: row.get::<String>(0)?,
-            user_id: user_id.to_string(),
-            name: row.get::<String>(1)?,
-            description: row.get::<Option<String>>(2)?,
-            code_hash: row.get::<Option<String>>(3)?,
-            language: row.get::<String>(4)?,
-            ascii_sprite: row.get::<Option<String>>(5)?,
-            mood: row
-                .get::<String>(6)
-                .unwrap_or_else(|_| "neutral".to_string())
-                .parse::<Mood>()
-                .unwrap_or(Mood::Neutral),
-            health: row.get::<i64>(7)? as i32,
-            max_health: row.get::<i64>(8)? as i32,
-            energy: row.get::<i64>(9)? as i32,
-            max_energy: row.get::<i64>(10)? as i32,
-            code_quality: row.get::<i64>(11)? as u8,
-            last_active: row.get::<Option<i64>>(12)?.unwrap_or_default(),
+            id: row[0].clone().unwrap_or_default(),
+            user_id: row[1].clone().unwrap_or_else(|| user_id.to_string()),
+            name: row[2].clone().unwrap_or_default(),
+            description: row[3].clone(),
+            code_hash: row[4].clone(),
+            language: row[5].clone().unwrap_or_default(),
+            ascii_sprite: row[6].clone(),
+            mood: row[7].as_deref().unwrap_or("neutral").parse::<Mood>().unwrap_or(Mood::Neutral),
+            health: row[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            max_health: row[9].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            energy: row[10].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            max_energy: row[11].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            code_quality: row[12].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(50) as u8,
+            last_active: row[13].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(),
             personality,
         });
     }
@@ -248,39 +185,22 @@ pub async fn list_companions(db: &Codex, user_id: &str) -> Result<Vec<Companion>
 
 /// Upsert a companion (includes personality JSON).
 pub async fn upsert_companion(db: &Codex, c: &Companion) -> Result<()> {
-    let personality_json =
-        serde_json::to_string(&c.personality).unwrap_or_else(|_| "{}".to_string());
-    db.store().conn.execute(
-        "INSERT INTO gamify_companions (id, user_id, name, description, code_hash, language, ascii_sprite, mood, health, max_health, energy, max_energy, code_quality, last_active, personality)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-         ON CONFLICT(id) DO UPDATE SET
-            name = excluded.name,
-            description = excluded.description,
-            code_hash = excluded.code_hash,
-            ascii_sprite = excluded.ascii_sprite,
-            mood = excluded.mood,
-            health = excluded.health,
-            energy = excluded.energy,
-            code_quality = excluded.code_quality,
-            last_active = excluded.last_active,
-            personality = excluded.personality",
-        params![
-            c.id.clone(),
-            c.user_id.clone(),
-            c.name.clone(),
-            c.description.clone(),
-            c.code_hash.clone(),
-            c.language.clone(),
-            c.ascii_sprite.clone(),
-            c.mood.as_str().to_string(),
-            c.health as i64,
-            c.max_health as i64,
-            c.energy as i64,
-            c.max_energy as i64,
-            c.code_quality as i64,
-            c.last_active,
-            personality_json
-        ],
+    db.upsert_gamify_companion(
+        &c.id,
+        &c.user_id,
+        &c.name,
+        c.description.clone(),
+        c.code_hash.clone(),
+        &c.language,
+        c.ascii_sprite.clone(),
+        c.mood.as_str(),
+        c.health as i64,
+        c.max_health as i64,
+        c.energy as i64,
+        c.max_energy as i64,
+        c.code_quality as i64,
+        c.last_active,
+        c.personality.as_str(),
     ).await?;
     Ok(())
 }
@@ -289,37 +209,26 @@ pub async fn upsert_companion(db: &Codex, c: &Companion) -> Result<()> {
 
 /// Get a specific companion.
 pub async fn get_companion(db: &Codex, id: &str) -> Result<Option<Companion>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, user_id, name, description, code_hash, language, ascii_sprite, mood, health, max_health, energy, max_energy, code_quality, last_active,
-                COALESCE(personality, '{}')
-         FROM gamify_companions WHERE id = ?1",
-        params![id],
-    ).await?;
-    if let Some(row) = rows.next().await? {
-        let personality_json: String = row
-            .get::<Option<String>>(14)?
-            .unwrap_or_else(|| "{}".to_string());
-        let personality = serde_json::from_str::<crate::companion::Personality>(&personality_json)
-            .unwrap_or_default();
+    let row = db.get_gamify_companion(id).await?;
+    if let Some(row) = row {
+        let personality_str = row[13].as_deref().unwrap_or("focused");
+        let personality = personality_str.parse::<Personality>().unwrap_or_default();
+
         Ok(Some(Companion {
-            id: row.get::<String>(0)?,
-            user_id: row.get::<String>(1)?,
-            name: row.get::<String>(2)?,
-            description: row.get::<Option<String>>(3)?,
-            code_hash: row.get::<Option<String>>(4)?,
-            language: row.get::<String>(5)?,
-            ascii_sprite: row.get::<Option<String>>(6)?,
-            mood: row
-                .get::<String>(7)
-                .unwrap_or_else(|_| "neutral".to_string())
-                .parse::<Mood>()
-                .unwrap_or(Mood::Neutral),
-            health: row.get::<i64>(8)? as i32,
-            max_health: row.get::<i64>(9)? as i32,
-            energy: row.get::<i64>(10)? as i32,
-            max_energy: row.get::<i64>(11)? as i32,
-            code_quality: row.get::<i64>(12)? as u8,
-            last_active: row.get::<Option<i64>>(13)?.unwrap_or_default(),
+            id: row[0].clone().unwrap_or_default(),
+            user_id: row[1].clone().unwrap_or_default(),
+            name: row[2].clone().unwrap_or_default(),
+            description: row[3].clone(),
+            code_hash: row[4].clone(),
+            language: row[5].clone().unwrap_or_default(),
+            ascii_sprite: row[6].clone(),
+            mood: row[7].as_deref().unwrap_or("neutral").parse::<Mood>().unwrap_or(Mood::Neutral),
+            health: row[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            max_health: row[9].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            energy: row[10].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            max_energy: row[11].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
+            code_quality: row[12].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(50) as u8,
+            last_active: row[13].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(),
             personality,
         }))
     } else {
@@ -329,53 +238,47 @@ pub async fn get_companion(db: &Codex, id: &str) -> Result<Option<Companion>> {
 
 /// Delete a companion.
 pub async fn delete_companion(db: &Codex, id: &str) -> Result<()> {
-    db.store()
-        .conn
-        .execute("DELETE FROM gamify_companions WHERE id = ?1", params![id])
-        .await?;
+    db.delete_gamify_companion(id).await?;
     Ok(())
 }
 
 // ── Quests ───────────────────────────────────────────────
 
-use crate::quest::{Quest, QuestModifier};
-
 /// Load all active quests for a user.
 pub async fn list_quests(db: &Codex, user_id: &str) -> Result<Vec<Quest>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at,
-                hint, modifier, status
-         FROM gamify_quests WHERE user_id = ?1",
-        params![user_id],
-    ).await?;
-
+    let rows = db.list_gamify_quests(user_id).await?;
     let mut quests = Vec::new();
-    while let Some(row) = rows.next().await? {
-        let completed = row.get::<i64>(7)? != 0;
-        let modifier_str: String = row.get(10).unwrap_or_else(|_| "none".to_string());
-        let modifier = serde_json::from_str::<QuestModifier>(&format!("\"{}\"", modifier_str))
-            .unwrap_or(QuestModifier::None);
+
+    for row in rows {
+        let completed = row[7].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 0;
+        let modifier_str = row[10].as_deref().unwrap_or("none");
+        let modifier = match modifier_str {
+            "blessed" => QuestModifier::Blessed,
+            "timed" => QuestModifier::Timed,
+            "chains" => QuestModifier::Chains,
+            "silent" => QuestModifier::Silent,
+            "legendary" => QuestModifier::Legendary,
+            "collaborative" => QuestModifier::Collaborative,
+            "cursed" => QuestModifier::Cursed,
+            "echoed" => QuestModifier::Echoed,
+            "frenzy" => QuestModifier::Frenzy,
+            _ => QuestModifier::None,
+        };
 
         quests.push(Quest {
-            id: row.get::<String>(0)?,
+            id: row[0].clone().unwrap_or_default(),
             user_id: user_id.to_string(),
-            quest_type: parse_quest_type(&row.get::<String>(1)?),
-            description: row.get::<String>(2)?,
-            hint: row.get(9).unwrap_or_default(),
-            target: row.get::<i64>(3)? as u32,
-            progress: row.get::<i64>(4)? as u32,
-            crystal_reward: row.get::<i64>(5)? as u64,
-            xp_reward: row.get::<i64>(6)? as u64,
+            quest_type: parse_quest_type(&row[1].as_deref().unwrap_or("build").to_string()), // Reverted to use parse_quest_type
+            description: row[2].clone().unwrap_or_default(),
+            target: row[3].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(1) as u32,
+            progress: row[4].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) as u32,
+            crystal_reward: row[5].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(10) as u64, // Changed to u64
+            xp_reward: row[6].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(15) as u64, // Changed to u64
             modifier,
             completed,
-            status: row.get(11).unwrap_or_else(|_| {
-                if completed {
-                    "completed".into()
-                } else {
-                    "active".into()
-                }
-            }),
-            expires_at: row.get(8).unwrap_or_default(),
+            status: row[11].clone().unwrap_or_else(|| "active".to_string()),
+            expires_at: row[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(), // Changed to i64
+            hint: row[9].clone().unwrap_or_default(),
         });
     }
 
@@ -384,32 +287,18 @@ pub async fn list_quests(db: &Codex, user_id: &str) -> Result<Vec<Quest>> {
 
 /// Upsert a quest.
 pub async fn upsert_quest(db: &Codex, q: &Quest) -> Result<()> {
-    let modifier_str =
-        serde_json::to_string(&q.modifier).unwrap_or_else(|_| "\"none\"".to_string());
-    let modifier_stripped = modifier_str.trim_matches('"');
-
-    db.store().conn.execute(
-        "INSERT INTO gamify_quests (id, user_id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at, hint, modifier, status)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-         ON CONFLICT(id) DO UPDATE SET
-            progress = excluded.progress,
-            completed = excluded.completed,
-            status = excluded.status",
-        params![
-            q.id.clone(),
-            q.user_id.clone(),
-            q.quest_type.as_str(),
-            q.description.clone(),
-            q.target as i64,
-            q.progress as i64,
-            q.crystal_reward as i64,
-            q.xp_reward as i64,
-            if q.completed { 1i64 } else { 0i64 },
-            q.expires_at,
-            q.hint.clone(),
-            modifier_stripped,
-            q.status.clone(),
-        ],
+    db.upsert_gamify_quest(
+        &q.id,
+        &q.user_id,
+        q.quest_type.as_str(),
+        &q.description,
+        q.xp_reward as i64,
+        q.crystal_reward as i64,
+        q.target as i64,
+        q.progress as i64,
+        &q.status,
+        q.expires_at,
+        q.completed,
     ).await?;
     Ok(())
 }
@@ -418,7 +307,7 @@ pub async fn upsert_quest(db: &Codex, q: &Quest) -> Result<()> {
 
 /// Get a specific quest by ID.
 pub async fn get_quest(db: &Codex, id: &str) -> Result<Option<Quest>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT id, user_id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at,
                 hint, modifier, status
          FROM gamify_quests WHERE id = ?1",
@@ -458,42 +347,19 @@ pub async fn get_quest(db: &Codex, id: &str) -> Result<Option<Quest>> {
 
 /// Update quest status: "pending" | "active" | "completed" | "abandoned".
 pub async fn update_quest_status(db: &Codex, user_id: &str, id: &str, status: &str) -> Result<()> {
-    let completed = if status == "completed" { 1i64 } else { 0i64 };
-    db.store()
-        .conn
-        .execute(
-            "UPDATE gamify_quests SET status = ?1, completed = ?2 WHERE id = ?3 AND user_id = ?4",
-            params![status, completed, id, user_id],
-        )
-        .await?;
+    let completed = status == "completed";
+    db.update_gamify_quest_status(id, user_id, status, completed).await?;
     Ok(())
 }
 
 /// Count active/available quests for a user.
 pub async fn count_quests(db: &Codex, user_id: &str) -> Result<u32> {
-    let now = crate::util::now_unix();
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT COUNT(*) FROM gamify_quests 
-         WHERE user_id = ?1 AND status = 'active' AND (expires_at = 0 OR expires_at > ?2)",
-            params![user_id.to_string(), now],
-        )
-        .await?;
-    if let Some(row) = rows.next().await? {
-        Ok(row.get::<i64>(0)? as u32)
-    } else {
-        Ok(0)
-    }
+    Ok(db.count_gamify_quests(user_id).await? as u32)
 }
 
 /// Delete a quest.
 pub async fn delete_quest(db: &Codex, id: &str) -> Result<()> {
-    db.store()
-        .conn
-        .execute("DELETE FROM gamify_quests WHERE id = ?1", params![id])
-        .await?;
+    db.delete_gamify_quest(id).await?;
     Ok(())
 }
 
@@ -503,58 +369,48 @@ use crate::battle::{Battle, BugType};
 
 /// Load recent battles for a user.
 pub async fn list_battles(db: &Codex, user_id: &str, limit: i64) -> Result<Vec<Battle>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at
-         FROM gamify_battles WHERE user_id = ?1 ORDER BY created_at DESC LIMIT ?2",
-        params![user_id, limit],
-    ).await?;
-
+    let rows = db.list_gamify_battles(user_id, limit).await?;
     let mut battles = Vec::new();
-    while let Some(row) = rows.next().await? {
+    for row in rows {
         battles.push(Battle {
-            id: row.get::<String>(0)?,
+            id: row[0].clone().unwrap_or_default(),
             user_id: user_id.to_string(),
-            companion_id: row.get::<String>(1)?,
-            bug_type: match row.get::<String>(2)?.as_str() {
+            companion_id: row[1].clone().unwrap_or_default(),
+            bug_type: match row[2].as_deref().unwrap_or("") {
                 "syntax" => BugType::Syntax,
                 "logic" => BugType::Logic,
                 "performance" => BugType::Performance,
                 "security" => BugType::Security,
                 _ => BugType::Syntax,
             },
-            bug_description: row.get::<String>(3)?,
-            bug_code: row.get::<Option<String>>(4)?,
-            submitted_code: row.get::<Option<String>>(5)?,
-            success: row.get::<i64>(6)? != 0,
-            crystals_earned: row.get::<i64>(7)? as u64,
-            xp_earned: row.get::<i64>(8)? as u64,
-            duration_secs: row.get::<i64>(9)? as u64,
-            created_at: row.get::<i64>(10)?,
+            bug_description: row[3].clone().unwrap_or_default(),
+            bug_code: row[4].clone(),
+            submitted_code: row[5].clone(),
+            success: row[6].as_deref().unwrap_or("0") != "0",
+            crystals_earned: row[7].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
+            xp_earned: row[8].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
+            duration_secs: row[9].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
+            created_at: row[10].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
         });
     }
-
     Ok(battles)
 }
 
 /// Insert a new battle record.
 pub async fn insert_battle(db: &Codex, b: &Battle) -> Result<()> {
-    db.store().conn.execute(
-        "INSERT INTO gamify_battles (id, user_id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-        params![
-            b.id.clone(),
-            b.user_id.clone(),
-            b.companion_id.clone(),
-            b.bug_type.as_str(),
-            b.bug_description.clone(),
-            b.bug_code.clone(),
-            b.submitted_code.clone(),
-            if b.success { 1i64 } else { 0i64 },
-            b.crystals_earned as i64,
-            b.xp_earned as i64,
-            b.duration_secs as i64,
-            b.created_at,
-        ],
+    db.insert_gamify_battle(
+        &b.id,
+        &b.user_id,
+        &b.companion_id,
+        b.bug_type.as_str(),
+        &b.bug_description,
+        b.bug_code.as_deref(),
+        b.submitted_code.as_deref(),
+        b.success,
+        b.crystals_earned as i64,
+        b.xp_earned as i64,
+        b.duration_secs as i64,
+        b.created_at,
     ).await?;
     Ok(())
 }
@@ -563,7 +419,7 @@ pub async fn insert_battle(db: &Codex, b: &Battle) -> Result<()> {
 
 /// Get a specific battle by ID.
 pub async fn get_battle(db: &Codex, id: &str) -> Result<Option<Battle>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT id, user_id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at
          FROM gamify_battles WHERE id = ?1",
         params![id],
@@ -596,49 +452,25 @@ pub async fn get_battle(db: &Codex, id: &str) -> Result<Option<Battle>> {
 
 /// Update a battle.
 pub async fn update_battle(db: &Codex, b: &Battle) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "UPDATE gamify_battles SET
-            submitted_code = ?1,
-            success = ?2,
-            crystals_earned = ?3,
-            xp_earned = ?4,
-            duration_secs = ?5
-         WHERE id = ?6",
-            params![
-                b.submitted_code.clone(),
-                if b.success { 1i64 } else { 0i64 },
-                b.crystals_earned as i64,
-                b.xp_earned as i64,
-                b.duration_secs as i64,
-                b.id.clone()
-            ],
-        )
-        .await?;
+    db.update_gamify_battle(
+        &b.id,
+        b.submitted_code.as_deref(),
+        b.success,
+        b.crystals_earned as i64,
+        b.xp_earned as i64,
+        b.duration_secs as i64,
+    ).await?;
     Ok(())
 }
 
 /// Count battles played by a user.
 pub async fn count_battles(db: &Codex, user_id: &str) -> Result<i64> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT COUNT(*) FROM gamify_battles WHERE user_id = ?1",
-            params![user_id.to_string()],
-        )
-        .await?;
-    if let Some(row) = rows.next().await? {
-        Ok(row.get::<i64>(0).unwrap_or(0))
-    } else {
-        Ok(0)
-    }
+    Ok(db.count_gamify_battles(user_id).await?)
 }
 
 /// A row in the player leaderboard.
 #[derive(Debug, serde::Serialize)]
-pub struct PlayerLeaderboardEntry {
+pub struct PlayerRankEntry {
     /// Unique user identifier.
     pub user_id: String,
     /// Player's current level.
@@ -648,44 +480,28 @@ pub struct PlayerLeaderboardEntry {
 }
 
 /// Get top users by XP for the leaderboard.
-pub async fn leaderboard(db: &Codex, limit: i64) -> Result<Vec<PlayerLeaderboardEntry>> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT user_id, level, xp FROM gamify_profiles ORDER BY xp DESC LIMIT ?1",
-            params![limit],
-        )
-        .await?;
-
+pub async fn leaderboard(db: &Codex, limit: i64) -> Result<Vec<PlayerRankEntry>> {
+    let rows = db.gamify_leaderboard_by_xp(limit).await?;
     let mut entries = Vec::new();
-    while let Some(row) = rows.next().await? {
-        entries.push(PlayerLeaderboardEntry {
-            user_id: row.get::<String>(0)?,
-            level: row.get::<i64>(1)? as u64,
-            score: row.get::<i64>(2)?,
+    for (user_id, level, score) in rows {
+        entries.push(PlayerRankEntry {
+            user_id,
+            level: level as u64,
+            score,
         });
     }
     Ok(entries)
 }
 
 /// Get top users by Lumens for the leaderboard.
-pub async fn lumens_leaderboard(db: &Codex, limit: i64) -> Result<Vec<PlayerLeaderboardEntry>> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT user_id, level, COALESCE(lumens, 0) FROM gamify_profiles ORDER BY 3 DESC LIMIT ?1",
-            params![limit],
-        )
-        .await?;
-
+pub async fn lumens_leaderboard(db: &Codex, limit: i64) -> Result<Vec<PlayerRankEntry>> {
+    let rows = db.gamify_leaderboard_by_lumens(limit).await?;
     let mut entries = Vec::new();
-    while let Some(row) = rows.next().await? {
-        entries.push(PlayerLeaderboardEntry {
-            user_id: row.get::<String>(0)?,
-            level: row.get::<i64>(1)? as u64,
-            score: row.get::<i64>(2)?,
+    for (user_id, level, score) in rows {
+        entries.push(PlayerRankEntry {
+            user_id,
+            level: level as u64,
+            score,
         });
     }
     Ok(entries)
@@ -693,34 +509,7 @@ pub async fn lumens_leaderboard(db: &Codex, limit: i64) -> Result<Vec<PlayerLead
 
 /// Get aggregate profile stats (e.g. total completed quests, total battles won, etc.).
 pub async fn get_profile_stats(db: &Codex, user_id: &str) -> Result<serde_json::Value> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT COUNT(id) FROM gamify_quests WHERE user_id = ?1 AND completed = 1",
-            params![user_id],
-        )
-        .await?;
-    let completed_quests = if let Some(row) = rows.next().await? {
-        row.get::<i64>(0).unwrap_or(0)
-    } else {
-        0
-    };
-
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT COUNT(id) FROM gamify_battles WHERE user_id = ?1 AND success = 1",
-            params![user_id],
-        )
-        .await?;
-    let won_battles = if let Some(row) = rows.next().await? {
-        row.get::<i64>(0).unwrap_or(0)
-    } else {
-        0
-    };
-
+    let (completed_quests, won_battles) = db.get_gamify_profile_stats(user_id).await?;
     Ok(serde_json::json!({
         "completed_quests": completed_quests,
         "won_battles": won_battles,
@@ -750,28 +539,17 @@ pub async fn get_events(
     agent_id: &str,
     limit: Option<i64>,
 ) -> Result<Vec<AgentEventRecord>> {
-    let limit_val = limit.unwrap_or(50);
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT id, agent_id, event_type, payload, timestamp
-         FROM agent_events WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
-            params![agent_id.to_string(), limit_val],
-        )
-        .await?;
-
+    let rows = db.list_gamify_events(agent_id, limit.unwrap_or(50)).await?;
     let mut events = Vec::new();
-    while let Some(row) = rows.next().await? {
+    for (id, agent_id, event_type, payload, timestamp) in rows {
         events.push(AgentEventRecord {
-            id: row.get::<i64>(0)?,
-            agent_id: row.get::<String>(1)?,
-            event_type: row.get::<String>(2)?,
-            payload: row.get::<Option<String>>(3)?,
-            timestamp: row.get::<String>(4)?, // SQLite datetime string
+            id,
+            agent_id,
+            event_type,
+            payload,
+            timestamp,
         });
     }
-
     Ok(events)
 }
 
@@ -782,20 +560,7 @@ pub async fn insert_event(
     event_type: &str,
     payload: Option<&str>,
 ) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "INSERT INTO agent_events (agent_id, event_type, payload) VALUES (?1, ?2, ?3)",
-            match payload {
-                Some(p) => params![agent_id.to_string(), event_type.to_string(), p.to_string()],
-                None => params![
-                    agent_id.to_string(),
-                    event_type.to_string(),
-                    turso::Value::Null
-                ],
-            },
-        )
-        .await?;
+    db.insert_gamify_event(agent_id, event_type, payload).await?;
     Ok(())
 }
 
@@ -824,6 +589,36 @@ pub struct CostRecord {
     pub timestamp: String,
 }
 
+impl CostRecord {
+    /// Create a new cost record for in-memory tracking.
+    pub fn new_ephemeral(
+        agent_id: impl Into<String>,
+        provider: impl Into<String>,
+        model: Option<String>,
+        input_tokens: i64,
+        output_tokens: i64,
+        cost_usd: f64,
+    ) -> Self {
+        Self {
+            id: 0,
+            agent_id: agent_id.into(),
+            session_id: None,
+            provider: provider.into(),
+            model,
+            input_tokens,
+            output_tokens,
+            cost_usd,
+            timestamp: String::new(),
+        }
+    }
+
+    /// Set the session ID.
+    pub fn with_session(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = Some(session_id.into());
+        self
+    }
+}
+
 /// Insert a cost record.
 #[allow(clippy::too_many_arguments)]
 pub async fn insert_cost_record(
@@ -836,59 +631,30 @@ pub async fn insert_cost_record(
     output_tokens: i64,
     cost_usd: f64,
 ) -> Result<()> {
-    db.store().conn.execute(
-        "INSERT INTO cost_records (agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![
-            agent_id.to_string(),
-            session_id.map(|s| s.to_string()),
-            provider.to_string(),
-            model.map(|m| m.to_string()),
-            input_tokens,
-            output_tokens,
-            cost_usd,
-        ],
-    ).await?;
+    db.insert_gamify_cost_record(agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd).await?;
     Ok(())
 }
 
 /// Get total cost for an agent.
 pub async fn get_agent_cost_usd(db: &Codex, agent_id: &str) -> Result<f64> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM cost_records WHERE agent_id = ?1",
-            params![agent_id.to_string()],
-        )
-        .await?;
-    if let Some(row) = rows.next().await? {
-        Ok(row.get::<f64>(0).unwrap_or(0.0))
-    } else {
-        Ok(0.0)
-    }
+    Ok(db.get_gamify_agent_cost_usd(agent_id).await?)
 }
 
 /// Get cost records for an agent, most recent first.
 pub async fn list_cost_records(db: &Codex, agent_id: &str, limit: i64) -> Result<Vec<CostRecord>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, timestamp
-         FROM cost_records WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
-        params![agent_id.to_string(), limit],
-    ).await?;
-
+    let rows = db.list_gamify_cost_records(agent_id, limit).await?;
     let mut records = Vec::new();
-    while let Some(row) = rows.next().await? {
+    for (id, agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, timestamp) in rows {
         records.push(CostRecord {
-            id: row.get::<i64>(0)?,
-            agent_id: row.get::<String>(1)?,
-            session_id: row.get::<Option<String>>(2)?,
-            provider: row.get::<String>(3)?,
-            model: row.get::<Option<String>>(4)?,
-            input_tokens: row.get::<i64>(5)?,
-            output_tokens: row.get::<i64>(6)?,
-            cost_usd: row.get::<f64>(7)?,
-            timestamp: row.get::<String>(8)?,
+            id,
+            agent_id,
+            session_id,
+            provider,
+            model,
+            input_tokens,
+            output_tokens,
+            cost_usd,
+            timestamp,
         });
     }
     Ok(records)
@@ -898,13 +664,7 @@ pub async fn list_cost_records(db: &Codex, agent_id: &str, limit: i64) -> Result
 
 /// Acknowledge an A2A message by ID.
 pub async fn acknowledge_message(db: &Codex, id: i64) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "UPDATE a2a_messages SET acknowledged = 1 WHERE id = ?1",
-            params![id],
-        )
-        .await?;
+    db.acknowledge_a2a_message_by_id(id).await?;
     Ok(())
 }
 
@@ -938,17 +698,7 @@ pub async fn insert_agent_session(
     agent_id: &str,
     agent_name: Option<&str>,
 ) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "INSERT OR IGNORE INTO agent_sessions (id, agent_id, agent_name) VALUES (?1, ?2, ?3)",
-            params![
-                id.to_string(),
-                agent_id.to_string(),
-                agent_name.map(|n| n.to_string()),
-            ],
-        )
-        .await?;
+    db.insert_gamify_session(id, agent_id, agent_name).await?;
     Ok(())
 }
 
@@ -960,53 +710,30 @@ pub async fn update_agent_session(
     task_snapshot: Option<&str>,
     context_summary: Option<&str>,
 ) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "UPDATE agent_sessions SET status = ?1, task_snapshot = ?2, context_summary = ?3
-         WHERE id = ?4",
-            params![
-                status.to_string(),
-                task_snapshot.map(|s| s.to_string()),
-                context_summary.map(|s| s.to_string()),
-                id.to_string(),
-            ],
-        )
-        .await?;
+    db.update_gamify_session(id, status, task_snapshot, context_summary).await?;
     Ok(())
 }
 
 /// End a session by setting ended_at and status.
 pub async fn end_agent_session(db: &Codex, id: &str, status: &str) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "UPDATE agent_sessions SET status = ?1, ended_at = datetime('now') WHERE id = ?2",
-            params![status.to_string(), id.to_string()],
-        )
-        .await?;
+    db.end_gamify_session(id, status).await?;
     Ok(())
 }
 
 /// Get active sessions.
 pub async fn list_active_sessions(db: &Codex) -> Result<Vec<AgentSessionRecord>> {
-    let mut rows = db.store().conn.query(
-        "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary
-         FROM agent_sessions WHERE status = 'active' ORDER BY started_at DESC",
-        (),
-    ).await?;
-
+    let rows = db.list_gamify_active_sessions().await?;
     let mut sessions = Vec::new();
-    while let Some(row) = rows.next().await? {
+    for row in rows {
         sessions.push(AgentSessionRecord {
-            id: row.get::<String>(0)?,
-            agent_id: row.get::<String>(1)?,
-            agent_name: row.get::<Option<String>>(2)?,
-            started_at: row.get::<String>(3)?,
-            ended_at: row.get::<Option<String>>(4)?,
-            status: row.get::<String>(5)?,
-            task_snapshot: row.get::<Option<String>>(6)?,
-            context_summary: row.get::<Option<String>>(7)?,
+            id: row.0,
+            agent_id: row.1,
+            agent_name: row.2,
+            started_at: row.3,
+            ended_at: row.4,
+            status: row.5,
+            task_snapshot: row.6,
+            context_summary: row.7,
         });
     }
     Ok(sessions)
@@ -1022,22 +749,7 @@ pub async fn upsert_agent_metric(
     metric_value: f64,
     period: &str,
 ) -> Result<()> {
-    db.store()
-        .conn
-        .execute(
-            "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
-         VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(agent_id, metric_name, period) DO UPDATE SET
-             metric_value = excluded.metric_value,
-             timestamp = datetime('now')",
-            params![
-                agent_id.to_string(),
-                metric_name.to_string(),
-                metric_value,
-                period.to_string(),
-            ],
-        )
-        .await?;
+    db.upsert_gamify_agent_metric(agent_id, metric_name, metric_value, period).await?;
     Ok(())
 }
 
@@ -1047,15 +759,9 @@ pub async fn get_agent_metrics(
     agent_id: &str,
     period: &str,
 ) -> Result<std::collections::HashMap<String, f64>> {
-    let mut rows = db.store().conn.query(
-        "SELECT metric_name, metric_value FROM agent_metrics WHERE agent_id = ?1 AND period = ?2",
-        params![agent_id.to_string(), period.to_string()],
-    ).await?;
-
+    let metrics = db.get_gamify_agent_metrics(agent_id, period).await?;
     let mut map = std::collections::HashMap::new();
-    while let Some(row) = rows.next().await? {
-        let name = row.get::<String>(0)?;
-        let val = row.get::<f64>(1).unwrap_or(0.0);
+    for (name, val) in metrics {
         map.insert(name, val);
     }
     Ok(map)
@@ -1452,10 +1158,7 @@ use crate::teaching::TeachingProfile;
 
 /// Load a teaching profile. Returns a fresh default if none exists yet.
 pub async fn get_teaching_profile(db: &Codex, user_id: &str) -> Result<TeachingProfile> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
+    let mut rows = db.connection().query(
             "SELECT stage, silenced, mistake_counts, cooldowns
              FROM gamify_teaching_profiles WHERE user_id = ?1",
             params![user_id.to_string()],
@@ -1498,7 +1201,7 @@ pub async fn upsert_teaching_profile(db: &Codex, profile: &TeachingProfile) -> R
     let counts_json = serde_json::to_string(&profile.mistake_counts).unwrap_or_default();
     let cooldowns_json = serde_json::to_string(&profile.cooldowns).unwrap_or_default();
 
-    db.store().conn.execute(
+    db.connection().execute(
         "INSERT INTO gamify_teaching_profiles (user_id, stage, silenced, mistake_counts, cooldowns)
          VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(user_id) DO UPDATE SET
@@ -1534,7 +1237,7 @@ pub async fn insert_policy_snapshot(
     grind_capped: bool,
     lumens_awarded: i64,
 ) -> Result<()> {
-    db.store().conn.execute(
+    db.connection().execute(
         "INSERT INTO gamify_policy_snapshots
          (user_id, event_type, base_xp, base_crystals, mode, effective_multiplier, xp_awarded, crystals_awarded, streak_days, grind_capped, lumens_awarded)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
@@ -1587,8 +1290,7 @@ pub async fn insert_notification(
 ) -> Result<()> {
     let expires = notif.created_at + NOTIF_TTL_SECS;
     let notif_type = format!("{:?}", notif.notification_type);
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "INSERT OR IGNORE INTO gamify_notifications
              (id, user_id, notification_type, title, message, read, created_at, expires_at)
@@ -1615,10 +1317,7 @@ pub async fn list_unread_notifications(
     limit: u32,
 ) -> Result<Vec<crate::notifications::Notification>> {
     let now = crate::util::now_unix();
-    let mut rows = db
-        .store()
-        .conn
-        .query(
+    let mut rows = db.connection().query(
             "SELECT id, notification_type, title, message, created_at
              FROM gamify_notifications
              WHERE user_id = ?1 AND read = 0 AND (expires_at = 0 OR expires_at > ?2)
@@ -1647,8 +1346,7 @@ pub async fn list_unread_notifications(
 
 /// Mark a notification as read by ID.
 pub async fn mark_notification_read(db: &Codex, notif_id: &str) -> Result<()> {
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "UPDATE gamify_notifications SET read = 1 WHERE id = ?1",
             params![notif_id],
@@ -1659,8 +1357,7 @@ pub async fn mark_notification_read(db: &Codex, notif_id: &str) -> Result<()> {
 
 /// Mark all unread notifications for a user as read.
 pub async fn mark_all_notifications_read(db: &Codex, user_id: &str) -> Result<()> {
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "UPDATE gamify_notifications SET read = 1 WHERE user_id = ?1 AND read = 0",
             params![user_id],
@@ -1672,9 +1369,7 @@ pub async fn mark_all_notifications_read(db: &Codex, user_id: &str) -> Result<()
 /// Delete notifications older than their `expires_at` timestamp (TTL cleanup).
 pub async fn cleanup_expired_notifications(db: &Codex) -> Result<u64> {
     let now = crate::util::now_unix();
-    let rows = db
-        .store()
-        .conn
+    let rows = db.connection()
         .execute(
             "DELETE FROM gamify_notifications WHERE expires_at > 0 AND expires_at < ?1",
             params![now],
@@ -1703,7 +1398,7 @@ use crate::feedback::AiFeedback;
 
 /// Insert a piece of AI feedback.
 pub async fn insert_feedback(db: &Codex, fb: &AiFeedback) -> Result<()> {
-    db.store().conn.execute(
+    db.connection().execute(
         "INSERT INTO gamify_ai_feedback
              (id, user_id, session_id, response_id, thumbs_up, comment, tokens_generated, example_code, contributed_to_corpus, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -1732,7 +1427,7 @@ pub async fn upsert_periodic_reward(db: &Codex, r: &PeriodicReward, user_id: &st
     let condition_json = serde_json::to_string(&r.unlock_condition)
         .unwrap_or_else(|_| "\"WeeklyCheckIn\"".to_string());
 
-    db.store().conn.execute(
+    db.connection().execute(
         "INSERT INTO gamify_periodic_rewards
              (reward_id, user_id, name, icon, description, xp_bonus, crystal_bonus, redeemed, expires_at, created_at, unlock_condition)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -1761,7 +1456,7 @@ pub async fn get_reward_claim(
     user_id: &str,
     reward_id: &str,
 ) -> Result<Option<PeriodicReward>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT name, icon, xp_bonus, crystal_bonus, redeemed, expires_at, description, unlock_condition
          FROM gamify_periodic_rewards WHERE user_id = ?1 AND reward_id = ?2",
         params![user_id, reward_id],
@@ -1792,10 +1487,7 @@ pub async fn get_reward_claim(
 
 /// Get a specific counter for a user.
 pub async fn get_counter(db: &Codex, user_id: &str, name: &str) -> Result<u32> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
+    let mut rows = db.connection().query(
             "SELECT count FROM gamify_counters WHERE user_id = ?1 AND counter_name = ?2",
             params![user_id, name],
         )
@@ -1809,8 +1501,7 @@ pub async fn get_counter(db: &Codex, user_id: &str, name: &str) -> Result<u32> {
 
 /// Increment a counter and return the new value.
 pub async fn increment_counter(db: &Codex, user_id: &str, name: &str, amount: u32) -> Result<u32> {
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "INSERT INTO gamify_counters (user_id, counter_name, count)
          VALUES (?1, ?2, ?3)
@@ -1824,8 +1515,7 @@ pub async fn increment_counter(db: &Codex, user_id: &str, name: &str, amount: u3
 
 /// Set a counter to a specific value.
 pub async fn set_counter(db: &Codex, user_id: &str, name: &str, value: u32) -> Result<()> {
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "INSERT INTO gamify_counters (user_id, counter_name, count)
          VALUES (?1, ?2, ?3)
@@ -1847,8 +1537,7 @@ pub async fn create_collegium(
     leader_id: &str,
 ) -> Result<()> {
     let now = crate::util::now_unix();
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "INSERT INTO gamify_collegiums (id, name, description, leader_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -1869,7 +1558,7 @@ pub async fn join_collegium(
     role: &str,
 ) -> Result<()> {
     let now = crate::util::now_unix();
-    db.store().conn.execute(
+    db.connection().execute(
         "INSERT OR IGNORE INTO gamify_collegium_members (collegium_id, user_id, role, joined_at)
          VALUES (?1, ?2, ?3, ?4)",
         params![collegium_id, user_id, role, now],
@@ -1879,8 +1568,7 @@ pub async fn join_collegium(
 
 /// Increment a collegium's lumens count.
 pub async fn update_collegium_lumens(db: &Codex, collegium_id: &str, delta: i64) -> Result<()> {
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "UPDATE gamify_collegiums SET lumens = lumens + ?1 WHERE id = ?2",
             params![delta, collegium_id],
@@ -1891,7 +1579,7 @@ pub async fn update_collegium_lumens(db: &Codex, collegium_id: &str, delta: i64)
 
 /// List all collegiums with their total Lumens.
 pub async fn list_collegiums(db: &Codex) -> Result<Vec<(String, String, i64, i64)>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT id, name, lumens, (SELECT COUNT(*) FROM gamify_collegium_members WHERE collegium_id = id) FROM gamify_collegiums ORDER BY lumens DESC",
         params![],
     ).await?;
@@ -1905,7 +1593,7 @@ pub async fn list_collegiums(db: &Codex) -> Result<Vec<(String, String, i64, i64
 
 /// Get a specific collegium.
 pub async fn get_collegium(db: &Codex, id: &str) -> Result<Option<(String, String, i64, i64)>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT id, name, lumens, (SELECT COUNT(*) FROM gamify_collegium_members WHERE collegium_id = id) FROM gamify_collegiums WHERE id = ?1",
         params![id],
     ).await?;
@@ -1921,7 +1609,7 @@ pub async fn get_user_collegium(
     db: &Codex,
     user_id: &str,
 ) -> Result<Option<(String, String, i64, i64)>> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT c.id, c.name, c.lumens, (SELECT COUNT(*) FROM gamify_collegium_members WHERE collegium_id = c.id)
          FROM gamify_collegiums c
          JOIN gamify_collegium_members m ON m.collegium_id = c.id
@@ -1963,7 +1651,7 @@ pub struct ArenaEvent {
 /// Get the currently active arena event.
 pub async fn get_active_arena_event(db: &Codex) -> Result<Option<ArenaEvent>> {
     let now = crate::util::now_unix();
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT id, name, description, start_ts, end_ts, target_xp, current_xp, target_lumens, current_lumens
          FROM gamify_arena_events
          WHERE status = 'active' AND start_ts <= ?1 AND end_ts >= ?1",
@@ -1989,8 +1677,7 @@ pub async fn get_active_arena_event(db: &Codex) -> Result<Option<ArenaEvent>> {
 /// Join an arena event.
 pub async fn join_arena_event(db: &Codex, event_id: &str, user_id: &str) -> Result<()> {
     let now = crate::util::now_unix();
-    db.store()
-        .conn
+    db.connection()
         .execute(
             "INSERT OR IGNORE INTO gamify_arena_participants (event_id, user_id, joined_at)
          VALUES (?1, ?2, ?3)",
@@ -2006,7 +1693,7 @@ pub async fn get_arena_contribution(
     event_id: &str,
     user_id: &str,
 ) -> Result<(i64, i64)> {
-    let mut rows = db.store().conn.query(
+    let mut rows = db.connection().query(
         "SELECT xp_contributed, lumens_contributed FROM gamify_arena_participants WHERE event_id = ?1 AND user_id = ?2",
         params![event_id, user_id],
     ).await?;
@@ -2023,10 +1710,7 @@ pub async fn arena_event_leaderboard(
     event_id: &str,
     limit: i64,
 ) -> Result<Vec<(String, i64, i64)>> {
-    let mut rows = db
-        .store()
-        .conn
-        .query(
+    let mut rows = db.connection().query(
             "SELECT user_id, xp_contributed, lumens_contributed
          FROM gamify_arena_participants
          WHERE event_id = ?1

@@ -83,6 +83,16 @@ pub struct SyntheticGenConfig {
     /// Whether to run the augmentation engine (typos, synonyms, case) after generation.
     /// This 3× multiplies effective corpus size with robust variants.
     pub augment_after_generate: bool,
+    /// Whether to emit routing decision pairs (Gap 1: orchestrator-as-model training).
+    pub emit_routing_decisions: bool,
+    /// Whether to emit expanded negative preference pairs (Gap 2).
+    pub emit_negative_expanded: bool,
+    /// Whether to emit error→recovery pairs (Gap 6).
+    pub emit_error_recovery: bool,
+    /// Whether to emit multi-agent conversation pairs (Gap 8).
+    pub emit_multi_agent_convos: bool,
+    /// Whether to emit telemetry interpretation pairs (Gap 10).
+    pub emit_telemetry_pairs: bool,
 }
 
 impl Default for SyntheticGenConfig {
@@ -101,6 +111,11 @@ impl Default for SyntheticGenConfig {
             emit_script_rows: true,
             emit_organic_vox: true,
             augment_after_generate: true,
+            emit_routing_decisions: true,
+            emit_negative_expanded: true,
+            emit_error_recovery: true,
+            emit_multi_agent_convos: true,
+            emit_telemetry_pairs: true,
         }
     }
 }
@@ -998,6 +1013,399 @@ pub fn generate_tool_chain_pairs(
     Ok(count)
 }
 
+// ─── Routing decision pairs (Gap 1: Orchestrator-as-model training) ───────────
+
+/// Generate routing decision pairs where the model must decide HOW to respond
+/// (tool call, direct answer, agent delegation) given a user request.
+///
+/// This teaches Populi to act as the orchestrator itself, not just as a tool
+/// that executes commands — critical for autonomous agent operation.
+pub fn generate_routing_decision_pairs(
+    out: &mut impl Write,
+    _cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
+    let mut count = 0;
+
+    // (user_request, response_type, tool_or_agent, reasoning, args_or_content)
+    let scenarios: &[(&str, &str, &str, &str, serde_json::Value)] = &[
+        (
+            "List all running tasks in the orchestrator",
+            "tool_call",
+            "vox_orchestrator_status",
+            "Direct query tool — no agent delegation needed; response is synchronous status",
+            json!({}),
+        ),
+        (
+            "Implement a Vox actor for managing a user session cache",
+            "tool_call",
+            "vox_submit_task",
+            "Complex implementation task requiring agent dispatch; submit to a worker agent with file affinity",
+            json!({"description": "Implement a Vox actor for session cache management", "files": ["src/session_cache.vox"]}),
+        ),
+        (
+            "What is the difference between an actor and a workflow in Vox?",
+            "direct_answer",
+            "none",
+            "Conceptual question with known answer — respond directly without tools",
+            json!({"answer": "An actor is a stateful isolated entity with a mailbox. A workflow is a durable state machine that survives failures. Actors process messages in real time; workflows model long-running processes with explicit steps."}),
+        ),
+        (
+            "Check if the auth.vox file is owned by another agent before editing",
+            "tool_call",
+            "vox_check_file_owner",
+            "File ownership query is a prerequisite to editing; must call vox_check_file_owner first",
+            json!({"path": "src/auth.vox"}),
+        ),
+        (
+            "Send the completed login component to the review agent",
+            "tool_call",
+            "vox_a2a_send",
+            "A2A coordination — handoff between agents via structured message",
+            json!({"sender_id": 1, "receiver_id": 2, "msg_type": "plan_handoff", "payload": "{\"artifact\": \"src/login.vox\", \"status\": \"complete\"}"}),
+        ),
+        (
+            "Run the test suite for the vox-parser crate",
+            "tool_call",
+            "vox_run_tests",
+            "Direct test tool — not an implementation task, execute immediately",
+            json!({"crate_name": "vox-parser"}),
+        ),
+        (
+            "Which LLM model should I use for a code generation task?",
+            "tool_call",
+            "vox_suggest_model",
+            "Model selection requires the routing registry — delegate to suggest_model tool",
+            json!({"task": "code_generation"}),
+        ),
+        (
+            "Broadcast to all agents that phase 2 has started",
+            "tool_call",
+            "vox_a2a_broadcast",
+            "Global agent notification — use broadcast not point-to-point a2a_send",
+            json!({"sender_id": 1, "msg_type": "phase_start", "payload": "{\"phase\": 2}"}),
+        ),
+        (
+            "Create a plan to migrate the database schema from v7 to v8",
+            "tool_call",
+            "vox_plan",
+            "Multi-step planning task requiring structured plan creation before any code is written",
+            json!({"goal": "Migrate VoxDb schema from v7 to v8, ensure backward compatibility", "write_to_disk": true}),
+        ),
+        (
+            "Store that the auth module is complete in agent memory for future reference",
+            "tool_call",
+            "vox_memory_store",
+            "Persistent memory write — agent needs to remember this fact across sessions",
+            json!({"key": "auth_module_status", "value": "complete"}),
+        ),
+        (
+            "Explain how Option[T] works in Vox",
+            "direct_answer",
+            "none",
+            "Well-known language concept — answer directly, no tool call needed",
+            json!({"answer": "Option[T] represents an optional value that is either Some(value) or None. Use it instead of null. Access the inner value with pattern matching: match x { Some(v) => use(v), None => handle_missing() }"}),
+        ),
+        (
+            "What tasks is agent 3 currently working on?",
+            "tool_call",
+            "vox_agent_status",
+            "Real-time agent state query — must call the status tool, cannot answer from memory",
+            json!({"agent_id": 3}),
+        ),
+    ];
+
+    let prompts = [
+        "User request: {req}\nDecide: tool_call / direct_answer, and provide the correct response.",
+        "How should a Vox AI agent respond to: '{req}'?",
+        "You are a Vox orchestrator. The user says: '{req}'. What is the correct action?",
+        "Route this request appropriately: '{req}'",
+    ];
+
+    for (req, resp_type, tool, reasoning, args) in scenarios {
+        for (i, tmpl) in prompts.iter().enumerate() {
+            let prompt = tmpl.replace("{req}", req);
+            let response = json!({
+                "response_type": resp_type,
+                "tool": tool,
+                "reasoning": reasoning,
+                "arguments": args,
+            });
+            let _ = i;
+            emit_line(out, &prompt, &response, "routing_decision", "routing_trace")?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+// ─── Expanded negative preference pairs (Gap 2) ───────────────────────────────
+
+/// Expanded negative preference corpus: 50+ pairs covering tool hallucination,
+/// bad parameters, dangerous commands, Vox anti-patterns (null, bad types),
+/// and orchestrator misrouting.
+pub fn generate_negative_preference_pairs_expanded(
+    out: &mut impl Write,
+    _cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
+    let mut count = 0;
+
+    let negatives: &[(&str, &str, &str, serde_json::Value)] = &[
+        // Tool hallucination (invoking tools that don't exist)
+        ("Query the database for all users", "vox_sql_execute", "Hallucinated raw SQL tool — use Codex query builder or vox_db_suggest_query instead", json!({"sql": "SELECT * FROM users"})),
+        ("Search the web for Vox documentation", "vox_web_search", "vox_web_search does not exist — use vox_knowledge_query or vox_memory_search for local knowledge", json!({"query": "Vox documentation"})),
+        ("Deploy to production", "vox_deploy_production", "No such tool — deployment must go through vox_submit_task with deploy_type=production after human approval", json!({"target": "prod"})),
+        ("Send an email to the user", "vox_send_email", "vox_send_email does not exist in the Vox tool registry — use the appropriate notification workflow", json!({"to": "user@example.com"})),
+        ("Read the entire codebase into memory", "vox_read_all_files", "No bulk file reader tool — use vox_repo_index_files or vox_check_workspace for bounded scanning", json!({})),
+        // Bad parameter usage
+        ("Check the status of task 42", "vox_task_status", "task_id must be a UUID string, not an integer — use 'task-00000000-0000-0000-0000-000000000042' format", json!({"task_id": 42})),
+        ("Set context with null value", "vox_set_context", "null is banned in Vox — use Option[T] = None or omit the field entirely", json!({"key": "phase", "value": null})),
+        ("Ask the agent to do something with empty description", "vox_submit_task", "Empty description provides no grounding for the agent — always include specific, actionable text", json!({"description": ""})),
+        ("Send A2A message with untyped payload", "vox_a2a_send", "msg_type must be a known A2A type (plan_handoff, task_result, etc.), not arbitrary string 'thing'", json!({"sender_id": 1, "receiver_id": 2, "msg_type": "thing", "payload": "{}"})),
+        ("Store a value with integer key", "vox_memory_store", "Memory keys must be strings — integer keys cause type errors in the Arca store", json!({"key": 42, "value": "data"})),
+        // Dangerous commands
+        ("Delete all generated files", "vox_run_command", "rm -rf without scope guard destroys untracked files shared with other agents — use targeted deletion or file ownership checkout first", json!({"command": "rm -rf target/"})),
+        ("Reset all local git changes", "vox_run_command", "git reset --hard is permanently banned — it destroys uncommitted changes from other concurrent agents (see AGENTS.md git-concurrency-policy)", json!({"command": "git reset --hard HEAD"})),
+        ("Restore the file to its last commit state", "vox_run_command", "git restore is banned — it silently discards working-tree changes. Use git show HEAD:path/file instead (read-only)", json!({"command": "git restore src/auth.vox"})),
+        ("Clean up untracked files", "vox_run_command", "git clean -fd is banned — deletes newly created files from other agents without trace", json!({"command": "git clean -fd"})),
+        ("Stash current changes before switching context", "vox_run_command", "git stash is banned — agents lack shared context on stash contents; use 'git commit -m wip:' instead", json!({"command": "git stash"})),
+        // Vox syntax anti-patterns
+        ("Create a nullable user field", "vox_generate_code", "null is banned in Vox — use Option[User] = None instead of User | null", json!({"prompt": "let user: User | null = null"})),
+        ("Write a function that returns null on error", "vox_generate_code", "null returns are banned — use Result[T] or Option[T] to model absence or failure explicitly", json!({"prompt": "fn find_user(id: int) -> User { return null }"})),
+        ("Write a class with mutable global state", "vox_generate_code", "Vox has no classes or mutable globals — use actors with isolated state or workflows for durable state machines", json!({"prompt": "class GlobalState { static mut count: int = 0 }"})),
+        // Orchestrator misrouting
+        ("Review the code changes before merging", "vox_submit_task", "Code review is a human gate — submit_task dispatches to an agent; reviews requiring judgment should use the review agent explicitly or defer to human approval", json!({"description": "Review and auto-approve all changes"})),
+        ("Run the entire test suite and auto-merge if passing", "vox_run_tests", "Auto-merge after tests is a dangerous automation pattern — never combine test execution with merge decisions in a single agent step without explicit human approval gate", json!({"crate_name": "all", "auto_merge": true})),
+        // Wrong tool for job
+        ("Save important findings about the codebase", "vox_set_context", "Context is ephemeral (TTL-based) — use vox_memory_store for persistent facts that must survive session restarts", json!({"key": "findings", "value": "...", "ttl_secs": 30})),
+        ("Get the list of all available MCP tools", "vox_repo_index_files", "Repo index lists *files*, not *tools* — use vox_orchestrator_status or consult the tool registry directly for MCP tool discovery", json!({})),
+        ("Remember which agent is assigned to the auth task", "vox_broadcast", "Broadcast is for one-to-many notifications — use vox_memory_store to persist assignment facts for later retrieval", json!({"agent_id": 1, "message": "auth assigned to agent 2"})),
+        // Type safety violations
+        ("Use Box<dyn Error> in a public Vox API", "vox_generate_code", "Box<dyn std::error::Error> is banned in public crate APIs — use a typed error enum (e.g. vox_ludus::Error) per the 5.6 data architecture policy", json!({"prompt": "pub fn load() -> Result<Data, Box<dyn Error>>"})),
+        ("Use parallel crates for the same domain", "vox_generate_code", "Creating two crates with overlapping purpose violates the 'No Parallel Crates for the Same Domain' rule (AGENTS.md 5.4) — add to the existing crate", json!({"prompt": "create new crate vox-gamify alongside vox-ludus"})),
+    ];
+
+    for (prompt, bad_tool, reason, bad_args) in negatives {
+        let response = json!({
+            "rejected_tool": bad_tool,
+            "reason": reason,
+            "arguments": bad_args,
+            "policy": "vox_dogfood",
+        });
+        emit_line(out, prompt, &response, "negative_routing", "negative_preference")?;
+        count += 1;
+    }
+    Ok(count)
+}
+
+// ─── Error → Recovery pairs (Gap 6) ──────────────────────────────────────────
+
+/// Training pairs for recognizing and recovering from common build, runtime,
+/// and training errors. Teaches the model to diagnose root causes and emit
+/// corrective actions rather than summarizing failure.
+pub fn generate_error_recovery_pairs(
+    out: &mut impl Write,
+    _cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
+    let mut count = 0;
+
+    let errors: &[(&str, &str, &str)] = &[
+        (
+            "error[E0502]: cannot borrow `state` as mutable because it is also borrowed as immutable",
+            "borrow_checker_conflict",
+            "Separate the immutable read and mutable write into distinct scopes. Move the immutable borrow to finish before the mutable borrow begins, or clone the data if both must coexist.",
+        ),
+        (
+            "nvcc fatal: Cannot find compiler 'cl.exe' in PATH",
+            "msvc_cuda_path",
+            "You must build from within a Visual Studio Developer Command Prompt. Run 'x64 Native Tools Command Prompt for VS 2022' from the Start Menu, navigate to the repo root, and re-run 'cargo vox-cuda-release'. Do NOT use nested subshell calls like 'cmd /c vcvars64.bat && cargo ...'.",
+        ),
+        (
+            "error: Legacy Arca schema chain detected. Run 'vox codex export-legacy', initialize a fresh Codex database, then 'vox codex import-legacy'",
+            "db_schema_mismatch",
+            "The VoxDb file has an incompatible legacy schema. Steps: (1) backup: rename vox.db to vox.db.bak, (2) run 'vox codex verify' to confirm fresh schema loads, (3) optionally restore data with 'vox codex import-legacy'.",
+        ),
+        (
+            "error: no training rows after rating >= 3 and context filter Some(\"vox\")",
+            "empty_training_corpus",
+            "The training JSONL has no rows matching the 'vox' category filter. Either: (a) remove --context-filter to use all rows, (b) regenerate corpus with 'vox populi corpus generate', or (c) check that mix.yaml points to files with category='vox' rows.",
+        ),
+        (
+            "CUDA out of memory. Tried to allocate 2.00 GiB",
+            "cuda_oom",
+            "Reduce memory pressure: (1) lower --seq-len (512→256), (2) reduce --rank (16→8), (3) raise --grad-accum (8→16) to keep effective batch size, (4) use --preset safe or 4080_safe. Set VOX_CANDLE_DEVICE=cpu to fall back to CPU training.",
+        ),
+        (
+            "error: package ID specification `candle-kernels` did not match any packages",
+            "cargo_workspace",
+            "candle-kernels is a patched crate under patches/ but must be built via the workspace from the repo root (not from patches/candle-kernels-0.9.2/). Navigate to the repo root and run 'cargo build -p vox-cli --features gpu,populi-candle-cuda'.",
+        ),
+        (
+            "thread 'main' panicked at 'Failed to connect to Codex, retrying (3/3)'",
+            "db_connection_exhausted",
+            "All DB connection retries failed. Check: (1) VOX_DB_URL and VOX_DB_TOKEN env vars are set for remote, or VOX_DB_PATH for local. (2) The db file exists and isn't locked by another process. (3) Run 'vox codex verify' to test connectivity.",
+        ),
+        (
+            "warning: unused variable `result` [-W unused-variables]",
+            "unused_variable",
+            "Either use the variable or prefix it with '_' (e.g., '_result') to silence the warning. In Rust, unused variables in build scripts can cause CI failures if -D warnings is set.",
+        ),
+        (
+            "error[E0499]: cannot borrow as mutable more than once at a time",
+            "double_mutable_borrow",
+            "Split the borrow: either restructure to avoid simultaneous mutable references, use interior mutability (RefCell/Mutex), or clone before the second borrow. In async Rust, hold locks for minimal scope and never across await points.",
+        ),
+        (
+            "loss: NaN (training step 42)",
+            "training_nan_loss",
+            "NaN loss indicates numerical instability. Try: (1) lower learning rate (2e-4 → 5e-5), (2) enable gradient clipping if available, (3) check training data for malformed rows (very long sequences, encoding errors), (4) use --qlora-lm-head-only as escape hatch for deep proxy stacks.",
+        ),
+    ];
+
+    let prompts = [
+        "I see this error: {err}\nHow do I fix it?",
+        "Build failed with: {err}\nWhat is the root cause and fix?",
+        "Training crashed with: {err}\nWhat should I do?",
+        "Error encountered: {err}\nProvide the corrective steps.",
+    ];
+
+    for (err_msg, category, solution) in errors {
+        for tmpl in &prompts {
+            let prompt = tmpl.replace("{err}", err_msg);
+            let response = json!({
+                "error_class": category,
+                "solution": solution,
+                "confidence": "high",
+            });
+            emit_line(out, &prompt, &response, category, "error_recovery")?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+// ─── Multi-agent conversation pairs (Gap 8) ────────────────────────────────────
+
+/// Multi-turn conversation traces where agents coordinate via A2A messages.
+/// Teaches the model to reason about full agent-to-agent communication flows,
+/// not just isolated tool calls.
+pub fn generate_multi_agent_conversation_pairs(
+    out: &mut impl Write,
+    _cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
+    let mut count = 0;
+
+    // Each scenario is (description, Vec<(speaker, content_json)>)
+    let scenarios: &[(&str, &[(&str, serde_json::Value)])] = &[
+        (
+            "Orchestrator delegates auth task to worker, worker reports completion",
+            &[
+                ("orchestrator→worker", json!({"tool": "vox_a2a_send", "arguments": {"sender_id": 1, "receiver_id": 2, "msg_type": "task_assignment", "payload": "{\"task\": \"implement auth module\", \"file\": \"src/auth.vox\"}"}})),
+                ("worker acks", json!({"tool": "vox_a2a_ack", "arguments": {"agent_id": 2, "message_id": 101}})),
+                ("worker claims file", json!({"tool": "vox_claim_file", "arguments": {"path": "src/auth.vox"}})),
+                ("worker completes task", json!({"tool": "vox_a2a_send", "arguments": {"sender_id": 2, "receiver_id": 1, "msg_type": "task_result", "payload": "{\"status\": \"complete\", \"artifact\": \"src/auth.vox\"}"}}))
+            ],
+        ),
+        (
+            "Planner creates plan and dispatches work to two parallel agents",
+            &[
+                ("planner creates plan", json!({"tool": "vox_plan", "arguments": {"goal": "Build user management system with auth and profile pages", "write_to_disk": true}})),
+                ("planner dispatches auth", json!({"tool": "vox_submit_task", "arguments": {"description": "Implement auth.vox", "files": ["src/auth.vox"]}})),
+                ("planner dispatches profile", json!({"tool": "vox_submit_task", "arguments": {"description": "Implement profile.vox", "files": ["src/profile.vox"]}})),
+                ("planner broadcasts phase start", json!({"tool": "vox_a2a_broadcast", "arguments": {"sender_id": 1, "msg_type": "phase_start", "payload": "{\"phase\": 2, \"tasks\": 2}"}}))
+            ],
+        ),
+        (
+            "Agent asks peer for status, peer responds with progress",
+            &[
+                ("agent checks peer status", json!({"tool": "vox_agent_status", "arguments": {"agent_id": 3}})),
+                ("agent queries peer inbox", json!({"tool": "vox_a2a_inbox", "arguments": {"agent_id": 1}})),
+                ("agent asks direct question", json!({"tool": "vox_ask_agent", "arguments": {"agent_id": 3, "question": "Have you finished the database index?"}}))
+            ],
+        ),
+    ];
+
+    for (desc, turns) in scenarios {
+        let turns_json: Vec<_> = turns.iter().map(|(speaker, action)| {
+            json!({"speaker": speaker, "action": action})
+        }).collect();
+        let prompts = [
+            format!("Show the complete multi-agent interaction for: {desc}"),
+            format!("Walk through the agent coordination sequence for: {desc}"),
+            format!("What tool calls are needed for this multi-agent flow: {desc}?"),
+        ];
+        for prompt in &prompts {
+            let response = json!({
+                "scenario": desc,
+                "turns": turns_json,
+                "pattern": "sequential_a2a",
+            });
+            emit_line(out, prompt, &response, "multi_agent_flow", "multi_agent_trace")?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+// ─── Telemetry interpretation pairs (Gap 10) ──────────────────────────────────
+
+/// Training pairs for interpreting Vox telemetry output (training logs,
+/// Codex events, VoxDb records). Teaches the model to read and act on
+/// telemetry rather than being blind to training progress.
+pub fn generate_telemetry_interpretation_pairs(
+    out: &mut impl Write,
+    _cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
+    let mut count = 0;
+
+    let scenarios: &[(&str, &str, &str)] = &[
+        (
+            r#"{"event":"train_step","payload":{"step":47,"loss":38.29,"tokens_per_sec":622.9,"eta_sec":240000}}"#,
+            "interpret_training_step",
+            "Step 47 of the training run. Loss of 38.29 is high but within early-training variance — monitor for trend across 100+ steps. Throughput 622.9 tok/s is healthy for a single-GPU CUDA run. ETA 240000s (~66h) is expected for 283K planned steps at this throughput.",
+        ),
+        (
+            r#"{"event":"train_complete","payload":{"wall_seconds":86400,"mean_steps_per_sec":1.18,"steps_executed":102240}}"#,
+            "interpret_training_complete",
+            "Training completed in 24h. 102,240 steps at 1.18 step/s. Check the adapter manifest at populi/runs/v1/populi_adapter_manifest_v3.json and the telemetry.jsonl for per-epoch loss trends before promoting the adapter.",
+        ),
+        (
+            r#"{"event":"checkpoint_saved","payload":{"epoch":1,"global_step":31504,"path":"populi/runs/v1/candle_qlora_adapter_epoch1.safetensors"}}"#,
+            "interpret_checkpoint_saved",
+            "Epoch 1 checkpoint saved at step 31504. The safetensors file contains the LoRA A/B matrices for this epoch. You can inspect it with 'vox populi merge-qlora' or use it as an intermediate checkpoint for early inference testing.",
+        ),
+        (
+            "[Epoch 2/3 Step 500] Loss: 2.14 | Skips: VCB:3 HID:0 SEQ:0 | ETA≈12h30m",
+            "interpret_training_log_line",
+            "Good progress: loss 2.14 is significantly lower than the typical 13-38 range in early steps. 3 vocabulary skip events (VCB) occurred — tokens not in the model's vocabulary were skipped, which is normal for Vox-specific syntax tokens. No hidden-state or sequence-length skips. ETA 12.5h is on track.",
+        ),
+        (
+            "How do I monitor training progress in real time?",
+            "telemetry_monitoring",
+            "Tail the training log: Get-Content populi/runs/v1/train_*.log -Wait -Tail 25. For structured telemetry: Get-Content populi/runs/v1/telemetry.jsonl -Wait -Tail 5 | ForEach-Object { $_ | ConvertFrom-Json }. For VoxDb events: vox codex verify checks schema health; the telemetry channel logs train_step events every 20 steps.",
+        ),
+    ];
+
+    let prompts = [
+        "Interpret this telemetry output: {data}",
+        "What does this training event mean? {data}",
+        "Explain this log line: {data}",
+        "Is this telemetry healthy? {data}",
+    ];
+
+    for (data, category, interpretation) in scenarios {
+        for tmpl in &prompts {
+            let prompt = tmpl.replace("{data}", data);
+            let response = json!({
+                "interpretation": interpretation,
+                "event_type": category,
+            });
+            emit_line(out, &prompt, &response, category, "telemetry_trace")?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 /// Generate agent lifecycle training pairs.
 ///
 /// Covers create / deploy / health-check / shutdown flows for Vox agents,
@@ -1232,6 +1640,41 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
     let al_n = generate_agent_lifecycle_pairs(&mut file, cfg)?;
     total += al_n;
     eprintln!("  [synthetic] agent_lifecycle: {al_n} pairs");
+
+    // Routing decision pairs (Gap 1: orchestrator-as-model training)
+    if cfg.emit_routing_decisions {
+        let n = generate_routing_decision_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] routing_decision: {n} pairs");
+    }
+
+    // Expanded negative preference pairs (Gap 2: 4 → 25+)
+    if cfg.emit_negative_expanded {
+        let n = generate_negative_preference_pairs_expanded(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] negative_routing_expanded: {n} pairs");
+    }
+
+    // Error → recovery pairs (Gap 6)
+    if cfg.emit_error_recovery {
+        let n = generate_error_recovery_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] error_recovery: {n} pairs");
+    }
+
+    // Multi-agent conversation pairs (Gap 8)
+    if cfg.emit_multi_agent_convos {
+        let n = generate_multi_agent_conversation_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] multi_agent_flow: {n} pairs");
+    }
+
+    // Telemetry interpretation pairs (Gap 10)
+    if cfg.emit_telemetry_pairs {
+        let n = generate_telemetry_interpretation_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] telemetry_trace: {n} pairs");
+    }
 
     file.flush()?;
     eprintln!("  [synthetic] total: {total} pairs → {}", output_path.display());

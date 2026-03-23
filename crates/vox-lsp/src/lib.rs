@@ -327,6 +327,7 @@ pub fn builtin_hover_markdown(word: &str) -> Option<String> {
 }
 
 #[cfg(test)]
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
 
@@ -351,19 +352,33 @@ mod tests {
         assert!(builtin_hover_markdown_in_line("other.transcribe(p)", "transcribe").is_none());
     }
 
+    // Mutex guard for environment mutations in tests that set VOX_MESH_ENABLED.
+    static MESH_WARNING_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn mesh_activity_warning_test() {
         let doc = "workflow w() { mesh_snapshot() }";
+        let _lock = MESH_WARNING_ENV_LOCK.lock().expect("mesh env mutex poisoned");
         
-        // When mesh is DISABLED, we expect a WARNING.
-        // It might also have an ERROR for undefined variable, but we focus on the mesh warning.
+        // When mesh is DISABLED, we expect a WARNING diagnostic.
+        // SAFETY: single-threaded under the mutex guard above.
         unsafe { std::env::set_var("VOX_MESH_ENABLED", "0"); }
         let diags = validate_document(doc);
-        assert!(diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")), "Expected mesh call warning in {:?}", diags);
+        assert!(
+            diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")),
+            "Expected mesh call warning when VOX_MESH_ENABLED=0, got: {:?}", diags
+        );
 
-        // When mesh is ENABLED, no mesh warning.
+        // When mesh is ENABLED, no mesh WARNING should fire.
+        // SAFETY: single-threaded under the mutex guard above.
         unsafe { std::env::set_var("VOX_MESH_ENABLED", "1"); }
         let diags = validate_document(doc);
-        assert!(!diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")), "Expected no mesh warning when enabled");
+        assert!(
+            !diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")),
+            "Expected no mesh call warning when VOX_MESH_ENABLED=1, got: {:?}", diags
+        );
+
+        // SAFETY: restore to neutral state.
+        unsafe { std::env::remove_var("VOX_MESH_ENABLED"); }
     }
 }

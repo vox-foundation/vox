@@ -3,7 +3,7 @@
 //! Wraps the Arca `user_preferences` table with higher-level registry scoping.
 //! Key format: `{registry}.{key}`.
 
-use vox_pm::store::StoreError;
+use crate::arca_store::StoreError;
 
 /// Set a preference for a specific registry (e.g. `google.api_key`).
 pub async fn set_registry_preference(
@@ -13,7 +13,7 @@ pub async fn set_registry_preference(
 ) -> Result<(), StoreError> {
     let db = crate::VoxDb::connect_default().await?;
     let full_key = format!("{}.{}", registry, key);
-    db.store().set_user_preference("local_user", &full_key, value).await
+    db.set_user_preference("local_user", &full_key, value).await
 }
 
 /// Read a preference for a specific registry.
@@ -23,14 +23,14 @@ pub async fn get_registry_preference(
 ) -> Result<Option<String>, StoreError> {
     let db = crate::VoxDb::connect_default().await?;
     let full_key = format!("{}.{}", registry, key);
-    db.store().get_user_preference("local_user", &full_key).await
+    db.get_user_preference("local_user", &full_key).await
 }
 
 /// Reset all preferences for a given registry (DESTRUCTIVE).
 pub async fn reset_registry_preferences(registry: &str) -> Result<(), StoreError> {
     let db = crate::VoxDb::connect_default().await?;
     let prefix = format!("{}.", registry);
-    db.store()
+    db
         .connection()
         .execute(
             "DELETE FROM user_preferences WHERE user_id = 'local_user' AND key LIKE ?1",
@@ -48,7 +48,7 @@ pub async fn get_all_registry_preferences(
     let prefix = format!("{}.", registry);
     
     // Efficiently fetch only keys matching the registry prefix
-    let matching = db.store().list_user_preferences("local_user", Some(&prefix)).await?;
+    let matching = db.list_user_preferences("local_user", Some(&prefix)).await?;
     
     let mut out = Vec::new();
     for (k, v) in matching {

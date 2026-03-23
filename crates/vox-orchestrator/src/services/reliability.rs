@@ -1,8 +1,8 @@
 //! Reliability service: records endpoint and agent performance observations.
 //!
-//! Bridges [`crate::events::AgentEvent`] signals to [`vox_pm::store::CodeStore`] persistent EWMA.
+//! Bridges [`crate::events::AgentEvent`] signals to [`vox_db::VoxDb`] persistent EWMA.
 
-use vox_pm::store::CodeStore;
+use vox_db::VoxDb;
 use crate::events::{AgentEvent, AgentEventKind};
 use crate::types::AgentId;
 

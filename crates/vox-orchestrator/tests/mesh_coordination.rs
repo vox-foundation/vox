@@ -7,7 +7,7 @@ use vox_orchestrator::oplog;
 
 #[tokio::test]
 async fn test_distributed_coordination_primitives() {
-    let db = vox_db::VoxDb::from_store(vox_pm::CodeStore::open_memory().await.expect("in-memory store"));
+    let db = vox_db::VoxDb::open_memory().await.expect("in-memory store");
     
     // 1. Schema application (coordination DDL)
     db.sync_schema_from_digest(&vox_orchestrator::schema::orchestrator_schema())
@@ -21,7 +21,7 @@ async fn test_distributed_coordination_primitives() {
         .await
         .expect("persist heartbeat");
     
-    let live = heartbeat::live_nodes_from_db(db.store().connection(), 60000, repo_id)
+    let live = heartbeat::live_nodes_from_db(&db, 60000, repo_id)
         .await
         .expect("list live nodes");
     assert_eq!(live.len(), 1);
@@ -41,16 +41,16 @@ async fn test_distributed_coordination_primitives() {
     .await
     .expect("send a2a");
 
-    let inbox = a2a::poll_inbox_from_db(db.store().connection(), AgentId(2), repo_id)
+    let inbox = a2a::poll_inbox_from_db(&db, AgentId(2), repo_id)
         .await
         .expect("poll a2a");
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].message_uuid, uuid);
 
-    a2a::acknowledge_db_message(db.store().connection(), &uuid)
+    a2a::acknowledge_db_message(&db, &uuid)
         .await
         .expect("ack a2a");
-    let inbox_after = a2a::poll_inbox_from_db(db.store().connection(), AgentId(2), repo_id)
+    let inbox_after = a2a::poll_inbox_from_db(&db, AgentId(2), repo_id)
         .await
         .expect("poll a2a after ack");
     assert_eq!(inbox_after.len(), 0);
@@ -95,7 +95,7 @@ async fn test_distributed_coordination_primitives() {
     .await
     .expect("append oplog");
 
-    let ops = oplog::list_from_db(db.store().connection(), None, repo_id, 10)
+    let ops = oplog::list_from_db(&db, None, repo_id, 10)
         .await
         .expect("list oplog");
     assert_eq!(ops.len(), 1);

@@ -5,7 +5,7 @@
 
 use turso::params;
 
-use vox_pm::schema::{self, BASELINE_VERSION};
+use crate::schema::{self, BASELINE_VERSION};
 
 use crate::StoreError;
 use crate::VoxDb;

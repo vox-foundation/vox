@@ -59,7 +59,7 @@ pub async fn send_to_db_with_breaker(
     db.breaker()
         .call(|| async {
             send_to_db(
-                db.store().connection(),
+                &db,
                 sender,
                 receiver,
                 msg_type,
@@ -75,7 +75,7 @@ pub async fn send_to_db_with_breaker(
 
 /// Send a message to the database for delivery (cross-node).
 pub async fn send_to_db(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     sender: AgentId,
     receiver: AgentId,
     msg_type: A2AMessageType,
@@ -94,20 +94,15 @@ pub async fn send_to_db(
     let payload = payload.into();
     let thread_str = thread_id.map(|t| t.0);
 
-    conn.execute(
-        "INSERT INTO a2a_messages (
-            message_uuid, sender_agent, receiver_agent, msg_type, payload, priority, thread_id, repository_id
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        (
-            uuid.as_str(),
-            sender.0.to_string(),
-            receiver.0.to_string(),
-            msg_type.into_str(),
-            payload.as_str(),
-            priority_val,
-            thread_str,
-            repository_id,
-        ),
+    store.send_a2a_message(
+        &uuid,
+        &sender.0.to_string(),
+        &receiver.0.to_string(),
+        msg_type.into_str(),
+        &payload,
+        priority_val,
+        thread_str.as_deref(),
+        repository_id,
     )
     .await
     .map_err(|e| e.to_string())?;
@@ -117,35 +112,29 @@ pub async fn send_to_db(
 
 /// Poll for new unacknowledged messages for an agent from the database.
 pub async fn poll_inbox_from_db(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     agent_id: AgentId,
     repository_id: &str,
 ) -> Result<Vec<DbA2AMessage>, String> {
-    let mut rows = conn
-        .query(
-            "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload, priority, thread_id, acknowledged, created_at, repository_id
-             FROM a2a_messages
-             WHERE receiver_agent = ?1 AND acknowledged = 0 AND repository_id = ?2
-             ORDER BY priority DESC, created_at ASC",
-            (agent_id.0.to_string(), repository_id),
-        )
+    let rows = store
+        .poll_a2a_inbox(&agent_id.0.to_string(), repository_id)
         .await
         .map_err(|e| e.to_string())?;
 
     let mut msgs = Vec::new();
-    while let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
+    for row in rows {
         msgs.push(DbA2AMessage {
-            id: row.get::<i64>(0).map_err(|e| e.to_string())? as u64,
-            message_uuid: row.get(1).map_err(|e| e.to_string())?,
-            sender_agent: row.get(2).map_err(|e| e.to_string())?,
-            receiver_agent: row.get(3).map_err(|e| e.to_string())?,
-            msg_type: row.get(4).map_err(|e| e.to_string())?,
-            payload: row.get(5).map_err(|e| e.to_string())?,
-            priority: row.get(6).map_err(|e| e.to_string())?,
-            thread_id: row.get(7).map_err(|e| e.to_string())?,
-            acknowledged: row.get::<i64>(8).map_err(|e| e.to_string())? != 0,
-            created_at: row.get(9).map_err(|e| e.to_string())?,
-            repository_id: row.get(10).map_err(|e| e.to_string())?,
+            id: row[0].as_ref().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0),
+            message_uuid: row[1].clone().unwrap_or_default(),
+            sender_agent: row[2].clone().unwrap_or_default(),
+            receiver_agent: row[3].clone().unwrap_or_default(),
+            msg_type: row[4].clone().unwrap_or_default(),
+            payload: row[5].clone().unwrap_or_default(),
+            priority: row[6].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(1),
+            thread_id: row[7].clone(),
+            acknowledged: row[8].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 0,
+            created_at: row[9].clone().unwrap_or_default(),
+            repository_id: row[10].clone().unwrap_or_default(),
         });
     }
     Ok(msgs)
@@ -153,30 +142,22 @@ pub async fn poll_inbox_from_db(
 
 /// Mark a message as acknowledged in the database.
 pub async fn acknowledge_db_message(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     message_uuid: &str,
 ) -> Result<(), String> {
-    conn.execute(
-        "UPDATE a2a_messages SET acknowledged = 1 WHERE message_uuid = ?1",
-        (message_uuid,),
-    )
-    .await
-    .map_err(|e| e.to_string())
-    .map(|_| ())
+    store.acknowledge_a2a_message_by_uuid(message_uuid)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Remove old acknowledged messages from the database.
 pub async fn prune_old_a2a_messages(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     older_than_days: u32,
 ) -> Result<u64, String> {
-    let result = conn.execute(
-        "DELETE FROM a2a_messages WHERE acknowledged = 1 AND created_at < datetime('now', '-' || ?1 || ' days')",
-        (older_than_days,),
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    Ok(result as u64)
+    store.prune_a2a_messages(older_than_days)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Routing hint for mesh messaging.

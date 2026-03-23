@@ -120,8 +120,7 @@ pub async fn run(
                 let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
                 let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
                     .unwrap_or_else(|_| "[]".to_string());
-                db.store()
-                    .block_on(async {
+                db.block_on(async {
                         save_task_queue(
                             &db,
                             &user_id,
@@ -417,7 +416,6 @@ pub async fn run(
             let mut crystal_gain = 5;
 
             if let Ok(Some(raw)) = db
-                .store()
                 .get_user_preference(&user_id, "gamify.clean_run_xp")
                 .await
                 && let Ok(val) = raw.parse::<u64>()
@@ -426,7 +424,6 @@ pub async fn run(
             }
             if let Ok(Some(raw)) = db
                 .as_ref()
-                .store()
                 .get_user_preference(&user_id, "gamify.clean_run_crystals")
                 .await
                 && let Ok(val) = raw.parse::<u64>()

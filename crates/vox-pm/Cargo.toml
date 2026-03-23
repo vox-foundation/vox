@@ -6,11 +6,12 @@ edition.workspace = true
 [features]
 default = ["local"]
 # File-backed and in-process databases (`Builder::new_local`).
-local = []
+local = ["vox-db/local"]
 # Local path + remote sync (embedded replica).
-replication = []
+replication = ["vox-db/replication"]
 
 [dependencies]
+vox-db = { workspace = true }
 vox-ast = { workspace = true }
 vox-hir = { workspace = true }
 sha3 = { workspace = true }

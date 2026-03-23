@@ -882,7 +882,7 @@ async fn handle_tool_call_inner(
             let skills = state.skill_registry.list(None);
             if let Some(skill) = skills.iter().find(|s| s.tools.contains(&name.to_string())) {
                 if let Some(db) = &state.db {
-                    if let Ok(Some(entry)) = db.store().get_skill_manifest(&skill.id).await {
+                    if let Ok(Some(entry)) = db.get_skill_manifest(&skill.id).await {
                         let msg = format!(
                             "This tool is an instructional macro from skill '{}'.\n\nPlease read these instructions and perform the requested actions yourself:\n\n{}",
                             skill.name, entry.skill_md

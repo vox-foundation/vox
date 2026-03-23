@@ -274,7 +274,6 @@ pub async fn run_research(
             .collect();
         if !q_words.is_empty() {
             if let Ok(memories) = db
-                .store()
                 .list_memories_by_type("research_result", 64)
                 .await
             {
@@ -800,7 +799,6 @@ pub async fn run_research(
                 &answer.chars().take(500).collect::<String>()
             );
             let _ = db
-                .store()
                 .save_memory(vox_db::MemoryParams {
                     agent_id: "research_pipeline",
                     session_id: &format!("research_{}", session_id),

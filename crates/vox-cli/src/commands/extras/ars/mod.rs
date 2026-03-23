@@ -172,8 +172,7 @@ pub async fn promote_skill(session_id: &str, task_id: &str, name: &str) -> Resul
         toml_escape(&description),
     );
 
-    db.store()
-        .publish_skill(&skill_id, "0.1.0", &manifest_json, &skill_md)
+    db.publish_skill(&skill_id, "0.1.0", &manifest_json, &skill_md)
         .await
         .context("Failed to publish promoted skill to Codex skill_manifests")?;
 

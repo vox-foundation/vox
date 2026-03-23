@@ -14,14 +14,14 @@ pub async fn persist_heartbeat_with_breaker(
 ) -> Result<(), String> {
     db.breaker()
         .call(|| async {
-            persist_heartbeat(db.store().connection(), node_id, agent_id, activity, repository_id).await
+            persist_heartbeat(&db, node_id, agent_id, activity, repository_id).await
         })
         .await
 }
 
 /// Record a heartbeat for a node/agent pair in the database.
 pub async fn persist_heartbeat(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     node_id: &str,
     agent_id: AgentId,
     activity: AgentActivity,
@@ -30,31 +30,22 @@ pub async fn persist_heartbeat(
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_millis() as u64;
+        .as_millis() as i64;
 
-    conn.execute(
-        "INSERT INTO mesh_heartbeats (node_id, agent_id, last_seen_ms, activity, repository_id)
-         VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT(node_id, repository_id) DO UPDATE SET
-            agent_id = excluded.agent_id,
-            last_seen_ms = excluded.last_seen_ms,
-            activity = excluded.activity",
-        (
-            node_id,
-            agent_id.0.to_string(),
-            now_ms as i64,
-            activity.to_string(),
-            repository_id,
-        ),
+    store.upsert_mesh_heartbeat(
+        node_id,
+        &agent_id.0.to_string(),
+        &activity.to_string(),
+        now_ms,
+        repository_id,
     )
     .await
     .map_err(|e| e.to_string())
-    .map(|_| ())
 }
 
 /// Retrieve all heartbeats from the database that are NOT dead (last seen within threshold).
 pub async fn live_nodes_from_db(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     threshold_ms: u64,
     repository_id: &str,
 ) -> Result<Vec<(String, AgentId, AgentActivity, u64)>, String> {
@@ -62,27 +53,23 @@ pub async fn live_nodes_from_db(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-    let min_seen = now_ms.saturating_sub(threshold_ms);
+    let min_seen = now_ms.saturating_sub(threshold_ms) as i64;
 
-    let mut rows = conn
-        .query(
-            "SELECT node_id, agent_id, activity, last_seen_ms
-             FROM mesh_heartbeats
-             WHERE last_seen_ms >= ?1 AND repository_id = ?2",
-            (min_seen, repository_id),
-        )
+    let rows = store
+        .list_live_nodes(min_seen, repository_id)
         .await
         .map_err(|e| e.to_string())?;
 
     let mut nodes = Vec::new();
-    while let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
-        let node_id: String = row.get(0).map_err(|e| e.to_string())?;
-        let agent_id_str: String = row.get(1).map_err(|e| e.to_string())?;
-        let activity_str: String = row.get(2).map_err(|e| e.to_string())?;
-        let last_seen: u64 = row.get::<i64>(3).map_err(|e| e.to_string())? as u64;
+    for row in rows {
+        let node_id = row[0].clone();
+        let agent_id_str = row[1].clone();
+        let activity_str = row[2].clone();
+        let last_seen_str = row[3].clone();
 
         let agent_id = AgentId(agent_id_str.parse().unwrap_or(0));
         let activity = activity_str.parse().unwrap_or(AgentActivity::Idle);
+        let last_seen = last_seen_str.parse::<u64>().unwrap_or(0);
         nodes.push((node_id, agent_id, activity, last_seen));
     }
     Ok(nodes)
@@ -90,23 +77,18 @@ pub async fn live_nodes_from_db(
 
 /// Remove heartbeats older than max_age_ms (dead nodes).
 pub async fn evict_dead_heartbeats(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     max_age_ms: u64,
 ) -> Result<u64, String> {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-    let min_seen = now_ms.saturating_sub(max_age_ms);
+    let min_seen = now_ms.saturating_sub(max_age_ms) as i64;
 
-    let result = conn
-        .execute(
-            "DELETE FROM mesh_heartbeats WHERE last_seen_ms < ?1",
-            (min_seen,),
-        )
+    store.evict_dead_heartbeats(min_seen)
         .await
-        .map_err(|e| e.to_string())?;
-    Ok(result as u64)
+        .map_err(|e| e.to_string())
 }
 
 const DEFAULT_STALE_THRESHOLD_MS: u64 = 60_000;

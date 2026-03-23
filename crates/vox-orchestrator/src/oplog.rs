@@ -26,7 +26,7 @@ pub async fn append_to_db_with_breaker(
     db.breaker()
         .call(|| async {
             append_to_db(
-                db.store().connection(),
+                &db,
                 agent_id,
                 op_id_str,
                 kind,
@@ -44,7 +44,7 @@ pub async fn append_to_db_with_breaker(
 
 /// Append an operation entry to the database.
 pub async fn append_to_db(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     agent_id: AgentId,
     op_id_str: &str,
     kind: &OperationKind,
@@ -57,62 +57,45 @@ pub async fn append_to_db(
 ) -> Result<(), String> {
     let kind_json = serde_json::to_string(kind).map_err(|e| e.to_string())?;
 
-    conn.execute(
-        "INSERT INTO agent_oplog (
-            agent_id, operation_id, kind, description, predecessor_hash, model_id, change_id, timestamp_ms, repository_id
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        (
-            agent_id.0.to_string(),
-            op_id_str,
-            kind_json,
-            description,
-            predecessor_hash,
-            model_id,
-            change_id.map(|c| c.0 as i64),
-            timestamp_ms as i64,
-            repository_id,
-        ),
+    store.append_oplog_entry(
+        &agent_id.0.to_string(),
+        op_id_str,
+        &kind_json,
+        description,
+        predecessor_hash,
+        model_id,
+        change_id.map(|c| c.0 as i64),
+        timestamp_ms as i64,
+        repository_id,
     )
     .await
     .map_err(|e| e.to_string())
-    .map(|_| ())
 }
 
 /// List operations from the database for a repository/agent.
 pub async fn list_from_db(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     agent_id: Option<AgentId>,
     repository_id: &str,
     limit: u32,
 ) -> Result<Vec<OperationEntry>, String> {
-    let mut sql = "SELECT
-        operation_id, agent_id, kind, description, predecessor_hash, model_id, change_id, timestamp_ms, undone
-        FROM agent_oplog
-        WHERE repository_id = ?1".to_string();
-
-    let mut rows = if let Some(aid) = agent_id {
-        sql.push_str(" AND agent_id = ?2 ORDER BY timestamp_ms DESC LIMIT ?3");
-        conn.query(&sql, (repository_id, aid.0.to_string(), limit))
-            .await
-            .map_err(|e| e.to_string())?
-    } else {
-        sql.push_str(" ORDER BY timestamp_ms DESC LIMIT ?2");
-        conn.query(&sql, (repository_id, limit))
-            .await
-            .map_err(|e| e.to_string())?
-    };
+    let aid_str = agent_id.map(|id| id.0.to_string());
+    let rows = store
+        .list_oplog_entries(aid_str.as_deref(), repository_id, limit)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let mut entries = Vec::new();
-    while let Some(row) = rows.next().await.map_err(|e| e.to_string())? {
-        let op_id_str: String = row.get(0).map_err(|e| e.to_string())?;
-        let agent_id_str: String = row.get(1).map_err(|e| e.to_string())?;
-        let kind_json: String = row.get(2).map_err(|e| e.to_string())?;
-        let description: String = row.get(3).map_err(|e| e.to_string())?;
-        let predecessor_hash: Option<String> = row.get(4).map_err(|e| e.to_string())?;
-        let model_id: Option<String> = row.get(5).map_err(|e| e.to_string())?;
-        let change_id: Option<i64> = row.get(6).map_err(|e| e.to_string())?;
-        let timestamp_ms: i64 = row.get(7).map_err(|e| e.to_string())?;
-        let undone: i64 = row.get(8).map_err(|e| e.to_string())?;
+    for row in rows {
+        let op_id_str = row[0].clone().unwrap_or_default();
+        let agent_id_str = row[1].clone().unwrap_or_default();
+        let kind_json = row[2].clone().unwrap_or_default();
+        let description = row[3].clone().unwrap_or_default();
+        let predecessor_hash = row[4].clone();
+        let model_id = row[5].clone();
+        let change_id = row[6].as_ref().and_then(|s| s.parse::<i64>().ok());
+        let timestamp_ms = row[7].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+        let undone = row[8].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
 
         let op_id = OperationId(
             op_id_str
@@ -148,17 +131,13 @@ pub async fn list_from_db(
 
 /// Mark an operation as undone in the database.
 pub async fn mark_undone_in_db(
-    conn: &turso::Connection,
+    store: &vox_db::VoxDb,
     operation_id: &str,
     undone: bool,
 ) -> Result<(), String> {
-    conn.execute(
-        "UPDATE agent_oplog SET undone = ?1 WHERE operation_id = ?2",
-        (if undone { 1i64 } else { 0i64 }, operation_id),
-    )
-    .await
-    .map_err(|e| e.to_string())
-    .map(|_| ())
+    store.set_oplog_undone(operation_id, undone)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------

@@ -1,14 +1,15 @@
-//! Legacy database import/export planning for **Codex** greenfield releases.
-//!
-//! Baseline **V1** stores a single `schema_version` row; pre-baseline databases that ran the
-//! historical multi-step chain must be exported with `export_legacy_jsonl` (using a connection that
-//! skips baseline migration) and imported into a fresh file. See `docs/src/architecture/codex-vnext-schema.md` and ADR 004.
+
+// Legacy database import/export planning for **Codex** greenfield releases.
+//
+// Baseline **V1** stores a single `schema_version` row; pre-baseline databases that ran the
+// historical multi-step chain must be exported with `export_legacy_jsonl` (using a connection that
+// skips baseline migration) and imported into a fresh file. See `docs/src/architecture/codex-vnext-schema.md` and ADR 004.
 
 use std::io::{BufRead, Write};
 use turso::Value as SqlValue;
 use turso::params;
-use vox_pm::CodeStore;
-use vox_pm::schema::CODEX_REACTIVITY_TABLES;
+
+use crate::schema::CODEX_REACTIVITY_TABLES;
 
 use crate::StoreError;
 
@@ -23,8 +24,8 @@ pub struct LegacyVerification {
     pub is_legacy_schema_chain: bool,
 }
 
-async fn table_exists(store: &CodeStore, name: &str) -> Result<bool, StoreError> {
-    let mut rows = store
+async fn table_exists(store: &crate::VoxDb, name: &str) -> Result<bool, StoreError> {
+    let mut rows: turso::Rows = store
         .connection()
         .query(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1 LIMIT 1",
@@ -35,7 +36,7 @@ async fn table_exists(store: &CodeStore, name: &str) -> Result<bool, StoreError>
 }
 
 /// Inspect a connected store for legacy import / migration workflows.
-pub async fn verify_legacy_store(store: &CodeStore) -> Result<LegacyVerification, StoreError> {
+pub async fn verify_legacy_store(store: &crate::VoxDb) -> Result<LegacyVerification, StoreError> {
     let schema_version = store.schema_version().await?;
     let mut has_codex_reactivity = true;
     for t in CODEX_REACTIVITY_TABLES {
@@ -47,7 +48,7 @@ pub async fn verify_legacy_store(store: &CodeStore) -> Result<LegacyVerification
     Ok(LegacyVerification {
         schema_version,
         has_codex_reactivity,
-        is_legacy_schema_chain: schema_version > vox_pm::schema::BASELINE_VERSION,
+        is_legacy_schema_chain: schema_version > crate::schema::BASELINE_VERSION,
     })
 }
 
@@ -61,7 +62,7 @@ pub const PLANNED_CODEX_CLI: &[&str] = &[
 /// Documented import sources for future implementers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LegacyImportSource {
-    /// Current `vox-pm` / `CodeStore` dump.
+    /// Current `vox-pm` / `VoxDb` dump.
     VoxPmSqliteTurso,
     /// Orchestrator file-first memory (`memory/*.md`, `MEMORY.md`).
     OrchestratorFileMemory,
@@ -139,13 +140,13 @@ fn sql_value_to_json(v: SqlValue) -> serde_json::Value {
 
 /// Stream one JSON object per line: `{"table":"…","columns":[…],"row":{…}}`.
 pub async fn export_legacy_jsonl<W: Write>(
-    store: &CodeStore,
+    store: &crate::VoxDb,
     writer: &mut W,
 ) -> Result<u64, StoreError> {
     let mut count = 0u64;
     for table in LEGACY_EXPORT_TABLES {
         let pragma = format!("PRAGMA table_info({table})");
-        let mut cols_rows = store.connection().query(&pragma, ()).await?;
+        let mut cols_rows: turso::Rows = store.connection().query(&pragma, ()).await?;
         let mut columns = Vec::new();
         while let Some(r) = cols_rows.next().await? {
             let name: String = r.get(1)?;
@@ -155,7 +156,7 @@ pub async fn export_legacy_jsonl<W: Write>(
             continue;
         }
         let select = format!("SELECT {} FROM {}", columns.join(", "), table);
-        let mut rows = match store.connection().query(&select, ()).await {
+        let mut rows: turso::Rows = match store.connection().query(&select, ()).await {
             Ok(r) => r,
             Err(_) => continue,
         };
@@ -185,7 +186,7 @@ pub async fn export_legacy_jsonl<W: Write>(
 
 /// Apply JSONL from [`export_legacy_jsonl`]. Uses `INSERT OR REPLACE` with bound parameters.
 pub async fn import_legacy_jsonl<R: BufRead>(
-    store: &CodeStore,
+    store: &crate::VoxDb,
     reader: R,
 ) -> Result<u64, StoreError> {
     let mut applied = 0u64;
