@@ -7,8 +7,7 @@
 //! [`VoxDb::apply_pragmas`]. Migration bodies must be DDL/DML only; empty strings in a fragment
 //! are skipped.
 
-use crate::schema::{BASELINE_VERSION, baseline_sql, SCHEMA_COORDINATION};
-
+use crate::schema::{BASELINE_VERSION, baseline_sql};
 use crate::arca_store::types::StoreError;
 
 impl crate::VoxDb {
@@ -24,9 +23,10 @@ impl crate::VoxDb {
         Ok(())
     }
 
-    /// Apply the manifest **baseline** DDL once and ensure `schema_version` records baseline **1**.
+    /// Apply the manifest **baseline** DDL and advance `schema_version` to [`BASELINE_VERSION`].
     ///
-    /// Legacy databases with `MAX(schema_version.version) > 1` return [`StoreError::LegacySchemaChain`].
+    /// DDL in each fragment is run through Turso `execute_batch`. Existing databases with
+    /// version ≤ [`BASELINE_VERSION`] are automatically advanced (DDL is idempotent). 
     pub(crate) async fn migrate(conn: &turso::Connection) -> Result<(), StoreError> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS schema_version (
@@ -51,13 +51,14 @@ impl crate::VoxDb {
             });
         }
 
-        if current_version == 0 {
+        if current_version < BASELINE_VERSION {
             let sql = baseline_sql().trim();
             if !sql.is_empty() {
                 conn.execute_batch(sql).await?;
             }
             conn.execute(
-                "INSERT INTO schema_version (version) VALUES (?1)",
+                "INSERT INTO schema_version (version) VALUES (?1)
+                 ON CONFLICT(version) DO UPDATE SET applied_at = datetime('now')",
                 (BASELINE_VERSION,),
             )
             .await?;
@@ -66,17 +67,9 @@ impl crate::VoxDb {
         Ok(())
     }
 
-    /// Apply coordination DDL separately. Idempotent.
-    pub(crate) async fn migrate_coordination(conn: &turso::Connection) -> Result<(), StoreError> {
-        let sql = SCHEMA_COORDINATION.trim();
-        if !sql.is_empty() {
-            for stmt in sql.split(';') {
-                let s = stmt.trim();
-                if !s.is_empty() {
-                    conn.execute(s, ()).await.map_err(|e: turso::Error| StoreError::Db(e.to_string()))?;
-                }
-            }
-        }
+    /// legacy shim for coordination DDL (now part of baseline).
+    #[deprecated(note = "coordination is now part of baseline_sql")]
+    pub(crate) async fn migrate_coordination(_conn: &turso::Connection) -> Result<(), StoreError> {
         Ok(())
     }
 
@@ -100,7 +93,6 @@ impl crate::VoxDb {
         let conn = db.connect()?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
-        Self::migrate_coordination(&conn).await?;
         Ok(Self {
             conn,
             sync_db: None,
@@ -115,8 +107,6 @@ impl crate::VoxDb {
     }
 
     /// Blocking constructor for in-memory store (tests and `std::thread` call sites).
-    ///
-    /// Equivalent to `block_on(VoxDb::open_memory())`. Does not require an active Tokio runtime.
     #[cfg(feature = "local")]
     pub fn new_memory() -> Result<Self, StoreError> {
         tokio::runtime::Builder::new_current_thread()
@@ -136,26 +126,6 @@ impl crate::VoxDb {
         let conn = db.connect().await?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
-        Self::migrate_coordination(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: Some(db),
-            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
-        })
-    }
-
-    /// Remote sync client **without** running `migrate` (export tools only).
-    pub async fn open_remote_legacy_export(
-        url: &str,
-        auth_token: &str,
-    ) -> Result<Self, StoreError> {
-        let db = turso::sync::Builder::new_remote(":memory:")
-            .with_remote_url(url)
-            .with_auth_token(auth_token)
-            .build()
-            .await?;
-        let conn = db.connect().await?;
-        Self::apply_pragmas(&conn).await?;
         Ok(Self {
             conn,
             sync_db: Some(db),
@@ -178,7 +148,6 @@ impl crate::VoxDb {
         let conn = db.connect().await?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
-        Self::migrate_coordination(&conn).await?;
         Ok(Self {
             conn,
             sync_db: Some(db),
@@ -208,11 +177,10 @@ impl crate::VoxDb {
 #[cfg(all(test, feature = "local"))]
 mod tests {
     use crate::VoxDb;
-    use crate::arca_store::types::StoreError;
     use turso::Builder;
 
     #[tokio::test]
-    async fn fresh_db_schema_version_is_baseline_one() {
+    async fn fresh_db_schema_version_is_baseline_latest() {
         let db = Builder::new_local(":memory:").build().await.expect("mem");
         let conn = db.connect().expect("conn");
         VoxDb::apply_pragmas(&conn).await.expect("pragmas");
@@ -228,11 +196,11 @@ mod tests {
             .expect("row")
             .get(0)
             .expect("v");
-        assert_eq!(v, 1);
+        assert_eq!(v, crate::schema::BASELINE_VERSION);
     }
 
     #[tokio::test]
-    async fn legacy_multi_version_chain_rejected() {
+    async fn legacy_version_advances_to_baseline() {
         let db = Builder::new_local(":memory:").build().await.expect("mem");
         let conn = db.connect().expect("conn");
         VoxDb::apply_pragmas(&conn).await.expect("pragmas");
@@ -244,13 +212,25 @@ mod tests {
         )
         .await
         .expect("sv");
+        // Pretend we are at v17
         conn.execute("INSERT INTO schema_version (version) VALUES (17)", ())
             .await
             .expect("ins");
-        let err = VoxDb::migrate(&conn).await.expect_err("legacy");
-        assert!(matches!(
-            err,
-            StoreError::LegacySchemaChain { max_version: 17 }
-        ));
+
+        // Migrate should advance it to BASELINE_VERSION
+        VoxDb::migrate(&conn).await.expect("migrate");
+        
+        let mut rows = conn
+            .query("SELECT MAX(version) FROM schema_version", ())
+            .await
+            .expect("q");
+        let v: i64 = rows
+            .next()
+            .await
+            .expect("next")
+            .expect("row")
+            .get(0)
+            .expect("v");
+        assert_eq!(v, crate::schema::BASELINE_VERSION);
     }
 }

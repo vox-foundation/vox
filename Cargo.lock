@@ -9830,6 +9830,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-compiler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "logos",
+ "miette",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "vox-config"
 version = "0.1.0"
 dependencies = [

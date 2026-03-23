@@ -45,13 +45,14 @@ fn builtin_system_prompt() -> String {
 - Full-stack in one artifact: types, HTTP, UI, and durable workflows can live together.
 - Durable execution: workflows and activities are first-class.
 - AI-native: agents, MCP tools, and skills are normal constructs.
-- No null: use Option, Result, and tagged unions only.
+- No null: use Option[T], Result[T], and tagged unions only. `null` is banned.
+- Cross-platform: Vox code is identical on Linux, macOS, and Windows. Shell commands may differ by OS but the Vox language itself does not.
 
 ## Construct reference (concise)
-- `fn name(p: T) to U:` — function
-- `actor Name:` — message-passing actor with `state` and `on msg() to T:`
-- `workflow name() to Result[T]:` / `activity name() to Result[T]:` — durable execution
-- `@component fn Name() to Element:` — UI (JSX)
+- `fn name(p: T) -> U:` — function with arrow return type (required)
+- `actor Name:` — message-passing actor with `state` and `on msg() -> T:`
+- `workflow name() -> Result[T]:` / `activity name() -> Result[T]:` — durable execution
+- `@component fn Name() -> Element:` — UI (JSX)
 - `@table type Name:`, `@query`, `@mutation`, `@action` — data plane
 - `@mcp.tool(...) fn ...` / `@mcp.resource(...) fn ...` — MCP surfaces
 - `type Name = | Variant(field: T)` — tagged unions
@@ -60,6 +61,8 @@ fn builtin_system_prompt() -> String {
 ## Core syntax
 - `let x = expr`, `ret expr`, `if cond:`, `for x in xs:`, `match e: Variant(f) ->`
 - Comments: `#` or `//`
+- Return type ALWAYS uses `->` arrow. Never use `to` or bare expression return.
+- No null, no classes, no mutable globals. Use actors for state.
 
 Follow Vox indentation (4 spaces) and always annotate function parameters and return types.
 "#;

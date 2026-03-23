@@ -127,34 +127,65 @@ pub struct Turn {
 }
 
 /// Generate a 3-turn iterative refinement conversation for a given Vox construct type.
-/// Turn 1: create it, Turn 2: add a feature, Turn 3: make it production-ready.
+/// Turn 1: create it, Turn 2: add error handling with real Result[T], Turn 3: production-ready.
 pub fn gen_multiturn_vox(construct: &str, name: &str, base_code: &str, template_idx: usize) -> Vec<Turn> {
     match template_idx % 4 {
         0 => vec![
             Turn { role: "user", content: format!("Write a Vox {construct} called `{name}`") },
             Turn { role: "assistant", content: base_code.to_string() },
             Turn { role: "user", content: format!("Add error handling and logging to `{name}`") },
-            Turn { role: "assistant", content: format!("@traced\n{base_code}\n// Error paths handled via Result[T] return type") },
-            Turn { role: "user", content: format!("Add a @test for `{name}` that covers the error case") },
-            Turn { role: "assistant", content: format!("@test\nfn test_{name}_error() to Unit {{\n    let result = {name}(-1)\n    assert(result == Error(\"invalid\"))\n}}") },
+            Turn { role: "assistant", content: format!(
+                "// Error handling via Result[T] — null is banned\n\
+                 @traced\n\
+                 fn {name}(x: int) -> Result[str]:\n\
+                     if x < 0:\n\
+                         ret Err(\"invalid: x must be non-negative\")\n\
+                     ret Ok(\"done\")"
+            )},
+            Turn { role: "user", content: format!("Add a @test for `{name}` covering the error case") },
+            Turn { role: "assistant", content: format!(
+                "@test\n\
+                 fn test_{name}_rejects_negative() -> Unit:\n\
+                     let result = {name}(-1)\n\
+                     match result:\n\
+                         Err(msg) -> assert(msg.contains(\"invalid\"))\n\
+                         Ok(_) -> fail(\"expected error\")"
+            )},
         ],
         1 => vec![
-            Turn { role: "user", content: format!("I have this {construct} called `{name}`. Explain how it works:\n```\n{base_code}\n```") },
-            Turn { role: "assistant", content: format!("This Vox {construct} named `{name}` initializes and manages state. It uses strong typing and explicit error handling via Option/Result logic.") },
-            Turn { role: "user", content: format!("Can you refactor it to be more performant?") },
-            Turn { role: "assistant", content: format!("@inline\n{base_code}\n// Refactored to eliminate allocations") },
+            Turn { role: "user", content: format!("I have this {construct} called `{name}`. Explain how it works:\n```vox\n{base_code}\n```") },
+            Turn { role: "assistant", content: format!("This Vox {construct} named `{name}` initializes and manages state. It uses strong typing and explicit error handling via Option[T]/Result[T] — null is never used.") },
+            Turn { role: "user", content: "Can you refactor it to be more performant?".to_string() },
+            Turn { role: "assistant", content: format!(
+                "// Refactored: inlined hot path, removed intermediate allocations\n\
+                 @inline\n\
+                 fn {name}(x: int) -> Result[str]:\n\
+                     if x < 0: ret Err(\"invalid\")\n\
+                     ret Ok(\"done\")"
+            )},
         ],
         2 => vec![
             Turn { role: "user", content: format!("Create a {construct} named `{name}`.") },
             Turn { role: "assistant", content: base_code.to_string() },
-            Turn { role: "user", content: format!("Now make it use the new Option[T] exhaustive match syntax.") },
-            Turn { role: "assistant", content: format!("// Exhaustive match added\n{base_code}") },
+            Turn { role: "user", content: "Now make it return Option[T] for the absent case.".to_string() },
+            Turn { role: "assistant", content: format!(
+                "// Option[T] exhaustive match\n\
+                 fn {name}(id: int) -> Option[str]:\n\
+                     if id == 0: ret None\n\
+                     ret Some(\"found\")"
+            )},
         ],
         _ => vec![
             Turn { role: "user", content: format!("Write a {construct} for `{name}`") },
             Turn { role: "assistant", content: base_code.to_string() },
-            Turn { role: "user", content: format!("Add a new feature to it: track the number of calls") },
-            Turn { role: "assistant", content: format!("// Call tracking added\n{base_code}") },
+            Turn { role: "user", content: "Add call-count tracking to it.".to_string() },
+            Turn { role: "assistant", content: format!(
+                "// Call tracking via actor state\n\
+                 actor {name}Tracker:\n\
+                     state count: int = 0\n\
+                     on increment() -> Unit:\n\
+                         self.count = self.count + 1"
+            )},
         ],
     }
 }

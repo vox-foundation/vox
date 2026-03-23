@@ -12,6 +12,7 @@
 //! assert!(!variants.is_empty());
 //! ```
 
+use anyhow::Context;
 use rand::Rng;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
@@ -422,6 +423,40 @@ pub fn augment_jsonl_lines(
         }
     }
     out
+}
+
+/// Apply augmentation to every eligible line in a JSONL file in-place.
+///
+/// Reads all lines, calls [`augment_jsonl_lines`] to expand them, then rewrites
+/// the file with the augmented set. Returns the number of **new** lines added.
+pub fn augment_corpus_file(
+    path: &std::path::Path,
+    config: &AugmentConfig,
+    seed: u64,
+) -> anyhow::Result<usize> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("augment_corpus_file: read {}", path.display()))?;
+    let lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(String::from)
+        .collect();
+    let original_count = lines.len();
+    let augmented = augment_jsonl_lines(&lines, config, seed);
+    let added = augmented.len().saturating_sub(original_count);
+    let mut writer = std::io::BufWriter::new(
+        std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(path)
+            .with_context(|| format!("augment_corpus_file: open for write {}", path.display()))?,
+    );
+    for line in &augmented {
+        writeln!(writer, "{}", line)?;
+    }
+    writer.flush()?;
+    Ok(added)
 }
 
 #[cfg(test)]

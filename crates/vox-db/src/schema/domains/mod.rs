@@ -9,3 +9,4 @@ pub mod gamification;
 pub mod identity;
 pub mod knowledge;
 pub mod packages;
+pub mod toestub;

@@ -268,7 +268,6 @@ impl VoxDb {
                 Ok((conn, sync_db)) => {
                     Self::apply_pragmas(&conn).await?;
                     Self::migrate(&conn).await?;
-                    Self::migrate_coordination(&conn).await?;
                     return Ok(Self {
                         conn,
                         sync_db,
@@ -692,7 +691,7 @@ mod tests {
             let rows = db
                 .query_all(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-                    (t.to_string(),),
+                    turso::params![t.to_string()],
                 )
                 .await
                 .expect("sqlite_master");
@@ -706,11 +705,11 @@ mod tests {
             let rows = db
                 .query_all(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
-                    (t.to_string(),),
+                    turso::params![t.to_string()],
                 )
                 .await
-                .expect("sqlite_master");
-            assert!(!rows.is_empty(), "missing table {t}");
+                .expect("search table");
+            assert!(!rows.is_empty(), "missing search table {t}");
         }
         for t in ["processing_runs", "processing_run_steps", "audit_log"] {
             let rows = db
