@@ -1,0 +1,34 @@
+# Template: self-hosted Vox stack with Codex (Turso).
+# Replace image/build contexts with your CI-built images.
+#
+# Canonical env: VOX_DB_URL, VOX_DB_TOKEN, VOX_DB_PATH (see docs/src/architecture/codex-baas.md)
+#
+# Optional mesh (shared volume + control plane): see docs/src/architecture/mesh-ssot.md and
+# examples/mesh-compose.yml. Typical extras:
+#   VOX_MESH_ENABLED=1
+#   VOX_MESH_CONTROL_ADDR=http://mesh-ctrl:9847
+#   VOX_MESH_REGISTRY_PATH=/data/mesh/local-registry.json
+#   VOX_ORCHESTRATOR_MESH_CONTROL_URL=http://mesh-ctrl:9847   # MCP read-only node list
+#   VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS=30
+#   VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS=5000
+#   VOX_MESH_MAX_STALE_MS=120000
+#   VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL=0
+#   VOX_MESH_TOKEN=...   # if serve uses bearer auth; never log
+
+services:
+  # Example placeholder — set VOX_CODEX_IMAGE to your CI-built image, or add a `build:` block using repo-root `Dockerfile`.
+  codex-api:
+    image: ${VOX_CODEX_IMAGE:-vox/codex-api:local}
+    environment:
+      VOX_DB_URL: ${VOX_DB_URL:-}
+      VOX_DB_TOKEN: ${VOX_DB_TOKEN:-}
+      VOX_DB_PATH: ${VOX_DB_PATH:-/data/codex.db}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - codex_data:/data
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  codex_data: {}
