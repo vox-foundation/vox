@@ -1,11 +1,21 @@
 /// List Codex-bound MCP invocable names (namespace `invocable` in `names`).
 pub async fn capability_list() -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let pairs = db
+    let mut rows = db
         .store()
-        .list_names("invocable")
+        .conn
+        .query(
+            "SELECT name, hash FROM names WHERE namespace = 'invocable' ORDER BY name ASC",
+            (),
+        )
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    while let Some(row) = rows.next().await? {
+        let name: String = row.get(0).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let hash: String = row.get(1).map_err(|e| anyhow::anyhow!("{e}"))?;
+        pairs.push((name, hash));
+    }
     println!(
         "Codex invocable bindings (namespace `invocable`): {} entries",
         pairs.len()
@@ -665,7 +675,7 @@ pub async fn research_metrics(session_id: i64, metric_type: Option<&str>) -> any
     let mt = metric_type.unwrap_or("");
     let metrics = db
         .store()
-        .list_research_metrics(&sid, mt)
+        .list_research_metrics_by_type(mt, &sid, 500)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     if metrics.is_empty() {

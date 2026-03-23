@@ -1,0 +1,2 @@
+   Compiling vox-corpus v0.1.0 (C:\Users\Owner\vox\crates\vox-corpus)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.02s

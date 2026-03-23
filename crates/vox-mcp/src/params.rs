@@ -216,7 +216,7 @@ pub struct StatusResponse {
     pub effective_scale_up_threshold: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Gamify companion state when Codex is attached.
-    pub companion: Option<vox_gamify::companion::Companion>,
+    pub companion: Option<vox_ludus::companion::Companion>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Pre-rendered Markdown summary for clients.
     pub markdown_summary: Option<String>,

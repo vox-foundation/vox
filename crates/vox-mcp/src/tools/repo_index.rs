@@ -6,6 +6,7 @@ use walkdir::WalkDir;
 
 use crate::params::ToolResult;
 use crate::server::ServerState;
+use vox_orchestrator::AgentId;
 
 const MAX_FILES_WALKED: usize = 50_000;
 

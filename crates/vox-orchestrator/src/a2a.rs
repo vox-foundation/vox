@@ -7,6 +7,7 @@ use crate::types::AgentId;
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 use crate::types::{MessagePriority, ThreadId, VcsContext};
 
+
 /// Database-persisted A2A message row.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbA2AMessage {
@@ -41,7 +42,7 @@ pub async fn relay_to_mesh(
             payload: payload.into(),
         })
         .await
-        .map_err(|e: vox_mesh::RegistryError| e.to_string())
+        .map_err(|e: vox_mesh::MeshRegistryError| e.to_string())
 }
 
 /// Send a message to the database with circuit breaker protection.
@@ -319,7 +320,8 @@ impl MessageBus {
                         return false;
                     }
                     if m.elapsed_ms() > 300_000 {
-                        tracing::debug!("Skipping expired A2A message {}", m.id);
+                        // Message is stale (>5 min); skip silently — callers rely on freshness filtering.
+                        let _ = m.id; // acknowledge the drop without tracing dep
                         return false;
                     }
                     true

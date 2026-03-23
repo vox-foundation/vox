@@ -1,0 +1,97 @@
+warning: unexpected `cfg` condition value: `database`
+ --> crates\vox-corpus\src\arca_replay.rs:4:7
+  |
+4 | #[cfg(feature = "database")]
+  |       ^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+  |
+  = note: no expected values for `feature`
+  = help: consider adding `database` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `database`
+  --> crates\vox-corpus\src\arca_replay.rs:18:7
+   |
+18 | #[cfg(feature = "database")]
+   |       ^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `database` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parser-verify`
+   --> crates\vox-corpus\src\codegen_vox.rs:751:11
+    |
+751 |     #[cfg(feature = "parser-verify")]
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `parser-verify` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parser-verify`
+   --> crates\vox-corpus\src\codegen_vox.rs:757:15
+    |
+757 |     #[cfg(not(feature = "parser-verify"))]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `parser-verify` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused variable: `cfg`
+   --> crates\vox-corpus\src\synthetic_gen.rs:710:61
+    |
+710 | ...airs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result...
+    |                               ^^^ help: if this is intentional, prefix it with an underscore: `_cfg`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `compile_chatml_session` is never used
+   --> crates\vox-corpus\src\arca_replay.rs:141:4
+    |
+141 | fn compile_chatml_session(session_id: &str, events: &[serde_json::Value])...
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sanitize_chatml` is never used
+   --> crates\vox-corpus\src\arca_replay.rs:233:4
+    |
+233 | fn sanitize_chatml(s: &str) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: `vox-corpus` (lib) generated 7 warnings (run `cargo fix --lib -p vox-corpus` to apply 1 suggestion)
+    Checking vox-populi v0.1.0 (C:\Users\Owner\vox\crates\vox-populi)
+error[E0255]: the name `lora_memory_estimate` is defined multiple times
+   --> crates\vox-populi\src\tensor\lora.rs:162:1
+    |
+ 39 |   pub use vox_tensor::{LoraConfig, lora_memory_estimate};
+    |                                    -------------------- previous import of the value `lora_memory_estimate` here
+...
+162 | / pub fn lora_memory_estimate(
+163 | |     in_features: usize,
+164 | |     out_features: usize,
+165 | |     rank: usize,
+...   |
+170 | |     (lora, full, saving * 100.0)
+171 | | }
+    | |_^ `lora_memory_estimate` redefined here
+    |
+    = note: `lora_memory_estimate` must be defined only once in the value namespace of this module
+help: you can use `as` to change the binding name of the import
+    |
+ 39 | pub use vox_tensor::{LoraConfig, lora_memory_estimate as other_lora_memory_estimate};
+    |                                                       +++++++++++++++++++++++++++++
+
+warning: unused import: `lora_memory_estimate`
+  --> crates\vox-populi\src\tensor\lora.rs:39:34
+   |
+39 | pub use vox_tensor::{LoraConfig, lora_memory_estimate};
+   |                                  ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0255`.
+warning: `vox-populi` (lib) generated 1 warning
+error: could not compile `vox-populi` (lib) due to 1 previous error; 1 warning emitted

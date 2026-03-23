@@ -510,18 +510,14 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
 pub async fn preference_list(state: &ServerState, params: PreferenceListParams) -> String {
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
-        Some(db) => match db.store().list_user_preferences(&params.user_id).await {
+        Some(db) => match db
+            .store()
+            .list_user_preferences(&params.user_id, params.prefix.as_deref())
+            .await
+        {
             Ok(prefs) => {
-                let filtered: Vec<(String, String)> = if let Some(prefix) = params.prefix {
-                    prefs
-                        .into_iter()
-                        .filter(|(k, _)| k.starts_with(&prefix))
-                        .collect()
-                } else {
-                    prefs
-                };
                 let lines: Vec<String> =
-                    filtered.iter().map(|(k, v)| format!("{k} = {v}")).collect();
+                    prefs.iter().map(|(k, v)| format!("{k} = {v}")).collect();
                 ToolResult::ok(lines.join("\n")).to_json()
             }
             Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),

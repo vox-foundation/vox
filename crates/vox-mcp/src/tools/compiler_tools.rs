@@ -12,6 +12,7 @@ use crate::params::{
     DiagnosticInfo, RunTestsParams, ToolResult, ValidateFileParams, ValidateResponse,
 };
 use crate::server::ServerState;
+use tower_lsp::lsp_types::DiagnosticSeverity;
 
 fn cargo_unavailable_message(state: &ServerState) -> Option<String> {
     let c = &state.repository.capabilities;
@@ -287,66 +288,125 @@ pub async fn coverage_report(state: &ServerState, crate_name: Option<&str>) -> S
     }
 }
 
-/// Generate validated Vox code using the QWEN inference server.
-pub async fn generate_vox_code(args: serde_json::Value) -> String {
+/// Generate validated Vox code from a prompt using the native LLM bridge.
+pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> String {
     let prompt = args.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
-    let validate = args
+    let validate_flag = args
         .get("validate")
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
     let max_retries = args
         .get("max_retries")
         .and_then(|v| v.as_u64())
-        .unwrap_or(3);
+        .unwrap_or(2)
+        .min(5);
 
     if prompt.is_empty() {
         return ToolResult::<String>::err("Missing 'prompt' parameter").to_json();
     }
 
-    let client = match reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-    {
-        Ok(c) => c,
-        Err(e) => return ToolResult::<String>::err(format!("HTTP client error: {e}")).to_json(),
-    };
+    let mut current_prompt = prompt.to_string();
+    let mut retry_count = 0;
 
-    let final_prompt = format!("{}{}", prompt, crate::tools::chat_tools::ANTI_LAZINESS_RIDER);
-    let body = serde_json::json!({
-        "prompt": final_prompt,
-        "validate": validate,
-        "max_retries": max_retries,
-    });
+    loop {
+        let system_prompt = format!(
+            "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
+             Rules:\n\
+             - Only output the code, no explanation.\n\
+             - Wrap in a ```vox code block.\n\
+             {}\n",
+            crate::tools::chat_tools::ANTI_LAZINESS_RIDER
+        );
 
-    match client
-        .post("http://127.0.0.1:7863/generate")
-        .json(&body)
-        .send()
-        .await
-    {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                match resp.text().await {
-                    Ok(text) => {
-                        if let Ok(result) = serde_json::from_str::<serde_json::Value>(&text) {
-                            ToolResult::ok(result).to_json()
-                        } else {
-                            ToolResult::ok(text).to_json()
-                        }
-                    }
-                    Err(e) => ToolResult::<String>::err(format!("Response read error: {e}")).to_json(),
-                }
-            } else {
-                ToolResult::<String>::err(format!(
-                    "Inference server error ({}). Is it running? Start with: python scripts/vox_inference.py --serve",
-                    resp.status()
-                ))
-                .to_json()
-            }
-        }
-        Err(_) => ToolResult::<String>::err(
-            "Cannot connect to inference server at localhost:7863. Start it with: python scripts/vox_inference.py --serve"
+        let resolution_template = crate::llm_bridge::McpChatModelResolution {
+            complexity: 2,
+            ..Default::default()
+        };
+
+        let pref = state.mcp_chat_model_override.read().await.clone();
+        let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
+            state,
+            &current_prompt,
+            resolution_template.clone(),
         )
-        .to_json(),
+        .await
+        {
+            Ok(pair) => pair,
+            Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+        };
+
+        let routing = crate::llm_bridge::McpInferRouting {
+            user_prompt: &current_prompt,
+            sticky_model_pref: pref.as_deref(),
+            resolution_template,
+            free_only,
+            allow_cloud_ollama_fallback: true,
+        };
+
+        let (mut completion, _, _) = match crate::llm_bridge::mcp_infer_completion(
+            state,
+            model,
+            "vox_generate_code",
+            &system_prompt,
+            &routing,
+            2048,
+            0.1,
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+        };
+
+        // Strip fence
+        if let Some(inner) = completion
+            .strip_prefix("```vox")
+            .or_else(|| completion.strip_prefix("```"))
+        {
+            completion = inner
+                .trim_start_matches('\n')
+                .trim_end_matches("```")
+                .trim_end()
+                .to_string();
+        }
+
+        if !validate_flag {
+            return ToolResult::ok(completion).to_json();
+        }
+
+        let diagnostics = vox_lsp::validate_document(&completion);
+        let errors: Vec<_> = diagnostics
+            .iter()
+            .filter(|d| {
+                d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)
+            })
+            .collect();
+
+        if errors.is_empty() {
+            return ToolResult::ok(completion).to_json();
+        }
+
+        retry_count += 1;
+        if retry_count > max_retries {
+            let err_msgs: Vec<_> = errors.iter().map(|e| &e.message).collect();
+            return ToolResult::<String>::err(format!(
+                "Failed to generate valid code after {} retries. Errors: {:?}",
+                max_retries, err_msgs
+            ))
+            .to_json();
+        }
+
+        // Add diagnostics to prompt for retry
+        let mut feedback = String::from("\n\nThe previous generation had these errors. Fix them and re-generate ONLY the corrected .vox code:\n");
+        for (i, err) in errors.iter().enumerate() {
+            feedback.push_str(&format!(
+                "{}. [L{}:C{}] {}\n",
+                i + 1,
+                err.range.start.line,
+                err.range.start.character,
+                err.message
+            ));
+        }
+        current_prompt.push_str(&feedback);
     }
 }

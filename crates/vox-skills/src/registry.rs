@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::SkillError;
 use crate::bundle::VoxSkillBundle;
@@ -179,7 +179,6 @@ impl SkillRegistry {
         let count = entries.len();
         for entry in entries {
             if let Ok(manifest) = serde_json::from_str::<SkillManifest>(&entry.manifest_json) {
-                debug!(skill = %manifest.id, "Hydrated from Codex");
                 skills.insert(manifest.id.clone(), manifest);
             }
         }

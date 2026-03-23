@@ -1,0 +1,53 @@
+    Checking vox-skills v0.1.0 (C:\Users\Owner\vox\crates\vox-skills)
+error[E0599]: no method named `publish_skill` found for reference `&CodeStore` in the current scope
+  --> crates\vox-skills\src\registry.rs:99:22
+   |
+97 |                   let _ = db
+   |  _________________________-
+98 | |                     .store()
+99 | |                     .publish_skill(&id2, &ver2, &manifest_json, &skill_md)
+   | |                     -^^^^^^^^^^^^^ method not found in `&CodeStore`
+   | |_____________________|
+   |
+
+error[E0599]: no method named `unpublish_skill` found for reference `&CodeStore` in the current scope
+   --> crates\vox-skills\src\registry.rs:123:40
+    |
+123 |                     let _ = db.store().unpublish_skill(&id_owned).await;
+    |                                        ^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `list_skill_manifests` found for reference `&CodeStore` in the current scope
+   --> crates\vox-skills\src\registry.rs:175:14
+    |
+173 |           let entries = db
+    |  _______________________-
+174 | |             .store()
+175 | |             .list_skill_manifests()
+    | |             -^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________|
+    |
+
+error[E0282]: type annotations needed
+   --> crates\vox-skills\src\registry.rs:173:23
+    |
+173 |           let entries = db
+    |  _______________________^
+174 | |             .store()
+175 | |             .list_skill_manifests()
+176 | |             .await
+    | |__________________^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> crates\vox-skills\src\registry.rs:177:23
+    |
+177 |             .map_err(|e| SkillError::Http(e.to_string()))?;
+    |                       ^                   - type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type
+    |
+177 |             .map_err(|e: /* Type */| SkillError::Http(e.to_string()))?;
+    |                        ++++++++++++
+
+Some errors have detailed explanations: E0282, E0599.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `vox-skills` (lib) due to 5 previous errors

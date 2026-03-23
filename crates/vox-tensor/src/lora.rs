@@ -29,30 +29,8 @@ use burn::nn;
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 
-/// Configuration for a LoRA adapter.
-///
-/// Typical defaults: rank=8, alpha=16, dropout=0.0
-#[derive(Debug, Clone)]
-pub struct LoraConfig {
-    /// Low-rank dimension r. Typical values: 4, 8, 16, 32.
-    /// Higher rank → more expressiveness but more parameters.
-    pub rank: usize,
-    /// LoRA scaling factor. The adapter output is multiplied by `alpha / rank`.
-    /// Setting alpha=rank gives scale=1.0 (no explicit scaling).
-    pub alpha: f32,
-    /// Dropout probability applied to LoRA branch input. 0.0 = disabled.
-    pub dropout: f32,
-}
-
-impl Default for LoraConfig {
-    fn default() -> Self {
-        Self {
-            rank: 8,
-            alpha: 16.0,
-            dropout: 0.0,
-        }
-    }
-}
+// LoraConfig is the workspace SSOT from `crate::lora_config`.
+pub use crate::lora_config::LoraConfig;
 
 /// A LoRA-adapted linear layer.
 ///

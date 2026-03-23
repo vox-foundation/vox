@@ -1,0 +1,61 @@
+warning: method `pick` is never used
+  --> crates\vox-corpus\src\codegen_vox.rs:32:8
+   |
+24 | impl Rng {
+   | -------- method in this implementation
+...
+32 |     fn pick<'a, T>(&mut self, s: &'a [T]) -> &'a T { &s[self.next() as usize % s.len()] }
+   |        ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `gen_match` is never used
+   --> crates\vox-corpus\src\codegen_vox.rs:227:4
+    |
+227 | fn gen_match(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
+    |    ^^^^^^^^^
+
+warning: `vox-corpus` (lib) generated 2 warnings
+warning: usage of an `unsafe` block
+   --> crates\vox-cli\src\training\mod.rs:650:20
+    |
+650 |             return unsafe { &*(axes as *const ConstructAxes) };
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: fields `verbs` and `suffixes` are never read
+   --> crates\vox-cli\src\training\mod.rs:160:9
+    |
+157 | pub struct ConstructAxes {
+    |            ------------- fields in this struct
+...
+160 |     pub verbs: &'static [&'static str],
+    |         ^^^^^
+...
+164 |     pub suffixes: &'static [&'static str],
+    |         ^^^^^^^^
+    |
+    = note: `ConstructAxes` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `DEFAULT_SUFFIXES` is never used
+   --> crates\vox-cli\src\training\mod.rs:182:7
+    |
+182 | const DEFAULT_SUFFIXES: &[&str] = &[
+    |       ^^^^^^^^^^^^^^^^
+
+warning: function `construct_axes` is never used
+   --> crates\vox-cli\src\training\mod.rs:646:4
+    |
+646 | fn construct_axes(construct: &str) -> &'static ConstructAxes {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `generate_instructions` is never used
+   --> crates\vox-cli\src\training\mod.rs:672:8
+    |
+672 | pub fn generate_instructions(construct: &str, name: &str, seed: u64) -> Vec<String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `vox-cli` (lib) generated 5 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.62s

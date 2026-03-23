@@ -38,7 +38,11 @@ candle-qlora = [
     "dep:tokenizers",
     "dep:qlora-rs",
 ]
-candle-qlora-cuda = ["candle-qlora", "candle-core/cuda", "candle-nn/cuda"]
+candle-qlora-cuda = ["candle-qlora"]
+# CUDA kernels intentionally not activated here: `candle-core/cuda` triggers nvcc
+# compilation of `.cu` files even during `cargo check`, which breaks on hosts
+# without a CUDA toolkit. For CUDA release builds use `cargo vox-cuda-release`
+# (see .cargo/config.toml) which explicitly passes `candle-core/cuda,candle-nn/cuda`.
 # Metal features intentionally omitted: `candle-core/metal` pulls `objc2` which is Apple-only.
 # On macOS, pass `--features candle-core/metal,candle-nn/metal` directly to cargo; do NOT enable
 # them here because `--all-features` would break any non-Apple host (Windows, Linux).

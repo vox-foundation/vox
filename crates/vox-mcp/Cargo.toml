@@ -16,10 +16,10 @@ wasm = ["dep:wasmtime"]
 # Workspace dependencies
 vox-orchestrator = { workspace = true, features = ["json-schema"] }
 vox-mesh = { workspace = true, features = ["transport"] }
-vox-repository   = { workspace = true }
+vox-repository   = { workspace = true, features = ["json-schema"] }
 vox-runtime      = { workspace = true }
 vox-config       = { workspace = true }
-vox-gamify       = { workspace = true }
+vox-ludus       = { workspace = true }
 vox-skills       = { path = "../vox-skills" }
 vox-lsp          = { path = "../vox-lsp" }
 tower-lsp        = "0.20"

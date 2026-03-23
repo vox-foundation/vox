@@ -176,18 +176,18 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
             // Gamification: Update companion state
             if let Some(db) = &state.db {
                 let id = "vox-orchestrator";
-                let mut companion = match vox_gamify::db::list_companions(db, "user").await {
+                let mut companion = match vox_ludus::db::list_companions(db, "user").await {
                     Ok(comps) => comps
                         .into_iter()
-                        .find(|c: &vox_gamify::companion::Companion| c.id == id),
+                        .find(|c: &vox_ludus::companion::Companion| c.id == id),
                     Err(_) => None,
                 }
                 .unwrap_or_else(|| {
-                    vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+                    vox_ludus::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
                 });
 
-                companion.interact(vox_gamify::companion::Interaction::TaskCompleted);
-                let _ = vox_gamify::db::upsert_companion(db, &companion).await;
+                companion.interact(vox_ludus::companion::Interaction::TaskCompleted);
+                let _ = vox_ludus::db::upsert_companion(db, &companion).await;
             }
             ToolResult::ok("task completed".to_string()).to_json()
         }
@@ -206,18 +206,18 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
         Ok(()) => {
             if let Some(db) = &state.db {
                 let id = "vox-orchestrator";
-                let mut companion = match vox_gamify::db::list_companions(db, "user").await {
+                let mut companion = match vox_ludus::db::list_companions(db, "user").await {
                     Ok(comps) => comps
                         .into_iter()
-                        .find(|c: &vox_gamify::companion::Companion| c.id == id),
+                        .find(|c: &vox_ludus::companion::Companion| c.id == id),
                     Err(_) => None,
                 }
                 .unwrap_or_else(|| {
-                    vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+                    vox_ludus::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
                 });
 
-                companion.interact(vox_gamify::companion::Interaction::TaskFailed);
-                let _ = vox_gamify::db::upsert_companion(db, &companion).await;
+                companion.interact(vox_ludus::companion::Interaction::TaskFailed);
+                let _ = vox_ludus::db::upsert_companion(db, &companion).await;
             }
             ToolResult::ok("task marked as failed".to_string()).to_json()
         }

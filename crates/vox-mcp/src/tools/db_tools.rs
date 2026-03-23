@@ -178,7 +178,7 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
 }
 
 /// Use LLM to explain a query/mutation in plain English.
-pub async fn vox_db_explain_query(args: serde_json::Value) -> String {
+pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) -> String {
     let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
     let schema_path = args
         .get("schema_path")
@@ -207,11 +207,11 @@ pub async fn vox_db_explain_query(args: serde_json::Value) -> String {
         map.insert("validate".to_string(), serde_json::Value::Bool(false));
     }
 
-    super::compiler_tools::generate_vox_code(new_args).await
+    super::compiler_tools::generate_vox_code(state, new_args).await
 }
 
 /// Use LLM to suggest the actual Vox query code given a natural language intent.
-pub async fn vox_db_suggest_query(args: serde_json::Value) -> String {
+pub async fn vox_db_suggest_query(state: &ServerState, args: serde_json::Value) -> String {
     let intent = args.get("intent").and_then(|v| v.as_str()).unwrap_or("");
     let schema_path = args
         .get("schema_path")
@@ -239,5 +239,5 @@ pub async fn vox_db_suggest_query(args: serde_json::Value) -> String {
         map.insert("prompt".to_string(), serde_json::Value::String(prompt));
     }
 
-    super::compiler_tools::generate_vox_code(new_args).await
+    super::compiler_tools::generate_vox_code(state, new_args).await
 }

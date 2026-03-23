@@ -28,3 +28,8 @@ pub struct CodeStore {
 
 mod open;
 mod ops;
+mod ops_agents;
+mod ops_cas;
+mod ops_codex;
+mod ops_learning;
+mod ops_memory;

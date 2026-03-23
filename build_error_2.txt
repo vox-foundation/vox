@@ -1,0 +1,74 @@
+    Blocking waiting for file lock on build directory
+    Checking cubecl-runtime v0.8.1
+    Checking wgpu-hal v26.0.6
+    Checking tokio-util v0.7.18
+    Checking gemm-common v0.19.0
+    Checking tokio-native-tls v0.3.1
+    Checking tower v0.5.3
+    Checking tokio-rustls v0.26.4
+    Checking turso_core v0.4.4
+   Compiling candle-kernels v0.9.2
+    Checking macerator v0.2.10
+    Checking gemm-f32 v0.19.0
+error: failed to run custom build command for `candle-kernels v0.9.2`
+
+Caused by:
+  process didn't exit successfully: `C:\Users\Owner\vox\target\debug\build\candle-kernels-79976ccbe1f0f557\build-script-build` (exit code: 101)
+  --- stdout
+  cargo::rerun-if-changed=build.rs
+  cargo::rerun-if-changed=src/compatibility.cuh
+  cargo::rerun-if-changed=src/cuda_utils.cuh
+  cargo::rerun-if-changed=src/binary_op_macros.cuh
+  cargo:info=["/usr", "/usr/local/cuda", "/opt/cuda", "/usr/lib/cuda", "C:/Program Files/NVIDIA GPU Computing Toolkit", "C:/CUDA"]
+  cargo:rerun-if-env-changed=CUDA_COMPUTE_CAP
+  cargo:rustc-env=CUDA_COMPUTE_CAP=89
+  cargo:rustc-env=CUDA_INCLUDE_DIR=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.1\include
+  cargo:rerun-if-changed=src\binary_op_macros.cuh
+  cargo:rerun-if-changed=src\compatibility.cuh
+  cargo:rerun-if-changed=src\cuda_utils.cuh
+  cargo:rerun-if-changed=src\moe\gguf.cuh
+  cargo:rerun-if-changed=src\moe\moe_utils.cuh
+  cargo:rerun-if-env-changed=NVCC_CCBIN
+  cargo:rerun-if-changed=src\affine.cu
+  cargo:rerun-if-changed=src\moe\moe_wmma.cu
+  cargo:rerun-if-changed=src\conv.cu
+  cargo:rerun-if-changed=src\indexing.cu
+  cargo:rerun-if-changed=src\fill.cu
+  cargo:rerun-if-changed=src\moe\moe_gguf.cu
+  cargo:rerun-if-changed=src\ternary.cu
+  cargo:rerun-if-changed=src\sort.cu
+  cargo:rerun-if-changed=src\reduce.cu
+  cargo:rerun-if-changed=src\unary.cu
+  cargo:rerun-if-changed=src\binary.cu
+  cargo:rerun-if-changed=src\cast.cu
+  cargo:rerun-if-changed=src\moe\moe_wmma_gguf.cu
+  cargo:rerun-if-changed=src\quantized.cu
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+  nvcc fatal   : Cannot find compiler 'cl.exe' in PATH
+
+  --- stderr
+
+  thread 'main' (85560) panicked at C:\Users\Owner\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bindgen_cuda-0.1.6\src\lib.rs:405:13:
+  nvcc error while compiling "src\\affine.cu":
+
+  # CLI "nvcc" "--gpu-architecture=sm_89" "--ptx" "--default-stream" "per-thread" "--output-directory" "C:\\Users\\Owner\\vox\\target\\debug\\build\\candle-kernels-14505b8ac94b9fa9\\out" "--expt-relaxed-constexpr" "-std=c++17" "-O3" "-Isrc" "-Isrc\\moe" "-IC:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.1\\include" "src\\affine.cu" 
+
+  # stdout
+
+
+  # stderr
+
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+warning: build failed, waiting for other jobs to finish...

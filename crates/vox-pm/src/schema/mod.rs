@@ -21,6 +21,7 @@ mod v15;
 mod v16;
 mod v17;
 pub(crate) mod v18;
+mod v19;
 mod v2;
 mod v3;
 mod v4;
@@ -44,7 +45,7 @@ mod migration_chain_tests {
 
     #[test]
     fn fragments_strictly_ordered_and_nonempty_except_v7() {
-        assert_eq!(SCHEMA_FRAGMENTS.len(), 18);
+        assert_eq!(SCHEMA_FRAGMENTS.len(), 19);
         for (i, f) in SCHEMA_FRAGMENTS.iter().enumerate() {
             let n = i + 1;
             assert_eq!(f.name, format!("v{n}"));

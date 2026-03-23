@@ -1,0 +1,120 @@
+warning: unexpected `cfg` condition value: `database`
+ --> crates\vox-corpus\src\arca_replay.rs:4:7
+  |
+4 | #[cfg(feature = "database")]
+  |       ^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+  |
+  = note: no expected values for `feature`
+  = help: consider adding `database` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `database`
+  --> crates\vox-corpus\src\arca_replay.rs:18:7
+   |
+18 | #[cfg(feature = "database")]
+   |       ^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `database` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parser-verify`
+   --> crates\vox-corpus\src\codegen_vox.rs:751:11
+    |
+751 |     #[cfg(feature = "parser-verify")]
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `parser-verify` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parser-verify`
+   --> crates\vox-corpus\src\codegen_vox.rs:757:15
+    |
+757 |     #[cfg(not(feature = "parser-verify"))]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `parser-verify` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused variable: `cfg`
+   --> crates\vox-corpus\src\synthetic_gen.rs:710:61
+    |
+710 | fn generate_negative_preference_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
+    |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_cfg`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `compile_chatml_session` is never used
+   --> crates\vox-corpus\src\arca_replay.rs:141:4
+    |
+141 | fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Option<ReplayRow> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sanitize_chatml` is never used
+   --> crates\vox-corpus\src\arca_replay.rs:233:4
+    |
+233 | fn sanitize_chatml(s: &str) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: `vox-corpus` (lib) generated 7 warnings (run `cargo fix --lib -p vox-corpus` to apply 1 suggestion)
+    Checking vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+error[E0599]: no function or associated item named `open_from_env` found for struct `VoxDb` in the current scope
+   --> crates\vox-cli\src\commands\corpus.rs:115:48
+    |
+115 |                 if let Ok(db) = vox_db::VoxDb::open_from_env() {
+    |                                                ^^^^^^^^^^^^^ function or associated item not found in `VoxDb`
+    |
+note: if you're trying to build a new `VoxDb` consider using one of the following associated functions:
+      VoxDb::from_store
+      VoxDb::connect_default_sync
+   --> crates\vox-db\src\lib.rs:160:5
+    |
+160 |     pub fn from_store(store: CodeStore) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+188 |     pub fn connect_default_sync() -> Result<Self, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0282]: type annotations needed
+   --> crates\vox-cli\src\commands\corpus.rs:116:21
+    |
+116 |                     db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
+    |                     ^^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> crates\vox-cli\src\commands\corpus.rs:116:21
+    |
+116 |                     db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+error[E0599]: no function or associated item named `open_from_env` found for struct `VoxDb` in the current scope
+   --> crates\vox-cli\src\commands\corpus.rs:148:48
+    |
+148 |                 if let Ok(db) = vox_db::VoxDb::open_from_env() {
+    |                                                ^^^^^^^^^^^^^ function or associated item not found in `VoxDb`
+    |
+note: if you're trying to build a new `VoxDb` consider using one of the following associated functions:
+      VoxDb::from_store
+      VoxDb::connect_default_sync
+   --> crates\vox-db\src\lib.rs:160:5
+    |
+160 |     pub fn from_store(store: CodeStore) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+188 |     pub fn connect_default_sync() -> Result<Self, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0282]: type annotations needed
+   --> crates\vox-cli\src\commands\corpus.rs:149:29
+    |
+149 |                     let _ = db.record_corpus_snapshot(&current_fp, count as i64, None).await;
+    |                             ^^ cannot infer type
+
+Some errors have detailed explanations: E0282, E0599.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `vox-cli` (lib) due to 5 previous errors

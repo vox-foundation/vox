@@ -61,7 +61,7 @@ impl TaskProcessor for StubTaskProcessor {
 
 /// A real AI-powered task processor that streams tokens back to the event bus.
 pub struct AiTaskProcessor {
-    client: vox_gamify::ai::FreeAiClient,
+    client: vox_ludus::ai::FreeAiClient,
     event_bus: crate::events::EventBus,
     orchestrator: Arc<Mutex<Orchestrator>>,
     /// Provider name stored at construction time (e.g. "ollama", "google").
@@ -76,7 +76,7 @@ impl AiTaskProcessor {
         event_bus: crate::events::EventBus,
         orchestrator: Arc<Mutex<Orchestrator>>,
     ) -> Self {
-        let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
+        let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
         // Reflect the active provider in costs/logs
         let (provider, model) = client.active_provider_info();
         Self {

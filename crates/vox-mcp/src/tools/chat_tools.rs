@@ -19,6 +19,7 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use regex::Regex;
 use std::sync::LazyLock;
+use turso::params;
 use vox_orchestrator::types::AgentId;
 use vox_socrates_policy::ConfidencePolicy;
 
@@ -31,7 +32,7 @@ pub const ANTI_LAZINESS_RIDER: &str = "\nCRITICAL DIRECTIVE: You must output the
 
 /// One persisted chat turn in the session transcript (also returned in history APIs).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatMessage {
+pub struct ChatTranscriptEntry {
     /// Opaque message id (UUID/ulid string).
     pub id: String,
     /// `"user"`, `"assistant"`, or `"system"`.
@@ -362,6 +363,7 @@ fn build_system_prompt(state: &ServerState) -> String {
         ws_root.display()
     ));
 
+    prompt.push_str(ANTI_LAZINESS_RIDER);
     let pol = state.orchestrator_config.effective_socrates_policy();
     prompt.push_str(&socrates_system_rider(&pol));
     prompt
@@ -590,7 +592,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     let session_id = params.session_id.as_deref().unwrap_or("default");
     let history_key = format!("chat_history:{session_id}");
 
-    let user_msg = ChatMessage {
+    let user_msg = ChatTranscriptEntry {
         id: format!("usr-{}", now_ts()),
         role: "user".to_string(),
         content: params.prompt.clone(),
@@ -599,7 +601,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         model_used: None,
         tokens: None,
     };
-    let asst_msg = ChatMessage {
+    let asst_msg = ChatTranscriptEntry {
         id: format!("asst-{}", now_ts() + 1),
         role: "assistant".to_string(),
         content: response_text.clone(),
@@ -610,7 +612,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     };
 
     let orch = state.orchestrator.lock().await;
-    let existing_history: Vec<ChatMessage> = orch
+    let existing_history: Vec<ChatTranscriptEntry> = orch
         .context()
         .get(&history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
@@ -618,7 +620,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     drop(orch);
 
     let mut history = existing_history;
-    history.push(user_msg);
+    history.push(user_msg.clone());
     history.push(asst_msg.clone());
     // Keep last 100 messages per session to bound memory usage.
     if history.len() > 100 {
@@ -640,6 +642,48 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                  history will not persist for this turn"
             );
         }
+    }
+
+    if let Some(db) = &state.db {
+        let repo_id = &state.repository.repository_id;
+        let q_session = session_id.to_string();
+        let q_repo = repo_id.to_string();
+        
+        // Insert user turn
+        let _ = db.store()
+            .conn
+            .execute(
+                "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    user_msg.id.clone(),
+                    q_session.clone(),
+                    user_msg.role.clone(),
+                    user_msg.content.clone(),
+                    user_msg.model_used.clone(),
+                    user_msg.tokens.map(|t| t as i64),
+                    serde_json::to_string(&user_msg.context_files).unwrap_or_default(),
+                    q_repo.clone(),
+                ],
+            ).await;
+
+        // Insert assistant turn
+        let _ = db.store()
+            .conn
+            .execute(
+                "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    asst_msg.id.clone(),
+                    q_session,
+                    asst_msg.role.clone(),
+                    asst_msg.content.clone(),
+                    asst_msg.model_used.clone(),
+                    asst_msg.tokens.map(|t| t as i64),
+                    serde_json::to_string(&asst_msg.context_files).unwrap_or_default(),
+                    q_repo,
+                ],
+            ).await;
     }
 
     // 5. Return updated history + the new assistant message
@@ -673,7 +717,7 @@ pub async fn chat_history(state: &ServerState, params: ChatHistoryParams) -> Str
     let session_id = &params.session_id;
     let history_key = format!("chat_history:{session_id}");
     let orch = state.orchestrator.lock().await;
-    let history: Vec<ChatMessage> = orch
+    let history: Vec<ChatTranscriptEntry> = orch
         .context()
         .get(&history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
@@ -723,8 +767,7 @@ OUTPUT RULES:
 
     let pol = state.orchestrator_config.effective_socrates_policy();
     let system_prompt = format!(
-        "You are the Vox AI, an expert agentic coding assistant.{}{}\n{}",
-        if !params.context_files.is_empty() { "\nUse the provided file context to answer the user's request." } else { "" },
+        "You are an expert inline code editor. You output ONLY replacement code, no markdown fences, no explanation.{}\n{}",
         ANTI_LAZINESS_RIDER,
         socrates_system_rider(&pol)
     );
@@ -1365,5 +1408,28 @@ mod routing_tests {
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);
         assert!(b > a);
+    }
+
+    #[test]
+    fn test_parse_plan_json_extraction() {
+        let input = r#"Certainly! Here is your plan:
+```json
+{
+    "summary": "Fixing the bug",
+    "tasks": [
+        { "id": 1, "description": "Identify root cause", "files": ["src/main.rs"], "estimated_complexity": 2, "depends_on": [] },
+        { "id": 2, "description": "Write fix", "files": ["src/main.rs"], "estimated_complexity": 3, "depends_on": [1] }
+    ]
+}
+```
+Good luck!"#;
+        let (summary, tasks, md) = super::parse_plan_json(input);
+        assert_eq!(summary, "Fixing the bug");
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].id, 1);
+        assert_eq!(tasks[1].depends_on, vec![1]);
+        assert!(md.contains("## Plan"));
+        assert!(md.contains("**Overall Summary**: Fixing the bug"));
+        assert!(md.contains("1. **Identify root cause**"));
     }
 }

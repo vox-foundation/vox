@@ -90,6 +90,7 @@ impl AgentQueue {
         })?;
         let mut task = self.tasks.remove(pos)?;
         task.status = TaskStatus::InProgress;
+        task.start(); // record wall-clock start for temporal context injection
         self.in_progress = Some(task.clone());
         self.last_active = std::time::SystemTime::now();
         Some(task)

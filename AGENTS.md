@@ -182,7 +182,57 @@ cargo test --workspace
 4.  **Type Checking**: Add inference rules in `crates/vox-typeck`.
 5.  **Codegen**: Implement emission in `vox-codegen-rust` and `vox-codegen-ts`.
 
-## 5. Contribution Guidelines
+## 5. Data Architecture Best Practices
+
+The following rules prevent the structural duplication and naming ambiguities identified in the March 2026 data architecture audit. All new code **must** follow these patterns.
+
+### 5.1 One Struct, One Crate (SSOT)
+
+- Shared domain types live in the **lowest-level crate** that needs them and are `pub use`-re-exported up the dependency graph.
+- **Never redeclare** a struct that already exists elsewhere in the workspace. Run `grep -r "pub struct MyStruct"` before writing a new type.
+- Example: `LoraConfig` is defined once in `vox-tensor::lora_config` and re-exported via `pub use` in `vox-populi` and `vox-tensor::lora`.
+
+### 5.2 DB Rows ≠ Domain Models
+
+- Database DTOs (flat row structs) must be **explicitly converted** to typed domain structs — never used directly in business logic.
+- Name DB row structs with a `Record` or `Row` suffix (e.g., `AgentEventRecord`, `DbA2AMessage`).
+- Domain models use rich types (enums, nested structs). DB rows use primitive types (`String`, `i64`, `f64`).
+
+### 5.3 RAM for Hot Paths, DB for Durability
+
+| Data type | Where it lives | Why |
+|-----------|---------------|-----|
+| Agent mailboxes / event bus messages | In-process RAM (`tokio::sync::broadcast`, `Arc<Mutex<_>>`) | Microsecond latency; ephemeral by design |
+| Chat history / session transcripts | Arca DB (`chat_transcripts` table) | Audit trail; survives restarts |
+| A2A messages (audit/replay) | Arca DB (`a2a_messages` table) | Durability, correlation tracking |
+| Agent events (gamification) | Arca DB (`agent_events` table) | Leaderboards, rewards |
+| Orchestrator task queues | In-process RAM (cleared on restart) | Performance; tasks are re-submitted by client |
+| Companion/profile state | Arca DB (`gamify_*` tables) | User-facing progress must survive restarts |
+
+### 5.4 No Parallel Crates for the Same Domain
+
+- **Never** create two crates with overlapping purpose (e.g., `vox-gamify` + `vox-ludus`). One crate wins; the other is a `pub use` shim or gets deleted.
+- When extending a subsystem, add to the existing crate, not a new one.
+- Canonical gamification crate: **`vox-ludus`** (consumers: `vox-mcp`, `vox-orchestrator`).
+
+### 5.5 Config Structs Per Subsystem
+
+- Avoid proliferating `*Config` structs with overlapping fields. Inline config if it has fewer than 3 fields.
+- Configs with more than 3 fields get their own crate-local type, not a copy in every consumer.
+
+### 5.6 Domain-Scoped Error Enums
+
+- Each crate has **one** public error enum (e.g., `vox_ludus::Error`).
+- Use `anyhow::Result` internally within a crate for fallible helpers that do not cross API boundaries.
+- Never use `Box<dyn std::error::Error>` in public crate APIs.
+
+### 5.7 LLM Wire Types vs. Session Types
+
+- **`LlmChatMessage`** (`vox-runtime::llm`) = OpenAI-compatible wire format (`role` + `content` only).
+- **`ChatTranscriptEntry`** (`vox-mcp::tools::chat_tools`) = persisted session turn with id, timestamp, context_files, model_used, tokens.
+- Never mix these two types. Do not add session fields to the wire type.
+
+## 6. Contribution Guidelines
 
 -   **Tests**: Every new feature must include a UI test in `tests/` or a unit test.
 -   **Errors**: Use `miette` for user-facing errors.

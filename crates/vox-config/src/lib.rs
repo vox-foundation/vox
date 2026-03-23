@@ -17,6 +17,7 @@ pub use inference::{
     hf_dedicated_chat_completions_url, hf_dedicated_chat_model, huggingface_hub_token,
     inference_profile_allows_local_ollama_http, inference_profile_from_env,
     local_ollama_populi_base_url, openrouter_api_key, openrouter_chat_model_preference,
+    sanitize_chatml,
 };
 pub use paths::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, MCP_SESSIONS_DIR_BASENAME, config_dir, data_dir,

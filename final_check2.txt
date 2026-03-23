@@ -1,0 +1,72 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.23
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+   Compiling vox-corpus v0.1.0 (C:\Users\Owner\vox\crates\vox-corpus)
+   Compiling vox-populi v0.1.0 (C:\Users\Owner\vox\crates\vox-populi)
+warning: unused variable: `is_assistant`
+   --> crates\vox-populi\src\tensor\training_text.rs:167:17
+    |
+167 |             let is_assistant = supervised_byte_ranges
+    |                 ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_assistant`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `ids`
+  --> crates\vox-populi\src\tensor\candle_qlora_train.rs:85:24
+   |
+85 | ...   if let Ok((ids, labels)) = crate::tensor::training_text::hf_tokenize_chatml_multiturn(tokenizer, &full_text, config.seq_len) {
+   |                  ^^^ help: if this is intentional, prefix it with an underscore: `_ids`
+
+   Compiling vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+warning: unexpected `cfg` condition value: `database`
+    --> crates\vox-cli\src\commands\corpus.rs:1027:11
+     |
+1027 |     #[cfg(feature = "database")]
+     |           ^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: expected values for `feature` are: `ars`, `coderabbit`, `codex`, `dashboard`, `default`, `execution-api`, `extras-ludus`, `gpu`, `island`, `live`, `mesh`, `populi-base`, `populi-candle-cuda`, `populi-candle-metal`, `populi-dei`, `populi-oratio`, `populi-qlora`, `script-execution`, `stub-check`, and `workflow-runtime`
+     = help: consider adding `database` as a feature in `Cargo.toml`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+     = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `database`
+    --> crates\vox-cli\src\commands\corpus.rs:1050:15
+     |
+1050 |     #[cfg(not(feature = "database"))]
+     |               ^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: expected values for `feature` are: `ars`, `coderabbit`, `codex`, `dashboard`, `default`, `execution-api`, `extras-ludus`, `gpu`, `island`, `live`, `mesh`, `populi-base`, `populi-candle-cuda`, `populi-candle-metal`, `populi-dei`, `populi-oratio`, `populi-qlora`, `script-execution`, `stub-check`, and `workflow-runtime`
+     = help: consider adding `database` as a feature in `Cargo.toml`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: usage of an `unsafe` block
+   --> crates\vox-cli\src\training\mod.rs:650:20
+    |
+650 |             return unsafe { &*(axes as *const ConstructAxes) };
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+   --> crates\vox-cli\src\commands\populi\train.rs:272:33
+    |
+272 |                 if let Err(e) = vox_corpus::corpus::run_mix(cfg_path) {
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^---------- argument #2 of type `&[&str]` is missing
+    |
+note: function defined here
+   --> crates\vox-corpus\src\corpus\mix.rs:278:8
+    |
+278 | pub fn run_mix(config_path: &Path, taxonomy: &[&str]) -> anyhow::Result<()> {
+    |        ^^^^^^^
+help: provide the argument
+    |
+272 |                 if let Err(e) = vox_corpus::corpus::run_mix(cfg_path, /* &[&str] */) {
+    |                                                                     +++++++++++++++
+
+For more information about this error, try `rustc --explain E0061`.
+warning: `vox-cli` (lib) generated 3 warnings
+error: could not compile `vox-cli` (lib) due to 1 previous error; 3 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `vox-populi` (lib) generated 2 warnings (run `cargo fix --lib -p vox-populi` to apply 2 suggestions)

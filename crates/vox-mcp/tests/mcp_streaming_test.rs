@@ -37,7 +37,7 @@ async fn test_mcp_token_streaming_poll() {
                 _ => ("A-00".to_string(), "Other"),
             };
             let payload = serde_json::to_string(&ev.kind).unwrap_or_default();
-            all_events.push(vox_gamify::db::AgentEventRecord {
+            all_events.push(vox_ludus::db::AgentEventRecord {
                 id: ev.id.0 as i64,
                 agent_id: agent_id_str,
                 event_type: event_type.to_string(),

@@ -7,8 +7,8 @@ use crate::{AgentInfo, ServerState, StatusResponse, ToolResult};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::PathBuf;
-use vox_gamify::companion::Companion;
-use vox_gamify::db::{list_companions, upsert_companion};
+use vox_ludus::companion::Companion;
+use vox_ludus::db::{list_companions, upsert_companion};
 use vox_orchestrator::{AgentId, OrchestratorConfig, TaskId};
 
 /// MCP arguments: serialize one agent's task queue as JSON.
@@ -123,10 +123,10 @@ pub struct AgentEventsParams {
     pub agent_id: u64,
 }
 
-/// Return historical [`vox_gamify::db::AgentEventRecord`] rows when Codex is configured.
+/// Return historical [`vox_ludus::db::AgentEventRecord`] rows when Codex is configured.
 pub async fn agent_events(state: &ServerState, params: AgentEventsParams) -> String {
     if let Some(db) = &state.db {
-        match vox_gamify::db::get_events(db, &params.agent_id.to_string(), None).await {
+        match vox_ludus::db::get_events(db, &params.agent_id.to_string(), None).await {
             Ok(events) => ToolResult::ok(events).to_json(),
             Err(e) => ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
         }
@@ -184,7 +184,7 @@ pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> Str
         }
 
         for id in ids {
-            if let Ok(records) = vox_gamify::db::list_cost_records(db, &id, limit).await {
+            if let Ok(records) = vox_ludus::db::list_cost_records(db, &id, limit).await {
                 all_records.extend(records);
             }
         }
@@ -362,7 +362,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
             None
         }
         .unwrap_or_else(|| {
-            vox_gamify::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+            vox_ludus::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
         });
 
         comp.ascii_sprite = Some("🧑‍💻".to_string());
@@ -578,7 +578,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
 
         for id in agent_ids {
             if let Ok(records) =
-                vox_gamify::db::get_events(db, &id.0.to_string(), Some(limit)).await
+                vox_ludus::db::get_events(db, &id.0.to_string(), Some(limit)).await
             {
                 all_events.extend(records);
             }
@@ -606,7 +606,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
                 );
             }
             let payload = serde_json::to_string(&kind_json).unwrap_or_default();
-            all_events.push(vox_gamify::db::AgentEventRecord {
+            all_events.push(vox_ludus::db::AgentEventRecord {
                 id: ev.id.0 as i64,
                 agent_id: agent_id.to_string(),
                 event_type: event_type.to_string(),
@@ -719,7 +719,7 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
 
     if let Some(id) = target_id {
         if let Some(db) = &state.db {
-            let _ = vox_gamify::db::insert_cost_record(
+            let _ = vox_ludus::db::insert_cost_record(
                 db,
                 &id.0.to_string(),
                 Some(&params.session_id),

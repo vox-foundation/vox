@@ -1,0 +1,874 @@
+   Compiling vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:104:5
+    |
+104 |     pub global: GlobalOpts,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: requested on the command line with `-D missing-docs`
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:106:5
+    |
+106 |     pub cmd: Cli,
+    |     ^^^^^^^^^^^^
+
+error: missing documentation for an enum
+   --> crates\vox-cli\src\lib.rs:111:1
+    |
+111 | pub enum Cli {
+    | ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:115:9
+    |
+115 |         shell: Shell,
+    |         ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:121:9
+    |
+121 |         cmd: latin_cmd::FabricaCmd,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:127:9
+    |
+127 |         cmd: latin_cmd::MensCmd,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:133:9
+    |
+133 |         cmd: latin_cmd::ArsCmd,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:145:9
+    |
+145 |         args: cli_args::BuildArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:150:9
+    |
+150 |         args: cli_args::CheckArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:155:9
+    |
+155 |         args: cli_args::TestArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:160:9
+    |
+160 |         args: cli_args::RunArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:171:9
+    |
+171 |         args: cli_args::DevArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:179:9
+    |
+179 |         args: cli_args::BundleArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:184:9
+    |
+184 |         args: cli_args::FmtArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:189:9
+    |
+189 |         package_name: String,
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:196:9
+    |
+196 |         args: cli_args::DoctorArgs,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:207:9
+    |
+207 |         cmd: commands::extras::snippet_cli::SnippetCli,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:212:9
+    |
+212 |         cmd: commands::extras::share_cli::ShareCli,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:217:9
+    |
+217 |         cmd: CodexCmd,
+    |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:222:9
+    |
+222 |         cmd: commands::db_cli::DbCli,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:227:9
+    |
+227 |         cmd: commands::scientia::ScientiaCmd,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:256:9
+    |
+256 |         cmd: commands::ci::CiCmd,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:262:9
+    |
+262 |         action: commands::populi::PopuliAction,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for an enum
+   --> crates\vox-cli\src\lib.rs:291:1
+    |
+291 | pub enum CodexCmd {
+    | ^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:323:9
+    |
+323 |         repository_id: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\lib.rs:325:9
+    |
+325 |         limit: i64,
+    |         ^^^^^^^^^^
+
+error: missing documentation for a module
+  --> crates\vox-cli\src\commands\mod.rs:21:1
+   |
+21 | pub mod doc;
+   | ^^^^^^^^^^^
+
+error: missing documentation for a module
+  --> crates\vox-cli\src\commands\mod.rs:45:1
+   |
+45 | pub mod run;
+   | ^^^^^^^^^^^
+
+error: missing documentation for an enum
+  --> crates\vox-cli\src\commands\ci\mod.rs:61:1
+   |
+61 | pub enum CiCmd {
+   | ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\ci\mod.rs:79:9
+   |
+79 |         cmd: DocInventoryCmd,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\ci\mod.rs:109:9
+    |
+109 |         root: PathBuf,
+    |         ^^^^^^^^^^^^^
+
+error: missing documentation for an enum
+   --> crates\vox-cli\src\commands\ci\mod.rs:149:1
+    |
+149 | pub enum DocInventoryCmd {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\ci\mod.rs:153:9
+    |
+153 |         output: Option<PathBuf>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for an enum
+  --> crates\vox-cli\src\commands\corpus.rs:19:1
+   |
+19 | pub enum CorpusAction {
+   | ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a function
+  --> crates\vox-cli\src\commands\corpus.rs:79:1
+   |
+79 | pub async fn run(action: CorpusAction) -> Result<()> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:14:9
+   |
+14 |         file: Option<PathBuf>,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:19:9
+   |
+19 |         file: Option<PathBuf>,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:24:9
+   |
+24 |         table: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:26:9
+   |
+26 |         limit: i64,
+   |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:31:9
+   |
+31 |         file: Option<PathBuf>,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:36:9
+   |
+36 |         user_id: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:38:9
+   |
+38 |         output: Option<PathBuf>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:43:9
+   |
+43 |         path: PathBuf,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:50:9
+   |
+50 |         user_id: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:52:9
+   |
+52 |         days: u32,
+   |         ^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:58:9
+   |
+58 |         user_id: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:60:9
+   |
+60 |         key: String,
+   |         ^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:66:9
+   |
+66 |         user_id: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:68:9
+   |
+68 |         key: String,
+   |         ^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:70:9
+   |
+70 |         value: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:76:9
+   |
+76 |         user_id: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:78:9
+   |
+78 |         prefix: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:87:9
+   |
+87 |         path: PathBuf,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:96:9
+   |
+96 |         vendor: String,
+   |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\db_cli.rs:98:9
+   |
+98 |         topic: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:100:9
+    |
+100 |         url: String,
+    |         ^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:102:9
+    |
+102 |         title: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:104:9
+    |
+104 |         summary: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:106:9
+    |
+106 |         source_type: String,
+    |         ^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:108:9
+    |
+108 |         area: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:110:9
+    |
+110 |         kb_id: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:112:9
+    |
+112 |         tags: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:114:9
+    |
+114 |         confidence: f64,
+    |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:120:9
+    |
+120 |         vendor: String,
+    |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:122:9
+    |
+122 |         topic: String,
+    |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:124:9
+    |
+124 |         path: PathBuf,
+    |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:126:9
+    |
+126 |         area: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:128:9
+    |
+128 |         kb_id: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:130:9
+    |
+130 |         tags: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:132:9
+    |
+132 |         confidence: f64,
+    |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:138:9
+    |
+138 |         vendor: String,
+    |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:140:9
+    |
+140 |         dry_run: bool,
+    |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:146:9
+    |
+146 |         vendor: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:148:9
+    |
+148 |         topic: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:150:9
+    |
+150 |         limit: i64,
+    |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:156:9
+    |
+156 |         vendor: String,
+    |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:158:9
+    |
+158 |         topic: String,
+    |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:160:9
+    |
+160 |         area: String,
+    |         ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:162:9
+    |
+162 |         openclaw_capability: String,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:164:9
+    |
+164 |         vox_evidence: String,
+    |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:166:9
+    |
+166 |         status: String,
+    |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:168:9
+    |
+168 |         advantage_direction: String,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:170:9
+    |
+170 |         recommended_action: String,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:172:9
+    |
+172 |         linked_paths: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:178:9
+    |
+178 |         vendor: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:180:9
+    |
+180 |         topic: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:182:9
+    |
+182 |         limit: i64,
+    |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:188:9
+    |
+188 |         session_id: i64,
+    |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:190:9
+    |
+190 |         metric_type: Option<String>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:199:9
+    |
+199 |         limit: i64,
+    |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+   --> crates\vox-cli\src\commands\db_cli.rs:205:9
+    |
+205 |         limit: i64,
+    |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:13:9
+   |
+13 |         r#type: String,
+   |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:15:9
+   |
+15 |         name: String,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:17:9
+   |
+17 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:19:9
+   |
+19 |         version: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:21:9
+   |
+21 |         description: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:23:9
+   |
+23 |         tags: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:28:9
+   |
+28 |         query: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:33:9
+   |
+33 |         artifact_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:38:9
+   |
+38 |         artifact_id: String,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:40:9
+   |
+40 |         rating: i64,
+   |         ^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\share_cli.rs:42:9
+   |
+42 |         comment: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\snippet_cli.rs:14:9
+   |
+14 |         file: PathBuf,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\snippet_cli.rs:16:9
+   |
+16 |         title: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\snippet_cli.rs:18:9
+   |
+18 |         description: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\snippet_cli.rs:20:9
+   |
+20 |         tags: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\snippet_cli.rs:25:9
+   |
+25 |         query: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\extras\snippet_cli.rs:30:9
+   |
+30 |         limit: i64,
+   |         ^^^^^^^^^^
+
+error: missing documentation for a function
+  --> crates\vox-cli\src\commands\run.rs:74:1
+   |
+74 | pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:17:9
+   |
+17 |         vendor: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:19:9
+   |
+19 |         topic: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:21:9
+   |
+21 |         limit: i64,
+   |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:27:9
+   |
+27 |         vendor: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:29:9
+   |
+29 |         topic: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:31:9
+   |
+31 |         limit: i64,
+   |         ^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:40:9
+   |
+40 |         vendor: String,
+   |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\commands\scientia.rs:42:9
+   |
+42 |         dry_run: bool,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:11:5
+   |
+11 |     pub id: String,
+   |     ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:12:5
+   |
+12 |     pub method: String,
+   |     ^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:13:5
+   |
+13 |     pub params: Value,
+   |     ^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:19:5
+   |
+19 |     pub id: String,
+   |     ^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:20:5
+   |
+20 |     pub payload: DispatchPayload,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:27:5
+   |
+27 |     Result {
+   |     ^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:28:9
+   |
+28 |         value: Value,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:30:5
+   |
+30 |     Error {
+   |     ^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:31:9
+   |
+31 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:32:9
+   |
+32 |         code: i32,
+   |         ^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:34:5
+   |
+34 |     Chunk {
+   |     ^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:35:9
+   |
+35 |         text: String,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:37:5
+   |
+37 |     Progress {
+   |     ^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:38:9
+   |
+38 |         percent: f32,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:39:9
+   |
+39 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:41:5
+   |
+41 |     Log {
+   |     ^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:42:9
+   |
+42 |         level: String,
+   |         ^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:43:9
+   |
+43 |         msg: String,
+   |         ^^^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:45:5
+   |
+45 |     Diag {
+   |     ^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:46:9
+   |
+46 |         severity: String,
+   |         ^^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:47:9
+   |
+47 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:48:9
+   |
+48 |         file: String,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:49:9
+   |
+49 |         line: u32,
+   |         ^^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:50:9
+   |
+50 |         col: u32,
+   |         ^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:52:5
+   |
+52 |     Artifact {
+   |     ^^^^^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:53:9
+   |
+53 |         path: String,
+   |         ^^^^^^^^^^^^
+
+error: missing documentation for a variant
+  --> crates\vox-cli\src\dispatch_protocol.rs:55:5
+   |
+55 |     Done {
+   |     ^^^^
+
+error: missing documentation for a struct field
+  --> crates\vox-cli\src\dispatch_protocol.rs:56:9
+   |
+56 |         exit: i32,
+   |         ^^^^^^^^^
+
+error: could not compile `vox-cli` (lib) due to 145 previous errors

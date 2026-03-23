@@ -1,0 +1,157 @@
+warning: unexpected `cfg` condition value: `database`
+ --> crates\vox-corpus\src\arca_replay.rs:4:7
+  |
+4 | #[cfg(feature = "database")]
+  |       ^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+  |
+  = note: no expected values for `feature`
+  = help: consider adding `database` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `database`
+  --> crates\vox-corpus\src\arca_replay.rs:18:7
+   |
+18 | #[cfg(feature = "database")]
+   |       ^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+   |
+   = note: no expected values for `feature`
+   = help: consider adding `database` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parser-verify`
+   --> crates\vox-corpus\src\codegen_vox.rs:751:11
+    |
+751 |     #[cfg(feature = "parser-verify")]
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `parser-verify` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parser-verify`
+   --> crates\vox-corpus\src\codegen_vox.rs:757:15
+    |
+757 |     #[cfg(not(feature = "parser-verify"))]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `parser-verify` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused variable: `cfg`
+   --> crates\vox-corpus\src\synthetic_gen.rs:710:61
+    |
+710 | fn generate_negative_preference_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
+    |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_cfg`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `compile_chatml_session` is never used
+   --> crates\vox-corpus\src\arca_replay.rs:141:4
+    |
+141 | fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Option<ReplayRow> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `sanitize_chatml` is never used
+   --> crates\vox-corpus\src\arca_replay.rs:233:4
+    |
+233 | fn sanitize_chatml(s: &str) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: `vox-corpus` (lib) generated 7 warnings (run `cargo fix --lib -p vox-corpus` to apply 1 suggestion)
+    Checking vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+error[E0061]: this method takes 2 arguments but 1 argument was supplied
+   --> crates\vox-cli\src\commands\db.rs:166:28
+    |
+166 |     let prefs = db.store().list_user_preferences(user_id).await?;
+    |                            ^^^^^^^^^^^^^^^^^^^^^--------- argument #2 of type `std::option::Option<&str>` is missing
+    |
+note: method defined here
+   --> crates\vox-pm\src\store\ops_learning.rs:280:18
+    |
+280 |     pub async fn list_user_preferences(
+    |                  ^^^^^^^^^^^^^^^^^^^^^
+help: provide the argument
+    |
+166 |     let prefs = db.store().list_user_preferences(user_id, /* std::option::Option<&str> */).await?;
+    |                                                         +++++++++++++++++++++++++++++++++
+
+error[E0061]: this method takes 2 arguments but 1 argument was supplied
+   --> crates\vox-cli\src\commands\db.rs:300:28
+    |
+300 |     let prefs = db.store().list_user_preferences(user_id).await?;
+    |                            ^^^^^^^^^^^^^^^^^^^^^--------- argument #2 of type `std::option::Option<&str>` is missing
+    |
+note: method defined here
+   --> crates\vox-pm\src\store\ops_learning.rs:280:18
+    |
+280 |     pub async fn list_user_preferences(
+    |                  ^^^^^^^^^^^^^^^^^^^^^
+help: provide the argument
+    |
+300 |     let prefs = db.store().list_user_preferences(user_id, /* std::option::Option<&str> */).await?;
+    |                                                         +++++++++++++++++++++++++++++++++
+
+error[E0599]: no method named `list_names` found for reference `&CodeStore` in the current scope
+ --> crates\vox-cli\src\commands\db_research_impl.rs:6:10
+  |
+4 |       let pairs = db
+  |  _________________-
+5 | |         .store()
+6 | |         .list_names("invocable")
+  | |         -^^^^^^^^^^ method not found in `&CodeStore`
+  | |_________|
+  |
+
+error[E0282]: type annotations needed
+ --> crates\vox-cli\src\commands\db_research_impl.rs:4:17
+  |
+4 |       let pairs = db
+  |  _________________^
+5 | |         .store()
+6 | |         .list_names("invocable")
+7 | |         .await
+  | |______________^ cannot infer type
+
+error[E0282]: type annotations needed
+  --> crates\vox-cli\src\commands\db_research_impl.rs:15:30
+   |
+15 |         let prefix: String = hash.chars().take(16).collect();
+   |                              ^^^^ cannot infer type
+
+error[E0599]: no method named `list_research_metrics` found for reference `&CodeStore` in the current scope
+   --> crates\vox-cli\src\commands\db_research_impl.rs:668:10
+    |
+666 |       let metrics = db
+    |  ___________________-
+667 | |         .store()
+668 | |         .list_research_metrics(&sid, mt)
+    | |_________-^^^^^^^^^^^^^^^^^^^^^
+    |
+help: there is a method `list_research_metrics_by_type` with a similar name, but with different arguments
+   --> crates\vox-pm\src\store\ops_codex.rs:252:5
+    |
+252 | /     pub async fn list_research_metrics_by_type(
+253 | |         &self,
+254 | |         metric_type: &str,
+255 | |         session_prefix: &str,
+256 | |         limit: i64,
+257 | |     ) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+    | |_______________________________________________________________^
+
+error[E0282]: type annotations needed
+   --> crates\vox-cli\src\commands\db_research_impl.rs:666:19
+    |
+666 |       let metrics = db
+    |  ___________________^
+667 | |         .store()
+668 | |         .list_research_metrics(&sid, mt)
+669 | |         .await
+    | |______________^ cannot infer type
+
+Some errors have detailed explanations: E0061, E0282, E0599.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `vox-cli` (lib) due to 7 previous errors

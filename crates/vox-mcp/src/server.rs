@@ -524,7 +524,7 @@ impl ServerState {
                         );
                     }
                     let payload = serde_json::to_string(&kind_json).unwrap_or_default();
-                    let _ = vox_gamify::db::insert_event(
+                    let _ = vox_ludus::db::insert_event(
                         &db_for_task,
                         &agent_id.to_string(),
                         event_type,
@@ -533,9 +533,9 @@ impl ServerState {
                     .await;
 
                     // Process rewards
-                    let _ = vox_gamify::db::process_event_rewards(
+                    let _ = vox_ludus::db::process_event_rewards(
                         &db_for_task,
-                        vox_gamify::util::DEFAULT_USER_ID,
+                        vox_ludus::util::DEFAULT_USER_ID,
                         &kind_json,
                     )
                     .await;

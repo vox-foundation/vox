@@ -207,11 +207,26 @@ pub async fn mcp_infer_completion(
             }
         }
 
+        let chatml_collapsed: Option<String> = if state.orchestrator_config.chatml_strict {
+            Some(format!(
+                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                vox_config::sanitize_chatml(system_prompt),
+                vox_config::sanitize_chatml(routing.user_prompt)
+            ))
+        } else {
+            None
+        };
+        let (final_system, final_user): (&str, &str) = if let Some(ref collapsed) = chatml_collapsed {
+            ("", collapsed.as_str())
+        } else {
+            (system_prompt, routing.user_prompt)
+        };
+
         let infer_result = http_infer_model(
             client,
             &model,
-            system_prompt,
-            routing.user_prompt,
+            final_system,
+            final_user,
             max_t,
             temperature,
         )

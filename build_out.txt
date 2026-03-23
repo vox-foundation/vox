@@ -1,0 +1,2306 @@
+    Checking vox-pm v0.1.0 (C:\Users\Owner\vox\crates\vox-pm)
+error[E0432]: unresolved import `crate::store::types::EndpointReliabilityEntry`
+  --> crates\vox-pm\src\store\ops_reliability.rs:11:26
+   |
+11 |     CodexChangeLogEntry, EndpointReliabilityEntry, SkillExecutionParams,
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^ no `EndpointReliabilityEntry` in `store::types`
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops.rs:107:25
+    |
+107 |         let hash = self.lookup_name(namespace, old_name).await?;
+    |                         ^^^^^^^^^^^ multiple `lookup_name` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:56:5
+    |
+ 56 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:85:5
+    |
+ 85 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops.rs:108:14
+    |
+108 |         self.bind_name(namespace, new_name, &hash).await?;
+    |              ^^^^^^^^^ multiple `bind_name` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:40:5
+    |
+ 40 | /     pub async fn bind_name(
+ 41 | |         &self,
+ 42 | |         namespace: &str,
+ 43 | |         name: &str,
+ 44 | |         hash: &str,
+ 45 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:69:5
+    |
+ 69 | /     pub async fn bind_name(
+ 70 | |         &self,
+ 71 | |         namespace: &str,
+ 72 | |         name: &str,
+ 73 | |         hash: &str,
+ 74 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops.rs:136:25
+    |
+136 |         let hash = self.lookup_name(namespace, name).await?;
+    |                         ^^^^^^^^^^^ multiple `lookup_name` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:56:5
+    |
+ 56 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:85:5
+    |
+ 85 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops.rs:137:26
+    |
+137 |         let bytes = self.get(&hash).await?;
+    |                          ^^^ multiple `get` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:24:5
+    |
+ 24 |     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:53:5
+    |
+ 53 |     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops.rs:148:25
+    |
+148 |         let hash = self.store("binding", value.as_bytes()).await?;
+    |                         ^^^^^ multiple `store` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:12:5
+    |
+ 12 |     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:41:5
+    |
+ 41 |     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops.rs:149:14
+    |
+149 |         self.bind_name(namespace, name, &hash).await
+    |              ^^^^^^^^^ multiple `bind_name` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:40:5
+    |
+ 40 | /     pub async fn bind_name(
+ 41 | |         &self,
+ 42 | |         namespace: &str,
+ 43 | |         name: &str,
+ 44 | |         hash: &str,
+ 45 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:69:5
+    |
+ 69 | /     pub async fn bind_name(
+ 70 | |         &self,
+ 71 | |         namespace: &str,
+ 72 | |         name: &str,
+ 73 | |         hash: &str,
+ 74 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops.rs:1517:32
+     |
+1517 |         let prefs = match self.list_user_preferences(agent_id).await {
+     |                                ^^^^^^^^^^^^^^^^^^^^^ multiple `list_user_preferences` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_users.rs:136:5
+     |
+ 136 | /     pub async fn list_user_preferences(
+ 137 | |         &self,
+ 138 | |         user_id: &str,
+ 139 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+     | |__________________________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:618:5
+     |
+ 618 | /     pub async fn list_user_preferences(
+ 619 | |         &self,
+ 620 | |         user_id: &str,
+ 621 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+     | |__________________________________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops.rs:1521:35
+     |
+1521 |         let memories = match self.recall_memory(agent_id, None, 10_000, None).await {
+     |                                   ^^^^^^^^^^^^^ multiple `recall_memory` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_users.rs:177:5
+     |
+ 177 | /     pub async fn recall_memory(
+ 178 | |         &self,
+ 179 | |         agent_id: &str,
+ 180 | |         memory_type: Option<&str>,
+ 181 | |         limit: i64,
+ 182 | |         _vcs_snapshot_id: Option<&str>,
+ 183 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+     | |_____________________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:659:5
+     |
+ 659 | /     pub async fn recall_memory(
+ 660 | |         &self,
+ 661 | |         agent_id: &str,
+ 662 | |         memory_type: Option<&str>,
+ 663 | |         limit: i64,
+ 664 | |         _vcs_snapshot_id: Option<&str>,
+ 665 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+     | |_____________________________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops.rs:1525:35
+     |
+1525 |         let patterns = match self.get_learned_patterns(agent_id, 10_000).await {
+     |                                   ^^^^^^^^^^^^^^^^^^^^ multiple `get_learned_patterns` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_behavior.rs:119:5
+     |
+ 119 | /     pub async fn get_learned_patterns(
+ 120 | |         &self,
+ 121 | |         user_id: &str,
+ 122 | |         limit: i64,
+ 123 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:1019:5
+     |
+1019 | /     pub async fn get_learned_patterns(
+1020 | |         &self,
+1021 | |         user_id: &str,
+1022 | |         limit: i64,
+1023 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops.rs:1588:26
+     |
+1588 |                     self.set_user_preference(&agent_id, k, val).await?;
+     |                          ^^^^^^^^^^^^^^^^^^^ multiple `set_user_preference` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_users.rs:100:5
+     |
+ 100 | /     pub async fn set_user_preference(
+ 101 | |         &self,
+ 102 | |         user_id: &str,
+ 103 | |         key: &str,
+ 104 | |         value: &str,
+ 105 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:582:5
+     |
+ 582 | /     pub async fn set_user_preference(
+ 583 | |         &self,
+ 584 | |         user_id: &str,
+ 585 | |         key: &str,
+ 586 | |         value: &str,
+ 587 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops.rs:1601:22
+     |
+1601 |                     .save_memory(SaveMemoryParams {
+     |                      ^^^^^^^^^^^ multiple `save_memory` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_users.rs:157:5
+     |
+ 157 |     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:639:5
+     |
+ 639 |     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops.rs:1619:22
+     |
+1619 |                     .store_learned_pattern(
+     |                      ^^^^^^^^^^^^^^^^^^^^^ multiple `store_learned_pattern` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_behavior.rs:163:5
+     |
+ 163 | /     pub async fn store_learned_pattern(
+ 164 | |         &self,
+ 165 | |         user_id: &str,
+ 166 | |         pattern_type: &str,
+...    |
+ 170 | |         vcs_snapshot_id: Option<&str>,
+ 171 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:1079:5
+     |
+1079 | /     pub async fn store_learned_pattern(
+1080 | |         &self,
+1081 | |         user_id: &str,
+1082 | |         pattern_type: &str,
+...    |
+1086 | |         vcs_snapshot_id: Option<&str>,
+1087 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops_agents.rs:216:30
+     |
+ 216 |                 let _ = self.record_task_reliability_observation(&aid, success).await;
+     |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `record_task_reliability_observation` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_reliability.rs:120:5
+     |
+ 120 | /     pub async fn record_task_reliability_observation(
+ 121 | |         &self,
+ 122 | |         agent_id: &str,
+ 123 | |         success: bool,
+ 124 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:2117:5
+     |
+2117 | /     pub async fn record_task_reliability_observation(
+2118 | |         &self,
+2119 | |         agent_id: u64,
+2120 | |         success: bool,
+2121 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+  --> crates\vox-pm\src\store\ops_cas.rs:78:25
+   |
+78 |         let hash = self.lookup_name(namespace, old_name).await?;
+   |                         ^^^^^^^^^^^ multiple `lookup_name` found
+   |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+  --> crates\vox-pm\src\store\ops_cas.rs:56:5
+   |
+56 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+  --> crates\vox-pm\src\store\ops.rs:85:5
+   |
+85 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+  --> crates\vox-pm\src\store\ops_cas.rs:79:14
+   |
+79 |         self.bind_name(namespace, new_name, &hash).await?;
+   |              ^^^^^^^^^ multiple `bind_name` found
+   |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+  --> crates\vox-pm\src\store\ops_cas.rs:40:5
+   |
+40 | /     pub async fn bind_name(
+41 | |         &self,
+42 | |         namespace: &str,
+43 | |         name: &str,
+44 | |         hash: &str,
+45 | |     ) -> Result<(), StoreError> {
+   | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+  --> crates\vox-pm\src\store\ops.rs:69:5
+   |
+69 | /     pub async fn bind_name(
+70 | |         &self,
+71 | |         namespace: &str,
+72 | |         name: &str,
+73 | |         hash: &str,
+74 | |     ) -> Result<(), StoreError> {
+   | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_cas.rs:107:25
+    |
+107 |         let hash = self.lookup_name(namespace, name).await?;
+    |                         ^^^^^^^^^^^ multiple `lookup_name` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:56:5
+    |
+ 56 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:85:5
+    |
+ 85 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_cas.rs:108:26
+    |
+108 |         let bytes = self.get(&hash).await?;
+    |                          ^^^ multiple `get` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:24:5
+    |
+ 24 |     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:53:5
+    |
+ 53 |     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_cas.rs:119:25
+    |
+119 |         let hash = self.store("binding", value.as_bytes()).await?;
+    |                         ^^^^^ multiple `store` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:12:5
+    |
+ 12 |     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:41:5
+    |
+ 41 |     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_cas.rs:120:14
+    |
+120 |         self.bind_name(namespace, name, &hash).await
+    |              ^^^^^^^^^ multiple `bind_name` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_cas.rs:40:5
+    |
+ 40 | /     pub async fn bind_name(
+ 41 | |         &self,
+ 42 | |         namespace: &str,
+ 43 | |         name: &str,
+ 44 | |         hash: &str,
+ 45 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:69:5
+    |
+ 69 | /     pub async fn bind_name(
+ 70 | |         &self,
+ 71 | |         namespace: &str,
+ 72 | |         name: &str,
+ 73 | |         hash: &str,
+ 74 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+
+error[E0308]: mismatched types
+  --> crates\vox-pm\src\store\ops_corpus.rs:55:23
+   |
+55 |                 tags: format!("skill,version:{version}"),
+   |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<String>`, found `String`
+   |
+   = note: expected struct `Vec<std::string::String>`
+              found struct `std::string::String`
+   = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> crates\vox-pm\src\store\ops_corpus.rs:103:23
+    |
+103 |                   tags: tags
+    |  _______________________^
+104 | |                     .map(|t| format!("snippet,{t},lang:{lang}"))
+105 | |                     .unwrap_or_else(|| format!("snippet,lang:{lang}")),
+    | |______________________________________________________________________^ expected `Vec<String>`, found `String`
+    |
+    = note: expected struct `Vec<std::string::String>`
+               found struct `std::string::String`
+
+error[E0308]: mismatched types
+   --> crates\vox-pm\src\store\ops_corpus.rs:159:23
+    |
+159 |                 tags: "conversation,chat".to_string(),
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<String>`, found `String`
+    |
+    = note: expected struct `Vec<std::string::String>`
+               found struct `std::string::String`
+
+error[E0308]: mismatched types
+   --> crates\vox-pm\src\store\ops_corpus.rs:216:23
+    |
+216 |                 tags: format!("workflow,status:{status}"),
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<String>`, found `String`
+    |
+    = note: expected struct `Vec<std::string::String>`
+               found struct `std::string::String`
+    = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> crates\vox-pm\src\store\ops_corpus.rs:270:23
+    |
+270 |                 tags: format!("a2a,msg_type:{msg_type}"),
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<String>`, found `String`
+    |
+    = note: expected struct `Vec<std::string::String>`
+               found struct `std::string::String`
+    = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> crates\vox-pm\src\store\ops_corpus.rs:326:23
+    |
+326 |                 tags: format!("agent,version:{version}"),
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<String>`, found `String`
+    |
+    = note: expected struct `Vec<std::string::String>`
+               found struct `std::string::String`
+    = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0609]: no field `agent_id` on type `LogExecutionParams<'_>`
+  --> crates\vox-pm\src\store\ops_execution.rs:23:23
+   |
+23 |                     p.agent_id,
+   |                       ^^^^^^^^ unknown field
+   |
+   = note: available fields are: `workflow_id`, `activity_name`, `status`, `attempt`, `input` ... and 3 others
+
+error[E0609]: no field `skill_id` on type `LogExecutionParams<'_>`
+  --> crates\vox-pm\src\store\ops_execution.rs:24:23
+   |
+24 |                     p.skill_id,
+   |                       ^^^^^^^^ unknown field
+   |
+   = note: available fields are: `workflow_id`, `activity_name`, `status`, `attempt`, `input` ... and 3 others
+
+error[E0609]: no field `duration_ms` on type `LogExecutionParams<'_>`
+  --> crates\vox-pm\src\store\ops_execution.rs:28:23
+   |
+28 |                     p.duration_ms,
+   |                       ^^^^^^^^^^^ unknown field
+   |
+   = note: available fields are: `workflow_id`, `activity_name`, `status`, `attempt`, `input` ... and 3 others
+
+error[E0609]: no field `output_size` on type `LogExecutionParams<'_>`
+  --> crates\vox-pm\src\store\ops_execution.rs:29:23
+   |
+29 |                     p.output_size,
+   |                       ^^^^^^^^^^^ unknown field
+   |
+   = note: available fields are: `workflow_id`, `activity_name`, `status`, `attempt`, `input` ... and 3 others
+
+error[E0609]: no field `agent_id` on type `LogExecutionParams<'_>`
+  --> crates\vox-pm\src\store\ops_execution.rs:40:30
+   |
+40 |         if let Some(aid) = p.agent_id {
+   |                              ^^^^^^^^ unknown field
+   |
+   = note: available fields are: `workflow_id`, `activity_name`, `status`, `attempt`, `input` ... and 3 others
+
+error[E0282]: type annotations needed
+  --> crates\vox-pm\src\store\ops_execution.rs:41:17
+   |
+41 |             if !aid.is_empty() && (p.status == "ok" || p.status == "error") {
+   |                 ^^^ cannot infer type
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops_execution.rs:43:22
+     |
+  43 |                     .record_task_reliability_observation(aid, p.status == "ok")
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `record_task_reliability_observation` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_reliability.rs:120:5
+     |
+ 120 | /     pub async fn record_task_reliability_observation(
+ 121 | |         &self,
+ 122 | |         agent_id: &str,
+ 123 | |         success: bool,
+ 124 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:2117:5
+     |
+2117 | /     pub async fn record_task_reliability_observation(
+2118 | |         &self,
+2119 | |         agent_id: u64,
+2120 | |         success: bool,
+2121 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops_reliability.rs:289:22
+     |
+ 289 |                 self.record_task_reliability_observation(aid, ok).await?;
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `record_task_reliability_observation` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_reliability.rs:120:5
+     |
+ 120 | /     pub async fn record_task_reliability_observation(
+ 121 | |         &self,
+ 122 | |         agent_id: &str,
+ 123 | |         success: bool,
+ 124 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:2117:5
+     |
+2117 | /     pub async fn record_task_reliability_observation(
+2118 | |         &self,
+2119 | |         agent_id: u64,
+2120 | |         success: bool,
+2121 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+
+error[E0560]: struct `SkillReliabilityReport` has no field named `total`
+   --> crates\vox-pm\src\store\ops_reliability.rs:361:13
+    |
+361 |             total: total as u64,
+    |             ^^^^^ `SkillReliabilityReport` does not have this field
+    |
+    = note: available fields are: `invocation_count`
+
+error[E0560]: struct `SkillReliabilityReport` has no field named `median_duration_ms`
+   --> crates\vox-pm\src\store\ops_reliability.rs:363:13
+    |
+363 |             median_duration_ms: median,
+    |             ^^^^^^^^^^^^^^^^^^ `SkillReliabilityReport` does not have this field
+    |
+    = note: available fields are: `invocation_count`
+
+error[E0560]: struct `SkillReliabilityReport` has no field named `last_error_kind`
+   --> crates\vox-pm\src\store\ops_reliability.rs:365:13
+    |
+365 |             last_error_kind,
+    |             ^^^^^^^^^^^^^^^ `SkillReliabilityReport` does not have this field
+    |
+    = note: available fields are: `invocation_count`
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops_reliability.rs:434:26
+     |
+ 434 |                     self.record_task_reliability_observation(&aid, success).await?;
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `record_task_reliability_observation` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_reliability.rs:120:5
+     |
+ 120 | /     pub async fn record_task_reliability_observation(
+ 121 | |         &self,
+ 122 | |         agent_id: &str,
+ 123 | |         success: bool,
+ 124 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:2117:5
+     |
+2117 | /     pub async fn record_task_reliability_observation(
+2118 | |         &self,
+2119 | |         agent_id: u64,
+2120 | |         success: bool,
+2121 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_sessions.rs:15:26
+    |
+ 15 |         let prefs = self.list_user_preferences(agent_id).await.unwrap_or_default();
+    |                          ^^^^^^^^^^^^^^^^^^^^^ multiple `list_user_preferences` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_users.rs:136:5
+    |
+136 | /     pub async fn list_user_preferences(
+137 | |         &self,
+138 | |         user_id: &str,
+139 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:618:5
+    |
+618 | /     pub async fn list_user_preferences(
+619 | |         &self,
+620 | |         user_id: &str,
+621 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________^
+
+error[E0282]: type annotations needed
+  --> crates\vox-pm\src\store\ops_sessions.rs:15:21
+   |
+15 |         let prefs = self.list_user_preferences(agent_id).await.unwrap_or_default();
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_sessions.rs:16:29
+    |
+ 16 |         let memories = self.recall_memory(agent_id, None, 10_000, None).await.unwrap_or_default();
+    |                             ^^^^^^^^^^^^^ multiple `recall_memory` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_users.rs:177:5
+    |
+177 | /     pub async fn recall_memory(
+178 | |         &self,
+179 | |         agent_id: &str,
+180 | |         memory_type: Option<&str>,
+181 | |         limit: i64,
+182 | |         _vcs_snapshot_id: Option<&str>,
+183 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+    | |_____________________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:659:5
+    |
+659 | /     pub async fn recall_memory(
+660 | |         &self,
+661 | |         agent_id: &str,
+662 | |         memory_type: Option<&str>,
+663 | |         limit: i64,
+664 | |         _vcs_snapshot_id: Option<&str>,
+665 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+    | |_____________________________________________^
+
+error[E0282]: type annotations needed
+  --> crates\vox-pm\src\store\ops_sessions.rs:16:24
+   |
+16 |         let memories = self.recall_memory(agent_id, None, 10_000, None).await.unwrap_or_default();
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops_sessions.rs:17:29
+     |
+  17 |         let patterns = self.get_learned_patterns(agent_id, 10_000).await.unwrap_or_default();
+     |                             ^^^^^^^^^^^^^^^^^^^^ multiple `get_learned_patterns` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_behavior.rs:119:5
+     |
+ 119 | /     pub async fn get_learned_patterns(
+ 120 | |         &self,
+ 121 | |         user_id: &str,
+ 122 | |         limit: i64,
+ 123 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:1019:5
+     |
+1019 | /     pub async fn get_learned_patterns(
+1020 | |         &self,
+1021 | |         user_id: &str,
+1022 | |         limit: i64,
+1023 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________^
+
+error[E0282]: type annotations needed
+  --> crates\vox-pm\src\store\ops_sessions.rs:17:24
+   |
+17 |         let patterns = self.get_learned_patterns(agent_id, 10_000).await.unwrap_or_default();
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_sessions.rs:41:24
+    |
+ 41 |                 { self.set_user_preference(&agent_id, k, val).await?; }
+    |                        ^^^^^^^^^^^^^^^^^^^ multiple `set_user_preference` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_users.rs:100:5
+    |
+100 | /     pub async fn set_user_preference(
+101 | |         &self,
+102 | |         user_id: &str,
+103 | |         key: &str,
+104 | |         value: &str,
+105 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:582:5
+    |
+582 | /     pub async fn set_user_preference(
+583 | |         &self,
+584 | |         user_id: &str,
+585 | |         key: &str,
+586 | |         value: &str,
+587 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^
+
+error[E0034]: multiple applicable items in scope
+   --> crates\vox-pm\src\store\ops_sessions.rs:48:30
+    |
+ 48 |                 let _ = self.save_memory(SaveMemoryParams {
+    |                              ^^^^^^^^^^^ multiple `save_memory` found
+    |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops_users.rs:157:5
+    |
+157 |     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+   --> crates\vox-pm\src\store\ops.rs:639:5
+    |
+639 |     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0034]: multiple applicable items in scope
+    --> crates\vox-pm\src\store\ops_sessions.rs:57:30
+     |
+  57 | ...   let _ = self.store_learned_pattern(&agent_id, &p.pattern_type, &p.category, &p.description, p.confidence, p.vcs_snapshot_id....
+     |                    ^^^^^^^^^^^^^^^^^^^^^ multiple `store_learned_pattern` found
+     |
+note: candidate #1 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops_behavior.rs:163:5
+     |
+ 163 | /     pub async fn store_learned_pattern(
+ 164 | |         &self,
+ 165 | |         user_id: &str,
+ 166 | |         pattern_type: &str,
+...    |
+ 170 | |         vcs_snapshot_id: Option<&str>,
+ 171 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^
+note: candidate #2 is defined in an impl for the type `CodeStore`
+    --> crates\vox-pm\src\store\ops.rs:1079:5
+     |
+1079 | /     pub async fn store_learned_pattern(
+1080 | |         &self,
+1081 | |         user_id: &str,
+1082 | |         pattern_type: &str,
+...    |
+1086 | |         vcs_snapshot_id: Option<&str>,
+1087 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^
+
+error[E0592]: duplicate definitions with name `save_snippet`
+    --> crates\vox-pm\src\store\ops.rs:1199:5
+     |
+1199 |     pub async fn save_snippet(&self, p: SaveSnippetParams<'_>) -> Result<i64, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `save_snippet`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:17:5
+     |
+  17 |     pub async fn save_snippet(&self, p: SaveSnippetParams<'_>) -> Result<i64, StoreError> {
+     |     ------------------------------------------------------------------------------------- other definition for `save_snippet`
+
+error[E0592]: duplicate definitions with name `search_snippets`
+    --> crates\vox-pm\src\store\ops.rs:1220:5
+     |
+1220 | /     pub async fn search_snippets(
+1221 | |         &self,
+1222 | |         query: &str,
+1223 | |         _language: Option<&str>,
+1224 | |     ) -> Result<Vec<SnippetEntry>, StoreError> {
+     | |______________________________________________^ duplicate definitions for `search_snippets`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:30:5
+     |
+  30 |       pub async fn search_snippets(&self, query: &str, _language: Option<&str>) -> Result<Vec<SnippetEntry>, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------ other definition for `search_snippets`
+
+error[E0592]: duplicate definitions with name `publish_artifact`
+    --> crates\vox-pm\src\store\ops.rs:1250:5
+     |
+1250 |     pub async fn publish_artifact(&self, p: PublishArtifactParams<'_>) -> Result<(), StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `publish_artifact`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:49:5
+     |
+  49 |     pub async fn publish_artifact(&self, p: PublishArtifactParams<'_>) -> Result<(), StoreError> {
+     |     -------------------------------------------------------------------------------------------- other definition for `publish_artifact`
+
+error[E0592]: duplicate definitions with name `search_artifacts`
+    --> crates\vox-pm\src\store\ops.rs:1272:5
+     |
+1272 |     pub async fn search_artifacts(&self, query: &str) -> Result<Vec<ArtifactEntry>, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `search_artifacts`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:59:5
+     |
+  59 |     pub async fn search_artifacts(&self, query: &str) -> Result<Vec<ArtifactEntry>, StoreError> {
+     |     ------------------------------------------------------------------------------------------- other definition for `search_artifacts`
+
+error[E0592]: duplicate definitions with name `list_artifacts`
+    --> crates\vox-pm\src\store\ops.rs:1290:5
+     |
+1290 | /     pub async fn list_artifacts(
+1291 | |         &self,
+1292 | |         artifact_type: &str,
+1293 | |     ) -> Result<Vec<ArtifactEntry>, StoreError> {
+     | |_______________________________________________^ duplicate definitions for `list_artifacts`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:72:5
+     |
+  72 |       pub async fn list_artifacts(&self, artifact_type: &str) -> Result<Vec<ArtifactEntry>, StoreError> {
+     |       ------------------------------------------------------------------------------------------------- other definition for `list_artifacts`
+
+error[E0592]: duplicate definitions with name `submit_review`
+    --> crates\vox-pm\src\store\ops.rs:1310:5
+     |
+1310 | /     pub async fn submit_review(
+1311 | |         &self,
+1312 | |         artifact_id: &str,
+1313 | |         reviewer_id: &str,
+...    |
+1316 | |         rating: Option<i64>,
+1317 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `submit_review`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:84:5
+     |
+  84 |       pub async fn submit_review(&self, artifact_id: &str, reviewer_id: &str, status: &str, comment: Option<&str>, rating: Option<i64>) -> Result<i64, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------------------------------------------ other definition for `submit_review`
+
+error[E0592]: duplicate definitions with name `register_agent`
+    --> crates\vox-pm\src\store\ops.rs:1331:5
+     |
+1331 |     pub async fn register_agent(&self, p: RegisterAgentParams<'_>) -> Result<(), StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `register_agent`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:95:5
+     |
+  95 |     pub async fn register_agent(&self, p: RegisterAgentParams<'_>) -> Result<(), StoreError> {
+     |     ---------------------------------------------------------------------------------------- other definition for `register_agent`
+
+error[E0592]: duplicate definitions with name `list_agents`
+    --> crates\vox-pm\src\store\ops.rs:1354:5
+     |
+1354 |     pub async fn list_agents(&self) -> Result<Vec<AgentDefEntry>, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `list_agents`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:106:5
+     |
+ 106 |     pub async fn list_agents(&self) -> Result<Vec<AgentDefEntry>, StoreError> {
+     |     ------------------------------------------------------------------------- other definition for `list_agents`
+
+error[E0592]: duplicate definitions with name `get_agent`
+    --> crates\vox-pm\src\store\ops.rs:1378:5
+     |
+1378 |     pub async fn get_agent(&self, id: &str) -> Result<AgentDefEntry, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_agent`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:123:5
+     |
+ 123 |     pub async fn get_agent(&self, id: &str) -> Result<AgentDefEntry, StoreError> {
+     |     ---------------------------------------------------------------------------- other definition for `get_agent`
+
+error[E0592]: duplicate definitions with name `publish_skill`
+    --> crates\vox-pm\src\store\ops.rs:1404:5
+     |
+1404 | /     pub async fn publish_skill(
+1405 | |         &self,
+1406 | |         id: &str,
+1407 | |         version: &str,
+1408 | |         manifest_json: &str,
+1409 | |         skill_md: &str,
+1410 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `publish_skill`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:140:5
+     |
+ 140 |       pub async fn publish_skill(&self, id: &str, version: &str, manifest_json: &str, skill_md: &str) -> Result<(), StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------- other definition for `publish_skill`
+
+error[E0592]: duplicate definitions with name `unpublish_skill`
+    --> crates\vox-pm\src\store\ops.rs:1422:5
+     |
+1422 |     pub async fn unpublish_skill(&self, id: &str) -> Result<(), StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `unpublish_skill`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:149:5
+     |
+ 149 |     pub async fn unpublish_skill(&self, id: &str) -> Result<(), StoreError> {
+     |     ----------------------------------------------------------------------- other definition for `unpublish_skill`
+
+error[E0592]: duplicate definitions with name `get_skill_manifest`
+    --> crates\vox-pm\src\store\ops.rs:1430:5
+     |
+1430 | /     pub async fn get_skill_manifest(
+1431 | |         &self,
+1432 | |         id: &str,
+1433 | |     ) -> Result<Option<SkillManifestEntry>, StoreError> {
+     | |_______________________________________________________^ duplicate definitions for `get_skill_manifest`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:155:5
+     |
+ 155 |       pub async fn get_skill_manifest(&self, id: &str) -> Result<Option<SkillManifestEntry>, StoreError> {
+     |       -------------------------------------------------------------------------------------------------- other definition for `get_skill_manifest`
+
+error[E0592]: duplicate definitions with name `list_skill_manifests`
+    --> crates\vox-pm\src\store\ops.rs:1454:5
+     |
+1454 |     pub async fn list_skill_manifests(&self) -> Result<Vec<SkillManifestEntry>, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `list_skill_manifests`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:169:5
+     |
+ 169 |     pub async fn list_skill_manifests(&self) -> Result<Vec<SkillManifestEntry>, StoreError> {
+     |     --------------------------------------------------------------------------------------- other definition for `list_skill_manifests`
+
+error[E0592]: duplicate definitions with name `create_session`
+    --> crates\vox-pm\src\store\ops.rs:1477:5
+     |
+1477 | /     pub async fn create_session(
+1478 | |         &self,
+1479 | |         session_id: &str,
+1480 | |         agent_id: &str,
+1481 | |         meta: Option<&str>,
+1482 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `create_session`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:186:5
+     |
+ 186 |       pub async fn create_session(&self, session_id: &str, agent_id: &str, meta: Option<&str>) -> Result<(), StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------ other definition for `create_session`
+
+error[E0592]: duplicate definitions with name `close_session`
+    --> crates\vox-pm\src\store\ops.rs:1494:5
+     |
+1494 | /     pub async fn close_session(
+1495 | |         &self,
+1496 | |         session_id: &str,
+1497 | |         status: &str,
+1498 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `close_session`
+     |
+    ::: crates\vox-pm\src\store\ops_agents.rs:197:5
+     |
+ 197 |       pub async fn close_session(&self, session_id: &str, status: &str) -> Result<(), StoreError> {
+     |       ------------------------------------------------------------------------------------------- other definition for `close_session`
+
+error[E0592]: duplicate definitions with name `record_behavior_event`
+   --> crates\vox-pm\src\store\ops.rs:914:5
+    |
+914 | /     pub async fn record_behavior_event(
+915 | |         &self,
+916 | |         user_id: &str,
+917 | |         event_type: &str,
+918 | |         context: Option<&str>,
+919 | |         metadata: Option<&str>,
+920 | |     ) -> Result<i64, StoreError> {
+    | |________________________________^ duplicate definitions for `record_behavior_event`
+    |
+   ::: crates\vox-pm\src\store\ops_behavior.rs:14:5
+    |
+ 14 | /     pub async fn record_behavior_event(
+ 15 | |         &self,
+ 16 | |         user_id: &str,
+ 17 | |         event_type: &str,
+ 18 | |         context: Option<&str>,
+ 19 | |         metadata: Option<&str>,
+ 20 | |     ) -> Result<i64, StoreError> {
+    | |________________________________- other definition for `record_behavior_event`
+
+error[E0592]: duplicate definitions with name `get_behavior_summary`
+   --> crates\vox-pm\src\store\ops.rs:932:5
+    |
+932 | /     pub async fn get_behavior_summary(
+933 | |         &self,
+934 | |         user_id: &str,
+935 | |     ) -> Result<Vec<(String, i64)>, StoreError> {
+    | |_______________________________________________^ duplicate definitions for `get_behavior_summary`
+    |
+   ::: crates\vox-pm\src\store\ops_behavior.rs:32:5
+    |
+ 32 | /     pub async fn get_behavior_summary(
+ 33 | |         &self,
+ 34 | |         user_id: &str,
+ 35 | |     ) -> Result<Vec<(String, i64)>, StoreError> {
+    | |_______________________________________________- other definition for `get_behavior_summary`
+
+error[E0592]: duplicate definitions with name `get_command_frequency`
+   --> crates\vox-pm\src\store\ops.rs:951:5
+    |
+951 | /     pub async fn get_command_frequency(
+952 | |         &self,
+953 | |         user_id: &str,
+954 | |         limit: i64,
+955 | |     ) -> Result<Vec<CommandFrequencyEntry>, StoreError> {
+    | |_______________________________________________________^ duplicate definitions for `get_command_frequency`
+    |
+   ::: crates\vox-pm\src\store\ops_behavior.rs:51:5
+    |
+ 51 | /     pub async fn get_command_frequency(
+ 52 | |         &self,
+ 53 | |         user_id: &str,
+ 54 | |         limit: i64,
+ 55 | |     ) -> Result<Vec<CommandFrequencyEntry>, StoreError> {
+    | |_______________________________________________________- other definition for `get_command_frequency`
+
+error[E0592]: duplicate definitions with name `get_behavior_events`
+   --> crates\vox-pm\src\store\ops.rs:981:5
+    |
+981 | /     pub async fn get_behavior_events(
+982 | |         &self,
+983 | |         user_id: &str,
+984 | |         event_type: Option<&str>,
+985 | |         limit: i64,
+986 | |     ) -> Result<Vec<BehaviorEventEntry>, StoreError> {
+    | |____________________________________________________^ duplicate definitions for `get_behavior_events`
+    |
+   ::: crates\vox-pm\src\store\ops_behavior.rs:81:5
+    |
+ 81 | /     pub async fn get_behavior_events(
+ 82 | |         &self,
+ 83 | |         user_id: &str,
+ 84 | |         event_type: Option<&str>,
+ 85 | |         limit: i64,
+ 86 | |     ) -> Result<Vec<BehaviorEventEntry>, StoreError> {
+    | |____________________________________________________- other definition for `get_behavior_events`
+
+error[E0592]: duplicate definitions with name `get_learned_patterns`
+    --> crates\vox-pm\src\store\ops.rs:1019:5
+     |
+1019 | /     pub async fn get_learned_patterns(
+1020 | |         &self,
+1021 | |         user_id: &str,
+1022 | |         limit: i64,
+1023 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________^ duplicate definitions for `get_learned_patterns`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:119:5
+     |
+ 119 | /     pub async fn get_learned_patterns(
+ 120 | |         &self,
+ 121 | |         user_id: &str,
+ 122 | |         limit: i64,
+ 123 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________- other definition for `get_learned_patterns`
+
+error[E0592]: duplicate definitions with name `get_patterns_by_category`
+    --> crates\vox-pm\src\store\ops.rs:1049:5
+     |
+1049 | /     pub async fn get_patterns_by_category(
+1050 | |         &self,
+1051 | |         user_id: &str,
+1052 | |         category: &str,
+1053 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________^ duplicate definitions for `get_patterns_by_category`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:141:5
+     |
+ 141 | /     pub async fn get_patterns_by_category(
+ 142 | |         &self,
+ 143 | |         user_id: &str,
+ 144 | |         category: &str,
+ 145 | |     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
+     | |_____________________________________________________- other definition for `get_patterns_by_category`
+
+error[E0592]: duplicate definitions with name `store_learned_pattern`
+    --> crates\vox-pm\src\store\ops.rs:1079:5
+     |
+1079 | /     pub async fn store_learned_pattern(
+1080 | |         &self,
+1081 | |         user_id: &str,
+1082 | |         pattern_type: &str,
+...    |
+1086 | |         vcs_snapshot_id: Option<&str>,
+1087 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `store_learned_pattern`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:163:5
+     |
+ 163 | /     pub async fn store_learned_pattern(
+ 164 | |         &self,
+ 165 | |         user_id: &str,
+ 166 | |         pattern_type: &str,
+...    |
+ 170 | |         vcs_snapshot_id: Option<&str>,
+ 171 | |     ) -> Result<i64, StoreError> {
+     | |________________________________- other definition for `store_learned_pattern`
+
+error[E0592]: duplicate definitions with name `update_pattern_confidence`
+    --> crates\vox-pm\src\store\ops.rs:1106:5
+     |
+1106 | /     pub async fn update_pattern_confidence(
+1107 | |         &self,
+1108 | |         id: i64,
+1109 | |         confidence: f64,
+1110 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `update_pattern_confidence`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:190:5
+     |
+ 190 | /     pub async fn update_pattern_confidence(
+ 191 | |         &self,
+ 192 | |         id: i64,
+ 193 | |         confidence: f64,
+ 194 | |     ) -> Result<(), StoreError> {
+     | |_______________________________- other definition for `update_pattern_confidence`
+
+error[E0592]: duplicate definitions with name `get_training_data`
+    --> crates\vox-pm\src\store\ops.rs:1121:5
+     |
+1121 |     pub async fn get_training_data(&self, limit: i64) -> Result<Vec<TrainingPair>, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_training_data`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:205:5
+     |
+ 205 |     pub async fn get_training_data(&self, limit: i64) -> Result<Vec<TrainingPair>, StoreError> {
+     |     ------------------------------------------------------------------------------------------ other definition for `get_training_data`
+
+error[E0592]: duplicate definitions with name `log_interaction`
+    --> crates\vox-pm\src\store\ops.rs:1150:5
+     |
+1150 |     pub async fn log_interaction(&self, p: LogInteractionParams<'_>) -> Result<i64, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `log_interaction`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:234:5
+     |
+ 234 |     pub async fn log_interaction(&self, p: LogInteractionParams<'_>) -> Result<i64, StoreError> {
+     |     ------------------------------------------------------------------------------------------- other definition for `log_interaction`
+
+error[E0592]: duplicate definitions with name `submit_feedback`
+    --> crates\vox-pm\src\store\ops.rs:1170:5
+     |
+1170 | /     pub async fn submit_feedback(
+1171 | |         &self,
+1172 | |         interaction_id: i64,
+1173 | |         user_id: Option<&str>,
+...    |
+1177 | |         preferred_response: Option<&str>,
+1178 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `submit_feedback`
+     |
+    ::: crates\vox-pm\src\store\ops_behavior.rs:254:5
+     |
+ 254 | /     pub async fn submit_feedback(
+ 255 | |         &self,
+ 256 | |         interaction_id: i64,
+ 257 | |         user_id: Option<&str>,
+...    |
+ 261 | |         preferred_response: Option<&str>,
+ 262 | |     ) -> Result<i64, StoreError> {
+     | |________________________________- other definition for `submit_feedback`
+
+error[E0592]: duplicate definitions with name `store`
+  --> crates\vox-pm\src\store\ops.rs:41:5
+   |
+41 |     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `store`
+   |
+  ::: crates\vox-pm\src\store\ops_cas.rs:12:5
+   |
+12 |     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
+   |     -------------------------------------------------------------------------------- other definition for `store`
+
+error[E0592]: duplicate definitions with name `get`
+  --> crates\vox-pm\src\store\ops.rs:53:5
+   |
+53 |     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get`
+   |
+  ::: crates\vox-pm\src\store\ops_cas.rs:24:5
+   |
+24 |     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+   |     ------------------------------------------------------------------ other definition for `get`
+
+error[E0592]: duplicate definitions with name `bind_name`
+  --> crates\vox-pm\src\store\ops.rs:69:5
+   |
+69 | /     pub async fn bind_name(
+70 | |         &self,
+71 | |         namespace: &str,
+72 | |         name: &str,
+73 | |         hash: &str,
+74 | |     ) -> Result<(), StoreError> {
+   | |_______________________________^ duplicate definitions for `bind_name`
+   |
+  ::: crates\vox-pm\src\store\ops_cas.rs:40:5
+   |
+40 | /     pub async fn bind_name(
+41 | |         &self,
+42 | |         namespace: &str,
+43 | |         name: &str,
+44 | |         hash: &str,
+45 | |     ) -> Result<(), StoreError> {
+   | |_______________________________- other definition for `bind_name`
+
+error[E0592]: duplicate definitions with name `lookup_name`
+  --> crates\vox-pm\src\store\ops.rs:85:5
+   |
+85 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `lookup_name`
+   |
+  ::: crates\vox-pm\src\store\ops_cas.rs:56:5
+   |
+56 |     pub async fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+   |     ------------------------------------------------------------------------------------------ other definition for `lookup_name`
+
+error[E0592]: duplicate definitions with name `rename`
+   --> crates\vox-pm\src\store\ops.rs:101:5
+    |
+101 | /     pub async fn rename(
+102 | |         &self,
+103 | |         namespace: &str,
+104 | |         old_name: &str,
+105 | |         new_name: &str,
+106 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `rename`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:72:5
+    |
+ 72 | /     pub async fn rename(
+ 73 | |         &self,
+ 74 | |         namespace: &str,
+ 75 | |         old_name: &str,
+ 76 | |         new_name: &str,
+ 77 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `rename`
+
+error[E0592]: duplicate definitions with name `list_names`
+   --> crates\vox-pm\src\store\ops.rs:119:5
+    |
+119 |     pub async fn list_names(&self, namespace: &str) -> Result<Vec<(String, String)>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `list_names`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:90:5
+    |
+ 90 |     pub async fn list_names(&self, namespace: &str) -> Result<Vec<(String, String)>, StoreError> {
+    |     -------------------------------------------------------------------------------------------- other definition for `list_names`
+
+error[E0592]: duplicate definitions with name `get_binding`
+   --> crates\vox-pm\src\store\ops.rs:135:5
+    |
+135 |     pub async fn get_binding(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_binding`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:106:5
+    |
+106 |     pub async fn get_binding(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
+    |     ------------------------------------------------------------------------------------------ other definition for `get_binding`
+
+error[E0592]: duplicate definitions with name `set_binding`
+   --> crates\vox-pm\src\store\ops.rs:142:5
+    |
+142 | /     pub async fn set_binding(
+143 | |         &self,
+144 | |         namespace: &str,
+145 | |         name: &str,
+146 | |         value: &str,
+147 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `set_binding`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:113:5
+    |
+113 | /     pub async fn set_binding(
+114 | |         &self,
+115 | |         namespace: &str,
+116 | |         name: &str,
+117 | |         value: &str,
+118 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `set_binding`
+
+error[E0592]: duplicate definitions with name `set_object_metadata`
+   --> crates\vox-pm\src\store\ops.rs:155:5
+    |
+155 | /     pub async fn set_object_metadata(
+156 | |         &self,
+157 | |         hash: &str,
+158 | |         key: &str,
+159 | |         value: &str,
+160 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `set_object_metadata`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:126:5
+    |
+126 | /     pub async fn set_object_metadata(
+127 | |         &self,
+128 | |         hash: &str,
+129 | |         key: &str,
+130 | |         value: &str,
+131 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `set_object_metadata`
+
+error[E0592]: duplicate definitions with name `get_object_metadata`
+   --> crates\vox-pm\src\store\ops.rs:171:5
+    |
+171 |     pub async fn get_object_metadata(&self, hash: &str, key: &str) -> Result<String, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_object_metadata`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:142:5
+    |
+142 |     pub async fn get_object_metadata(&self, hash: &str, key: &str) -> Result<String, StoreError> {
+    |     -------------------------------------------------------------------------------------------- other definition for `get_object_metadata`
+
+error[E0592]: duplicate definitions with name `get_all_object_metadata`
+   --> crates\vox-pm\src\store\ops.rs:187:5
+    |
+187 | /     pub async fn get_all_object_metadata(
+188 | |         &self,
+189 | |         hash: &str,
+190 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________^ duplicate definitions for `get_all_object_metadata`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:158:5
+    |
+158 | /     pub async fn get_all_object_metadata(
+159 | |         &self,
+160 | |         hash: &str,
+161 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________- other definition for `get_all_object_metadata`
+
+error[E0592]: duplicate definitions with name `add_dependency`
+   --> crates\vox-pm\src\store\ops.rs:208:5
+    |
+208 |     pub async fn add_dependency(&self, hash: &str, parent_hash: &str) -> Result<(), StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `add_dependency`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:179:5
+    |
+179 |     pub async fn add_dependency(&self, hash: &str, parent_hash: &str) -> Result<(), StoreError> {
+    |     ------------------------------------------------------------------------------------------- other definition for `add_dependency`
+
+error[E0592]: duplicate definitions with name `get_dependencies`
+   --> crates\vox-pm\src\store\ops.rs:219:5
+    |
+219 |     pub async fn get_dependencies(&self, hash: &str) -> Result<Vec<String>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_dependencies`
+    |
+   ::: crates\vox-pm\src\store\ops_cas.rs:190:5
+    |
+190 |     pub async fn get_dependencies(&self, hash: &str) -> Result<Vec<String>, StoreError> {
+    |     ----------------------------------------------------------------------------------- other definition for `get_dependencies`
+
+error[E0592]: duplicate definitions with name `log_execution`
+   --> crates\vox-pm\src\store\ops.rs:376:5
+    |
+376 |     pub async fn log_execution<'a>(&self, p: LogExecutionParams<'a>) -> Result<i64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `log_execution`
+    |
+   ::: crates\vox-pm\src\store\ops_execution.rs:14:5
+    |
+ 14 |     pub async fn log_execution<'a>(&self, p: LogExecutionParams<'a>) -> Result<i64, StoreError> {
+    |     ------------------------------------------------------------------------------------------- other definition for `log_execution`
+
+error[E0592]: duplicate definitions with name `get_execution_history`
+   --> crates\vox-pm\src\store\ops.rs:398:5
+    |
+398 | /     pub async fn get_execution_history(
+399 | |         &self,
+400 | |         workflow_id: &str,
+401 | |     ) -> Result<Vec<ExecutionEntry>, StoreError> {
+    | |________________________________________________^ duplicate definitions for `get_execution_history`
+    |
+   ::: crates\vox-pm\src\store\ops_execution.rs:52:5
+    |
+ 52 | /     pub async fn get_execution_history(
+ 53 | |         &self,
+ 54 | |         workflow_id: &str,
+ 55 | |     ) -> Result<Vec<ExecutionEntry>, StoreError> {
+    | |________________________________________________- other definition for `get_execution_history`
+
+error[E0592]: duplicate definitions with name `schedule_function`
+   --> crates\vox-pm\src\store\ops.rs:427:5
+    |
+427 | /     pub async fn schedule_function(
+428 | |         &self,
+429 | |         function_hash: &str,
+430 | |         args: Option<&[u8]>,
+431 | |         run_at: &str,
+432 | |         cron_expr: Option<&str>,
+433 | |     ) -> Result<i64, StoreError> {
+    | |________________________________^ duplicate definitions for `schedule_function`
+    |
+   ::: crates\vox-pm\src\store\ops_execution.rs:81:5
+    |
+ 81 | /     pub async fn schedule_function(
+ 82 | |         &self,
+ 83 | |         function_hash: &str,
+ 84 | |         args: Option<&[u8]>,
+ 85 | |         run_at: &str,
+ 86 | |         cron_expr: Option<&str>,
+ 87 | |     ) -> Result<i64, StoreError> {
+    | |________________________________- other definition for `schedule_function`
+
+error[E0592]: duplicate definitions with name `get_due_scheduled`
+   --> crates\vox-pm\src\store\ops.rs:445:5
+    |
+445 |     pub async fn get_due_scheduled(&self, now: &str) -> Result<Vec<ScheduledEntry>, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_due_scheduled`
+    |
+   ::: crates\vox-pm\src\store\ops_execution.rs:99:5
+    |
+ 99 |     pub async fn get_due_scheduled(&self, now: &str) -> Result<Vec<ScheduledEntry>, StoreError> {
+    |     ------------------------------------------------------------------------------------------- other definition for `get_due_scheduled`
+
+error[E0592]: duplicate definitions with name `complete_scheduled`
+   --> crates\vox-pm\src\store\ops.rs:469:5
+    |
+469 |     pub async fn complete_scheduled(&self, id: i64) -> Result<(), StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `complete_scheduled`
+    |
+   ::: crates\vox-pm\src\store\ops_execution.rs:123:5
+    |
+123 |     pub async fn complete_scheduled(&self, id: i64) -> Result<(), StoreError> {
+    |     ------------------------------------------------------------------------- other definition for `complete_scheduled`
+
+error[E0592]: duplicate definitions with name `query_knowledge_nodes`
+   --> crates\vox-pm\src\store\ops.rs:734:5
+    |
+734 | /     pub async fn query_knowledge_nodes(
+735 | |         &self,
+736 | |         query: &str,
+737 | |         limit: i64,
+738 | |     ) -> Result<Vec<(String, String, String)>, StoreError> {
+    | |__________________________________________________________^ duplicate definitions for `query_knowledge_nodes`
+    |
+   ::: crates\vox-pm\src\store\ops_knowledge.rs:11:5
+    |
+ 11 | /     pub async fn query_knowledge_nodes(
+ 12 | |         &self,
+ 13 | |         query: &str,
+ 14 | |         limit: i64,
+ 15 | |     ) -> Result<Vec<(String, String, String)>, StoreError> {
+    | |__________________________________________________________- other definition for `query_knowledge_nodes`
+
+error[E0592]: duplicate definitions with name `upsert_knowledge_node`
+   --> crates\vox-pm\src\store\ops.rs:761:5
+    |
+761 | /     pub async fn upsert_knowledge_node(
+762 | |         &self,
+763 | |         id: &str,
+764 | |         node_type: &str,
+...   |
+768 | |         media_type: Option<&str>,
+769 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `upsert_knowledge_node`
+    |
+   ::: crates\vox-pm\src\store\ops_knowledge.rs:38:5
+    |
+ 38 | /     pub async fn upsert_knowledge_node(
+ 39 | |         &self,
+ 40 | |         id: &str,
+ 41 | |         node_type: &str,
+...   |
+ 45 | |         media_type: Option<&str>,
+ 46 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `upsert_knowledge_node`
+
+error[E0592]: duplicate definitions with name `create_knowledge_edge`
+   --> crates\vox-pm\src\store\ops.rs:786:5
+    |
+786 | /     pub async fn create_knowledge_edge(
+787 | |         &self,
+788 | |         src_id: &str,
+789 | |         dst_id: &str,
+...   |
+792 | |         _metadata: Option<&str>,
+793 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `create_knowledge_edge`
+    |
+   ::: crates\vox-pm\src\store\ops_knowledge.rs:63:5
+    |
+ 63 | /     pub async fn create_knowledge_edge(
+ 64 | |         &self,
+ 65 | |         src_id: &str,
+ 66 | |         dst_id: &str,
+...   |
+ 69 | |         _metadata: Option<&str>,
+ 70 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `create_knowledge_edge`
+
+error[E0592]: duplicate definitions with name `store_embedding`
+   --> crates\vox-pm\src\store\ops.rs:805:5
+    |
+805 | /     pub async fn store_embedding(
+806 | |         &self,
+807 | |         source_type: &str,
+808 | |         source_id: &str,
+...   |
+812 | |         _vcs_snapshot_id: Option<&str>,
+813 | |     ) -> Result<i64, StoreError> {
+    | |________________________________^ duplicate definitions for `store_embedding`
+    |
+   ::: crates\vox-pm\src\store\ops_knowledge.rs:82:5
+    |
+ 82 | /     pub async fn store_embedding(
+ 83 | |         &self,
+ 84 | |         source_type: &str,
+ 85 | |         source_id: &str,
+...   |
+ 89 | |         _vcs_snapshot_id: Option<&str>,
+ 90 | |     ) -> Result<i64, StoreError> {
+    | |________________________________- other definition for `store_embedding`
+
+error[E0592]: duplicate definitions with name `get_knowledge_neighbors`
+   --> crates\vox-pm\src\store\ops.rs:830:5
+    |
+830 | /     pub async fn get_knowledge_neighbors(
+831 | |         &self,
+832 | |         node_id: &str,
+833 | |     ) -> Result<Vec<(KnowledgeNodeSummary, String, f64)>, StoreError> {
+    | |_____________________________________________________________________^ duplicate definitions for `get_knowledge_neighbors`
+    |
+   ::: crates\vox-pm\src\store\ops_knowledge.rs:107:5
+    |
+107 | /     pub async fn get_knowledge_neighbors(
+108 | |         &self,
+109 | |         node_id: &str,
+110 | |     ) -> Result<Vec<(KnowledgeNodeSummary, String, f64)>, StoreError> {
+    | |_____________________________________________________________________- other definition for `get_knowledge_neighbors`
+
+error[E0592]: duplicate definitions with name `search_similar_embeddings`
+   --> crates\vox-pm\src\store\ops.rs:859:5
+    |
+859 | /     pub async fn search_similar_embeddings(
+860 | |         &self,
+861 | |         vector: &[f32],
+862 | |         source_type: Option<&str>,
+863 | |         limit: i64,
+864 | |     ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
+    | |_______________________________________________________^ duplicate definitions for `search_similar_embeddings`
+    |
+   ::: crates\vox-pm\src\store\ops_knowledge.rs:136:5
+    |
+136 | /     pub async fn search_similar_embeddings(
+137 | |         &self,
+138 | |         vector: &[f32],
+139 | |         source_type: Option<&str>,
+140 | |         limit: i64,
+141 | |     ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
+    | |_______________________________________________________- other definition for `search_similar_embeddings`
+
+error[E0592]: duplicate definitions with name `publish_package`
+   --> crates\vox-pm\src\store\ops.rs:237:5
+    |
+237 | /     pub async fn publish_package(
+238 | |         &self,
+239 | |         name: &str,
+240 | |         version: &str,
+...   |
+244 | |         license: Option<&str>,
+245 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `publish_package`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:11:5
+    |
+ 11 | /     pub async fn publish_package(
+ 12 | |         &self,
+ 13 | |         name: &str,
+ 14 | |         version: &str,
+...   |
+ 18 | |         license: Option<&str>,
+ 19 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `publish_package`
+
+error[E0592]: duplicate definitions with name `add_package_dep`
+   --> crates\vox-pm\src\store\ops.rs:257:5
+    |
+257 | /     pub async fn add_package_dep(
+258 | |         &self,
+259 | |         package_name: &str,
+260 | |         package_version: &str,
+261 | |         dep_name: &str,
+262 | |         dep_version_req: &str,
+263 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `add_package_dep`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:31:5
+    |
+ 31 | /     pub async fn add_package_dep(
+ 32 | |         &self,
+ 33 | |         package_name: &str,
+ 34 | |         package_version: &str,
+ 35 | |         dep_name: &str,
+ 36 | |         dep_version_req: &str,
+ 37 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `add_package_dep`
+
+error[E0592]: duplicate definitions with name `get_package_versions`
+   --> crates\vox-pm\src\store\ops.rs:275:5
+    |
+275 | /     pub async fn get_package_versions(
+276 | |         &self,
+277 | |         name: &str,
+278 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________^ duplicate definitions for `get_package_versions`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:49:5
+    |
+ 49 | /     pub async fn get_package_versions(
+ 50 | |         &self,
+ 51 | |         name: &str,
+ 52 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________- other definition for `get_package_versions`
+
+error[E0592]: duplicate definitions with name `get_package_deps`
+   --> crates\vox-pm\src\store\ops.rs:294:5
+    |
+294 | /     pub async fn get_package_deps(
+295 | |         &self,
+296 | |         package_name: &str,
+297 | |         package_version: &str,
+298 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________^ duplicate definitions for `get_package_deps`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:68:5
+    |
+ 68 | /     pub async fn get_package_deps(
+ 69 | |         &self,
+ 70 | |         package_name: &str,
+ 71 | |         package_version: &str,
+ 72 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________- other definition for `get_package_deps`
+
+error[E0592]: duplicate definitions with name `search_packages`
+   --> crates\vox-pm\src\store\ops.rs:315:5
+    |
+315 | /     pub async fn search_packages(
+316 | |         &self,
+317 | |         query: &str,
+318 | |         limit: i64,
+319 | |     ) -> Result<Vec<PackageSearchResult>, StoreError> {
+    | |_____________________________________________________^ duplicate definitions for `search_packages`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:89:5
+    |
+ 89 | /     pub async fn search_packages(
+ 90 | |         &self,
+ 91 | |         query: &str,
+ 92 | |         limit: i64,
+ 93 | |     ) -> Result<Vec<PackageSearchResult>, StoreError> {
+    | |_____________________________________________________- other definition for `search_packages`
+
+error[E0592]: duplicate definitions with name `yank_package`
+   --> crates\vox-pm\src\store\ops.rs:344:5
+    |
+344 |     pub async fn yank_package(&self, name: &str, version: &str) -> Result<u64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `yank_package`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:118:5
+    |
+118 |     pub async fn yank_package(&self, name: &str, version: &str) -> Result<u64, StoreError> {
+    |     -------------------------------------------------------------------------------------- other definition for `yank_package`
+
+error[E0592]: duplicate definitions with name `delete_package`
+   --> crates\vox-pm\src\store\ops.rs:356:5
+    |
+356 |     pub async fn delete_package(&self, name: &str, version: &str) -> Result<u64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `delete_package`
+    |
+   ::: crates\vox-pm\src\store\ops_packages.rs:130:5
+    |
+130 |     pub async fn delete_package(&self, name: &str, version: &str) -> Result<u64, StoreError> {
+    |     ---------------------------------------------------------------------------------------- other definition for `delete_package`
+
+error[E0592]: duplicate definitions with name `list_codex_changes_since`
+    --> crates\vox-pm\src\store\ops.rs:2001:5
+     |
+2001 | /     pub async fn list_codex_changes_since(
+2002 | |         &self,
+2003 | |         topic: Option<&str>,
+2004 | |         after_id: i64,
+2005 | |         limit: i64,
+2006 | |     ) -> Result<Vec<CodexChangeLogEntry>, StoreError> {
+     | |_____________________________________________________^ duplicate definitions for `list_codex_changes_since`
+     |
+    ::: crates\vox-pm\src\store\ops_reliability.rs:20:5
+     |
+  20 | /     pub async fn list_codex_changes_since(
+  21 | |         &self,
+  22 | |         topic: Option<&str>,
+  23 | |         after_id: i64,
+  24 | |         limit: i64,
+  25 | |     ) -> Result<Vec<CodexChangeLogEntry>, StoreError> {
+     | |_____________________________________________________- other definition for `list_codex_changes_since`
+
+error[E0592]: duplicate definitions with name `append_codex_change`
+    --> crates\vox-pm\src\store\ops.rs:2041:5
+     |
+2041 | /     pub async fn append_codex_change(
+2042 | |         &self,
+2043 | |         topic: &str,
+2044 | |         entity_kind: Option<&str>,
+...    |
+2047 | |         payload_json: Option<&str>,
+2048 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `append_codex_change`
+     |
+    ::: crates\vox-pm\src\store\ops_reliability.rs:56:5
+     |
+  56 | /     pub async fn append_codex_change(
+  57 | |         &self,
+  58 | |         topic: &str,
+  59 | |         entity_kind: Option<&str>,
+...    |
+  62 | |         payload_json: Option<&str>,
+  63 | |     ) -> Result<i64, StoreError> {
+     | |________________________________- other definition for `append_codex_change`
+
+error[E0592]: duplicate definitions with name `record_codex_schema_lineage`
+    --> crates\vox-pm\src\store\ops.rs:2060:5
+     |
+2060 | /     pub async fn record_codex_schema_lineage(
+2061 | |         &self,
+2062 | |         baseline_id: &str,
+2063 | |         schema_digest: &str,
+2064 | |         provenance: Option<&str>,
+2065 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `record_codex_schema_lineage`
+     |
+    ::: crates\vox-pm\src\store\ops_reliability.rs:72:5
+     |
+  72 | /     pub async fn record_codex_schema_lineage(
+  73 | |         &self,
+  74 | |         baseline_id: &str,
+  75 | |         schema_digest: &str,
+  76 | |         provenance: Option<&str>,
+  77 | |     ) -> Result<i64, StoreError> {
+     | |________________________________- other definition for `record_codex_schema_lineage`
+
+error[E0592]: duplicate definitions with name `upsert_codex_subscription`
+    --> crates\vox-pm\src\store\ops.rs:2077:5
+     |
+2077 | /     pub async fn upsert_codex_subscription(
+2078 | |         &self,
+2079 | |         id: &str,
+2080 | |         topic: &str,
+2081 | |         filter_json: Option<&str>,
+2082 | |         client_hint: Option<&str>,
+2083 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `upsert_codex_subscription`
+     |
+    ::: crates\vox-pm\src\store\ops_reliability.rs:86:5
+     |
+  86 | /     pub async fn upsert_codex_subscription(
+  87 | |         &self,
+  88 | |         id: &str,
+  89 | |         topic: &str,
+  90 | |         filter_json: Option<&str>,
+  91 | |         client_hint: Option<&str>,
+  92 | |     ) -> Result<(), StoreError> {
+     | |_______________________________- other definition for `upsert_codex_subscription`
+
+error[E0592]: duplicate definitions with name `list_agent_reliability`
+    --> crates\vox-pm\src\store\ops.rs:2099:5
+     |
+2099 |     pub async fn list_agent_reliability(&self) -> Result<Vec<(u64, f64)>, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `list_agent_reliability`
+     |
+    ::: crates\vox-pm\src\store\ops_reliability.rs:104:5
+     |
+ 104 |     pub async fn list_agent_reliability(&self) -> Result<Vec<(String, f64)>, StoreError> {
+     |     ------------------------------------------------------------------------------------ other definition for `list_agent_reliability`
+
+error[E0592]: duplicate definitions with name `record_task_reliability_observation`
+    --> crates\vox-pm\src\store\ops.rs:2117:5
+     |
+2117 | /     pub async fn record_task_reliability_observation(
+2118 | |         &self,
+2119 | |         agent_id: u64,
+2120 | |         success: bool,
+2121 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `record_task_reliability_observation`
+     |
+    ::: crates\vox-pm\src\store\ops_reliability.rs:120:5
+     |
+ 120 | /     pub async fn record_task_reliability_observation(
+ 121 | |         &self,
+ 122 | |         agent_id: &str,
+ 123 | |         success: bool,
+ 124 | |     ) -> Result<(), StoreError> {
+     | |_______________________________- other definition for `record_task_reliability_observation`
+
+error[E0592]: duplicate definitions with name `take_db_snapshot`
+    --> crates\vox-pm\src\store\ops.rs:1511:5
+     |
+1511 | /     pub async fn take_db_snapshot(
+1512 | |         &self,
+1513 | |         snap_id: u64,
+1514 | |         agent_id: &str,
+1515 | |         description: &str,
+1516 | |     ) -> Result<(), StoreError> {
+     | |_______________________________^ duplicate definitions for `take_db_snapshot`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:14:5
+     |
+  14 |       pub async fn take_db_snapshot(&self, snap_id: u64, agent_id: &str, description: &str) -> Result<(), StoreError> {
+     |       --------------------------------------------------------------------------------------------------------------- other definition for `take_db_snapshot`
+
+error[E0592]: duplicate definitions with name `restore_db_snapshot`
+    --> crates\vox-pm\src\store\ops.rs:1546:5
+     |
+1546 |     pub async fn restore_db_snapshot(&self, snap_id: u64) -> Result<(), StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `restore_db_snapshot`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:28:5
+     |
+  28 |     pub async fn restore_db_snapshot(&self, snap_id: u64) -> Result<(), StoreError> {
+     |     ------------------------------------------------------------------------------- other definition for `restore_db_snapshot`
+
+error[E0592]: duplicate definitions with name `upsert_research_session`
+    --> crates\vox-pm\src\store\ops.rs:1637:5
+     |
+1637 | /     pub async fn upsert_research_session(
+1638 | |         &self,
+1639 | |         session_key: &str,
+1640 | |         title: &str,
+...    |
+1644 | |         summary_json: Option<&str>,
+1645 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `upsert_research_session`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:66:5
+     |
+  66 |       pub async fn upsert_research_session(&self, session_key: &str, title: &str, status: &str, repository_id: &str, config_json: Option<&str>, summary_json: Option<&str>) -> Result<i64, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ other definition for `upsert_research_session`
+
+error[E0592]: duplicate definitions with name `append_conversation_version`
+    --> crates\vox-pm\src\store\ops.rs:1683:5
+     |
+1683 | /     pub async fn append_conversation_version(
+1684 | |         &self,
+1685 | |         conversation_id: i64,
+1686 | |         version_index: i64,
+1687 | |         label: &str,
+1688 | |         snapshot_json: Option<&str>,
+1689 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `append_conversation_version`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:80:5
+     |
+  80 |       pub async fn append_conversation_version(&self, conversation_id: i64, version_index: i64, label: &str, snapshot_json: Option<&str>) -> Result<i64, StoreError> {
+     |       -------------------------------------------------------------------------------------------------------------------------------------------------------------- other definition for `append_conversation_version`
+
+error[E0592]: duplicate definitions with name `insert_conversation_edge`
+    --> crates\vox-pm\src\store\ops.rs:1701:5
+     |
+1701 | /     pub async fn insert_conversation_edge(
+1702 | |         &self,
+1703 | |         from_conversation_id: i64,
+1704 | |         to_conversation_id: i64,
+...    |
+1707 | |         metadata_json: Option<&str>,
+1708 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `insert_conversation_edge`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:89:5
+     |
+  89 |       pub async fn insert_conversation_edge(&self, from_id: i64, to_id: i64, edge_kind: &str, weight: f64, metadata_json: Option<&str>) -> Result<i64, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------------------------------------------ other definition for `insert_conversation_edge`
+
+error[E0592]: duplicate definitions with name `append_topic_evolution_event`
+    --> crates\vox-pm\src\store\ops.rs:1726:5
+     |
+1726 | /     pub async fn append_topic_evolution_event(
+1727 | |         &self,
+1728 | |         topic_id: i64,
+1729 | |         event_kind: &str,
+...    |
+1732 | |         detail_json: Option<&str>,
+1733 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `append_topic_evolution_event`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:98:5
+     |
+  98 |       pub async fn append_topic_evolution_event(&self, topic_id: i64, event_kind: &str, prior_label: Option<&str>, new_label: Option<&str>, detail_json: Option<&str>) -> Result<i64, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- other definition for `append_topic_evolution_event`
+
+error[E0592]: duplicate definitions with name `append_research_metric`
+    --> crates\vox-pm\src\store\ops.rs:1747:5
+     |
+1747 | /     pub async fn append_research_metric(
+1748 | |         &self,
+1749 | |         session_id: &str,
+1750 | |         metric_type: &str,
+1751 | |         metric_value: Option<f64>,
+1752 | |         metadata_json: Option<&str>,
+1753 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `append_research_metric`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:109:5
+     |
+ 109 |       pub async fn append_research_metric(&self, session_id: &str, metric_type: &str, metric_value: Option<f64>, metadata_json: Option<&str>) -> Result<i64, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------------------------------------------------ other definition for `append_research_metric`
+
+error[E0592]: duplicate definitions with name `list_research_metrics_by_type`
+    --> crates\vox-pm\src\store\ops.rs:1767:5
+     |
+1767 | /     pub async fn list_research_metrics_by_type(
+1768 | |         &self,
+1769 | |         metric_type: &str,
+1770 | |         session_id_prefix: &str,
+1771 | |         limit: i64,
+1772 | |     ) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+     | |_______________________________________________________________^ duplicate definitions for `list_research_metrics_by_type`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:118:5
+     |
+ 118 |       pub async fn list_research_metrics_by_type(&self, metric_type: &str, session_id_prefix: &str, limit: i64) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+     |       ------------------------------------------------------------------------------------------------------------------------------------------------------------------- other definition for `list_research_metrics_by_type`
+
+error[E0592]: duplicate definitions with name `list_research_metrics`
+    --> crates\vox-pm\src\store\ops.rs:1796:5
+     |
+1796 | /     pub async fn list_research_metrics(
+1797 | |         &self,
+1798 | |         session_id: &str,
+1799 | |         metric_type: &str,
+1800 | |     ) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+     | |_______________________________________________________________^ duplicate definitions for `list_research_metrics`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:132:5
+     |
+ 132 |       pub async fn list_research_metrics(&self, session_id: &str, metric_type: &str) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+     |       ---------------------------------------------------------------------------------------------------------------------------------------- other definition for `list_research_metrics`
+
+error[E0592]: duplicate definitions with name `record_eval_run`
+    --> crates\vox-pm\src\store\ops.rs:1822:5
+     |
+1822 | /     pub async fn record_eval_run(
+1823 | |         &self,
+1824 | |         run_id: &str,
+1825 | |         model_path: Option<&str>,
+...    |
+1831 | |         metadata_json: Option<&str>,
+1832 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `record_eval_run`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:146:5
+     |
+ 146 |       pub async fn record_eval_run(&self...adata_json: Option<&str>) -> Result<i64, StoreError> {
+     |       ----------------------------------...---------------------------------------------------- other definition for `record_eval_run`
+
+error[E0592]: duplicate definitions with name `record_corpus_snapshot`
+    --> crates\vox-pm\src\store\ops.rs:1853:5
+     |
+1853 | /     pub async fn record_corpus_snapshot(
+1854 | |         &self,
+1855 | |         fingerprint: &str,
+1856 | |         generator_version: &str,
+1857 | |         total_pairs: i64,
+1858 | |         pair_breakdown_json: Option<&str>,
+1859 | |     ) -> Result<i64, StoreError> {
+     | |________________________________^ duplicate definitions for `record_corpus_snapshot`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:156:5
+     |
+ 156 |       pub async fn record_corpus_snapshot(&self, fingerprint: &str, generator_version: &str, total_pairs: i64, pair_breakdown_json: Option<&str>) -> Result<i64, StoreError> {
+     |       ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- other definition for `record_corpus_snapshot`
+
+error[E0592]: duplicate definitions with name `is_corpus_fresh`
+    --> crates\vox-pm\src\store\ops.rs:1870:5
+     |
+1870 |     pub async fn is_corpus_fresh(&self, fingerprint: &str) -> Result<bool, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `is_corpus_fresh`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:167:5
+     |
+ 167 |     pub async fn is_corpus_fresh(&self, fingerprint: &str) -> Result<bool, StoreError> {
+     |     ---------------------------------------------------------------------------------- other definition for `is_corpus_fresh`
+
+error[E0592]: duplicate definitions with name `reset`
+    --> crates\vox-pm\src\store\ops.rs:1878:5
+     |
+1878 |     pub fn reset(&self) -> Result<(), StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `reset`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:176:5
+     |
+ 176 |     pub fn reset(&self) -> Result<(), StoreError> { Err(StoreError::Db("reset() not supported — use `vox db` tooling".into())) }
+     |     --------------------------------------------- other definition for `reset`
+
+error[E0592]: duplicate definitions with name `sample_table`
+    --> crates\vox-pm\src\store\ops.rs:1886:5
+     |
+1886 | /     pub fn sample_table(
+1887 | |         &self,
+1888 | |         _table: &str,
+1889 | |         _limit: i64,
+1890 | |     ) -> Result<(Vec<String>, Vec<Vec<String>>), StoreError> {
+     | |____________________________________________________________^ duplicate definitions for `sample_table`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:178:5
+     |
+ 178 |       pub fn sample_table(&self, _table: &str, _limit: i64) -> Result<(Vec<String>, Vec<Vec<String>>), StoreError> { Err(StoreErro...
+     |       ------------------------------------------------------------------------------------------------------------ other definition for `sample_table`
+
+error[E0592]: duplicate definitions with name `vacuum`
+    --> crates\vox-pm\src\store\ops.rs:1897:5
+     |
+1897 |     pub fn vacuum(&self) -> Result<(), StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `vacuum`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:180:5
+     |
+ 180 |     pub fn vacuum(&self) -> Result<(), StoreError> { Err(StoreError::Db("VACUUM: use async maintenance or Codex".into())) }
+     |     ---------------------------------------------- other definition for `vacuum`
+
+error[E0592]: duplicate definitions with name `list_builder_sessions`
+    --> crates\vox-pm\src\store\ops.rs:1906:5
+     |
+1906 |     pub async fn list_builder_sessions(&self) -> Result<Vec<BuilderSessionEntry>, StoreError> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `list_builder_sessions`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:185:5
+     |
+ 185 |     pub async fn list_builder_sessions(&self) -> Result<Vec<BuilderSessionEntry>, StoreError> {
+     |     ----------------------------------------------------------------------------------------- other definition for `list_builder_sessions`
+
+error[E0592]: duplicate definitions with name `list_session_turns`
+    --> crates\vox-pm\src\store\ops.rs:1926:5
+     |
+1926 | /     pub async fn list_session_turns(
+1927 | |         &self,
+1928 | |         session_id: &str,
+1929 | |     ) -> Result<Vec<SessionTurnEntry>, StoreError> {
+     | |__________________________________________________^ duplicate definitions for `list_session_turns`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:195:5
+     |
+ 195 |       pub async fn list_session_turns(&self, session_id: &str) -> Result<Vec<SessionTurnEntry>, StoreError> {
+     |       ----------------------------------------------------------------------------------------------------- other definition for `list_session_turns`
+
+error[E0592]: duplicate definitions with name `list_typed_stream_events`
+    --> crates\vox-pm\src\store\ops.rs:1950:5
+     |
+1950 | /     pub async fn list_typed_stream_events(
+1951 | |         &self,
+1952 | |         stream_id: &str,
+1953 | |     ) -> Result<Vec<TypedStreamEventEntry>, StoreError> {
+     | |_______________________________________________________^ duplicate definitions for `list_typed_stream_events`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:208:5
+     |
+ 208 |       pub async fn list_typed_stream_events(&self, stream_id: &str) -> Result<Vec<TypedStreamEventEntry>, StoreError> {
+     |       --------------------------------------------------------------------------------------------------------------- other definition for `list_typed_stream_events`
+
+error[E0592]: duplicate definitions with name `list_reviews_for_target`
+    --> crates\vox-pm\src\store\ops.rs:1974:5
+     |
+1974 | /     pub async fn list_reviews_for_target(
+1975 | |         &self,
+1976 | |         target_id: &str,
+1977 | |     ) -> Result<Vec<ReviewEntry>, StoreError> {
+     | |_____________________________________________^ duplicate definitions for `list_reviews_for_target`
+     |
+    ::: crates\vox-pm\src\store\ops_sessions.rs:221:5
+     |
+ 221 |       pub async fn list_reviews_for_target(&self, target_id: &str) -> Result<Vec<ReviewEntry>, StoreError> {
+     |       ---------------------------------------------------------------------------------------------------- other definition for `list_reviews_for_target`
+
+error[E0592]: duplicate definitions with name `register_component`
+   --> crates\vox-pm\src\store\ops.rs:482:5
+    |
+482 | /     pub async fn register_component(
+483 | |         &self,
+484 | |         name: &str,
+485 | |         namespace: &str,
+...   |
+488 | |         version: &str,
+489 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `register_component`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:13:5
+    |
+ 13 | /     pub async fn register_component(
+ 14 | |         &self,
+ 15 | |         name: &str,
+ 16 | |         namespace: &str,
+...   |
+ 19 | |         version: &str,
+ 20 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `register_component`
+
+error[E0592]: duplicate definitions with name `list_components`
+   --> crates\vox-pm\src\store\ops.rs:501:5
+    |
+501 | /     pub async fn list_components(
+502 | |         &self,
+503 | |         namespace: &str,
+504 | |     ) -> Result<Vec<ComponentEntry>, StoreError> {
+    | |________________________________________________^ duplicate definitions for `list_components`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:32:5
+    |
+ 32 | /     pub async fn list_components(
+ 33 | |         &self,
+ 34 | |         namespace: &str,
+ 35 | |     ) -> Result<Vec<ComponentEntry>, StoreError> {
+    | |________________________________________________- other definition for `list_components`
+
+error[E0592]: duplicate definitions with name `create_user`
+   --> crates\vox-pm\src\store\ops.rs:541:5
+    |
+541 | /     pub async fn create_user(
+542 | |         &self,
+543 | |         id: &str,
+544 | |         display_name: &str,
+...   |
+547 | |         role: &str,
+548 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `create_user`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:59:5
+    |
+ 59 | /     pub async fn create_user(
+ 60 | |         &self,
+ 61 | |         id: &str,
+ 62 | |         display_name: &str,
+...   |
+ 65 | |         role: &str,
+ 66 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `create_user`
+
+error[E0592]: duplicate definitions with name `get_user`
+   --> crates\vox-pm\src\store\ops.rs:560:5
+    |
+560 |     pub async fn get_user(&self, id: &str) -> Result<UserEntry, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_user`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:78:5
+    |
+ 78 |     pub async fn get_user(&self, id: &str) -> Result<UserEntry, StoreError> {
+    |     ----------------------------------------------------------------------- other definition for `get_user`
+
+error[E0592]: duplicate definitions with name `set_user_preference`
+   --> crates\vox-pm\src\store\ops.rs:582:5
+    |
+582 | /     pub async fn set_user_preference(
+583 | |         &self,
+584 | |         user_id: &str,
+585 | |         key: &str,
+586 | |         value: &str,
+587 | |     ) -> Result<(), StoreError> {
+    | |_______________________________^ duplicate definitions for `set_user_preference`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:100:5
+    |
+100 | /     pub async fn set_user_preference(
+101 | |         &self,
+102 | |         user_id: &str,
+103 | |         key: &str,
+104 | |         value: &str,
+105 | |     ) -> Result<(), StoreError> {
+    | |_______________________________- other definition for `set_user_preference`
+
+error[E0592]: duplicate definitions with name `get_user_preference`
+   --> crates\vox-pm\src\store\ops.rs:598:5
+    |
+598 | /     pub async fn get_user_preference(
+599 | |         &self,
+600 | |         user_id: &str,
+601 | |         key: &str,
+602 | |     ) -> Result<Option<String>, StoreError> {
+    | |___________________________________________^ duplicate definitions for `get_user_preference`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:116:5
+    |
+116 | /     pub async fn get_user_preference(
+117 | |         &self,
+118 | |         user_id: &str,
+119 | |         key: &str,
+120 | |     ) -> Result<Option<String>, StoreError> {
+    | |___________________________________________- other definition for `get_user_preference`
+
+error[E0592]: duplicate definitions with name `list_user_preferences`
+   --> crates\vox-pm\src\store\ops.rs:618:5
+    |
+618 | /     pub async fn list_user_preferences(
+619 | |         &self,
+620 | |         user_id: &str,
+621 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________^ duplicate definitions for `list_user_preferences`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:136:5
+    |
+136 | /     pub async fn list_user_preferences(
+137 | |         &self,
+138 | |         user_id: &str,
+139 | |     ) -> Result<Vec<(String, String)>, StoreError> {
+    | |__________________________________________________- other definition for `list_user_preferences`
+
+error[E0592]: duplicate definitions with name `save_memory`
+   --> crates\vox-pm\src\store\ops.rs:639:5
+    |
+639 |     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `save_memory`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:157:5
+    |
+157 |     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
+    |     ----------------------------------------------------------------------------------- other definition for `save_memory`
+
+error[E0592]: duplicate definitions with name `recall_memory`
+   --> crates\vox-pm\src\store\ops.rs:659:5
+    |
+659 | /     pub async fn recall_memory(
+660 | |         &self,
+661 | |         agent_id: &str,
+662 | |         memory_type: Option<&str>,
+663 | |         limit: i64,
+664 | |         _vcs_snapshot_id: Option<&str>,
+665 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+    | |_____________________________________________^ duplicate definitions for `recall_memory`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:177:5
+    |
+177 | /     pub async fn recall_memory(
+178 | |         &self,
+179 | |         agent_id: &str,
+180 | |         memory_type: Option<&str>,
+181 | |         limit: i64,
+182 | |         _vcs_snapshot_id: Option<&str>,
+183 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+    | |_____________________________________________- other definition for `recall_memory`
+
+error[E0592]: duplicate definitions with name `list_memories_by_type`
+   --> crates\vox-pm\src\store\ops.rs:698:5
+    |
+698 | /     pub async fn list_memories_by_type(
+699 | |         &self,
+700 | |         memory_type: &str,
+701 | |         limit: i64,
+702 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+    | |_____________________________________________^ duplicate definitions for `list_memories_by_type`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:216:5
+    |
+216 | /     pub async fn list_memories_by_type(
+217 | |         &self,
+218 | |         memory_type: &str,
+219 | |         limit: i64,
+220 | |     ) -> Result<Vec<MemoryEntry>, StoreError> {
+    | |_____________________________________________- other definition for `list_memories_by_type`
+
+error[E0592]: duplicate definitions with name `prune_memories`
+   --> crates\vox-pm\src\store\ops.rs:719:5
+    |
+719 |     pub async fn prune_memories(&self, user_id: &str, days: u32) -> Result<u64, StoreError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `prune_memories`
+    |
+   ::: crates\vox-pm\src\store\ops_users.rs:237:5
+    |
+237 |     pub async fn prune_memories(&self, user_id: &str, days: u32) -> Result<u64, StoreError> {
+    |     --------------------------------------------------------------------------------------- other definition for `prune_memories`
+
+Some errors have detailed explanations: E0034, E0282, E0308, E0432, E0560, E0592, E0609.
+For more information about an error, try `rustc --explain E0034`.
+error: could not compile `vox-pm` (lib) due to 140 previous errors

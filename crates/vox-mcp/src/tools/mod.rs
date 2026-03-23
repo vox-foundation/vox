@@ -604,8 +604,8 @@ async fn handle_tool_call_inner(
         "vox_db_relationships" => Ok(db_tools::vox_db_relationships(args)),
         "vox_db_data_flow" => Ok(db_tools::vox_db_data_flow(args)),
         "vox_db_sample_data" => Ok(db_tools::vox_db_sample_data(state, args).await),
-        "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(args).await),
-        "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(args).await),
+        "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(state, args).await),
+        "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(state, args).await),
 
         "vox_db_research_session_upsert" => {
             Ok(codex_tools::codex_research_session_upsert(state, args).await)
@@ -623,7 +623,7 @@ async fn handle_tool_call_inner(
             Ok(codex_tools::codex_research_metric_linked(state, args).await)
         }
 
-        "vox_generate_code" => Ok(compiler_tools::generate_vox_code(args).await),
+        "vox_generate_code" => Ok(compiler_tools::generate_vox_code(state, args).await),
         "vox_list_models" => {
             Ok(crate::models::list_models(state, serde_json::from_value(args)?).await)
         }

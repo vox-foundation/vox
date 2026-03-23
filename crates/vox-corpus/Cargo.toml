@@ -6,6 +6,9 @@ license.workspace = true
 repository.workspace = true
 description = "Training data contracts, preflight, corpus SSOT, and Populi dataset metadata"
 
+[features]
+database = []
+
 [dependencies]
 anyhow = { workspace = true }
 vox-repository = { path = "../vox-repository" }

@@ -22,6 +22,11 @@
 /// Pure-Rust tokenizer and JSONL DataLoader — always compiled, no GPU required.
 pub mod data;
 
+/// LoRA adapter configuration — always compiled, no GPU required.
+/// The SSOT for [`LoraConfig`] and [`lora_memory_estimate`] across the workspace.
+pub mod lora_config;
+pub use lora_config::{LoraConfig, lora_memory_estimate};
+
 /// LoRA (Low-Rank Adaptation) — parameter-efficient fine-tuning.
 /// Phase 1 of the burn-lora strategy. See `lora::LoraLinear` for usage.
 #[cfg(feature = "gpu")]
@@ -42,6 +47,6 @@ pub extern crate burn;
 // Burn dynamic `Module` stack: `crate::vox_nn` (renamed from `nn` so `vox_tensor::nn` cannot be
 // confused with `candle_nn` / `burn::nn` when a dependent also links Candle).
 #[cfg(feature = "gpu")]
-pub use lora::{LoraConfig, LoraLinear};
+pub use lora::LoraLinear;
 #[cfg(feature = "gpu")]
 pub use tensor::{ElementType, Tensor, TensorShape};

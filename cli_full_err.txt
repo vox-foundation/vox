@@ -1,0 +1,478 @@
+   Compiling wasmtime-environ v42.0.1
+    Checking vox-db v0.1.0 (C:\Users\Owner\vox\crates\vox-db)
+    Checking wasmtime-internal-fiber v42.0.1
+    Checking wasmtime-internal-jit-debug v42.0.1
+    Checking burn-optim v0.19.1
+    Checking gix-traverse v0.44.0
+    Checking wasmtime-internal-jit-icache-coherence v42.0.1
+    Checking socks v0.3.4
+    Checking anstyle-query v1.1.5
+   Compiling wiggle-macro v42.0.1
+   Compiling rustix v1.1.3
+   Compiling cap-fs-ext v3.4.5
+    Checking axum v0.8.8
+    Checking gix-index v0.38.0
+    Checking anstream v0.6.21
+    Checking ureq v2.12.1
+error[E0599]: no method named `upsert_research_session` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\codex_conversation_graph.rs:20:14
+   |
+19 | /         self.store()
+20 | |             .upsert_research_session(
+   | |             -^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+   | |_____________|
+   |
+
+error[E0599]: no method named `append_conversation_version` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\codex_conversation_graph.rs:40:14
+   |
+39 | /         self.store()
+40 | |             .append_conversation_version(conversation_id, version_index, label, snapshot_json)
+   | |             -^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+   | |_____________|
+   |
+
+error[E0599]: no method named `insert_conversation_edge` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\codex_conversation_graph.rs:54:14
+   |
+53 | /         self.store()
+54 | |             .insert_conversation_edge(
+   | |             -^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+   | |_____________|
+   |
+
+error[E0599]: no method named `append_topic_evolution_event` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\codex_conversation_graph.rs:74:14
+   |
+73 | /         self.store()
+74 | |             .append_topic_evolution_event(topic_id, event_kind, prior_label, new_label, detail_json)
+   | |             -^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+   | |_____________|
+   |
+
+error[E0599]: no method named `append_research_metric` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\codex_conversation_graph.rs:93:14
+   |
+91 |           let metric_row_id = self
+   |                               ----
+   |                               |
+   |  _____________________________method `append_research_metric` is available on `&VoxDb`
+   | |
+92 | |             .store()
+93 | |             .append_research_metric(session_key, metric_type, metric_value, metadata_json)
+   | |             -^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+   | |_____________|
+   |
+
+error[E0599]: no method named `schema_version` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\codex_legacy.rs:39:32
+   |
+39 |     let schema_version = store.schema_version().await?;
+   |                                ^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+    Checking wasmtime v42.0.1
+error[E0599]: no method named `record_behavior_event` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:106:14
+    |
+105 | /         self.store
+106 | |             .record_behavior_event(user_id, event_type, context, metadata)
+    | |             -^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `get_learned_patterns` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:110:35
+    |
+110 |         let patterns = self.store.get_learned_patterns(user_id, 100).await?;
+    |                                   ^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `update_pattern_confidence` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:119:22
+    |
+118 | /                 self.store
+119 | |                     .update_pattern_confidence(pattern.id, new_confidence)
+    | |                     -^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________|
+    |
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:110:13
+    |
+110 |         let patterns = self.store.get_learned_patterns(user_id, 100).await?;
+    |             ^^^^^^^^
+...
+127 |             let already_known = patterns
+    |                                 -------- type must be known at this point
+    |
+help: consider giving `patterns` an explicit type
+    |
+110 |         let patterns: /* Type */ = self.store.get_learned_patterns(user_id, 100).await?;
+    |                     ++++++++++++
+
+error[E0599]: no method named `store_learned_pattern` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:132:22
+    |
+131 | /                 self.store
+132 | |                     .store_learned_pattern(
+    | |                     -^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________|
+    |
+
+error[E0599]: no method named `get_behavior_summary` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:163:34
+    |
+163 |         let summary = self.store.get_behavior_summary(user_id).await?;
+    |                                  ^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `get_patterns_by_category` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:175:22
+    |
+173 |                   let existing = self
+    |  ________________________________-
+174 | |                     .store
+175 | |                     .get_patterns_by_category(user_id, &category)
+    | |                     -^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________|
+    |
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:173:21
+    |
+173 |                 let existing = self
+    |                     ^^^^^^^^
+...
+177 |                 let already = existing.iter().find(|p| p.pattern_type == *event_type);
+    |                               -------- type must be known at this point
+    |
+help: consider giving `existing` an explicit type
+    |
+173 |                 let existing: /* Type */ = self
+    |                             ++++++++++++
+
+    Checking gix-pack v0.57.0
+error[E0599]: no method named `update_pattern_confidence` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:182:30
+    |
+181 | /                         self.store
+182 | |                             .update_pattern_confidence(p.id, confidence)
+    | |                             -^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________________|
+    |
+
+error[E0599]: no method named `store_learned_pattern` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:187:30
+    |
+186 | /                         self.store
+187 | |                             .store_learned_pattern(
+    | |                             -^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________________|
+    |
+
+error[E0599]: no method named `get_learned_patterns` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:202:20
+    |
+202 |         self.store.get_learned_patterns(user_id, 100).await
+    |                    ^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `get_learned_patterns` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:207:35
+    |
+207 |         let patterns = self.store.get_learned_patterns(user_id, 50).await?;
+    |                                   ^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `get_command_frequency` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:238:35
+    |
+238 |         let commands = self.store.get_command_frequency(user_id, limit).await?;
+    |                                   ^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:238:13
+    |
+238 |         let commands = self.store.get_command_frequency(user_id, limit).await?;
+    |             ^^^^^^^^
+239 |         Ok(commands
+    |            -------- type must be known at this point
+    |
+help: consider giving `commands` an explicit type
+    |
+238 |         let commands: /* Type */ = self.store.get_command_frequency(user_id, limit).await?;
+    |                     ++++++++++++
+
+error[E0599]: no method named `get_behavior_events` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:256:33
+    |
+256 |         let events = self.store.get_behavior_events(user_id, None, 1000).await?;
+    |                                 ^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:262:35
+    |
+262 |                 if let Ok(hour) = hour_str.parse::<u32>() {
+    |                                   ^^^^^^^^ cannot infer type
+
+    Checking gix-transport v0.45.0
+    Checking burn-train v0.19.1
+error[E0599]: no method named `get_behavior_events` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:280:14
+    |
+278 |           let events = self
+    |  ______________________-
+279 | |             .store
+280 | |             .get_behavior_events(user_id, Some("error"), 500)
+    | |             -^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `get_behavior_events` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:308:33
+    |
+308 |         let events = self.store.get_behavior_events(user_id, None, 500).await?;
+    |                                 ^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:308:13
+    |
+308 |         let events = self.store.get_behavior_events(user_id, None, 500).await?;
+    |             ^^^^^^
+309 |
+310 |         if events.len() < 2 {
+    |            ------ type must be known at this point
+    |
+help: consider giving `events` an explicit type
+    |
+308 |         let events: /* Type */ = self.store.get_behavior_events(user_id, None, 500).await?;
+    |                   ++++++++++++
+
+error[E0599]: no method named `get_learned_patterns` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:339:35
+    |
+339 |         let patterns = self.store.get_learned_patterns(user_id, 50).await?;
+    |                                   ^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `set_user_preference` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:349:22
+    |
+348 | /                 self.store
+349 | |                     .set_user_preference(user_id, &key, &value)
+    | |                     -^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________|
+    |
+
+error[E0599]: no method named `get_training_data` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:364:32
+    |
+364 |         let pairs = self.store.get_training_data(100).await?;
+    |                                ^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+    Checking rustfft v6.4.1
+error[E0599]: no method named `get_patterns_by_category` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:385:22
+    |
+383 |                   let existing = self
+    |  ________________________________-
+384 | |                     .store
+385 | |                     .get_patterns_by_category(user_id, category)
+    | |                     -^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________|
+    |
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:383:21
+    |
+383 |                 let existing = self
+    |                     ^^^^^^^^
+...
+387 |                 let already = existing.iter().find(|p| p.description == description);
+    |                               -------- type must be known at this point
+    |
+help: consider giving `existing` an explicit type
+    |
+383 |                 let existing: /* Type */ = self
+    |                             ++++++++++++
+
+error[E0599]: no method named `update_pattern_confidence` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:397:36
+    |
+397 |                         self.store.update_pattern_confidence(p.id, new_conf).await?;
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `store_learned_pattern` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:402:30
+    |
+401 | /                         self.store
+402 | |                             .store_learned_pattern(
+    | |                             -^^^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________________________|
+    |
+
+error[E0599]: no method named `get_training_data` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:424:20
+    |
+424 |         self.store.get_training_data(limit).await
+    |                    ^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+
+error[E0599]: no method named `get_behavior_events` found for reference `&CodeStore` in the current scope
+   --> crates\vox-db\src\learning.rs:437:14
+    |
+435 |           let events = self
+    |  ______________________-
+436 | |             .store
+437 | |             .get_behavior_events(user_id, Some(event_type), 100)
+    | |             -^^^^^^^^^^^^^^^^^^^ method not found in `&CodeStore`
+    | |_____________|
+    |
+
+error[E0282]: type annotations needed
+   --> crates\vox-db\src\learning.rs:435:13
+    |
+435 |         let events = self
+    |             ^^^^^^
+...
+443 |         if events.len() >= 10 {
+    |            ------ type must be known at this point
+    |
+help: consider giving `events` an explicit type
+    |
+435 |         let events: /* Type */ = self
+    |                   ++++++++++++
+
+error[E0599]: no method named `append_research_metric` found for struct `CodeStore` in the current scope
+  --> crates\vox-db\src\socrates_telemetry.rs:75:14
+   |
+74 | /         self.store
+75 | |             .append_research_metric(session_id, metric_type, metric_value, metadata_json)
+   | |             -^^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+   | |_____________|
+   |
+
+error[E0599]: no method named `list_research_metrics_by_type` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\socrates_telemetry.rs:150:14
+    |
+149 | /         self.store
+150 | |             .list_research_metrics_by_type("socrates_surface", &prefix, limit)
+    | |             -^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `save_memory` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:349:20
+    |
+349 |         self.store.save_memory(params).await
+    |                    ^^^^^^^^^^^ method not found in `CodeStore`
+
+error[E0599]: no method named `recall_memory` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:360:14
+    |
+359 | /         self.store
+360 | |             .recall_memory(agent_id, memory_type, limit, None)
+    | |             -^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `query_knowledge_nodes` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:372:20
+    |
+372 |         self.store.query_knowledge_nodes(query, limit).await
+    |                    ^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+
+error[E0599]: no method named `search_similar_embeddings` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:383:14
+    |
+382 | /         self.store
+383 | |             .search_similar_embeddings(vector, source_type, limit)
+    | |             -^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `schema_version` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:408:20
+    |
+408 |         self.store.schema_version().await
+    |                    ^^^^^^^^^^^^^^ method not found in `CodeStore`
+
+error[E0599]: no method named `append_codex_change` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:421:14
+    |
+420 | /         self.store
+421 | |             .append_codex_change(topic, entity_kind, entity_id, change_kind, payload_json)
+    | |             -^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `list_codex_changes_since` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:433:14
+    |
+432 | /         self.store
+433 | |             .list_codex_changes_since(topic, after_id, limit)
+    | |             -^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+    Checking burn-wgpu v0.19.1
+error[E0599]: no method named `record_codex_schema_lineage` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:445:14
+    |
+444 | /         self.store
+445 | |             .record_codex_schema_lineage(baseline_id, schema_digest, provenance)
+    | |             -^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `record_eval_run` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:495:14
+    |
+494 | /         self.store
+495 | |             .record_eval_run(
+    | |             -^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `record_corpus_snapshot` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:516:14
+    |
+515 | /         self.store
+516 | |             .record_corpus_snapshot(fingerprint, env!("CARGO_PKG_VERSION"), total_pairs, breakdown_json)
+    | |             -^^^^^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+error[E0599]: no method named `is_corpus_fresh` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:522:20
+    |
+522 |         self.store.is_corpus_fresh(fingerprint).await
+    |                    ^^^^^^^^^^^^^^^ method not found in `CodeStore`
+
+error[E0599]: no method named `register_component` found for struct `CodeStore` in the current scope
+   --> crates\vox-db\src\lib.rs:559:14
+    |
+558 | /         self.store
+559 | |             .register_component(
+    | |             -^^^^^^^^^^^^^^^^^^ method not found in `CodeStore`
+    | |_____________|
+    |
+
+    Checking onig v6.5.1
+    Checking gix-config v0.43.0
+error[E0599]: no method named `store` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\sync_invocables.rs:42:39
+   |
+42 |                 let hash = db.store().store("mcp_invocable", &json).await?;
+   |                            --         ^^^^^ method not found in `&CodeStore`
+   |                            |
+   |                            method `store` is available on `&VoxDb`
+
+   Compiling wiggle-generate v42.0.1
+error[E0599]: no method named `bind_name` found for reference `&CodeStore` in the current scope
+  --> crates\vox-db\src\sync_invocables.rs:43:28
+   |
+43 |                 db.store().bind_name("invocable", &slug, &hash).await
+   |                            ^^^^^^^^^ method not found in `&CodeStore`
+
+    Checking gix-pathspec v0.9.0
+    Checking burn-nn v0.19.1
+    Checking windows-threading v0.1.0
+Some errors have detailed explanations: E0282, E0599.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `vox-db` (lib) due to 51 previous errors
+warning: build failed, waiting for other jobs to finish...

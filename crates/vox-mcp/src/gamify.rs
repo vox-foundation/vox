@@ -6,8 +6,8 @@
 use crate::{ServerState, ToolResult};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use vox_gamify::companion::{Companion, Interaction};
-use vox_gamify::db::{list_companions, upsert_companion};
+use vox_ludus::companion::{Companion, Interaction};
+use vox_ludus::db::{list_companions, upsert_companion};
 
 /// MCP arguments: load or bootstrap the gamify companion row for one orchestrator agent.
 #[derive(Debug, Deserialize, JsonSchema)]

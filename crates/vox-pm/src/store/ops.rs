@@ -1,29 +1,36 @@
-//! Async CRUD and analytics for `CodeStore`.
+//! Core connection and async bridge helpers for [`CodeStore`].
 //!
-//! This file contains core connection management and common helpers. 
-//! Specialized domain methods are in `ops_*.rs` submodules.
+//! Domain-specific CRUD lives in the sibling submodules:
+//! - [`super::ops_cas`]: content-addressed storage (`objects`, `names`, `schema_version`)
+//! - [`super::ops_agents`]: agent sessions and LLM interactions
+//! - [`super::ops_memory`]: memories, knowledge nodes, embeddings, components
+//! - [`super::ops_learning`]: behavioral learning, patterns, training data
+//! - [`super::ops_codex`]: codex reactivity, research graph, reliability, eval, corpus
 
 use crate::store::CodeStore;
 
 impl CodeStore {
-    /// Borrow the underlying libSQL connection (`vox-db`, migrations, tests).
+    /// Borrow the underlying libSQL connection.
+    ///
+    /// Prefer typed `CodeStore` methods over calling SQL directly; use this only for
+    /// one-off queries that do not belong to any domain module or for test verification.
     #[inline]
     #[must_use]
     pub fn connection(&self) -> &turso::Connection {
         &self.conn
     }
 
-    /// Run an async database operation from synchronous call sites (e.g. `std::thread` workers).
+    /// Run an async future from a synchronous call site (e.g. a `std::thread` worker).
     ///
-    /// If called from a Tokio worker, uses `block_in_place` + the current handle; otherwise builds
-    /// a single-threaded runtime for the duration of the future.
+    /// Uses `block_in_place` when a Tokio runtime is active; falls back to a fresh
+    /// single-threaded runtime otherwise. Panics if the runtime cannot be created.
     pub fn block_on<R: Send>(&self, fut: impl std::future::Future<Output = R> + Send) -> R {
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
             Err(_) => tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
-                .expect("failed to build Tokio runtime for CodeStore::block_on")
+                .expect("CodeStore::block_on could not build Tokio runtime")
                 .block_on(fut),
         }
     }

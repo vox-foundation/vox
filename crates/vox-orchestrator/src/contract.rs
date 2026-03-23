@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "json-schema")]
-use schemars::JsonSchema;
+use schemars as _;
 
 /// Version label for orchestration wire format (bump when breaking compatibility).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

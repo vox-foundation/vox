@@ -163,7 +163,7 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
 pub async fn export(user_id: &str, output: Option<&PathBuf>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
 
-    let prefs = db.store().list_user_preferences(user_id).await?;
+    let prefs = db.store().list_user_preferences(user_id, None).await?;
     let memories = db.recall_memory(user_id, None, 200).await?;
     let patterns = db.store().get_learned_patterns(user_id, 200).await?;
 
@@ -297,7 +297,7 @@ pub async fn pref_set(user_id: &str, key: &str, value: &str) -> Result<()> {
 /// List all preferences for a user.
 pub async fn pref_list(user_id: &str, prefix: Option<&str>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let prefs = db.store().list_user_preferences(user_id).await?;
+    let prefs = db.store().list_user_preferences(user_id, prefix).await?;
     let filtered: Vec<_> = prefs
         .iter()
         .filter(|(k, _)| prefix.map(|p| k.starts_with(p)).unwrap_or(true))

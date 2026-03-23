@@ -598,11 +598,11 @@ impl MemoryManager {
             }
 
             if let Ok(neighbors) = db.store().get_knowledge_neighbors(&node_id).await {
-                for (target, _relation, _weight) in neighbors {
-                    if visited.insert(target.id.clone()) {
+                for (target_id, target_label, _relation, _weight) in neighbors {
+                    if visited.insert(target_id.clone()) {
                         let indent = "  ".repeat(current_depth + 1);
-                        context.push_str(&format!("{indent}- {}\n", target.label));
-                        queue.push_back((target.id, current_depth + 1));
+                        context.push_str(&format!("{indent}- {}\n", target_label));
+                        queue.push_back((target_id, current_depth + 1));
                     }
                 }
             }

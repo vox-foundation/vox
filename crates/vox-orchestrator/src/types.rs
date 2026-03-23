@@ -915,4 +915,58 @@ mod tests {
         assert_eq!(ag.next(), AgentId(1));
         assert_eq!(ag.next(), AgentId(2));
     }
+
+    // ── Time-awareness tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn task_start_sets_started_at_ms() {
+        let mut task = AgentTask::new(TaskId(1), "test", TaskPriority::Normal, vec![]);
+        assert!(task.started_at_ms.is_none(), "should not be started yet");
+        task.start();
+        assert!(task.started_at_ms.is_some(), "start() must populate started_at_ms");
+        let ts = task.started_at_ms.unwrap();
+        // Timestamp should be within 5 seconds of now.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        assert!(now.saturating_sub(ts) < 5_000, "started_at_ms should be recent");
+    }
+
+    #[test]
+    fn expensive_op_elapsed_ms_is_monotone() {
+        let mut task = AgentTask::new(TaskId(2), "test", TaskPriority::Normal, vec![]);
+        assert!(task.elapsed_since_last_expensive_op_ms().is_none());
+        task.record_expensive_op();
+        let elapsed = task.elapsed_since_last_expensive_op_ms();
+        assert!(elapsed.is_some(), "should have elapsed after recording");
+        assert!(elapsed.unwrap() < 1_000, "should be < 1s in test");
+    }
+
+    #[test]
+    fn a2a_message_elapsed_ms_grows_over_time() {
+        use crate::types::{A2AMessageType, MessageId};
+        let msg = A2AMessage::new(
+            MessageId(1),
+            AgentId(1),
+            Some(AgentId(2)),
+            A2AMessageType::FreeForm,
+            "hello",
+        );
+        let elapsed = msg.elapsed_ms();
+        // In tests this should be ~0ms; tolerance of 1 second is generous.
+        assert!(elapsed < 1_000, "freshly created message should have elapsed < 1000ms, got {elapsed}");
+    }
+
+    #[test]
+    fn task_start_idempotent_timestamp_stable() {
+        let mut task = AgentTask::new(TaskId(3), "test", TaskPriority::Normal, vec![]);
+        task.start();
+        let first = task.started_at_ms.unwrap();
+        // Second call should overwrite (last-write wins) — just verify it doesn't panic.
+        task.start();
+        let second = task.started_at_ms.unwrap();
+        // Should be >= first (monotone clock).
+        assert!(second >= first, "second start should not go backward in time");
+    }
 }

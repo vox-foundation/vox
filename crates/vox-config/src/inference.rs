@@ -106,3 +106,12 @@ pub fn hf_dedicated_chat_model() -> Option<String> {
         .ok()
         .filter(|s| !s.trim().is_empty())
 }
+
+/// Sanitize a string for ChatML formatting by replacing control tokens that could
+/// trigger prompt injection (e.g., `<|im_start|>`, `<|im_end|>`).
+#[must_use]
+pub fn sanitize_chatml(input: &str) -> String {
+    input
+        .replace("<|im_start|>", "[im_start]")
+        .replace("<|im_end|>", "[im_end]")
+}

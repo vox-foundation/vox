@@ -217,18 +217,21 @@ pub(crate) async fn http_openai_compatible(
     max_tokens: u64,
     temperature: f32,
 ) -> Result<(String, u32, u32), HttpInferError> {
+    let mut messages = Vec::new();
+    if !system.is_empty() {
+        messages.push(OpenAiMsg {
+            role: "system",
+            content: system,
+        });
+    }
+    messages.push(OpenAiMsg {
+        role: "user",
+        content: user,
+    });
+
     let body = OpenAiChatRequest {
         model,
-        messages: vec![
-            OpenAiMsg {
-                role: "system",
-                content: system,
-            },
-            OpenAiMsg {
-                role: "user",
-                content: user,
-            },
-        ],
+        messages,
         temperature,
         max_tokens,
         stream: false,
@@ -288,10 +291,16 @@ pub(crate) async fn http_gemini(
         "https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
     );
 
-    let body = GeminiGenerateBody {
-        system_instruction: Some(GeminiSys {
+    let system_instruction = if system.is_empty() {
+        None
+    } else {
+        Some(GeminiSys {
             parts: vec![GeminiPartOut { text: system }],
-        }),
+        })
+    };
+
+    let body = GeminiGenerateBody {
+        system_instruction,
         contents: vec![GeminiTurn {
             role: "user",
             parts: vec![GeminiPartOut { text: user }],
@@ -365,18 +374,21 @@ pub(crate) async fn http_ollama(
     let base = ollama_base_url();
     let url = format!("{}/api/chat", base.trim_end_matches('/'));
 
+    let mut messages = Vec::new();
+    if !system.is_empty() {
+        messages.push(OllamaChatMsg {
+            role: "system",
+            content: system,
+        });
+    }
+    messages.push(OllamaChatMsg {
+        role: "user",
+        content: user,
+    });
+
     let body = OllamaChatRequest {
         model,
-        messages: vec![
-            OllamaChatMsg {
-                role: "system",
-                content: system,
-            },
-            OllamaChatMsg {
-                role: "user",
-                content: user,
-            },
-        ],
+        messages,
         stream: false,
         options: OllamaOptions {
             temperature,

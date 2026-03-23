@@ -8,14 +8,18 @@ use std::future::Future;
 use std::pin::Pin;
 use tokio_stream::Stream;
 
-/// Message format for the chat API
+/// Message format for the LLM chat API wire protocol (OpenAI-compatible).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatMessage {
+pub struct LlmChatMessage {
     /// Chat role string (`system`, `user`, `assistant`, …).
     pub role: String,
     /// Message body text.
     pub content: String,
 }
+
+/// Deprecated alias kept for callers within this crate during the rename.
+#[allow(dead_code)]
+pub(crate) type ChatMessage = LlmChatMessage;
 
 /// A configuration block for an LLM provider integration.
 #[derive(Debug, Clone, Serialize, Deserialize)]

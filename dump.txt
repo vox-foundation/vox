@@ -1,0 +1,21 @@
+    Checking vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+error[E0308]: mismatched types
+   --> crates\vox-cli\src\commands\db_research_impl.rs:726:47
+    |
+726 |             let val_str = match row.get_value(i as i32) {
+    |                                     --------- ^^^^^^^^ expected `usize`, found `i32`
+    |                                     |
+    |                                     arguments to this method are incorrect
+    |
+note: method defined here
+   --> C:\Users\Owner\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turso-0.4.4\src\rows.rs:50:12
+    |
+ 50 |     pub fn get_value(&self, index: usize) -> Result<Value> {
+    |            ^^^^^^^^^
+help: you can convert an `i32` to a `usize` and panic if the converted value doesn't fit
+    |
+726 |             let val_str = match row.get_value((i as i32).try_into().unwrap()) {
+    |                                               +        +++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `vox-cli` (lib) due to 1 previous error

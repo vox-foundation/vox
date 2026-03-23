@@ -46,7 +46,7 @@ vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-forge                 = { path = "crates/vox-forge" }
 vox-fmt                   = { path = "crates/vox-fmt" }
-vox-gamify                = { path = "crates/vox-gamify" }
+
 vox-git                   = { path = "crates/vox-git" }
 vox-hir                   = { path = "crates/vox-hir" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }

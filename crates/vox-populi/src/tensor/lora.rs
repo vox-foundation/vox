@@ -29,30 +29,14 @@ use burn::tensor::TensorData;
 #[cfg(feature = "gpu")]
 use burn::tensor::backend::Backend;
 
-/// Configuration for a LoRA adapter.
-///
-/// Typical defaults: rank=8, alpha=16, dropout=0.0
-#[derive(Debug, Clone)]
-pub struct LoraConfig {
-    /// Low-rank dimension r. Typical values: 4, 8, 16, 32.
-    /// Higher rank → more expressiveness but more parameters.
-    pub rank: usize,
-    /// LoRA scaling factor. The adapter output is multiplied by `alpha / rank`.
-    /// Setting alpha=rank gives scale=1.0 (no explicit scaling).
-    pub alpha: f32,
-    /// Dropout probability applied to LoRA branch input. 0.0 = disabled.
-    pub dropout: f32,
-}
-
-impl Default for LoraConfig {
-    fn default() -> Self {
-        Self {
-            rank: 8,
-            alpha: 16.0,
-            dropout: 0.0,
-        }
-    }
-}
+// ── LoraConfig SSOT re-export ─────────────────────────────────────────────
+//
+// `LoraConfig` and `lora_memory_estimate` live in `vox-tensor` as the single
+// source of truth.  This module re-exports them so that the rest of the
+// `vox-populi` tree (including `lora_train.rs`, `lora::LoraLinear`, and the
+// public `vox_populi::LoraConfig` path via `tensor/mod.rs`) continues to work
+// without any callers changing their imports.
+pub use vox_tensor::{LoraConfig, lora_memory_estimate};
 
 /// A LoRA-adapted linear layer.
 ///
@@ -172,19 +156,7 @@ impl<B: Backend> LoraLinear<B> {
     }
 }
 
-/// Estimated memory savings from LoRA vs full fine-tuning.
-///
-/// Returns `(lora_params, full_params, saving_pct)`.
-pub fn lora_memory_estimate(
-    in_features: usize,
-    out_features: usize,
-    rank: usize,
-) -> (usize, usize, f32) {
-    let lora = in_features * rank + rank * out_features;
-    let full = in_features * out_features;
-    let saving = 1.0 - (lora as f32 / full as f32);
-    (lora, full, saving * 100.0)
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GPU-only: Full LoRA transformer model (requires Burn autodiff backend)

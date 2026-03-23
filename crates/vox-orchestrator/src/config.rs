@@ -211,6 +211,10 @@ pub struct OrchestratorConfig {
     /// Experimental: use remote mesh node labels when scoring routes (no remote task execution).
     #[serde(default = "default_false")]
     pub mesh_routing_experimental: bool,
+    /// When true, MCP tool LLM calls collapse system/user turns into a single string
+    /// formatted with `<|im_start|>` markers instead of JSON message arrays.
+    #[serde(default = "default_false")]
+    pub chatml_strict: bool,
 }
 
 fn default_heartbeat_interval() -> u64 {
@@ -366,6 +370,7 @@ impl Default for OrchestratorConfig {
             mesh_poll_interval_secs: default_mesh_poll_interval_secs(),
             mesh_http_timeout_ms: default_mesh_http_timeout_ms(),
             mesh_routing_experimental: default_false(),
+            chatml_strict: default_false(),
         }
     }
 }
@@ -633,6 +638,13 @@ impl OrchestratorConfig {
                 "VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL",
                 &val,
                 self.mesh_routing_experimental,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CHATML_STRICT") {
+            self.chatml_strict = parse_or_warn(
+                "VOX_ORCHESTRATOR_CHATML_STRICT",
+                &val,
+                self.chatml_strict,
             );
         }
     }
