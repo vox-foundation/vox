@@ -281,13 +281,80 @@ fn collect_from_expr(
     Ok(())
 }
 
+/// An engine tracker that allows the interpreted runner to persist durable states.
+pub trait WorkflowTracker: Send + Sync {
+    /// Check if a specific step was already completed in a prior, durable run.
+    fn is_activity_completed(
+        &self,
+        _workflow_name: &str,
+        _activity_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
+        async { Ok(false) }
+    }
+
+    /// Called when the workflow plan begins.
+    fn on_workflow_started(
+        &mut self,
+        _workflow_name: &str,
+        _plan_len: usize,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// Called when an activity starts execution.
+    fn on_activity_started(
+        &mut self,
+        _workflow_name: &str,
+        _activity_name: &str,
+        _activity_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// Called when an activity fully completes.
+    fn on_activity_completed(
+        &mut self,
+        _workflow_name: &str,
+        _activity_name: &str,
+        _activity_id: &str,
+        _result: &Value,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// Called when the workflow successfully completes all steps.
+    fn on_workflow_completed(
+        &mut self,
+        _workflow_name: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+}
+
+/// A default no-op tracker used if none is provided.
+#[derive(Default)]
+pub struct DefaultTracker;
+
+impl WorkflowTracker for DefaultTracker {}
+
 /// Execute a planned workflow and append journal entries.
 pub async fn interpret_workflow(
     hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<Vec<Value>> {
+    let mut tracker = DefaultTracker;
+    interpret_workflow_durable(hir, workflow_name, &mut tracker).await
+}
+
+/// Execute a planned workflow with a durable state engine, returning journal entries.
+pub async fn interpret_workflow_durable(
+    hir: &HirModule,
+    workflow_name: &str,
+    tracker: &mut impl WorkflowTracker,
+) -> anyhow::Result<Vec<Value>> {
     let plan = plan_workflow_activities(hir, workflow_name)?;
     let mut journal = Vec::new();
+    tracker.on_workflow_started(workflow_name, plan.len()).await?;
     journal.push(json!({
         "event": "WorkflowStarted",
         "workflow": workflow_name,
@@ -298,13 +365,27 @@ pub async fn interpret_workflow(
             .activity_id
             .clone()
             .unwrap_or_else(|| format!("{workflow_name}-{idx}"));
+
+        if tracker.is_activity_completed(workflow_name, &activity_id).await? {
+            journal.push(json!({
+                "event": "ActivitySkipped",
+                "workflow": workflow_name,
+                "activity": step.name,
+                "activity_id": activity_id,
+                "reason": "already completed in prior durable run",
+            }));
+            continue;
+        }
+
+        tracker.on_activity_started(workflow_name, &step.name, &activity_id).await?;
         journal.push(json!({
             "event": "ActivityStarted",
             "workflow": workflow_name,
             "activity": step.name,
             "activity_id": activity_id,
         }));
-        if step.mesh {
+        
+        let mut entry = if step.mesh {
             #[cfg(feature = "mesh")]
             {
                 let m = MeshActivity {
@@ -313,26 +394,29 @@ pub async fn interpret_workflow(
                     timeout_ms: step.timeout_ms,
                     activity_id: activity_id.clone(),
                 };
-                let entry = execute_mesh_step(&m).await?;
-                journal.push(entry);
+                execute_mesh_step(&m).await?
             }
             #[cfg(not(feature = "mesh"))]
             {
-                journal.push(json!({
+                json!({
                     "event": "MeshActivitySkipped",
                     "activity": step.name,
                     "activity_id": activity_id,
                     "reason": "vox-workflow-runtime built without mesh feature",
-                }));
+                })
             }
         } else {
-            journal.push(json!({
+            json!({
                 "event": "LocalActivity",
                 "activity": step.name,
                 "activity_id": activity_id,
                 "status": "noop",
-            }));
-        }
+            })
+        };
+        
+        tracker.on_activity_completed(workflow_name, &step.name, &activity_id, &entry).await?;
+        journal.push(entry);
+
         journal.push(json!({
             "event": "ActivityCompleted",
             "workflow": workflow_name,
@@ -340,6 +424,7 @@ pub async fn interpret_workflow(
             "activity_id": activity_id,
         }));
     }
+    tracker.on_workflow_completed(workflow_name).await?;
     journal.push(json!({
         "event": "WorkflowCompleted",
         "workflow": workflow_name,

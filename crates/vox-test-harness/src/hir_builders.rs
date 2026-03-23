@@ -4,7 +4,7 @@
 //! `minimal_module()` and similar helpers are never redefined per-file.
 
 use vox_hir::{
-    HirFn, HirModule, HirRoute, HirTable, HirType,
+    HirFn, HirModule, HirRoute, HirTable,
 };
 
 use crate::spans::dummy_span;

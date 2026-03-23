@@ -106,7 +106,7 @@ pub async fn submit(description: &str, files: &[String], priority: Option<&str>)
         _ => None,
     };
 
-    match orch.submit_task(description, file_manifest, priority).await {
+    match orch.submit_task(description, file_manifest, priority, None).await {
         Ok(task_id) => {
             println!(
                 "  {} Task {} submitted successfully",

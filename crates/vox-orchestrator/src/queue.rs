@@ -67,11 +67,20 @@ impl AgentQueue {
     /// Higher priority tasks go before lower priority tasks.
     /// Within the same priority, new tasks go to the end (FIFO).
     pub fn enqueue(&mut self, task: AgentTask) {
-        // Find the insertion point: after all tasks of equal or higher priority
+        // Find the insertion point: higher priority tasks first.
+        // Within the same priority, order chronologically by created_at_ms.
         let pos = self
             .tasks
             .iter()
-            .position(|t| t.priority < task.priority)
+            .position(|t| {
+                if t.priority < task.priority {
+                    true
+                } else if t.priority == task.priority {
+                    t.created_at_ms > task.created_at_ms
+                } else {
+                    false
+                }
+            })
             .unwrap_or(self.tasks.len());
         self.tasks.insert(pos, task);
         self.last_active = std::time::SystemTime::now();
@@ -333,11 +342,15 @@ impl AgentQueue {
     /// Returns the timed-out task if one was found.
     pub fn timeout_in_progress(&mut self, timeout: std::time::Duration) -> Option<AgentTask> {
         let now = std::time::Instant::now();
+        let now_ms = crate::types::now_unix_ms();
         if let Some(ref task) = self.in_progress {
-            if let Some(created) = task.created_at {
-                if now.duration_since(created) >= timeout {
-                    return self.in_progress.take();
-                }
+            let expired = if let Some(created) = task.created_at {
+                now.duration_since(created) >= timeout
+            } else {
+                now_ms.saturating_sub(task.created_at_ms) >= timeout.as_millis() as u64
+            };
+            if expired {
+                return self.in_progress.take();
             }
         }
         None
@@ -359,13 +372,16 @@ impl AgentQueue {
     /// Drain all tasks that have exceeded a timeout (for external rescheduling).
     pub fn drain_timed_out(&mut self, timeout: std::time::Duration) -> Vec<AgentTask> {
         let now = std::time::Instant::now();
+        let now_ms = crate::types::now_unix_ms();
         let mut timed_out = Vec::new();
         let mut i = 0;
+        let timeout_ms = timeout.as_millis() as u64;
         while i < self.tasks.len() {
-            let expired = if let Some(created) = self.tasks[i].created_at {
+            let task = &self.tasks[i];
+            let expired = if let Some(created) = task.created_at {
                 now.duration_since(created) >= timeout
             } else {
-                false
+                now_ms.saturating_sub(task.created_at_ms) >= timeout_ms
             };
             if expired {
                 if let Some(t) = self.tasks.remove(i) {

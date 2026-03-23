@@ -7,7 +7,7 @@ use vox_orchestrator::oplog;
 
 #[tokio::test]
 async fn test_distributed_coordination_primitives() {
-    let db = vox_db::VoxDb::from_store(vox_pm::CodeStore::new_memory().expect("in-memory store"));
+    let db = vox_db::VoxDb::from_store(vox_pm::CodeStore::open_memory().await.expect("in-memory store"));
     
     // 1. Schema application (coordination DDL)
     db.sync_schema_from_digest(&vox_orchestrator::schema::orchestrator_schema())

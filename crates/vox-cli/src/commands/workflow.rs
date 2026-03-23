@@ -160,7 +160,55 @@ pub async fn run(file: &Path, workflow_name: &str) -> Result<()> {
 
     #[cfg(feature = "workflow-runtime")]
     {
-        let journal = vox_workflow_runtime::interpret_workflow(&result.hir, workflow_name).await?;
+        struct CliTracker {
+            db: Option<vox_db::VoxDb>,
+        }
+
+        impl vox_workflow_runtime::WorkflowTracker for CliTracker {
+            async fn is_activity_completed(&self, wf: &str, act_id: &str) -> anyhow::Result<bool> {
+                if let Some(db) = &self.db {
+                    let r = db.store().is_activity_completed(wf, act_id).await?;
+                    return Ok(r);
+                }
+                Ok(false)
+            }
+            async fn on_workflow_started(&mut self, wf: &str, len: usize) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    let _ = db.store().start_workflow_execution(wf, len as i64).await;
+                }
+                Ok(())
+            }
+            async fn on_activity_completed(&mut self, wf: &str, act: &str, act_id: &str, res: &serde_json::Value) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    let p = vox_pm::LogExecutionParams {
+                        workflow_id: wf,
+                        agent_id: None,
+                        skill_id: None,
+                        activity_name: act,
+                        status: "ok",
+                        attempt: 1,
+                        duration_ms: 0,
+                        output_size: res.to_string().len() as i64,
+                        input: None,
+                        output: None,
+                        error: None,
+                        options: None,
+                    };
+                    let _ = db.store().log_execution(&p).await;
+                }
+                Ok(())
+            }
+            async fn on_workflow_completed(&mut self, wf: &str) -> anyhow::Result<()> {
+                if let Some(db) = &self.db {
+                    let _ = db.store().finish_workflow_execution(wf, "completed", 0).await;
+                }
+                Ok(())
+            }
+        }
+
+        let db = vox_db::VoxDb::open_from_env().ok();
+        let mut tracker = CliTracker { db };
+        let journal = vox_workflow_runtime::interpret_workflow_durable(&result.hir, workflow_name, &mut tracker).await?;
         for entry in &journal {
             crate::workflow_journal_codex::persist_workflow_journal_entry_opt(workflow_name, entry)
                 .await;

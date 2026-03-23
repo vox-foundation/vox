@@ -158,7 +158,7 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
             sender: m.sender.0,
             receiver: m.receiver.map(|r| r.0),
             msg_type: msg_type_name(&m.msg_type),
-            payload: m.payload.clone(),
+            payload: format!("{} [Received {}s ago]", m.payload, m.elapsed_ms() / 1000),
             timestamp_ms: m.timestamp_ms,
             acknowledged: m.acknowledged,
         })
@@ -232,7 +232,7 @@ pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> Strin
                 sender: m.sender.0,
                 receiver: m.receiver.map(|r| r.0),
                 msg_type: msg_type_name(&m.msg_type),
-                payload: m.payload.clone(),
+                payload: format!("{} [Received {}s ago]", m.payload, m.elapsed_ms() / 1000),
                 timestamp_ms: m.timestamp_ms,
                 acknowledged: m.acknowledged,
             })
@@ -248,7 +248,7 @@ pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> Strin
                 sender: m.sender.0,
                 receiver: m.receiver.map(|r| r.0),
                 msg_type: msg_type_name(&m.msg_type),
-                payload: m.payload.clone(),
+                payload: format!("{} [Received {}s ago]", m.payload, m.elapsed_ms() / 1000),
                 timestamp_ms: m.timestamp_ms,
                 acknowledged: m.acknowledged,
             })

@@ -14,6 +14,15 @@ use crate::params::{
 use crate::server::ServerState;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 
+async fn record_expensive_op(state: &ServerState) {
+    if let Ok(mut sm) = state.session_manager.try_lock() {
+        let sid = sm.list_sessions().first().map(|s| s.id.clone());
+        if let Some(id) = sid {
+            let _ = sm.record_expensive_op(&id);
+        }
+    }
+}
+
 fn cargo_unavailable_message(state: &ServerState) -> Option<String> {
     let c = &state.repository.capabilities;
     if c.cargo_workspace || c.cargo_package {
@@ -127,6 +136,7 @@ pub async fn check_workspace(state: &ServerState) -> String {
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
             if output.status.success() {
+                record_expensive_op(state).await;
                 ToolResult::ok("workspace check passed".to_string()).to_json()
             } else {
                 ToolResult::<String>::err(format!("check failed:\n{stderr}")).to_json()
@@ -155,6 +165,7 @@ pub async fn test_all(state: &ServerState) -> String {
             let combined = format!("STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}");
 
             if output.status.success() {
+                record_expensive_op(state).await;
                 ToolResult::ok(combined).to_json()
             } else {
                 ToolResult::<String>::err(combined).to_json()
@@ -184,6 +195,7 @@ pub async fn build_crate(state: &ServerState, crate_name: Option<&str>) -> Strin
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             if output.status.success() {
+                record_expensive_op(state).await;
                 ToolResult::ok(format!("Build succeeded.\n{stdout}")).to_json()
             } else {
                 ToolResult::<String>::err(format!("Build failed:\n{stderr}")).to_json()
@@ -260,6 +272,7 @@ pub async fn lint_crate(state: &ServerState, crate_name: Option<&str>) -> String
         clippy_out, ts_report
     );
 
+    record_expensive_op(state).await;
     ToolResult::ok(combined).to_json()
 }
 
@@ -351,6 +364,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             &routing,
             2048,
             0.1,
+            false,
         )
         .await
         {
@@ -358,17 +372,15 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
         };
 
-        // Strip fence
-        if let Some(inner) = completion
-            .strip_prefix("```vox")
-            .or_else(|| completion.strip_prefix("```"))
-        {
-            completion = inner
-                .trim_start_matches('\n')
-                .trim_end_matches("```")
-                .trim_end()
-                .to_string();
-        }
+        // Robust fence stripping: strip the language tag and then any trailing ```
+        let block = completion.trim();
+        completion = if block.starts_with("```vox") {
+            block.strip_prefix("```vox").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim().to_string()
+        } else if block.starts_with("```") {
+            block.strip_prefix("```").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim().to_string()
+        } else {
+            block.to_string()
+        };
 
         if !validate_flag {
             return ToolResult::ok(completion).to_json();

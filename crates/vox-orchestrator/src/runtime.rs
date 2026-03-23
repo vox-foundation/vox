@@ -195,26 +195,31 @@ impl ActorAgent {
             AgentCommand::ProcessQueue => {
                 let task_to_run = {
                     let mut orch = orchestrator_ref.lock().await;
-                    let task_to_run = if let Some(queue) = orch.get_agent_queue_mut(agent_id) {
+                    // Extract task (mutable borrow) first in a nested scope.
+                    let dequeued = if let Some(queue) = orch.get_agent_queue_mut(agent_id) {
                         if !queue.is_paused() {
-                            queue.dequeue()
+                            let t = queue.dequeue();
+                            if t.is_some() {
+                                orch.heartbeat(agent_id, crate::events::AgentActivity::Thinking);
+                            } else {
+                                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                            }
+                            t
                         } else {
                             None
                         }
                     } else {
                         None
                     };
-
-                    if let Some(ref task) = task_to_run {
-                        orch.heartbeat(agent_id, crate::events::AgentActivity::Thinking);
+                    // Emit after the mutable borrow is released.
+                    if let Some(ref task) = dequeued {
                         orch.event_bus().emit(AgentEventKind::TaskStarted {
                             task_id: task.id,
                             agent_id,
+                            session_id: task.session_id.clone(),
                         });
-                    } else {
-                        orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                     }
-                    task_to_run
+                    dequeued
                 };
 
                 if let Some(task) = task_to_run {

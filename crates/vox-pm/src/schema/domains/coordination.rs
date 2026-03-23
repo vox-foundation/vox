@@ -45,9 +45,9 @@ CREATE TABLE IF NOT EXISTS a2a_messages (
     repository_id  TEXT    NOT NULL DEFAULT ''
 );
 
-CREATE INDEX IF NOT EXISTS idx_a2a_receiver ON a2a_messages(receiver_agent);
-CREATE INDEX IF NOT EXISTS idx_a2a_acknowledged ON a2a_messages(acknowledged);
-CREATE INDEX IF NOT EXISTS idx_a2a_thread ON a2a_messages(thread_id);
+CREATE INDEX IF NOT EXISTS idx_a2a_receiver ON a2a_messages (receiver_agent);
+CREATE INDEX IF NOT EXISTS idx_a2a_acknowledged ON a2a_messages (acknowledged);
+CREATE INDEX IF NOT EXISTS idx_a2a_thread ON a2a_messages (thread_id);
 
 CREATE TABLE IF NOT EXISTS mesh_heartbeats (
     node_id       TEXT    NOT NULL,

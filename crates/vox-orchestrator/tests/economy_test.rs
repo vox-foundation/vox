@@ -37,6 +37,7 @@ async fn test_economy_preference_rebalancing() {
                 format!("expensive-task-{}", i),
                 vec![],
                 Some(TaskPriority::Normal),
+                None,
             )
             .await
             .unwrap();

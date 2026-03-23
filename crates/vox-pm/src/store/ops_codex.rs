@@ -93,24 +93,89 @@ impl CodeStore {
 
     // ── Workflow Execution Telemetry (workflow_executions) ────────────────────
 
-    /// Mark a `workflow_executions` row as finished (sets `ended_at`, `status`, `output_size`,
-    /// and optionally `error_message`). A no-op when the row does not exist.
+    /// Start or resume a `workflow_executions` row.
+    pub async fn start_workflow_execution(
+        &self,
+        workflow_id: &str,
+        step_count: i64,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO workflow_executions (workflow_id, status, step_count)
+                 VALUES (?1, 'running', ?2)
+                 ON CONFLICT(workflow_id) DO UPDATE SET status = 'running', step_count = ?2",
+                params![workflow_id, step_count],
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Check if an activity was already completed successfully in a previous run.
+    pub async fn is_activity_completed(
+        &self,
+        workflow_id: &str,
+        activity_name: &str,
+    ) -> Result<bool, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM execution_log
+                 WHERE workflow_id = ?1 AND activity_name = ?2 AND status = 'ok'",
+                params![workflow_id, activity_name],
+            )
+            .await?;
+        let count: i64 = if let Some(row) = rows.next().await? {
+            row.get(0).unwrap_or(0)
+        } else {
+            0
+        };
+        Ok(count > 0)
+    }
+
+    /// Insert a record for an activity execution into `execution_log`.
+    pub async fn log_execution(&self, p: &crate::store::types::LogExecutionParams<'_>) -> Result<i64, StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO execution_log (
+                    workflow_id, agent_id, skill_id, activity_name, status,
+                    attempt, duration_ms, output_size, input, output, error, options
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![
+                    p.workflow_id,
+                    p.agent_id,
+                    p.skill_id,
+                    p.activity_name,
+                    p.status,
+                    p.attempt,
+                    p.duration_ms,
+                    p.output_size,
+                    p.input,
+                    p.output,
+                    p.error,
+                    p.options
+                ],
+            )
+            .await?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Mark a `workflow_executions` row as finished (sets `finished_at`, `status`).
+    /// A no-op when the row does not exist.
     ///
     /// Called from `vox-orchestrator` `Orchestrator::complete_task` / `fail_task`.
     pub async fn finish_workflow_execution(
         &self,
         workflow_id: &str,
         status: &str,
-        output_size: i64,
-        error_message: Option<&str>,
+        error_count: i64,
     ) -> Result<(), StoreError> {
         self.conn
             .execute(
                 "UPDATE workflow_executions
-                 SET status = ?2, output_size = ?3, error_message = ?4,
-                     ended_at = datetime('now')
-                 WHERE workflow_id = ?1 AND ended_at IS NULL",
-                params![workflow_id, status, output_size, error_message],
+                 SET status = ?2, error_count = ?3,
+                     finished_at = datetime('now')
+                 WHERE workflow_id = ?1 AND finished_at IS NULL",
+                params![workflow_id, status, error_count],
             )
             .await?;
         Ok(())

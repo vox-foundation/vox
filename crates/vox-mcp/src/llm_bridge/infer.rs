@@ -52,6 +52,7 @@ async fn http_infer_model(
     user_prompt: &str,
     max_t: u64,
     temperature: f32,
+    json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
     match model.provider_type {
         ProviderType::GoogleDirect => {
@@ -67,6 +68,7 @@ async fn http_infer_model(
                 user_prompt,
                 max_t,
                 temperature,
+                json_mode,
             )
             .await
         }
@@ -79,6 +81,7 @@ async fn http_infer_model(
                 user_prompt,
                 max_t,
                 temperature,
+                json_mode,
             )
             .await
         }
@@ -100,6 +103,7 @@ async fn http_infer_model(
                 user_prompt,
                 max_t,
                 temperature,
+                json_mode,
             )
             .await
         }
@@ -135,6 +139,7 @@ pub async fn mcp_infer_completion(
     routing: &McpInferRouting<'_>,
     max_tokens: u64,
     temperature: f32,
+    json_mode: bool,
 ) -> Result<(String, String, u64), String> {
     let max_t = super::clamp_http_max_output_tokens(max_tokens);
     let client = &state.http_client;
@@ -229,6 +234,7 @@ pub async fn mcp_infer_completion(
             final_user,
             max_t,
             temperature,
+            json_mode,
         )
         .await;
 
@@ -252,6 +258,7 @@ pub async fn mcp_infer_completion(
                         input_tokens: pt,
                         output_tokens: ct,
                         cost_usd,
+                        temporal_context: None,
                     });
                 }
 
@@ -319,6 +326,7 @@ pub async fn call_llm(
         &routing,
         max_tokens,
         0.7,
+        false,
     )
     .await
 }

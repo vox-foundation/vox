@@ -7,9 +7,11 @@ repository.workspace = true
 description = "Training data contracts, preflight, corpus SSOT, and Populi dataset metadata"
 
 [features]
-database = []
+database = ["dep:vox-db"]
+parser-verify = []
 
 [dependencies]
+vox-db = { path = "../vox-db", optional = true }
 anyhow = { workspace = true }
 vox-repository = { path = "../vox-repository" }
 vox-mcp-meta = { path = "../vox-mcp-meta" }

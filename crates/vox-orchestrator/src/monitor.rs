@@ -63,6 +63,7 @@ impl AiMonitor {
                             agent_id,
                             strategy,
                             pending_tasks,
+                            elapsed.as_secs(),
                             event_bus,
                         ) {
                             intents.push((agent_id, prompt.prompt_text));

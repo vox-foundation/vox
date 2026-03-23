@@ -611,7 +611,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 use owo_colors::OwoColorize;
                 let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
                 
-                let is_fresh = if let Ok(db) = vox_db::VoxDb::open_from_env() {
+                let is_fresh = if let Ok(db) = vox_db::VoxDb::connect_default().await {
                     db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
                 } else {
                     let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
@@ -627,7 +627,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     let out_path = root.join("populi/data/synthetic.jsonl");
                     if let Ok(pairs) = vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
                         eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), pairs);
-                        if let Ok(db) = vox_db::VoxDb::open_from_env() {
+                        if let Ok(db) = vox_db::VoxDb::connect_default().await {
                             let _ = db.record_corpus_snapshot(&current_fp, pairs as i64, None).await;
                         } else {
                             let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);

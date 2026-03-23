@@ -13,6 +13,7 @@ async fn submit_and_drain(orch: &mut Orchestrator, task_count: usize) {
             format!("Task {i}"),
             vec![FileAffinity::write(format!("src/file_{}.rs", i % 5))],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -69,6 +70,7 @@ proptest! {
                     format!("Task {i}"),
                     vec![FileAffinity::write("src/hot_file.rs")],
                     Some(TaskPriority::Normal),
+                    None,
                 ).await.unwrap();
             }
 
@@ -78,6 +80,7 @@ proptest! {
                     format!("Other Task {i}"),
                     vec![FileAffinity::write(format!("src/other_{i}.rs"))],
                     Some(TaskPriority::Normal),
+                    None,
                 ).await.unwrap();
             }
 
@@ -103,6 +106,7 @@ async fn stress_test_1000_tasks_10_agents() {
             format!("Stress Task {i}"),
             vec![FileAffinity::write(format!("src/partition_{}.rs", i % 10))],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();

@@ -518,10 +518,31 @@ pub async fn handle_tool_call(
     let agent_id = args.get("agent_id").and_then(|v| v.as_str());
     let session_id = args.get("session_id").and_then(|v| v.as_str());
     
-    let result = handle_tool_call_inner(state, name_canonical, args).await;
+    let result = handle_tool_call_inner(state, name_canonical, args.clone()).await;
     let duration_ms = start_time.elapsed().as_millis() as i64;
     
-
+    // Record tool telemetry in agent_events if DB is enabled
+    if let Some(db) = &state.db {
+        let mut payload = serde_json::json!({
+            "type": "tool_call",
+            "tool": name_canonical,
+            "args": args,
+            "duration_ms": duration_ms,
+            "success": result.is_ok(),
+            "repository_id": state.repository.repository_id,
+        });
+        if let Some(sid) = session_id {
+            payload["session_id"] = serde_json::Value::String(sid.to_string());
+        }
+        
+        let agent_str = agent_id.unwrap_or("0");
+        let _ = vox_ludus::db::insert_event(
+            db,
+            agent_str,
+            "tool_call",
+            Some(&payload.to_string()),
+        ).await;
+    }
     
     result
 }

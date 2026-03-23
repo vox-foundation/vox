@@ -39,24 +39,26 @@ CREATE TABLE IF NOT EXISTS knowledge_nodes (
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL,
     content TEXT,
-    node_type TEXT NOT NULL DEFAULT 'concept',
-    media_url TEXT,
-    media_type TEXT,
+    category TEXT NOT NULL DEFAULT 'concept',
     metadata TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    vcs_snapshot_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS knowledge_edges (
-    src_id TEXT NOT NULL,
-    dst_id TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
     relation TEXT NOT NULL,
     weight REAL NOT NULL DEFAULT 1.0,
+    metadata TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (src_id, dst_id, relation)
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (source_id, target_id, relation)
 );
 
-CREATE INDEX IF NOT EXISTS idx_knowledge_edges_src ON knowledge_edges(src_id);
-CREATE INDEX IF NOT EXISTS idx_knowledge_edges_dst ON knowledge_edges(dst_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_edges_src ON knowledge_edges(source_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_edges_dst ON knowledge_edges(target_id);
 
 CREATE TABLE IF NOT EXISTS embeddings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,7 +191,10 @@ CREATE TABLE IF NOT EXISTS skill_manifests (
     version TEXT NOT NULL,
     manifest_json TEXT NOT NULL,
     skill_md TEXT NOT NULL,
-    published_at TEXT NOT NULL DEFAULT (datetime('now')),
+    invocation_count INTEGER NOT NULL DEFAULT 0,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    last_used_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (id, version)
 );
 

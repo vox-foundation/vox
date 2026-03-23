@@ -23,6 +23,7 @@ impl MessageGateway {
         event_bus: &EventBus,
         task_id: TaskId,
         agent_id: AgentId,
+        session_id: Option<String>,
     ) {
         bulletin.publish(AgentMessage::TaskCompleted { task_id, agent_id });
         let _ = message_bus.broadcast(
@@ -30,7 +31,11 @@ impl MessageGateway {
             A2AMessageType::CompletionNotice,
             format!("Task {} completed", task_id),
         );
-        event_bus.emit(AgentEventKind::TaskCompleted { task_id, agent_id });
+        event_bus.emit(AgentEventKind::TaskCompleted {
+            task_id,
+            agent_id,
+            session_id,
+        });
     }
 
     /// Publish task failure to bulletin and event stream.
@@ -40,6 +45,7 @@ impl MessageGateway {
         task_id: TaskId,
         agent_id: AgentId,
         error: String,
+        session_id: Option<String>,
     ) {
         bulletin.publish(AgentMessage::TaskFailed {
             agent_id,
@@ -50,6 +56,7 @@ impl MessageGateway {
             task_id,
             agent_id,
             error,
+            session_id,
         });
     }
 

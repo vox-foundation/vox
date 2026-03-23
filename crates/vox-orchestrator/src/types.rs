@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-fn now_unix_ms() -> u64 {
+pub fn now_unix_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -341,6 +341,9 @@ pub struct TaskDescriptor {
     /// Optional capability requirements for routing (same semantics as [`AgentTask::capability_requirements`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability_requirements: Option<crate::contract::TaskCapabilityHints>,
+    /// Optional session link (for chat/workflow grouping in Populi).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 /// A unit of work to be executed by an agent.
@@ -373,6 +376,8 @@ pub struct AgentTask {
     /// When the task was created (not serialized — reconstructed on load).
     #[serde(skip)]
     pub created_at: Option<Instant>,
+    /// Unix timestamp (ms) when this task object was first created (vcs/serialization safe).
+    pub created_at_ms: u64,
     /// Unix timestamp (ms) when agent began executing this task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_at_ms: Option<u64>,
@@ -385,6 +390,9 @@ pub struct AgentTask {
     /// Optional GPU / hardware routing hints for distributed execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability_requirements: Option<crate::contract::TaskCapabilityHints>,
+    /// Optional session link (for chat/workflow grouping in Populi).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 impl AgentTask {
@@ -409,11 +417,19 @@ impl AgentTask {
             debug_iterations: 0,
             retry_count: 0,
             created_at: Some(Instant::now()),
+            created_at_ms: now_unix_ms(),
             started_at_ms: None,
             last_expensive_op_ms: None,
             socrates: None,
             capability_requirements: None,
+            session_id: None,
         }
+    }
+
+    /// Attach a session ID to this task.
+    pub fn with_session(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = Some(session_id.into());
+        self
     }
 
     /// Add a dependency on another task.
@@ -759,6 +775,9 @@ pub struct A2AMessage {
     /// VCS context — the exact code state this message relates to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vcs_context: Option<VcsContext>,
+    /// Time-to-live in milliseconds. If None, default 300_000 (5 min) applies at read time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl_ms: Option<u64>,
 }
 
 impl A2AMessage {
@@ -785,7 +804,28 @@ impl A2AMessage {
             priority: MessagePriority::Normal,
             thread_id: None,
             vcs_context: None,
+            ttl_ms: None,
         }
+    }
+
+    /// Create a new message with a custom time-to-live.
+    pub fn new_with_ttl(
+        id: MessageId,
+        sender: AgentId,
+        receiver: Option<AgentId>,
+        msg_type: A2AMessageType,
+        payload: impl Into<String>,
+        ttl_ms: u64,
+    ) -> Self {
+        let mut msg = Self::new(id, sender, receiver, msg_type, payload);
+        msg.ttl_ms = Some(ttl_ms);
+        msg
+    }
+
+    /// Whether this message has exceeded its TTL (default 300_000ms / 5 min).
+    pub fn is_expired(&self) -> bool {
+        let ttl = self.ttl_ms.unwrap_or(300_000);
+        self.elapsed_ms() > ttl
     }
 
     /// Attach envelope metadata for traceability.

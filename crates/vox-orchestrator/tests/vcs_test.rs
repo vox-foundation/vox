@@ -22,6 +22,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
             "initial task",
             vec![FileAffinity::write("src/lib.rs")],
             None,
+            None,
         )
         .await
         .expect("submit should succeed");
@@ -42,7 +43,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
 
     // 2. Submit a second task — should capture pre-task snapshot and record in oplog
     let task_id = orch
-        .submit_task("test task", vec![FileAffinity::write("src/lib.rs")], None)
+        .submit_task("test task", vec![FileAffinity::write("src/lib.rs")], None, None)
         .await
         .expect("submit should succeed");
 

@@ -13,6 +13,7 @@ vox-hir = { workspace = true }
 vox-lexer = { workspace = true }
 vox-parser = { workspace = true }
 vox-typeck = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true

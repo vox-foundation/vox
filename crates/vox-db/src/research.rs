@@ -162,7 +162,7 @@ impl VoxDb {
         self.store()
             .connection()
             .execute(
-                "INSERT OR REPLACE INTO knowledge_nodes (id, label, content, node_type, metadata, created_at)
+                "INSERT OR REPLACE INTO knowledge_nodes (id, label, content, category, metadata, created_at)
                  VALUES (?1, ?2, ?3, 'external_research', ?4, datetime('now'))",
                 params![
                     node_id.clone(),
@@ -231,7 +231,7 @@ impl VoxDb {
                     self.store()
                         .connection()
                         .query(
-                            "SELECT metadata FROM knowledge_nodes WHERE node_type = 'external_research'
+                            "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
                              AND json_extract(metadata, '$.vendor') = ?1 AND json_extract(metadata, '$.topic') = ?2
                              ORDER BY created_at DESC LIMIT ?3",
                             params![v.as_str(), t.as_str(), lim],
@@ -242,7 +242,7 @@ impl VoxDb {
                     self.store()
                         .connection()
                         .query(
-                            "SELECT metadata FROM knowledge_nodes WHERE node_type = 'external_research'
+                            "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
                              AND json_extract(metadata, '$.vendor') = ?1
                              ORDER BY created_at DESC LIMIT ?2",
                             params![v.as_str(), lim],
@@ -253,7 +253,7 @@ impl VoxDb {
                     self.store()
                         .connection()
                         .query(
-                            "SELECT metadata FROM knowledge_nodes WHERE node_type = 'external_research'
+                            "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
                              AND json_extract(metadata, '$.topic') = ?1
                              ORDER BY created_at DESC LIMIT ?2",
                             params![t.as_str(), lim],
@@ -264,7 +264,7 @@ impl VoxDb {
                     self.store()
                         .connection()
                         .query(
-                            "SELECT metadata FROM knowledge_nodes WHERE node_type = 'external_research'
+                            "SELECT metadata FROM knowledge_nodes WHERE category = 'external_research'
                              ORDER BY created_at DESC LIMIT ?1",
                             params![lim],
                         )

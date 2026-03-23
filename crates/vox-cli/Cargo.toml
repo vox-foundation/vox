@@ -24,6 +24,8 @@ default = ["populi-base"]
 # Corpus paths, `train-uv`, plan (daemon), status, eval-gate, bench-completion, system-prompt-template.
 # Does **not** include Oratio (Candle Whisper stack) — use `populi-oratio` for `vox populi oratio`.
 populi-base = []
+# Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
+database = ["vox-corpus/database"]
 # Speech-to-text (`vox populi oratio`); pulls heavy `vox-oratio` / Candle deps.
 populi-oratio = ["populi-base", "dep:vox-oratio"]
 # Native Burn LoRA training + HF metadata (`vox populi train`, probe, merge-weights, eval-local).

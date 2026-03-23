@@ -112,6 +112,18 @@ impl CodeStore {
         Self::open(":memory:").await
     }
 
+    /// Blocking constructor for in-memory store (tests and `std::thread` call sites).
+    ///
+    /// Equivalent to `block_on(CodeStore::open_memory())`. Does not require an active Tokio runtime.
+    #[cfg(feature = "local")]
+    pub fn new_memory() -> Result<Self, StoreError> {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| StoreError::Db(format!("CodeStore::new_memory tokio runtime: {e}")))?
+            .block_on(Self::open_memory())
+    }
+
     /// Remote Turso / libSQL (sync client).
     pub async fn open_remote(url: &str, auth_token: &str) -> Result<Self, StoreError> {
         let db = turso::sync::Builder::new_remote(":memory:")

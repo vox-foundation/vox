@@ -632,6 +632,8 @@ pub struct SubmitTaskParams {
     pub affinites: Option<Vec<String>>,
     /// Optional forced routing target.
     pub agent_id: Option<u64>,
+    /// Optional session link (for chat/workflow grouping in Populi).
+    pub session_id: Option<String>,
 }
 
 /// Submit a task through the orchestrator (simpler shape than [`crate::params::SubmitTaskParams`]).
@@ -647,7 +649,14 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     let agent_id = params.agent_id.map(vox_orchestrator::AgentId);
 
     match orch
-        .submit_task(&params.description, affinities, None)
+        .submit_task_with_agent(
+            &params.description,
+            affinities,
+            None,
+            None,
+            None,
+            params.session_id,
+        )
         .await
     {
         Ok(task_id) => ToolResult::ok(format!("Submitted task {}", task_id.0)).to_json(),
@@ -739,6 +748,7 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
             input_tokens: params.input_tokens,
             output_tokens: params.output_tokens,
             cost_usd: params.cost_usd,
+            temporal_context: None,
         });
         ToolResult::ok(format!(
             "Cost {:.4} recorded for agent {}",

@@ -137,6 +137,8 @@ strum              = { version = "0.26", features = ["derive"] }
 aegis = { path = "patches/aegis-0.9.8" }
 # Vox: stabilize deep o_proj proxy stacks + correct grad-accum scaling in `training_step_lm`.
 qlora-rs = { path = "patches/qlora-rs-1.0.5" }
+# Vox: pass -ccbin MSVC cl path via cc::Build to avoid missing cl.exe when running cargo build without developer prompt.
+candle-kernels = { path = "patches/candle-kernels-0.9.2" }
 
 [profile.release]
 lto = "thin"

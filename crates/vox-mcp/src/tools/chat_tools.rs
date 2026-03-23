@@ -22,6 +22,7 @@ use std::sync::LazyLock;
 use turso::params;
 use vox_orchestrator::types::AgentId;
 use vox_socrates_policy::ConfidencePolicy;
+use chrono;
 
 static MENTION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap());
@@ -81,6 +82,9 @@ pub struct ChatMessageParams {
     /// Optionally selects a specific LLM routing profile (e.g. "reasoning", "fast", "creative").
     #[serde(default)]
     pub cognitive_profile: Option<String>,
+    /// If true, enforces strict JSON output from the LLM.
+    #[serde(default)]
+    pub json_mode: bool,
 }
 
 /// Retrieve history for a specific session ID.
@@ -115,6 +119,9 @@ pub struct InlineEditParams {
     #[serde(default)]
     /// Optional lines after the selection for better LLM grounding.
     pub context_after: Option<String>,
+    /// If true, enforces strict JSON output from the LLM (rarely used for raw code edits).
+    #[serde(default)]
+    pub json_mode: bool,
 }
 
 /// Successful inline edit payload returned to the editor host.
@@ -203,6 +210,23 @@ fn now_ts() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+/// Simple ISO date formatter (YYYY-MM-DD) without external chrono/time deps.
+fn ts_to_date_str(secs: u64) -> String {
+    let days = secs / 86400;
+    // Base 1970-01-01 was a Thursday
+    // Simple proleptic Gregorian algorithm (good until 2100)
+    let z = (days as i64) + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = (yoe as i64) + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    format!("{:04}-{:02}-{:02}", y + if m <= 2 { 1 } else { 0 }, m, d)
 }
 
 fn ghost_grounding_score(params: &GhostTextParams) -> f64 {
@@ -335,7 +359,7 @@ fn resolve_mentions(
 }
 
 /// Build the full system prompt for the Vox chat assistant.
-fn build_system_prompt(state: &ServerState) -> String {
+async fn build_system_prompt(state: &ServerState) -> String {
     let ws_root = state
         .workspace_root
         .as_deref()
@@ -364,6 +388,22 @@ fn build_system_prompt(state: &ServerState) -> String {
     ));
 
     prompt.push_str(ANTI_LAZINESS_RIDER);
+
+    let ts = now_ts();
+    let date_str = ts_to_date_str(ts);
+    let last_call = {
+        let orch = state.orchestrator.lock().await;
+        orch.last_activity_ms() / 1000
+    };
+    let server_idle_secs = ts.saturating_sub(last_call);
+
+    prompt.push_str(&format!(
+        "\n\n## Temporal Context\nCurrent date: {date_str}.\nUnix timestamp: {ts}s.\n\
+         Server last active: {server_idle_secs}s ago.\n\
+         **Enforcement**: Before triggering any compilation, re-reindexing, or full file walk, \
+         check if things are fresh (< 30s since last run).\n"
+    ));
+
     let pol = state.orchestrator_config.effective_socrates_policy();
     prompt.push_str(&socrates_system_rider(&pol));
     prompt
@@ -506,7 +546,20 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // 3. Call LLM with cognitive-profile aware routing.
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
-    let system_prompt = build_system_prompt(state);
+    let session_id = params.session_id.as_deref().unwrap_or("default");
+    let session_ts = {
+        let orch = state.orchestrator.lock().await;
+        orch.context()
+            .age_secs(&format!("chat_history:{session_id}"))
+            .map(|a| format!(" Session last active: {a}s ago."))
+            .unwrap_or_default()
+    };
+    let system_prompt = format!(
+        "{}{}\n\n{}",
+        build_system_prompt(state).await,
+        session_ts,
+        ANTI_LAZINESS_RIDER
+    );
     let llm_started = std::time::Instant::now();
 
     let (response_text, model_used, tokens) = match params.cognitive_profile.as_deref() {
@@ -541,6 +594,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         &routing,
                         max_tokens,
                         temperature,
+                        params.json_mode,
                     )
                     .await
                     {
@@ -667,7 +721,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 ],
             ).await;
 
-        // Insert assistant turn
+        // Insert assistant turn into chat_transcripts (V17 legacy / VS Code history API)
         let _ = db.store()
             .conn
             .execute(
@@ -675,7 +729,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     asst_msg.id.clone(),
-                    q_session,
+                    q_session.clone(),
                     asst_msg.role.clone(),
                     asst_msg.content.clone(),
                     asst_msg.model_used.clone(),
@@ -684,9 +738,43 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     q_repo,
                 ],
             ).await;
+
+        let now_s = now_ts();
+        let date_str = ts_to_date_str(now_s);
+        let server_idle_secs = {
+            let orch = state.orchestrator.lock().await;
+            now_s.saturating_sub(orch.last_activity_ms() / 1000)
+        };
+        let session_age_secs = {
+            let orch = state.orchestrator.lock().await;
+            orch.context().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0)
+        };
+
+        // Record high-quality LLM turn in agent_events for Populi replay/SFT
+        let mut payload = serde_json::json!({
+            "type": "llm_turn",
+            "prompt": user_prompt,
+            "response": response_text,
+            "model": model_used,
+            "tokens": tokens,
+            "session_id": q_session,
+            "repository_id": state.repository.repository_id,
+            "temporal_context": {
+                "date": date_str,
+                "server_idle_secs": server_idle_secs,
+                "session_age_secs": session_age_secs,
+            }
+        });
+        let _ = vox_ludus::db::insert_event(
+            db,
+            "0", // Global AI/Orchestrator surface agent_id
+            "llm_turn",
+            Some(&payload.to_string()),
+        ).await;
     }
 
     // 5. Return updated history + the new assistant message
+
     let grounding = chat_grounding_score(&params, mention_count);
     let pol = state.orchestrator_config.effective_socrates_policy();
     let soc = socrates_tool_meta(&pol, grounding, false);
@@ -792,7 +880,7 @@ OUTPUT RULES:
         allow_cloud_ollama_fallback: true,
     };
 
-    let (replacement, model_used, tokens) = match mcp_infer_completion(
+    let (replacement, model_used, tokens) = match crate::llm_bridge::mcp_infer_completion(
         state,
         model,
         "mcp_inline_edit",
@@ -800,6 +888,7 @@ OUTPUT RULES:
         &routing,
         max_tokens,
         temperature,
+        params.json_mode,
     )
     .await
     {
@@ -876,14 +965,88 @@ Rules:
         scope_note = scope_note
     );
 
-    let system_prompt = build_system_prompt(state);
-    let (plan_md, model_used, _tokens) = match call_llm(state, &system_prompt, &user_prompt).await {
+    let system_prompt = build_system_prompt(state).await;
+    let resolution_template = McpChatModelResolution {
+        complexity: match params.max_tasks {
+            Some(n) if n > 10 => 9,
+            _ => 7,
+        },
+        ..Default::default()
+    };
+
+    let (model, free_only) = match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
+        Ok(pair) => pair,
+        Err(e) => return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json(),
+    };
+
+    let pref = state.mcp_chat_model_override.read().await.clone();
+    let routing = McpInferRouting {
+        user_prompt: &user_prompt,
+        sticky_model_pref: pref.as_deref(),
+        resolution_template,
+        free_only,
+        allow_cloud_ollama_fallback: true,
+    };
+
+    let (response_json, model_used, tokens) = match crate::llm_bridge::mcp_infer_completion(
+        state,
+        model,
+        "vox_plan",
+        &system_prompt,
+        &routing,
+        4096,
+        0.3,
+        true, // Enforce strict JSON mode for planning
+    )
+    .await
+    {
         Ok(r) => r,
         Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
     };
 
-    // Extract and parse the JSON block
-    let (summary, tasks, base_plan_md) = parse_plan_json(&plan_md);
+    // Strip any markdown fences if the model still included them despite JSON mode
+    let block = response_json.trim();
+    let cleaned = if block.starts_with("```json") {
+        block.strip_prefix("```json").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim()
+    } else if block.starts_with("```") {
+        block.strip_prefix("```").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim()
+    } else {
+        block
+    };
+
+    let parsed: PlanResponseSchema = match serde_json::from_str(cleaned) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(error = %e, raw = cleaned, "plan_goal: JSON decode failed after cleanup");
+            return ToolResult::<String>::err(format!("Failed to parse task list JSON: {e}")).to_json();
+        }
+    };
+
+    let summary = if parsed.summary.is_empty() { "No summary provided.".to_string() } else { parsed.summary };
+    let tasks = parsed.tasks;
+
+    // Manual markdown generation for the on-disk/visual summary
+    let mut base_plan_md = format!("## Plan\n\n**Overall Summary**: {summary}\n\n### Tasks\n\n");
+    if tasks.is_empty() {
+        base_plan_md.push_str("*(No tasks generated)*\n");
+    } else {
+        for t in &tasks {
+            let deps = if t.depends_on.is_empty() {
+                String::new()
+            } else {
+                let dep_strs: Vec<String> = t.depends_on.iter().map(|d| d.to_string()).collect();
+                format!(" [depends: {}]", dep_strs.join(", "))
+            };
+            base_plan_md.push_str(&format!(
+                "{}. **{}** — [files: {}] [complexity: {}/10]{}\n\n",
+                t.id,
+                t.description,
+                t.files.join(", "),
+                t.estimated_complexity,
+                deps
+            ));
+        }
+    }
 
     // Optionally write PLAN.md
     let written_to_disk = if params.write_to_disk {
@@ -974,61 +1137,7 @@ struct PlanResponseSchema {
     tasks: Vec<PlanTask>,
 }
 
-/// Parse the JSON block returned by the LLM and generate a canonical Markdown representation.
-fn parse_plan_json(response: &str) -> (String, Vec<PlanTask>, String) {
-    let mut block = response;
-    if let Some(start) = response.find("```json") {
-        let rest = &response[start + 7..];
-        if let Some(end) = rest.find("```") {
-            block = &rest[..end];
-        } else {
-            block = rest;
-        }
-    } else if let Some(start) = response.find("```") {
-        let rest = &response[start + 3..];
-        if let Some(end) = rest.find("```") {
-            block = &rest[..end];
-        } else {
-            block = rest;
-        }
-    }
-
-    let (summary, tasks) = match serde_json::from_str::<PlanResponseSchema>(block.trim()) {
-        Ok(parsed) => {
-            let s = if parsed.summary.is_empty() { "See plan for details.".to_string() } else { parsed.summary };
-            (s, parsed.tasks)
-        }
-        Err(e) => {
-            tracing::error!(error = %e, "failed to parse plan JSON");
-            ("Failed to parse the LLM's plan response. See raw output.".to_string(), vec![])
-        }
-    };
-
-    let mut generated_md = format!("## Plan\n\n**Overall Summary**: {summary}\n\n### Tasks\n\n");
-    if tasks.is_empty() {
-        generated_md.push_str("*(No tasks parsed or generation failed. Raw response below)*\n\n```json\n");
-        generated_md.push_str(response.trim());
-        generated_md.push_str("\n```\n");
-    } else {
-        for t in &tasks {
-            let deps = if t.depends_on.is_empty() {
-                String::new()
-            } else {
-                let dep_strs: Vec<String> = t.depends_on.iter().map(|d| d.to_string()).collect();
-                format!(" [depends: {}]", dep_strs.join(", "))
-            };
-            let desc = if t.description.is_empty() { "TBD" } else { &t.description };
-            let files = if t.files.is_empty() { "TBD".to_string() } else { t.files.join(", ") };
-            let line = format!(
-                "{}. **{}** — [files: {}] [complexity: {}/10]{}\n\n",
-                t.id, desc, files, t.estimated_complexity, deps
-            );
-            generated_md.push_str(&line);
-        }
-    }
-
-    (summary, tasks, generated_md)
-}
+// Retired parse_plan_json in favor of direct structural decoding.
 
 // ─── Ghost Text (IDE inference bridge) ───────────────────────────────────────
 
@@ -1126,6 +1235,7 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         &routing,
         max_tokens,
         temperature,
+        false,
     )
     .await
     {
@@ -1431,5 +1541,33 @@ Good luck!"#;
         assert!(md.contains("## Plan"));
         assert!(md.contains("**Overall Summary**: Fixing the bug"));
         assert!(md.contains("1. **Identify root cause**"));
+    }
+
+    #[test]
+    fn test_parse_plan_json_empty_tasks() {
+        let input = r#"```json
+{
+    "summary": "Empty plan",
+    "tasks": []
+}
+```"#;
+        let (summary, tasks, md) = super::parse_plan_json(input);
+        assert_eq!(summary, "Empty plan");
+        assert!(tasks.is_empty());
+        assert!(md.contains("No tasks defined."));
+    }
+
+    #[test]
+    fn test_parse_plan_json_no_code_block() {
+        let input = r#"{
+    "summary": "Raw JSON",
+    "tasks": [
+        { "id": 1, "description": "Do thing", "files": [], "estimated_complexity": 1, "depends_on": [] }
+    ]
+}"#;
+        let (summary, tasks, md) = super::parse_plan_json(input);
+        assert_eq!(summary, "Raw JSON");
+        assert_eq!(tasks.len(), 1);
+        assert!(md.contains("1. **Do thing**"));
     }
 }

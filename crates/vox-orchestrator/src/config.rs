@@ -111,6 +111,12 @@ pub struct OrchestratorConfig {
     pub socrates_reputation_weight: f64,
     /// Log level for orchestrator events (default: "info").
     pub log_level: String,
+    /// Global system idle timeout in milliseconds (default: 600000 / 10min).
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout_ms: u64,
+    /// Default task execution timeout in milliseconds (default: 1800000 / 30min).
+    #[serde(default = "default_task_timeout")]
+    pub task_timeout_ms: u64,
 
     // ── Phase 1: New fields ──────────────────────────────────
     /// Heartbeat check interval in milliseconds (default: 5000).
@@ -287,6 +293,14 @@ fn default_socrates_reputation_weight() -> f64 {
     1.0
 }
 
+fn default_idle_timeout() -> u64 {
+    600_000
+}
+
+fn default_task_timeout() -> u64 {
+    1_800_000
+}
+
 fn apply_vox_mesh_toml(config: &mut OrchestratorConfig, mesh: &vox_repository::VoxMeshToml) {
     if let Some(url) = mesh
         .control_url
@@ -337,6 +351,8 @@ impl Default for OrchestratorConfig {
             socrates_gate_enforce: default_false(),
             socrates_reputation_routing: default_false(),
             log_level: "info".to_string(),
+            idle_timeout_ms: default_idle_timeout(),
+            task_timeout_ms: default_task_timeout(),
             heartbeat_interval_ms: default_heartbeat_interval(),
             stale_threshold_ms: default_stale_threshold(),
             auto_continue_enabled: default_true(),

@@ -152,6 +152,28 @@ The runtime is built on top of **Tokio** and **Axum**.
 - **When editing**: Bump `last_updated` only when the page content meaningfully changes; trivial typo fixes may leave the prior date.
 - **Format**: ISO `YYYY-MM-DD` in `docs/src/**/*.md` YAML frontmatter where `last_updated` is used.
 
+### Destructive VCS Operations & Multi-Agent Concurrency — PERMANENTLY BANNED
+
+The following commands **must never be used** by any agent (human or LLM). Because multiple agents often work concurrently in the same cloned repository, they share the same working tree. Using these commands silently destroys uncommitted working-tree changes of **other agents**. (Historical incident: 2,000+ lines of `CodeStore` methods were lost in March 2026 with no recovery path).
+
+**See the full policy:** `docs/agents/git-concurrency-policy.md`
+
+**Banned commands** (no exceptions):
+- `git stash` (and `git stash pop`, `drop`, `clear`) — agents lack shared context on stash contents.
+- `git restore <file>` or `git checkout -- <file>` — discards local changes without a trace.
+- `git reset --hard` — nukes all uncommitted changes in the tree.
+- `git clean -fd` — deletes untracked files including newly-created ones.
+
+**Safe alternatives**:
+| Goal | Safe command |
+|------|-------------|
+| See what would change before acting | `git diff <file>` |
+| Preserve current work to switch context | `git commit -m "wip: <desc>"` |
+| Read the committed version without overwriting | `git show HEAD:path/to/file` (read-only stdout) |
+| Restore a file that was *accidentally deleted* (only) | `git checkout HEAD -- <file>` is permitted **only** when: (a) the deletion was not committed, and (b) the HEAD version is the exact target. |
+
+If you are an LLM agent that has just run `git restore` or `git stash pop` and suspects work was lost, **stop immediately**, assess what was mangled using `git status` and `git diff`, and report to the user before continuing.
+
 ### Cross-platform source integrity
 
 - **Line endings:** LF for tracked source, docs, and config (root **`.gitattributes`**, **`.editorconfig`**). **`*.ps1`** uses CRLF (Windows-friendly).

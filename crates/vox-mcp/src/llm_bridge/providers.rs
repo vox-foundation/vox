@@ -145,6 +145,8 @@ struct OpenAiChatRequest<'a> {
     temperature: f32,
     max_tokens: u64,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -159,7 +161,7 @@ struct GeminiGenerateBody<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     system_instruction: Option<GeminiSys<'a>>,
     contents: Vec<GeminiTurn<'a>>,
-    generation_config: GeminiGenCfg,
+    generation_config: GeminiGenCfg<'a>,
 }
 
 #[derive(Serialize)]
@@ -182,9 +184,11 @@ struct GeminiTurn<'a> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct GeminiGenCfg {
+struct GeminiGenCfg<'a> {
     temperature: f32,
     max_output_tokens: u32,
+    #[serde(rename = "responseMimeType", skip_serializing_if = "Option::is_none")]
+    pub response_mime_type: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -192,6 +196,8 @@ struct OllamaChatRequest<'a> {
     model: &'a str,
     messages: Vec<OllamaChatMsg<'a>>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<serde_json::Value>,
     options: OllamaOptions,
 }
 
@@ -216,6 +222,7 @@ pub(crate) async fn http_openai_compatible(
     user: &str,
     max_tokens: u64,
     temperature: f32,
+    json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
     let mut messages = Vec::new();
     if !system.is_empty() {
@@ -229,12 +236,19 @@ pub(crate) async fn http_openai_compatible(
         content: user,
     });
 
+    let response_format = if json_mode {
+        Some(serde_json::json!({ "type": "json_object" }))
+    } else {
+        None
+    };
+
     let body = OpenAiChatRequest {
         model,
         messages,
         temperature,
         max_tokens,
         stream: false,
+        response_format,
     };
 
     let mut req = client.post(url).json(&body);
@@ -286,6 +300,7 @@ pub(crate) async fn http_gemini(
     user: &str,
     max_tokens: u64,
     temperature: f32,
+    json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
@@ -299,6 +314,12 @@ pub(crate) async fn http_gemini(
         })
     };
 
+    let response_mime_type = if json_mode {
+        Some("application/json")
+    } else {
+        None
+    };
+
     let body = GeminiGenerateBody {
         system_instruction,
         contents: vec![GeminiTurn {
@@ -308,6 +329,7 @@ pub(crate) async fn http_gemini(
         generation_config: GeminiGenCfg {
             temperature,
             max_output_tokens: max_tokens.min(u32::MAX as u64) as u32,
+            response_mime_type,
         },
     };
 
@@ -370,6 +392,7 @@ pub(crate) async fn http_ollama(
     user: &str,
     max_tokens: u64,
     temperature: f32,
+    json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
     let base = ollama_base_url();
     let url = format!("{}/api/chat", base.trim_end_matches('/'));
@@ -386,10 +409,17 @@ pub(crate) async fn http_ollama(
         content: user,
     });
 
+    let format = if json_mode {
+        Some(serde_json::json!("json"))
+    } else {
+        None
+    };
+
     let body = OllamaChatRequest {
         model,
         messages,
         stream: false,
+        format,
         options: OllamaOptions {
             temperature,
             num_predict: max_tokens.min(i32::MAX as u64) as i32,

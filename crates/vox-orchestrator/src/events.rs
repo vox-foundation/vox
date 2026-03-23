@@ -111,22 +111,30 @@ pub enum AgentEventKind {
         task_id: TaskId,
         agent_id: AgentId,
         description: String,
+        /// Optional session link (for chat/workflow grouping in Populi).
+        session_id: Option<String>,
     },
     /// A task started executing.
     TaskStarted {
         task_id: TaskId,
         agent_id: AgentId,
+        /// Optional session link (for chat/workflow grouping in Populi).
+        session_id: Option<String>,
     },
     /// A task completed successfully.
     TaskCompleted {
         task_id: TaskId,
         agent_id: AgentId,
+        /// Optional session link (for chat/workflow grouping in Populi).
+        session_id: Option<String>,
     },
     /// A task failed.
     TaskFailed {
         task_id: TaskId,
         agent_id: AgentId,
         error: String,
+        /// Optional session link (for chat/workflow grouping in Populi).
+        session_id: Option<String>,
     },
 
     /// A file lock was acquired.
@@ -168,6 +176,9 @@ pub enum AgentEventKind {
         input_tokens: u32,
         output_tokens: u32,
         cost_usd: f64,
+        /// Structured temporal context (date, server_idle_secs)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        temporal_context: Option<serde_json::Value>,
     },
 
     /// Auto-continuation was triggered for an idle agent.
@@ -223,6 +234,8 @@ pub enum AgentEventKind {
         snapshot_id: String,
         file_count: usize,
         description: String,
+        /// Optional session link (for chat/workflow grouping in Populi).
+        session_id: Option<String>,
     },
     /// Overlapping edits detected between agents.
     ConflictDetected {
@@ -298,6 +311,37 @@ pub enum AgentEventKind {
     WorkspaceCreated {
         agent_id: AgentId,
         root: PathBuf,
+    },
+    /// Endpoint reliability observation from LLM call (feeds EWMA in Codex).
+    EndpointReliabilityObservation {
+        /// Provider endpoint URL.
+        endpoint_url: String,
+        /// Model identifier.
+        model_id: String,
+        /// Proxy signal for hallucination risk (0.0–1.0).
+        hallucination_proxy: f64,
+        /// Ratio of contradictory claims detected (0.0–1.0).
+        contradiction_ratio: f64,
+        /// 1.0 for infra failures (rate-limit/timeout), 0.0 otherwise.
+        infra_failure: f64,
+        /// True when the failure was a rate-limit response.
+        rate_limit_hit: bool,
+        /// True when the call timed out.
+        timeout_hit: bool,
+    },
+    /// The entire orchestrator (all agents) has been idle.
+    OrchestratorIdle {
+        /// Milliseconds of absolute silence across all agents.
+        idle_ms: u64,
+    },
+    /// A task was timed out and removed from the queue.
+    TaskExpired {
+        /// Expired task ID.
+        task_id: TaskId,
+        /// Agent ID that was holding it.
+        agent_id: AgentId,
+        /// Age in milliseconds.
+        age_ms: u64,
     },
 }
 
@@ -430,6 +474,7 @@ mod tests {
                 input_tokens: 100,
                 output_tokens: 50,
                 cost_usd: 0.005,
+                temporal_context: None,
             },
         };
 

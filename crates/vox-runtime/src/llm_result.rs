@@ -62,14 +62,18 @@ impl<T: for<'de> Deserialize<'de>> LlmResult<T> {
     /// This is the primary entry point used by generated activity code.
     /// It attempts `serde_json::from_str` and wraps parse failures in
     /// `LlmError::ParseError` with the raw string preserved for debugging.
+    ///
+    /// It automatically strips Markdown code fences (e.g. ```json ... ```) 
+    /// which LLMs often include even when requested not to.
     pub fn parse_from(raw: &str) -> Self {
-        match serde_json::from_str::<T>(raw) {
+        let clean = maybe_strip_markdown_json_fences(raw);
+        match serde_json::from_str::<T>(clean) {
             std::result::Result::Ok(v) => LlmResult::Ok(v),
             std::result::Result::Err(e) => {
                 tracing::warn!(
                     "LlmResult::parse_from failed: {} — raw (first 500 chars): {}",
                     e,
-                    &raw[..raw.len().min(500)]
+                    if clean.len() < 500 { clean } else { &clean[..500] }
                 );
                 LlmResult::Err(LlmError::ParseError {
                     error: e.to_string(),
@@ -156,6 +160,20 @@ impl<T: for<'de> Deserialize<'de> + Default> LlmResult<T> {
     }
 }
 
+/// Strip Markdown code fences (e.g. ```json ... ```) from a string.
+/// Returns the inner content if a fence is found, otherwise the original string.
+pub fn maybe_strip_markdown_json_fences(raw: &str) -> &str {
+    let t = raw.trim();
+    if t.starts_with("```") {
+        let first_line_end = t.find('\n').unwrap_or(t.len());
+        let last_fence_start = t.rfind("```").unwrap_or(0);
+        if last_fence_start > first_line_end {
+            return t[first_line_end..last_fence_start].trim();
+        }
+    }
+    raw
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,6 +228,24 @@ mod tests {
         let mapped = result.map(|s| s.count * 2);
         assert!(mapped.is_ok());
         assert_eq!(mapped.unwrap(), 2);
+    }
+
+    #[test]
+    fn parse_from_json_fences() {
+        let raw = "```json\n{\"value\": \"fenced\", \"count\": 7}\n```";
+        let result = LlmResult::<TestStruct>::parse_from(raw);
+        assert!(result.is_ok());
+        let inner = result.unwrap();
+        assert_eq!(inner.value, "fenced");
+        assert_eq!(inner.count, 7);
+    }
+
+    #[test]
+    fn strip_fences_various_formats() {
+        assert_eq!(maybe_strip_markdown_json_fences("```\n{}\n```"), "{}");
+        assert_eq!(maybe_strip_markdown_json_fences("```json\n{}\n```"), "{}");
+        assert_eq!(maybe_strip_markdown_json_fences("  ```json\n{}\n```  "), "{}");
+        assert_eq!(maybe_strip_markdown_json_fences("{}"), "{}");
     }
 
     #[test]

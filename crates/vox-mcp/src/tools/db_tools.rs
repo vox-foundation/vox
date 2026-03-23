@@ -201,13 +201,51 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         "You are an expert Vox/Rust database engineer. Explain what this query does in plain English.\n\nQuery:\n```vox\n{query}\n```\n\nSchema Context:\n{llm_context}\n\nExplanation:"
     );
 
-    let mut new_args = args.clone();
-    if let serde_json::Value::Object(ref mut map) = new_args {
-        map.insert("prompt".to_string(), serde_json::Value::String(prompt));
-        map.insert("validate".to_string(), serde_json::Value::Bool(false));
-    }
+    let system_prompt = format!(
+        "You are an expert Vox/Rust database engineer. Explain .vox queries clearly and thoroughly.\n\n{}",
+        crate::tools::chat_tools::ANTI_LAZINESS_RIDER
+    );
 
-    super::compiler_tools::generate_vox_code(state, new_args).await
+    let resolution_template = crate::llm_bridge::McpChatModelResolution {
+        complexity: 1,
+        ..Default::default()
+    };
+
+    let pref = state.mcp_chat_model_override.read().await.clone();
+    let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
+        state,
+        &prompt,
+        resolution_template.clone(),
+    )
+    .await
+    {
+        Ok(pair) => pair,
+        Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+    };
+
+    let routing = crate::llm_bridge::McpInferRouting {
+        user_prompt: &prompt,
+        sticky_model_pref: pref.as_deref(),
+        resolution_template,
+        free_only,
+        allow_cloud_ollama_fallback: true,
+    };
+
+    match crate::llm_bridge::mcp_infer_completion(
+        state,
+        model,
+        "vox_db_explain",
+        &system_prompt,
+        &routing,
+        1024,
+        0.3,
+        false,
+    )
+    .await
+    {
+        Ok((completion, _, _)) => ToolResult::ok(completion).to_json(),
+        Err(e) => ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+    }
 }
 
 /// Use LLM to suggest the actual Vox query code given a natural language intent.

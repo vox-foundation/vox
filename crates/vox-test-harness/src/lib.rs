@@ -13,7 +13,9 @@
 //! ```
 
 pub mod assertions;
+pub mod barriers;
 pub mod diagnosis;
 pub mod hir_builders;
 pub mod pipeline;
+pub mod portpicker;
 pub mod spans;

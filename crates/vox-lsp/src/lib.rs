@@ -350,4 +350,20 @@ mod tests {
         assert!(builtin_hover_markdown_in_line(line, "transcribe").is_some());
         assert!(builtin_hover_markdown_in_line("other.transcribe(p)", "transcribe").is_none());
     }
+
+    #[test]
+    fn mesh_activity_warning_test() {
+        let doc = "workflow w() { mesh_snapshot() }";
+        
+        // When mesh is DISABLED, we expect a WARNING.
+        // It might also have an ERROR for undefined variable, but we focus on the mesh warning.
+        unsafe { std::env::set_var("VOX_MESH_ENABLED", "0"); }
+        let diags = validate_document(doc);
+        assert!(diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")), "Expected mesh call warning in {:?}", diags);
+
+        // When mesh is ENABLED, no mesh warning.
+        unsafe { std::env::set_var("VOX_MESH_ENABLED", "1"); }
+        let diags = validate_document(doc);
+        assert!(!diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")), "Expected no mesh warning when enabled");
+    }
 }

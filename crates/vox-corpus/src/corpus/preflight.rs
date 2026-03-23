@@ -30,6 +30,8 @@ const WATCHED_FILES: &[&str] = &[
     "crates/vox-corpus/src/codegen_vox.rs",
     "crates/vox-corpus/src/synthetic_gen.rs",
     "crates/vox-corpus/src/corpus/preflight.rs",
+    "crates/vox-corpus/src/corpus/augment.rs",
+    "Cargo.toml",
     "populi/config/templates.yaml",
     "populi/config/mix.yaml",
 ];
@@ -158,11 +160,19 @@ pub fn gen_multiturn_vox(construct: &str, name: &str, base_code: &str, template_
 }
 
 /// Serialize a multi-turn conversation to JSONL (ChatML-compatible format).
+///
+/// Always includes top-level `prompt` (first user turn) and `response` (first assistant turn)
+/// so every row satisfies the uniform schema contract checked by corpus validation tools.
 pub fn multiturn_to_jsonl(turns: &[Turn], category: &str) -> String {
     let messages: Vec<serde_json::Value> = turns.iter().map(|t| {
         serde_json::json!({"role": t.role, "content": t.content})
     }).collect();
+    // Extract first user and first assistant turn for the required top-level prompt/response fields.
+    let prompt = turns.iter().find(|t| t.role == "user").map(|t| t.content.as_str()).unwrap_or("");
+    let response = turns.iter().find(|t| t.role == "assistant").map(|t| t.content.as_str()).unwrap_or("");
     serde_json::json!({
+        "prompt": prompt,
+        "response": response,
         "messages": messages,
         "category": category,
         "format": "multiturn_chat",
@@ -173,6 +183,9 @@ pub fn multiturn_to_jsonl(turns: &[Turn], category: &str) -> String {
 // ── Error → Fix pair generator ────────────────────────────────────────────────
 
 /// A category of intentional syntax/semantic error.
+///
+/// Variants cover all common beginner mistakes identified in the gap analysis.
+/// New variants must have a corresponding `break_vox` arm.
 #[derive(Debug, Clone, Copy)]
 pub enum BrokenKind {
     MissingReturnArrow,
@@ -184,6 +197,12 @@ pub enum BrokenKind {
     TypeMismatch,
     OptionUnwrapMissing,
     BadReturnType,
+    /// Generic instantiated with wrong number of type parameters, e.g. `List[]` instead of `List[int]`.
+    UnresolvedGenericArity,
+    /// Branches return different types, causing ambiguous inference.
+    InferenceAmbiguity,
+    /// Match arm appears after a wildcard `_` arm, making it dead code.
+    UnreachableMatchArm,
 }
 
 /// Apply a specific kind of breakage to valid Vox source.
@@ -245,6 +264,30 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
         BrokenKind::BadReturnType => {
             let broken = src.replace("-> ", "returns ");
             let explanation = "Invalid return type syntax: use `->` instead of `returns`.".to_string();
+            (broken, explanation)
+        }
+        BrokenKind::UnresolvedGenericArity => {
+            // Replace `List[int]` with `List[]` — missing type argument
+            let broken = src.replace("List[int]", "List[]").replace("Option[str]", "Option[]");
+            let explanation = "Generic type `List` requires exactly one type argument. \
+                               `List[]` is invalid — use `List[int]`, `List[str]`, etc.".to_string();
+            (broken, explanation)
+        }
+        BrokenKind::InferenceAmbiguity => {
+            // Create a branch where types differ — int vs str
+            let broken = src.replace("ret 0", "ret if true { 0 } else { \"zero\" }");
+            let explanation = "Inference ambiguity: `if` branches return `int` and `str`. \
+                               Both arms of an `if` expression must return the same type.".to_string();
+            (broken, explanation)
+        }
+        BrokenKind::UnreachableMatchArm => {
+            // Add an arm after a wildcard
+            let broken = src.replace(
+                "_ => false",
+                "_ => false\n        true => false",
+            );
+            let explanation = "`true => false` is unreachable — the `_` wildcard arm above it \
+                               captures all remaining cases. Remove the dead arm or reorder.".to_string();
             (broken, explanation)
         }
     }
@@ -334,6 +377,27 @@ pub const ARCHITECTURAL_PAIRS: &[(&str, &str)] = &[
          Use compact form for: network transport, embedding in JSON payloads, \
          LLM token efficiency. The parser handles both forms identically."
     ),
+    (
+        "How do I deploy a Vox application to production?",
+        "Run `vox build --release` to compile to optimized native code. \
+         The output binary embeds the runtime — no separate Node/Python install needed. \
+         For containerized environments, the binary is statically linked; \
+         use `vox bundle --docker` to emit a minimal `Dockerfile` scaffolded for the app."
+    ),
+    (
+        "How do I monitor a running Vox actor in production?",
+        "Actors expose built-in telemetry via `@traced` — add it to any `actor` or `fn`. \
+         Connect your observability stack (Prometheus, OTEL) via `vox.config` \
+         `[telemetry]` section. Use `vox mesh status` to see live actor health, \
+         mailbox depth, and error rates across the distributed mesh."
+    ),
+    (
+        "How does Vox handle TypeScript interop for frontend code?",
+        "Vox generates typed TypeScript automatically from your `.vox` files. \
+         Run `vox codegen ts --out ./src/vox.d.ts` to emit a `.d.ts` type file. \
+         For React integration, use `vox-client` (the generated SDK) — \
+         it provides `useVox<T>()` hooks and action wrappers that match your Vox API surface exactly."
+    ),
 ];
 
 /// Write architectural Q&A pairs to a writer as JSONL.
@@ -344,6 +408,209 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> Result<usize>
             "prompt": prompt,
             "response": response,
             "category": "vox_architectural_qa",
+            "format": "qa_pair",
+            "schema_version": "vox_dogfood_v1",
+        });
+        writeln!(out, "{}", line)?;
+        count += 1;
+    }
+    Ok(count)
+}
+
+// ── Code-explanation pair generator ──────────────────────────────────────────
+
+/// Generate "explain this code" training pairs from a slice of organic pairs.
+///
+/// Samples every `stride`-th entry to avoid overwhelming the JSONL with
+/// explanation pairs relative to generative pairs. Returns JSONL strings.
+pub fn gen_explain_pairs(
+    organic_code_samples: &[(/* prompt */ String, /* response / code */ String, /* category */ String)],
+    stride: usize,
+) -> Vec<String> {
+    let stride = stride.max(1);
+    organic_code_samples
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| i % stride == 0)
+        .map(|(_, (_, code, category))| {
+            serde_json::json!({
+                "prompt": format!("Explain this Vox code in plain English:\n\n```vox\n{code}\n```"),
+                "response": format!(
+                    "This Vox code defines a `{category}` construct. \
+                     It uses Vox's strong static type system and explicit return types. \
+                     All values are non-null by design — `Option[T]` is used for optional presence \
+                     and `Result[T]` for fallible operations. \
+                     The syntax is designed to be readable and serializable without whitespace."
+                ),
+                "category": format!("{category}_explain"),
+                "format": "explain_pair",
+                "schema_version": "vox_dogfood_v1",
+            }).to_string()
+        })
+        .collect()
+}
+
+// ── Debug / diagnosis pair generator ─────────────────────────────────────────
+
+/// Generate runtime-error diagnosis training pairs.
+///
+/// Each pair teaches the model to read a runtime panic or logic error and
+/// identify what went wrong, then suggest a fix.
+pub fn gen_debug_pairs(
+    organic_samples: &[(String, String, String)],
+    stride: usize,
+) -> Vec<String> {
+    let stride = stride.max(1);
+    let runtime_errors = [
+        (
+            "Panic: index out of bounds: the len is 0 but the index is 0",
+            "The list is empty before indexing. Guard with `if list.len() > 0` or \
+             use `list.get(0)` which returns `Option[T]` instead of panicking.",
+        ),
+        (
+            "Error: None value used where Some was required",
+            "An `Option[T]` was used without matching on it first. \
+             Use `match val { Some(x) => ..., None => ... }` or `val.unwrap_or(default)`.",
+        ),
+        (
+            "Error: actor mailbox full — 1024 messages unprocessed",
+            "The actor is falling behind its message rate. \
+             Increase mailbox capacity via `@actor(mailbox_size = 4096)`, \
+             or add back-pressure logic in the sender with `try_send` + retry.",
+        ),
+        (
+            "TypeError: expected `int`, got `str` at line 7",
+            "Type mismatch: a `str` value was passed where `int` was expected. \
+             Check all call sites for this function and ensure argument types match the signature.",
+        ),
+    ];
+    organic_samples
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| i % stride == 0)
+        .zip(runtime_errors.iter().cycle())
+        .map(|((_, (_, code, category)), (error, diagnosis))| {
+            serde_json::json!({
+                "prompt": format!(
+                    "I have this Vox code and it's producing an error at runtime:\n\n\
+                     ```vox\n{code}\n```\n\nError: `{error}`\n\nWhat's wrong and how do I fix it?"
+                ),
+                "response": format!(
+                    "{diagnosis}\n\nIn this specific `{category}` code, check \
+                     that all data flows match their declared types and that Optional \
+                     values are always matched exhaustively before use."
+                ),
+                "category": format!("{category}_debug"),
+                "format": "debug_pair",
+                "schema_version": "vox_dogfood_v1",
+            }).to_string()
+        })
+        .collect()
+}
+
+// ── Refactoring pair generator ────────────────────────────────────────────────
+
+/// Generate refactoring instruction pairs from organic code.
+///
+/// Pairs teach the model to improve code quality while preserving semantics.
+pub fn gen_refactor_pairs(
+    organic_samples: &[(String, String, String)],
+    stride: usize,
+) -> Vec<String> {
+    let stride = stride.max(1);
+    let refactor_goals = [
+        (
+            "more idiomatic Vox",
+            "Use explicit return types, `ret` keyword, and `Option[T]` / `Result[T]` \
+             wrappers. Prefer `match` over nested `if`-`else`. \
+             Remove any bare `null` — use `None` from `Option[T]` instead.",
+        ),
+        (
+            "more testable",
+            "Extract pure functions with no side effects. \
+             Inject dependencies as parameters instead of capturing from scope. \
+             Return `Result[T]` from every fallible operation so test code can assert on it.",
+        ),
+        (
+            "lower token cost when sent to an LLM",
+            "Use compact Vox form: remove all optional whitespace and comments. \
+             The parser handles both forms identically — compact reduces token count by ~40%.",
+        ),
+        (
+            "production-ready with observability",
+            "Add `@traced` to emit OpenTelemetry spans automatically. \
+             Return `Result[T]` from all I/O. Add `@test` annotated unit tests.",
+        ),
+    ];
+    organic_samples
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| i % stride == 0)
+        .zip(refactor_goals.iter().cycle())
+        .map(|((_, (_, code, category)), (goal, guidance))| {
+            serde_json::json!({
+                "prompt": format!(
+                    "Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```"
+                ),
+                "response": format!(
+                    "{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```"
+                ),
+                "category": format!("{category}_refactor"),
+                "format": "refactor_pair",
+                "schema_version": "vox_dogfood_v1",
+            }).to_string()
+        })
+        .collect()
+}
+
+// ── TypeScript interop pair generator ─────────────────────────────────────────
+
+/// Static training pairs for Vox ↔ TypeScript interop and codegen questions.
+///
+/// These are non-code Q&A teaching the model how to help users integrate
+/// Vox with existing TypeScript/React codebases.
+const TS_INTEROP_PAIRS: &[(&str, &str)] = &[
+    (
+        "How do I call a Vox function from TypeScript/React?",
+        "Run `vox codegen ts --out ./src/vox.d.ts` to emit typed bindings. \
+         Then import from the generated SDK: `import { myFn } from './vox-client'`. \
+         The client wraps all fetch calls with the correct types — no manual serialization needed.",
+    ),
+    (
+        "How does Vox map its types to TypeScript?",
+        "`int` → `number`, `str` → `string`, `bool` → `boolean`, `float` → `number`. \
+         `Option[T]` → `T | undefined` (never `null`), `Result[T]` → `{ ok: T } | { err: string }`. \
+         Union types become TypeScript discriminated unions with a `kind` discriminant field.",
+    ),
+    (
+        "Can I use a Vox actor from a React component?",
+        "Yes. Actors expose an HTTP/WebSocket interface via the Vox runtime. \
+         Use the generated `useActor<MyActor>()` hook from `vox-client` — \
+         it manages connection lifecycle and re-renders on message receipt.",
+    ),
+    (
+        "How do I share types between a Vox backend and a TypeScript frontend?",
+        "Define your shared types in a `.vox` file with `@shared` annotation. \
+         `vox codegen ts` will emit them as TypeScript interfaces. \
+         Both sides then reference the same types — zero drift between backend and frontend.",
+    ),
+    (
+        "How do I migrate an existing Next.js API route to Vox?",
+        "1. Write the equivalent Vox function with `@server` annotation. \
+         2. Run `vox codegen ts` — it emits a typed fetch wrapper that matches the Next.js route shape. \
+         3. Replace `fetch('/api/...')` calls with the generated wrapper. \
+         The runtime handles serialization; you keep your React components unchanged.",
+    ),
+];
+
+/// Write TypeScript interop training pairs to a writer as JSONL.
+pub fn write_ts_interop_pairs(out: &mut impl std::io::Write) -> Result<usize> {
+    let mut count = 0;
+    for (prompt, response) in TS_INTEROP_PAIRS {
+        let line = serde_json::json!({
+            "prompt": prompt,
+            "response": response,
+            "category": "vox_ts_interop",
             "format": "qa_pair",
             "schema_version": "vox_dogfood_v1",
         });

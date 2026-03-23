@@ -118,6 +118,7 @@ impl ContinuationEngine {
         agent_id: AgentId,
         strategy: ContinuationStrategy,
         pending_task_count: usize,
+        idle_secs: u64,
         event_bus: &EventBus,
     ) -> Option<ContinuationPrompt> {
         if !self.can_continue(agent_id) {
@@ -126,8 +127,8 @@ impl ContinuationEngine {
 
         let prompt_text = match strategy {
             ContinuationStrategy::Continue => format!(
-                "You have {} pending task(s). Please continue with the current task.",
-                pending_task_count
+                "You have been idle for {}s with {} pending task(s). Please continue with the current task.",
+                idle_secs, pending_task_count
             ),
             ContinuationStrategy::AssessRemaining => {
                 "Please assess whether there is any remaining work to be done. \
@@ -217,7 +218,7 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 10); // no cooldown for testing
         let agent = AgentId(1);
 
-        let prompt = engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, &bus);
+        let prompt = engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, 30, &bus);
 
         assert!(prompt.is_some());
         let p = prompt.unwrap();
@@ -233,11 +234,11 @@ mod tests {
         let agent = AgentId(1);
 
         // First continuation succeeds
-        let p1 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
+        let p1 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
         assert!(p1.is_some());
 
         // Second is blocked by cooldown
-        let p2 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
+        let p2 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
         assert!(p2.is_none());
     }
 
@@ -247,12 +248,12 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 2); // max 2
         let agent = AgentId(1);
 
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
 
         assert!(engine.is_exhausted(agent));
 
-        let p3 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
+        let p3 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
         assert!(p3.is_none());
     }
 
@@ -262,8 +263,8 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 2);
         let agent = AgentId(1);
 
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
         assert!(engine.is_exhausted(agent));
 
         engine.reset_cooldown(agent);
@@ -277,7 +278,7 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 10);
         engine.set_enabled(false);
 
-        let p = engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, &bus);
+        let p = engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, 30, &bus);
         assert!(p.is_none());
     }
 }

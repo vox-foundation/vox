@@ -99,6 +99,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             priority,
             params.agent_name.clone(),
             params.capabilities.clone(),
+            params.session_id.clone(),
         )
         .await
     {

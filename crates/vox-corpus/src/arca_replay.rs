@@ -13,6 +13,8 @@ pub struct ReplayRow {
     pub record_type: String,
     #[serde(default)]
     pub chatml: bool,
+    /// Source repository for partitioned training set weighting.
+    pub repository_id: String,
 }
 
 #[cfg(feature = "database")]
@@ -48,6 +50,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                         category: msg_type,
                         record_type: "a2a_trace".to_string(),
                         chatml: false,
+                        repository_id: "unknown".to_string(), // A2A table needs repository_id column in V33+
                     });
                 }
             }
@@ -88,6 +91,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                             // Fallback for flat tool calls
                             let tool_name = json.get("tool").and_then(|v| v.as_str()).unwrap_or("unknown_tool");
                             let args = json.get("args").and_then(|v| v.as_str()).unwrap_or("{}");
+                            let repo_id = json.get("repository_id").and_then(|v| v.as_str()).unwrap_or("unknown");
                             
                             rows.push(ReplayRow {
                                 prompt: format!("Call tool {}", tool_name),
@@ -95,17 +99,20 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                                 category: tool_name.to_string(),
                                 record_type: "tool_trace".to_string(),
                                 chatml: false,
+                                repository_id: repo_id.to_string(),
                             });
                         } else if event_type == "llm_turn" {
                             // Fallback for flat LLM turns
                             if let Some(prompt) = json.get("prompt").and_then(|v| v.as_str()) {
                                 if let Some(resp) = json.get("response").and_then(|v| v.as_str()) {
+                                    let repo_id = json.get("repository_id").and_then(|v| v.as_str()).unwrap_or("unknown");
                                     rows.push(ReplayRow {
                                         prompt: prompt.to_string(),
                                         response: resp.to_string(),
                                         category: "llm_turn".to_string(),
                                         record_type: "llm_turn".to_string(),
-                                        chatml: false, 
+                                        chatml: false,
+                                        repository_id: repo_id.to_string(),
                                     });
                                 }
                             }
@@ -118,8 +125,10 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
             if chatml {
                 for (session_id, events) in sessions {
                     // Placeholder for min_score integration if scores were tracked per session in metrics
-                    // if min_score > 0.0 && !check_session_score(session_id) { continue; }
-                    if let Some(chatml_row) = compile_chatml_session(&session_id, &events) {
+                    // let score = check_session_score(db, &session_id).await.unwrap_or(0.0);
+                    // if _min_score > 0.0 && score < _min_score { continue; }
+                    
+                    if let Some(mut chatml_row) = compile_chatml_session(&session_id, &events) {
                         rows.push(chatml_row);
                     }
                 }
@@ -138,11 +147,18 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
 /// Untrusted strings from the event payload are passed through [`sanitize_chatml`] before
 /// being embedded as role content so injected `<|im_start|>` / `<|im_end|>` tokens cannot
 /// corrupt the role-boundary structure expected by the training loss mask.
+#[cfg(feature = "database")]
 fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Option<ReplayRow> {
     let mut chatml_buffer = String::new();
     let mut initial_task = String::new();
+    let mut repo_id = "unknown".to_string();
 
     for ev in events {
+        if repo_id == "unknown" {
+            if let Some(r) = ev.get("repository_id").and_then(|v| v.as_str()) {
+                repo_id = r.to_string();
+            }
+        }
         let ty = ev.get("type").and_then(|v| v.as_str()).unwrap_or("");
         match ty {
             "TaskSubmitted" | "TaskStarted" => {
@@ -217,11 +233,12 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
     }
 
     Some(ReplayRow {
-        prompt: chatml_buffer,
-        response: String::new(), // Full trace serialized into prompt field.
+        prompt: format!("Execute Workflow Session: {}", session_id),
+        response: chatml_buffer,
         category: "multi_turn_session".to_string(),
-        record_type: format!("chatml_session_{session_id}"),
+        record_type: "chatml_trace".to_string(),
         chatml: true,
+        repository_id: repo_id,
     })
 }
 
@@ -229,6 +246,7 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
 ///
 /// Replaces `<|im_start|>` and `<|im_end|>` with bracket-quoted equivalents so
 /// injected text cannot escape its assigned role slot or corrupt the loss mask.
+#[cfg(feature = "database")]
 #[inline]
 fn sanitize_chatml(s: &str) -> String {
     s.replace("<|im_start|>", "[im_start]")

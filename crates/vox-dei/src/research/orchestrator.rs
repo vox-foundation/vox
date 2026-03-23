@@ -41,6 +41,26 @@ use super::{
     verifier::verify_claims_with_config,
 };
 use crate::services::embeddings::EmbeddingService;
+
+/// Sanitize a string for ChatML formatting by replacing control tokens that could
+/// trigger prompt injection (e.g., `<|im_start|>`, `<|im_end|>`).
+fn sanitize_chatml(input: &str) -> String {
+    input
+        .replace("<|im_start|>", "[im_start]")
+        .replace("<|im_end|>", "[im_end]")
+}
+
+/// Anti-laziness rider for all research LLM prompts.
+const ANTI_LAZINESS_RIDER: &str = "
+<anti_laziness_rider>
+DO NOT summarize or skip steps. DO NOT provide stubs, placeholders, or 'TODO' blocks. Implement ALL requested logic in full detail.
+If providing a plan, ensure it is exhaustive and execution-ready. Laziness will be penalized with a 0 quality score.
+</anti_laziness_rider>";
+
+/// Sanitize evidence snippets from search results to prevent ChatML injection.
+fn sanitize_evidence(text: &str) -> String {
+    sanitize_chatml(text)
+}
 use std::sync::Arc;
 
 /// Progress reporting callback for research operations.
@@ -913,7 +933,9 @@ Schema required:
   \"coverage_reasoning\": \"string\",
   \"coverage_score\": integer (0-34),
   \"total_score\": integer (0-100)
-}";
+}
+{}";
+    let sys_prompt = sys_prompt.replace("{}", ANTI_LAZINESS_RIDER);
 
     let user_prompt = format!(
         "Query: {}
@@ -926,9 +948,9 @@ Scoring rubric:
 1. Factual accuracy: Does the answer align with the cited sources?
 2. Citation density: Are key claims backed by at least one citation?
 3. Coverage: Does the answer address all major aspects of the query?",
-        sanitize_evidence(params.query),
-        sanitize_evidence(params.answer),
-        sanitize_evidence(&citation_snippets)
+        sanitize_chatml(params.query),
+        sanitize_chatml(params.answer),
+        sanitize_chatml(&citation_snippets)
     );
 
     let client = reqwest::Client::new();
@@ -1031,7 +1053,7 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         .iter()
         .enumerate()
         .map(|(i, h)| {
-            let snippet = h.snippet.chars().take(600).collect::<String>();
+            let snippet = sanitize_evidence(&h.snippet.chars().take(600).collect::<String>());
             format!("[{}] {}\nURL: {}\n{}\n", i + 1, h.title, h.url, snippet)
         })
         .collect::<Vec<_>>()
@@ -1061,10 +1083,13 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
 
     let (endpoint, api_key) = (params.endpoint.unwrap(), params.api_key.unwrap());
 
-    let system = "You are a precise research synthesizer. Using ONLY the provided evidence \
-                  snippets, write a thorough, well-structured answer to the user's question. \
-                  Cite sources inline as [1], [2], etc. matching the evidence numbers. \
-                  If evidence is insufficient, say so clearly.";
+    let system = format!(
+        "You are a precise research synthesizer. Using ONLY the provided evidence \
+         snippets, write a thorough, well-structured answer to the user's question. \
+         Cite sources inline as [1], [2], etc. matching the evidence numbers. \
+         If evidence is insufficient, say so clearly.\n{}",
+        ANTI_LAZINESS_RIDER
+    );
 
     let user = format!(
         "Question: {}\n\nEvidence:\n{}{verdict_section}",

@@ -84,6 +84,8 @@ pub mod mesh_registry_telemetry;
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
 pub mod paths;
+/// Registry-scoped user preferences (stored as JSON in the local config directory).
+pub mod preferences;
 pub mod project_store;
 mod research;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
@@ -515,6 +517,42 @@ impl VoxDb {
         self.store
             .record_corpus_snapshot(fingerprint, env!("CARGO_PKG_VERSION"), total_pairs, breakdown_json)
             .await
+    }
+
+    /// Append a training telemetry event to `agent_events` for orchestrator visibility.
+    ///
+    /// `event_kind` matches telemetry_schema constants (e.g. `"train_start"`, `"train_step"`, `"train_complete"`).
+    /// `payload` is a JSON string of the event body.
+    pub async fn record_training_event(
+        &self,
+        run_id: &str,
+        event_kind: &str,
+        payload: serde_json::Value,
+    ) -> Result<(), vox_pm::store::StoreError> {
+        let store = self.store();
+        store.record_agent_event(
+            &format!("populi_train:{run_id}"),
+            event_kind,
+            &payload.to_string(),
+            env!("CARGO_PKG_VERSION"),
+        ).await?;
+        Ok(())
+    }
+
+    /// Record a checkpoint write event (adapter path, step, epoch) in `agent_events`.
+    pub async fn record_training_checkpoint(
+        &self,
+        run_id: &str,
+        epoch: u32,
+        global_step: u32,
+        adapter_path: &str,
+    ) -> Result<(), vox_pm::store::StoreError> {
+        self.record_training_event(run_id, "checkpoint_saved", serde_json::json!({
+            "run_id": run_id,
+            "epoch": epoch,
+            "global_step": global_step,
+            "adapter_path": adapter_path,
+        })).await
     }
 
     /// Return true if the given fingerprint is already recorded in Arca `corpus_snapshots`.

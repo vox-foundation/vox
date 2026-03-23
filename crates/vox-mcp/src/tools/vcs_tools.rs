@@ -518,7 +518,7 @@ mod conflict_diff_contract_tests {
         let conflict_id = {
             let mut orch = state.orchestrator.lock().await;
             let task_id = orch
-                .submit_task("setup", vec![FileAffinity::write("src/lib.rs")], None)
+                .submit_task("setup", vec![FileAffinity::write("src/lib.rs")], None, None)
                 .await
                 .expect("submit");
             let agent_a = *orch.agent_ids().first().expect("agent");

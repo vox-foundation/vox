@@ -513,6 +513,7 @@ impl ServerState {
                         }
                         None
                     }
+                    _ => None,
                 };
 
                 if let Some((agent_id, event_type)) = agent_and_type {
@@ -640,6 +641,7 @@ impl ServerHandler for VoxMcpServer {
         params: CallToolRequestParams,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.state.orchestrator.lock().await.record_activity();
         let args = params
             .arguments
             .map(serde_json::Value::Object)

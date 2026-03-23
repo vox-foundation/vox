@@ -31,4 +31,20 @@ CREATE TABLE IF NOT EXISTS usage_counter_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_usage_counters_lookup
     ON usage_counter_snapshots(metric_key, scope_kind, scope_id, period_start);
+
+CREATE TABLE IF NOT EXISTS endpoint_reliability (
+    id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint_url              TEXT NOT NULL,
+    model_id                  TEXT NOT NULL,
+    total_requests            INTEGER NOT NULL DEFAULT 0,
+    hallucination_proxy_ewma  REAL    NOT NULL DEFAULT 0.0,
+    contradiction_ratio_ewma  REAL    NOT NULL DEFAULT 0.0,
+    infra_failure_ewma        REAL    NOT NULL DEFAULT 0.0,
+    rate_limit_hits           INTEGER NOT NULL DEFAULT 0,
+    timeout_hits              INTEGER NOT NULL DEFAULT 0,
+    updated_at_ms             INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(endpoint_url, model_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_endpoint_reliability_degraded ON endpoint_reliability(hallucination_proxy_ewma, endpoint_url);
 ";

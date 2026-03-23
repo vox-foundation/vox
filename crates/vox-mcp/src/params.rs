@@ -77,6 +77,8 @@ pub struct SubmitTaskParams {
     /// Optional GPU / hardware routing hints.
     #[serde(default)]
     pub capabilities: Option<vox_orchestrator::TaskCapabilityHints>,
+    /// Optional session identifier for Populi telemetry grouping.
+    pub session_id: Option<String>,
 }
 
 /// Identifier payload returned after a successful [`SubmitTaskParams`] submission.

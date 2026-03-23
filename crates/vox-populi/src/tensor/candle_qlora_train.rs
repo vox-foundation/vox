@@ -611,6 +611,38 @@ pub(super) fn run_candle_qlora_train(
         }),
     )?;
 
+    // Telemetry DB Channel
+    let (db_tx, mut db_rx) = tokio::sync::mpsc::unbounded_channel::<(String, String, serde_json::Value)>();
+    if let Some(ref rid) = config.run_id {
+        let rid = rid.clone();
+        let rt = tokio::runtime::Handle::try_current();
+        if let Ok(handle) = rt {
+            handle.spawn(async move {
+                if let Ok(db) = vox_db::VoxDb::connect_default().await {
+                    while let Some((event_kind, run_id, payload)) = db_rx.recv().await {
+                        if event_kind == "checkpoint_saved" {
+                            if let (Some(epoch), Some(step), Some(path)) = (
+                                payload.get("epoch").and_then(|v| v.as_u64()),
+                                payload.get("global_step").and_then(|v| v.as_u64()),
+                                payload.get("path").and_then(|v| v.as_str()),
+                            ) {
+                                let _ = db.record_training_checkpoint(&run_id, epoch as u32, step as u32, path).await;
+                            }
+                        } else {
+                            let _ = db.record_training_event(&run_id, &event_kind, payload).await;
+                        }
+                    }
+                }
+            });
+            
+            let pairs_len = pairs.len();
+            let config_epochs = config.epochs;
+            let dl = device_label.to_string();
+            let ev_payload = serde_json::json!({"pairs": pairs_len, "epochs": config_epochs, "device": dl});
+            let _ = db_tx.send(("train_start".to_string(), rid.clone(), ev_payload));
+        }
+    }
+
     train_log::info(&format!(
         "Candle qlora-rs start — data={}, out={}, rank={}, alpha={}, seq={}, epochs={}, grad_accum={}, seed={}, planned_steps≈{planned_steps_per_epoch}/epoch × {} = {planned_steps_total} total (upper bound; skips reduce)",
         train_path.display(),
@@ -824,6 +856,18 @@ pub(super) fn run_candle_qlora_train(
                             "sps_ema": sps_ema_val,
                         }),
                     )?;
+
+                    if let Some(ref rid) = config.run_id {
+                        let eta_clone = eta_val.clone();
+                        let payload = serde_json::json!({
+                            "epoch": epoch,
+                            "step": global_step,
+                            "loss": loss_f,
+                            "tokens_per_sec": tps_val,
+                            "eta_sec": eta_clone
+                        });
+                        let _ = db_tx.send(("train_step".to_string(), rid.clone(), payload));
+                    }
                 }
             }
         }
@@ -840,6 +884,32 @@ pub(super) fn run_candle_qlora_train(
         }
 
         train_log::info(&format!("candle qlora-rs epoch {epoch} complete"));
+
+        // Per-epoch checkpoint (appended suffix to output dir)
+        if config.epochs > 1 {
+            let ep_adapter = out.join(format!("candle_qlora_adapter_epoch{epoch}.safetensors"));
+            let n_mid_at_epoch = if use_o_proj_stack { middle_candidates.len() } else { 0 };
+            if let Err(e) = save_qlora_adapter_v2(&quant_stack, &adapter_names_for_stack(n_mid_at_epoch), &ep_adapter) {
+                train_log::warn(&format!("per-epoch checkpoint save failed epoch {epoch}: {e}"));
+            } else {
+                let _ = telemetry::append(&out, "checkpoint_saved", serde_json::json!({
+                    "epoch": epoch,
+                    "global_step": global_step,
+                    "path": ep_adapter.display().to_string(),
+                }));
+                train_log::info(&format!("Epoch {epoch} checkpoint → {}", ep_adapter.display()));
+                
+                if let Some(ref rid) = config.run_id {
+                    let a_path = ep_adapter.display().to_string();
+                    let payload = serde_json::json!({
+                        "epoch": epoch,
+                        "global_step": global_step,
+                        "path": a_path,
+                    });
+                    let _ = db_tx.send(("checkpoint_saved".to_string(), rid.clone(), payload));
+                }
+            }
+        }
     }
 
     let wall_seconds = training_wall_start.elapsed().as_secs_f64();
@@ -951,6 +1021,30 @@ pub(super) fn run_candle_qlora_train(
         wall_seconds,
         mean_steps_per_sec
     ));
+
+    if let Some(ref rid) = config.run_id {
+        let steps = steps_executed as u32;
+        let epchs = config.epochs as u32;
+        let wall = wall_seconds;
+        let adapter = adapter_path.display().to_string();
+        
+        // Final checkpoint
+        let cp_payload = serde_json::json!({
+            "epoch": epchs,
+            "global_step": steps,
+            "path": adapter.clone(),
+        });
+        let _ = db_tx.send(("checkpoint_saved".to_string(), rid.clone(), cp_payload));
+        
+        // Final event
+        let tc_payload = serde_json::json!({
+            "steps_executed": steps,
+            "wall_seconds": wall,
+            "adapter_path": adapter,
+        });
+        let _ = db_tx.send(("train_complete".to_string(), rid.clone(), tc_payload));
+    }
+
     Ok(())
 }
 

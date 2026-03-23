@@ -319,8 +319,8 @@ impl MessageBus {
                     if m.acknowledged {
                         return false;
                     }
-                    if m.elapsed_ms() > 300_000 {
-                        // Message is stale (>5 min); skip silently — callers rely on freshness filtering.
+                    if m.is_expired() {
+                        // Message is stale; skip silently — callers rely on freshness filtering.
                         let _ = m.id; // acknowledge the drop without tracing dep
                         return false;
                     }

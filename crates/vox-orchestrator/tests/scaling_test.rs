@@ -37,7 +37,7 @@ async fn test_dynamic_scaling_and_retirement() {
     {
         let mut o = orch.lock().await;
         for i in 0..10 {
-            o.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Normal))
+            o.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Normal), None)
                 .await
                 .unwrap();
         }
@@ -99,7 +99,7 @@ async fn test_predictive_scaling_uses_trend() {
 
     // Submit enough tasks to push predicted_load above threshold
     for i in 0..9 {
-        orch.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Urgent))
+        orch.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Urgent), None)
             .await
             .unwrap();
     }
@@ -144,6 +144,7 @@ async fn test_group_affinity_voting_routes_correctly() {
             "parser task 1",
             vec![FileAffinity::write("src/parser/grammar.rs")],
             None,
+            None,
         )
         .await
         .unwrap();
@@ -154,6 +155,7 @@ async fn test_group_affinity_voting_routes_correctly() {
         .submit_task(
             "parser task 2",
             vec![FileAffinity::write("src/parser/grammar.rs")],
+            None,
             None,
         )
         .await
@@ -178,7 +180,7 @@ async fn test_urgent_rebalance_trigger() {
 
     // Load 4 Urgent tasks onto agent-a directly
     for i in 0..4 {
-        orch.submit_task(format!("urgent-{}", i), vec![], Some(TaskPriority::Urgent))
+        orch.submit_task(format!("urgent-{}", i), vec![], Some(TaskPriority::Urgent), None)
             .await
             .unwrap();
     }

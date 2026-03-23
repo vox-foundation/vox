@@ -10,6 +10,26 @@ use crate::store::CodeStore;
 use crate::store::types::StoreError;
 
 impl CodeStore {
+    // ── Agent Events (agent_events) ──────────────────────────────────────────
+
+    /// Insert a row into `agent_events` for telemetry tracking.
+    pub async fn record_agent_event(
+        &self,
+        agent_id: &str,
+        event_type: &str,
+        payload_json: &str,
+        cli_version: &str,
+    ) -> Result<i64, StoreError> {
+        let conn = self.conn.clone();
+        conn.execute(
+            "INSERT INTO agent_events (agent_id, event_type, payload_json, cli_version, timestamp)
+             VALUES (?1, ?2, ?3, ?4, datetime('now'))",
+            params![agent_id, event_type, payload_json, cli_version],
+        )
+        .await?;
+        Ok(conn.last_insert_rowid())
+    }
+
     // ── Agent Sessions (agent_sessions) ──────────────────────────────────────
 
     /// Insert or activate an `agent_sessions` row.

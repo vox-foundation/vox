@@ -42,20 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_cost_records_agent ON cost_records(agent_id);
 CREATE INDEX IF NOT EXISTS idx_cost_records_session ON cost_records(session_id);
 CREATE INDEX IF NOT EXISTS idx_cost_records_ts ON cost_records(timestamp);
 
-CREATE TABLE IF NOT EXISTS a2a_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender TEXT NOT NULL,
-    receiver TEXT,
-    msg_type TEXT NOT NULL,
-    payload TEXT,
-    correlation_id TEXT,
-    acknowledged INTEGER NOT NULL DEFAULT 0,
-    timestamp TEXT NOT NULL DEFAULT (datetime('now'))
-);
 
-CREATE INDEX IF NOT EXISTS idx_a2a_messages_sender ON a2a_messages(sender);
-CREATE INDEX IF NOT EXISTS idx_a2a_messages_receiver ON a2a_messages(receiver);
-CREATE INDEX IF NOT EXISTS idx_a2a_messages_type ON a2a_messages(msg_type);
 
 CREATE TABLE IF NOT EXISTS agent_metrics (
     agent_id TEXT NOT NULL,

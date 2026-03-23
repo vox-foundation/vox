@@ -55,6 +55,7 @@ impl crate::orchestrator::Orchestrator {
             workspace_manager: crate::workspace::WorkspaceManager::new(),
             db: None,
             last_rebalance_at: None,
+            last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
             remote_mesh_routing_hints: Vec::new(),
         }
     }
@@ -98,6 +99,7 @@ impl crate::orchestrator::Orchestrator {
             workspace_manager: crate::workspace::WorkspaceManager::new(),
             db: None,
             last_rebalance_at: None,
+            last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
             remote_mesh_routing_hints: Vec::new(),
         }
     }
@@ -125,6 +127,16 @@ impl crate::orchestrator::Orchestrator {
         self.db.as_deref()
     }
 
+    /// Update the global activity timestamp.
+    pub fn record_activity(&self) {
+        self.last_activity_ms.store(crate::types::now_unix_ms(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Get the global last activity timestamp in milliseconds.
+    pub fn last_activity_ms(&self) -> u64 {
+        self.last_activity_ms.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Access the internal context store.
     pub fn context_store(&self) -> &crate::context::ContextStore {
         &self.context_store
@@ -138,12 +150,12 @@ impl crate::orchestrator::Orchestrator {
         task: &crate::types::AgentTask,
     ) -> String {
         let mut base = session.temporal_summary();
-        if let Some(created) = task.created_at {
-            let elapsed_secs = std::time::Instant::now()
-                .duration_since(created)
-                .as_secs();
-            base.push_str(&format!(" Task created: {}s ago.", elapsed_secs));
-        }
+        let elapsed_secs = task.created_at
+            .map(|i| std::time::Instant::now().duration_since(i).as_secs())
+            .unwrap_or_else(|| {
+                crate::types::now_unix_ms().saturating_sub(task.created_at_ms) / 1000
+            });
+        base.push_str(&format!(" Task created: {}s ago.", elapsed_secs));
         base
     }
 
@@ -164,6 +176,12 @@ impl crate::orchestrator::Orchestrator {
         let provider_str: String = provider.into();
         let model_str: String = model.into();
 
+        let idle_ms = crate::types::now_unix_ms().saturating_sub(self.last_activity_ms());
+        let temporal_context = serde_json::json!({
+            "idle_secs": idle_ms / 1000,
+            "date": chrono::Local::now().to_rfc3339(),
+        });
+
         self.event_bus
             .emit(crate::events::AgentEventKind::CostIncurred {
                 agent_id,
@@ -172,6 +190,7 @@ impl crate::orchestrator::Orchestrator {
                 input_tokens,
                 output_tokens,
                 cost_usd,
+                temporal_context: Some(temporal_context),
             });
 
         self.budget_manager

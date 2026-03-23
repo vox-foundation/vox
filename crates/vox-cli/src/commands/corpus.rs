@@ -65,6 +65,21 @@ pub enum CorpusAction {
         #[arg(long)]
         docs: Option<std::path::PathBuf>,
     },
+    /// Replay Arca telemetry into Populi training pairs
+    Replay {
+        /// Emit full multi-turn ChatML sessions (groups events by session_id)
+        #[arg(long)]
+        chatml: bool,
+        /// Minimum session quality score to include (0.0 = all)
+        #[arg(long, default_value = "0.0")]
+        min_score: f64,
+        /// Output JSONL path (auto-picked by `vox populi mix`)
+        #[arg(short, long, default_value = "populi/data/mix_sources/autofeedback.jsonl")]
+        output: std::path::PathBuf,
+        /// Max session/event rows to query
+        #[arg(long, default_value = "500")]
+        limit: i64,
+    },
     /// Auto-generate vox_system_prompt.txt from construct reference
     Prompt {
         /// Output file path
@@ -177,6 +192,37 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             print_summary,
         } => run_eval(&input, &output, print_summary).await,
         CorpusAction::Mix { config } => vox_corpus::corpus::run_mix(&config),
+        CorpusAction::Replay {
+            chatml: _chatml,
+            min_score: _min_score,
+            output: _output,
+            limit: _limit,
+        } => {
+            #[cfg(feature = "database")]
+            {
+                let db = vox_db::VoxDb::connect_default()
+                    .await
+                    .expect("Replay requires a database connection (set VOX_DB_URL)");
+                let rows = vox_corpus::arca_replay::extract_arca_pairs(&db, _limit, _chatml, _min_score)
+                    .await
+                    .expect("Failed to extract Arca replay pairs");
+                let parent = _output.parent().unwrap_or(std::path::Path::new("."));
+                std::fs::create_dir_all(parent)?;
+                let mut f = std::fs::File::create(&_output)
+                    .with_context(|| format!("Cannot create output: {}", _output.display()))?;
+                for row in &rows {
+                    writeln!(f, "{}", serde_json::to_string(row)?)?;
+                }
+                println!("✓ Wrote {} replay pairs → {}", rows.len(), _output.display());
+            }
+            #[cfg(not(feature = "database"))]
+            {
+                eprintln!(
+                    "Replay requires the `database` feature. Rebuild with --features database"
+                );
+            }
+            Ok(())
+        }
     }
 }
 

@@ -1,0 +1,17 @@
+{
+  "schema": "vox.build_timings.snapshot_metadata/v1",
+  "captured_at": "2026-03-21",
+  "paired_artifact": "latest.jsonl",
+  "cache_state": "incremental_warm_shared_target_dir",
+  "rustc": {
+    "version": "1.94.0",
+    "commit_hash": "4a4ef493e3a1488c6e321570238084b38948f6db",
+    "host": "x86_64-pc-windows-msvc",
+    "llvm_version": "21.1.8"
+  },
+  "cuda_toolchain": {
+    "nvcc_on_path": true,
+    "reported_release": "13.1"
+  },
+  "notes": "Regenerate alongside latest.jsonl after Rust upgrades, CUDA SDK changes, or when switching cold vs warm methodology. For deviation vs model bands see docs/src/architecture/crate-build-lanes-migration.md."
+}

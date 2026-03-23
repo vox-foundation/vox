@@ -139,6 +139,34 @@ impl crate::orchestrator::Orchestrator {
             self.load_history.pop_front();
         }
 
+        // Global Idle Check
+        let now_ms = crate::types::now_unix_ms();
+        let global_idle_ms = now_ms.saturating_sub(self.last_activity_ms());
+        if global_idle_ms >= self.config.idle_timeout_ms {
+            self.event_bus.emit(crate::events::AgentEventKind::OrchestratorIdle {
+                idle_ms: global_idle_ms,
+            });
+            // We only log once at the threshold to avoid spamming every tick
+            if global_idle_ms < self.config.idle_timeout_ms + 10_000 {
+                tracing::info!("Orchestrator has been idle for {}ms", global_idle_ms);
+            }
+        }
+
+        // Task Expiration Check
+        let task_timeout = std::time::Duration::from_millis(self.config.task_timeout_ms);
+        for (&agent_id, queue) in self.agents.iter_mut() {
+            let expired = queue.drain_timed_out(task_timeout);
+            for task in expired {
+                let age = now_ms.saturating_sub(task.created_at_ms);
+                self.event_bus.emit(crate::events::AgentEventKind::TaskExpired {
+                    task_id: task.id,
+                    agent_id,
+                    age_ms: age,
+                });
+                tracing::warn!("Task {} on agent {} expired (age: {}ms)", task.id, agent_id, age);
+            }
+        }
+
         let stale_ids = self.heartbeat_monitor.check_stale(&self.event_bus);
         for (id, level) in stale_ids {
             if self.dynamic_agents.contains(&id) {
@@ -179,6 +207,7 @@ impl crate::orchestrator::Orchestrator {
                                 .map(|q| q.name.clone())
                                 .unwrap_or_default(),
                         ),
+                        None,
                         None,
                     )
                     .await;

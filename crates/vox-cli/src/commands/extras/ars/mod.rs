@@ -304,8 +304,7 @@ pub async fn context_assemble_bundle(
             let per_type = (limit / CONTEXT_MEMORY_TYPES.len() as i64).max(1);
             for memory_type in CONTEXT_MEMORY_TYPES {
                 if let Ok(entries) = db
-                    .store()
-                    .list_memories_by_type(memory_type, per_type)
+                    .recall_memory("", Some(memory_type), per_type)
                     .await
                 {
                     for e in entries {
@@ -330,8 +329,7 @@ pub async fn context_assemble_bundle(
             let per_type = (limit / CONTEXT_MEMORY_TYPES.len() as i64).max(1);
             for memory_type in CONTEXT_MEMORY_TYPES {
                 if let Ok(entries) = db
-                    .store()
-                    .list_memories_by_type(memory_type, per_type)
+                    .recall_memory("", Some(memory_type), per_type)
                     .await
                 {
                     for e in entries {

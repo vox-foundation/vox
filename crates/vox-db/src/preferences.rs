@@ -3,7 +3,6 @@
 //! Wraps the Arca `user_preferences` table with higher-level registry scoping.
 //! Key format: `{registry}.{key}`.
 
-use crate::VoxDb;
 use vox_pm::store::StoreError;
 
 /// Set a preference for a specific registry (e.g. `google.api_key`).
@@ -47,10 +46,12 @@ pub async fn get_all_registry_preferences(
 ) -> Result<Vec<(String, String)>, StoreError> {
     let db = crate::VoxDb::connect_default().await?;
     let prefix = format!("{}.", registry);
-    let all = db.store().list_user_preferences("local_user").await?;
+    
+    // Efficiently fetch only keys matching the registry prefix
+    let matching = db.store().list_user_preferences("local_user", Some(&prefix)).await?;
     
     let mut out = Vec::new();
-    for (k, v) in all {
+    for (k, v) in matching {
         if let Some(stripped) = k.strip_prefix(&prefix) {
             out.push((stripped.to_string(), v));
         }

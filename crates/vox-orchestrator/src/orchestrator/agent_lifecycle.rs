@@ -147,6 +147,30 @@ impl crate::orchestrator::Orchestrator {
     ) -> Result<AgentId, OrchestratorError> {
         let from_agent = payload.from_agent;
 
+        // Check for staleness/expiration
+        let now = crate::types::now_unix_ms();
+        let age_ms = now.saturating_sub(payload.created_at);
+        let timeout = payload.timeout_ms.unwrap_or(3_600_000); // 1 hour default
+
+        if age_ms > timeout {
+            let reason = format!(
+                "Handoff from {} is stale (age: {}s, timeout: {}s)",
+                from_agent,
+                age_ms / 1000,
+                timeout / 1000
+            );
+            self.event_bus.emit(crate::events::AgentEventKind::AgentHandoffRejected {
+                from: from_agent,
+                reason: reason.clone(),
+            });
+            tracing::warn!("{}", reason);
+            return Err(OrchestratorError::StaleHandoff {
+                agent_id: from_agent,
+                age_ms,
+                timeout_ms: timeout,
+            });
+        }
+
         let target_id = if let Some(id) = payload.to_agent {
             if self.agents.contains_key(&id) {
                 id
