@@ -1,4 +1,0 @@
-    Checking vox-orchestrator v0.1.0 (C:\Users\Owner\vox\crates\vox-orchestrator)
-    Checking vox-mesh v0.1.0 (C:\Users\Owner\vox\crates\vox-mesh)
-    Checking vox-mcp v0.1.0 (C:\Users\Owner\vox\crates\vox-mcp)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.36s

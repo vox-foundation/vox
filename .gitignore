@@ -59,3 +59,20 @@ test_all.txt
 *.orig
 crates/*/target/
 crates/*/target_*/
+
+# Root-level scratch/debug output (should never be committed)
+/*.txt
+/*.err
+/*.bat
+/*.py
+/*.jsonl
+/dump.txt
+/sql_dump.txt
+/raw_err*.json
+/check_err*.json
+/clippy_output.json
+/pm_errors.json
+
+# Generated test fixture snapshots (re-created by build)
+crates/vox-populi/tests/fixtures/
+crates/vox-mesh/tests/*.sample.json
