@@ -1,0 +1,15 @@
+/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+
+# Local development forks
+gemm-fork/
+paste-fork/

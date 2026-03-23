@@ -1,0 +1,53 @@
+name: Compilation
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: master
+
+      - name: Compilation to multiple targets
+        run: |
+          zig build
+          zig build -Drelease
+          zig build -Drelease -Dfavor-performance
+          zig build -Drelease -Dwith-benchmark
+          zig build -Drelease -Dwith-benchmark -Dfavor-performance
+
+          zig build -Dtarget=x86_64-linux -Dcpu=baseline
+          zig build -Dtarget=aarch64-linux -Dcpu=baseline+aes+crypto
+          zig build -Dtarget=x86_64-windows -Dcpu=baseline
+          zig build -Dtarget=aarch64-windows -Dcpu=baseline+aes+crypto
+          zig build -Dtarget=x86_64-macos -Dcpu=baseline
+          zig build -Dtarget=aarch64-macos -Dcpu=baseline
+          zig build -Dtarget=powerpc64le-linux
+
+          zig build -Dtarget=x86_64-freebsd
+          zig build -Dtarget=x86_64-netbsd
+
+          zig build -Dtarget=x86_64-linux -Dcpu=znver4
+          zig build -Dtarget=aarch64-linux -Dcpu=ampere1a+aes+crypto
+          zig build -Dtarget=x86_64-windows -Dcpu=znver4
+          zig build -Dtarget=aarch64-windows -Dcpu=ampere1a+aes+crypto
+          zig build -Dtarget=x86_64-macos -Dcpu=znver4
+          zig build -Dtarget=aarch64-macos -Dcpu=apple_m2
+          zig build -Dtarget=wasm32-wasi
+          zig build -Dtarget=wasm32-freestanding
+
+          zig build -Dlinkage=dynamic
+          zig build -Dlinkage=dynamic -Drelease
+          zig build -Dlinkage=dynamic -Drelease -Dfavor-performance
+          zig build -Dlinkage=dynamic -Drelease -Dwith-benchmark
+          zig build -Dlinkage=dynamic -Drelease -Dwith-benchmark -Dfavor-performance
