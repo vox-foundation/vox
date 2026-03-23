@@ -74,6 +74,10 @@ pub enum CiCmd {
     /// Fail if `vox-cli` sources import `vox_dei::`.
     #[command(name = "no-vox-dei-import")]
     NoVoxDeiImport,
+    /// Run `vox-doc-pipeline --check` to verify SUMMARY.md matches docs/src
+    CheckSummaryDrift,
+    /// Build all documentation artifacts
+    BuildDocs,
     /// Doc inventory (schema v3): generate or verify.
     DocInventory {
         /// Subcommand execution variant.
@@ -254,6 +258,39 @@ pub fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoVoxDeiImport => check_no_vox_dei(&root),
+        CiCmd::CheckSummaryDrift => {
+            let cargo = cargo_bin();
+            let st = Command::new(&cargo)
+                .current_dir(&root)
+                .args(["run", "-p", "vox-doc-pipeline", "--", "--check"])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!("SUMMARY.md is out of sync with docs/src. Run 'cargo run -p vox-doc-pipeline' to fix."));
+            }
+            println!("SUMMARY.md is up to date.");
+            Ok(())
+        }
+        CiCmd::BuildDocs => {
+            let cargo = cargo_bin();
+            // 1. Generate SUMMARY.md
+            let st = Command::new(&cargo)
+                .current_dir(&root)
+                .args(["run", "-p", "vox-doc-pipeline"])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!("failed to generate SUMMARY.md"));
+            }
+            // 2. Run mdbook build docs (assuming mdbook is on PATH)
+            let st = Command::new("mdbook")
+                .current_dir(&root)
+                .args(["build", "docs"])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!("mdbook build docs failed"));
+            }
+            println!("Documentation built successfully.");
+            Ok(())
+        }
         CiCmd::DocInventory { cmd: sub } => match sub {
             DocInventoryCmd::Generate { output } => {
                 let out =

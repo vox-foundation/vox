@@ -31,6 +31,8 @@ pub mod task_tools;
 pub mod training_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
+/// Introspection tools for language visualization (AST, surface, pipeline).
+pub mod introspection_tools;
 
 mod input_schemas;
 mod tool_aliases;
@@ -323,6 +325,34 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "Refresh the on-disk repo index cache for the current workspace.",
     ),
     (
+        "vox_language_surface",
+        "Return all primary keywords, decorators, types, and builtins in the Vox language.",
+    ),
+    (
+        "vox_ast_inspect",
+        "Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root).",
+    ),
+    (
+        "vox_pipeline_status",
+        "Get current compiler pipeline health and status (lexer, parser, typeck, codegen).",
+    ),
+    (
+        "vox_decorator_registry",
+        "Return detailed metadata for all @decorators in the Vox language.",
+    ),
+    (
+        "vox_builtin_registry",
+        "Return detailed signatures and docs for all builtin functions.",
+    ),
+    (
+        "vox_workspace_modules",
+        "Returns a list of all .vox files in the workspace repository.",
+    ),
+    (
+        "vox_a2a_tasks",
+        "Returns the full DAG of current orchestrator tasks.",
+    ),
+    (
         "vox_snapshot_list",
         "List recent file snapshots for an agent.",
     ),
@@ -604,6 +634,18 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
+        
+        "vox_language_surface" => Ok(introspection_tools::language_surface().to_string()),
+        "vox_ast_inspect" => Ok(introspection_tools::ast_inspect(
+            state,
+            args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
+        ).await?.to_string()),
+        "vox_pipeline_status" => Ok(introspection_tools::pipeline_status().await.to_string()),
+        "vox_decorator_registry" => Ok(introspection_tools::decorator_registry().to_string()),
+        "vox_builtin_registry" => Ok(introspection_tools::builtin_registry().to_string()),
+        "vox_workspace_modules" => Ok(introspection_tools::workspace_modules(state).await?.to_string()),
+        "vox_a2a_tasks" => Ok(introspection_tools::a2a_tasks(state).await?.to_string()),
+
 
         "vox_snapshot_list" => Ok(vcs_tools::snapshot_list(state, args).await),
         "vox_snapshot_diff" => Ok(vcs_tools::snapshot_diff(state, args).await),

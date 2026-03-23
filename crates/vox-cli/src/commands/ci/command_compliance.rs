@@ -337,14 +337,15 @@ fn check_dei(reg: &RegistryFile, dei: &str) -> Result<()> {
 /// `crates/vox-mcp/src/tools/mod.rs` before `pub fn tool_registry`.
 fn tool_registry_array_slice(src: &str) -> Result<&str> {
     const START: &str = "pub const TOOL_REGISTRY: &[(&str, &str)] = &[";
-    const END: &str = "\n];\n\n/// Convert the static [`TOOL_REGISTRY`]";
+    const END_LF: &str = "\n];\n\n/// Convert the static [`TOOL_REGISTRY`]";
+    const END_CRLF: &str = "\r\n];\r\n\r\n/// Convert the static [`TOOL_REGISTRY`]";
     let i = src
         .find(START)
         .ok_or_else(|| anyhow!("vox-mcp tools/mod.rs: missing `{START}`"))?;
     let tail = &src[i + START.len()..];
-    let j = tail.find(END).ok_or_else(|| {
+    let j = tail.find(END_LF).or_else(|| tail.find(END_CRLF)).ok_or_else(|| {
         anyhow!(
-            "vox-mcp tools/mod.rs: missing TOOL_REGISTRY end anchor before `tool_registry()` (expected {END:?})"
+            "vox-mcp tools/mod.rs: missing TOOL_REGISTRY end anchor before `tool_registry()` (expected {END_LF:?})"
         )
     })?;
     Ok(&tail[..j])

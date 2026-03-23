@@ -31,8 +31,11 @@ pub struct HfTransformerLayout {
     pub architectures: Vec<String>,
     pub hidden_size: usize,
     pub num_attention_heads: usize,
+    /// Key/value head count for GQA. Falls back to `num_attention_heads` if absent from config.
+    pub num_key_value_heads: usize,
     pub num_hidden_layers: usize,
     pub vocab_size: usize,
+    pub intermediate_size: Option<usize>,
     /// Same numbers as the HF fields above, in [`ConfigDims`] shape (legacy / graph code).
     pub dims: ConfigDims,
 }
@@ -81,14 +84,17 @@ impl HfTransformerLayout {
                 n_layer: nl,
                 vocab_size: vs,
             };
+            let n_kv = json_usize(v, "num_key_value_heads").unwrap_or(nh);
             return Ok(Self {
                 architecture,
                 model_type,
                 architectures,
                 hidden_size: h,
                 num_attention_heads: nh,
+                num_key_value_heads: n_kv,
                 num_hidden_layers: nl,
                 vocab_size: vs,
+                intermediate_size: json_usize(v, "intermediate_size"),
                 dims,
             });
         }
@@ -112,8 +118,10 @@ impl HfTransformerLayout {
                 architectures,
                 hidden_size: n_embd,
                 num_attention_heads: n_head,
+                num_key_value_heads: n_head, // GPT-2 is full MHA
                 num_hidden_layers: n_layer,
                 vocab_size: vs,
+                intermediate_size: None, // GPT-2 uses linear 4x expansion in MLP
                 dims,
             });
         }

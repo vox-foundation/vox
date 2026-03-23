@@ -338,6 +338,20 @@ pub async fn run_stack_submit(
         all_files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
     }
 
+    let guard = super::git::WorkspaceGuard::new(path).await?;
+    let res = run_stack_submit_core(path, max_files_per_pr, tier, delay_between_prs_secs, dry_run, all_files).await;
+    guard.restore().await?;
+    res
+}
+
+async fn run_stack_submit_core(
+    path: &Path,
+    max_files_per_pr: u32,
+    tier: Option<&str>,
+    delay_between_prs_secs: u64,
+    dry_run: bool,
+    all_files: Vec<String>,
+) -> Result<()> {
     // 2. Plan semantic chunks
     let config = StackPlanConfig { max_files_per_pr };
     let planner = StackPlanner::new(config);

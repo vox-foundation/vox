@@ -139,6 +139,20 @@ impl Orchestrator {
         self.agents.keys().copied().collect()
     }
 
+    /// List all tasks (queued or in-progress) from all agents.
+    pub fn all_tasks(&self) -> Vec<crate::types::AgentTask> {
+        let mut all = Vec::new();
+        for queue in self.agents.values() {
+            if let Some(task) = &queue.current_task() {
+                all.push((*task).clone());
+            }
+            for task in queue.tasks() {
+                all.push(task.clone());
+            }
+        }
+        all
+    }
+
     /// Get a reference to task → agent assignment map.
     pub fn task_assignments(&self) -> &HashMap<TaskId, AgentId> {
         &self.task_assignments

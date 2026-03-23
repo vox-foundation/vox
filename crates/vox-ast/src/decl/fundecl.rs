@@ -4,7 +4,7 @@ use crate::stmt::Stmt;
 use crate::types::TypeExpr;
 
 /// Function declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FnDecl {
     /// The name of the function.
     pub name: String,
@@ -51,7 +51,7 @@ pub struct FnDecl {
 }
 
 /// Component declaration (wraps a function with @component semantics).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ComponentDecl {
     /// The underlying function implementing the component.
     pub func: FnDecl,
@@ -60,7 +60,7 @@ pub struct ComponentDecl {
 }
 
 /// A scoped style block within a component.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StyleBlock {
     /// The CSS selector (e.g. ".btn", "h1").
     pub selector: String,
@@ -71,56 +71,56 @@ pub struct StyleBlock {
 }
 
 /// Test declaration (wraps a function with @test semantics).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TestDecl {
     /// The underlying function implementing the test.
     pub func: FnDecl,
 }
 
 /// Server function declaration (wraps a function with @server semantics).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ServerFnDecl {
     /// The underlying function implementing the server logic.
     pub func: FnDecl,
 }
 
 /// Query declaration: a read-only database function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct QueryDecl {
     /// The underlying function implementing the query.
     pub func: FnDecl,
 }
 
 /// Mutation declaration: a write database function with transaction semantics.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutationDecl {
     /// The underlying function implementing the mutation.
     pub func: FnDecl,
 }
 
 /// Action declaration: server-side logic that can call queries and mutations.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActionDecl {
     /// The underlying function implementing the action.
     pub func: FnDecl,
 }
 
 /// Skill declaration: a modular AI capability.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SkillDecl {
     /// The underlying function implementing the skill.
     pub func: FnDecl,
 }
 
 /// Agent definition declaration: defines the core logic and interface for an AI agent.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AgentDefDecl {
     /// The underlying function implementing the agent's logic.
     pub func: FnDecl,
 }
 
 /// Scheduled function declaration — runs at a fixed interval or cron schedule.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ScheduledDecl {
     /// The interval or cron schedule (e.g. "1h", "0 0 * * *").
     pub interval: String,
@@ -129,7 +129,7 @@ pub struct ScheduledDecl {
 }
 
 /// MCP tool declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct McpToolDecl {
     /// Human-readable description of the tool's purpose.
     pub description: String,
@@ -138,7 +138,7 @@ pub struct McpToolDecl {
 }
 
 /// MCP resource declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct McpResourceDecl {
     /// The URI identifying the resource.
     pub uri: String,
@@ -149,7 +149,7 @@ pub struct McpResourceDecl {
 }
 
 /// Mock declaration for testing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MockDecl {
     /// The target function/service to mock.
     pub target: String,
@@ -158,14 +158,14 @@ pub struct MockDecl {
 }
 
 /// A frontend hook function declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HookDecl {
     /// The underlying function implementing the hook.
     pub func: FnDecl,
 }
 
 /// Fixture declaration: setup code for tests.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FixtureDecl {
     /// The underlying function implementing the fixture.
     pub func: FnDecl,
@@ -184,7 +184,7 @@ pub struct FixtureDecl {
 ///
 /// Generated code gates execution behind `TrustPolicy::check()` and
 /// `CapabilityPolicy::require_all()` before the function body runs.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TaskDecl {
     /// The function implementing the task body.
     pub func: FnDecl,

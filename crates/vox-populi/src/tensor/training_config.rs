@@ -61,6 +61,7 @@ pub struct LoraTrainingConfig {
     pub max_vram_fraction: Option<f32>,
     pub adapter_tag: Option<String>,
     pub context_filter: Option<String>,
+    pub validation_split_ratio: Option<f64>,
     pub tokenizer_mode: PopuliTokenizerMode,
     /// When false, sets qlora-rs `QuantizationConfig.double_quant` off (debug / ablation). Default: true.
     pub qlora_double_quant: bool,
@@ -108,6 +109,7 @@ impl Default for LoraTrainingConfig {
             max_vram_fraction: None,
             adapter_tag: None,
             context_filter: None,
+            validation_split_ratio: Some(0.05),
             tokenizer_mode: PopuliTokenizerMode::Vox,
             qlora_double_quant: true,
             finetune_contract_digest: None,
@@ -116,7 +118,7 @@ impl Default for LoraTrainingConfig {
             qlora_lm_head_only: false,
             qlora_proxy_max_layers: None,
             qlora_ce_last_k: 16,
-            checkpoint_every: None,
+            checkpoint_every: Some(500),
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),
         }

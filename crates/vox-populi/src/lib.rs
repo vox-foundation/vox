@@ -36,5 +36,5 @@ pub use tensor::{
 #[cfg(feature = "train")]
 pub use tensor::{
     ExecutionKernel, FineTuneContract, LoraTrainingConfig, PopuliTokenizerMode, PopuliTrainBackend,
-    TrainingDeploymentTarget, run_lora_training, run_populi_training,
+    TrainingDeploymentTarget, run_populi_training,
 };

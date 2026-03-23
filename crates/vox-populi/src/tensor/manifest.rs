@@ -71,7 +71,7 @@ impl ArchParams {
     }
 }
 
-/// On-disk training manifest (written by `run_lora_training`).
+/// On-disk training manifest (written by `run_populi_training`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingManifest {
     pub vocab_size: usize,

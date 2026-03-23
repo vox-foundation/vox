@@ -52,29 +52,31 @@ fn github_per_page() -> u32 {
         .clamp(1, 100)
 }
 
-async fn fetch_pr_comments(
+async fn fetch_github_paginated(
+    client: &reqwest::Client,
     token: &str,
     owner: &str,
     repo: &str,
-    pr_number: u64,
+    path: &str,
 ) -> Result<Vec<GhReviewComment>> {
     let per_page = github_per_page();
-    let client = reqwest::Client::new();
     let mut all = Vec::new();
     let mut page = 1u32;
 
     loop {
         let url = format!(
-            "https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/comments?per_page={per_page}&page={page}"
+            "https://api.github.com/repos/{owner}/{repo}/{path}?per_page={per_page}&page={page}"
         );
         let resp = client
             .get(&url)
             .bearer_auth(token)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
+            // required User-Agent for GitHub APIs
+            .header("User-Agent", "vox-cli")
             .send()
             .await
-            .context("GET PR comments")?;
+            .context(format!("GET {path}"))?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -82,7 +84,7 @@ async fn fetch_pr_comments(
             anyhow::bail!("GitHub API {status}: {text}");
         }
 
-        let comments: Vec<GhReviewComment> = resp.json().await.context("Parse comments JSON")?;
+        let comments: Vec<GhReviewComment> = resp.json().await.context("Parse JSON")?;
         let n = comments.len();
         if n == 0 {
             break;
@@ -94,6 +96,28 @@ async fn fetch_pr_comments(
         page += 1;
     }
 
+    Ok(all)
+}
+
+async fn fetch_all_pr_comments(
+    token: &str,
+    owner: &str,
+    repo: &str,
+    pr_number: u64,
+) -> Result<Vec<GhReviewComment>> {
+    let client = reqwest::Client::new();
+    
+    // 1. Inline review comments
+    let mut all = fetch_github_paginated(&client, token, owner, repo, &format!("pulls/{pr_number}/comments")).await?;
+    
+    // 2. Issue comments (Main PR discussions)
+    let issues = fetch_github_paginated(&client, token, owner, repo, &format!("issues/{pr_number}/comments")).await?;
+    all.extend(issues);
+    
+    // 3. Top-level submitted reviews (Body content)
+    let reviews = fetch_github_paginated(&client, token, owner, repo, &format!("pulls/{pr_number}/reviews")).await?;
+    all.extend(reviews);
+    
     Ok(all)
 }
 
@@ -219,6 +243,46 @@ fn dedup_hash(path: &str, line: usize, title: &str, details: &str) -> String {
     h.to_hex().to_string()
 }
 
+fn extract_nitpicks(body: &str) -> Vec<(String, usize, String, String)> {
+    let mut nitpicks = Vec::new();
+    let mut in_nitpicks = false;
+    let mut table_start = false;
+
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("## Nitpicks") {
+            in_nitpicks = true;
+            continue;
+        }
+        if in_nitpicks && trimmed.starts_with("## ") {
+            break; // Next section
+        }
+        if in_nitpicks && trimmed.starts_with('|') {
+            if trimmed.contains("---") || trimmed.contains("File") {
+                table_start = true;
+                continue;
+            }
+            if table_start {
+                let columns: Vec<&str> = trimmed.split('|').collect();
+                if columns.len() >= 4 {
+                    let file = columns[1].trim().trim_matches('`').to_string();
+                    let line_num = columns[2].trim().parse::<usize>().unwrap_or(0);
+                    let suggestion = columns[3].trim().to_string();
+                    if !file.is_empty() {
+                        nitpicks.push((
+                            file,
+                            line_num,
+                            "CodeRabbit Nitpick".to_string(),
+                            suggestion,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    nitpicks
+}
+
 /// Ingest PR review comments and produce normalized items.
 pub async fn ingest_pr(pr_number: u64, path: &Path) -> Result<Vec<NormalizedReviewItem>> {
     let bridge = GitBridge::open(path).context("Open git repo")?;
@@ -227,7 +291,7 @@ pub async fn ingest_pr(pr_number: u64, path: &Path) -> Result<Vec<NormalizedRevi
         parse_github_owner_repo(&remote_url).context("Parse owner/repo from remote URL")?;
 
     let token = github_token()?;
-    let comments = fetch_pr_comments(&token, &owner, &repo, pr_number).await?;
+    let comments = fetch_all_pr_comments(&token, &owner, &repo, pr_number).await?;
 
     let mut items = Vec::new();
     for c in comments {
@@ -239,10 +303,59 @@ pub async fn ingest_pr(pr_number: u64, path: &Path) -> Result<Vec<NormalizedRevi
             "parse_coderabbit_body input (comment_id={}): {:?}",
             c.id, body
         );
+
+        // 1. Extract any table-based nitpicks
+        let nitpicks = extract_nitpicks(body);
+        for (file, ln, title, details) in nitpicks {
+            let hash = dedup_hash(&file, ln, &title, &details);
+            items.push(NormalizedReviewItem {
+                source_pr: pr_number,
+                comment_id: c.id,
+                file_path: file,
+                line: ln,
+                line_end: None,
+                severity: "info".to_string(),
+                category: "nitpick".to_string(),
+                title: title.clone(),
+                details: details.clone(),
+                llm_prompt: None,
+                suggested_fix: None,
+                dedup_hash: hash,
+                raw_body: None,
+                confidence: Some(0.9),
+                severity_reason: Some("category: nitpick".to_string()),
+            });
+        }
+
+        let file_path = c.path.unwrap_or_else(|| "global".to_string());
+        let line = c.line.or(c.original_line).unwrap_or(0) as usize;
+
+        // 2. Global walkthroughs / PR Summaries
+        if file_path == "global" && body.contains("## Walkthrough") {
+            let hash = dedup_hash(&file_path, line, "Walkthrough", "Walkthrough summary included");
+            items.push(NormalizedReviewItem {
+                source_pr: pr_number,
+                comment_id: c.id,
+                file_path: file_path.clone(),
+                line,
+                line_end: None,
+                severity: "info".to_string(),
+                category: "walkthrough".to_string(),
+                title: "CodeRabbit Walkthrough".to_string(),
+                details: body.to_string(),
+                llm_prompt: None,
+                suggested_fix: None,
+                dedup_hash: hash,
+                raw_body: Some(body.to_string()),
+                confidence: Some(1.0),
+                severity_reason: Some("category: walkthrough".to_string()),
+            });
+            continue;
+        }
+
+        // 3. Standard parsing
         let (category, title, suggested_fix, details) = parse_coderabbit_body(body);
         let (severity, confidence, severity_reason) = infer_severity(&category, &details);
-        let file_path = c.path.unwrap_or_else(|| "unknown".to_string());
-        let line = c.line.or(c.original_line).unwrap_or(0) as usize;
 
         let hash = dedup_hash(&file_path, line, &title, &details);
 
@@ -290,9 +403,11 @@ pub async fn run_ingest(
     }
 
     if persist {
-        anyhow::bail!(
-            "--persist is not wired to Codex in this build; save JSON from --output and use `vox stub-check --ingest-findings` when supported."
-        );
+        let cr_dir = path.join(".coderabbit");
+        std::fs::create_dir_all(&cr_dir).ok();
+        let cache_path = cr_dir.join("ingested_findings.json");
+        std::fs::write(&cache_path, &json).with_context(|| format!("Write local cache {}", cache_path.display()))?;
+        eprintln!("Persisted {} items to {}", items.len(), cache_path.display());
     }
 
     Ok(())

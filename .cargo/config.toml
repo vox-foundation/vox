@@ -1,6 +1,13 @@
 [alias]
 # Habitual CUDA QLoRA binary (NVIDIA). On Windows run from **x64 Native Tools** / `vcvars64.bat` so `nvcc` finds `cl.exe`.
-vox-cuda-release = "build -p vox-cli --release --features gpu,populi-candle-cuda"
+vox-cuda-release    = "build -p vox-cli --release --features gpu,populi-candle-cuda"
+# GPU train CLI without CUDA — fast debug turnaround for corpus / probe / train on CPU or Vulkan.
+vox-populi-dev      = "run -p vox-cli --features gpu --"
+# Optimized non-CUDA GPU build (Vulkan/Metal/CPU) — good for checking release perf before CUDA build.
+vox-populi-release  = "run -p vox-cli --release --features gpu --"
+# Dedicated vox-train binary (GPU always-on, no compiler stack) — fastest incremental (~15 s).
+vox-train-dev       = "run -p vox-train --"
+vox-train-cuda      = "build -p vox-train --release --features cuda"
 
 [build]
 # Use all available CPU cores for rustc parallelism

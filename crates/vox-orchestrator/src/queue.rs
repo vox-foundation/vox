@@ -260,6 +260,11 @@ impl AgentQueue {
         self.in_progress.as_ref()
     }
 
+    /// List all pending tasks in the queue.
+    pub fn tasks(&self) -> &VecDeque<AgentTask> {
+        &self.tasks
+    }
+
     /// List of completed task IDs.
     pub fn completed_ids(&self) -> &[TaskId] {
         &self.completed

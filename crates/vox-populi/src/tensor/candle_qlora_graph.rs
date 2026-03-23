@@ -10,6 +10,7 @@ pub fn stacked_lm_logits_shape(batch: usize, seq: usize, vocab: usize) -> [usize
 
 /// Logical adapter names: one per middle projection, then LM head.
 #[must_use]
+#[allow(dead_code)]
 pub fn adapter_names_for_stack(n_middle: usize) -> Vec<String> {
     let mut v: Vec<String> = (0..n_middle).map(|i| format!("mid{i}")).collect();
     v.push("lm_head".into());

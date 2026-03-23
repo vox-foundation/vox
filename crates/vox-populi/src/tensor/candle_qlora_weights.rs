@@ -3,7 +3,7 @@
 //! Pure key naming lives in [`super::hf_keymap`]; this module keeps shard I/O.
 
 pub use super::hf_keymap::{
-    filter_keys_in_shard, missing_middle_keys_report, ordered_full_block_weight_keys,
+    missing_middle_keys_report, ordered_full_block_weight_keys,
     ordered_middle_projection_keys, sample_present_keys_sorted_from_present,
 };
 
@@ -82,15 +82,4 @@ mod coverage_tests {
     }
 }
 
-/// Log a short preview of shard keys for operator debugging (no extra I/O if union already built).
-pub fn log_key_inventory_from_present(present: &HashSet<String>, target: &str) {
-    let mut v: Vec<_> = present.iter().cloned().collect();
-    v.sort();
-    let preview: Vec<_> = v.iter().take(32).cloned().collect();
-    tracing::debug!(
-        target = target,
-        total_unique_keys = v.len(),
-        ?preview,
-        "safetensors key inventory (first 32 sorted)"
-    );
-}
+

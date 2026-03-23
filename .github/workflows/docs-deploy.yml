@@ -14,8 +14,6 @@ on:
 # those platforms use separate deploy keys or CI variables.
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-docs:
@@ -46,9 +44,7 @@ jobs:
 
       - name: Run Docs Pipeline (extract + validate SUMMARY)
         run: |
-          cargo run -p vox-doc-pipeline -- \
-            --pairs-out populi/data/doc_pairs.jsonl \
-            --gap-limit 300
+          cargo run -p vox-doc-pipeline
 
       - name: Check SUMMARY.md drift
         run: cargo run -p vox-doc-pipeline -- --check
@@ -58,27 +54,6 @@ jobs:
 
       # ── Archive docs artifact ───────────────────────────────────────────
       # This step is platform-agnostic: it produces docs.tar.gz as a
-      # portable build artifact. The deploy steps below are GitHub-specific.
-      # GitLab equivalent:
-      #   artifacts:
-      #     paths: [docs/book/]
-      # Forgejo/Gitea equivalent: similar artifacts block in Forgejo Actions YAML.
+      # portable build artifact.
       - name: Archive docs
         run: tar -czf docs.tar.gz docs/book/
-
-      # ── GitHub Pages deploy (GitHub-only) ──────────────────────────────
-      # When porting to another forge, remove steps below and add that
-      # platform's equivalent (GitLab Pages, rsync, S3, etc.)
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/book
-
-  deploy-github-pages:
-    name: Deploy to GitHub Pages
-    needs: build-docs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

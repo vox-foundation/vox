@@ -3,7 +3,7 @@ use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// Constant declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConstDecl {
     pub name: String,
     pub type_ann: Option<TypeExpr>,
@@ -16,7 +16,7 @@ pub struct ConstDecl {
 
 /// A block of typed configuration / secrets.
 /// `@config env: DATABASE_URL: str, API_KEY: str`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigDecl {
     pub name: String,
     pub fields: Vec<crate::decl::db::TableField>,
@@ -37,7 +37,7 @@ pub struct ConfigDecl {
 ///     volumes ["/data"]
 ///     cmd ["npx", "tsx", "server.ts"]
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EnvironmentDecl {
     /// Environment name, e.g. `"production"`, `"staging"`, `"dev"`.
     pub name: String,

@@ -49,10 +49,10 @@ use crate::commands::corpus::CorpusAction;
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum PopuliTrainBackendCli {
-    /// Burn + wgpu LoRA on VoxTokenizer JSONL (default).
-    #[default]
+    /// Burn + wgpu LoRA on VoxTokenizer JSONL (deprecated).
     Lora,
-    /// Candle + qlora-rs NF4 on HF safetensors (`--tokenizer hf`, `--model`, CUDA/Metal optional).
+    /// Candle + qlora-rs NF4 on HF safetensors (`--tokenizer hf`, `--model`, CUDA/Metal optional; default).
+    #[default]
     Qlora,
 }
 
@@ -70,10 +70,10 @@ impl From<PopuliTrainBackendCli> for vox_populi::PopuliTrainBackend {
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum PopuliTokenizerCli {
-    /// Corpus VoxTokenizer JSONL (Burn `--backend lora`).
-    #[default]
+    /// Corpus VoxTokenizer JSONL (Burn LoRA).
     Vox,
-    /// Hugging Face `tokenizer.json` (required for native `--backend qlora` preflight).
+    /// Hugging Face `tokenizer.json` (required for native `--backend qlora` preflight; default).
+    #[default]
     Hf,
 }
 
@@ -120,9 +120,9 @@ impl From<TrainingDeploymentTargetCli> for vox_populi::TrainingDeploymentTarget 
                   Quick start:\n\
                   \n  vox populi corpus extract .    # extract corpus from vox files\
                   \n  vox populi corpus pairs ...    # generate training pairs\
-                  \n  vox populi train               # Burn LoRA or Candle QLoRA (`--backend`)\
+                  \n  vox populi train --model Qwen/Qwen2.5-Coder-1.5B-Instruct \
                   \n  vox populi pipeline            # Corpus → eval → optional native train\
-                  \n  vox populi serve --model ...   # HTTP serve (needs `cargo build -p vox-cli --features execution-api`)"
+                  \n  vox populi serve --model ...   # HTTP serve"
 )]
 pub enum PopuliAction {
     /// Corpus extract/validate/pairs/eval and optional `vox populi train` (dogfood pipeline).
@@ -154,8 +154,8 @@ pub enum PopuliAction {
         /// GPU backend: cpu, best, vulkan, dx12, or metal
         #[arg(long, default_value = "best")]
         device: String,
-        /// Trainer: `lora` = Burn+wGPU + `--tokenizer vox` (default) or `--tokenizer hf` (GPT-2-shaped HF config + optional embed warm-start); `qlora` = Candle qlora-rs NF4 (needs `--tokenizer hf`, `--model`, safetensors).
-        #[arg(long, value_enum, default_value_t = PopuliTrainBackendCli::Lora)]
+        /// Trainer: `qlora` = Candle qlora-rs NF4 (needs `--tokenizer hf`, `--model`, safetensors; default); `lora` = Burn+wGPU + `--tokenizer vox` (deprecated).
+        #[arg(long, value_enum, default_value_t = PopuliTrainBackendCli::Qlora)]
         backend: PopuliTrainBackendCli,
         /// Directory containing train.jsonl (produced by `vox populi corpus pairs`).
         /// Canonical path: target/dogfood (matches corpus merge output).
@@ -225,8 +225,8 @@ pub enum PopuliAction {
         /// Records tagged "both" always pass any filter. Defaults to the adapter_tag if set.
         #[arg(long)]
         context_filter: Option<String>,
-        /// Tokenizer mode: `vox` for corpus JSONL (default; Burn LoRA). `hf` for Hugging Face `tokenizer.json` (native qlora preflight).
-        #[arg(long, value_enum, default_value_t = PopuliTokenizerCli::Vox)]
+        /// Tokenizer mode: `hf` for Hugging Face `tokenizer.json` (default; native qlora preflight). `vox` for corpus JSONL (Burn LoRA).
+        #[arg(long, value_enum, default_value_t = PopuliTokenizerCli::Hf)]
         tokenizer: PopuliTokenizerCli,
         /// Disable qlora-rs double quantization of NF4 scales (default: double quant **on** for smaller VRAM).
         #[arg(long)]
@@ -294,7 +294,7 @@ pub enum PopuliAction {
     },
 
     /// Serve a trained Populi checkpoint via HTTP (OpenAI-compatible API)
-    #[cfg(all(feature = "gpu", feature = "execution-api"))]
+    #[cfg(feature = "gpu")]
     Serve {
         /// Path to model checkpoint (.bin from `vox populi train`)
         #[arg(long, required = true)]
@@ -673,7 +673,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     if let Ok(pairs) = vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
                         eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), pairs);
                         if let Ok(db) = vox_db::VoxDb::connect_default().await {
-                            let _ = db.record_corpus_snapshot(&current_fp, pairs as i64, None).await;
+                            let _ = db.record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), pairs as i64, None).await;
                         } else {
                             let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
                             let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
@@ -728,7 +728,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             )
         }
 
-        #[cfg(all(feature = "gpu", feature = "execution-api"))]
+        #[cfg(feature = "gpu")]
         PopuliAction::Serve {
             model,
             port,
@@ -736,17 +736,22 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             max_tokens,
             temperature,
         } => {
-            // Serve is handled by main() early-exit (outside tokio) when execution-api is enabled.
-            // When execution-api is disabled, run_serve is a stub that prints instructions.
-            let config = crate::commands::ai::serve::ServeConfig {
-                model_path: model,
-                port,
-                host,
-                max_tokens,
-                temperature,
-                system_prompt: None,
-            };
-            crate::commands::ai::serve::run_serve(&config)
+            // Serve delegates directly to the lightweight vox-train binary inference mode
+            println!("Delegating to vox-train serve...");
+            
+            let mut cmd = std::process::Command::new("vox-train");
+            cmd.arg("serve");
+            cmd.arg("--model").arg(model);
+            cmd.arg("--port").arg(port.to_string());
+            cmd.arg("--host").arg(host);
+            cmd.arg("--max-tokens").arg(max_tokens.to_string());
+            cmd.arg("--temperature").arg(temperature.to_string());
+            
+            let status = cmd.status().map_err(|e| anyhow::anyhow!("Failed to spawn vox-train: {}", e))?;
+            if !status.success() {
+                anyhow::bail!("vox-train serve exited with status: {}", status);
+            }
+            Ok(())
         }
 
         PopuliAction::Corpus(action) => crate::commands::corpus::run(action).await,

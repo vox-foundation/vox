@@ -103,7 +103,7 @@ The runtime is built on top of **Tokio** and **Axum**.
 | `crates/vox-workflow-runtime` | Interpreted workflow MVP (local + `mesh_*` activity hooks); used by **`vox-cli`** feature **`workflow-runtime`**. |
 | `crates/vox-capability-registry`, `crates/vox-tools` | Populi chat: capability registry ∩ `DirectToolExecutor`; OpenAI-style defs + execution in `vox_tools::populi_chat`; Oratio MCP names. |
 | `crates/vox-runtime` | Axum/Tokio runtime; optional `database` feature. |
-| `crates/vox-oratio` | Speech-to-text / transcripts (**Oratio**); **Candle Whisper** (pure Rust). No whisper.cpp / clang. SSOT: **`docs/src/architecture/oratio-speech-ssot.md`**. CLI: `vox populi oratio` (build **`vox-cli`** with feature **`populi-oratio`** — not in default **`populi-base`**). MCP: `vox_oratio_*`. HTTP: **`vox-codex-dashboard`**. Builtin **`Speech.transcribe`**. LSP hovers for `Speech` / `transcribe`. Mix: `asr_refine`. |
+| `tools/dashboard` | Multi-agent orchestrator dashboard (standalone HTML/CSS/JS). |
 | `examples/` | Reference implementations; golden set + `STYLE.md` / `PARSE_STATUS.md`; how-to [`docs/src/how-to/examples-corpus.md`](docs/src/how-to/examples-corpus.md). |
 
 **Full workspace crate index** (every `crates/*/Cargo.toml` name) lives in `docs/src/architecture/orphan-surface-inventory.md` and is enforced by **`vox ci check-docs-ssot`** (see `docs/src/ci/runner-contract.md`). There is no `crates/vox-std` crate yet; treat “stdlib” work as future crates under `crates/` until one is added.

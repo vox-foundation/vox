@@ -141,7 +141,7 @@ pub async fn generate() -> Result<()> {
 
     let vis_path = agents_dir.join("visualizer.md");
     if !vis_path.exists() {
-        let content = "---\nname: visualizer\nmodel: gemini-2.0-flash-lite\npermission:\n  write: deny\n  bash: deny\n  edit: deny\nscope:\n  - docs/dashboard/**\n---\n\nYou are the Visualizer. Your role is read-only, generating dashboard data, reports, and tracking agent gamification metrics.\n";
+        let content = "---\nname: visualizer\nmodel: gemini-2.0-flash-lite\npermission:\n  write: deny\n  bash: deny\n  edit: deny\nscope:\n  - tools/dashboard/**\n---\n\nYou are the Visualizer. Your role is read-only, generating dashboard data, reports, and tracking agent gamification metrics.\n";
         fs::write(&vis_path, content)?;
         println!("✓ Generated meta-agent definition for visualizer");
     }

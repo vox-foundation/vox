@@ -1,288 +1,188 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createRoot } from "react-dom/client";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import {
-  VSCodeButton,
-  VSCodePanelView,
-  VSCodePanelTab,
-  VSCodePanels,
-  VSCodeBadge,
-  VSCodeTextArea
-} from "@vscode/webview-ui-toolkit/react";
+import { 
+  LayoutDashboard, 
+  Network, 
+  Blocks, 
+  Activity as ActivityIcon, 
+  Code2, 
+  Settings2,
+  Cpu,
+  Zap
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-//@ts-ignore
-const vscode = acquireVsCodeApi();
+import "./index.css";
+import { getVsCodeApi } from "./utils/vscode";
+import { Dashboard } from "./components/Dashboard";
+import { AgentFlow } from "./components/AgentFlow";
+import { PipelineView } from "./components/PipelineView";
+import { AstView } from "./components/AstView";
 
-interface ProviderStatus {
-  provider: string;
-  model: string;
-  configured: boolean;
-  calls_used: number;
-  daily_limit: number;
-  remaining: number;
-}
-
-interface VoxStatus {
-  providers: ProviderStatus[];
-  cost_today_usd: number;
-}
-
-function AIProviderDashboard({ status }: { status: VoxStatus | null }) {
-  if (!status) return (
-     <div style={{ padding: '10px', opacity: 0.5, fontSize: '0.9em' }}>
-       $(sync~spin) Detecting AI providers...
-     </div>
-  );
-
-  return (
-    <div style={{
-      border: '1px solid var(--vscode-widget-border)',
-      padding: '12px',
-      marginBottom: '15px',
-      borderRadius: '6px',
-      backgroundColor: 'var(--vscode-sideBar-background)',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.95em' }}>AI PROVIDERS</span>
-        <VSCodeButton appearance="icon" title="Change Model" onClick={() => vscode.postMessage({ type: 'pickModel' })}>
-           <span className="codicon codicon-settings-gear"></span>
-        </VSCodeButton>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {status.providers.map(p => {
-          if (!p.configured && p.provider !== 'ollama') return null;
-          const pct = p.daily_limit > 0 ? (p.calls_used / p.daily_limit) * 100 : 0;
-          const color = p.configured ? (pct > 90 ? 'var(--vscode-charts-red)' : 'var(--vscode-charts-green)') : 'var(--vscode-disabledForeground)';
-          const remStr = p.remaining === -1 ? '∞' : `${p.remaining}/${p.daily_limit}`;
-
-          return (
-            <div key={p.provider + p.model} style={{ fontSize: '0.85em' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                <span style={{ opacity: p.configured ? 1 : 0.5 }}>
-                  {p.provider === 'google' ? '★ ' :  p.provider === 'ollama' ? '⬡ ' : '☁ ' }
-                  {p.model.replace('gemini-', '').replace('models', '')}
-                </span>
-                <span style={{ fontWeight: '500' }}>{remStr}</span>
-              </div>
-              {p.daily_limit > 0 && (
-                <div style={{ height: '3px', background: 'var(--vscode-widget-border)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.3s' }}></div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {status.cost_today_usd > 0 && (
-         <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--vscode-widget-border)', fontSize: '0.8em', opacity: 0.7, textAlign: 'right' }}>
-            Cost today: ${status.cost_today_usd.toFixed(4)}
-         </div>
-      )}
-    </div>
-  );
-}
+const vscode = getVsCodeApi();
 
 function App() {
-  const [messages, setMessages] = useState<{ role: string, content: string }[]>([]);
-  const [input, setInput] = useState("");
-  const [agentEvents, setAgentEvents] = useState<any[]>([]);
-  const [voxStatus, setVoxStatus] = useState<VoxStatus | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'flow' | 'pipeline' | 'ast' | 'telemetry'>('dashboard');
+  const [voxStatus, setVoxStatus] = useState<any>(null);
+  const [gamify, setGamify] = useState<any>(null);
+  const [languageSurface, setLanguageSurface] = useState<any>(null);
+  const [ast, setAst] = useState<any>(null);
+  const [pipeline, setPipeline] = useState<any>(null);
+  const [activeFile, setActiveFile] = useState<string>("");
+  const [tasks, setTasks] = useState<any[]>([]);
 
   useEffect(() => {
-    window.addEventListener('message', event => {
+    const handler = (event: MessageEvent) => {
       const message = event.data;
-      if (message.type === 'taskResult') {
-        const textRender = typeof message.value === 'string' ? message.value : JSON.stringify(message.value, null, 2);
-        setMessages(prev => [...prev, { role: 'assistant', content: "Result: " + textRender }]);
-      } else if (message.type === 'voxStatus') {
-        setVoxStatus(message.value);
-      } else if (message.type === 'agentEvent') {
-        if (message.value.event_type === 'TokenStreamed') {
-          let text = "";
-          try {
-             const payload = JSON.parse(message.value.payload || "{}");
-             text = payload.TokenStreamed?.text || payload.text || "";
-          } catch (e) {}
-          if (text) {
-              setMessages(prev => {
-                 const newMsgs = [...prev];
-                 if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].role === 'assistant') {
-                     newMsgs[newMsgs.length - 1].content += text;
-                 } else {
-                     newMsgs.push({ role: 'assistant', content: text });
-                 }
-                 return newMsgs;
-              });
-          }
-        } else {
-          setAgentEvents(prev => [...prev.slice(-49), message.value]); // keep last 50 events
-        }
+      switch (message.type) {
+        case 'voxStatus':
+          setVoxStatus(message.value);
+          break;
+        case 'gamifyUpdate':
+          setGamify(message.value);
+          break;
+        case 'languageSurface':
+          setLanguageSurface(message.value);
+          break;
+        case 'astResult':
+          setAst(message.value);
+          break;
+        case 'pipelineStatus':
+          setPipeline(message.value);
+          break;
+        case 'activeEditorChanged':
+          setActiveFile(message.value);
+          break;
+        case 'a2aTasks': // Ensure this matches SidebarProvider.ts
+          setTasks(message.value);
+          break;
       }
-    });
+    };
+
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'getInitialData' });
+
+    return () => window.removeEventListener('message', handler);
   }, []);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const renderContent = () => {
+    // Combine data for dashboard
+    const dashboardStats = {
+      activeAgents: gamify?.agent_count?.toString() || "0",
+      queueDepth: gamify?.total_queued?.toString() || "0",
+      latency: "0.4s", // Mock for now
+      budget: voxStatus?.total_cost_usd ? `$${voxStatus.total_cost_usd.toFixed(2)}` : "$0.00"
+    };
 
-  const handleSubmit = () => {
-    if (!input) return;
-    setMessages(prev => [...prev, { role: 'user', content: input }]);
-    vscode.postMessage({ type: 'submitTask', value: input });
-    setInput("");
+    const dashboardOps = tasks.map(t => ({
+      label: t.description.length > 30 ? t.description.substring(0, 27) + "..." : t.description,
+      agent: t.agent_id,
+      status: t.status === "InProgress" ? "Running" : t.status,
+      time: "2ms" // Mock
+    })).slice(0, 5);
+
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard stats={dashboardStats} ops={dashboardOps} />;
+      case 'flow':
+        return <AgentFlow tasks={tasks} />;
+      case 'pipeline':
+        return <PipelineView status={pipeline} />;
+      case 'ast':
+        return <AstView ast={ast} activeFile={activeFile} />;
+      case 'telemetry':
+        return <TelemetryView stats={voxStatus} />;
+      default:
+        return <Dashboard stats={dashboardStats} ops={dashboardOps} />;
+    }
   };
 
   return (
-    <div style={{ padding: "0" }}>
-      <VSCodePanels>
-        <VSCodePanelTab id="tab-chat">CHAT</VSCodePanelTab>
-        <VSCodePanelTab id="tab-agents">AGENTS <VSCodeBadge>3</VSCodeBadge></VSCodePanelTab>
+    <div className="flex h-screen w-screen bg-[#09090b] overflow-hidden">
+      {/* Mini Sidebar Nav */}
+      <aside className="w-16 border-r border-white/5 flex flex-col items-center py-6 gap-6 bg-white/[0.01] z-50">
+        <NavIcon icon={<LayoutDashboard size={20} />} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+        <NavIcon icon={<Network size={20} />} active={activeTab === 'flow'} onClick={() => setActiveTab('flow')} />
+        <NavIcon icon={<Blocks size={20} />} active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} />
+        <NavIcon icon={<Code2 size={20} />} active={activeTab === 'ast'} onClick={() => setActiveTab('ast')} />
+        <NavIcon icon={<ActivityIcon size={20} />} active={activeTab === 'telemetry'} onClick={() => setActiveTab('telemetry')} />
+        
+        <div className="mt-auto flex flex-col gap-4 mb-2">
+           <NavIcon icon={<Settings2 size={18} />} onClick={() => vscode.postMessage({ type: 'pickModel' })} />
+           <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 text-[10px] font-bold">V</div>
+        </div>
+      </aside>
 
-        <VSCodePanelView id="view-chat" style={{ padding: '1rem', flexDirection: 'column' }}>
-          <h3>Vox Chat (MCP)</h3>
-
-          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px', minHeight: '200px' }}>
-            {messages.map((m, i) => (
-               <div key={i} style={{
-                 marginBottom: "12px",
-                 padding: "8px",
-                 borderRadius: "4px",
-                 backgroundColor: m.role === 'user' ? 'var(--vscode-editor-selectionBackground)' : 'transparent',
-                 color: 'var(--vscode-editor-foreground)'
-               }}>
-                 <div style={{ fontWeight: 'bold', marginBottom: '4px', color: m.role === 'user' ? 'var(--vscode-charts-blue)' : 'var(--vscode-charts-green)' }}>
-                   {m.role === 'user' ? 'You' : 'Vox Agent'}
-                 </div>
-                 <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code({node, inline, className, children, ...props}: any) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        const isCodeBlock = !inline && match;
-
-                        return isCodeBlock ? (
-                          <div style={{ position: 'relative', marginTop: '10px', marginBottom: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--vscode-editor-background)', padding: '4px 8px', fontSize: '0.8em', borderTopLeftRadius: '4px', borderTopRightRadius: '4px' }}>
-                              <span>{match[1]}</span>
-                              <VSCodeButton
-                                appearance="icon"
-                                onClick={() => {
-                                  // extract file path from first line if possible, else prompt or use default
-                                  const text = String(children).replace(/\n$/, '');
-                                  const firstLine = text.split('\n')[0];
-                                  let path = "src/main.vox";
-                                  if (firstLine.startsWith('// ') || firstLine.startsWith('# ')) {
-                                      path = firstLine.substring(3).trim();
-                                  }
-                                  vscode.postMessage({ type: 'applyChanges', value: { path, content: text }});
-                                }}
-                              >
-                                <span className="codicon codicon-check">Apply File</span>
-                              </VSCodeButton>
-                            </div>
-                            <pre style={{ margin: 0, padding: '10px', background: 'var(--vscode-editor-inactiveSelectionBackground)', overflowX: 'auto' }}>
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            </pre>
-                          </div>
-                        ) : (
-                          <code className={className} style={{background: 'var(--vscode-editor-inactiveSelectionBackground)', padding: '2px 4px', borderRadius: '4px'}} {...props}>
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                 >{m.content}</ReactMarkdown>
-               </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-             <VSCodeTextArea
-                value={input}
-                onInput={(e: any) => setInput(e.target.value)}
-                placeholder="Message Vox or an @agent..."
-                rows={3}
-                style={{ width: '100%' }}
-             />
-             <VSCodeButton onClick={handleSubmit}>Send</VSCodeButton>
-          </div>
-        </VSCodePanelView>
-
-        <VSCodePanelView id="view-agents" style={{ padding: '1rem', flexDirection: 'column' }}>
-          <h3>Mission Control</h3>
-
-          <AIProviderDashboard status={voxStatus} />
-
-          <div style={{ marginBottom: '20px' }}>
-            <h4>Active Agent Grid</h4>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: '10px'
-            }}>
-              {Object.entries(
-                agentEvents.reduce((acc: any, ev) => {
-                  acc[ev.agent_id || 'system'] = ev;
-                  return acc;
-                }, {})
-              ).map(([id, lastEv]: [string, any]) => (
-                <div key={id} style={{
-                  border: '1px solid var(--vscode-widget-border)',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--vscode-editor-background)'
-                }}>
-                  <div style={{ fontWeight: 'bold' }}>{id}</div>
-                  <div style={{ fontSize: '0.8em', opacity: 0.7 }}>
-                    Status: {lastEv.event_type || 'Idle'}
-                  </div>
-                  <VSCodeBadge style={{ marginTop: '4px' }}>
-                    {new Date(lastEv.timestamp || Date.now()).toLocaleTimeString()}
-                  </VSCodeBadge>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <h4>Event Timeline</h4>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {agentEvents.slice().reverse().map((ev, i) => (
-              <div key={i} style={{
-                border: '1px solid var(--vscode-widget-border)',
-                padding: '10px',
-                marginBottom: '10px',
-                borderRadius: '4px',
-                fontSize: '0.9em'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <strong>Agent: {ev.agent_id || 'System'}</strong>
-                  <span style={{ color: 'var(--vscode-charts-green)' }}>{new Date(ev.timestamp || Date.now()).toLocaleTimeString()}</span>
-                </div>
-                <div style={{ marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <VSCodeBadge>{ev.event_type || ev.type || 'Event'}</VSCodeBadge>
-                    <span style={{ opacity: 0.8 }} title={ev.payload || ev.message || JSON.stringify(ev.data)}>
-                       {(ev.payload || ev.message || JSON.stringify(ev.data))?.toString().substring(0, 100)}...
-                    </span>
-                </div>
-              </div>
-            ))}
-            {agentEvents.length === 0 && (
-               <p style={{ opacity: 0.5 }}>Waiting for agent activity...</p>
-            )}
-          </div>
-        </VSCodePanelView>
-      </VSCodePanels>
+      {/* Main content area */}
+      <main className="flex-1 relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="h-full w-full"
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
     </div>
   );
 }
+
+const NavIcon = ({ icon, active, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group relative ${
+      active ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
+    }`}
+  >
+    {icon}
+    {active && <motion.div layoutId="nav-glow" className="absolute inset-0 rounded-xl bg-blue-400/20 blur-xl -z-10" />}
+  </button>
+);
+
+function TelemetryView({ stats }: any) {
+    return (
+        <div className="p-10 bg-[#09090b] h-full overflow-y-auto">
+            <h2 className="text-3xl font-black text-white mb-8 tracking-tighter uppercase">Fleet <span className="text-blue-500">Telemetry</span></h2>
+            <div className="grid grid-cols-2 gap-8">
+                <div className="glass p-8 rounded-[2rem] border border-white/5">
+                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Token Usage (Life)</h3>
+                    <div className="flex flex-col items-center justify-center h-40">
+                        <div className="text-5xl font-black text-white tracking-tighter mb-2">
+                            {stats?.total_tokens_used?.toLocaleString() || "0"}
+                        </div>
+                        <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Tokens Processed Today</div>
+                    </div>
+                </div>
+                <div className="glass p-8 rounded-[2rem] border border-white/5">
+                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Estimated Cost</h3>
+                    <div className="flex flex-col items-center justify-center h-40">
+                        <div className="text-5xl font-black text-white tracking-tighter mb-2">
+                            ${stats?.total_cost_usd?.toFixed(2) || "0.00"}
+                        </div>
+                        <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">USD Invested in Intelligence</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const LatencyBar = ({ label, value, pct }: any) => (
+    <div>
+        <div className="flex justify-between text-[11px] font-bold text-zinc-400 mb-2 uppercase tracking-widest">
+            <span>{label}</span>
+            <span className="text-zinc-500 font-mono">{value}</span>
+        </div>
+        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+            <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} className="h-full bg-blue-500" />
+        </div>
+    </div>
+);
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

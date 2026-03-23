@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Vox",
+  "comment": "Vocabulary contract: tree-sitter-vox/GRAMMAR_SSOT.md",
   "scopeName": "source.vox",
   "patterns": [
     { "include": "#comments" },
@@ -32,11 +33,11 @@
       "patterns": [
         {
           "name": "entity.name.function.decorator.vox",
-          "match": "@(mcp\\.tool|mcp\\.resource|table|server|component|test|query|mutation|action|v0|skill|agent_def|deprecated|pure|require|index|storage)\\b"
+          "match": "@(table|query|mutation|action|collection|index|vector_index|search_index|layout|loading|not_found|error_boundary|test|fixture|mock|trace|health|metric|scheduled|mcp\\.(tool|resource)|agent_def|skill|v0|py_import|deprecated|pure|require|theme|keyframes|server)\\b"
         },
         {
-          "name": "entity.name.function.decorator.vox",
-          "match": "@[a-zA-Z_][a-zA-Z0-9_.]*"
+          "name": "entity.name.function.decorator.args.vox",
+          "match": "@[a-zA-Z_][a-zA-Z0-9_.]*(?=\\()"
         }
       ]
     },
@@ -70,16 +71,48 @@
     "keywords": {
       "patterns": [
         {
-          "name": "keyword.control.vox",
-          "match": "\\b(if|else|for|while|match|in|and|or|not|ret|with|import)\\b"
+          "name": "keyword.operator.pipe.vox",
+          "match": "\\|>"
+        },
+        {
+          "name": "keyword.operator.optional-chain.vox",
+          "match": "\\?\\."
+        },
+        {
+          "name": "keyword.operator.logical.vox",
+          "match": "\\b(and|or|not|isnt)\\b"
+        },
+        {
+          "name": "keyword.operator.comparison.vox",
+          "match": "(==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator.assignment.vox",
+          "match": "(=|\\+=|-=|\\*=|/=|%=)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.vox",
+          "match": "(\\+|-|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator.range.vox",
+          "match": "(\\.\\.=|\\.\\.)"
+        },
+        {
+          "name": "keyword.operator.misc.vox",
+          "match": "(\\.|,|:|;|->|\\?|!|\\|)"
         },
         {
           "name": "keyword.declaration.vox",
-          "match": "\\b(fn|let|mut|type|actor|workflow|activity|message|http|routes|style)\\b"
+          "match": "\\b(fn|type|actor|workflow|activity|struct|enum|trait|impl|pub|const|message|state|routes|on|to|from|import|use)\\b"
         },
         {
-          "name": "keyword.other.vox",
-          "match": "\\b(to|on|is|spawn|state|bind)\\b"
+          "name": "keyword.control.vox",
+          "match": "\\b(if|else|for|while|match|return|as|try|catch|throw|async|await|with|spawn|yield)\\b"
+        },
+        {
+          "name": "keyword.other.http-method.vox",
+          "match": "\\b(get|post|put|delete)\\b"
         },
         {
           "name": "keyword.operator.vox",

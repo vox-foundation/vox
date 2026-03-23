@@ -1,4 +1,5 @@
 // Tree-sitter grammar for the Vox programming language
+// Canonical keyword/type vocabulary: GRAMMAR_SSOT.md
 // Vox is an AI-native, indentation-sensitive, full-stack language
 // with first-class actors, ADTs, JSX, HTTP routes, and workflows.
 

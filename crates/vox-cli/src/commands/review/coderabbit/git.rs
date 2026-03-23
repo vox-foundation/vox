@@ -50,3 +50,76 @@ pub fn collect_git_diffs(repo: &std::path::Path, base_ref: Option<&str>) -> Resu
     }
     Ok(entries)
 }
+
+/// Safely wraps uncommitted changes in a WIP commit, captures the SHA, and restores them later.
+pub struct WorkspaceGuard {
+    repo: PathBuf,
+    pub local_sha: String,
+    pub was_dirty: bool,
+}
+
+impl WorkspaceGuard {
+    /// Initialize the guard. If working tree is dirty, creates a WIP commit. Captures `local_sha`.
+    pub async fn new(repo: &std::path::Path) -> Result<Self> {
+        let status_out = tokio::process::Command::new("git")
+            .args(["status", "--porcelain"])
+            .current_dir(repo)
+            .output()
+            .await
+            .context("git status --porcelain")?;
+        
+        let was_dirty = !status_out.stdout.is_empty();
+
+        if was_dirty {
+            let add_out = tokio::process::Command::new("git")
+                .args(["add", "-A"])
+                .current_dir(repo)
+                .status()
+                .await
+                .context("git add -A")?;
+            if !add_out.success() {
+                anyhow::bail!("WorkspaceGuard: Failed to stage current changes for WIP commit.");
+            }
+
+            let commit_out = tokio::process::Command::new("git")
+                .args(["commit", "-m", "wip: coderabbit safeguard snapshot", "--no-verify"])
+                .current_dir(repo)
+                .status()
+                .await
+                .context("git commit")?;
+            if !commit_out.success() {
+                anyhow::bail!("WorkspaceGuard: Failed to create WIP commit.");
+            }
+        }
+
+        let head_out = tokio::process::Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(repo)
+            .output()
+            .await
+            .context("git rev-parse HEAD")?;
+        let local_sha = String::from_utf8_lossy(&head_out.stdout).trim().to_string();
+
+        Ok(Self {
+            repo: repo.to_path_buf(),
+            local_sha,
+            was_dirty,
+        })
+    }
+
+    /// Restore the working tree to uncommitted state if it was dirty initially.
+    pub async fn restore(self) -> Result<()> {
+        if self.was_dirty {
+            let reset_out = tokio::process::Command::new("git")
+                .args(["reset", "HEAD~1"])
+                .current_dir(&self.repo)
+                .status()
+                .await
+                .context("git reset HEAD~1")?;
+            if !reset_out.success() {
+                eprintln!("[warn] WorkspaceGuard failed to reset HEAD~1. Your uncommitted changes are safely committed as 'wip: coderabbit safeguard snapshot'.");
+            }
+        }
+        Ok(())
+    }
+}

@@ -21,6 +21,7 @@ pub mod run_state;
 pub mod semantic_planner;
 pub mod stack_planner;
 pub mod tasks;
+pub mod historical_planner;
 
 use std::path::{Path, PathBuf};
 
@@ -71,6 +72,30 @@ pub enum CodeRabbitAction {
         /// Skips the drift check (N/A when reviewing the whole repo).
         #[arg(long, default_value_t = false)]
         full_repo: bool,
+    },
+    /// Generate stacked PRs comparing a historical commit to the current local state safely.
+    #[command(name = "historical-submit")]
+    HistoricalSubmit {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Historical commit SHA or ref to use as the baseline.
+        #[arg(long)]
+        commit_id: String,
+        /// Push baseline + create worktree PRs (default: plan + write manifest only).
+        #[arg(long, default_value_t = false)]
+        execute: bool,
+        /// Tier: free, trial, oss, pro, enterprise (overrides `Vox.toml`).
+        #[arg(long)]
+        tier: Option<String>,
+        /// Max files per PR before semantic split (clamped to tier cap; overrides `Vox.toml`).
+        #[arg(long)]
+        max_files_per_pr: Option<usize>,
+        /// Seconds between PR triggers (0 = tier default; overrides `Vox.toml`).
+        #[arg(long)]
+        delay_secs: Option<u64>,
+        /// Only keep chunk names containing this substring.
+        #[arg(long)]
+        group_filter: Option<String>,
     },
     /// Size-first batches from `git diff` (manifest `.coderabbit-batch-manifest.json`).
     #[command(name = "batch-submit")]
@@ -202,6 +227,42 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             cfg.group_filter = group_filter;
             cfg.full_repo = full_repo;
             semantic_planner::run_semantic_submit(&repo, &cfg).await?;
+        }
+        CodeRabbitAction::HistoricalSubmit {
+            path,
+            commit_id,
+            execute,
+            tier,
+            max_files_per_pr,
+            delay_secs,
+            group_filter,
+        } => {
+            let repo = resolve_repo(&path)?;
+            let vox = config::load_from_dir(&repo);
+            let mut cfg = semantic_planner::SemanticSubmitConfig::default();
+            if let Some(ref t) = vox.tier {
+                if let Ok(parsed) = t.parse::<limits::CodeRabbitTier>() {
+                    cfg.tier = parsed;
+                }
+            }
+            if let Some(t) = tier {
+                cfg.tier = t.parse::<limits::CodeRabbitTier>().map_err(|e| anyhow::anyhow!(e))?;
+            }
+            if let Some(d) = vox.delay_between_prs_secs {
+                cfg.delay_secs = d;
+            }
+            if let Some(d) = delay_secs {
+                cfg.delay_secs = d;
+            }
+            if let Some(m) = vox.max_files_per_pr {
+                cfg.max_files_per_pr = m as usize;
+            }
+            if let Some(m) = max_files_per_pr {
+                cfg.max_files_per_pr = m;
+            }
+            cfg.execute = execute;
+            cfg.group_filter = group_filter;
+            historical_planner::run_historical_submit(&repo, &commit_id, &cfg).await?;
         }
         CodeRabbitAction::BatchSubmit {
             path,

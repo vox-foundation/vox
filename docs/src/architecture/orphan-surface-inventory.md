@@ -87,6 +87,7 @@ vox-tensor
 vox-test-harness
 vox-toestub
 vox-tools
+vox-train
 vox-typeck
 vox-webhook
 vox-workflow-runtime

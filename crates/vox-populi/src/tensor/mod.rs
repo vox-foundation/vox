@@ -15,6 +15,7 @@ pub mod telemetry_schema;
 pub mod candle_inference_serve;
 #[cfg(feature = "candle-qlora")]
 pub mod candle_model_qwen;
+pub mod mesh_train;
 pub mod train_log;
 pub mod training_text;
 
@@ -101,8 +102,6 @@ pub use execution_planner::{ExecutionPlan, ExecutionPlanner};
 #[cfg(feature = "train")]
 pub use finetune_contract::FineTuneContract;
 #[cfg(feature = "train")]
-pub use lora_train::{run_lora_training, run_populi_training};
-#[cfg(feature = "train")]
 pub use preflight_train::preflight_for_contract;
 #[cfg(feature = "train")]
 pub use preset_schema::{
@@ -113,3 +112,5 @@ pub use preset_schema::{
 pub use train_backend::{ExecutionKernel, PopuliTrainBackend};
 #[cfg(feature = "train")]
 pub use training_config::{LoraTrainingConfig, PopuliTokenizerMode, TrainingDeploymentTarget};
+#[cfg(feature = "train")]
+pub use lora_train::run_populi_training;

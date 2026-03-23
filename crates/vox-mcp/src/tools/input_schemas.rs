@@ -104,13 +104,19 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_skill_list"
         | "vox_test_all"
         | "vox_check_workspace"
-        | "vox_get_active_model" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        | "vox_get_active_model"
+        | "vox_language_surface"
+        | "vox_pipeline_status"
+        | "vox_decorator_registry"
+        | "vox_builtin_registry"
+        | "vox_workspace_modules"
+        | "vox_a2a_tasks" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // Handler ignores args today; keep the schema strict so clients send `{}` only.
         "vox_orchestrator_start" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
-        "vox_validate_file" => parse_obj(
+        "vox_validate_file" | "vox_ast_inspect" => parse_obj(
             r#"{"type":"object","properties":{"path":{"type":"string","description":"Path to a .vox file"}},"required":["path"],"additionalProperties":false}"#,
         ),
         "vox_run_tests" => parse_obj(

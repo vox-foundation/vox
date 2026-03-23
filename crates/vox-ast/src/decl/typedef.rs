@@ -4,7 +4,7 @@ use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// ADT variant in a type definition.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Variant {
     pub name: String,
     pub fields: Vec<VariantField>,
@@ -14,7 +14,7 @@ pub struct Variant {
 }
 
 /// A field within an ADT variant.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VariantField {
     pub name: String,
     pub type_ann: TypeExpr,
@@ -22,7 +22,7 @@ pub struct VariantField {
 }
 
 /// Type / ADT / struct declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TypeDefDecl {
     pub name: String,
     /// Generic type parameters: `type Response[T]:`
@@ -40,7 +40,7 @@ pub struct TypeDefDecl {
 }
 
 /// Trait declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TraitDecl {
     pub name: String,
     pub methods: Vec<TraitMethod>,
@@ -49,7 +49,7 @@ pub struct TraitDecl {
 }
 
 /// A method signature within a trait.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TraitMethod {
     pub name: String,
     pub params: Vec<Param>,
@@ -59,7 +59,7 @@ pub struct TraitMethod {
 }
 
 /// Trait implementation for a specific type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ImplDecl {
     pub trait_name: String,
     pub target_type: TypeExpr,

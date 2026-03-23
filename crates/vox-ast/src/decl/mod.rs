@@ -28,7 +28,7 @@ pub use typedef::*;
 pub use ui::*;
 
 /// HTTP method for route declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HttpMethod {
     /// HTTP `GET`.
     Get,
@@ -41,7 +41,7 @@ pub enum HttpMethod {
 }
 
 /// An import path segment: `react.use_state`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ImportPath {
     /// Dot-separated path segments (e.g. `react`, `use_state`).
     pub segments: Vec<String>,
@@ -50,7 +50,7 @@ pub struct ImportPath {
 }
 
 /// Import declaration: `import react.use_state, network.HTTP`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ImportDecl {
     /// Imported paths listed in a single `import` declaration.
     pub paths: Vec<ImportPath>,
@@ -62,7 +62,7 @@ pub struct ImportDecl {
 ///
 /// Causes the Rust codegen to emit a `VoxPyRuntime` lazy-static bridge for
 /// the named Python module. The alias is used as the binding name in Vox code.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PyImportDecl {
     /// The Python module to import (e.g. `"torch"`, `"torch.nn"`).
     pub module: String,
@@ -73,7 +73,7 @@ pub struct PyImportDecl {
 }
 
 /// One item in a [`Module`]: any construct that can appear at column 0 (after indentation) in a file.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Decl {
     /// Top-level or nested function.
     Function(FnDecl),
@@ -727,7 +727,7 @@ impl Decl {
 }
 
 /// Parsed contents of one compilation unit (usually one `.vox` file).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Module {
     /// Declarations in the order they appeared in source.
     pub declarations: Vec<Decl>,

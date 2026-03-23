@@ -32,6 +32,40 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                semantic_tokens_provider: Some(
+                    SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
+                        SemanticTokensRegistrationOptions {
+                            text_document_registration_options: TextDocumentRegistrationOptions {
+                                document_selector: Some(vec![DocumentFilter {
+                                    language: Some("vox".to_string()),
+                                    scheme: Some("file".to_string()),
+                                    pattern: None,
+                                }]),
+                            },
+                            semantic_tokens_options: SemanticTokensOptions {
+                                work_done_progress_options: WorkDoneProgressOptions {
+                                    work_done_progress: None,
+                                },
+                                range: None,
+                                full: Some(SemanticTokensFullOptions::Bool(true)),
+                                legend: SemanticTokensLegend {
+                                    token_types: vox_lsp::grammar::SEMANTIC_TOKEN_TYPES.to_vec(),
+                                    token_modifiers: vec![
+                                        SemanticTokenModifier::DECLARATION,
+                                        SemanticTokenModifier::DEFINITION,
+                                        SemanticTokenModifier::READONLY,
+                                    ],
+                                },
+                            },
+                            static_registration_options: StaticRegistrationOptions { id: None },
+                        },
+                    ),
+                ),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec!["@".to_string(), ".".to_string()]),
+                    ..Default::default()
+                }),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -70,6 +104,75 @@ impl LanguageServer for Backend {
             }),
             range: None,
         }))
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        Ok(Some(CompletionResponse::List(vox_lsp::completions::CompletionEngine::completions(params))))
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = &params.text_document.uri;
+        let text = self.documents.lock().unwrap().get(uri).cloned();
+        let Some(text) = text else {
+            return Ok(None);
+        };
+
+        let tokens = lex(&text);
+        if let Ok(module) = parse(tokens) {
+            let symbols = vox_lsp::symbols::SymbolEngine::symbols(&module, &text);
+            Ok(Some(DocumentSymbolResponse::Nested(symbols)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let uri = &params.text_document.uri;
+        let text = self.documents.lock().unwrap().get(uri).cloned();
+        let Some(text) = text else {
+            return Ok(None);
+        };
+
+        let tokens = lex(&text);
+        let mut last_line = 0;
+        let mut last_char = 0;
+        let mut data = Vec::new();
+
+        for token in tokens {
+            if let Some(token_type) = vox_lsp::grammar::token_to_semantic_type(&token.token) {
+                let (line, col) = vox_lsp::byte_index_to_line_col(&text, token.span.start);
+                let length = (token.span.end - token.span.start) as u32;
+
+                let delta_line = line - last_line;
+                let delta_char = if delta_line == 0 {
+                    col - last_char
+                } else {
+                    col
+                };
+
+                data.push(SemanticToken {
+                    delta_line,
+                    delta_start: delta_char,
+                    length,
+                    token_type,
+                    token_modifiers_bitset: 0,
+                });
+
+                last_line = line;
+                last_char = col;
+            }
+        }
+
+        Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
+            result_id: None,
+            data,
+        })))
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {

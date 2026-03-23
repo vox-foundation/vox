@@ -32,6 +32,7 @@ vox-ars                   = { path = "crates/vox-ars" }
 vox-bootstrap             = { path = "crates/vox-bootstrap" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-cli                   = { path = "crates/vox-cli" }
+vox-train                 = { path = "crates/vox-train" }
 
 vox-codex-api             = { path = "crates/vox-codex-api" }
 vox-codegen-llvm          = { path = "crates/vox-codegen-llvm" }
@@ -126,6 +127,7 @@ tokenizers         = "0.21"
 hf-hub             = { version = "0.4" }
 keyring            = "3"
 qlora-rs           = "1.0.5"
+peft-rs            = "1.0"
 bytes              = "1"
 schemars           = { version = "1", features = ["derive"] }
 jsonschema         = { version = "0.26", default-features = false }

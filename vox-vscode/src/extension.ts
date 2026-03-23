@@ -10,7 +10,6 @@ import { GamifyManager } from './gamify/GamifyManager';
 import { AgentController } from './agents/AgentController';
 import { registerModelCommands } from './commands/model';
 import { SidebarProvider } from './SidebarProvider';
-import { CodexHttpClient } from './core/CodexHttpClient';
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Vox');
@@ -33,8 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push({ dispose: () => statusBar.stop() });
 
     // ── Sidebar (Chat UI) ────────────────────────────────────────────────
-    const codexHttp = CodexHttpClient.tryFromConfig();
-    const sidebarProvider = new SidebarProvider(context.extensionUri, mcp, codexHttp);
+    const sidebarProvider = new SidebarProvider(context.extensionUri, mcp);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider('vox-sidebar.chat', sidebarProvider)
     );

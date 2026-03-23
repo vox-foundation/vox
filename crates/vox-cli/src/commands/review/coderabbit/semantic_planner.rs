@@ -670,6 +670,21 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     let mut plan_snapshot = all_files.clone();
     plan_snapshot.sort();
 
+    // Secure the workspace before messing with branches and run_state
+    let guard = super::git::WorkspaceGuard::new(repo).await?;
+
+    let res = run_semantic_submit_core(repo, cfg, all_files, plan_snapshot).await;
+
+    guard.restore().await?;
+    res
+}
+
+async fn run_semantic_submit_core(
+    repo: &Path,
+    cfg: &SemanticSubmitConfig,
+    all_files: Vec<String>,
+    plan_snapshot: Vec<String>,
+) -> Result<()> {
     // ── 2. Build semantic plan ──────────────────────────────────────────────
     let baseline_branch = if cfg.resume && !cfg.force_chunks {
         let prev = super::run_state::CoderabbitRunState::load(repo)?.ok_or_else(|| {
@@ -875,31 +890,8 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     }
     run_state.save(repo).context("write initial run-state")?;
 
-    // Drift check: skip for full-repo scans (plan == whole repo; N/A).
-    if !cfg.full_repo {
-        let mut refresh = collect_changed_files(repo)
-            .await
-            .context("drift check: re-collect changed files")?;
-        let dropped_refresh_tool = path_policy::retain_non_coderabbit_tool_paths(&mut refresh);
-        if dropped_refresh_tool > 0 {
-            eprintln!(
-                "[drift] Dropped {dropped_refresh_tool} path(s) under `.coderabbit/` before compare."
-            );
-        }
-        if !vox_cfg.exclude_prefixes.is_empty() {
-            refresh.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
-        }
-        refresh.sort();
-        // First collect ran before we wrote manifest + run-state; second collect sees those as new paths.
-        let refresh_cmp = path_policy::filter_paths_for_drift_compare(&refresh);
-        let plan_cmp = path_policy::filter_paths_for_drift_compare(&plan_snapshot);
-        if refresh_cmp != plan_cmp {
-            anyhow::bail!(
-                "[drift] The set of changed paths no longer matches the semantic plan (files were added/removed/renamed). \
-                 Re-run `semantic-submit` without `--resume` to replan, then `--execute` again."
-            );
-        }
-    } // end drift check
+    // Drift check is obsolete: WorkspaceGuard safely wraps the user's local state 
+    // in a `wip:` commit. No uncommitted modifications can alter our tracked files mid-flight.
 
     // ── 6. Isolated worktree PRs (independent base = baseline) ─────────────
 

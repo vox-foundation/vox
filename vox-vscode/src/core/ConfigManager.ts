@@ -53,15 +53,6 @@ export class ConfigManager {
     // Build
     static get buildOutputDir(): string { return this._config().get<string>('build.outputDir', 'dist'); }
 
-    static get codexEnableHttpSync(): boolean {
-        return this._config().get<boolean>('codex.enableHttpSync', true);
-    }
-
-    /** Base URL for `vox-codex-api` dashboard (e.g. `http://127.0.0.1:3847`). */
-    static get codexApiBaseUrl(): string {
-        return this._config().get<string>('codex.apiBaseUrl', 'http://127.0.0.1:3847');
-    }
-
     // Listen for changes
     static onChange(cb: () => void): vscode.Disposable {
         return vscode.workspace.onDidChangeConfiguration(e => {

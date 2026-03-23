@@ -161,7 +161,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             // Record snapshot in Arca and local file
             if !current_fp.is_empty() {
                 if let Ok(db) = vox_db::VoxDb::connect_default().await {
-                    let _ = db.record_corpus_snapshot(&current_fp, "unknown", count as i64, None).await;
+                    let _ = db.record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), count as i64, None).await;
                 }
                 if let Some(ref root) = workspace_root {
                     let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);

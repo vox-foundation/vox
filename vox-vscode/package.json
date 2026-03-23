@@ -16,7 +16,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished"
+    "workspaceContains:**/*.vox"
   ],
   "contributes": {
     "languages": [
@@ -63,7 +63,12 @@
         },
         "vox.agent.defaultMode": {
           "type": "string",
-          "enum": ["chat", "plan", "debug", "auto"],
+          "enum": [
+            "chat",
+            "plan",
+            "debug",
+            "auto"
+          ],
           "default": "auto",
           "description": "Default agent mode."
         },
@@ -92,16 +97,6 @@
           "default": true,
           "description": "Enable Vox Language Server."
         },
-        "vox.codex.enableHttpSync": {
-          "type": "boolean",
-          "default": true,
-          "description": "After each MCP chat round-trip, upsert research_sessions on the Codex HTTP API (if reachable)."
-        },
-        "vox.codex.apiBaseUrl": {
-          "type": "string",
-          "default": "http://127.0.0.1:3847",
-          "description": "Codex HTTP API base (`vox-codex-dashboard`). Ignored when enableHttpSync is false."
-        },
         "vox.models.byok.anthropic": {
           "type": "string",
           "default": "",
@@ -115,21 +110,87 @@
       }
     },
     "commands": [
-      { "command": "vox.build", "title": "Vox: Build Current File" },
-      { "command": "vox.run", "title": "Vox: Run Current Project" },
-      { "command": "vox.restartLsp", "title": "Vox: Restart Language Server" },
-      { "command": "vox.focusSidebar", "title": "Vox: Open Chat" },
-      { "command": "vox.openVisualEditor", "title": "Vox: Open Visual Editor" },
-      { "command": "vox.pickModel", "title": "Vox: Select AI Model" },
-      { "command": "vox.inlineEdit", "title": "Vox: Inline Edit (Ask)" },
-      { "command": "vox.inlineExplain", "title": "Vox: Explain Code" },
-      { "command": "vox.inlineFix", "title": "Vox: Fix Errors" },
-      { "command": "vox.snapshotList", "title": "Vox: View Snapshots" },
-      { "command": "vox.undo", "title": "Vox: Undo (VCS)" },
-      { "command": "vox.redo", "title": "Vox: Redo (VCS)" },
-      { "command": "vox.plan", "title": "Vox: Planning Mode — Generate PLAN.md" },
-      { "command": "vox.debugMode", "title": "Vox: Enable Agent Debug Mode" },
-      { "command": "vox.rebalance", "title": "Vox: Rebalance Agents" }
+      {
+        "command": "vox.build",
+        "title": "Vox: Build Current File"
+      },
+      {
+        "command": "vox.run",
+        "title": "Vox: Run Current Project"
+      },
+      {
+        "command": "vox.restartLsp",
+        "title": "Vox: Restart Language Server"
+      },
+      {
+        "command": "vox.focusSidebar",
+        "title": "Vox: Open Chat"
+      },
+      {
+        "command": "vox.pickModel",
+        "title": "Vox: Select AI Model"
+      },
+      {
+        "command": "vox.openVisualEditor",
+        "title": "Vox: Open Visual Editor",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.snapshotRefresh",
+        "title": "Vox: Refresh Snapshots",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.snapshotViewDiff",
+        "title": "Vox: View Snapshot Diff",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.snapshotRestore",
+        "title": "Vox: Restore Snapshot",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.refreshStatus",
+        "title": "Vox: Refresh Provider Status",
+        "category": "Vox"
+      },
+      {
+        "command": "vox.inlineEdit",
+        "title": "Vox: Inline Edit (Ask)"
+      },
+      {
+        "command": "vox.inlineExplain",
+        "title": "Vox: Explain Code"
+      },
+      {
+        "command": "vox.inlineFix",
+        "title": "Vox: Fix Errors"
+      },
+      {
+        "command": "vox.snapshotList",
+        "title": "Vox: View Snapshots"
+      },
+      {
+        "command": "vox.undo",
+        "title": "Vox: Undo (VCS)"
+      },
+      {
+        "command": "vox.redo",
+        "title": "Vox: Redo (VCS)"
+      },
+      {
+        "command": "vox.plan",
+        "title": "Vox: Planning Mode — Generate PLAN.md"
+      },
+      {
+        "command": "vox.debugMode",
+        "title": "Vox: Enable Agent Debug Mode"
+      },
+      {
+        "command": "vox.rebalance",
+        "title": "Vox: Rebalance Agents"
+      }
     ],
     "keybindings": [
       {
@@ -156,10 +217,22 @@
     ],
     "menus": {
       "editor/context": [
-        { "command": "vox.inlineEdit", "group": "vox@1" },
-        { "command": "vox.inlineExplain", "group": "vox@2" },
-        { "command": "vox.inlineFix", "group": "vox@3" },
-        { "command": "vox.plan", "group": "vox@4" }
+        {
+          "command": "vox.inlineEdit",
+          "group": "vox@1"
+        },
+        {
+          "command": "vox.inlineExplain",
+          "group": "vox@2"
+        },
+        {
+          "command": "vox.inlineFix",
+          "group": "vox@3"
+        },
+        {
+          "command": "vox.plan",
+          "group": "vox@4"
+        }
       ]
     },
     "viewsContainers": {
@@ -201,11 +274,17 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vscode/webview-ui-toolkit": "^1.4.0",
+    "@xyflow/react": "^12.10.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
+    "recharts": "^3.8.0",
     "remark-gfm": "^4.0.1",
     "shiki": "^4.0.1",
+    "tailwind-merge": "^3.5.0",
     "vscode-languageclient": "^9.0.1"
   }
 }

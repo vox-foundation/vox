@@ -92,7 +92,7 @@ impl Default for QuantizationConfig {
 }
 
 /// A quantized tensor with scale factors.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QuantizedTensor {
     /// Packed 4-bit values (2 values per byte).
     pub data: Vec<u8>,

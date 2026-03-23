@@ -1,7 +1,7 @@
 use crate::span::Span;
 
 /// Type expressions in Vox source code.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum TypeExpr {
     /// A simple named type: `int`, `str`, `bool`, `Element`, `Unit`
     Named { name: String, span: Span },

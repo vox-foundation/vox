@@ -11,6 +11,10 @@ use vox_parser::parser::parse;
 use vox_typeck::diagnostics::Severity;
 use vox_typeck::typecheck_ast_module;
 
+pub mod completions;
+pub mod symbols;
+pub mod grammar;
+
 /// Convert UTF-8 byte index to LSP line / column (character count per line, not UTF-16 code units).
 pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32) {
     vox_ast::span::byte_offset_to_line_col_zero_based(text, index)

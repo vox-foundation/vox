@@ -2,7 +2,7 @@ use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// Table declaration: a persistent record type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TableDecl {
     pub name: String,
     pub fields: Vec<TableField>,
@@ -17,7 +17,7 @@ pub struct TableDecl {
 }
 
 /// A field within a table declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TableField {
     pub name: String,
     pub type_ann: TypeExpr,
@@ -26,7 +26,7 @@ pub struct TableField {
 }
 
 /// Collection declaration: a schemaless document collection.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CollectionDecl {
     pub name: String,
     pub fields: Vec<TableField>,
@@ -37,7 +37,7 @@ pub struct CollectionDecl {
 }
 
 /// Index declaration for a table.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IndexDecl {
     pub table_name: String,
     pub index_name: String,
@@ -46,7 +46,7 @@ pub struct IndexDecl {
 }
 
 /// Vector index declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VectorIndexDecl {
     pub table_name: String,
     pub index_name: String,
@@ -57,7 +57,7 @@ pub struct VectorIndexDecl {
 }
 
 /// Search index definition (e.g. FTS5 / Convex searchIndex).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SearchIndexDecl {
     pub table_name: String,
     pub index_name: String,

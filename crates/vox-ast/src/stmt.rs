@@ -10,7 +10,7 @@ use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// Statement: binding, assignment, return, or effectful expression.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Stmt {
     /// Let binding: `let x = 5` or `let mut x = 0`
     Let {

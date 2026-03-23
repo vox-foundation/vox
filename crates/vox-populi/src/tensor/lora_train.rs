@@ -1,14 +1,13 @@
 //! Native Populi training entrypoints (`vox populi train`).
 //!
-//! **SSOT:** Canonical CLI entry is `vox populi train`. Burn LoRA lives in `backend_burn_lora`;
-//! Candle qlora-style (`f32` adapter on frozen HF embeddings) in `backend_candle_qlora` when built with `candle-qlora`.
+//! **SSOT:** Canonical CLI entry is `vox populi train`. The sole active backend is
+//! Candle+qlora-rs (`--backend qlora`). Burn LoRA is permanently deprecated.
 //!
 //! Dispatch is **contract-first**: [`FineTuneContract`] + [`ExecutionPlanner`] → kernel.
 
 use std::path::Path;
 
 use crate::tensor::backend::TrainingBackend;
-
 use crate::tensor::backend_candle_qlora::CandleQloraBackend;
 use crate::tensor::device::DeviceKind;
 use crate::tensor::execution_planner::ExecutionPlanner;
@@ -17,7 +16,10 @@ use crate::tensor::preflight_train::preflight_for_contract;
 use crate::tensor::train_backend::PopuliTrainBackend;
 use crate::tensor::training_config::LoraTrainingConfig;
 
-/// Dispatch by execution kernel after contract validation and preflight.
+/// Dispatch training by execution kernel after contract validation and preflight.
+///
+/// The only valid backend is [`PopuliTrainBackend::CandleQlora`].
+/// Requesting [`PopuliTrainBackend::BurnLora`] returns an instructive error.
 pub fn run_populi_training(
     backend: PopuliTrainBackend,
     data_dir: &Path,
@@ -38,28 +40,14 @@ pub fn run_populi_training(
 
     match plan.kernel {
         PopuliTrainBackend::BurnLora => {
-            anyhow::bail!("Burn LoRA backend is deprecated. Please use Candle QLoRA backend.");
+            anyhow::bail!(
+                "Burn LoRA backend is permanently deprecated. \
+                 Use `vox populi train --backend qlora --tokenizer hf --model <hf_repo>`. \
+                 See docs/src/architecture/populi-training-ssot.md."
+            )
         }
         PopuliTrainBackend::CandleQlora => {
             CandleQloraBackend.run(data_dir, output_dir, &cfg, device_kind, system_prompt)
         }
     }
-}
-
-/// Back-compat: [`run_populi_training`] with [`PopuliTrainBackend::BurnLora`](crate::tensor::train_backend::PopuliTrainBackend).
-pub fn run_lora_training(
-    data_dir: &Path,
-    output_dir: Option<&Path>,
-    config: &LoraTrainingConfig,
-    device_kind: DeviceKind,
-    system_prompt: &str,
-) -> anyhow::Result<()> {
-    run_populi_training(
-        PopuliTrainBackend::BurnLora,
-        data_dir,
-        output_dir,
-        config,
-        device_kind,
-        system_prompt,
-    )
 }

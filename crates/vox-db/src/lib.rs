@@ -103,6 +103,8 @@ mod sync_invocables;
 pub mod toestub_store;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
+/// Populi QLoRA training run persistence (CRUD for `populi_training_run` table).
+pub mod training_run;
 use crate::paths::local_user_id;
 
 pub use auto_migrate::AutoMigrator;

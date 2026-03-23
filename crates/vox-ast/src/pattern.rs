@@ -2,7 +2,7 @@ use crate::expr::Expr;
 use crate::span::Span;
 
 /// Pattern matching nodes for let bindings and match arms.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Pattern {
     /// Simple identifier pattern: `x`, `msg`
     Ident { name: String, span: Span },

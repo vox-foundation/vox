@@ -11,6 +11,7 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+ctrlc = { version = "3.4", features = ["termination"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
@@ -27,6 +28,7 @@ candle-nn = { workspace = true, optional = true }
 safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
+peft-rs = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -38,6 +40,7 @@ candle-qlora = [
     "dep:safetensors",
     "dep:tokenizers",
     "dep:qlora-rs",
+    "dep:peft-rs",
 ]
 candle-qlora-cuda = [
     "candle-qlora",

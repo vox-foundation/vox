@@ -90,9 +90,15 @@ pub async fn run_tasks(
     let queue = build_task_queue(&items);
 
     if persist {
-        eprintln!(
-            "[note] --persist for CodeRabbit tasks is not wired to Codex; printing checklist only."
-        );
+        let cr_dir = path.join(".coderabbit");
+        std::fs::create_dir_all(&cr_dir).ok();
+        let tasks_path = cr_dir.join("tasks.json");
+        let json = queue.to_json();
+        if let Err(e) = std::fs::write(&tasks_path, &json) {
+            eprintln!("[persist] Failed to write tasks.json: {}", e);
+        } else {
+            eprintln!("[persist] Saved actionable Toestub tasks to: {}", tasks_path.display());
+        }
     }
 
     match format.to_lowercase().as_str() {

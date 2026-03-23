@@ -22,6 +22,14 @@ last_updated: 2026-03-22
 | Optional **`islands/`** | Second Vite bundle; copied to `target/generated/public/islands/` when present |
 | **v0.dev** | `V0_API_KEY`; TSX normalized to **named** `export function Name` for `routes:` imports |
 
+## Canonical Frontend
+
+The **VS Code extension** (`vox-vscode/`) is the **Single Source of Truth** for the Vox user-facing frontend experience. It integrates chat, planning (MCP), language support (LSP), and real-time visualization.
+
+- **Orchestrator Dashboard**: Standalone HTML/CSS visualization for agents and tasks has been relocated to **`tools/dashboard/`**.
+- **Unified Grammar**: Vocabulary is synchronized via **`tree-sitter-vox/GRAMMAR_SSOT.md`**.
+- **Retired**: Legacy `frontend/` (Next.js) and `packages/vox-ui/` have been removed.
+
 ## Not part of Vox
 
 Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as first-class product paths. Use **React + Vite + Tailwind/ShadCN + TanStack Router** (→ TanStack Start per [ADR 010](../adr/010-tanstack-web-spine.md)) for all interactive web UI.

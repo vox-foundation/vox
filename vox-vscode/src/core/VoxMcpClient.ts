@@ -221,6 +221,10 @@ export class VoxMcpClient {
         const result = await this.call<unknown[]>('vox_a2a_inbox', {});
         return Array.isArray(result) ? result : [];
     }
+    async a2aTasks(): Promise<unknown[]> {
+        const result = await this.call<unknown[]>('vox_a2a_tasks', {});
+        return Array.isArray(result) ? result : [];
+    }
 
     // ── Session ───────────────────────────────────────────────────────────────
     async sessionCreate(name?: string): Promise<unknown> {
@@ -245,6 +249,25 @@ export class VoxMcpClient {
     }
     async gitLog(limit = 10): Promise<unknown[]> {
         const result = await this.call<unknown[]>('vox_git_log', { limit });
+        return Array.isArray(result) ? result : [];
+    }
+
+    // ── Introspection ────────────────────────────────────────────────────────
+    async languageSurface(): Promise<unknown> {
+        return this.call('vox_language_surface', {});
+    }
+    async astInspect(path: string): Promise<unknown> {
+        return this.call('vox_ast_inspect', { path });
+    }
+    async pipelineStatus(): Promise<unknown> {
+        return this.call('vox_pipeline_status', {});
+    }
+    async decoratorRegistry(): Promise<unknown[]> {
+        const result = await this.call<unknown[]>('vox_decorator_registry', {});
+        return Array.isArray(result) ? result : [];
+    }
+    async builtinRegistry(): Promise<unknown[]> {
+        const result = await this.call<unknown[]>('vox_builtin_registry', {});
         return Array.isArray(result) ? result : [];
     }
 

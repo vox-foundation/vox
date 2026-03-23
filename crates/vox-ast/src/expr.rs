@@ -13,7 +13,7 @@ use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// Call argument: optional label (`name = value`) plus value expression.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Arg {
     /// Named argument label (e.g., `json=` in `HTTP.post("/api", json={x})`)
     pub name: Option<String>,
@@ -22,7 +22,7 @@ pub struct Arg {
 }
 
 /// Infix operators in surface syntax (including `is` / `isnt` for reference equality).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BinOp {
     /// Addition (`+`).
     Add,
@@ -53,7 +53,7 @@ pub enum BinOp {
 }
 
 /// Unary operators
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum UnOp {
     /// Logical negation (`not`).
     Not,
@@ -62,7 +62,7 @@ pub enum UnOp {
 }
 
 /// A match arm: pattern [if guard] -> body
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MatchArm {
     /// Pattern being matched.
     pub pattern: Pattern,
@@ -75,7 +75,7 @@ pub struct MatchArm {
 }
 
 /// A JSX element: <tag attrs...>children</tag>
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct JsxElement {
     /// Element tag name (lower-case component name).
     pub tag: String,
@@ -88,7 +88,7 @@ pub struct JsxElement {
 }
 
 /// Self-closing JSX: tag and attributes, then `/>` with no separate closing tag.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct JsxSelfClosingElement {
     /// Element tag name.
     pub tag: String,
@@ -99,7 +99,7 @@ pub struct JsxSelfClosingElement {
 }
 
 /// A JSX attribute: name={expr} or name="string"
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct JsxAttribute {
     /// Attribute identifier (`className`, `onClick`, …).
     pub name: String,
@@ -108,7 +108,7 @@ pub struct JsxAttribute {
 }
 
 /// Parameter for functions and lambdas.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Param {
     /// Parameter binding name.
     pub name: String,
@@ -121,7 +121,7 @@ pub struct Param {
 }
 
 /// Parts of a string interpolation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum StringPart {
     /// Raw string fragment between interpolations.
     Literal(String),
@@ -130,7 +130,7 @@ pub enum StringPart {
 }
 
 /// All expression types in Vox.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Expr {
     /// Integer literal: `42`
     IntLit {

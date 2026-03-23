@@ -21,6 +21,7 @@ use candle_core::{D, DType, Device, Tensor};
 use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
 use peft_rs::training::{AdapterTrainingConfig, AdapterTrainingState, LrSchedule};
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::error::{QLoraError, Result};
 use crate::qlora::QuantizedLinear;
@@ -413,7 +414,7 @@ impl PagedAdamW {
 /// 4. Call `training_step()` or `training_step_lm()` for each batch
 pub struct QLoraTrainer {
     /// Training configuration.
-    config: QLoraTrainingConfig,
+    pub config: QLoraTrainingConfig,
     /// Training state tracking.
     state: AdapterTrainingState,
     /// Device for computation.
@@ -566,6 +567,40 @@ impl QLoraTrainer {
     #[must_use]
     pub fn epoch(&self) -> usize {
         self.state.epoch
+    }
+
+    /// Save the trainable LoRA adapter weights to a safetensors file.
+    ///
+    /// # Arguments
+    /// * `path` - Path to write the safetensors file
+    ///
+    /// # Errors
+    /// Returns error if serialization or writing fails
+    pub fn save_adapter<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let vars = self.varmap.data().lock().unwrap();
+        let map: HashMap<String, Tensor> = vars
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_tensor().clone()))
+            .collect();
+        
+        candle_core::safetensors::save(&map, path)
+            .map_err(QLoraError::Candle)?;
+            
+        Ok(())
+    }
+
+    /// Overwrite LoRA weights from a safetensors file (warm-start).
+    /// Keys found in path but not in varmap are skipped.
+    pub fn load_lora_weights<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let loaded = candle_core::safetensors::load(path.as_ref(), &self.device)
+            .map_err(QLoraError::Candle)?;
+        let mut vars = self.varmap.data().lock().unwrap();
+        for (key, tensor) in &loaded {
+            if let Some(var) = vars.get_mut(key) {
+                var.set(tensor).map_err(QLoraError::Candle)?;
+            }
+        }
+        Ok(())
     }
 
     /// Exposes backward step logic for manual loops

@@ -135,6 +135,31 @@ export interface SkillInfo {
     tags?: string[];
 }
 
+export interface LanguageSurface {
+    keywords: string[];
+    decorators: string[];
+    types: string[];
+    builtins: string[];
+}
+
+export interface DecoratorMetadata {
+    name: string;
+    desc: string;
+    args?: string | null;
+}
+
+export interface BuiltinMetadata {
+    name: string;
+    sig: string;
+    doc: string;
+}
+
+export interface AstNode {
+    type: string;
+    span: { start: number; end: number };
+    [key: string]: any;
+}
+
 export interface WebviewMessage {
     type: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

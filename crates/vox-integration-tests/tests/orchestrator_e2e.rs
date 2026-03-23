@@ -42,6 +42,7 @@ async fn e2e_multi_agent_concurrent_edits() {
             "Edit A",
             vec![FileAffinity::write("src/a.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -51,6 +52,7 @@ async fn e2e_multi_agent_concurrent_edits() {
             "Edit B",
             vec![FileAffinity::write("src/b.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -67,6 +69,7 @@ async fn e2e_task_queue_drain() {
             format!("Task {i}"),
             vec![FileAffinity::write("src/shared.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -109,6 +112,7 @@ async fn e2e_timeout_and_retry() {
             "Timeout Task",
             vec![FileAffinity::write("src/c.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -132,6 +136,7 @@ async fn e2e_dependency_chain() {
             "Dep 1",
             vec![FileAffinity::write("src/a.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -151,6 +156,7 @@ async fn e2e_lock_contention_resolved() {
             "Contender 1",
             vec![FileAffinity::write("src/locked.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -160,6 +166,7 @@ async fn e2e_lock_contention_resolved() {
             "Contender 2",
             vec![FileAffinity::write("src/locked.rs")],
             Some(TaskPriority::Normal),
+            None,
         )
         .await
         .unwrap();
@@ -186,6 +193,7 @@ async fn e2e_batch_submission() {
                 depends_on: vec![],
                 temp_deps: vec![],
                 capability_requirements: None,
+                session_id: None,
             },
             TaskDescriptor {
                 description: "Batch 2".to_string(),
@@ -194,6 +202,7 @@ async fn e2e_batch_submission() {
                 depends_on: vec![],
                 temp_deps: vec![],
                 capability_requirements: None,
+                session_id: None,
             },
         ])
         .await

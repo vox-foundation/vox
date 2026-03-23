@@ -4,7 +4,7 @@ use crate::stmt::Stmt;
 use crate::types::TypeExpr;
 
 /// Actor declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorDecl {
     pub name: String,
     pub state_fields: Vec<crate::decl::typedef::VariantField>,
@@ -14,7 +14,7 @@ pub struct ActorDecl {
 }
 
 /// Actor handler definition: `on receive(msg: str) to Unit:`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorHandler {
     pub event_name: String,
     pub params: Vec<Param>,
@@ -25,7 +25,7 @@ pub struct ActorHandler {
 }
 
 /// Native agent declaration
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AgentDecl {
     pub name: String,
     pub version: Option<String>,
@@ -37,7 +37,7 @@ pub struct AgentDecl {
 }
 
 /// Agent handler definition: `on Event(msg) to Type:`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AgentHandler {
     pub event_name: String,
     pub params: Vec<Param>,
@@ -48,7 +48,7 @@ pub struct AgentHandler {
 }
 
 /// Agent migration rule: `migrate from "1.0":`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MigrationRule {
     pub from_version: String,
     pub body: Vec<Stmt>,
@@ -56,7 +56,7 @@ pub struct MigrationRule {
 }
 
 /// Native message declaration
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MessageDecl {
     pub name: String,
     pub fields: Vec<crate::decl::typedef::VariantField>,
@@ -65,7 +65,7 @@ pub struct MessageDecl {
 }
 
 /// Workflow declaration (durable execution).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct WorkflowDecl {
     pub name: String,
     pub params: Vec<Param>,
@@ -77,7 +77,7 @@ pub struct WorkflowDecl {
 }
 
 /// Activity declaration (durable execution side-effect).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActivityDecl {
     pub name: String,
     pub params: Vec<Param>,
@@ -91,7 +91,7 @@ pub struct ActivityDecl {
 }
 
 /// HTTP route declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HttpRouteDecl {
     pub method: crate::decl::HttpMethod,
     pub path: String,
