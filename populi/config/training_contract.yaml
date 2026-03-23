@@ -1,0 +1,3 @@
+# Training contract: points preflight to the mix output.
+# Priority: contract train_path > data_dir/train.jsonl > data_dir/validated.jsonl
+train_path: target/dogfood/train_mixed.jsonl
