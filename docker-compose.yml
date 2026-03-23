@@ -1,0 +1,40 @@
+# Vox Full Stack — Docker Compose
+# Usage:
+#   cp .env.example .env   # fill in GEMINI_API_KEY
+#   docker compose up
+#
+# Profiles and mesh env SSOT: docs/src/architecture/deployment-compose-ssot.md
+# Optional mesh keys mirror docker/vox-compose-mesh-environment.block.yaml (unset = defaults).
+
+services:
+  vox:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - VOX_DB_URL=${VOX_DB_URL:-}
+      - VOX_DB_TOKEN=${VOX_DB_TOKEN:-}
+      - VOX_DB_PATH=${VOX_DB_PATH:-}
+      - VOX_INFERENCE_PROFILE=${VOX_INFERENCE_PROFILE:-}
+      - VOX_MESH_ENABLED=${VOX_MESH_ENABLED:-0}
+      - VOX_MESH_NODE_ID=${VOX_MESH_NODE_ID:-}
+      - VOX_MESH_LABELS=${VOX_MESH_LABELS:-}
+      - VOX_MESH_CONTROL_ADDR=${VOX_MESH_CONTROL_ADDR:-}
+      - VOX_MESH_REGISTRY_PATH=${VOX_MESH_REGISTRY_PATH:-}
+      - VOX_MESH_ADVERTISE_GPU=${VOX_MESH_ADVERTISE_GPU:-0}
+      - VOX_ORCHESTRATOR_MESH_CONTROL_URL=${VOX_ORCHESTRATOR_MESH_CONTROL_URL:-}
+      - VOX_MESH_MAX_STALE_MS=${VOX_MESH_MAX_STALE_MS:-}
+      - VOX_MESH_CODEX_TELEMETRY=${VOX_MESH_CODEX_TELEMETRY:-0}
+      - VOX_MESH_HTTP_JOIN=${VOX_MESH_HTTP_JOIN:-}
+      - VOX_MESH_HTTP_HEARTBEAT_SECS=${VOX_MESH_HTTP_HEARTBEAT_SECS:-}
+      - VOX_MESH_SCOPE_ID=${VOX_MESH_SCOPE_ID:-}
+      - VOX_MESH_TOKEN=${VOX_MESH_TOKEN:-}
+      - VOX_MESH_MESH_SIDECAR=${VOX_MESH_MESH_SIDECAR:-0}
+    volumes:
+      - vox-data:/root/.vox
+    restart: unless-stopped
+
+volumes:
+  vox-data:
