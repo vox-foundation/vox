@@ -1,0 +1,128 @@
+# Machine-readable Vox command surface (paired with command-registry.schema.json).
+# SSOT for `vox ci command-compliance` parity checks vs code and docs.
+schema_version: 1
+
+operations:
+  # --- vox-cli: default / always compiled ---
+  - { surface: vox-cli, path: [build], status: active, latin_ns: fabrica, handler_rust: commands::build }
+  - { surface: vox-cli, path: [check], status: active, latin_ns: fabrica, handler_rust: commands::check }
+  - { surface: vox-cli, path: [test], status: active, latin_ns: fabrica, handler_rust: commands::test }
+  - { surface: vox-cli, path: [run], status: active, latin_ns: fabrica, handler_rust: commands::run }
+  - { surface: vox-cli, path: [dev], status: active, latin_ns: fabrica, handler_rust: commands::dev }
+  - { surface: vox-cli, path: [bundle], status: active, latin_ns: fabrica, handler_rust: commands::bundle }
+  - { surface: vox-cli, path: [fmt], status: active, latin_ns: fabrica, handler_rust: commands::fmt }
+  - { surface: vox-cli, path: [install], status: active, latin_ns: fabrica, handler_rust: commands::install }
+  - { surface: vox-cli, path: [lsp], status: active, latin_ns: fabrica, handler_rust: commands::lsp }
+  - { surface: vox-cli, path: [doctor], status: active, latin_ns: mens, handler_rust: commands::diagnostics::doctor }
+  - { surface: vox-cli, path: [snippet], status: active, latin_ns: ars, handler_rust: commands::extras::snippet_cli }
+  - { surface: vox-cli, path: [share], status: active, latin_ns: ars, handler_rust: commands::extras::share_cli }
+  - { surface: vox-cli, path: [codex], status: active, latin_ns: codex, handler_rust: commands::codex }
+  - { surface: vox-cli, path: [codex, verify], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, export-legacy], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, import-legacy], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, socrates-metrics], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, socrates-eval-snapshot], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [db], status: active, latin_ns: codex, handler_rust: commands::db_cli }
+  - { surface: vox-cli, path: [scientia], status: active, latin_ns: codex, handler_rust: commands::scientia }
+  - { surface: vox-cli, path: [ci], status: active, latin_ns: ci, handler_rust: commands::ci }
+  - { surface: vox-cli, path: [ci, manifest], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, check-docs-ssot], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, check-codex-ssot], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, feature-matrix], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, no-vox-dei-import], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, doc-inventory], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, workflow-scripts], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, line-endings], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, populi-gate], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, toestub-scoped], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, cuda-features], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, build-timings], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, grammar-drift], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, repo-guards], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [completions], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
+  - { surface: vox-cli, path: [fabrica], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
+  - { surface: vox-cli, path: [mens], status: active, latin_ns: mens, ref_cli_required: false, reachability_required: false }
+  - { surface: vox-cli, path: [ars], status: active, latin_ns: ars, ref_cli_required: false, reachability_required: false }
+  - { surface: vox-cli, path: [recensio], status: active, latin_ns: recensio, feature_gate: coderabbit, ref_cli_required: false, reachability_required: false }
+
+  # --- vox-cli: feature gated ---
+  - { surface: vox-cli, path: [script], status: active, latin_ns: fabrica, feature_gate: script-execution, handler_rust: commands::runtime::run::script }
+  - { surface: vox-cli, path: [live], status: active, feature_gate: live, handler_rust: commands::live }
+  - { surface: vox-cli, path: [architect], status: active, latin_ns: mens, feature_gate: "codex|stub-check", handler_rust: commands::diagnostics::tools::architect }
+  - { surface: vox-cli, path: [openclaw], status: active, latin_ns: ars, feature_gate: ars, handler_rust: commands::openclaw }
+  - { surface: vox-cli, path: [skill], status: active, latin_ns: ars, feature_gate: ars, handler_rust: commands::extras::skill_cmd }
+  - { surface: vox-cli, path: [ludus], status: active, latin_ns: ars, feature_gate: extras-ludus, handler_rust: commands::extras::ludus_cli }
+  - { surface: vox-cli, path: [stub-check], status: active, latin_ns: mens, feature_gate: stub-check, handler_rust: commands::stub_check }
+  - { surface: vox-cli, path: [populi], status: active, latin_ns: populi, feature_gate: "populi-base|gpu", handler_rust: commands::populi }
+  - { surface: vox-cli, path: [populi, train], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, train-uv], status: retired, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, corpus], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, pipeline], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, status], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, plan], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, eval-gate], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, bench-completion], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, system-prompt-template], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, oratio], status: active, latin_ns: populi, feature_gate: populi-oratio, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, serve], status: active, latin_ns: populi, feature_gate: "gpu+execution-api", ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, probe], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, merge-weights], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, merge-qlora], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, eval-local], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [review], status: active, latin_ns: recensio, feature_gate: coderabbit, handler_rust: commands::review }
+  - { surface: vox-cli, path: [island], status: active, feature_gate: island, handler_rust: commands::island }
+  - { surface: vox-cli, path: [train], status: deprecated, latin_ns: populi, feature_gate: "gpu+populi-dei", handler_rust: commands::ai::train, ref_cli_required: true }
+  - { surface: vox-cli, path: [mesh], status: active, latin_ns: fabrica, feature_gate: mesh, handler_rust: commands::mesh_cli }
+  - { surface: vox-cli, path: [mesh, status], status: active, latin_ns: fabrica, feature_gate: mesh, ref_cli_required: true }
+  - { surface: vox-cli, path: [mesh, serve], status: active, latin_ns: fabrica, feature_gate: mesh, ref_cli_required: true }
+
+  # --- vox-compilerd RPC methods ---
+  - { surface: compilerd, path: [build], status: active, handler_rust: compilerd::handle_build }
+  - { surface: compilerd, path: [check], status: active, handler_rust: compilerd::handle_check }
+  - { surface: compilerd, path: [bundle], status: active, handler_rust: compilerd::handle_bundle }
+  - { surface: compilerd, path: [fmt], status: active, handler_rust: compilerd::handle_fmt }
+  - { surface: compilerd, path: [fmt.check], status: active, handler_rust: compilerd::handle_fmt }
+  - { surface: compilerd, path: [doc], status: active, handler_rust: compilerd::handle_doc }
+  - { surface: compilerd, path: [test], status: active, handler_rust: compilerd::handle_test }
+  - { surface: compilerd, path: [run], status: active, handler_rust: compilerd::handle_run }
+  - { surface: compilerd, path: [profile], status: active, handler_rust: compilerd::handle_profile }
+  - { surface: compilerd, path: [dev], status: active, handler_rust: compilerd::handle_dev }
+
+  # --- vox-dei-d RPC (method ids) ---
+  - { surface: dei-daemon, path: [ai.check], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.fix], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.review], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.generate], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [config.get], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.plan.new], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.plan.replan], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.plan.status], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: dei-daemon, path: [ai.plan.execute], status: active, ref_cli_required: false, reachability_required: false }
+
+  # --- MCP: validated via TOOL_REGISTRY vs handle_tool_call (no per-tool rows here) ---
+  - { surface: mcp, path: [tool-registry], status: active, handler_rust: vox_mcp::tools::TOOL_REGISTRY, ref_cli_required: false, reachability_required: false }
+
+  # --- Other binaries ---
+  - { surface: internal-binary, path: [vox-compilerd], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: internal-binary, path: [vox-populi], status: active, ref_cli_required: false, reachability_required: false }
+
+script_duals:
+  - { script_glob: scripts/check_docs_ssot.*, canonical_cli: "vox ci check-docs-ssot" }
+  - { script_glob: scripts/check_codex_ssot.*, canonical_cli: "vox ci check-codex-ssot" }
+  - { script_glob: scripts/verify_workspace_manifest.sh, canonical_cli: "vox ci manifest" }
+  - { script_glob: scripts/check_vox_cli_feature_matrix.sh, canonical_cli: "vox ci feature-matrix" }
+  - { script_glob: scripts/check_vox_cli_no_vox_dei.sh, canonical_cli: "vox ci no-vox-dei-import" }
+  - { script_glob: scripts/check_cuda_feature_builds.sh, canonical_cli: "vox ci cuda-features" }
+  - { script_glob: scripts/quality/toestub_scoped.sh, canonical_cli: "vox ci toestub-scoped" }
+  - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci populi-gate --profile m1m4" }
+  - { script_glob: scripts/populi/release_training_gate.*, canonical_cli: "vox ci populi-gate --profile training" }
+
+# Names must appear in docs/src/reference/env-vars-ssot.md (Web / codegen / dev topology).
+env_var_ssot_index:
+  - VOX_WEB_TANSTACK_START
+  - VOX_EMIT_EXPRESS_SERVER
+  - VOX_ORCHESTRATE_VITE
+  - VOX_SSR_DEV_URL
+  - VOX_WEB_VITE_SMOKE
+  - VOX_EXAMPLES_STRICT_PARSE
