@@ -23,6 +23,10 @@ use anyhow::Context;
 use serde_json::{Value, json};
 use vox_compiler::hir::{HirExpr, HirModule, HirStmt};
 
+/// Durable execution journal using VoxDb.
+pub mod db_tracker;
+pub use db_tracker::VoxDbTracker;
+
 /// Control-plane sub-step for a [`MeshActivity`] (URL always comes from env / `Vox.toml`, not source).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MeshHttpOp {

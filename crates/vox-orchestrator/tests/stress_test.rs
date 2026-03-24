@@ -7,7 +7,7 @@ fn test_config() -> OrchestratorConfig {
     config
 }
 
-async fn submit_and_drain(orch: &Orchestrator, task_count: usize) {
+async fn submit_and_drain(orch: &mut Orchestrator, task_count: usize) {
     for i in 0..task_count {
         orch.submit_task(
             format!("Task {i}"),
@@ -23,7 +23,7 @@ async fn submit_and_drain(orch: &Orchestrator, task_count: usize) {
         let mut progress = false;
         let ids = orch.agent_ids();
         for id in ids {
-            let task_id = if let Some(mut queue) = orch.get_agent_queue_mut(id) {
+            let task_id = if let Some(queue) = orch.get_agent_queue_mut(id) {
                 if let Some(task) = queue.dequeue() {
                     Some(task.id)
                 } else {
@@ -48,8 +48,8 @@ proptest! {
     fn submit_and_complete_n_tasks(n in 1usize..100) {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let orch = Orchestrator::new(test_config());
-            submit_and_drain(&orch, n).await;
+            let mut orch = Orchestrator::new(test_config());
+            submit_and_drain(&mut orch, n).await;
 
             // Assert everything completed
             assert_eq!(orch.status().total_completed, n);
@@ -62,7 +62,7 @@ proptest! {
     fn rebalance_maintains_total_tasks(n in 1usize..50) {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let orch = Orchestrator::new(test_config());
+            let mut orch = Orchestrator::new(test_config());
 
             // Submit tasks targeting the same agent
             for i in 0..n {
@@ -98,7 +98,7 @@ proptest! {
 
 #[tokio::test]
 async fn stress_test_1000_tasks_10_agents() {
-    let orch = Orchestrator::new(test_config());
+    let mut orch = Orchestrator::new(test_config());
     let task_count = 1000;
 
     for i in 0..task_count {
@@ -117,7 +117,7 @@ async fn stress_test_1000_tasks_10_agents() {
         let ids = orch.agent_ids();
         for id in ids {
             let next_task = {
-                let mut queue = orch.get_agent_queue_mut(id).unwrap();
+                let queue = orch.get_agent_queue_mut(id).unwrap();
                 queue.dequeue()
             };
 

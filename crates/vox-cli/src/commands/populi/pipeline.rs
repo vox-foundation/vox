@@ -29,40 +29,61 @@ pub async fn run(
     std::fs::create_dir_all(&data_dir)?;
     std::fs::create_dir_all(&output_dir)?;
 
-    let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
-        dir: PathBuf::from("examples"),
-        output: validated.clone(),
-    })
-    .await;
+    // Extract from examples/ and docs/ — both are optional; emit informational messages, not errors.
+    let examples_dir = PathBuf::from("examples");
+    if examples_dir.is_dir() {
+        let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
+            dir: examples_dir,
+            output: validated.clone(),
+        })
+        .await;
+    } else {
+        tracing::debug!("pipeline: 'examples/' directory not found — skipping .vox extract");
+    }
 
-    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
-        dir: PathBuf::from("docs"),
-        output: validated.clone(),
-    })
-    .await?;
+    let docs_dir = PathBuf::from("docs");
+    if docs_dir.is_dir() {
+        let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
+            dir: docs_dir,
+            output: validated.clone(),
+        })
+        .await;
+    } else {
+        tracing::debug!("pipeline: 'docs/' directory not found — skipping extract");
+    }
 
-    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
-        input: validated.clone(),
-        output: Some(validated.clone()),
-        no_recheck: true,
-    })
-    .await?;
+    // Only proceed with validate → pairs → eval when the extract step produced output.
+    if !validated.is_file() || std::fs::metadata(&validated).map(|m| m.len() == 0).unwrap_or(true) {
+        tracing::info!(
+            "pipeline: no .vox corpus extracted (validated.jsonl is empty/absent) — \
+             skipping validate/pairs/eval stages. Add .vox files under examples/ or \
+             docs/ to enable organic corpus training pairs."
+        );
+    } else {
+        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
+            input: validated.clone(),
+            output: Some(validated.clone()),
+            no_recheck: true,
+        })
+        .await?;
 
-    let train_jsonl = data_dir.join("train.jsonl");
-    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
-        input: validated.clone(),
-        output: train_jsonl.clone(),
-        docs: Some(PathBuf::from("docs/src")),
-    })
-    .await?;
+        let train_jsonl = data_dir.join("train.jsonl");
+        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
+            input: validated.clone(),
+            output: train_jsonl.clone(),
+            docs: Some(PathBuf::from("docs/src")),
+        })
+        .await?;
 
-    let eval_out = output_dir.join("eval_results.json");
-    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-        input: train_jsonl.clone(),
-        output: eval_out,
-        print_summary: false,
-    })
-    .await?;
+        let eval_out = output_dir.join("eval_results.json");
+        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
+            input: train_jsonl.clone(),
+            output: eval_out,
+            print_summary: false,
+        })
+        .await?;
+    }
+
 
     if skip_train {
         tracing::info!("populi pipeline: skip train (--skip-train)");

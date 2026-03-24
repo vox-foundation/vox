@@ -74,7 +74,7 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
         correlation_id: vox_orchestrator::types::CorrelationId(corr_id.0),
     };
     let bus = orch.event_bus().clone();
-    MessageGateway::publish_bulletin_inter_agent(orch.bulletin_mut(), &bus, msg);
+    MessageGateway::publish_bulletin_inter_agent(orch.bulletin(), &bus, msg);
 
     ToolResult::ok(format!(
         "Question posted with correlation ID: {}",
@@ -99,7 +99,7 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
                 correlation_id: corr_id,
             };
             let bus = orch.event_bus().clone();
-            MessageGateway::publish_bulletin_inter_agent(orch.bulletin_mut(), &bus, msg);
+            MessageGateway::publish_bulletin_inter_agent(orch.bulletin(), &bus, msg);
             ToolResult::ok(format!(
                 "Answer posted for correlation ID: {}",
                 params.correlation_id
@@ -141,7 +141,7 @@ pub async fn broadcast(state: &ServerState, params: BroadcastParams) -> String {
         message,
     };
     let bus = orch.event_bus().clone();
-    MessageGateway::publish_bulletin_inter_agent(orch.bulletin_mut(), &bus, msg);
+    MessageGateway::publish_bulletin_inter_agent(orch.bulletin(), &bus, msg);
 
     ToolResult::ok(format!(
         "Message broadcasted from agent: {}",

@@ -772,6 +772,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                                         eprintln!("  {} Failed to copy mix to {}: {}", "⚠️".yellow(), final_train_path.display(), e);
                                     } else {
                                         eprintln!("  {} Mixed data ready at: {}", "✓".green(), final_train_path.display());
+                                        // Signal run_train to skip its own mix pass — we just ran it.
+                                        // SAFETY: single-threaded CLI dispatch; no concurrent env readers at this point.
+                                        #[allow(unsafe_code)]
+                                        unsafe { std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1"); }
                                     }
                                 }
                             }

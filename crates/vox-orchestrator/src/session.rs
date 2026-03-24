@@ -72,7 +72,6 @@ pub enum SessionEvent {
         session_id: String,
         agent_id: u64,
         created_at: u64,
-        repository_id: Option<String>,
     },
     TurnAdded {
         role: String,
@@ -122,8 +121,6 @@ pub struct SessionTurn {
 pub struct Session {
     pub id: String,
     pub agent_id: AgentId,
-    /// Stable repository identifier for multi-repo tenancy.
-    pub repository_id: Option<String>,
     pub state: SessionState,
     pub created_at: u64,
     pub last_active: u64,
@@ -136,9 +133,6 @@ pub struct Session {
     /// Per-plugin persistent state.
     #[serde(default)]
     pub plugin_state: HashMap<String, serde_json::Value>,
-    /// Active context files attached to this session.
-    #[serde(default)]
-    pub context_files: Vec<String>,
     /// Total turns ever added (monotonic, not reset on compaction).
     pub turn_count: usize,
     /// Total tokens ever used (monotonic).
@@ -152,7 +146,6 @@ impl Session {
         Self {
             id: new_session_id(),
             agent_id,
-            repository_id: None,
             state: SessionState::Active,
             created_at: now,
             last_active: now,
@@ -160,7 +153,6 @@ impl Session {
             turns: Vec::new(),
             meta: HashMap::new(),
             plugin_state: HashMap::new(),
-            context_files: Vec::new(),
             turn_count: 0,
             total_tokens: 0,
         }
@@ -357,8 +349,7 @@ impl SessionManager {
         if self.sessions.len() >= self.config.max_sessions {
             return Err(SessionError::MaxSessions(self.config.max_sessions));
         }
-        let mut session = Session::new(agent_id);
-        session.repository_id = self.config.repository_id.clone();
+        let session = Session::new(agent_id);
         let id = session.id.clone();
 
         if self.config.persist {
@@ -366,7 +357,6 @@ impl SessionManager {
                 session_id: id.clone(),
                 agent_id: agent_id.0,
                 created_at: session.created_at,
-                repository_id: self.config.repository_id.clone(),
             };
             self.append_event(&id, &event)?;
         }
@@ -629,13 +619,11 @@ impl SessionManager {
                     session_id: sid,
                     agent_id,
                     created_at,
-                    repository_id,
                 } => {
                     let now = now_secs();
                     session = Some(Session {
                         id: sid,
                         agent_id: AgentId(agent_id),
-                        repository_id,
                         state: SessionState::Active,
                         created_at,
                         last_active: now,
@@ -643,7 +631,6 @@ impl SessionManager {
                         turns: Vec::new(),
                         meta: HashMap::new(),
                         plugin_state: HashMap::new(),
-                        context_files: Vec::new(),
                         turn_count: 0,
                         total_tokens: 0,
                     });
@@ -750,79 +737,6 @@ impl SessionManager {
         let json = serde_json::to_string(event).map_err(SessionError::Serialize)?;
         let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
         writeln!(f, "{json}")?;
-        Ok(())
-    }
-
-    /// Hydrate active sessions from VoxDb `agent_sessions` table.
-    /// Merges with any sessions already loaded from JSONL.
-    /// Call this after `new()` + `with_db()` during startup.
-    pub async fn load_from_db(&mut self) -> Result<usize, SessionError> {
-        let Some(db) = &self.db else { return Ok(0); };
-        let rows = db
-            .list_active_sessions()
-            .await
-            .map_err(|e| SessionError::Io(std::io::Error::other(e.to_string())))?;
-
-        let mut loaded = 0;
-        for (session_id, agent_id_str, task_snapshot_json) in rows {
-            if self.sessions.contains_key(&session_id) {
-                continue; // JSONL already loaded it — skip
-            }
-            let agent_id_u64: u64 = agent_id_str.parse().unwrap_or(0);
-            let mut session = Session::new(AgentId(agent_id_u64));
-            session.id = session_id.clone();
-
-            // Hydrate from snapshot JSON if present
-            if let Some(snap) = task_snapshot_json {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&snap) {
-                    if let Some(repo) = v.get("repository_id").and_then(|r| r.as_str()) {
-                        session.repository_id = Some(repo.to_string());
-                    }
-                    if let Some(tc) = v.get("total_tokens").and_then(|t| t.as_u64()) {
-                        session.total_tokens = tc as usize;
-                    }
-                    if let Some(state) = v.get("state").and_then(|s| s.as_str()) {
-                        match state {
-                            "idle" => session.state = SessionState::Idle,
-                            "compacted" => session.state = SessionState::Compacted,
-                            "archived" => session.state = SessionState::Archived,
-                            _ => session.state = SessionState::Active,
-                        }
-                    }
-                    if let Some(files) = v.get("context_files").and_then(|f| f.as_array()) {
-                        session.context_files = files.iter().filter_map(|f| f.as_str()).map(|s| s.to_string()).collect();
-                    }
-                }
-            }
-
-            self.sessions.insert(session_id, session);
-            loaded += 1;
-        }
-        Ok(loaded)
-    }
-
-    /// Write the current session state as a JSON snapshot to `agent_sessions.task_snapshot`.
-    /// Called after significant state changes (task assignment, context save).
-    pub async fn update_db_snapshot(&self, session_id: &str) -> Result<(), SessionError> {
-        let Some(db) = &self.db else { return Ok(()); };
-        let Some(session) = self.sessions.get(session_id) else { return Ok(()); };
-
-        let snapshot = serde_json::json!({
-            "agent_id": session.agent_id.0,
-            "state": session.state,
-            "turn_count": session.turns.len(),
-            "total_tokens": session.total_tokens,
-            "repository_id": session.repository_id,
-            "context_files": session.context_files,
-            "updated_at": now_secs(),
-        });
-
-        let db = db.clone();
-        let sid = session_id.to_string();
-        let snap_str = snapshot.to_string();
-        tokio::spawn(async move {
-            let _ = db.create_session(&sid, "", Some(snap_str.as_str())).await;
-        });
         Ok(())
     }
 }

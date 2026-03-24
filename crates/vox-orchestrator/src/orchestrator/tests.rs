@@ -12,7 +12,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_agent() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let id = orch.spawn_agent("parser").expect("spawn");
         assert_eq!(orch.status().agent_count, 1);
         assert!(orch.agent_queue(id).is_some());
@@ -20,7 +20,7 @@ mod tests {
 
     #[tokio::test]
     async fn max_agents_enforced() {
-        let orch = Orchestrator::new(OrchestratorConfig {
+        let mut orch = Orchestrator::new(OrchestratorConfig {
             max_agents: 2,
             ..OrchestratorConfig::for_testing()
         });
@@ -35,7 +35,7 @@ mod tests {
 
     #[tokio::test]
     async fn submit_and_route() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let task_id = orch
             .submit_task(
                 "Fix parser bug",
@@ -52,7 +52,7 @@ mod tests {
 
     #[tokio::test]
     async fn same_file_routes_to_same_agent() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let t1 = orch
             .submit_task("Task 1", vec![FileAffinity::write("src/lib.rs")], None, None)
             .await
@@ -64,15 +64,15 @@ mod tests {
 
         // Both tasks should be assigned to the same agent
         assert_eq!(
-            orch.task_assignments().get(&t1).map(|r| *r.value()),
-            orch.task_assignments().get(&t2).map(|r| *r.value()),
+            orch.task_assignments().get(&t1),
+            orch.task_assignments().get(&t2),
             "tasks touching the same file should route to the same agent"
         );
     }
 
     #[tokio::test]
     async fn different_files_can_route_to_different_agents() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         orch.submit_task(
             "Parser work",
             vec![FileAffinity::write("crates/vox-parser/src/lib.rs")],
@@ -96,7 +96,7 @@ mod tests {
 
     #[tokio::test]
     async fn complete_task_flow() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let task_id = orch
             .submit_task("Test task", vec![FileAffinity::write("test.rs")], None, None)
             .await
@@ -114,7 +114,7 @@ mod tests {
 
     #[tokio::test]
     async fn retire_agent_returns_tasks() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let agent_id = orch.spawn_agent("temp").unwrap();
 
         // Manually enqueue a task
@@ -128,7 +128,7 @@ mod tests {
 
     #[tokio::test]
     async fn pause_resume_agent() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let agent_id = orch.spawn_agent("test").unwrap();
 
         orch.pause_agent(agent_id).unwrap();
@@ -140,7 +140,7 @@ mod tests {
 
     #[tokio::test]
     async fn disabled_orchestrator_rejects_tasks() {
-        let orch = Orchestrator::new(OrchestratorConfig {
+        let mut orch = Orchestrator::new(OrchestratorConfig {
             enabled: false,
             ..OrchestratorConfig::for_testing()
         });
@@ -150,7 +150,7 @@ mod tests {
 
     #[tokio::test]
     async fn status_snapshot() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         orch.submit_task("t1", vec![FileAffinity::write("a.rs")], None, None)
             .await
             .unwrap();
@@ -165,7 +165,7 @@ mod tests {
 
     #[tokio::test]
     async fn task_trace_after_submit() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let task_id = orch
             .submit_task("Trace me", vec![FileAffinity::write("x.rs")], None, None)
             .await
@@ -185,7 +185,7 @@ mod tests {
 
     #[tokio::test]
     async fn task_trace_after_complete() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let task_id = orch
             .submit_task("Complete me", vec![FileAffinity::write("y.rs")], None, None)
             .await
@@ -203,7 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn task_trace_after_fail() {
-        let orch = test_orchestrator();
+        let mut orch = test_orchestrator();
         let task_id = orch
             .submit_task("Fail me", vec![FileAffinity::write("z.rs")], None, None)
             .await
@@ -233,7 +233,7 @@ mod tests {
         cfg.socrates_gate_enforce = true;
         cfg.socrates_gate_shadow = true;
         cfg.max_debug_iterations = 2;
-        let orch = Orchestrator::new(cfg);
+        let mut orch = Orchestrator::new(cfg);
         let agent_id = orch.spawn_agent("socrates").expect("spawn");
 
         let task_id = TaskId(9001);
@@ -251,7 +251,7 @@ mod tests {
             risk_budget: "high".to_string(),
         });
         {
-            let mut queue = orch.get_agent_queue_mut(agent_id).expect("queue");
+            let queue = orch.get_agent_queue_mut(agent_id).expect("queue");
             queue.enqueue(task);
             let _ = queue.dequeue();
         }

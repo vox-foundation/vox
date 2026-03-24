@@ -1,6 +1,4 @@
 //! Persistent storage primitives for Vox: Blob (S3/FS) and Key-Value (SQL/KV).
-//!
-//! Replaces the standalone `vox-storage` crate with local modules.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

@@ -1,6 +1,4 @@
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use dashmap::DashMap;
-use dashmap::mapref::one::{Ref, RefMut};
+use std::collections::HashMap;
 use super::{AgentSummary, Orchestrator, OrchestratorStatus, TaskTraceStep};
 use crate::affinity::FileAffinityMap;
 use crate::bulletin::BulletinBoard;
@@ -9,31 +7,25 @@ use crate::locks::FileLockManager;
 use crate::queue::AgentQueue;
 use crate::types::{AgentId, TaskId};
 
-
 impl Orchestrator {
     pub fn status(&self) -> OrchestratorStatus {
-        let config = self.config.read();
         let agents: Vec<AgentSummary> = self
             .agents
             .iter()
-            .map(|pair| {
-                let id = pair.key();
-                let queue = pair.value();
-                AgentSummary {
-                    id: *id,
-                    name: queue.name.clone(),
-                    queued: queue.len(),
-                    urgent_count: queue.depth_by_priority(crate::types::TaskPriority::Urgent),
-                    normal_count: queue.depth_by_priority(crate::types::TaskPriority::Normal),
-                    background_count: queue.depth_by_priority(crate::types::TaskPriority::Background),
-                    in_progress: queue.has_in_progress(),
-                    completed: queue.completed_count(),
-                    paused: queue.is_paused(),
-                    owned_files: self.affinity_map.files_for_agent(*id).len(),
-                    dynamic: self.dynamic_agents.contains_key(id),
-                    weighted_load: queue.weighted_load(),
-                    agent_session_id: queue.agent_session_id.clone(),
-                }
+            .map(|(id, queue)| AgentSummary {
+                id: *id,
+                name: queue.name.clone(),
+                queued: queue.len(),
+                urgent_count: queue.depth_by_priority(crate::types::TaskPriority::Urgent),
+                normal_count: queue.depth_by_priority(crate::types::TaskPriority::Normal),
+                background_count: queue.depth_by_priority(crate::types::TaskPriority::Background),
+                in_progress: queue.has_in_progress(),
+                completed: queue.completed_count(),
+                paused: queue.is_paused(),
+                owned_files: self.affinity_map.files_for_agent(*id).len(),
+                dynamic: self.dynamic_agents.contains(id),
+                weighted_load: queue.weighted_load(),
+                agent_session_id: queue.agent_session_id.clone(),
             })
             .collect();
 
@@ -45,26 +37,24 @@ impl Orchestrator {
 
         // Integrate system resources if configured
         #[cfg(feature = "system-metrics")]
-        if config.resource_weight > 0.0 {
-            let sys = self.sys.read();
-            let cpu_usage = sys.global_cpu_usage() as f64 / 100.0;
-            let mem_usage = sys.used_memory() as f64 / sys.total_memory().max(1) as f64;
-            let mut resource_factor = cpu_usage * config.resource_cpu_multiplier
-                + mem_usage * config.resource_mem_multiplier;
-            if config.resource_exponent != 1.0 {
-                resource_factor = resource_factor.powf(config.resource_exponent);
+        if self.config.resource_weight > 0.0 {
+            let cpu_usage = self.sys.global_cpu_usage() as f64 / 100.0;
+            let mem_usage = self.sys.used_memory() as f64 / self.sys.total_memory().max(1) as f64;
+            let mut resource_factor = cpu_usage * self.config.resource_cpu_multiplier
+                + mem_usage * self.config.resource_mem_multiplier;
+            if self.config.resource_exponent != 1.0 {
+                resource_factor = resource_factor.powf(self.config.resource_exponent);
             }
-            total_weighted_load *= 1.0 + (resource_factor * config.resource_weight);
+            total_weighted_load *= 1.0 + (resource_factor * self.config.resource_weight);
         }
 
-        let load_history = self.load_history.read();
-        let predicted_load = if load_history.is_empty() {
+        let predicted_load = if self.load_history.is_empty() {
             total_weighted_load
         } else {
             let avg: f64 =
-                load_history.iter().copied().sum::<f64>() / load_history.len() as f64;
-            if load_history.len() >= 2 {
-                let last = *load_history.back().unwrap();
+                self.load_history.iter().copied().sum::<f64>() / self.load_history.len() as f64;
+            if self.load_history.len() >= 2 {
+                let last = *self.load_history.back().unwrap();
                 let trend = last - avg;
                 (last + trend).max(0.0)
             } else {
@@ -73,7 +63,7 @@ impl Orchestrator {
         };
 
         OrchestratorStatus {
-            enabled: config.enabled,
+            enabled: self.config.enabled,
             agent_count: self.agents.len(),
             total_queued: agents.iter().map(|a| a.queued).sum(),
             total_in_progress: agents.iter().filter(|a| a.in_progress).count(),
@@ -90,12 +80,12 @@ impl Orchestrator {
     }
 
     /// Get a reference to an agent's queue.
-    pub fn agent_queue(&self, agent_id: AgentId) -> Option<Ref<'_, AgentId, AgentQueue>> {
+    pub fn agent_queue(&self, agent_id: AgentId) -> Option<&AgentQueue> {
         self.agents.get(&agent_id)
     }
 
     /// Get a mutable reference to an agent's queue.
-    pub fn get_agent_queue_mut(&self, agent_id: AgentId) -> Option<RefMut<'_, AgentId, AgentQueue>> {
+    pub fn get_agent_queue_mut(&mut self, agent_id: AgentId) -> Option<&mut AgentQueue> {
         self.agents.get_mut(&agent_id)
     }
 
@@ -104,14 +94,14 @@ impl Orchestrator {
         &self.budget_manager
     }
 
-    /// Get a read guard to the configuration.
-    pub fn config(&self) -> RwLockReadGuard<'_, OrchestratorConfig> {
-        self.config.read()
+    /// Get a reference to the configuration.
+    pub fn config(&self) -> &OrchestratorConfig {
+        &self.config
     }
 
-    /// Get a write guard to the configuration.
-    pub fn config_mut(&self) -> RwLockWriteGuard<'_, OrchestratorConfig> {
-        self.config.write()
+    /// Get a mutable reference to the configuration to allow run-time tuning.
+    pub fn config_mut(&mut self) -> &mut OrchestratorConfig {
+        &mut self.config
     }
 
     /// Get a reference to the bulletin board (for subscribing).
@@ -119,9 +109,9 @@ impl Orchestrator {
         &self.bulletin
     }
 
-    /// Get a reference to the bulletin board.
-    pub fn bulletin_mut(&self) -> &BulletinBoard {
-        &self.bulletin
+    /// Get a mutable reference to the bulletin board (for publishing).
+    pub fn bulletin_mut(&mut self) -> &mut BulletinBoard {
+        &mut self.bulletin
     }
 
     /// Access the file affinity map.
@@ -134,9 +124,9 @@ impl Orchestrator {
         &self.qa_router
     }
 
-    /// Access the file affinity map.
-    pub fn affinity_map_mut(&self) -> &FileAffinityMap {
-        &self.affinity_map
+    /// Access the file affinity map mutably.
+    pub fn affinity_map_mut(&mut self) -> &mut FileAffinityMap {
+        &mut self.affinity_map
     }
 
     /// Get a reference to the lock manager.
@@ -146,14 +136,13 @@ impl Orchestrator {
 
     /// List all agent IDs.
     pub fn agent_ids(&self) -> Vec<AgentId> {
-        self.agents.iter().map(|pair| *pair.key()).collect()
+        self.agents.keys().copied().collect()
     }
 
     /// List all tasks (queued or in-progress) from all agents.
     pub fn all_tasks(&self) -> Vec<crate::types::AgentTask> {
         let mut all = Vec::new();
-        for pair in self.agents.iter() {
-            let queue = pair.value();
+        for queue in self.agents.values() {
             if let Some(task) = &queue.current_task() {
                 all.push((*task).clone());
             }
@@ -164,34 +153,13 @@ impl Orchestrator {
         all
     }
 
-    /// Find a specific task by its unique ID across all buffered queues.
-    pub fn get_task(&self, task_id: TaskId) -> Option<crate::types::AgentTask> {
-        for pair in self.agents.iter() {
-            let queue = pair.value();
-            if let Some(task) = queue.current_task() {
-                if task.id == task_id {
-                    return Some((*task).clone());
-                }
-            }
-            if let Some(task) = queue.tasks().iter().find(|t| t.id == task_id) {
-                return Some(task.clone());
-            }
-        }
-        None
-    }
-
-    /// Get the execution status of a task by its ID.
-    pub fn task_status(&self, task_id: TaskId) -> Option<crate::types::TaskStatus> {
-        self.get_task(task_id).map(|t| t.status)
-    }
-
     /// Get a reference to task → agent assignment map.
-    pub fn task_assignments(&self) -> &DashMap<TaskId, AgentId> {
+    pub fn task_assignments(&self) -> &HashMap<TaskId, AgentId> {
         &self.task_assignments
     }
 
     /// Get the lifecycle timeline for a task (ingress → route → outcome), if recorded.
-    pub fn task_trace(&self, task_id: TaskId) -> Option<Ref<'_, TaskId, Vec<TaskTraceStep>>> {
+    pub fn task_trace(&self, task_id: TaskId) -> Option<&Vec<TaskTraceStep>> {
         self.task_traces.get(&task_id)
     }
 
@@ -211,13 +179,13 @@ impl Orchestrator {
     }
 
     /// Access the model registry.
-    pub fn models(&self) -> RwLockReadGuard<'_, crate::models::ModelRegistry> {
-        self.models.read()
+    pub fn models(&self) -> &crate::models::ModelRegistry {
+        &self.models
     }
 
-    /// Access the model registry.
-    pub fn models_mut(&self) -> RwLockWriteGuard<'_, crate::models::ModelRegistry> {
-        self.models.write()
+    /// Mutable access for updating model registry overrides at runtime.
+    pub fn models_mut(&mut self) -> &mut crate::models::ModelRegistry {
+        &mut self.models
     }
 
     /// Access the event bus
@@ -225,55 +193,57 @@ impl Orchestrator {
         &self.event_bus
     }
 
-    /// Get a read guard to the A2A message bus.
-    pub fn message_bus(&self) -> RwLockReadGuard<'_, crate::a2a::MessageBus> {
-        self.message_bus.read()
+    /// Access the A2A message bus
+    pub fn message_bus(&self) -> &crate::a2a::MessageBus {
+        &self.message_bus
     }
 
-    /// Get a write guard to the A2A message bus.
-    pub fn message_bus_mut(&self) -> RwLockWriteGuard<'_, crate::a2a::MessageBus> {
-        self.message_bus.write()
+    /// Access the A2A message bus mutably (for ack, etc.)
+    pub fn message_bus_mut(&mut self) -> &mut crate::a2a::MessageBus {
+        &mut self.message_bus
     }
 
     // -- JJ-inspired subsystem accessors --
 
-    /// Get a read guard to the auto-snapshot store.
-    pub fn snapshot_store(&self) -> RwLockReadGuard<'_, crate::snapshot::SnapshotStore> {
-        self.snapshot_store.read()
+    /// Access the auto-snapshot store.
+    pub fn snapshot_store(&self) -> &crate::snapshot::SnapshotStore {
+        &self.snapshot_store
     }
 
-    /// Get a write guard to the auto-snapshot store.
-    pub fn snapshot_store_mut(&self) -> RwLockWriteGuard<'_, crate::snapshot::SnapshotStore> {
-        self.snapshot_store.write()
+    /// Access the auto-snapshot store mutably.
+    pub fn snapshot_store_mut(&mut self) -> &mut crate::snapshot::SnapshotStore {
+        &mut self.snapshot_store
     }
 
-    /// Get a read guard to the operation log.
-    pub fn oplog(&self) -> RwLockReadGuard<'_, crate::oplog::OpLog> {
-        self.oplog.read()
+    /// Access the operation log.
+    pub fn oplog(&self) -> &crate::oplog::OpLog {
+        &self.oplog
     }
 
-    /// Get a write guard to the operation log.
-    pub fn oplog_mut(&self) -> RwLockWriteGuard<'_, crate::oplog::OpLog> {
-        self.oplog.write()
+    /// Access the operation log mutably.
+    pub fn oplog_mut(&mut self) -> &mut crate::oplog::OpLog {
+        &mut self.oplog
     }
 
-    /// Get a read guard to the conflict manager.
-    pub fn conflict_manager(&self) -> RwLockReadGuard<'_, crate::conflicts::ConflictManager> {
-        self.conflict_manager.read()
+    /// Access the conflict manager.
+    pub fn conflict_manager(&self) -> &crate::conflicts::ConflictManager {
+        &self.conflict_manager
     }
 
-    /// Get a write guard to the conflict manager.
-    pub fn conflict_manager_mut(&self) -> RwLockWriteGuard<'_, crate::conflicts::ConflictManager> {
-        self.conflict_manager.write()
+    /// Access the conflict manager mutably.
+    pub fn conflict_manager_mut(&mut self) -> &mut crate::conflicts::ConflictManager {
+        &mut self.conflict_manager
     }
 
-    /// Get a read guard to the workspace manager.
-    pub fn workspace_manager(&self) -> RwLockReadGuard<'_, crate::workspace::WorkspaceManager> {
-        self.workspace_manager.read()
+    /// Access the workspace manager.
+    pub fn workspace_manager(&self) -> &crate::workspace::WorkspaceManager {
+        &self.workspace_manager
     }
 
-    /// Get a write guard to the workspace manager.
-    pub fn workspace_manager_mut(&self) -> RwLockWriteGuard<'_, crate::workspace::WorkspaceManager> {
-        self.workspace_manager.write()
+    /// Access the workspace manager mutably.
+    pub fn workspace_manager_mut(&mut self) -> &mut crate::workspace::WorkspaceManager {
+        &mut self.workspace_manager
     }
+
+
 }

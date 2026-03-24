@@ -189,6 +189,12 @@ fn candle_proxy_stack_status(
 }
 
 /// Shared entry: tokenizer + weights presence checks keyed by kernel.
+///
+/// For Candle QLoRA, skips the full `preflight_native_qlora` scan here because:
+/// - Key coverage is already validated by the planner via [`candle_proxy_stack_status`].
+/// - `candle_qlora_train::run_candle_qlora_train` always calls `preflight_native_qlora`
+///   itself to obtain the [`QloraEmbedBundle`] it needs — running it twice wastes ~5s
+///   of redundant safetensors I/O.
 pub fn preflight_model_bundle(
     kernel: PopuliTrainBackend,
     contract: &FineTuneContract,
@@ -197,28 +203,28 @@ pub fn preflight_model_bundle(
     let data = &contract.data;
     match kernel {
         PopuliTrainBackend::CandleQlora => {
-            #[cfg(feature = "candle-qlora")]
-            {
-                let cfg = super::training_config::LoraTrainingConfig {
-                    tokenizer_path: model.tokenizer_json.clone(),
-                    base_model_paths: match (&model.weight_shards, &model.config_json) {
-                        (Some(w), Some(c)) => Some((w.clone(), c.clone())),
-                        _ => None,
-                    },
-                    tokenizer_mode: data.tokenizer_mode,
-                    qlora_require_full_proxy_stack: contract.exec.qlora_require_full_proxy_stack,
-                    qlora_max_skip_rate: contract.exec.qlora_max_skip_rate,
-                    qlora_lm_head_only: contract.exec.qlora_lm_head_only,
-                    qlora_proxy_max_layers: contract.exec.qlora_proxy_max_layers,
-                    qlora_ce_last_k: contract.exec.qlora_ce_last_k,
-                    ..Default::default()
-                };
-                let _ = super::qlora_preflight::preflight_native_qlora(&cfg)?;
+            // Light-weight token presence check only: verify tokenizer file exists before
+            // the heavy safetensors scan deferred to `candle_qlora_train`.
+            if let Some(ref p) = model.tokenizer_json {
+                if !p.is_file() {
+                    anyhow::bail!(
+                        "{}",
+                        super::operator_messages::tokenizer_not_a_file(&p.display().to_string())
+                    );
+                }
             }
-            #[cfg(not(feature = "candle-qlora"))]
-            {
-                let _ = (model, data);
+            // Weight shards check: ensure at least one shard file exists.
+            if let Some(ref shards) = model.weight_shards {
+                for shard in shards {
+                    if !shard.is_file() {
+                        anyhow::bail!(
+                            "Model weight shard not found: {}. Re-run the download step.",
+                            shard.display()
+                        );
+                    }
+                }
             }
+            let _ = data;
         }
         PopuliTrainBackend::BurnLora => {
             if data.tokenizer_mode == PopuliTokenizerMode::Hf {

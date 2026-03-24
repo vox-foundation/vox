@@ -27,7 +27,6 @@ pub struct DbA2AMessage {
 
 
 /// Relay a message to another mesh node via HTTP.
-#[cfg(feature = "mesh")]
 pub async fn relay_to_mesh(
     client: &vox_mesh::http_client::MeshHttpClient,
     sender: AgentId,

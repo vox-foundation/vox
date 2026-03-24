@@ -303,45 +303,11 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
-dependencies = [
- "async-trait",
- "axum-core 0.4.5",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "itoa",
- "matchit 0.7.3",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "rustversion",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
- "sync_wrapper",
- "tokio",
- "tower 0.5.3",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "axum"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b52af3cb4058c895d37317bb27508dccc8e5f2d39454016b297bf4a400597b8"
 dependencies = [
- "axum-core 0.5.6",
+ "axum-core",
  "axum-macros",
  "bytes",
  "form_urlencoded",
@@ -352,7 +318,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit 0.8.4",
+ "matchit",
  "memchr",
  "mime",
  "percent-encoding",
@@ -364,27 +330,6 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tower 0.5.3",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite",
- "rustversion",
- "sync_wrapper",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -4677,12 +4622,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
-name = "humantime"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
-
-[[package]]
 name = "hyper"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4715,7 +4654,6 @@ dependencies = [
  "hyper",
  "hyper-util",
  "rustls",
- "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
@@ -5671,12 +5609,6 @@ dependencies = [
 
 [[package]]
 name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
-
-[[package]]
-name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
@@ -5710,16 +5642,6 @@ name = "maybe-owned"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4facc753ae494aeb6e3c22f839b158aebd4f9270f55cd3c79906c45476c47ab4"
-
-[[package]]
-name = "md-5"
-version = "0.10.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
-dependencies = [
- "cfg-if",
- "digest",
-]
 
 [[package]]
 name = "md5"
@@ -6229,36 +6151,6 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "memchr",
-]
-
-[[package]]
-name = "object_store"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cfccb68961a56facde1163f9319e0d15743352344e7808a11795fb99698dcaf"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "futures",
- "humantime",
- "hyper",
- "itertools 0.13.0",
- "md-5",
- "parking_lot",
- "percent-encoding",
- "quick-xml",
- "rand 0.8.5",
- "reqwest 0.12.28",
- "ring",
- "serde",
- "serde_json",
- "snafu",
- "tokio",
- "tracing",
- "url",
- "walkdir",
 ]
 
 [[package]]
@@ -6843,16 +6735,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
-name = "quick-xml"
-version = "0.37.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
-dependencies = [
- "memchr",
- "serde",
-]
-
-[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7255,7 +7137,6 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rustls",
- "rustls-native-certs",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -7266,7 +7147,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-util",
  "tower 0.5.3",
- "tower-http 0.6.8",
+ "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -7305,7 +7186,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower 0.5.3",
- "tower-http 0.6.8",
+ "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -8011,27 +7892,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "snafu"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e84b3f4eacbf3a1ce05eac6763b4d629d60cbc94d632e4092c54ade71f1e1a2"
-dependencies = [
- "snafu-derive",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -8878,22 +8738,6 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
-dependencies = [
- "bitflags 2.11.0",
- "bytes",
- "http",
- "http-body",
- "http-body-util",
- "pin-project-lite",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "tower-http"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4e6559d53cc268e5031cd8429d05415bc4cb4aefc4aa5d6cc35fbf5b924a1f8"
@@ -9589,7 +9433,6 @@ checksum = "a68d3c8f01c0cfa54a75291d83601161799e4a89a39e0929f4b0354d88757a37"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",
- "serde_core",
  "sha1_smol",
  "wasm-bindgen",
 ]
@@ -9682,7 +9525,7 @@ name = "vox-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum 0.8.8",
+ "axum",
  "base64 0.22.1",
  "blake3",
  "chrono",
@@ -9742,38 +9585,6 @@ dependencies = [
  "which 8.0.2",
  "win32job",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "vox-codegen-llvm"
-version = "0.1.0"
-dependencies = [
- "vox-compiler",
-]
-
-[[package]]
-name = "vox-codegen-wasm"
-version = "0.1.0"
-
-[[package]]
-name = "vox-codex-api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "axum 0.7.9",
- "futures-util",
- "http-body-util",
- "serde",
- "serde_json",
- "tokio",
- "tower 0.5.3",
- "tower-http 0.5.2",
- "tracing",
- "turso",
- "vox-db",
- "vox-oratio",
- "vox-repository",
 ]
 
 [[package]]
@@ -9885,14 +9696,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-fmt"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "vox-compiler",
-]
-
-[[package]]
 name = "vox-forge"
 version = "0.1.0"
 dependencies = [
@@ -9955,7 +9758,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vox-compiler",
- "vox-fmt",
 ]
 
 [[package]]
@@ -9991,7 +9793,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
- "axum 0.8.8",
+ "axum",
  "chrono",
  "futures-core",
  "futures-util",
@@ -10040,7 +9842,7 @@ dependencies = [
 name = "vox-mesh"
 version = "0.1.0"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -10048,17 +9850,9 @@ dependencies = [
  "subtle",
  "thiserror 1.0.69",
  "tokio",
- "tower-http 0.6.8",
+ "tower-http",
  "tracing",
  "vox-repository",
-]
-
-[[package]]
-name = "vox-metal-shim"
-version = "0.1.0"
-dependencies = [
- "candle-core",
- "candle-nn",
 ]
 
 [[package]]
@@ -10087,11 +9881,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "dashmap 6.1.0",
  "futures-util",
  "globset",
  "jj-lib",
- "parking_lot",
  "proptest",
  "schemars",
  "serde",
@@ -10107,7 +9899,6 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
- "vox-compiler",
  "vox-config",
  "vox-db",
  "vox-lsp",
@@ -10118,7 +9909,6 @@ dependencies = [
  "vox-runtime",
  "vox-socrates-policy",
  "vox-toestub",
- "vox-workflow-runtime",
  "xxhash-rust",
 ]
 
@@ -10171,7 +9961,6 @@ dependencies = [
  "tracing",
  "vox-corpus",
  "vox-db",
- "vox-metal-shim",
  "vox-tensor",
 ]
 
@@ -10244,18 +10033,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-util",
- "object_store",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
 name = "vox-tensor"
 version = "0.1.0"
 dependencies = [
@@ -10311,7 +10088,7 @@ name = "vox-train"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum 0.8.8",
+ "axum",
  "chrono",
  "clap",
  "ctrlc",
@@ -10332,7 +10109,7 @@ name = "vox-webhook"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum 0.8.8",
+ "axum",
  "data-encoding",
  "hyper",
  "reqwest 0.12.28",
@@ -10357,6 +10134,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-compiler",
+ "vox-db",
  "vox-mesh",
 ]
 

@@ -10,7 +10,7 @@ async fn test_economy_preference_rebalancing() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Economy;
 
-    let orch = Orchestrator::new(config);
+    let mut orch = Orchestrator::new(config);
 
     // Register 2 agents: one expensive (default), one cheap (override)
     let expensive_id = orch.spawn_agent("expensive").unwrap();
@@ -24,7 +24,6 @@ async fn test_economy_preference_rebalancing() {
         cost_per_1k: 0.0001,
         is_free: false,
         strengths: vec!["parsing".to_string()],
-        timeout_ms: None,
     });
 
     // Override cheap agent's model
@@ -58,7 +57,7 @@ async fn test_economy_preference_rebalancing() {
         vec![],
     );
 
-    if let Some(mut q) = orch.get_agent_queue_mut(expensive_id) {
+    if let Some(q) = orch.get_agent_queue_mut(expensive_id) {
         for i in 0..10 {
             let mut t = task.clone();
             t.id = vox_orchestrator::types::TaskId(i as u64);
@@ -80,7 +79,7 @@ async fn test_economy_preference_rebalancing() {
 #[tokio::test]
 async fn test_model_selection_preference() {
     let config = OrchestratorConfig::default();
-    let orch = Orchestrator::new(config);
+    let mut orch = Orchestrator::new(config);
 
     orch.models_mut().register(ModelSpec {
         id: "budget-coder".to_string(),
@@ -90,7 +89,6 @@ async fn test_model_selection_preference() {
         cost_per_1k: -1.0,
         is_free: true,
         strengths: vec!["codegen".to_string()],
-        timeout_ms: None,
     });
 
     // Performance preference (default) should pick Sonnet

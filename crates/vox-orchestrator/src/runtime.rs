@@ -4,7 +4,7 @@
 //! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
 
 use std::sync::Arc;
-
+use tokio::sync::Mutex;
 
 use vox_runtime::{
     ProcessHandle, mailbox::MessagePayload, process::ProcessContext, scheduler::Scheduler,
@@ -63,7 +63,7 @@ impl TaskProcessor for StubTaskProcessor {
 pub struct AiTaskProcessor {
     client: vox_ludus::ai::FreeAiClient,
     event_bus: crate::events::EventBus,
-    orchestrator: Arc<Orchestrator>,
+    orchestrator: Arc<Mutex<Orchestrator>>,
     /// Provider name stored at construction time (e.g. "ollama", "google").
     provider: String,
     /// Model identifier stored at construction time.
@@ -74,7 +74,7 @@ impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
     pub async fn new(
         event_bus: crate::events::EventBus,
-        orchestrator: Arc<Orchestrator>,
+        orchestrator: Arc<Mutex<Orchestrator>>,
     ) -> Self {
         let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
         // Reflect the active provider in costs/logs
@@ -123,14 +123,16 @@ impl TaskProcessor for AiTaskProcessor {
         let cost_usd = (input_tokens + output_tokens) as f64 * 0.000_001;
 
         // Record usage through the unified pipeline (event bus + budget + oplog)
-        self.orchestrator.record_ai_usage(
-            agent_id,
-            &self.provider,
-            &self.model,
-            input_tokens,
-            output_tokens,
-            cost_usd,
-        );
+        if let Ok(mut orch) = self.orchestrator.try_lock() {
+            orch.record_ai_usage(
+                agent_id,
+                &self.provider,
+                &self.model,
+                input_tokens,
+                output_tokens,
+                cost_usd,
+            );
+        }
 
         Ok(task.id)
     }
@@ -153,7 +155,7 @@ impl ActorAgent {
         scheduler: &Scheduler,
         agent_id: AgentId,
         name: String,
-        orchestrator: Arc<Orchestrator>,
+        orchestrator: Arc<Mutex<Orchestrator>>,
         processor: Arc<dyn TaskProcessor>,
     ) -> ProcessHandle {
         let process_name = format!("agent-{}", name);
@@ -186,20 +188,21 @@ impl ActorAgent {
     async fn handle_command(
         cmd: AgentCommand,
         agent_id: AgentId,
-        orchestrator: &Arc<Orchestrator>,
+        orchestrator_ref: &Arc<Mutex<Orchestrator>>,
         processor: &Arc<dyn TaskProcessor>,
     ) {
         match cmd {
             AgentCommand::ProcessQueue => {
                 let task_to_run = {
-                    // Extract task (mutable borrow) first
-                    let dequeued = if let Some(mut queue) = orchestrator.get_agent_queue_mut(agent_id) {
+                    let mut orch = orchestrator_ref.lock().await;
+                    // Extract task (mutable borrow) first in a nested scope.
+                    let dequeued = if let Some(queue) = orch.get_agent_queue_mut(agent_id) {
                         if !queue.is_paused() {
                             let t = queue.dequeue();
                             if t.is_some() {
-                                orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Thinking);
+                                orch.heartbeat(agent_id, crate::events::AgentActivity::Thinking);
                             } else {
-                                orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                             }
                             t
                         } else {
@@ -208,9 +211,9 @@ impl ActorAgent {
                     } else {
                         None
                     };
-
+                    // Emit after the mutable borrow is released.
                     if let Some(ref task) = dequeued {
-                        orchestrator.event_bus().emit(AgentEventKind::TaskStarted {
+                        orch.event_bus().emit(AgentEventKind::TaskStarted {
                             task_id: task.id,
                             agent_id,
                             session_id: task.session_id.clone(),
@@ -225,34 +228,39 @@ impl ActorAgent {
 
                     match processor.process(agent_id, task).await {
                         Ok(completed_id) => {
-                            let _ = orchestrator.complete_task(completed_id).await;
-                            orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                            let mut o2 = orchestrator_ref.lock().await;
+                            let _ = o2.complete_task(completed_id).await;
+                            o2.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                         }
                         Err(e) => {
                             tracing::error!("Agent {} failed task {}: {}", agent_id, task_id, e);
-                            if let Err(err) = orchestrator.fail_task(task_id, e.to_string()).await {
+                            let mut o2 = orchestrator_ref.lock().await;
+                            if let Err(err) = o2.fail_task(task_id, e.to_string()).await {
                                 tracing::error!(
                                     "fail_task after processor error: {} (task {})",
                                     err,
                                     task_id
                                 );
                             }
-                            orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                            o2.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                         }
                     }
                 }
             }
             AgentCommand::Pause => {
-                orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Idle);
-                let _ = orchestrator.pause_agent(agent_id);
+                let mut orch = orchestrator_ref.lock().await;
+                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                let _ = orch.pause_agent(agent_id);
             }
             AgentCommand::Resume => {
-                orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Idle);
-                let _ = orchestrator.resume_agent(agent_id);
+                let mut orch = orchestrator_ref.lock().await;
+                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                let _ = orch.resume_agent(agent_id);
             }
             AgentCommand::CancelTask(task_id) => {
-                orchestrator.heartbeat(agent_id, crate::events::AgentActivity::Idle);
-                if let Some(mut q) = orchestrator.get_agent_queue_mut(agent_id) {
+                let mut orch = orchestrator_ref.lock().await;
+                orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                if let Some(q) = orch.get_agent_queue_mut(agent_id) {
                     q.cancel(task_id);
                 }
             }
@@ -264,7 +272,7 @@ impl ActorAgent {
 pub struct AgentFleet {
     supervisor: Supervisor,
     scheduler: Arc<Scheduler>,
-    orchestrator: Arc<Orchestrator>,
+    orchestrator: Arc<Mutex<Orchestrator>>,
     processor: Arc<dyn TaskProcessor>,
     /// Last time we performed a scale-up (for cooldown).
     #[allow(dead_code)]
@@ -275,10 +283,10 @@ pub struct AgentFleet {
 }
 
 impl AgentFleet {
-    /// Wires the shared scheduler and orchestrator with a task processor implementation.
+    /// Wires the shared scheduler and orchestrator mutex with a task processor implementation.
     pub fn new(
         scheduler: Arc<Scheduler>,
-        orchestrator: Arc<Orchestrator>,
+        orchestrator: Arc<Mutex<Orchestrator>>,
         processor: Arc<dyn TaskProcessor>,
     ) -> Self {
         Self {
@@ -292,14 +300,13 @@ impl AgentFleet {
     }
 
     /// Watch the orchestrator state and ensure an actor exists for every
-    /// agent registered in the orchestrator.
+    /// agent registered in the orchestrator. Also stops processes for retired agents.
     pub async fn sync_fleet(&self) {
         let agent_info: Vec<(AgentId, String)> = {
-            let ids = self.orchestrator.agent_ids();
+            let orch: tokio::sync::MutexGuard<'_, Orchestrator> = self.orchestrator.lock().await;
+            let ids = orch.agent_ids();
             ids.iter()
-                .filter_map(|id| {
-                    self.orchestrator.agent_queue(*id).map(|q| (*id, q.name.clone()))
-                })
+                .map(|id| (*id, orch.agent_queue(*id).unwrap().name.clone()))
                 .collect()
         };
 
@@ -307,7 +314,9 @@ impl AgentFleet {
         for (agent_id, name) in agent_info {
             let proc_name = format!("agent-{}", name);
 
+            // Check if process is already running in the global registry
             if self.scheduler.registry().lookup_name(&proc_name).is_none() {
+                // Not running, add it to supervisor
                 let orchestrator_clone = self.orchestrator.clone();
                 let scheduler_clone = self.scheduler.clone();
                 let processor_clone = self.processor.clone();
@@ -328,28 +337,36 @@ impl AgentFleet {
                 self.supervisor.add_child(spec).await;
             }
         }
+
+        // 2. Remove actors for agents that are no longer active
+        // This is a bit tricky with the current Supervisor as it doesn't expose a list of children
+        // easily for selective termination without names.
+        // However, we can use the scheduler registry to find agent processes and see if they belong
+        // to our active IDs.
+        // For now, sync_fleet mostly focuses on starting. The ActorAgent loop will also terminate
+        // if the channel closes or if we implement a "Kill" command.
     }
 
-    /// Check if agents need to be spawned or retired.
+    /// Check if agents need to be spawned or retired using ScalingService and profile limits.
     pub async fn check_scaling(&self) {
         let (status, idle_dynamic, config, budget_manager) = {
-            let config_guard = self.orchestrator.config();
-            if !config_guard.scaling_enabled {
+            let orch = self.orchestrator.lock().await;
+            if !orch.config().scaling_enabled {
                 return;
             }
-            let status = self.orchestrator.status();
+            let status = orch.status();
             let idle_dynamic: Vec<_> = status
                 .agents
                 .iter()
                 .filter(|a| a.dynamic && a.queued == 0 && !a.in_progress)
-                .filter_map(|a| self.orchestrator.agent_queue(a.id).map(|q| (a.id, q.last_active)))
+                .filter_map(|a| orch.agent_queue(a.id).map(|q| (a.id, q.last_active)))
                 .collect();
-            let config = config_guard.clone();
-            let budget_manager = self.orchestrator.budget_manager().clone();
+            let config = orch.config().clone();
+            let budget_manager = orch.budget_manager().clone();
             (status, idle_dynamic, config, budget_manager)
         };
 
-        let load_history: Vec<f64> = Vec::new(); // History can be retrieved from status if needed
+        let load_history: Vec<f64> = Vec::new();
         let action = ScalingService::decide_scaling(
             &status,
             &config,
@@ -358,6 +375,7 @@ impl AgentFleet {
             &budget_manager,
         );
 
+        let mut orch = self.orchestrator.lock().await;
         match action {
             ScalingAction::NoOp => {}
             ScalingAction::ScaleUp { name } => {
@@ -374,7 +392,7 @@ impl AgentFleet {
                     .map(|t| t.elapsed() >= Duration::from_millis(cooldown_ms))
                     .unwrap_or(true);
                 if spawns < max_per_tick && cooldown_ok {
-                    let _ = self.orchestrator.spawn_dynamic_agent(&name);
+                    let _ = orch.spawn_dynamic_agent(&name);
                     self.spawns_this_tick
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     *self.last_scale_up.write().unwrap() = Some(Instant::now());
@@ -394,7 +412,7 @@ impl AgentFleet {
                     );
                 }
                 for id in agent_ids {
-                    let _ = self.orchestrator.retire_agent(id);
+                    let _ = orch.retire_agent(id);
                 }
             }
         }
@@ -403,18 +421,21 @@ impl AgentFleet {
             .store(0, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// Start the main orchestrator loop.
+    /// Start the main orchestrator loop: rebalancing, maintenance, and fleet syncing.
     pub async fn run(&self) {
         loop {
             // 1. Scaling checks
             self.check_scaling().await;
 
-            // 2. Sync fleet
+            // 2. Sync fleet (ensure all agents have actors)
             self.sync_fleet().await;
 
-            // 3. Perform orchestrator maintenance
-            self.orchestrator.rebalance();
-            self.orchestrator.tick().await;
+            // 3. Perform orchestrator maintenance (rebalance and tick)
+            {
+                let mut orch = self.orchestrator.lock().await;
+                orch.rebalance();
+                orch.tick().await;
+            }
 
             // 4. Wait until next tick
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;

@@ -41,6 +41,9 @@ pub struct MixSource {
     /// When `asr_refine`, parse each line as ASR refinement JSON and emit `prompt`/`response` training rows.
     #[serde(default)]
     pub record_format: Option<String>,
+    /// When `true`, silently skip this source if the file does not exist (no warning printed).
+    #[serde(default)]
+    pub optional: bool,
 }
 
 fn default_weight() -> f64 {
@@ -178,7 +181,11 @@ pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
     for src in &cfg.sources {
         let p = cwd.join(&src.path);
         if !p.is_file() {
-            eprintln!("  [mix] skip missing source {}", p.display());
+            if src.optional {
+                tracing::trace!("[mix] skip optional missing source {}", p.display());
+            } else {
+                eprintln!("  [mix] ⚠ missing required source {}", p.display());
+            }
             continue;
         }
         let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;

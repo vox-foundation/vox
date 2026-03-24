@@ -14,15 +14,15 @@ impl crate::orchestrator::Orchestrator {
     /// Take a filesystem snapshot of `paths` and optionally persist their bytes to
     /// the CAS (`CodeStore::store`). Returns the new [`SnapshotId`].
     pub async fn capture_snapshot(
-        &self,
+        &mut self,
         agent_id: AgentId,
         paths: &[PathBuf],
         description: impl Into<String>,
     ) -> SnapshotId {
         let desc = description.into();
-        let snap_id = self.snapshot_store.write().take_snapshot(agent_id, paths, &desc);
+        let snap_id = self.snapshot_store.take_snapshot(agent_id, paths, &desc);
 
-        if let Some(db) = self.db.read().as_ref() {
+        if let Some(db) = &self.db {
             for p in paths {
                 if let Ok(data) = std::fs::read(p) {
                     let _ = db.store("file", &data).await;
@@ -36,7 +36,7 @@ impl crate::orchestrator::Orchestrator {
     /// Record a generic operation in the oplog, capturing a pre-op DB snapshot when
     /// `db_snapshot_before` is `None` and a CodeStore is attached.
     pub async fn record_operation(
-        &self,
+        &mut self,
         agent_id: AgentId,
         kind: OperationKind,
         description: impl Into<String>,
@@ -54,7 +54,7 @@ impl crate::orchestrator::Orchestrator {
             }
         };
 
-        self.oplog.write().record(
+        self.oplog.record(
             agent_id,
             kind,
             desc,
@@ -75,9 +75,8 @@ impl crate::orchestrator::Orchestrator {
         agent_id: AgentId,
         description: impl Into<String>,
     ) -> Option<u64> {
-        let db_handle = self.db.read().clone();
-        if let Some(db) = db_handle {
-            let snap_id = self.oplog.read().next_db_snapshot_id();
+        if let Some(db) = &self.db {
+            let snap_id = self.oplog.next_db_snapshot_id();
             let desc = description.into();
             if db
                 .take_db_snapshot(snap_id, &agent_id.to_string(), &desc)
@@ -91,16 +90,14 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Undo the operation identified by `op_id`: restores the DB snapshot then the FS snapshot.
-    pub async fn undo_operation(&self, op_id: OperationId) -> Result<(), OrchestratorError> {
+    pub async fn undo_operation(&mut self, op_id: OperationId) -> Result<(), OrchestratorError> {
         let (fs_snap, db_snap) = self
             .oplog
-            .write()
             .undo(op_id)
             .ok_or(OrchestratorError::OperationNotFound)?;
 
         if let Some(db_id) = db_snap {
-            let db_handle = self.db.read().clone();
-            if let Some(db) = db_handle {
+            if let Some(db) = &self.db {
                 db.restore_db_snapshot(db_id)
                     .await
                     .map_err(|e| {
@@ -123,16 +120,14 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Re-apply the state after a previously undone operation.
-    pub async fn redo_operation(&self, op_id: OperationId) -> Result<(), OrchestratorError> {
+    pub async fn redo_operation(&mut self, op_id: OperationId) -> Result<(), OrchestratorError> {
         let (fs_snap, db_snap) = self
             .oplog
-            .write()
             .redo(op_id)
             .ok_or(OrchestratorError::OperationNotFound)?;
 
         if let Some(db_id) = db_snap {
-            let db_handle = self.db.read().clone();
-            if let Some(db) = db_handle {
+            if let Some(db) = &self.db {
                 db.restore_db_snapshot(db_id)
                     .await
                     .map_err(|e| {
@@ -159,10 +154,11 @@ impl crate::orchestrator::Orchestrator {
         &self,
         snapshot_id: SnapshotId,
     ) -> Result<(), OrchestratorError> {
-        let store_guard = self.snapshot_store.read();
-        let snap = store_guard.get(snapshot_id).ok_or(OrchestratorError::OperationNotFound)?;
-        let db_handle = self.db.read().clone();
-        let db = db_handle.ok_or_else(|| {
+        let snap = self
+            .snapshot_store
+            .get(snapshot_id)
+            .ok_or(OrchestratorError::OperationNotFound)?;
+        let db = self.db.as_ref().ok_or_else(|| {
             OrchestratorError::DatabaseError("Database not initialized for restore".into())
         })?;
 

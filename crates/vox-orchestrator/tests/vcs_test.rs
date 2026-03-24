@@ -14,7 +14,7 @@ fn test_config() -> OrchestratorConfig {
 
 #[tokio::test]
 async fn vcs_lifecycle_snapshot_oplog_conflict() {
-    let orch = Orchestrator::new(test_config());
+    let mut orch = Orchestrator::new(test_config());
 
     // Submit a task to auto-create an agent
     let task_id = orch
@@ -49,8 +49,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
 
     // Oplog should have at least one TaskSubmit entry
     {
-        let oplog = orch.oplog();
-        let ops = oplog.list(Some(agent_a), 10);
+        let ops = orch.oplog().list(Some(agent_a), 10);
         assert!(
             ops.iter().any(|op| matches!(
                 &op.kind,
@@ -69,8 +68,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
         .expect("complete should succeed");
 
     {
-        let oplog = orch.oplog();
-        let ops_after = oplog.list(Some(agent_a), 10);
+        let ops_after = orch.oplog().list(Some(agent_a), 10);
         assert!(
             ops_after.iter().any(|op| matches!(
                 &op.kind,
@@ -87,8 +85,8 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
     orch.workspace_manager_mut()
         .add_snapshot_to_change(change_id, snap_id);
     {
-        let ws = orch.workspace_manager();
-        let change = ws
+        let change = orch
+            .workspace_manager()
             .get_change(change_id)
             .expect("change exists");
         assert_eq!(change.status, ChangeStatus::InProgress);
@@ -98,8 +96,8 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
     orch.workspace_manager_mut()
         .update_change_status(change_id, ChangeStatus::Merged);
     {
-        let ws = orch.workspace_manager();
-        let change = ws
+        let change = orch
+            .workspace_manager()
             .get_change(change_id)
             .expect("change exists");
         assert_eq!(change.status, ChangeStatus::Merged);
@@ -120,8 +118,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
 
     // 6. Verify oplog undo/redo
     let first_op = {
-        let oplog = orch.oplog();
-        let ops = oplog.list(None, 100);
+        let ops = orch.oplog().list(None, 100);
         ops[ops.len() - 1].id
     };
     let snap_before = orch.oplog_mut().undo(first_op);
@@ -134,7 +131,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
 #[test]
 fn vcs_rebalance_records_oplog() {
     let config = OrchestratorConfig::for_testing();
-    let orch = Orchestrator::new(config);
+    let mut orch = Orchestrator::new(config);
 
     let initial_oplog = orch.oplog().count();
     let moved = orch.rebalance();
@@ -145,8 +142,7 @@ fn vcs_rebalance_records_oplog() {
     }
     // If tasks were moved, a Rebalance entry should appear
     if moved > 0 {
-        let oplog = orch.oplog();
-        let ops = oplog.list(None, 10);
+        let ops = orch.oplog().list(None, 10);
         assert!(
             ops.iter()
                 .any(|op| matches!(&op.kind, vox_orchestrator::oplog::OperationKind::Rebalance)),
@@ -157,7 +153,7 @@ fn vcs_rebalance_records_oplog() {
 
 #[test]
 fn vcs_workspace_overlap_detection() {
-    let orch = Orchestrator::new(test_config());
+    let mut orch = Orchestrator::new(test_config());
 
     let agent_a = AgentId(1);
     let agent_b = AgentId(2);

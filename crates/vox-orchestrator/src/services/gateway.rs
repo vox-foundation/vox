@@ -18,15 +18,15 @@ pub struct MessageGateway;
 impl MessageGateway {
     /// Publish task completion to bulletin, A2A audit, and event stream.
     pub fn publish_task_completed(
-        bulletin: &BulletinBoard,
-        message_bus: &parking_lot::RwLock<MessageBus>,
+        bulletin: &mut BulletinBoard,
+        message_bus: &mut MessageBus,
         event_bus: &EventBus,
         task_id: TaskId,
         agent_id: AgentId,
         session_id: Option<String>,
     ) {
         bulletin.publish(AgentMessage::TaskCompleted { task_id, agent_id });
-        let _ = message_bus.write().broadcast(
+        let _ = message_bus.broadcast(
             agent_id,
             A2AMessageType::CompletionNotice,
             format!("Task {} completed", task_id),
@@ -40,7 +40,7 @@ impl MessageGateway {
 
     /// Publish task failure to bulletin and event stream.
     pub fn publish_task_failed(
-        bulletin: &BulletinBoard,
+        bulletin: &mut BulletinBoard,
         event_bus: &EventBus,
         task_id: TaskId,
         agent_id: AgentId,
@@ -62,7 +62,7 @@ impl MessageGateway {
 
     /// Publish agent spawned to bulletin and event stream.
     pub fn publish_agent_spawned(
-        bulletin: &BulletinBoard,
+        bulletin: &mut BulletinBoard,
         event_bus: &EventBus,
         agent_id: AgentId,
         name: String,
@@ -81,7 +81,7 @@ impl MessageGateway {
 
     /// Publish Q&A or broadcast [`AgentMessage`] to the bulletin and mirror a short summary on the event bus.
     pub fn publish_bulletin_inter_agent(
-        bulletin: &BulletinBoard,
+        bulletin: &mut BulletinBoard,
         event_bus: &EventBus,
         msg: AgentMessage,
     ) {

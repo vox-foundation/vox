@@ -52,7 +52,8 @@ candle-qlora-cuda = [
 ]
 candle-qlora-metal = [
     "candle-qlora",
-    "dep:vox-metal-shim"
+    "candle-core/metal",
+    "candle-nn/metal",
 ]
 train = ["gpu", "vox-tensor/train", "candle-qlora"]
 hf-hub = ["dep:hf-hub", "tokio/rt-multi-thread"]
@@ -62,9 +63,6 @@ cloud = [
     "dep:reqwest",
 ]
 
-[dependencies.vox-metal-shim]
-path = "../vox-metal-shim"
-optional = true
 
 [dev-dependencies]
 tempfile = { workspace = true }

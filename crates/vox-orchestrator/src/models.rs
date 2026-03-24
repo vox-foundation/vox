@@ -26,8 +26,6 @@ pub struct ModelSpec {
     pub is_free: bool,
     /// Tags describing fit (speed, reasoning, codegen) for heuristic routing.
     pub strengths: Vec<String>,
-    /// Optional HTTP timeout in milliseconds.
-    pub timeout_ms: Option<u64>,
 }
 
 /// Provider routing type — determines which API endpoint to call.
@@ -115,7 +113,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "gemini-2.5-flash-preview".to_string(),
@@ -129,7 +126,6 @@ impl Default for ModelConfig {
                         "review".to_string(),
                         "parsing".to_string(),
                     ],
-                    timeout_ms: None,
                 },
                 ModelSpec {
                     id: "gemini-2.5-pro".to_string(),
@@ -144,7 +140,6 @@ impl Default for ModelConfig {
                         "review".to_string(),
                         "research".to_string(),
                     ],
-                timeout_ms: None,
                 },
                 // ── Free Tier (OpenRouter :free, requires free API key) ──
                 ModelSpec {
@@ -155,7 +150,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "refactoring".to_string()],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "qwen/qwen3-coder:free".to_string(),
@@ -165,7 +159,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string()],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "meta-llama/llama-4-scout:free".to_string(),
@@ -175,7 +168,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.0,
                     is_free: true,
                     strengths: vec!["review".to_string(), "parsing".to_string()],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "moonshotai/kimi-k2:free".to_string(),
@@ -185,7 +177,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "research".to_string()],
-                timeout_ms: None,
                 },
                 // ── Paid Tier (OpenRouter, auto-selected when budget allows) ──
                 ModelSpec {
@@ -200,7 +191,6 @@ impl Default for ModelConfig {
                         "debugging".to_string(),
                         "logic".to_string(),
                     ],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "anthropic/claude-sonnet-4.5".to_string(),
@@ -214,7 +204,6 @@ impl Default for ModelConfig {
                         "refactoring".to_string(),
                         "review".to_string(),
                     ],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "openai/gpt-5".to_string(),
@@ -228,7 +217,6 @@ impl Default for ModelConfig {
                         "parsing".to_string(),
                         "research".to_string(),
                     ],
-                timeout_ms: None,
                 },
                 ModelSpec {
                     id: "openai/o3".to_string(),
@@ -238,7 +226,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.010,
                     is_free: false,
                     strengths: vec!["debugging".to_string(), "logic".to_string()],
-                timeout_ms: None,
                 },
                 // ── Local Ollama / Populi (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
                 ModelSpec {
@@ -249,7 +236,6 @@ impl Default for ModelConfig {
                     cost_per_1k: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                timeout_ms: None,
                 },
             ],
             premium_alias: built_in_premium_alias(),
@@ -589,8 +575,7 @@ impl ModelRegistry {
                 api_key: None,
                 temperature: None,
                 max_tokens: Some(spec.max_tokens),
-                response_format: None,
-                timeout_ms: spec.timeout_ms,
+                response_format: None, timeout_ms: None,
             })
     }
 }
@@ -610,8 +595,7 @@ mod llm_usage_key_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec![],
-        timeout_ms: None,
-                };
+        };
         assert_eq!(
             m.llm_usage_key(),
             LlmUsageKey {
@@ -631,8 +615,7 @@ mod llm_usage_key_tests {
             cost_per_1k: 0.01,
             is_free: false,
             strengths: vec![],
-        timeout_ms: None,
-                };
+        };
         assert_eq!(
             m.llm_usage_key(),
             LlmUsageKey {
@@ -652,8 +635,7 @@ mod llm_usage_key_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec![],
-        timeout_ms: None,
-                };
+        };
         assert_eq!(
             m.llm_usage_key(),
             LlmUsageKey {
@@ -673,8 +655,7 @@ mod llm_usage_key_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec![],
-        timeout_ms: None,
-                };
+        };
         assert_eq!(
             m.llm_usage_key(),
             LlmUsageKey {
@@ -720,8 +701,7 @@ mod registry_filter_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+        });
         r.register(ModelSpec {
             id: "gemini-2.0-flash-lite".into(),
             provider: "google".into(),
@@ -730,8 +710,7 @@ mod registry_filter_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+        });
         let picked = r
             .best_for_with_filter(TaskCategory::CodeGen, 2, CostPreference::Performance, |m| {
                 m.is_free && !matches!(m.provider_type, ProviderType::Ollama)
@@ -751,8 +730,7 @@ mod registry_filter_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+        });
         r.register(ModelSpec {
             id: "a-free".into(),
             provider: "test".into(),
@@ -761,8 +739,7 @@ mod registry_filter_tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+        });
         let picked = r
             .cheapest_free_with_filter(|_| true)
             .expect("free model");
@@ -780,8 +757,7 @@ mod registry_filter_tests {
             cost_per_1k: 0.01,
             is_free: false,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+        });
         r.register(ModelSpec {
             id: "a-paid".into(),
             provider: "test".into(),
@@ -790,8 +766,7 @@ mod registry_filter_tests {
             cost_per_1k: 0.01,
             is_free: false,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+        });
         let picked = r.cheapest_with_filter(|_| true).expect("paid model");
         assert_eq!(picked.id, "a-paid");
     }

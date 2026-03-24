@@ -65,7 +65,7 @@ stub-check = [
     "dep:vox-ludus",
 ]
 # No-op reserved flag: legacy `vox populi` agent/dei/chat/learn and `runtime/info/status` referred to excluded `vox-dei`.
-# Dashboard: `cargo run -p vox-codex-api --bin vox-codex-dashboard` and the VS Code extension (see `docs/src/ref-cli.md`).
+# Dashboard UX is the VS Code extension (see `docs/src/ref-cli.md`).
 dashboard = []
 # Pulls `vox-ars` + `vox-skills` for OpenClaw / skill registry (`openclaw`, ARS extras).
 ars = ["dep:vox-ars", "dep:vox-skills"]

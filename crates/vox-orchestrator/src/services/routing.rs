@@ -4,7 +4,6 @@
 //! based on file manifest, affinity map, affinity groups, and load.
 
 use std::collections::HashMap;
-use dashmap::DashMap;
 
 use crate::affinity::FileAffinityMap;
 use crate::config::OrchestratorConfig;
@@ -35,7 +34,7 @@ impl RoutingService {
         manifest: &[FileAffinity],
         affinity_map: &FileAffinityMap,
         groups: &AffinityGroupRegistry,
-        agents: &DashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, AgentQueue>,
         config: &OrchestratorConfig,
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
@@ -62,9 +61,7 @@ impl RoutingService {
                         *scores.entry(default_agent).or_insert(0.0) += 15.0;
                     }
                 }
-                for pair in agents.iter() {
-                    let agent_id = pair.key();
-                    let queue = pair.value();
+                for (agent_id, queue) in agents {
                     if queue.name == group.name {
                         *scores.entry(*agent_id).or_insert(0.0) += 5.0;
                     }
@@ -151,7 +148,7 @@ impl RoutingService {
 
     fn apply_capability_penalties(
         scores: &mut HashMap<AgentId, f64>,
-        agents: &DashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, AgentQueue>,
         req: &TaskCapabilityHints,
     ) {
         const PENALTY: f64 = 10_000.0;
@@ -257,7 +254,7 @@ impl RoutingService {
     /// Soft score bump + tracing when cached remote mesh nodes align with task labels (no remote execute).
     fn apply_experimental_mesh_routing_signals(
         scores: &mut HashMap<AgentId, f64>,
-        agents: &DashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, AgentQueue>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
         remote_mesh_hints: Option<&[RemoteMeshRoutingHint]>,
     ) {
@@ -270,8 +267,8 @@ impl RoutingService {
         };
         if !req.labels.is_empty() {
             let local_matches = agents
-                .iter()
-                .any(|pair| Self::labels_cover(&pair.value().capabilities.labels, &req.labels));
+                .values()
+                .any(|q| Self::labels_cover(&q.capabilities.labels, &req.labels));
             let remote_candidates = remote
                 .iter()
                 .filter(|r| Self::remote_hint_matches_task(r, req))
@@ -315,7 +312,7 @@ impl RoutingService {
 
     /// Choose least-loaded existing agent or request spawn of "default".
     pub fn least_loaded_or_spawn(
-        agents: &DashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, AgentQueue>,
         _config: &OrchestratorConfig,
     ) -> RouteResult {
         if agents.is_empty() {
@@ -323,12 +320,12 @@ impl RoutingService {
         }
         let least_loaded = agents
             .iter()
-            .min_by(|pair_a, pair_b| {
-                pair_a.value().weighted_load()
-                    .partial_cmp(&pair_b.value().weighted_load())
+            .min_by(|(_, q_a), (_, q_b)| {
+                q_a.weighted_load()
+                    .partial_cmp(&q_b.weighted_load())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|pair| *pair.key());
+            .map(|(id, _)| *id);
         match least_loaded {
             Some(id) => RouteResult::Existing(id),
             None => RouteResult::SpawnAgent("default".to_string()),
@@ -353,7 +350,7 @@ mod tests {
             default_agent: None,
         }]);
 
-        let agents = DashMap::new();
+        let mut agents = HashMap::new();
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         agents.insert(a1, AgentQueue::new(a1, "core-group"));
@@ -381,7 +378,7 @@ mod tests {
 
     #[test]
     fn least_loaded_fallback_prefers_lower_weighted_queue() {
-        let agents = DashMap::new();
+        let mut agents = HashMap::new();
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         let mut q1 = AgentQueue::new(a1, "one");
@@ -415,7 +412,7 @@ mod tests {
             default_agent: None,
         }]);
 
-        let agents = DashMap::new();
+        let mut agents = HashMap::new();
         let cpu = AgentId(1);
         let gpu = AgentId(2);
         let mut q_cpu = AgentQueue::new(cpu, "core-group");
@@ -452,7 +449,7 @@ mod tests {
             default_agent: None,
         }]);
 
-        let agents = DashMap::new();
+        let mut agents = HashMap::new();
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         let mut q1 = AgentQueue::new(a1, "core-group");

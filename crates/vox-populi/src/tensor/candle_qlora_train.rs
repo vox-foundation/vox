@@ -630,7 +630,11 @@ fn run_training_loop(
                     if s > 0.0 { (total_steps_planned.saturating_sub(global_step) as f64 / s) as u64 } else { 0 }
                 });
                 let eta_str = eta_s.map_or("eta ?".into(), |s| {
-                    format!("eta ~{:02}m{:02}s", s / 60, s % 60)
+                    if s >= 3600 {
+                        format!("eta ~{}h {:02}m {:02}s", s / 3600, (s % 3600) / 60, s % 60)
+                    } else {
+                        format!("eta ~{:02}m {:02}s", s / 60, s % 60)
+                    }
                 });
                 let current_lr = trainer.current_lr();
                 train_log::info(&format!(

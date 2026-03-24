@@ -81,23 +81,14 @@ impl ServerState {
         let groups = affinity_groups_for_repository(&repository);
 
         let session_cfg = SessionConfig {
-            sessions_dir: vox_config::mcp_sessions_dir(&repository.repository_id),
             repository_id: Some(repository.repository_id.clone()),
             ..SessionConfig::default()
         };
-        let session_manager = SessionManager::new(session_cfg.clone()).unwrap_or_else(|_| {
-            SessionManager::new(SessionConfig {
-                persist: false,
-                sessions_dir: session_cfg.sessions_dir.clone(),
-                repository_id: session_cfg.repository_id.clone(),
-                ..Default::default()
-            })
-            .unwrap_or_else(|e| {
-                panic!(
-                    "in-memory session manager (fallback when persist fails): {}",
-                    e
-                )
-            })
+        let session_manager = SessionManager::new(session_cfg.clone()).unwrap_or_else(|e| {
+            panic!(
+                "in-memory session manager initialization failed: {}",
+                e
+            )
         });
         let registry = new_registry_arc();
 
@@ -269,22 +260,15 @@ impl ServerState {
         let groups = affinity_groups_for_repository(&self.repository);
 
         let session_cfg = SessionConfig {
-            sessions_dir: vox_config::mcp_sessions_dir(&self.repository.repository_id),
+            repository_id: Some(self.repository.repository_id.clone()),
             ..SessionConfig::default()
         };
         self.session_manager = Arc::new(Mutex::new(
-            SessionManager::new(session_cfg.clone()).unwrap_or_else(|_| {
-                SessionManager::new(SessionConfig {
-                    persist: false,
-                    sessions_dir: session_cfg.sessions_dir.clone(),
-                    ..Default::default()
-                })
-                .unwrap_or_else(|e| {
-                    panic!(
-                        "in-memory session manager (fallback when persist fails): {}",
-                        e
-                    )
-                })
+            SessionManager::new(session_cfg.clone()).unwrap_or_else(|e| {
+                panic!(
+                    "in-memory session manager initialization failed: {}",
+                    e
+                )
             }),
         ));
 
@@ -342,20 +326,11 @@ impl ServerState {
         self.db = Some(db_arc.clone());
 
         let mut session_cfg = self.orchestrator_config.session.clone();
-        session_cfg.sessions_dir = vox_config::mcp_sessions_dir(&self.repository.repository_id);
         session_cfg.repository_id = Some(self.repository.repository_id.clone());
         self.session_manager = Arc::new(Mutex::new(
             SessionManager::new(session_cfg.clone())
-                .unwrap_or_else(|_| {
-                    SessionManager::new(SessionConfig {
-                        persist: false,
-                        sessions_dir: session_cfg.sessions_dir.clone(),
-                        repository_id: session_cfg.repository_id.clone(),
-                        ..SessionConfig::default()
-                    })
-                    .unwrap_or_else(|e| {
-                        panic!("session manager (fallback when persist fails): {}", e)
-                    })
+                .unwrap_or_else(|e| {
+                    panic!("session manager initialization failed: {}", e)
                 })
                 .with_db(db_arc.clone()),
         ));

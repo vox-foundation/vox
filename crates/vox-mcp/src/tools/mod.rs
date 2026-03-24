@@ -448,10 +448,7 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_db_research_metric_linked",
         "Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).",
     ),
-    (
-        "vox_benchmark_list",
-        "List recent benchmark results for the repository (build times, eval scores).",
-    ),
+
     (
         "vox_benchmark_record",
         "Record a new benchmark observation (e.g. wall-clock time for a build phase).",
@@ -519,7 +516,7 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
     ),
     (
         "vox_benchmark_list",
-        "List recent benchmark_event rows from Codex for this repository (requires VoxDb).",
+        "List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores.",
     ),
     (
         "vox_train_submit",
@@ -745,9 +742,7 @@ async fn handle_tool_call_inner(
         "vox_plan_status" => {
             Ok(chat_tools::plan_status(state, serde_json::from_value(args)?).await)
         }
-        "vox_benchmark_list" => {
-            Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)
-        }
+
         "vox_train_submit" => {
             Ok(training_tools::train_submit(state, serde_json::from_value(args)?).await)
         }

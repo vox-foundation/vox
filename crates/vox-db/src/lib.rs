@@ -586,6 +586,58 @@ impl VoxDb {
 
         Ok(())
     }
+
+    /// Return true if the given activity was completed in the specified workflow run.
+    pub async fn is_workflow_activity_completed(
+        &self,
+        run_id: &str,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> Result<bool, StoreError> {
+        let row = self.query_all(
+            "SELECT 1 FROM workflow_activity_log WHERE run_id = ?1 AND workflow_name = ?2 AND activity_id = ?3 AND status = 'completed'",
+            (run_id.to_string(), workflow_name.to_string(), activity_id.to_string())
+        ).await?;
+        Ok(!row.is_empty())
+    }
+
+    /// Record that an activity has started in the durable journal.
+    pub async fn record_workflow_activity_started(
+        &self,
+        run_id: &str,
+        workflow_name: &str,
+        activity_name: &str,
+        activity_id: &str,
+    ) -> Result<(), StoreError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        self.conn.execute(
+            "INSERT OR IGNORE INTO workflow_activity_log (run_id, workflow_name, activity_name, activity_id, status, recorded_at_ms) VALUES (?1, ?2, ?3, ?4, 'started', ?5)",
+            (run_id.to_string(), workflow_name.to_string(), activity_name.to_string(), activity_id.to_string(), now)
+        ).await?;
+        Ok(())
+    }
+
+    /// Record that an activity has successfully completed in the durable journal.
+    pub async fn record_workflow_activity_completed(
+        &self,
+        run_id: &str,
+        workflow_name: &str,
+        activity_name: &str,
+        activity_id: &str,
+    ) -> Result<(), StoreError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        self.conn.execute(
+            "INSERT OR REPLACE INTO workflow_activity_log (run_id, workflow_name, activity_name, activity_id, status, recorded_at_ms) VALUES (?1, ?2, ?3, ?4, 'completed', ?5)",
+            (run_id.to_string(), workflow_name.to_string(), activity_name.to_string(), activity_id.to_string(), now)
+        ).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

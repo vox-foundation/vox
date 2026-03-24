@@ -15,7 +15,7 @@ async fn test_dynamic_scaling_and_retirement() {
     config.scaling_threshold = 2; // Spawn if > 2 tasks per agent
     config.idle_retirement_ms = 100; // Fast retirement for test
 
-    let orch = Arc::new(Orchestrator::new(config));
+    let orch = Arc::new(Mutex::new(Orchestrator::new(config)));
     let scheduler = Arc::new(Scheduler::new());
     let fleet = AgentFleet::new(
         scheduler.clone(),
@@ -25,17 +25,19 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 1. Initial state: 0 agents (fleet sync will spawn 1 default if needed, or check_scaling will)
     {
+        let mut o = orch.lock().await;
         // In this test environment, we might need at least one agent to start
-        orch.spawn_agent("default").unwrap();
+        o.spawn_agent("default").unwrap();
     }
 
     fleet.sync_fleet().await;
-    assert_eq!(orch.agent_ids().len(), 1);
+    assert_eq!(orch.lock().await.agent_ids().len(), 1);
 
     // 2. Add tasks to trigger scaling
     {
+        let mut o = orch.lock().await;
         for i in 0..10 {
-            orch.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Normal), None)
+            o.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Normal), None)
                 .await
                 .unwrap();
         }
@@ -45,7 +47,7 @@ async fn test_dynamic_scaling_and_retirement() {
     fleet.check_scaling().await;
 
     // Should have spawned more agents (up to 4)
-    let agent_count = orch.agent_ids().len();
+    let agent_count = orch.lock().await.agent_ids().len();
     assert!(
         agent_count > 1,
         "Should have scaled up, found {} agents",
@@ -55,12 +57,13 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 4. Mark tasks as complete to trigger retirement
     {
-        let ids = orch.agent_ids();
+        let mut o = orch.lock().await;
+        let ids = o.agent_ids();
         for id in ids {
-            if let Some(mut q) = orch.get_agent_queue_mut(id) {
+            if let Some(q) = o.get_agent_queue_mut(id) {
                 let tasks = q.drain_tasks();
                 for t in tasks {
-                    orch.complete_task(t.id).await.ok();
+                    o.complete_task(t.id).await.ok();
                 }
             }
         }
@@ -74,7 +77,7 @@ async fn test_dynamic_scaling_and_retirement() {
     fleet.check_scaling().await;
 
     // Should have scaled down to min_agents
-    let final_count = orch.agent_ids().len();
+    let final_count = orch.lock().await.agent_ids().len();
     assert_eq!(
         final_count, 1,
         "Should have scaled down to 1, found {}",
@@ -92,7 +95,7 @@ async fn test_predictive_scaling_uses_trend() {
     config.idle_retirement_ms = 999_999; // Disable retirement for this test
     config.scaling_lookback_ticks = 3;
 
-    let orch = Orchestrator::new(config);
+    let mut orch = Orchestrator::new(config);
     orch.spawn_agent("a").unwrap();
     orch.spawn_agent("b").unwrap();
     orch.spawn_agent("c").unwrap();
@@ -120,7 +123,7 @@ async fn test_predictive_scaling_uses_trend() {
 
     // After draining all tasks, predicted_load should trend toward 0
     for id in orch.agent_ids() {
-        if let Some(mut q) = orch.get_agent_queue_mut(id) {
+        if let Some(q) = orch.get_agent_queue_mut(id) {
             q.drain_tasks();
         }
     }
@@ -136,7 +139,7 @@ async fn test_predictive_scaling_uses_trend() {
 async fn test_group_affinity_voting_routes_correctly() {
     use vox_orchestrator::types::FileAffinity;
 
-    let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+    let mut orch = Orchestrator::new(OrchestratorConfig::for_testing());
 
     // Submit a task to establish group affinity for "src/parser/"
     let t1 = orch
@@ -174,7 +177,7 @@ async fn test_urgent_rebalance_trigger() {
     config.urgent_rebalance_threshold = 2; // Trigger when any agent has > 2 Urgent tasks
     config.scaling_enabled = false;
 
-    let orch = Orchestrator::new(config);
+    let mut orch = Orchestrator::new(config);
     let a = orch.spawn_agent("agent-a").unwrap();
     let _b = orch.spawn_agent("agent-b").unwrap();
 

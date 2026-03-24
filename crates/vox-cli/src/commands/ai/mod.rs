@@ -1,8 +1,7 @@
 //! AI and orchestration: generate, train, workflow, serve.
 //!
 //! Legacy in-process **agent / dei / hud / learn** lived here behind a `dashboard` flag but depended on
-//! the workspace-excluded `vox-dei` crate. Dashboard UX is **`vox-codex-api`** (`vox-codex-dashboard`)
-//! and the VS Code extension — not these modules.
+//! the workspace-excluded `vox-dei` crate. Dashboard UX is now the VS Code extension — not these modules.
 
 /// Defaults for Populi inference bind/port/temperature (shared with `vox populi serve`).
 pub mod inference_defaults;

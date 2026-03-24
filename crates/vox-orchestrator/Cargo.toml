@@ -5,28 +5,25 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-default = ["toestub-gate", "runtime", "workflow-runtime"]
+default = ["toestub-gate", "runtime"]
 # `TaskCapabilityHints` JSON Schema for MCP tool registration (`vox-mcp` enables this).
 json-schema = ["dep:schemars"]
 runtime = ["vox-runtime"]
 toestub-gate = ["vox-toestub", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
 lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
-mesh = ["vox-mesh", "vox-mesh/transport"]
 # Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
 # All jj-lib calls are confined to src/jj_backend.rs — swap here if APIs break.
 jj-backend = ["dep:jj-lib"]
-# Enable HIR-interpreted workflow runner (requires vox-compiler; gated to avoid always-on compiler dep).
-workflow-runtime = ["dep:vox-compiler"]
 
 [dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util", "time", "net", "fs", "sync", "signal"] }
+tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true, optional = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
-globset = { workspace = true }
+globset = "0.4"
 toml = { workspace = true }
 vox-pm.workspace = true
 vox-ludus = { workspace = true }
@@ -34,8 +31,6 @@ futures-util = { workspace = true }
 sysinfo = { version = "0.38.2", optional = true }
 sha3 = { workspace = true }
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
-dashmap.workspace = true
-parking_lot.workspace = true
 
 # Optional dependencies behind feature flags
 vox-runtime = { workspace = true, optional = true }
@@ -43,21 +38,19 @@ vox-toestub = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
 tower-lsp = { version = "0.20", optional = true }
 tower-lsp-server = { version = "0.23", optional = true }
-vox-db = { workspace = true }
-vox-config = { workspace = true }
+vox-db = { version = "0.1.0", path = "../vox-db" }
+vox-config = { path = "../vox-config" }
+vox-socrates-policy = { workspace = true }
 vox-repository = { workspace = true }
-vox-mesh = { workspace = true, features = ["transport"], optional = true }
-async-trait = { workspace = true }
+vox-mesh = { path = "../vox-mesh", features = ["transport"] }
+async-trait = "0.1.89"
 anyhow.workspace = true
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
 # See src/jj_backend.rs for the isolation wrapper. Use `--features jj-backend` to enable.
 jj-lib = { version = "=0.27.0", optional = true, default-features = false }
-uuid = { workspace = true }
+uuid = { version = "1.22.0", features = ["v4"] }
 turso.workspace = true
 chrono = { workspace = true }
-vox-compiler = { workspace = true, optional = true }
-vox-workflow-runtime = { workspace = true, optional = true }
-vox-socrates-policy = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.10.0"
@@ -67,3 +60,4 @@ tokio = { workspace = true, features = ["full", "test-util"] }
 
 [lints]
 workspace = true
+

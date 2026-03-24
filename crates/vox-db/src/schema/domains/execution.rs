@@ -52,4 +52,19 @@ CREATE INDEX IF NOT EXISTS idx_workflow_executions_status ON workflow_executions
 CREATE INDEX IF NOT EXISTS idx_workflow_executions_skill ON workflow_executions(skill_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_run_at ON scheduled(run_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_status ON scheduled(status);
+
+-- Durable execution journal for crash-safe workflow resume.
+CREATE TABLE IF NOT EXISTS workflow_activity_log (
+    run_id          TEXT NOT NULL,
+    workflow_name   TEXT NOT NULL,
+    activity_name   TEXT NOT NULL,
+    activity_id     TEXT NOT NULL,
+    status          TEXT NOT NULL CHECK(status IN ('started', 'completed')),
+    recorded_at_ms  INTEGER NOT NULL,
+    PRIMARY KEY (run_id, workflow_name, activity_id, status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_activity_run ON workflow_activity_log(run_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_activity_workflow ON workflow_activity_log(workflow_name);
+
 ";

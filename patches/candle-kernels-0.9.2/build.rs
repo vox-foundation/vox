@@ -64,6 +64,26 @@ fn main() {
         }
     }
 
+    // If the caller explicitly requests CPU-only, skip CUDA kernel compilation.
+    if std::env::var("VOX_CANDLE_DEVICE").as_deref() == Ok("cpu") {
+        println!("cargo:warning=VOX_CANDLE_DEVICE=cpu: skipping CUDA kernel build");
+        // Write an empty ptx.rs so the downstream include! doesn't fail.
+        std::fs::write(&ptx_path, "// CPU-only build: no PTX\n").unwrap();
+        // Skip rest of execution
+        return;
+    }
+
+    // Validate nvcc version is present and parse compute capability.
+    let nvcc_version = std::process::Command::new("nvcc")
+        .arg("--version")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok());
+    if let Some(ver) = &nvcc_version {
+        println!("cargo:warning=nvcc detected: {}", ver.lines().last().unwrap_or("?"));
+    } else {
+        println!("cargo:warning=nvcc not found — CUDA kernel build may fail");
+    }
 
     let bindings = builder.build_ptx().unwrap();
     bindings.write(&ptx_path).unwrap();

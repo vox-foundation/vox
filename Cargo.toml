@@ -2,10 +2,8 @@
 resolver = "2"
 members = ["crates/*"]
 exclude = [
-    "crates/vox-codegen-html",
     "crates/vox-dei",
     "crates/vox-py",
-    "crates/vox-wasm",
 ]
 default-members = ["crates/vox-cli"]
 
@@ -34,10 +32,6 @@ vox-cli                   = { path = "crates/vox-cli" }
 vox-train                 = { path = "crates/vox-train" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
-
-vox-codex-api             = { path = "crates/vox-codex-api" }
-vox-codegen-llvm          = { path = "crates/vox-codegen-llvm" }
-vox-codegen-wasm          = { path = "crates/vox-codegen-wasm" }
 vox-container             = { path = "crates/vox-container" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
@@ -45,14 +39,12 @@ vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-forge                 = { path = "crates/vox-forge" }
-vox-fmt                   = { path = "crates/vox-fmt" }
 
 vox-git                   = { path = "crates/vox-git" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
 vox-mesh                  = { path = "crates/vox-mesh" }
-vox-metal-shim            = { path = "crates/vox-metal-shim" }
 vox-mcp                   = { path = "crates/vox-mcp" }
 vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-oratio                = { path = "crates/vox-oratio" }
@@ -64,7 +56,6 @@ vox-runtime               = { path = "crates/vox-runtime" }
 vox-skills                = { path = "crates/vox-skills" }
 vox-socrates-policy       = { path = "crates/vox-socrates-policy" }
 vox-ssg                   = { path = "crates/vox-ssg" }
-vox-storage               = { path = "crates/vox-storage" }
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
 vox-toestub               = { path = "crates/vox-toestub" }

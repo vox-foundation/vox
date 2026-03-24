@@ -127,14 +127,14 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
             vox_orchestrator::types::TaskStatus::Failed(e) => format!("Failed: {}", e),
             vox_orchestrator::types::TaskStatus::Blocked(id) => format!("Blocked by {}", id),
             vox_orchestrator::types::TaskStatus::Cancelled => "Cancelled".to_string(),
-            _ => "Unknown".to_string(),
+            other => format!("Unknown({:?})", other),
         };
 
         let priority_str = match t.priority {
             vox_orchestrator::types::TaskPriority::Background => "Background",
             vox_orchestrator::types::TaskPriority::Normal => "Normal",
             vox_orchestrator::types::TaskPriority::Urgent => "Urgent",
-            _ => "Normal",
+            _ => "Unknown",
         };
 
         let agent_id = assignments.get(&t.id).map(|id| id.to_string()).unwrap_or_else(|| "unassigned".to_string());

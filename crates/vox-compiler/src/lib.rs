@@ -18,3 +18,6 @@ pub mod eval;
 pub use ast::decl::Module;
 pub use hir::hir::HirModule;
 pub use typeck::checker::Checker;
+
+/// Re-export the canonical formatter so callers use `vox_compiler::format(src)`.
+pub use fmt::format;

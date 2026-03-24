@@ -134,10 +134,6 @@ pub mod runtime;
 #[cfg(feature = "lsp")]
 pub mod lsp;
 
-/// Interpreted workflow engine.
-#[cfg(feature = "workflow-runtime")]
-pub mod workflow_runtime;
-
 // Re-export key public types for ergonomic access.
 pub use a2a::{
     send_to_db, poll_inbox_from_db, acknowledge_db_message,
@@ -183,8 +179,12 @@ pub use snapshot::{SnapshotId, SnapshotStore};
 pub use socrates::{SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_gate};
 pub use summary::SummaryManager;
 pub use types::{
-    A2AMessage, A2AMessageType, AgentId, AgentMessage, AgentTask, FileAffinity, MessageEnvelope,
-    MessageId, MessagePriority, TaskId, TaskPriority, TaskStatus, ThreadId, VcsContext,
+    A2AMessage, A2AMessageType, AccessKind, AgentId, AgentIdGenerator, AgentMessage, AgentTask,
+    BatchId, CorrelationId, CorrelationIdGenerator, MessageEnvelope, FileAffinity, MessageId,
+    MessagePriority, TaskCategory, TaskDescriptor, TaskId, TaskIdGenerator, TaskPriority,
+    TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
+
 pub use usage::LlmUsageKey;
 pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
+
