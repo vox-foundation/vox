@@ -67,6 +67,8 @@ crates/*/target_*/
 /*.bat
 /*.py
 /*.jsonl
+/*_head.rs
+/*_scratch*.rs
 /dump.txt
 /sql_dump.txt
 /raw_err*.json
