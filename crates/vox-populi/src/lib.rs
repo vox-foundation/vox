@@ -15,6 +15,12 @@ pub mod tensor;
 #[cfg(feature = "hf-hub")]
 pub mod hub;
 
+#[cfg(feature = "cloud")]
+pub mod cloud;
+
+/// Default HuggingFace model for Populi training and serving.
+pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-3B-Instruct";
+
 #[cfg(feature = "gpu")]
 pub use burn;
 

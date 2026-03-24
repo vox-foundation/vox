@@ -3,8 +3,8 @@
 //! Walks the AST and maps declarations to LSP symbols (outline view).
 
 use tower_lsp::lsp_types::*;
-pub use vox_ast::decl::*;
-pub use vox_ast::Span;
+pub use vox_compiler::ast::decl::*;
+pub use vox_compiler::ast::Span;
 
 pub struct SymbolEngine;
 

@@ -1,24 +1,24 @@
 #![allow(missing_docs)]
 
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
-use vox_typeck::diagnostics::Severity;
-use vox_typeck::typecheck_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::typecheck_module;
 
-fn check_src(src: &str) -> Vec<vox_typeck::Diagnostic> {
+fn check_src(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     let tokens = lex(src);
     let module = parse(tokens).expect("Source should parse without generic errors");
     typecheck_module(&module, src)
 }
 
-fn errors(src: &str) -> Vec<vox_typeck::Diagnostic> {
+fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check_src(src)
         .into_iter()
         .filter(|d| d.severity == Severity::Error)
         .collect()
 }
 
-fn warnings(src: &str) -> Vec<vox_typeck::Diagnostic> {
+fn warnings(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check_src(src)
         .into_iter()
         .filter(|d| d.severity == Severity::Warning)
@@ -120,7 +120,7 @@ fn main() to Result[str] {
 
 #[test]
 fn test_hir_lowering_activity_and_with() {
-    use vox_hir::lower_module;
+    use vox_compiler::hir::lower_module;
 
     let src = r#"
 activity process_data(data: str) to Result[str] {
@@ -132,8 +132,8 @@ workflow pipeline() to Result[str] {
     result
 }
 "#;
-    let tokens = vox_lexer::cursor::lex(src);
-    let module = vox_parser::parser::parse(tokens).expect("Should parse");
+    let tokens = vox_compiler::lexer::cursor::lex(src);
+    let module = vox_compiler::parser::parser::parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
     assert_eq!(hir.activities.len(), 1, "Should have 1 activity");
     assert_eq!(hir.activities[0].name, "process_data");
@@ -211,25 +211,25 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
     confirmation
 }
 "#;
-    let tokens = vox_lexer::cursor::lex(src);
-    let module = vox_parser::parser::parse(tokens).expect("Example should parse");
+    let tokens = vox_compiler::lexer::cursor::lex(src);
+    let module = vox_compiler::parser::parser::parse(tokens).expect("Example should parse");
 
-    let diags = vox_typeck::typecheck_module(&module, src);
+    let diags = vox_compiler::typeck::typecheck_module(&module, src);
     let type_errors: Vec<_> = diags.iter().filter(|d| d.severity == Severity::Error).collect();
     assert!(type_errors.is_empty(), "Example should have no type errors: {:?}", type_errors);
 
-    let hir = vox_hir::lower_module(&module);
+    let hir = vox_compiler::hir::lower_module(&module);
     assert_eq!(hir.activities.len(), 3, "Should have 3 activities");
     assert_eq!(hir.workflows.len(), 1, "Should have 1 workflow");
 
-    let rust_output = vox_codegen_rust::emit::emit_lib(&hir);
+    let rust_output = vox_compiler::codegen_rust::emit::emit_lib(&hir);
     assert!(rust_output.contains("pub async fn validate_order("), "Rust: validate_order");
     assert!(rust_output.contains("pub async fn charge_payment("), "Rust: charge_payment");
     assert!(rust_output.contains("pub async fn send_confirmation("), "Rust: send_confirmation");
     assert!(rust_output.contains("pub async fn process_order("), "Rust: process_order workflow");
     assert!(rust_output.contains("execute_activity"), "Rust: should use execute_activity");
 
-    let ts_output = vox_codegen_ts::generate(&module).expect("TS codegen should succeed");
+    let ts_output = vox_compiler::codegen_ts::generate(&module).expect("TS codegen should succeed");
     let ts_filenames: Vec<&str> = ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(ts_filenames.contains(&"activities.ts"), "TS: should produce activities.ts");
     let activities_ts = ts_output.files.iter().find(|(n, _)| n == "activities.ts").unwrap();

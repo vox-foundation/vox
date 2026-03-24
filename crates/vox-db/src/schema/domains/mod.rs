@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod billing;
+pub mod build_observability;
 pub mod cas;
 pub mod codex;
 pub mod conversations;
@@ -9,4 +10,5 @@ pub mod gamification;
 pub mod identity;
 pub mod knowledge;
 pub mod packages;
+pub mod populi_cloud;
 pub mod toestub;

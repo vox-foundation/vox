@@ -141,9 +141,9 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
 
     for decl in &module.declarations {
         match decl {
-            vox_ast::decl::Decl::Table(t) => tables.push(t),
-            vox_ast::decl::Decl::Collection(c) => collections.push(c),
-            vox_ast::decl::Decl::Index(i) => indexes.push(i),
+            vox_compiler::ast::decl::Decl::Table(t) => tables.push(t),
+            vox_compiler::ast::decl::Decl::Collection(c) => collections.push(c),
+            vox_compiler::ast::decl::Decl::Index(i) => indexes.push(i),
             _ => {}
         }
     }

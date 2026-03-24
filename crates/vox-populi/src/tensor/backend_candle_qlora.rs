@@ -20,7 +20,7 @@ impl TrainingBackend for CandleQloraBackend {
         config: &LoraTrainingConfig,
         device_kind: DeviceKind,
         system_prompt: &str,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<crate::tensor::backend::TrainingSummary> {
         tracing::debug!(backend = "candle_qlora", "Candle qlora backend run");
         #[cfg(feature = "candle-qlora")]
         {

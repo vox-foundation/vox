@@ -1,6 +1,6 @@
 //! Regression guard: Vox scalars must map consistently for Rust / TS / SQLite emit.
 
-use vox_ast::scalar_mapping::VoxScalar;
+use vox_compiler::ast::scalar_mapping::VoxScalar;
 
 #[test]
 fn vox_scalar_rust_sqlite_pairs() {

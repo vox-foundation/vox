@@ -128,7 +128,7 @@ fn msg_type_name(mt: &A2AMessageType) -> String {
 
 /// Send a targeted A2A message from one agent to another (async).
 pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let sender = AgentId(params.sender_id);
     let receiver = AgentId(params.receiver_id);
@@ -146,7 +146,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
 
 /// Read unacknowledged messages in an agent's inbox (async).
 pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let agent_id = AgentId(params.agent_id);
     let messages: Vec<A2AMessageInfo> = orch
@@ -174,7 +174,7 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
 
 /// Acknowledge a message in an agent's inbox (async).
 pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let agent_id = AgentId(params.agent_id);
     let message_id = vox_orchestrator::types::MessageId(params.message_id);
@@ -199,7 +199,7 @@ pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String {
 
 /// Broadcast an A2A message to all agents except sender (async).
 pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let sender = AgentId(params.sender_id);
     let msg_type = parse_msg_type(&params.msg_type);
@@ -218,7 +218,7 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
 
 /// Query the A2A audit trail (async).
 pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let limit = params.limit.unwrap_or(50);
 
@@ -238,8 +238,9 @@ pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> Strin
             })
             .collect()
     } else {
-        let trail = orch.message_bus().audit_trail();
-        trail
+        let bus_guard = orch.message_bus();
+        bus_guard
+            .audit_trail()
             .iter()
             .rev()
             .take(limit)

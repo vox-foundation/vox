@@ -110,8 +110,8 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
 
 /// Walk `state.repository.root` (bounded), return JSON summary of file counts.
 pub async fn repo_index_status(state: &ServerState) -> String {
+    let orch = &state.orchestrator;
     let fresh_check = {
-        let orch = state.orchestrator.lock().await;
         if orch.context_store().is_fresh("workspace_index_status", 30) {
             let entry = orch.context_store().get_entry("workspace_index_status");
             entry.map(|e| e.value)
@@ -128,8 +128,7 @@ pub async fn repo_index_status(state: &ServerState) -> String {
         Err(e) => ToolResult::<RepoIndexSummary>::err(e).to_json(),
     };
     
-    let orch = state.orchestrator.lock().await;
-    orch.context_store().set(
+    state.orchestrator.context_store().set(
         vox_orchestrator::AgentId(0),
         "workspace_index_status",
         summary.clone(),
@@ -140,8 +139,8 @@ pub async fn repo_index_status(state: &ServerState) -> String {
 
 /// Refresh on-disk cache under `.vox/cache/repos/<repository_id>/repo_index.json`.
 pub async fn repo_index_refresh(state: &ServerState) -> String {
+    let orch = &state.orchestrator;
     let fresh_check = {
-        let orch = state.orchestrator.lock().await;
         if orch.context_store().is_fresh("workspace_index_refresh", 30) {
             let entry = orch.context_store().get_entry("workspace_index_refresh");
             entry.map(|e| e.value)
@@ -172,8 +171,7 @@ pub async fn repo_index_refresh(state: &ServerState) -> String {
         Err(e) => ToolResult::<String>::err(format!("write {}: {e}", path.display())).to_json(),
     };
     
-    let orch = state.orchestrator.lock().await;
-    orch.context_store().set(
+    state.orchestrator.context_store().set(
         vox_orchestrator::AgentId(0),
         "workspace_index_refresh",
         res.clone(),

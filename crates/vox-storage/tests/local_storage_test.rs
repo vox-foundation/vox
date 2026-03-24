@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 //! Smoke tests for `vox-storage` `LocalObjectStorage`.
 
-use std::path::PathBuf;
+
 use tempfile::tempdir;
 use vox_storage::{LocalObjectStorage, ObjectStorage};
 

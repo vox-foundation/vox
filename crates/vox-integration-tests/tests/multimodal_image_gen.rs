@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
-use vox_hir::lower_module;
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
-use vox_typeck::typecheck_module;
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::typecheck_module;
 
 #[test]
 fn multimodal_image_gen_pipeline() {

@@ -11,11 +11,11 @@ use crate::server::ServerState;
 // ---------------------------------------------------------------------------
 
 /// Parse a .vox file and return its Module AST.
-pub(crate) fn parse_vox_module(path: &str) -> Result<vox_ast::decl::Module, String> {
+pub(crate) fn parse_vox_module(path: &str) -> Result<vox_compiler::ast::decl::Module, String> {
     let source =
         std::fs::read_to_string(path).map_err(|e| format!("Cannot read file '{}': {}", path, e))?;
-    let tokens = vox_lexer::cursor::lex(&source);
-    let module = vox_parser::parse(tokens).map_err(|errs| {
+    let tokens = vox_compiler::lexer::cursor::lex(&source);
+    let module = vox_compiler::parser::parse(tokens).map_err(|errs| {
         let msgs: Vec<String> = errs.iter().map(|e| format!("{:?}", e)).collect();
         format!("Parse errors: {}", msgs.join("; "))
     })?;

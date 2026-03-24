@@ -134,6 +134,10 @@ pub mod runtime;
 #[cfg(feature = "lsp")]
 pub mod lsp;
 
+/// Interpreted workflow engine.
+#[cfg(feature = "workflow-runtime")]
+pub mod workflow_runtime;
+
 // Re-export key public types for ergonomic access.
 pub use a2a::{
     send_to_db, poll_inbox_from_db, acknowledge_db_message,

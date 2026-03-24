@@ -391,10 +391,7 @@ async fn build_system_prompt(state: &ServerState) -> String {
 
     let ts = now_ts();
     let date_str = ts_to_date_str(ts);
-    let last_call = {
-        let orch = state.orchestrator.lock().await;
-        orch.last_activity_ms() / 1000
-    };
+    let last_call = state.orchestrator.last_activity_ms() / 1000;
     let server_idle_secs = ts.saturating_sub(last_call);
 
     prompt.push_str(&format!(
@@ -547,13 +544,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
     let session_id = params.session_id.as_deref().unwrap_or("default");
-    let session_ts = {
-        let orch = state.orchestrator.lock().await;
-        orch.context()
-            .age_secs(&format!("chat_history:{session_id}"))
-            .map(|a| format!(" Session last active: {a}s ago."))
-            .unwrap_or_default()
-    };
+    let session_ts = state.orchestrator
+        .context()
+        .age_secs(&format!("chat_history:{session_id}"))
+        .map(|a| format!(" Session last active: {a}s ago."))
+        .unwrap_or_default();
     let system_prompt = format!(
         "{}{}\n\n{}",
         build_system_prompt(state).await,
@@ -665,13 +660,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         tokens: Some(tokens),
     };
 
-    let orch = state.orchestrator.lock().await;
-    let existing_history: Vec<ChatTranscriptEntry> = orch
+    let existing_history: Vec<ChatTranscriptEntry> = state.orchestrator
         .context()
         .get(&history_key)
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
-    drop(orch);
 
     let mut history = existing_history;
     history.push(user_msg.clone());
@@ -684,8 +677,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
     match serde_json::to_string(&history) {
         Ok(history_json) => {
-            let orch = state.orchestrator.lock().await;
-            orch.context()
+            state.orchestrator.context()
                 .set(AgentId(0), &history_key, &history_json, 0);
         }
         Err(e) => {
@@ -739,14 +731,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
         let now_s = now_ts();
         let date_str = ts_to_date_str(now_s);
-        let server_idle_secs = {
-            let orch = state.orchestrator.lock().await;
-            now_s.saturating_sub(orch.last_activity_ms() / 1000)
-        };
-        let session_age_secs = {
-            let orch = state.orchestrator.lock().await;
-            orch.context().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0)
-        };
+        let server_idle_secs = now_s.saturating_sub(state.orchestrator.last_activity_ms() / 1000);
+        let session_age_secs = state.orchestrator.context().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0);
 
         // Record high-quality LLM turn in agent_events for Populi replay/SFT
         let mut payload = serde_json::json!({
@@ -802,7 +788,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 pub async fn chat_history(state: &ServerState, params: ChatHistoryParams) -> String {
     let session_id = &params.session_id;
     let history_key = format!("chat_history:{session_id}");
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let history: Vec<ChatTranscriptEntry> = orch
         .context()
         .get(&history_key)
@@ -1327,7 +1313,7 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
             == Some("file_lock")
     }
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let mut decorations: Vec<Value> = Vec::new();
 
     // 1. Active file locks → FileLock decorations
@@ -1418,7 +1404,6 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
         }
     }
 
-    drop(orch);
 
     let total = decorations.len().min(limit);
     decorations.truncate(limit);

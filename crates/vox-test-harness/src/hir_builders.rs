@@ -3,7 +3,7 @@
 //! Provides zero-boilerplate constructors for common HIR nodes so that
 //! `minimal_module()` and similar helpers are never redefined per-file.
 
-use vox_hir::{
+use vox_compiler::hir::{
     HirFn, HirModule, HirRoute, HirTable,
 };
 
@@ -34,7 +34,7 @@ pub fn minimal_hir_module() -> HirModule {
 ///
 /// Defaults: sync, not pub, not deprecated, no params, no return type.
 pub fn hir_fn(name: impl Into<String>) -> HirFn {
-    use vox_hir::DefId;
+    use vox_compiler::hir::DefId;
     HirFn {
         id: DefId(0),
         name: name.into(),
@@ -52,7 +52,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
 
 /// Build a minimal GET [`HirRoute`] for the given path with no body.
 pub fn hir_get_route(path: impl Into<String>) -> HirRoute {
-    use vox_hir::HirHttpMethod;
+    use vox_compiler::hir::HirHttpMethod;
     HirRoute {
         method: HirHttpMethod::Get,
         path: path.into(),
@@ -64,7 +64,7 @@ pub fn hir_get_route(path: impl Into<String>) -> HirRoute {
 
 /// Build a minimal [`HirTable`] with the given name and no fields.
 pub fn hir_table(name: impl Into<String>) -> HirTable {
-    use vox_hir::DefId;
+    use vox_compiler::hir::DefId;
     HirTable {
         id: DefId(1),
         name: name.into(),

@@ -25,6 +25,8 @@ pub mod mesh_tools;
 pub mod oratio_tools;
 /// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
 pub mod repo_index;
+/// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
+pub mod toestub_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
 /// Training-intent submission via orchestrator (Populi CLI remains canonical executor).
@@ -329,7 +331,7 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "Return all primary keywords, decorators, types, and builtins in the Vox language.",
     ),
     (
-        "vox_ast_inspect",
+        "vox_compiler::ast_inspect",
         "Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root).",
     ),
     (
@@ -445,6 +447,18 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
     (
         "vox_db_research_metric_linked",
         "Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).",
+    ),
+    (
+        "vox_benchmark_list",
+        "List recent benchmark results for the repository (build times, eval scores).",
+    ),
+    (
+        "vox_benchmark_record",
+        "Record a new benchmark observation (e.g. wall-clock time for a build phase).",
+    ),
+    (
+        "vox_toestub_findings_upsert",
+        "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).",
     ),
     (
         "vox_generate_code",
@@ -636,7 +650,7 @@ async fn handle_tool_call_inner(
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
         
         "vox_language_surface" => Ok(introspection_tools::language_surface().to_string()),
-        "vox_ast_inspect" => Ok(introspection_tools::ast_inspect(
+        "vox_compiler::ast_inspect" => Ok(introspection_tools::ast_inspect(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
         ).await?.to_string()),
@@ -918,6 +932,16 @@ async fn handle_tool_call_inner(
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
         "vox_mesh_local_status" => Ok(mesh_tools::mesh_local_status(args)?),
+        
+        "vox_benchmark_list" => {
+            Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)
+        }
+        "vox_benchmark_record" => {
+            Ok(benchmark_tools::benchmark_record(state, serde_json::from_value(args)?).await)
+        }
+        "vox_toestub_findings_upsert" => {
+            Ok(toestub_tools::toestub_findings_upsert(state, serde_json::from_value(args)?).await)
+        }
 
         _ => {
             // Check skill macro tools

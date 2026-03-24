@@ -601,3 +601,141 @@ pub struct WorkflowExecutionRow {
     /// ISO-8601 finish timestamp; `None` when still running.
     pub finished_at: Option<String>,
 }
+
+/// A single row from `agent_questions`.
+#[derive(Debug, Clone)]
+pub struct QuestionRow {
+    pub id: i64,
+    pub asker_id: String,
+    pub responder_id: String,
+    pub question_text: String,
+    pub answer_text: Option<String>,
+    pub status: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `a2a_messages`.
+#[derive(Debug, Clone)]
+pub struct A2AMessageRow {
+    pub id: i64,
+    pub sender_id: String,
+    pub receiver_id: String,
+    pub msg_type: String,
+    pub payload_json: String,
+    pub status: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `agent_events`.
+#[derive(Debug, Clone)]
+pub struct AgentEventRow {
+    pub id: i64,
+    pub agent_id: String,
+    pub event_type: String,
+    pub repository_id: String,
+    pub metadata_json: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `benchmark_events`.
+#[derive(Debug, Clone)]
+pub struct BenchmarkEventRow {
+    pub id: i64,
+    pub benchmark_id: String,
+    pub model_id: String,
+    pub score: f64,
+    pub latency_ms: i64,
+    pub metadata_json: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `agent_sessions`.
+#[derive(Debug, Clone)]
+pub struct SessionRow {
+    pub session_id: String,
+    pub repository_id: String,
+    pub agent_id: String,
+    pub model_id: String,
+    pub task_snapshot_json: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+/// A single row from `agent_session_events`.
+#[derive(Debug, Clone)]
+pub struct SessionEventRow {
+    pub id: i64,
+    pub session_id: String,
+    pub event_type: String,
+    pub payload_json: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `build_runs`.
+#[derive(Debug, Clone)]
+pub struct BuildRunRow {
+    pub id: i64,
+    pub build_id: String,
+    pub repository_id: String,
+    pub status: String,
+    pub duration_ms: i64,
+    pub metadata_json: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `build_crate_samples`.
+#[derive(Debug, Clone)]
+pub struct CrateSampleRow {
+    pub id: i64,
+    pub build_id: String,
+    pub crate_name: String,
+    pub duration_ms: i64,
+    pub status: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `cloud_dispatch_log`.
+#[derive(Debug, Clone)]
+pub struct CloudDispatchRow {
+    pub id: i64,
+    pub provider: String,
+    pub endpoint_type: String,
+    pub status: String,
+    pub duration_ms: i64,
+    pub metadata_json: String,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `model_throughput_profiles`.
+#[derive(Debug, Clone)]
+pub struct ThroughputProfileRow {
+    pub id: i64,
+    pub model_id: String,
+    pub hardware_id: String,
+    pub tokens_per_sec: f64,
+    pub latency_p50_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+/// A single row from `local_train_log`.
+#[derive(Debug, Clone)]
+pub struct LocalTrainRow {
+    pub id: i64,
+    pub run_id: String,
+    pub model_id: String,
+    pub dataset_id: String,
+    pub status: String,
+    pub loss: Option<f64>,
+    pub step: i64,
+    pub created_at_ms: i64,
+}
+
+/// A single row from `arca_warnings`.
+#[derive(Debug, Clone)]
+pub struct WarningRow {
+    pub id: i64,
+    pub warning_type: String,
+    pub message: String,
+    pub metadata_json: String,
+    pub created_at_ms: i64,
+}

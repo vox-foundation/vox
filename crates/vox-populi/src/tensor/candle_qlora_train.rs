@@ -153,7 +153,7 @@ pub fn run_candle_qlora_train(
     config: &LoraTrainingConfig,
     device_kind: DeviceKind,
     system_prompt: &str,
-) -> Result<()> {
+) -> Result<crate::tensor::backend::TrainingSummary> {
     let out_buf = output_dir.map(PathBuf::from).unwrap_or_else(|| {
         PathBuf::from("populi/runs").join(config.run_id.as_deref().unwrap_or("v1"))
     });
@@ -448,7 +448,7 @@ fn run_training_loop(
     base_key_map: &HashMap<String, String>,
     total_steps_planned: u32,
     warmup_steps: usize,
-) -> Result<()> {
+) -> Result<crate::tensor::backend::TrainingSummary> {
     // ── Resume detection ─────────────────────────────────────────────────────
     let mut start_epoch = 1usize;
     let mut global_step = 0u32;
@@ -521,7 +521,9 @@ fn run_training_loop(
     let mut last_loss_val: f32 = 0.0;
     let mut total_loss_sum = 0.0f64;
     let mut total_step_count: u32 = 0;
+    let mut total_tokens: usize = 0;
 
+    let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
         // ── Epoch shuffle (or restore from checkpoint on resume epoch) ────────
         let shuffled_indices: Vec<usize> = if epoch == start_epoch {
@@ -550,6 +552,7 @@ fn run_training_loop(
             let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
             let enc = tokenizer.encode(text, true).map_err(|e| anyhow::anyhow!("{e}"))?;
             let mut ids = enc.get_ids().to_vec();
+            total_tokens += ids.len();
             if ids.len() > config.seq_len {
                 let start = ids.len() - config.seq_len;
                 ids = ids[start..].to_vec();
@@ -666,8 +669,15 @@ fn run_training_loop(
                     saved_at_utc: CheckpointState::now_utc(),
                 };
                 state.save(out).context("save CheckpointState on pause")?;
+                let wall_secs = run_start_inst.elapsed().as_secs_f64();
+                let ms_per_step = if global_step > 0 { (wall_secs * 1000.0) / global_step as f64 } else { 0.0 };
                 train_log::warn(&format!("Training paused at step {global_step}. Resume with 'vox populi train --resume {}'", out.display()));
-                return Ok(());
+                return Ok(crate::tensor::backend::TrainingSummary {
+                    wall_secs,
+                    total_steps: global_step as usize,
+                    total_tokens,
+                    ms_per_step,
+                });
             }
 
             // ── Mid-epoch checkpoint ──────────────────────────────────────────
@@ -879,5 +889,13 @@ fn run_training_loop(
         final_path.display()
     ));
 
-    Ok(())
+    let wall_secs = run_start_inst.elapsed().as_secs_f64();
+    let ms_per_step = if global_step > 0 { (wall_secs * 1000.0) / global_step as f64 } else { 0.0 };
+
+    Ok(crate::tensor::backend::TrainingSummary {
+        wall_secs,
+        total_steps: global_step as usize,
+        total_tokens,
+        ms_per_step,
+    })
 }

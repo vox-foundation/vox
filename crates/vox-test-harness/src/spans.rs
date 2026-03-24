@@ -2,7 +2,7 @@
 //!
 //! Import from here instead of defining `fn dummy_span()` locally.
 
-use vox_ast::span::Span;
+use vox_compiler::ast::span::Span;
 
 /// A zero-width span at position 0, suitable for test AST/HIR nodes.
 ///

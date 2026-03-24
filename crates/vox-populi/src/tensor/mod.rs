@@ -86,7 +86,7 @@ pub mod lora_train;
 pub mod operator_messages;
 #[cfg(feature = "train")]
 pub mod preflight_train;
-#[cfg(feature = "train")]
+#[cfg(any(feature = "train", feature = "cloud"))]
 pub mod preset_schema;
 #[cfg(feature = "train")]
 mod qlora_preflight;

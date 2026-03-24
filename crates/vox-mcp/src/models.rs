@@ -19,13 +19,13 @@ pub struct SetModelParams {
 }
 
 pub async fn list_models(state: &ServerState, _params: ListModelsParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let models = orch.models().list_models();
     ToolResult::ok(models).to_json()
 }
 
 pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     // Parse task_category from string
     let category = match params.task_category.to_lowercase().as_str() {
@@ -76,11 +76,11 @@ pub async fn get_active_mcp_chat_model(state: &ServerState) -> String {
 }
 
 pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
-    if orch.models().get(&params.model_id).is_some() {
-        orch.models_mut()
-            .set_override(params.agent_id, params.model_id.clone());
+    if let Some(_) = orch.models().get(&params.model_id) {
+        let mut guard = orch.models_mut();
+        guard.set_override(params.agent_id, params.model_id.clone());
         ToolResult::ok(format!(
             "Successfully overridden model to {} for agent {}",
             params.model_id, params.agent_id

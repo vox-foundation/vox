@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 
-use vox_hir::lower_module;
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
 
 #[test]
 fn durable_workflow_recovery_logic() {

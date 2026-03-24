@@ -116,7 +116,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_orchestrator_start" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
-        "vox_validate_file" | "vox_ast_inspect" => parse_obj(
+        "vox_validate_file" | "vox_compiler::ast_inspect" => parse_obj(
             r#"{"type":"object","properties":{"path":{"type":"string","description":"Path to a .vox file"}},"required":["path"],"additionalProperties":false}"#,
         ),
         "vox_run_tests" => parse_obj(

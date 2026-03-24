@@ -93,7 +93,7 @@ pub fn resolve_mcp_chat_model_sync(
                         "Sticky MCP model uses Ollama but VOX_INFERENCE_PROFILE does not allow local Ollama HTTP; use desktop_ollama or lan_gateway, pick a cloud model, or clear the override (see docs/src/architecture/mobile-edge-ai-ssot.md).".into(),
                     );
                 }
-                let m = enforce_free_tier_if_needed(registry, &res, m.clone())?;
+                let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
         }
@@ -103,12 +103,12 @@ pub fn resolve_mcp_chat_model_sync(
 
     if res.free_tier_latency_critical {
         if let Some(m) = registry.best_free_for_with_filter(task, mcp_ollama_model_allowed) {
-            let m = enforce_free_tier_if_needed(registry, &res, m.clone())?;
+            let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
         if res.allow_cheapest_fallback {
             if let Some(m) = registry.cheapest_free_with_filter(mcp_ollama_model_allowed) {
-                let m = enforce_free_tier_if_needed(registry, &res, m.clone())?;
+                let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
         }
@@ -117,17 +117,17 @@ pub fn resolve_mcp_chat_model_sync(
     if let Some(m) =
         registry.best_for_with_filter(task, complexity, preference, mcp_ollama_model_allowed)
     {
-        let m = enforce_free_tier_if_needed(registry, &res, m.clone())?;
+        let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
         return Ok((m.clone(), m.is_free));
     }
 
     if res.allow_cheapest_fallback {
         if let Some(m) = registry.cheapest_free_with_filter(mcp_ollama_model_allowed) {
-            let m = enforce_free_tier_if_needed(registry, &res, m.clone())?;
+            let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
         if let Some(m) = registry.cheapest_with_filter(mcp_ollama_model_allowed) {
-            let m = enforce_free_tier_if_needed(registry, &res, m.clone())?;
+            let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
     }
@@ -161,7 +161,8 @@ mod tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        });
+        timeout_ms: None,
+                });
         r.register(ModelSpec {
             id: "paid-model".into(),
             provider: "test".into(),
@@ -170,7 +171,8 @@ mod tests {
             cost_per_1k: 0.01,
             is_free: false,
             strengths: vec!["codegen".into()],
-        });
+        timeout_ms: None,
+                });
         r
     }
 
@@ -215,7 +217,8 @@ mod tests {
             cost_per_1k: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        });
+        timeout_ms: None,
+                });
         r
     }
 
@@ -229,7 +232,8 @@ mod tests {
             cost_per_1k: 0.01,
             is_free: false,
             strengths: vec!["codegen".into()],
-        });
+        timeout_ms: None,
+                });
         r
     }
 

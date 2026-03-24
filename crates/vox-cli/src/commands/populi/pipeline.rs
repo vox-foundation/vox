@@ -110,6 +110,7 @@ pub async fn run(
             None,
             None,
             None,
+            None,
             crate::commands::populi::PopuliTokenizerCli::Vox.into(),
             false,
             false,
@@ -119,7 +120,7 @@ pub async fn run(
             1,
             None,
             false,
-        )?;
+        ).await?;
         Ok(())
     }
 

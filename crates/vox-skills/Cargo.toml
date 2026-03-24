@@ -29,3 +29,6 @@ skills-registry = []
 [lints]
 workspace = true
 
+[dev-dependencies]
+vox-ars = { path = "../vox-ars" }
+

@@ -4,13 +4,13 @@
 //! It generates `CREATE TABLE`, `CREATE INDEX`, and type-safe DDL from the AST.
 
 use crate::schema_digest::{CollectionInfo, IndexInfo, TableInfo};
-use vox_ast::decl::{CollectionDecl, IndexDecl, TableDecl, VectorIndexDecl};
-use vox_ast::scalar_mapping::VoxScalar;
-use vox_ast::types::TypeExpr;
+use vox_compiler::ast::decl::{CollectionDecl, IndexDecl, TableDecl, VectorIndexDecl};
+use vox_compiler::ast::scalar_mapping::VoxScalar;
+use vox_compiler::ast::types::TypeExpr;
 
 /// SQLite affinity for a Vox **named** scalar or common alias (`String`, `i64`, …).
 ///
-/// Aligns with [`VoxScalar`](vox_ast::scalar_mapping::VoxScalar) and Rust table emit in `vox-codegen-rust`.
+/// Aligns with [`VoxScalar`](vox_compiler::ast::scalar_mapping::VoxScalar) and Rust table emit in `vox-codegen-rust`.
 #[must_use]
 pub fn sqlite_affinity_for_named_vox_type(name: &str) -> Option<&'static str> {
     if let Some(s) = VoxScalar::parse(name) {
@@ -426,7 +426,7 @@ pub fn diff_to_sql(
             description: None,
             is_pub: true,
             has_spread: false,
-            span: vox_ast::span::Span { start: 0, end: 0 },
+            span: vox_compiler::ast::span::Span { start: 0, end: 0 },
         };
         stmts.push(collection_to_ddl(&synth));
     }
@@ -509,9 +509,9 @@ pub fn describe_diff(diff: &SchemaDiff) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_ast::decl::*;
-    use vox_ast::span::Span;
-    use vox_ast::types::TypeExpr;
+    use vox_compiler::ast::decl::*;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::ast::types::TypeExpr;
 
     fn s() -> Span {
         Span { start: 0, end: 0 }

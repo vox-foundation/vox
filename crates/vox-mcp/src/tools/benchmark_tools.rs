@@ -34,3 +34,30 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
         Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
     }
 }
+
+/// Arguments for `vox_benchmark_record`.
+#[derive(Debug, serde::Deserialize)]
+pub struct BenchmarkRecordParams {
+    /// Benchmark name (e.g., "build_time", "eval_p95").
+    pub name: String,
+    /// Metric value (f64), e.g., duration in seconds.
+    pub value: Option<f64>,
+    /// Optional structured details (JSON).
+    pub details: Option<serde_json::Value>,
+}
+
+/// Record a benchmark-class metric for this repository.
+pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams) -> String {
+    let Some(db) = state.db.as_ref() else {
+        return ToolResult::<String>::err("VoxDb not attached; set VOX_DB_PATH / VOX_DB_URL.")
+            .to_json();
+    };
+    let rid = state.repository.repository_id.clone();
+    match db
+        .record_benchmark_event(&rid, &params.name, params.value, params.details)
+        .await
+    {
+        Ok(_) => ToolResult::ok("Recorded.").to_json(),
+        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+    }
+}

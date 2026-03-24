@@ -135,6 +135,14 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
     }
 }
 
+/// Load the global GPU specifications and presets from `populi/config/gpu-specs.yaml`.
+pub fn load_gpu_specs() -> Option<GpuSpecsFile> {
+    let root = vox_corpus::training::contract::find_workspace_root()?;
+    let p = root.join("populi/config/gpu-specs.yaml");
+    let raw = std::fs::read_to_string(p).ok()?;
+    serde_yaml::from_str(&raw).ok()
+}
+
 /// Load optional YAML registry from `populi/config/train-presets.yaml` if present.
 pub struct TrainPresetRegistry;
 
@@ -161,14 +169,28 @@ pub fn resolve_effective_profile(
     let env_p = std::env::var("VOX_TRAIN_PROFILE").ok();
     let name = preset.or(env_p.as_deref()).unwrap_or(DEFAULT_PRESET);
 
-    let mut p = base_for_name(name);
-
-    if device.vram_mb > 0
-        && device.vram_mb < 12_000
-        && !matches!(name, "tiny" | "safe" | "4080_safe" | "mobile_edge")
-    {
-        p = base_for_name("4080_safe");
-    }
+    let mut p = if name == "auto" {
+        if let Some(specs) = load_gpu_specs() {
+            if let Some((_name, preset_spec)) = TrainingPreset::best_for_vram(&specs.presets, device.vram_mb as u64) {
+                TrainPresetProfile {
+                    rank: 16,
+                    alpha: 32.0,
+                    seq_len: preset_spec.seq_len,
+                    batch_size: preset_spec.batch_size,
+                    grad_accum: preset_spec.grad_accum,
+                    epochs: 3,
+                    warmup: 100,
+                    lr: preset_spec.lr,
+                }
+            } else {
+                base_for_name("4080_safe")
+            }
+        } else {
+            base_for_name("4080_safe")
+        }
+    } else {
+        base_for_name(name)
+    };
 
     if let Some(n) = sample_count
         && n < 500
@@ -208,6 +230,59 @@ pub fn resolve_effective_profile(
 
 /// Back-compat alias used in older docs.
 pub type DatasetProfile = TrainPresetProfile;
+
+use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+
+/// Top-level structure of `populi/config/gpu-specs.yaml`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuSpecsFile {
+    /// GPU name → physical specification.
+    pub gpus: HashMap<String, GpuSpec>,
+    /// VRAM preset name → training configuration.
+    #[serde(default)]
+    pub presets: HashMap<String, TrainingPreset>,
+}
+
+/// Physical GPU specification loaded from `populi/config/gpu-specs.yaml`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuSpec {
+    /// FP16 TFLOPS from vendor datasheet.
+    pub fp16_tflops: f64,
+    /// VRAM in MB.
+    pub vram_mb: u64,
+}
+
+/// Training preset configuration — auto-selected by VRAM tier for both local and cloud.
+///
+/// Defined once in `gpu-specs.yaml`; consumed by both `vox populi train` (local)
+/// and cloud dispatch (to set container env vars). This is the SSOT for preset configs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrainingPreset {
+    /// Sequence length in tokens.
+    pub seq_len: usize,
+    /// Micro-batch size per gradient step.
+    pub batch_size: usize,
+    /// Gradient accumulation steps (effective batch = batch_size × grad_accum).
+    pub grad_accum: usize,
+    /// Learning rate.
+    pub lr: f64,
+    /// Maximum VRAM in MB this preset can fit. Used to auto-select from local VRAM.
+    pub max_vram_mb: u64,
+}
+
+impl TrainingPreset {
+    /// Select the best preset for the given VRAM amount.
+    pub fn best_for_vram<'a>(
+        presets: &'a HashMap<String, TrainingPreset>,
+        vram_mb: u64,
+    ) -> Option<(&'a str, &'a TrainingPreset)> {
+        presets.iter()
+            .filter(|(_, p)| p.max_vram_mb <= vram_mb)
+            .max_by_key(|(_, p)| p.max_vram_mb)
+            .map(|(k, v)| (k.as_str(), v))
+    }
+}
 
 #[cfg(test)]
 mod preset_tests {

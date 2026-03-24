@@ -8,6 +8,15 @@ use std::path::Path;
 use crate::tensor::device::DeviceKind;
 use crate::tensor::training_config::LoraTrainingConfig;
 
+/// Summary of a completed training run.
+#[derive(Debug)]
+pub struct TrainingSummary {
+    pub wall_secs: f64,
+    pub total_steps: usize,
+    pub total_tokens: usize,
+    pub ms_per_step: f64,
+}
+
 /// One Populi training implementation (Burn LoRA today; Candle NF4 QLoRA when implemented).
 pub trait TrainingBackend {
     fn run(
@@ -17,5 +26,5 @@ pub trait TrainingBackend {
         config: &LoraTrainingConfig,
         device_kind: DeviceKind,
         system_prompt: &str,
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<TrainingSummary>;
 }

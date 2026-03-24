@@ -13,11 +13,7 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
-vox-lexer = { workspace = true }
-vox-ast = { workspace = true }
-vox-parser = { workspace = true }
-vox-hir = { workspace = true }
-vox-typeck = { workspace = true }
+vox-compiler = { workspace = true }
 vox-fmt = { workspace = true }
 
 [lints]

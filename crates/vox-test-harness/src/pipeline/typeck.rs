@@ -1,7 +1,7 @@
 //! Typechecking pipeline helpers.
 
-use vox_ast::decl::Module;
-use vox_typeck::{typecheck_module, Diagnostic};
+use vox_compiler::ast::decl::Module;
+use vox_compiler::typeck::{typecheck_module, Diagnostic};
 use crate::pipeline::parser::parse_str_unwrap;
 use crate::assertions::assert_no_errors;
 

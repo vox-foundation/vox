@@ -27,7 +27,7 @@ pub fn run_populi_training(
     config: &LoraTrainingConfig,
     device_kind: DeviceKind,
     system_prompt: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<crate::tensor::backend::TrainingSummary> {
     let contract = FineTuneContract::from_training_config(config, backend);
     let planner = ExecutionPlanner {
         force_kernel: Some(backend),

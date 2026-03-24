@@ -6,10 +6,10 @@
 use std::ffi::OsString;
 use std::sync::Mutex;
 
-use vox_codegen_ts::{generate, generate_with_options, CodegenOptions};
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
-use vox_typeck::typecheck_module;
+use vox_compiler::codegen_ts::{generate, generate_with_options, CodegenOptions};
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::typecheck_module;
 
 /// Serializes all tests that read or write `VOX_EMIT_EXPRESS_SERVER`.
 /// Without this, parallel test runners observe the env-var mid-mutation,
@@ -108,7 +108,7 @@ fn pipeline_typecheck_has_no_errors() {
     let diagnostics = typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == vox_typeck::diagnostics::Severity::Error)
+        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
         .collect();
     assert!(
         errors.is_empty(),
@@ -415,7 +415,7 @@ fn pipeline_table_typecheck_no_errors() {
     let diagnostics = typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == vox_typeck::diagnostics::Severity::Error)
+        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
         .collect();
     assert!(
         errors.is_empty(),
@@ -428,7 +428,7 @@ fn pipeline_table_typecheck_no_errors() {
 fn pipeline_table_hir_lowering() {
     let tokens = lex(DATA_LAYER_SRC);
     let module = parse(tokens).unwrap();
-    let hir = vox_hir::lower_module(&module);
+    let hir = vox_compiler::hir::lower_module(&module);
 
     assert_eq!(hir.tables.len(), 1, "one table");
     assert_eq!(hir.tables[0].name, "Task");
@@ -442,8 +442,8 @@ fn pipeline_table_hir_lowering() {
 fn pipeline_table_rust_codegen_e2e() {
     let tokens = lex(DATA_LAYER_SRC);
     let module = parse(tokens).unwrap();
-    let hir = vox_hir::lower_module(&module);
-    let output = vox_codegen_rust::generate(&hir, "test_data").unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = vox_compiler::codegen_rust::generate(&hir, "test_data").unwrap();
 
     let lib_rs = output.files.get("src/lib.rs").expect("lib.rs");
     assert!(lib_rs.contains("pub struct Task {"), "struct emitted");
@@ -715,13 +715,13 @@ fn chatbot_full_pipeline_e2e() {
             .expect("Could not read examples/chatbot.vox")
     });
 
-    let tokens = vox_lexer::cursor::lex(&src);
-    let module = vox_parser::parser::parse(tokens).expect("Chatbot should parse");
+    let tokens = vox_compiler::lexer::cursor::lex(&src);
+    let module = vox_compiler::parser::parser::parse(tokens).expect("Chatbot should parse");
 
-    let diagnostics = vox_typeck::typecheck_module(&module, "");
+    let diagnostics = vox_compiler::typeck::typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == vox_typeck::diagnostics::Severity::Error)
+        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
         .collect();
     assert!(
         errors.is_empty(),
@@ -1031,7 +1031,7 @@ fn pipeline_mcp_tool_parse() {
     // 1 type + 2 mcp.tool
     assert_eq!(module.declarations.len(), 3);
     assert!(
-        matches!(&module.declarations[1], vox_ast::decl::Decl::McpTool(m) if m.description == "Search the knowledge base"),
+        matches!(&module.declarations[1], vox_compiler::ast::decl::Decl::McpTool(m) if m.description == "Search the knowledge base"),
         "First tool should have correct description"
     );
 }
@@ -1181,8 +1181,8 @@ fn pipeline_multi_route_codegen() {
 fn pipeline_multi_route_rust_codegen() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
-    let hir = vox_hir::lower_module(&module);
-    let output = vox_codegen_rust::generate(&hir, "multi_route_app").unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = vox_compiler::codegen_rust::generate(&hir, "multi_route_app").unwrap();
     let main_rs = output.files.get("src/main.rs").expect("main.rs");
     // Axum uses .route("/path", get(handler)) syntax
     assert!(

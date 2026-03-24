@@ -9,13 +9,13 @@
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use std::path::Path;
-use vox_ast::decl::Module;
-use vox_hir::HirModule;
-use vox_typeck::Diagnostic;
-use vox_typeck::diagnostics::Severity;
+use vox_compiler::ast::decl::Module;
+use vox_compiler::hir::HirModule;
+use vox_compiler::typeck::Diagnostic;
+use vox_compiler::typeck::diagnostics::Severity;
 
 fn line_col_for_byte_offset(source: &str, byte_idx: usize) -> (usize, usize) {
-    let (l0, c0) = vox_ast::span::byte_offset_to_line_col_zero_based(source, byte_idx);
+    let (l0, c0) = vox_compiler::ast::span::byte_offset_to_line_col_zero_based(source, byte_idx);
     (l0 as usize + 1, c0 as usize + 1)
 }
 
@@ -79,10 +79,10 @@ pub async fn run_frontend(file: &Path, json: bool) -> Result<FrontendResult> {
 /// Same as [`run_frontend`] but takes an already-loaded source string.
 pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<FrontendResult> {
     // 1. Lex
-    let tokens = vox_lexer::lex(source);
+    let tokens = vox_compiler::lexer::lex(source);
 
     // 2. Parse
-    let module = match vox_parser::parser::parse(tokens) {
+    let module = match vox_compiler::parser::parser::parse(tokens) {
         Ok(m) => m,
         Err(errors) => {
             if json {
@@ -102,10 +102,10 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
     };
 
     // 3. Type-check (HIR)
-    let diagnostics = vox_typeck::typecheck_ast_module(source, &module);
+    let diagnostics = vox_compiler::typeck::typecheck_ast_module(source, &module);
 
     // 4. Lower to HIR (structural validation is optional; minimal `vox-hir` builds omit it).
-    let hir = vox_hir::lower_module(&module);
+    let hir = vox_compiler::hir::lower_module(&module);
 
     Ok(FrontendResult {
         module,
@@ -158,11 +158,11 @@ pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
 }
 
 /// Print parse errors to stderr in rustc style.
-pub fn print_parse_errors_to_stderr(errors: &[vox_parser::ParseError], source: &str, file: &Path) {
+pub fn print_parse_errors_to_stderr(errors: &[vox_compiler::parser::ParseError], source: &str, file: &Path) {
     print_parse_errors(errors, source, file);
 }
 
-fn print_parse_errors(errors: &[vox_parser::ParseError], source: &str, file: &Path) {
+fn print_parse_errors(errors: &[vox_compiler::parser::ParseError], source: &str, file: &Path) {
     for e in errors {
         let (line, col) = line_col_for_byte_offset(source, e.span.start);
         let context_line = source_line_at(source, line).unwrap_or("");

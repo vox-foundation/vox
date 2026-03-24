@@ -1,4 +1,4 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::path::Path;
 
@@ -9,7 +9,7 @@ pub fn run(file_path: &Path) -> Result<()> {
     }
 
     let src = std::fs::read_to_string(file_path)?;
-    let compacted = vox_lexer::compact(&src);
+    let compacted = vox_compiler::lexer::compact(&src);
 
     println!("{}", compacted);
 

@@ -10,10 +10,10 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::info;
 
-use vox_lexer::lex;
-use vox_parser::parser::parse;
-use vox_typeck::diagnostics::Severity;
-use vox_typeck::typecheck_module;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::typecheck_module;
 
 #[derive(Debug)]
 struct Backend {

@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 
-use vox_codegen_rust::emit::emit_lib;
-use vox_hir::lower_module;
+use vox_compiler::codegen_rust::emit::emit_lib;
+use vox_compiler::hir::lower_module;
 /// Integration tests for Rust code generation of durable execution features.
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
 
 fn codegen_rust(src: &str) -> String {
     let tokens = lex(src);
@@ -103,7 +103,7 @@ fn codegen_table_emits_struct() {
 
 #[test]
 fn codegen_table_emits_ddl() {
-    use vox_codegen_rust::emit::emit_table_ddl;
+    use vox_compiler::codegen_rust::emit::emit_table_ddl;
 
     let src = r#"
 @table type Task {
@@ -127,7 +127,7 @@ fn codegen_table_emits_ddl() {
 
 #[test]
 fn codegen_index_emits_ddl() {
-    use vox_codegen_rust::emit::emit_index_ddl;
+    use vox_compiler::codegen_rust::emit::emit_index_ddl;
 
     let src = r#"
 @table type Task {
@@ -179,7 +179,7 @@ fn codegen_mcp_server_produces_file() {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let output = vox_codegen_rust::generate(&hir, "my_mcp_tools").unwrap();
+    let output = vox_compiler::codegen_rust::generate(&hir, "my_mcp_tools").unwrap();
 
     assert!(output.files.contains_key("src/mcp_server.rs"), "Should produce mcp_server.rs");
 
@@ -211,7 +211,7 @@ fn codegen_mcp_server_input_schema() {
 
     assert_eq!(hir.mcp_tools.len(), 2, "Should have 2 MCP tools");
 
-    let mcp = vox_codegen_rust::emit::emit_mcp_server(&hir, "my_tools");
+    let mcp = vox_compiler::codegen_rust::emit::emit_mcp_server(&hir, "my_tools");
     assert!(mcp.contains("\"integer\""), "int params should map to JSON 'integer' type");
     assert!(mcp.contains("\"string\""), "str params should map to JSON 'string' type");
     assert!(mcp.contains("as_i64"), "int params should use as_i64 for extraction");
@@ -228,7 +228,7 @@ fn hello(name: str) to str {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let output = vox_codegen_rust::generate(&hir, "test_no_mcp").unwrap();
+    let output = vox_compiler::codegen_rust::generate(&hir, "test_no_mcp").unwrap();
 
     assert!(!output.files.contains_key("src/mcp_server.rs"), "Should NOT produce mcp_server.rs when no @mcp.tool");
 }

@@ -2,13 +2,13 @@
 //!
 //! On parse failure the original `source` is returned unchanged so editors can format incomplete buffers.
 
-use vox_ast::decl::*;
-use vox_ast::expr::*;
-use vox_ast::pattern::*;
-use vox_ast::stmt::*;
-use vox_ast::types::*;
-use vox_lexer::lex;
-use vox_parser::parser::parse;
+use vox_compiler::ast::decl::*;
+use vox_compiler::ast::expr::*;
+use vox_compiler::ast::pattern::*;
+use vox_compiler::ast::stmt::*;
+use vox_compiler::ast::types::*;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parser::parse;
 
 /// Format `source` when it parses cleanly; otherwise return `source` unchanged.
 pub fn format(source: &str) -> String {
@@ -103,10 +103,10 @@ impl Printer {
                 self.write_indent();
                 self.out.push_str("http ");
                 self.out.push_str(match h.method {
-                    vox_ast::decl::HttpMethod::Get => "get",
-                    vox_ast::decl::HttpMethod::Post => "post",
-                    vox_ast::decl::HttpMethod::Put => "put",
-                    vox_ast::decl::HttpMethod::Delete => "delete",
+                    vox_compiler::ast::decl::HttpMethod::Get => "get",
+                    vox_compiler::ast::decl::HttpMethod::Post => "post",
+                    vox_compiler::ast::decl::HttpMethod::Put => "put",
+                    vox_compiler::ast::decl::HttpMethod::Delete => "delete",
                 });
                 self.out.push(' ');
                 self.out.push_str(&format!("\"{}\"", h.path));

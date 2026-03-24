@@ -38,6 +38,8 @@ pub struct LlmConfig {
     pub max_tokens: Option<u64>,
     /// Optional JSON Schema / response-format object for structured output.
     pub response_format: Option<serde_json::Value>,
+    /// Optional HTTP timeout in milliseconds.
+    pub timeout_ms: Option<u64>,
 }
 
 impl LlmConfig {
@@ -51,6 +53,7 @@ impl LlmConfig {
             temperature: None,
             max_tokens: None,
             response_format: None,
+            timeout_ms: None,
         }
     }
 
@@ -64,6 +67,7 @@ impl LlmConfig {
             temperature: None,
             max_tokens: None,
             response_format: None,
+            timeout_ms: None,
         }
     }
 
@@ -77,6 +81,7 @@ impl LlmConfig {
             temperature: None,
             max_tokens: None,
             response_format: None,
+            timeout_ms: None,
         }
     }
 
@@ -122,6 +127,7 @@ impl LlmConfig {
             temperature: entry.temperature,
             max_tokens: entry.max_tokens,
             response_format: None,
+            timeout_ms: entry.timeout_ms,
         })
     }
 }
@@ -141,6 +147,8 @@ pub struct ModelRegistryEntry {
     pub api_key_env: Option<String>,
     /// Optional override for the chat completions URL.
     pub base_url: Option<String>,
+    /// Optional HTTP timeout in milliseconds.
+    pub timeout_ms: Option<u64>,
 }
 
 /// Tracks token usage and cost per LLM call — stored in @table ModelMetric.

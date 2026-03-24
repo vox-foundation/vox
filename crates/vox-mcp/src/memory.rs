@@ -251,8 +251,7 @@ pub async fn compaction_status(
     state: &ServerState,
     params: crate::context::ContextBudgetParams,
 ) -> String {
-    let g = state.orchestrator.lock().await;
-    let orch = g;
+    let orch = &state.orchestrator;
     let id = vox_orchestrator::AgentId(params.agent_id);
     if let Some(budget) = orch.budget().check_budget(id) {
         let engine = vox_orchestrator::CompactionEngine::default();
@@ -718,7 +717,7 @@ mod memory_config_tests {
         let state = ServerState::test_stub(
             cfg.clone(),
             repository,
-            Arc::new(Mutex::new(Orchestrator::with_groups(orch_cfg, groups))),
+            Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
             Arc::new(Mutex::new(session_manager)),
             new_registry_arc(),
         );

@@ -1,7 +1,7 @@
 use crate::server::ServerState;
-use vox_lexer::token::Token;
-use vox_parser::parser::parse;
-use vox_lexer::cursor::lex;
+use vox_compiler::lexer::token::Token;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::lexer::cursor::lex;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -28,7 +28,7 @@ pub fn language_surface() -> Value {
     })
 }
 
-/// `vox_ast_inspect` — parses a file and returns its AST as JSON.
+/// `vox_compiler::ast_inspect` — parses a file and returns its AST as JSON.
 pub async fn ast_inspect(state: &ServerState, path: &str) -> Result<Value, anyhow::Error> {
     let abs_path = if PathBuf::from(path).is_absolute() {
         PathBuf::from(path)
@@ -115,7 +115,7 @@ pub async fn workspace_modules(state: &ServerState) -> Result<Value, anyhow::Err
 
 /// `vox_a2a_tasks` — returns all current active and queued tasks for DAG visualization.
 pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let tasks = orch.all_tasks();
     let assignments = orch.task_assignments();
     
@@ -126,14 +126,15 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
             vox_orchestrator::types::TaskStatus::Completed => "Completed".to_string(),
             vox_orchestrator::types::TaskStatus::Failed(e) => format!("Failed: {}", e),
             vox_orchestrator::types::TaskStatus::Blocked(id) => format!("Blocked by {}", id),
+            vox_orchestrator::types::TaskStatus::Cancelled => "Cancelled".to_string(),
             _ => "Unknown".to_string(),
         };
-        
+
         let priority_str = match t.priority {
             vox_orchestrator::types::TaskPriority::Background => "Background",
             vox_orchestrator::types::TaskPriority::Normal => "Normal",
             vox_orchestrator::types::TaskPriority::Urgent => "Urgent",
-            _ => "Unknown",
+            _ => "Normal",
         };
 
         let agent_id = assignments.get(&t.id).map(|id| id.to_string()).unwrap_or_else(|| "unassigned".to_string());

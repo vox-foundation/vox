@@ -1,4 +1,4 @@
-//! Minimal **interpreted** workflow runner: walks a [`vox_hir::HirModule`] workflow body for
+//! Minimal **interpreted** workflow runner: walks a [`vox_compiler::hir::HirModule`] workflow body for
 //! activity calls and executes **no-op** steps with optional mesh hooks.
 //!
 //! - Activities whose name starts with `mesh_` are treated as [`MeshActivity`] steps when the
@@ -21,7 +21,7 @@
 
 use anyhow::Context;
 use serde_json::{Value, json};
-use vox_hir::{HirExpr, HirModule, HirStmt};
+use vox_compiler::hir::{HirExpr, HirModule, HirStmt};
 
 /// Control-plane sub-step for a [`MeshActivity`] (URL always comes from env / `Vox.toml`, not source).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -549,8 +549,8 @@ fn normalize_control_base(addr: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_ast::span::Span;
-    use vox_hir::{DefId, HirWorkflow};
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::{DefId, HirWorkflow};
 
     fn span() -> Span {
         Span { start: 0, end: 0 }

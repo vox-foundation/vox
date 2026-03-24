@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
-use vox_codegen_rust::{emit::emit_api_client, generate as generate_rust};
-use vox_hir::lower_module;
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
+use vox_compiler::codegen_rust::{emit::emit_api_client, generate as generate_rust};
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
 use vox_runtime::{ContextBudget, RetrievedChunk, RetryPolicy, apply_context_budget};
 
-fn lower(src: &str) -> vox_hir::HirModule {
+fn lower(src: &str) -> vox_compiler::hir::HirModule {
     let tokens = lex(src);
     let module = parse(tokens).expect("source should parse");
     lower_module(&module)

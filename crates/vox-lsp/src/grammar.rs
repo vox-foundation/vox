@@ -1,10 +1,10 @@
 //! Semantic token type mapping for the Vox LSP.
 //!
-//! Maps [`vox_lexer::token::Token`] variants to LSP semantic token type indices
+//! Maps [`vox_compiler::lexer::token::Token`] variants to LSP semantic token type indices
 //! matching the `SEMANTIC_TOKEN_TYPES` legend order.
 
 use tower_lsp::lsp_types::SemanticTokenType;
-use vox_lexer::token::Token;
+use vox_compiler::lexer::token::Token;
 
 /// Maps a Vox lexer [`Token`] to an LSP semantic token type index, or `None`
 /// for tokens that do not need syntax highlighting (punctuation, whitespace, etc.).

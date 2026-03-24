@@ -16,6 +16,7 @@ use anyhow::Context;
 use rand::Rng;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
+use std::io::Write;
 
 /// QWERTY keyboard adjacency map for realistic keyboard substitution errors.
 /// Each entry maps a lowercase character to its physically adjacent keys on a

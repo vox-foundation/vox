@@ -7,7 +7,7 @@ use vox_orchestrator::{
     contract::TaskCapabilityHints,
     types::FileAffinity
 };
-use std::collections::HashMap;
+use dashmap::DashMap;
 
 #[tokio::test]
 async fn test_routing_service_affinity_assignment() {
@@ -16,7 +16,7 @@ async fn test_routing_service_affinity_assignment() {
     
     let affinity_map = FileAffinityMap::new();
     let groups = AffinityGroupRegistry::defaults();
-    let mut agents = HashMap::new();
+    let agents = DashMap::new();
     
     let a1 = AgentId(1);
     let mut q1 = AgentQueue::new(a1, "pm-group");
@@ -52,7 +52,7 @@ async fn test_routing_service_load_balancing() {
     let config = OrchestratorConfig::default();
     let affinity_map = FileAffinityMap::new();
     let groups = AffinityGroupRegistry::defaults();
-    let mut agents = HashMap::new();
+    let agents = DashMap::new();
     
     let a1 = AgentId(1);
     let a2 = AgentId(2);

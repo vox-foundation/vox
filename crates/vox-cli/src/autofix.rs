@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 use vox_toestub::{ReviewClient, auto_discover_providers};
-use vox_typeck::diagnostics::Diagnostic;
+use vox_compiler::typeck::diagnostics::Diagnostic;
 
 /// Attempt to fix type errors in a source file using an LLM.
 pub async fn autofix_file(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Result<String> {

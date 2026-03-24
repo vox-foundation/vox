@@ -1,24 +1,24 @@
 #![allow(missing_docs)]
 //! Integration tests for the Vox type checker — v0.3 brace syntax.
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
-use vox_typeck::diagnostics::Severity;
-use vox_typeck::typecheck_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::typecheck_module;
 
-fn check(src: &str) -> Vec<vox_typeck::Diagnostic> {
+fn check(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     let tokens = lex(src);
     let module = parse(tokens).expect("Source should parse without errors");
     typecheck_module(&module, "")
 }
 
-fn errors(src: &str) -> Vec<vox_typeck::Diagnostic> {
+fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check(src)
         .into_iter()
         .filter(|d| d.severity == Severity::Error)
         .collect()
 }
 
-fn warnings(src: &str) -> Vec<vox_typeck::Diagnostic> {
+fn warnings(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check(src)
         .into_iter()
         .filter(|d| d.severity == Severity::Warning)

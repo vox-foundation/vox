@@ -65,7 +65,7 @@ pub trait RunBackend {
     /// Compile HIR to the target artifact and return the binary/wasm path.
     fn compile(
         &self,
-        hir: &vox_hir::HirModule,
+        hir: &vox_compiler::hir::HirModule,
         cache_dir: &Path,
         shared_target: &Path,
         opts: &ScriptOpts,
@@ -85,7 +85,7 @@ impl RunBackend for NativeBackend {
 
     fn compile(
         &self,
-        hir: &vox_hir::HirModule,
+        hir: &vox_compiler::hir::HirModule,
         cache_dir: &Path,
         shared_target: &Path,
         opts: &ScriptOpts,
@@ -102,7 +102,7 @@ impl RunBackend for NativeBackend {
         };
         let per_entry_binary = cache_dir.join(binary_name);
 
-        let output = vox_codegen_rust::generate_script(
+        let output = vox_compiler::codegen_rust::generate_script(
             hir,
             "vox-script",
             crate::fs_utils::resolve_vox_runtime_path().as_deref(),
@@ -229,18 +229,18 @@ impl RunBackend for WasiBackend {
 
     fn compile(
         &self,
-        hir: &vox_hir::HirModule,
+        hir: &vox_compiler::hir::HirModule,
         cache_dir: &Path,
         shared_target: &Path,
         _opts: &ScriptOpts,
     ) -> Result<PathBuf> {
         let per_entry_wasm = cache_dir.join("vox-script.wasm");
 
-        let output = vox_codegen_rust::generate_script_with_target(
+        let output = vox_compiler::codegen_rust::generate_script_with_target(
             hir,
             "vox-script",
             crate::fs_utils::resolve_vox_runtime_path().as_deref(),
-            vox_codegen_rust::ScriptTarget::Wasi,
+            vox_compiler::codegen_rust::ScriptTarget::Wasi,
         )
         .map_err(|e| anyhow::anyhow!("WASI codegen failed: {e}"))?;
 

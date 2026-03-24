@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-vox-hir = { workspace = true }
+vox-compiler = { workspace = true }
 
 [lints]
 workspace = true

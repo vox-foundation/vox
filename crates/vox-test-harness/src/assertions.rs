@@ -3,7 +3,7 @@
 //! Provides typed helpers over `Vec<Diagnostic>` so test files don't
 //! repeat the same filter/map patterns.
 
-use vox_typeck::{diagnostics::Severity, Diagnostic};
+use vox_compiler::typeck::{diagnostics::Severity, Diagnostic};
 
 /// Returns `true` if `diags` contains at least one error-severity diagnostic.
 pub fn has_error(diags: &[Diagnostic]) -> bool {

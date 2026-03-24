@@ -1,0 +1,241 @@
+# GPU specifications and training preset configurations for Vox Populi.
+#
+# SSOT for:
+#   - Cloud cost estimation: TimeEstimator scales training time from TFLOPS ratios
+#   - Local training: auto-preset selection based on available VRAM
+#   - Cloud preset injection: resolver reads presets and passes them as container env
+#
+# Priority: measured DB profiles > TFLOPS-scaled heuristic > conservative fallback.
+#
+# Sources: NVIDIA product datasheets and official whitepapers.
+# Add new GPUs without recompiling — loaded at runtime by TimeEstimator.
+#
+# SSOT doc: docs/src/architecture/populi-cloud-gpu-ssot.md
+
+gpus:
+  # ── Consumer GPUs (local training) ─────────────────────────────────────────
+
+  # RTX 4080 Super — primary local training GPU. First-class default. SSOT.
+  "rtx 4080 super":
+    fp16_tflops: 52.2
+    vram_mb: 16384
+
+  "rtx 4080":
+    fp16_tflops: 48.7
+    vram_mb: 16384
+
+  "rtx 4090":
+    fp16_tflops: 82.6
+    vram_mb: 24576
+
+  "rtx 5090":
+    fp16_tflops: 105.0
+    vram_mb: 32768
+
+  "rtx 5080":
+    fp16_tflops: 75.0
+    vram_mb: 16384
+
+  "rtx 3090":
+    fp16_tflops: 35.6
+    vram_mb: 24576
+
+  "rtx 3090 ti":
+    fp16_tflops: 40.0
+    vram_mb: 24576
+
+  "rtx 4070 ti super":
+    fp16_tflops: 40.0
+    vram_mb: 16384
+
+  # ── Datacenter — Ampere ─────────────────────────────────────────────────────
+
+  "a100-sxm4-80gb":
+    fp16_tflops: 77.97
+    vram_mb: 81920
+
+  "a100 sxm 80g":
+    fp16_tflops: 77.97
+    vram_mb: 81920
+
+  "a100-sxm4-40gb":
+    fp16_tflops: 77.97
+    vram_mb: 40960
+
+  "a100 pcie 80gb":
+    fp16_tflops: 77.97
+    vram_mb: 81920
+
+  "a100 pcie 40gb":
+    fp16_tflops: 77.97
+    vram_mb: 40960
+
+  "a10g":
+    fp16_tflops: 31.2
+    vram_mb: 24576
+
+  "a10":
+    fp16_tflops: 31.2
+    vram_mb: 24576
+
+  # ── Datacenter — Ada Lovelace ───────────────────────────────────────────────
+
+  "l4":
+    fp16_tflops: 30.3
+    vram_mb: 24576
+
+  "l40":
+    fp16_tflops: 90.5
+    vram_mb: 49152
+
+  "l40s":
+    fp16_tflops: 91.6
+    vram_mb: 49152
+
+  "a6000":
+    fp16_tflops: 38.7
+    vram_mb: 49152
+
+  "a6000 ada":
+    fp16_tflops: 91.1
+    vram_mb: 49152
+
+  # ── Datacenter — Hopper ────────────────────────────────────────────────────
+
+  "h100 sxm":
+    fp16_tflops: 267.0
+    vram_mb: 81920
+
+  "h100 pcie":
+    fp16_tflops: 204.9
+    vram_mb: 81920
+
+  "h100 nvl":
+    fp16_tflops: 267.0
+    vram_mb: 188416
+
+  # ── Datacenter — Hopper+ ───────────────────────────────────────────────────
+
+  "h200":
+    fp16_tflops: 267.0
+    vram_mb: 147456
+
+  "gh200":
+    fp16_tflops: 267.0
+    vram_mb: 98304
+
+  # ── Datacenter — Blackwell ─────────────────────────────────────────────────
+
+  "b200":
+    fp16_tflops: 450.0
+    vram_mb: 196608
+
+  "b100":
+    fp16_tflops: 360.0
+    vram_mb: 188416
+
+  # ── Datacenter — Turing / Volta (older; common on Vast.ai) ─────────────────
+
+  "v100-sxm2-32gb":
+    fp16_tflops: 28.3
+    vram_mb: 32768
+
+  "v100-sxm2-16gb":
+    fp16_tflops: 28.3
+    vram_mb: 16384
+
+  "v100 pcie 16gb":
+    fp16_tflops: 28.3
+    vram_mb: 16384
+
+  "t4":
+    fp16_tflops: 8.1
+    vram_mb: 16384
+
+  # ── Consumer — Maxwell / Pascal (avoid for training) ──────────────────────
+
+  "rtx 2080 ti":
+    fp16_tflops: 13.4
+    vram_mb: 11264
+
+  "rtx 2080 super":
+    fp16_tflops: 11.1
+    vram_mb: 8192
+
+# ── Training preset configurations ──────────────────────────────────────────
+#
+# SSOT for both local and cloud training preset selection.
+# `vox populi train --preset auto` reads these to pick the best config for
+# the available VRAM. Cloud dispatch reads the same to populate container env.
+#
+# Fields:
+#   seq_len:     Training sequence length in tokens
+#   batch_size:  Micro-batch size per step
+#   grad_accum:  Gradient accumulation steps (effective batch = batch × grad_accum)
+#   lr:          Learning rate
+#   max_vram_mb: This preset fits in this many MB of VRAM (upper bound for selection)
+#
+# Selection rule: pick the preset with the largest max_vram_mb that still fits.
+
+presets:
+  tiny:
+    seq_len: 256
+    batch_size: 1
+    grad_accum: 4
+    lr: 5.0e-5
+    max_vram_mb: 8192
+
+  safe:
+    seq_len: 384
+    batch_size: 1
+    grad_accum: 2
+    lr: 3.0e-5
+    max_vram_mb: 10240
+
+  # Matches 12GB cards (RTX 3060, RTX 4070)
+  prosumer_12g:
+    seq_len: 512
+    batch_size: 1
+    grad_accum: 1
+    lr: 2.0e-5
+    max_vram_mb: 12288
+
+  # Matches 16GB cards — RTX 4080 / 4080 Super / 4070 Ti Super (primary dev GPU)
+  prosumer_16g:
+    seq_len: 512
+    batch_size: 1
+    grad_accum: 1
+    lr: 2.0e-5
+    max_vram_mb: 16384
+
+  # Matches 24GB cards — RTX 3090 / 4090 / A10
+  prosumer_24g:
+    seq_len: 768
+    batch_size: 2
+    grad_accum: 1
+    lr: 1.5e-5
+    max_vram_mb: 24576
+
+  # Matches NVIDIA A6000 (48GB), L40, L40S
+  a6000:
+    seq_len: 1024
+    batch_size: 4
+    grad_accum: 1
+    lr: 1.0e-5
+    max_vram_mb: 49152
+
+  # Matches A100 40/80GB, H100 PCIe
+  a100:
+    seq_len: 2048
+    batch_size: 8
+    grad_accum: 1
+    lr: 8.0e-6
+    max_vram_mb: 81920
+
+  # Matches H100 SXM, H200, B100, B200 (highest tier)
+  h100:
+    seq_len: 4096
+    batch_size: 16
+    grad_accum: 1
+    lr: 5.0e-6
+    max_vram_mb: 999999

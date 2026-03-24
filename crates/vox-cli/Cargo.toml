@@ -43,6 +43,8 @@ populi-qlora = ["gpu"]
 populi-candle-cuda = ["gpu", "vox-populi/candle-qlora-cuda"]
 # Candle qlora on Apple Metal (macOS only).
 populi-candle-metal = ["gpu", "vox-populi/candle-qlora-metal"]
+# Cloud GPU training/serving dispatch (Vast.ai, RunPod).
+cloud = ["gpu", "vox-populi/cloud"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
@@ -99,13 +101,7 @@ workflow-runtime = ["populi-dei", "dep:vox-workflow-runtime", "vox-workflow-runt
 broken_inference_stub = []
 
 [dependencies]
-vox-lexer = { workspace = true }
-vox-ast = { workspace = true }
-vox-parser = { workspace = true }
-vox-hir = { workspace = true }
-vox-typeck = { workspace = true }
-vox-codegen-ts = { workspace = true }
-vox-codegen-rust = { workspace = true }
+vox-compiler = { workspace = true }
 vox-ssg = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }

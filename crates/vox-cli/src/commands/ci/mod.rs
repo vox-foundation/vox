@@ -2,6 +2,7 @@
 
 mod command_compliance;
 mod line_endings;
+pub mod build_timings;
 
 use anyhow::{Context, Result, anyhow};
 use clap::{Subcommand, ValueEnum};
@@ -127,6 +128,18 @@ pub enum CiCmd {
         /// Also time isolated `cargo check -p <crate>` lanes (compiler vs data vs Oratio vs Populi train).
         #[arg(long)]
         crates: bool,
+        /// Detailed per-crate telemetry persisted to Arca (V34+).
+        #[arg(long)]
+        deep: bool,
+        /// Persist results to VoxDB (default: true if deep).
+        #[arg(long)]
+        persist: Option<bool>,
+        /// Name for this build run (deep only).
+        #[arg(long)]
+        name: Option<String>,
+        /// Profile: `dev` or `release` (deep only).
+        #[arg(long, default_value = "dev")]
+        profile: String,
     },
     /// Compare grammar taxonomy fingerprint (`generate_system_prompt` SHA-256) to `populi/data/grammar_fingerprint.txt`; update file on drift.
     #[command(name = "grammar-drift")]
@@ -250,7 +263,7 @@ const FEATURE_SETS: &[&str] = &[
 ];
 
 /// Run `vox ci` subcommand.
-pub fn run(cmd: CiCmd) -> Result<()> {
+pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
     match cmd {
         CiCmd::Manifest => run_manifest(&root),
@@ -311,7 +324,14 @@ pub fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PopuliGate { profile } => run_populi_gate(&root, &profile),
         CiCmd::ToestubScoped { root: scan_root } => run_toestub_scoped(&root, &scan_root),
         CiCmd::CudaFeatures => run_cuda_features(),
-        CiCmd::BuildTimings { json, crates } => run_build_timings(&root, json, crates),
+        CiCmd::BuildTimings { json, crates, deep, persist, name, profile } => {
+            if deep {
+                build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile)).await?;
+                Ok(())
+            } else {
+                run_build_timings(&root, json, crates)
+            }
+        }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),

@@ -25,9 +25,7 @@ vox-lsp          = { path = "../vox-lsp" }
 tower-lsp        = "0.20"
 vox-db           = { path = "../vox-db", features = ["local"] }
 vox-socrates-policy = { workspace = true }
-vox-lexer        = { path = "../vox-lexer" }
-vox-parser       = { path = "../vox-parser" }
-vox-ast          = { path = "../vox-ast" }
+vox-compiler = { workspace = true }
 tokio            = { workspace = true }
 serde            = { workspace = true }
 serde_json       = { workspace = true }

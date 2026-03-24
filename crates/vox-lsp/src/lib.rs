@@ -3,13 +3,13 @@
 //! Shared validation helpers used by the LSP binary and MCP / orchestrator quality gates.
 
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
-use vox_ast::decl::Decl;
-use vox_ast::expr::Expr;
-use vox_ast::stmt::Stmt;
-use vox_lexer::lex;
-use vox_parser::parser::parse;
-use vox_typeck::diagnostics::Severity;
-use vox_typeck::typecheck_ast_module;
+use vox_compiler::ast::decl::Decl;
+use vox_compiler::ast::expr::Expr;
+use vox_compiler::ast::stmt::Stmt;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::typecheck_ast_module;
 
 pub mod completions;
 pub mod symbols;
@@ -17,7 +17,7 @@ pub mod grammar;
 
 /// Convert UTF-8 byte index to LSP line / column (character count per line, not UTF-16 code units).
 pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32) {
-    vox_ast::span::byte_offset_to_line_col_zero_based(text, index)
+    vox_compiler::ast::span::byte_offset_to_line_col_zero_based(text, index)
 }
 
 /// Run lexer → parser → typecheck and return LSP diagnostics (no side effects).
@@ -92,7 +92,7 @@ fn vox_mesh_enabled_from_env() -> bool {
 }
 
 /// When `VOX_MESH_ENABLED` is unset/false, warn on `mesh_*` activity calls inside `workflow` bodies.
-fn mesh_workflow_env_warnings(text: &str, module: &vox_ast::decl::Module) -> Vec<Diagnostic> {
+fn mesh_workflow_env_warnings(text: &str, module: &vox_compiler::ast::decl::Module) -> Vec<Diagnostic> {
     if vox_mesh_enabled_from_env() {
         return Vec::new();
     }
@@ -131,7 +131,7 @@ fn mesh_workflow_env_warnings(text: &str, module: &vox_ast::decl::Module) -> Vec
         .collect()
 }
 
-fn collect_mesh_activity_spans_from_stmts(stmts: &[Stmt], out: &mut Vec<vox_ast::Span>) {
+fn collect_mesh_activity_spans_from_stmts(stmts: &[Stmt], out: &mut Vec<vox_compiler::ast::Span>) {
     for s in stmts {
         match s {
             Stmt::Let { value, .. }
@@ -147,7 +147,7 @@ fn collect_mesh_activity_spans_from_stmts(stmts: &[Stmt], out: &mut Vec<vox_ast:
     }
 }
 
-fn collect_mesh_activity_spans_from_expr(expr: &Expr, out: &mut Vec<vox_ast::Span>) {
+fn collect_mesh_activity_spans_from_expr(expr: &Expr, out: &mut Vec<vox_compiler::ast::Span>) {
     match expr {
         Expr::With { operand, .. } => collect_mesh_activity_spans_from_expr(operand, out),
         Expr::Call { callee, .. } => {
@@ -220,7 +220,7 @@ fn collect_mesh_activity_spans_from_expr(expr: &Expr, out: &mut Vec<vox_ast::Spa
         }
         Expr::StringInterp { parts, .. } => {
             for p in parts {
-                if let vox_ast::expr::StringPart::Interpolation(inner) = p {
+                if let vox_compiler::ast::expr::StringPart::Interpolation(inner) = p {
                     collect_mesh_activity_spans_from_expr(inner, out);
                 }
             }

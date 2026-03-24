@@ -43,8 +43,8 @@ pub fn timestamp_string() -> String {
 }
 
 /// Extract construct tags from AST declarations for training data categorization.
-pub fn extract_constructs(module: &vox_ast::decl::Module) -> Vec<String> {
-    use vox_ast::decl::Decl;
+pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<String> {
+    use vox_compiler::ast::decl::Decl;
     let mut constructs = Vec::new();
     for decl in &module.declarations {
         let tag = match decl {

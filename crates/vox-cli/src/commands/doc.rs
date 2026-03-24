@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use vox_ast::decl::Decl;
+use vox_compiler::ast::decl::Decl;
 
 /// `vox doc` — generate API documentation from source comments.
 pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {

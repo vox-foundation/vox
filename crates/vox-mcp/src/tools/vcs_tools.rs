@@ -46,7 +46,7 @@ pub async fn snapshot_list(state: &ServerState, args: serde_json::Value) -> Stri
     let agent_id_val = args.get("agent_id").and_then(|v| v.as_u64());
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let store = orch.snapshot_store();
     let agent = agent_id_val.map(AgentId);
@@ -73,7 +73,7 @@ pub async fn snapshot_diff(state: &ServerState, args: serde_json::Value) -> Stri
     let before_id = args.get("before").and_then(|v| v.as_u64()).unwrap_or(0);
     let after_id = args.get("after").and_then(|v| v.as_u64()).unwrap_or(0);
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let store = orch.snapshot_store();
     let before = store.get(SnapshotId(before_id));
@@ -113,7 +113,7 @@ pub async fn snapshot_restore(state: &ServerState, args: serde_json::Value) -> S
             .to_json();
     };
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch.restore_fs_snapshot(sid).await {
         Ok(_) => ToolResult::ok(format!("Workspace restored to snapshot {}", sid)).to_json(),
@@ -130,7 +130,7 @@ pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String 
     let agent_id_val = args.get("agent_id").and_then(|v| v.as_u64());
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let log = orch.oplog();
     let agent = agent_id_val.map(AgentId);
@@ -162,7 +162,7 @@ pub async fn oplog_undo(state: &ServerState, args: serde_json::Value) -> String 
         .to_json();
     };
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch.undo_operation(op_id).await {
         Ok(_) => ToolResult::ok(serde_json::json!({
@@ -183,7 +183,7 @@ pub async fn oplog_redo(state: &ServerState, args: serde_json::Value) -> String 
         .to_json();
     };
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch.redo_operation(op_id).await {
         Ok(_) => ToolResult::ok(serde_json::json!({
@@ -201,7 +201,7 @@ pub async fn oplog_redo(state: &ServerState, args: serde_json::Value) -> String 
 
 /// List active conflicts (async).
 pub async fn conflicts_list(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let mgr = orch.conflict_manager();
     let conflicts = mgr.active_conflicts();
@@ -246,24 +246,27 @@ pub async fn conflict_diff(state: &ServerState, args: serde_json::Value) -> Stri
         .to_json();
     };
 
-    let orch = state.orchestrator.lock().await;
-    let conflict = match orch.conflict_manager().get(conflict_id) {
+    let orch = &state.orchestrator;
+    let conflict = match orch.conflict_manager().get(conflict_id).cloned() {
         Some(c) => c,
         None => return ToolResult::<String>::err("Conflict not found".to_string()).to_json(),
     };
 
-    let base_entry = conflict
+    let base_entry_data = conflict
         .base_snapshot
-        .and_then(|sid| orch.snapshot_store().get(sid))
+        .and_then(|sid| orch.snapshot_store().get(sid).cloned());
+    let base_entry = base_entry_data
+        .as_ref()
         .and_then(|snap| snap.files.get(&conflict.path));
     let base_hash = base_entry.map(|e| e.content_hash.clone());
 
     let mut unique_hashes = std::collections::BTreeSet::new();
     let mut sides = Vec::new();
     for (idx, side) in conflict.sides.iter().enumerate() {
-        let side_entry = orch
-            .snapshot_store()
-            .get(side.snapshot_id)
+        let side_snap = orch.snapshot_store().get(side.snapshot_id).cloned();
+        let side_entry_data = side_snap;
+        let side_entry = side_entry_data
+            .as_ref()
             .and_then(|snap| snap.files.get(&conflict.path));
 
         let side_hash = side_entry
@@ -285,12 +288,11 @@ pub async fn conflict_diff(state: &ServerState, args: serde_json::Value) -> Stri
             if entry.content_hash.is_empty() {
                 None
             } else {
-                orch.snapshot_store()
-                    .get_blob(&entry.content_hash)
-                    .map(|blob| {
-                        let text = String::from_utf8_lossy(blob);
-                        text.chars().take(240).collect::<String>()
-                    })
+                let store = orch.snapshot_store();
+                store.get_blob(&entry.content_hash).map(|blob| {
+                    let text = String::from_utf8_lossy(blob);
+                    text.chars().take(240).collect::<String>()
+                })
             }
         } else {
             None
@@ -338,7 +340,7 @@ pub async fn resolve_conflict(state: &ServerState, args: serde_json::Value) -> S
         .and_then(|v| v.as_str())
         .unwrap_or("take_left");
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let resolution = match strategy {
         "take_right" => ConflictResolution::TakeRight,
@@ -369,15 +371,14 @@ pub async fn resolve_conflict(state: &ServerState, args: serde_json::Value) -> S
 pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> String {
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64()).unwrap_or(0);
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let base_id = orch
         .snapshot_store_mut()
         .take_snapshot(AgentId(agent_id), &[], "workspace base");
 
-    let ws = orch
-        .workspace_manager_mut()
-        .create_workspace(AgentId(agent_id), base_id);
+    let mut ws_guard = orch.workspace_manager_mut();
+    let ws = ws_guard.create_workspace(AgentId(agent_id), base_id).clone();
 
     ToolResult::ok(serde_json::json!({
         "workspace_created": true,
@@ -391,7 +392,7 @@ pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> S
 pub async fn workspace_status(state: &ServerState, args: serde_json::Value) -> String {
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64()).unwrap_or(0);
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch.workspace_manager().get_workspace(AgentId(agent_id)) {
         Some(ws) => {
@@ -417,7 +418,7 @@ pub async fn workspace_status(state: &ServerState, args: serde_json::Value) -> S
 pub async fn workspace_merge(state: &ServerState, args: serde_json::Value) -> String {
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64()).unwrap_or(0);
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch
         .workspace_manager_mut()
@@ -449,7 +450,7 @@ pub async fn change_create(state: &ServerState, args: serde_json::Value) -> Stri
         .and_then(|v| v.as_str())
         .unwrap_or("unnamed change");
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let change_id = orch
         .workspace_manager_mut()
@@ -468,7 +469,7 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64());
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     if let Some(cid) = change_id {
         match orch
@@ -488,7 +489,8 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
         }
     } else {
         let agent = agent_id.map(AgentId);
-        let changes = orch.workspace_manager().list_changes(agent, limit);
+        let ws_guard = orch.workspace_manager();
+        let changes = ws_guard.list_changes(agent, limit);
         let items: Vec<serde_json::Value> = changes
             .iter()
             .map(|c| {
@@ -516,7 +518,7 @@ mod conflict_diff_contract_tests {
     async fn conflict_diff_success_payload_has_expected_keys() {
         let state = ServerState::new_test().await;
         let conflict_id = {
-            let mut orch = state.orchestrator.lock().await;
+            let orch = &state.orchestrator;
             let task_id = orch
                 .submit_task("setup", vec![FileAffinity::write("src/lib.rs")], None, None)
                 .await

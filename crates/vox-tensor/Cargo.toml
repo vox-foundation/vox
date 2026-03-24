@@ -11,7 +11,7 @@ lstm = ["gpu"]
 
 [dependencies]
 burn = { workspace = true, optional = true, features = ["wgpu", "autodiff", "train"] }
-vox-ast = { workspace = true }
+vox-compiler = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

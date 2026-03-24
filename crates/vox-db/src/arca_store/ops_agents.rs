@@ -233,4 +233,26 @@ impl crate::VoxDb {
             None => Err(StoreError::NotFound(format!("{namespace}.{key}"))),
         }
     }
+
+    /// List all `agent_sessions` rows with status = 'active'.
+    /// Returns (session_id, agent_id, task_snapshot) triples.
+    pub async fn list_active_sessions(
+        &self,
+    ) -> Result<Vec<(String, String, Option<String>)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, agent_id, task_snapshot FROM agent_sessions WHERE status = 'active'",
+                (),
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let sid: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let aid: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let snap: Option<String> = row.get(2).ok();
+            out.push((sid, aid, snap));
+        }
+        Ok(out)
+    }
 }

@@ -65,6 +65,7 @@ mod codex_conversation_graph;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod arca_store;
 pub mod schema;
+pub mod build_hints;
 
 pub mod hash;
 pub mod codex_legacy;
@@ -138,13 +139,13 @@ pub use toestub_store::{
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
 };
 pub use arca_store::{
-    AgentDefEntry, ArtifactEntry, BehaviorEventEntry, BuilderSessionEntry, 
-    CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, EmbeddingEntry, ExecutionEntry,
-    KnowledgeNodeSummary, LearnedPatternEntry, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PublishArtifactParams, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
-    SaveSnippetParams, ScheduledEntry, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
-    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, TrainingPair,
-    TypedStreamEventEntry, UserEntry, WorkflowExecutionRow,
+    A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
+    CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample, CrateSampleRow,
+    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
+    LogInteractionParams, MemoryEntry, PackageSearchResult, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
+    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, SessionEventRow, SessionRow, SessionTurnEntry,
+    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
+    TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
@@ -371,9 +372,9 @@ impl VoxDb {
     /// Automatically sync the database schema derived from AST declarations.
     pub async fn sync_schema_ast(
         &self,
-        tables: &[&vox_ast::decl::TableDecl],
-        collections: &[&vox_ast::decl::CollectionDecl],
-        indexes: &[&vox_ast::decl::IndexDecl],
+        tables: &[&vox_compiler::ast::decl::TableDecl],
+        collections: &[&vox_compiler::ast::decl::CollectionDecl],
+        indexes: &[&vox_compiler::ast::decl::IndexDecl],
     ) -> Result<auto_migrate::MigrationPlan, StoreError> {
         let plan = self
             .auto_migrator()

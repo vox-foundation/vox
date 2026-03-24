@@ -38,7 +38,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
         params.description
     );
 
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     match orch
         .submit_task_with_agent(
             desc,

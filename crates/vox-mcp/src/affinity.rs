@@ -63,7 +63,7 @@ pub struct MyFilesResponse {
 
 /// Return JSON describing which agent (if any) owns `params.path` in the affinity map.
 pub async fn file_owner(state: &ServerState, params: FileOwnerParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let path = PathBuf::from(&params.path);
     let owner = orch.affinity_map().lookup(&path).map(|id| id.0);
@@ -77,7 +77,7 @@ pub async fn file_owner(state: &ServerState, params: FileOwnerParams) -> String 
 
 /// Return JSON listing all file paths owned by `params.agent_id`.
 pub async fn my_files(state: &ServerState, params: MyFilesParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let files = orch
         .affinity_map()
@@ -93,7 +93,7 @@ pub async fn my_files(state: &ServerState, params: MyFilesParams) -> String {
 
 /// Assign `params.path` to `params.agent_id` when not owned by another agent; mutates affinity map.
 pub async fn claim_file(state: &ServerState, params: ClaimFileParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let path = PathBuf::from(&params.path);
     let agent_id = AgentId(params.agent_id);
@@ -114,7 +114,7 @@ pub async fn claim_file(state: &ServerState, params: ClaimFileParams) -> String 
 
 /// Release then re-assign `params.path` from `from_agent` to `to_agent`; errors if ownership mismatches.
 pub async fn transfer_file(state: &ServerState, params: TransferFileParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let path = PathBuf::from(&params.path);
     let from_id = AgentId(params.from_agent);

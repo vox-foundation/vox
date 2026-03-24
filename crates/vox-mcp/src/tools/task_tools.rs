@@ -47,8 +47,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             }
         }
     }
-
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let manifest: Vec<FileAffinity> = params
         .files
@@ -137,7 +136,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
 
 /// Get the current status of a specific task.
 pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let status = orch.status();
     let task_id = TaskId(params.task_id);
@@ -167,10 +166,7 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
 
 /// Mark a task as completed, releasing its file locks (async).
 pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> String {
-    let res = {
-        let mut orch = state.orchestrator.lock().await;
-        orch.complete_task(TaskId(params.task_id)).await
-    };
+    let res = state.orchestrator.complete_task(TaskId(params.task_id)).await;
 
     match res {
         Ok(()) => {
@@ -198,10 +194,7 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
 
 /// Mark a task as failed with a reason (async).
 pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
-    let res = {
-        let mut orch = state.orchestrator.lock().await;
-        orch.fail_task(TaskId(params.task_id), params.reason).await
-    };
+    let res = state.orchestrator.fail_task(TaskId(params.task_id), params.reason).await;
 
     match res {
         Ok(()) => {
@@ -228,7 +221,7 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
 
 /// Cancel a task by ID.
 pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     match orch.cancel_task(TaskId(params.task_id)) {
         Ok(()) => ToolResult::ok("Task cancelled successfully".to_string()).to_json(),
         Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
@@ -237,7 +230,7 @@ pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskP
 
 /// Change the priority of a queued task.
 pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTaskParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let priority = match params.priority.as_str() {
         "urgent" => TaskPriority::Urgent,
@@ -253,7 +246,7 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
 
 /// Remove all queued tasks from an agent without retiring it.
 pub async fn drain_agent(state: &ServerState, params: DrainAgentParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     match orch.drain_agent(AgentId(params.agent_id)) {
         Ok(tasks) => ToolResult::ok(format!("Agent drained {} tasks", tasks.len())).to_json(),
         Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
@@ -262,7 +255,7 @@ pub async fn drain_agent(state: &ServerState, params: DrainAgentParams) -> Strin
 
 /// Publish a message to the bulletin board.
 pub async fn publish_message(state: &ServerState, _params: PublishMessageParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let board = orch.bulletin();
     board.publish(vox_orchestrator::AgentMessage::DependencyReady { task_id: TaskId(0) });
     ToolResult::ok("message published".to_string()).to_json()

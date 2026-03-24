@@ -3,8 +3,8 @@
 
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
-use vox_ast::span::Span;
-use vox_hir::{DefId, HirExpr, HirModule, HirStmt, HirWorkflow};
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{DefId, HirExpr, HirModule, HirStmt, HirWorkflow};
 use vox_workflow_runtime::{interpret_workflow_durable, WorkflowTracker};
 
 fn sp() -> Span { Span { start: 0, end: 0 } }

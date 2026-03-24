@@ -631,7 +631,7 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
             run_review_subcommand(cmd).await?;
         }
         Cli::Ci { cmd } => {
-            commands::ci::run(cmd)?;
+            commands::ci::run(cmd).await?;
         }
         #[cfg(feature = "script-execution")]
         Cli::Script { args } => {

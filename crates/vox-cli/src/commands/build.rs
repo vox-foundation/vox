@@ -14,11 +14,11 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         .with_context(|| format!("Failed to read source file: {}", file.display()))?;
 
     // 1. Lex
-    let tokens = vox_lexer::lex(&source);
+    let tokens = vox_compiler::lexer::lex(&source);
     tracing::info!("Lexed {} tokens", tokens.len());
 
     // 2. Parse
-    let module = vox_parser::parser::parse(tokens).map_err(|errors| {
+    let module = vox_compiler::parser::parser::parse(tokens).map_err(|errors| {
         for e in &errors {
             eprintln!("Parse error: {} at {:?}", e.message, e.span);
         }
@@ -27,16 +27,16 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     tracing::info!("Parsed {} declarations", module.declarations.len());
 
     // 3. Type check (HIR)
-    let diagnostics = vox_typeck::typecheck_ast_module(&source, &module);
+    let diagnostics = vox_compiler::typeck::typecheck_ast_module(&source, &module);
     let has_errors = diagnostics
         .iter()
-        .any(|d| d.severity == vox_typeck::diagnostics::Severity::Error);
+        .any(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error);
     for d in &diagnostics {
         match d.severity {
-            vox_typeck::diagnostics::Severity::Error => {
+            vox_compiler::typeck::diagnostics::Severity::Error => {
                 eprintln!("error: {} at {:?}", d.message, d.span)
             }
-            vox_typeck::diagnostics::Severity::Warning => {
+            vox_compiler::typeck::diagnostics::Severity::Warning => {
                 eprintln!("warning: {} at {:?}", d.message, d.span)
             }
         }
@@ -47,17 +47,17 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     tracing::info!("Type checking passed");
 
     // 4. Lower to HIR (reuse for codegen)
-    let hir = vox_hir::lower_module(&module);
+    let hir = vox_compiler::hir::lower_module(&module);
 
     // 5. Generate TypeScript (Frontend)
-    let ts_opts = vox_codegen_ts::CodegenOptions {
+    let ts_opts = vox_compiler::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
     };
-    let ts_output = vox_codegen_ts::generate_with_options(&module, ts_opts)
+    let ts_output = vox_compiler::codegen_ts::generate_with_options(&module, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript code generation failed: {e}"))?;
 
     // 6. Generate Rust (Backend)
-    let rust_output = vox_codegen_rust::generate(&hir, "vox_generated_app")
+    let rust_output = vox_compiler::codegen_rust::generate(&hir, "vox_generated_app")
         .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
     // 7. Write output files
@@ -100,7 +100,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     // 8. Handle @v0 components
     // We iterate over the parsed declarations to find V0Components
     for decl in &module.declarations {
-        if let vox_ast::decl::Decl::V0Component(comp) = decl {
+        if let vox_compiler::ast::decl::Decl::V0Component(comp) = decl {
             let component_name = &comp.name;
             let filename = format!("{}.tsx", component_name);
             let target_path = out_dir.join(&filename);

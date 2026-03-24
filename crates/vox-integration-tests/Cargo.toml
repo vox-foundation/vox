@@ -12,13 +12,7 @@ tower-lsp-server = { workspace = true }
 vox-config = { path = "../vox-config" }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
-vox-lexer = { workspace = true }
-vox-ast = { workspace = true }
-vox-parser = { workspace = true }
-vox-hir = { workspace = true }
-vox-typeck = { workspace = true }
-vox-codegen-ts = { workspace = true }
-vox-codegen-rust = { workspace = true }
+vox-compiler = { workspace = true }
 vox-lsp = { workspace = true }
 vox-runtime = { workspace = true }
 vox-container = { workspace = true }

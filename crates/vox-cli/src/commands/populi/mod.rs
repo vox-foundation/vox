@@ -7,7 +7,7 @@
 //! ## Subcommands
 //!
 //! ```text
-//! vox populi train      — Fine-tune: Burn LoRA (default) or Candle QLoRA (`--backend qlora` + HF tokenizer)
+//! vox populi train      — Fine-tune: Candle QLoRA (default) or Burn LoRA (`--backend lora` deprecated)
 //! vox populi serve      — HTTP inference (build `vox-cli` with `--features execution-api`)
 //! vox populi corpus     — Training data pipeline (extract, validate, mix, eval…)
 //! vox populi probe      — Detect GPU capabilities and print recommended LoRA training config
@@ -120,7 +120,7 @@ impl From<TrainingDeploymentTargetCli> for vox_populi::TrainingDeploymentTarget 
                   Quick start:\n\
                   \n  vox populi corpus extract .    # extract corpus from vox files\
                   \n  vox populi corpus pairs ...    # generate training pairs\
-                  \n  vox populi train --model Qwen/Qwen2.5-Coder-1.5B-Instruct \
+                  \n  vox populi train --model Qwen/Qwen2.5-Coder-3B-Instruct \
                   \n  vox populi pipeline            # Corpus → eval → optional native train\
                   \n  vox populi serve --model ...   # HTTP serve"
 )]
@@ -147,7 +147,7 @@ pub enum PopuliAction {
     /// Fine-tune: Burn LoRA (`--backend lora`) or Candle HF-embed adapter (`--backend qlora` + `--tokenizer hf`).
     #[cfg(feature = "gpu")]
     Train {
-        /// HuggingFace model repo to fine-tune (e.g. Qwen/Qwen2.5-Coder-1.5B-Instruct).
+        /// HuggingFace model repo to fine-tune (e.g. Qwen/Qwen2.5-Coder-3B-Instruct).
         /// When set, weights are downloaded natively via hf-hub before training.
         #[arg(long)]
         model: Option<String>,
@@ -249,9 +249,28 @@ pub enum PopuliAction {
         /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`.
         #[arg(long)]
         checkpoint_every: Option<usize>,
+        /// Fraction (0.0–1.0) of training pairs held out for mid-epoch validation. Default 0.05.
+        #[arg(long, default_value_t = 0.05)]
+        validation_split_ratio: f64,
         /// Ignore existing resume state and force a fresh run from step 0.
         #[arg(long)]
         force_restart: bool,
+
+        /// Cloud provider (auto, vast, runpod, local)
+        #[arg(long, default_value = "local")]
+        cloud: String,
+        /// Max budget USD
+        #[arg(long)]
+        max_budget: Option<f64>,
+        /// Training data on HF Hub
+        #[arg(long)]
+        train_data_hf: Option<String>,
+        /// HF Hub repo to upload the trained adapter
+        #[arg(long)]
+        adapter_upload_hf: Option<String>,
+        /// Absolute hard cap for runtime in seconds
+        #[arg(long)]
+        max_runtime_secs: Option<u64>,
     },
 
     /// Dogfood training alias. A zero-config command to execute the canonical Qwen QLoRA training pipeline.
@@ -296,9 +315,9 @@ pub enum PopuliAction {
     /// Serve a trained Populi checkpoint via HTTP (OpenAI-compatible API)
     #[cfg(feature = "gpu")]
     Serve {
-        /// Path to model checkpoint (.bin from `vox populi train`)
-        #[arg(long, required = true)]
-        model: PathBuf,
+        /// Path to model checkpoint (.bin from `vox populi train`). Required for local.
+        #[arg(long)]
+        model: Option<PathBuf>,
         /// HTTP port to listen on
         #[arg(long, default_value_t = crate::commands::ai::inference_defaults::DEFAULT_INFERENCE_PORT)]
         port: u16,
@@ -317,6 +336,19 @@ pub enum PopuliAction {
             default_value_t = crate::commands::ai::inference_defaults::DEFAULT_INFERENCE_TEMPERATURE
         )]
         temperature: f32,
+
+        /// Cloud provider (auto, vast, runpod, local)
+        #[arg(long, default_value = "local")]
+        cloud: String,
+        /// Max budget USD
+        #[arg(long)]
+        max_budget: Option<f64>,
+        /// HF Hub model to pull and serve (required for cloud)
+        #[arg(long)]
+        model_hf: Option<String>,
+        /// Absolute hard cap for runtime in seconds
+        #[arg(long)]
+        max_runtime_secs: Option<u64>,
     },
 
     /// Training data pipeline: extract, validate, mix, eval, audit…
@@ -338,6 +370,9 @@ pub enum PopuliAction {
         /// Show current agent/orchestrator inference configuration (Wave 7)
         #[arg(long, default_value = "false")]
         config: bool,
+        /// Show cloud GPU dispatch summary and accrued cost.
+        #[arg(long, default_value = "false")]
+        cloud: bool,
     },
 
 
@@ -591,6 +626,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None, // vram_limit_fraction
                 Some("vox_dogfood_gpu_v1".into()), // adapter_tag
                 Some("vox".into()), // context_filter
+                Some(0.05), // validation_split_ratio
                 PopuliTokenizerCli::Hf.into(),
                 false, // qlora_no_double_quant
                 false, // qlora_require_full_proxy_stack
@@ -600,7 +636,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 16, // qlora_ce_last_k
                 Some(checkpoint_every),
                 force_restart,
-            )?;
+            ).await?;
             Ok(())
         }
         #[cfg(feature = "gpu")]
@@ -638,7 +674,40 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             qlora_ce_last_k,
             checkpoint_every,
             force_restart,
+            cloud,
+            max_budget: _max_budget,
+            train_data_hf: _train_data_hf,
+            adapter_upload_hf: _adapter_upload_hf,
+            max_runtime_secs: _max_runtime_secs,
+            validation_split_ratio,
         } => {
+            if cloud != "local" {
+                #[cfg(feature = "cloud")]
+                {
+                    use vox_populi::cloud::{CloudResolver, CloudJobSpec, JobKind};
+                    let config = vox_populi::cloud::CloudProviderConfig::default();
+                    let mut spec = CloudJobSpec::new_train(&config);
+                    spec.model_id = model.unwrap_or_else(|| vox_populi::DEFAULT_MODEL_ID.to_string());
+                    spec.train_data_hf = _train_data_hf;
+                    spec.adapter_upload_hf = _adapter_upload_hf;
+                    spec.max_budget_usd = _max_budget;
+                    spec.max_runtime_secs = _max_runtime_secs;
+                    spec.preset = preset.clone().unwrap_or_else(|| "auto".to_string());
+                    spec.seq_len = seq_len;
+                    spec.batch_size = batch_size.unwrap_or(4);
+                    spec.epochs = epochs.unwrap_or(3);
+                    // estimating num_samples is hard without the data, 
+                    // but we can pass a hint if we want.
+                    spec.num_samples = 5000; 
+
+                    let resolver = vox_populi::cloud::CloudResolver::new_from_env().await?;
+                    return resolver.dispatch(spec, &cloud).await;
+                }
+                #[cfg(not(feature = "cloud"))]
+                {
+                    anyhow::bail!("Cloud dispatch requires the 'cloud' feature. Rebuild with: cargo build -p vox-cli --features cloud");
+                }
+            }
             let process_priority = if background {
                 "low".to_string()
             } else {
@@ -670,14 +739,50 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     
                     let cfg = vox_corpus::synthetic_gen::SyntheticGenConfig::default();
                     let out_path = root.join("populi/data/synthetic.jsonl");
-                    if let Ok(pairs) = vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
-                        eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), pairs);
-                        if let Ok(db) = vox_db::VoxDb::connect_default().await {
-                            let _ = db.record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), pairs as i64, None).await;
+                    let mut pairs = 0;
+                    if let Ok(count) = vox_corpus::synthetic_gen::generate_all(&cfg, &out_path) {
+                        eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), count);
+                        pairs = count;
+                    }
+                    
+                    eprintln!("  {} Running corpus extraction pipeline...", "🔄".cyan());
+                    if let Err(e) = crate::commands::populi::pipeline::run(
+                        data_dir.clone(),
+                        output_dir.clone(),
+                        true, // skip_train
+                        false, // strict_gate
+                        None, // device
+                    ).await {
+                        eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
+                    } else {
+                        eprintln!("  {} Corpus extraction pipeline completed.", "✓".green());
+                    }
+                    
+                    let mix_yaml = root.join("populi/config/mix.yaml");
+                    if mix_yaml.exists() {
+                        eprintln!("  {} Running corpus mix...", "🔄".cyan());
+                        if let Err(e) = vox_corpus::corpus::run_mix(&mix_yaml) {
+                            eprintln!("  {} Mix failed: {}", "⚠️".yellow(), e);
                         } else {
-                            let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
-                            let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                            if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_yaml) {
+                                let mixed_path = root.join(&mix_cfg.output);
+                                let final_train_path = data_dir.join("train.jsonl");
+                                if mixed_path.exists() {
+                                    if let Err(e) = std::fs::copy(&mixed_path, &final_train_path) {
+                                        eprintln!("  {} Failed to copy mix to {}: {}", "⚠️".yellow(), final_train_path.display(), e);
+                                    } else {
+                                        eprintln!("  {} Mixed data ready at: {}", "✓".green(), final_train_path.display());
+                                    }
+                                }
+                            }
                         }
+                    }
+
+                    if let Ok(db) = vox_db::VoxDb::connect_default().await {
+                        let _ = db.record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), pairs as i64, None).await;
+                    } else {
+                        let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
+                        let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
                     }
                 }
             }
@@ -716,6 +821,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 vram_limit_fraction,
                 adapter_tag,
                 context_filter,
+                Some(validation_split_ratio),
                 tokenizer.into(),
                 qlora_no_double_quant,
                 qlora_require_full_proxy_stack,
@@ -725,7 +831,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 qlora_ce_last_k,
                 checkpoint_every,
                 force_restart,
-            )
+            ).await
         }
 
         #[cfg(feature = "gpu")]
@@ -735,7 +841,32 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             host,
             max_tokens,
             temperature,
+            cloud,
+            max_budget: _max_budget,
+            model_hf: _model_hf,
+            max_runtime_secs: _max_runtime_secs,
         } => {
+            if cloud != "local" {
+                #[cfg(feature = "cloud")]
+                {
+                    use vox_populi::cloud::{CloudResolver, CloudJobSpec, JobKind};
+                    let config = vox_populi::cloud::CloudProviderConfig::default();
+                    let rt = _max_runtime_secs.ok_or_else(|| anyhow::anyhow!("--max-runtime-secs is REQUIRED for cloud serve"))?;
+                    let mut spec = CloudJobSpec::new_serve(&config, rt);
+                    spec.model_id = _model_hf.unwrap_or_else(|| vox_populi::DEFAULT_MODEL_ID.to_string());
+                    spec.max_budget_usd = _max_budget;
+                    spec.serve_port = port;
+                    
+                    let resolver = vox_populi::cloud::CloudResolver::new_from_env().await?;
+                    return resolver.dispatch(spec, &cloud).await;
+                }
+                #[cfg(not(feature = "cloud"))]
+                {
+                    anyhow::bail!("Cloud dispatch requires the 'cloud' feature. Rebuild with: cargo build -p vox-cli --features cloud");
+                }
+            }
+
+            let model = model.ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
             // Serve delegates directly to the lightweight vox-train binary inference mode
             println!("Delegating to vox-train serve...");
             
@@ -766,7 +897,27 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             run_dir,
             quotas,
             config,
+            cloud,
         } => {
+            if cloud {
+                #[cfg(feature = "codex")]
+                {
+                    use owo_colors::OwoColorize;
+                    let db = vox_db::VoxDb::connect_default().await?;
+                    let summary = db.cloud_cost_summary().await?;
+                    
+                    println!("\n  {}", "Cloud GPU Dispatch Summary".bold().cyan());
+                    println!("  Jobs:      {}", summary.running_jobs + summary.completed_jobs);
+                    println!("  Spent:     ${:.2}", summary.total_spent_usd);
+                    println!("  Accruing:  ${:.2}", summary.accrued_usd);
+                    println!("  Efficiency: {:.0} tokens/$", summary.avg_tokens_per_dollar);
+                    return Ok(());
+                }
+                #[cfg(not(feature = "codex"))]
+                {
+                    anyhow::bail!("Cloud status requires the 'codex' feature (VoxDb access).");
+                }
+            }
             let _ = _global_json;
             status::run_status(run_dir, _global_json, quotas, config).await
         }

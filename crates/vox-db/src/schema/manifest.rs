@@ -8,7 +8,7 @@ use sha3::{Digest, Keccak256};
 use super::domains;
 
 /// Latest unified schema baseline version for new and existing databases.
-pub const BASELINE_VERSION: i64 = 33;
+pub const BASELINE_VERSION: i64 = 35;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -92,6 +92,14 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "toestub",
         sql: domains::toestub::SCHEMA_TOESTUB,
+    },
+    SchemaFragment {
+        name: "build_observability",
+        sql: domains::build_observability::SCHEMA_BUILD_OBSERVABILITY,
+    },
+    SchemaFragment {
+        name: "populi_cloud",
+        sql: domains::populi_cloud::SCHEMA_POPULI_CLOUD,
     },
 ];
 

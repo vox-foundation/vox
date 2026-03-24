@@ -64,7 +64,7 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
     }
     .unwrap_or_else(|| Companion::new(&id, &user_id, format!("Agent {}", params.agent_id), "vox"));
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     if let Some(queue) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let hp_bar = companion.render_status_bar(10);
@@ -95,7 +95,7 @@ pub struct AgentContinueParams {
 
 /// Run one orchestrator tick then return a short confirmation string (JSON `ToolResult`).
 pub async fn agent_continue(state: &ServerState, params: AgentContinueParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     orch.tick().await; // Triggers auto-continuations for idle agents
     ToolResult::ok(format!(
         "Agent {} triggered for continuation",
@@ -127,7 +127,7 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
         }
     }
 
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     if let Some(queue) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let active = queue.len();
@@ -163,7 +163,7 @@ pub struct AgentHandoffParams {
 
 /// Emit a [`vox_orchestrator::handoff::HandoffPayload`] (side effect: event bus + downstream listeners).
 pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let mut payload = vox_orchestrator::handoff::HandoffPayload::new(
         vox_orchestrator::AgentId(params.from_agent_id),
         Some(vox_orchestrator::AgentId(params.to_agent_id)),

@@ -11,21 +11,26 @@ pub mod types;
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{
-    AgentDefEntry, ArtifactEntry, BehaviorEventEntry, BuilderSessionEntry, CodexChangeLogEntry,
-    CommandFrequencyEntry, ComponentEntry, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary,
-    LearnedPatternEntry, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PublishArtifactParams, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
-    SaveSnippetParams, ScheduledEntry, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry,
-    StoreError, TrainingPair, TypedStreamEventEntry, UserEntry, WorkflowExecutionRow,
+    A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildRunRow, BuilderSessionEntry,
+    CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry,
+    ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
+    PackageSearchResult, PublishArtifactParams, QuestionRow, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
+    SaveSnippetParams, ScheduledEntry, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry,
+    StoreError, ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
+
+pub use ops_populi_cloud::CloudCostSummary;
+pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};
 
 
 mod open;
 mod ops;
 mod ops_agents;
+pub mod ops_build;
 mod ops_cas;
 mod ops_codex;
 mod ops_learning;
 mod ops_ludus;
 mod ops_memory;
 mod ops_orchestrator;
+mod ops_populi_cloud;

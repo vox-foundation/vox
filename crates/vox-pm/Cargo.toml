@@ -12,8 +12,7 @@ replication = ["vox-db/replication"]
 
 [dependencies]
 vox-db = { workspace = true }
-vox-ast = { workspace = true }
-vox-hir = { workspace = true }
+vox-compiler = { workspace = true }
 sha3 = { workspace = true }
 bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

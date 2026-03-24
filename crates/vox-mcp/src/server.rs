@@ -43,8 +43,8 @@ pub struct ServerState {
     pub orchestrator_config: OrchestratorConfig,
     /// Discovered repository root, stable id, and stack capabilities.
     pub repository: vox_repository::RepositoryContext,
-    /// Mutex around the live orchestrator (tasks, agents, VCS, event bus).
-    pub orchestrator: Arc<Mutex<Orchestrator>>,
+    /// Live orchestrator (tasks, agents, VCS, event bus) - now fine-grained concurrent.
+    pub orchestrator: Arc<Orchestrator>,
     /// Optional Turso/Codex handle for gamify, preferences, and knowledge graph tools.
     pub db: Option<Arc<VoxDb>>,
     /// Persists chat/session turns under `.sessions/<repository_id>/` when enabled.
@@ -130,7 +130,7 @@ impl ServerState {
         let state = Self {
             orchestrator_config,
             repository: repository.clone(),
-            orchestrator: Arc::new(Mutex::new(Orchestrator::with_groups(orch_cfg, groups))),
+            orchestrator: Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
             db: None,
             session_manager: Arc::new(Mutex::new(session_manager)),
             skill_registry: registry,
@@ -149,7 +149,7 @@ impl ServerState {
         state
     }
 
-    /// Background poll of mesh control plane when `mesh_control_url` is set and `mesh_poll_interval_secs` &gt; 0.
+    /// Background poll of mesh control plane when `mesh_control_url` is set and `mesh_poll_interval_secs` > 0.
     pub fn spawn_mesh_federation_poller(&self) {
         let url = match self
             .orchestrator_config
@@ -204,18 +204,14 @@ impl ServerState {
                                 gpu_metal: n.capabilities.gpu_metal,
                             })
                             .collect();
-                        {
-                            let mut g = orch.lock().await;
-                            g.set_remote_mesh_routing_hints(routing_hints);
-                        }
+                        
+                        orch.set_remote_mesh_routing_hints(routing_hints);
+                        
                         let mut w = snap.write().await;
                         *w = RemoteMeshSnapshot::success(now, f.schema_version, brief);
                     }
                     Err(e) => {
-                        {
-                            let mut g = orch.lock().await;
-                            g.set_remote_mesh_routing_hints(Vec::new());
-                        }
+                        orch.set_remote_mesh_routing_hints(Vec::new());
                         let mut w = snap.write().await;
                         *w = RemoteMeshSnapshot::failure(now, e.to_string());
                     }
@@ -226,11 +222,6 @@ impl ServerState {
     }
 
     /// Append JSON lines for every [`AgentEvent`] when **`VOX_ORCHESTRATOR_EVENT_LOG`** is set to a file path.
-    ///
-    /// This is the shared sink for external consumers (for example `vox live` can tail the same file while
-    /// MCP is running). [`Self::with_workspace_root`] aborts the previous sink task before starting a new one
-    /// so only the current orchestrator's bus is tailed. High-volume [`vox_orchestrator::AgentEventKind::TokenStreamed`]
-    /// events are omitted to avoid log blowup during LLM streaming.
     pub fn spawn_orchestrator_event_log_sink(&self) {
         let Ok(raw) = std::env::var("VOX_ORCHESTRATOR_EVENT_LOG") else {
             return;
@@ -245,10 +236,7 @@ impl ServerState {
             h.abort();
         }
         let handle = tokio::spawn(async move {
-            let mut rx = {
-                let g = orch.lock().await;
-                g.event_bus().subscribe()
-            };
+            let mut rx = orch.event_bus().subscribe();
             use tokio::io::AsyncWriteExt;
             while let Ok(event) = rx.recv().await {
                 if matches!(
@@ -274,12 +262,7 @@ impl ServerState {
         *guard = Some(handle);
     }
 
-    /// Override the workspace root (useful for tests or when the extension provides it explicitly).
-    ///
-    /// Rediscovers [`ServerState::repository`], reapplies orchestrator memory paths under
-    /// `repo/.vox/cache/repos/<repository_id>/memory/`, rebuilds affinity groups from layout, and
-    /// reinitializes the session manager for `.sessions/<repository_id>/`. Replaces the
-    /// orchestrator instance (in-flight agent state is not preserved).
+    /// Override the workspace root.
     pub fn with_workspace_root(mut self, path: PathBuf) -> Self {
         self.workspace_root = Some(path.clone());
         self.repository = vox_repository::discover_repository_or_fallback(&path);
@@ -313,23 +296,23 @@ impl ServerState {
         orch_cfg.memory.log_dir = mem_base.clone();
         orch_cfg.memory.memory_md_path = mem_base.join("MEMORY.md");
         self.orchestrator_config = orch_cfg.clone();
-        self.orchestrator = Arc::new(Mutex::new(Orchestrator::with_groups(orch_cfg, groups)));
+        self.orchestrator = Arc::new(Orchestrator::with_groups(orch_cfg, groups));
         self.spawn_orchestrator_event_log_sink();
         self
     }
 
-    /// Minimal `ServerState` for integration tests (default orchestrator config, no DB).
+    /// Minimal `ServerState` for integration tests.
     pub async fn new_test() -> Self {
         let config = OrchestratorConfig::default();
         Self::new(config)
     }
 
-    /// Assemble state for unit tests without running repository discovery (no event-log sink).
+    /// Assemble state for unit tests without running repository discovery.
     #[cfg(test)]
     pub(crate) fn test_stub(
         orchestrator_config: OrchestratorConfig,
         repository: vox_repository::RepositoryContext,
-        orchestrator: Arc<Mutex<Orchestrator>>,
+        orchestrator: Arc<Orchestrator>,
         session_manager: Arc<Mutex<SessionManager>>,
         skill_registry: Arc<SkillRegistry>,
     ) -> Self {
@@ -358,7 +341,6 @@ impl ServerState {
         let db_arc = Arc::new(db);
         self.db = Some(db_arc.clone());
 
-        // Dual-write sessions to Codex when DB is attached (rebuild manager with same paths).
         let mut session_cfg = self.orchestrator_config.session.clone();
         session_cfg.sessions_dir = vox_config::mcp_sessions_dir(&self.repository.repository_id);
         session_cfg.repository_id = Some(self.repository.repository_id.clone());
@@ -378,14 +360,7 @@ impl ServerState {
                 .with_db(db_arc.clone()),
         ));
 
-        // Stream orchestrator events to gamify database
-        let mut rx = {
-            let orch = self
-                .orchestrator
-                .try_lock()
-                .unwrap_or_else(|e| panic!("orchestrator lock busy/poisoned: {}", e));
-            orch.event_bus().subscribe()
-        };
+        let mut rx = self.orchestrator.event_bus().subscribe();
 
         let db_for_task = db_arc.clone();
         let transient = self.transient_events.clone();
@@ -635,13 +610,12 @@ impl ServerHandler for VoxMcpServer {
             next_cursor: None,
         })
     }
-
     async fn call_tool(
         &self,
         params: CallToolRequestParams,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.state.orchestrator.lock().await.record_activity();
+        self.state.orchestrator.record_activity();
         let args = params
             .arguments
             .map(serde_json::Value::Object)

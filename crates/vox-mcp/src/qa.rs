@@ -58,7 +58,7 @@ pub struct PendingQuestionResponse {
 
 /// Post a canonicalized question, register it in the QA router, and emit a bulletin event.
 pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let question = prompt_canonical::canonicalize_simple(&params.question);
     let corr_id = orch.qa_router().ask(
@@ -85,8 +85,7 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
 
 /// Record an answer for `correlation_id` and publish an `AgentMessage::Answer` bulletin (best-effort answerer id).
 pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) -> String {
-    let orch_lock = state.orchestrator.lock().await;
-    let mut orch = orch_lock;
+    let orch = &state.orchestrator;
 
     let answer = params.answer.clone();
     let corr_id = vox_orchestrator::types::CorrelationId(params.correlation_id);
@@ -117,7 +116,7 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
 
 /// Return JSON array of `{ correlation_id, question }` tuples awaiting this agent.
 pub async fn pending_questions(state: &ServerState, params: PendingQuestionsParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let questions = orch.qa_router().pending_questions(AgentId(params.agent_id));
 
@@ -134,7 +133,7 @@ pub async fn pending_questions(state: &ServerState, params: PendingQuestionsPara
 
 /// Publish a canonicalized broadcast message on the orchestrator bulletin board.
 pub async fn broadcast(state: &ServerState, params: BroadcastParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let message = prompt_canonical::canonicalize_simple(&params.message);
     let msg = vox_orchestrator::types::AgentMessage::Broadcast {

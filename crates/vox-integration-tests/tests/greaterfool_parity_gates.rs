@@ -1,11 +1,11 @@
 #![allow(missing_docs)]
 
-use vox_codegen_rust::{emit::emit_api_client, generate as generate_rust};
-use vox_hir::lower_module;
-use vox_lexer::cursor::lex;
-use vox_parser::parser::parse;
-use vox_typeck::diagnostics::Severity;
-use vox_typeck::typecheck_module;
+use vox_compiler::codegen_rust::{emit::emit_api_client, generate as generate_rust};
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::parser::parser::parse;
+use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::typecheck_module;
 
 const REFERENCE_SRC: &str = include_str!("fixtures/greaterfool_reference.vox");
 const PIPELINE_SRC: &str = include_str!("fixtures/chatbot_pipeline.vox");

@@ -10,5 +10,5 @@ pub trait CodegenBackend {
     type Error: std::error::Error;
 
     /// Generate output from a HIR module.
-    fn generate(&self, module: &vox_hir::hir::HirModule) -> Result<Self::Output, Self::Error>;
+    fn generate(&self, module: &vox_compiler::hir::hir::HirModule) -> Result<Self::Output, Self::Error>;
 }

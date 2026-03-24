@@ -82,7 +82,7 @@ pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {
     unused_assignments,
     unsafe_code
 )]
-pub fn run_train(
+pub async fn run_train(
     train_backend: vox_populi::PopuliTrainBackend,
     model: Option<String>,
     device: String,
@@ -105,6 +105,7 @@ pub fn run_train(
     vram_limit_fraction: Option<f32>,
     adapter_tag: Option<String>,
     context_filter: Option<String>,
+    validation_split_ratio: Option<f64>,
     tokenizer_mode: vox_populi::PopuliTokenizerMode,
     qlora_no_double_quant: bool,
     qlora_require_full_proxy_stack: bool,
@@ -187,7 +188,7 @@ pub fn run_train(
         std::env::set_var("WGPU_LOG_LEVEL", "error");
         std::env::set_var("WGPU_VALIDATION", "0");
         if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", "error");
+            std::env::set_var("RUST_LOG", "info");
         }
     }
 
@@ -440,10 +441,11 @@ pub fn run_train(
             min_rating: min_rating.unwrap_or(3),
             run_id: Some(run_id),
             git_sha: Some(git_sha),
-            device_profile: Some(device_profile_str),
+            device_profile: Some(device_profile_str.clone()),
             max_vram_fraction: vram_limit_fraction,
             adapter_tag,
             context_filter,
+            validation_split_ratio,
             tokenizer_mode,
             qlora_double_quant: !qlora_no_double_quant,
             finetune_contract_digest: None,
@@ -456,8 +458,15 @@ pub fn run_train(
             force_restart,
             deployment_target,
         };
+        let model_name_for_stats = config.base_model.clone().unwrap_or_else(|| "scratch".to_string());
+        let preset_for_stats = preset.clone().unwrap_or_else(|| "unknown".to_string());
+
         let system_prompt = vox_corpus::training::generate_training_system_prompt();
-        vox_populi::run_populi_training(
+        
+        // Note: `data_dir` is passed here as a fallback root. 
+        // The trainer relies on `config.train_file` (resolved during preflight) 
+        // as the single source of truth for the JSONL path.
+        let summary = vox_populi::run_populi_training(
             train_backend,
             &data_dir,
             Some(&output_dir),
@@ -465,6 +474,20 @@ pub fn run_train(
             device_kind,
             &system_prompt,
         )?;
+
+        // Wave 2: Local training telemetry write-back (4080 parity)
+        if let Ok(db) = vox_db::VoxDb::connect_default().await {
+            let _ = db.local_log_train_run(
+                &device_profile_str,
+                &model_name_for_stats,
+                &preset_for_stats,
+                summary.wall_secs,
+                summary.total_steps as i64,
+                summary.total_tokens as i64,
+                Some(summary.ms_per_step),
+            ).await;
+        }
+
         Ok(())
     }
 

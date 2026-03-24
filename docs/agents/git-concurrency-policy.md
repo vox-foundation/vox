@@ -19,7 +19,7 @@ The following commands are **permanently banned** across all agents, human users
 - `git stash` (and variants: `pop`, `drop`, `clear`)
 - `git reset --hard`
 - `git clean -fd`
-- `git restore .` or `git checkout -- .`
+- `git restore .` or `git checkout .` or `git checkout -- .`
 
 *There is no exception for "I'll stash and pop right back." If a task requires a clean state, you must either commit your current work or switch branches.*
 

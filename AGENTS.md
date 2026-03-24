@@ -160,6 +160,7 @@ The following commands **must never be used** by any agent (human or LLM). Becau
 
 **Banned commands** (no exceptions):
 - `git stash` (and `git stash pop`, `drop`, `clear`) — agents lack shared context on stash contents.
+- `git restore .` or `git checkout .` or `git checkout -- .` — permanently deletes uncommitted working tree changes across the entire repository.
 - `git restore <file>` or `git checkout -- <file>` — discards local changes without a trace.
 - `git reset --hard` — nukes all uncommitted changes in the tree.
 - `git clean -fd` — deletes untracked files including newly-created ones.

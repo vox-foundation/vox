@@ -115,7 +115,7 @@ async fn best_ollama_model(state: &ServerState) -> Option<ModelSpec> {
     if !inference_profile_allows_local_ollama_http() {
         return None;
     }
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let mut v: Vec<ModelSpec> = orch
         .models()
         .list_models()
@@ -152,7 +152,7 @@ pub async fn mcp_infer_completion(
         if first_pass {
             first_pass = false;
             if routing.free_only && !model.is_free {
-                let orch = state.orchestrator.lock().await;
+                let orch = &state.orchestrator;
                 let mut res = routing.resolution_template.clone();
                 res.enforce_free_tier_only = true;
                 match resolve_mcp_chat_model_sync(
@@ -250,7 +250,7 @@ pub async fn mcp_infer_completion(
                 }
 
                 if should_emit_llm_cost_events(state) {
-                    let orch = state.orchestrator.lock().await;
+                    let orch = &state.orchestrator;
                     orch.event_bus().emit(AgentEventKind::CostIncurred {
                         agent_id: MCP_GLOBAL_LLM_AGENT,
                         provider: usage.provider.clone(),
@@ -293,7 +293,7 @@ pub async fn call_llm(
 ) -> Result<(String, String, u64), String> {
     let pref = state.mcp_chat_model_override.read().await.clone();
     let (model, free_only, resolution_template) = {
-        let orch = state.orchestrator.lock().await;
+        let orch = &state.orchestrator;
         let context_fill_ratio =
             super::model_route_policy::mcp_global_llm_context_fill_ratio(&*orch);
         let resolution_template = McpChatModelResolution {

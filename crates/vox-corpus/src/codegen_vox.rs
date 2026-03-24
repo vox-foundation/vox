@@ -753,8 +753,8 @@ pub fn generate_organic_corpus(seed: u64) -> Vec<OrganicPair> {
 fn verify_parse(source: &str) -> bool {
     #[cfg(feature = "parser-verify")]
     {
-        let tokens = vox_lexer::lex(source);
-        vox_parser::parse(tokens).is_ok()
+        let tokens = vox_compiler::lexer::lex(source);
+        vox_compiler::parser::parse(tokens).is_ok()
     }
     #[cfg(not(feature = "parser-verify"))]
     {

@@ -3,7 +3,7 @@ use super::Orchestrator;
 
 impl Orchestrator {
     pub fn send_a2a(
-        &mut self,
+        &self,
         sender: AgentId,
         receiver: AgentId,
         msg_type: crate::types::A2AMessageType,
@@ -14,24 +14,27 @@ impl Orchestrator {
         // Native VCS integration: When an agent hands off a plan to another, automatically
         // start tracking a logical Change in the workspace manager for provenance visibility.
         if msg_type == crate::types::A2AMessageType::PlanHandoff {
-            self.workspace_manager.create_change(
+            self.workspace_manager.write().create_change(
                 receiver,
                 format!("Plan handoff from {}: {:.100}", sender, payload_str),
             );
         }
 
-        let msg_id = self
-            .message_bus
-            .send(sender, receiver, msg_type, payload_str);
-        if let Some(msg) = self.message_bus.audit_trail().last() {
+        let mut bus = self.message_bus.write();
+        let msg_id = bus.send(sender, receiver, msg_type, payload_str);
+        
+        if let Some(msg) = bus.audit_trail().last() {
+            let msg_cloned = msg.clone();
+            drop(bus); // Release lock before emitting events to avoid potential deadlocks
+            
             self.bulletin
-                .publish(crate::types::AgentMessage::A2A(msg.clone()));
+                .publish(crate::types::AgentMessage::A2A(msg_cloned.clone()));
 
             self.event_bus
                 .emit(crate::events::AgentEventKind::MessageSent {
-                    from: msg.sender,
-                    to: msg.receiver,
-                    summary: format!("{:?}: {}", msg.msg_type, msg.payload),
+                    from: msg_cloned.sender,
+                    to: msg_cloned.receiver,
+                    summary: format!("{:?}: {}", msg_cloned.msg_type, msg_cloned.payload),
                 });
         }
         msg_id
@@ -39,21 +42,26 @@ impl Orchestrator {
 
     /// Broadcast a structured A2A message to all and publish to bulletin.
     pub fn broadcast_a2a(
-        &mut self,
+        &self,
         sender: AgentId,
         msg_type: crate::types::A2AMessageType,
         payload: impl Into<String>,
     ) -> crate::types::MessageId {
-        let msg_id = self.message_bus.broadcast(sender, msg_type, payload);
-        if let Some(msg) = self.message_bus.audit_trail().last() {
+        let mut bus = self.message_bus.write();
+        let msg_id = bus.broadcast(sender, msg_type, payload);
+        
+        if let Some(msg) = bus.audit_trail().last() {
+            let msg_cloned = msg.clone();
+            drop(bus); // Release lock before emitting events
+            
             self.bulletin
-                .publish(crate::types::AgentMessage::A2A(msg.clone()));
+                .publish(crate::types::AgentMessage::A2A(msg_cloned.clone()));
 
             self.event_bus
                 .emit(crate::events::AgentEventKind::MessageSent {
-                    from: msg.sender,
+                    from: msg_cloned.sender,
                     to: None, // Broadcast
-                    summary: format!("{:?}: {}", msg.msg_type, msg.payload),
+                    summary: format!("{:?}: {}", msg_cloned.msg_type, msg_cloned.payload),
                 });
         }
         msg_id

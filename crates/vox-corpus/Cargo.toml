@@ -8,13 +8,12 @@ description = "Training data contracts, preflight, corpus SSOT, and Populi datas
 
 [features]
 database = ["dep:vox-db", "dep:turso"]
-parser-verify = ["dep:vox-lexer", "dep:vox-parser"]
+parser-verify = ["dep:vox-compiler"]
 
 [dependencies]
 vox-db = { path = "../vox-db", optional = true }
 turso = { workspace = true, optional = true }
-vox-lexer = { path = "../vox-lexer", optional = true }
-vox-parser = { path = "../vox-parser", optional = true }
+vox-compiler = { workspace = true, optional = true }
 anyhow = { workspace = true }
 vox-repository = { path = "../vox-repository" }
 vox-mcp-meta = { path = "../vox-mcp-meta" }

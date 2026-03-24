@@ -232,6 +232,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             temperature: None,
             max_tokens: None,
             response_format: None,
+            timeout_ms: None,
         },
         ChatProviderRouteKind::PopuliLocal { base_url, model } => {
             let base = base_url.trim_end_matches('/');
@@ -243,6 +244,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
                 temperature: None,
                 max_tokens: None,
                 response_format: None,
+                timeout_ms: None,
             }
         }
         ChatProviderRouteKind::HuggingFaceRouter(ep) => LlmConfig {
@@ -253,6 +255,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             temperature: None,
             max_tokens: None,
             response_format: None,
+            timeout_ms: None,
         },
         ChatProviderRouteKind::HuggingFaceDedicated(ep) => LlmConfig {
             provider: "hf_endpoint".to_string(),
@@ -262,6 +265,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             temperature: None,
             max_tokens: None,
             response_format: None,
+            timeout_ms: None,
         },
         ChatProviderRouteKind::OpenRouter { model } => LlmConfig::openrouter(model.clone()),
     }

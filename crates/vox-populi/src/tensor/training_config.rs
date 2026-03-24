@@ -110,7 +110,7 @@ impl Default for LoraTrainingConfig {
             adapter_tag: None,
             context_filter: None,
             validation_split_ratio: Some(0.05),
-            tokenizer_mode: PopuliTokenizerMode::Vox,
+            tokenizer_mode: PopuliTokenizerMode::Hf,
             qlora_double_quant: true,
             finetune_contract_digest: None,
             qlora_require_full_proxy_stack: false,

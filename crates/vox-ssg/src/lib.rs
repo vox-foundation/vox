@@ -5,7 +5,7 @@
 //!
 //! Additional helpers live in this file as private functions; only [`generate_static_site`] is public.
 
-use vox_ast::decl::{Decl, Module};
+use vox_compiler::ast::decl::{Decl, Module};
 
 /// Generate static HTML files for all `@page` components and route entries.
 ///
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn ssg_generates_index_html() {
-        use vox_ast::span::Span;
+        use vox_compiler::ast::span::Span;
         let module = Module {
             declarations: vec![],
             span: Span { start: 0, end: 0 },
@@ -138,8 +138,8 @@ mod tests {
 
     #[test]
     fn ssg_with_routes_emits_one_page_per_route() {
-        use vox_ast::decl::{Decl, RouteEntry, RoutesDecl};
-        use vox_ast::span::Span;
+        use vox_compiler::ast::decl::{Decl, RouteEntry, RoutesDecl};
+        use vox_compiler::ast::span::Span;
 
         let dummy_span = Span { start: 0, end: 0 };
         let module = Module {

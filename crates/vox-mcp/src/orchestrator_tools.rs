@@ -20,7 +20,7 @@ pub struct QueueStatusParams {
 
 /// Return the queue snapshot for `params.agent_id`.
 pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     if let Some(queue) = orch.agent_queue(AgentId(params.agent_id)) {
         ToolResult::ok(queue.to_json()).to_json()
     } else {
@@ -30,14 +30,14 @@ pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> Str
 
 /// Count exclusive/read locks currently held across the orchestrator.
 pub async fn lock_status(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let count = orch.lock_manager().active_lock_count();
     ToolResult::ok(format!("{} active locks", count)).to_json()
 }
 
 /// Aggregate token and USD spend tracked in agent budgets.
 pub async fn budget_status(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     // Total up from agents
     let mut total_tokens = 0;
@@ -66,7 +66,7 @@ pub struct CancelTaskParams {
 
 /// Cancel a task by numeric id (wrapper around orchestrator APIs).
 pub async fn cancel_task(state: &ServerState, params: crate::CancelTaskParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     if let Err(e) = orch.cancel_task(TaskId(params.task_id)) {
         return ToolResult::<String>::err(format!("{}", e)).to_json();
@@ -76,7 +76,7 @@ pub async fn cancel_task(state: &ServerState, params: crate::CancelTaskParams) -
 
 /// Change the priority of a queued task.
 pub async fn reorder_task(state: &ServerState, params: crate::ReorderTaskParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let priority = match params.priority.as_str() {
         "urgent" => vox_orchestrator::TaskPriority::Urgent,
@@ -96,7 +96,7 @@ pub async fn reorder_task(state: &ServerState, params: crate::ReorderTaskParams)
 
 /// Drop all queued (not running) tasks for an agent.
 pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch.drain_agent(vox_orchestrator::AgentId(params.agent_id)) {
         Ok(tasks) => ToolResult::ok(format!(
@@ -111,7 +111,7 @@ pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -
 
 /// Re-run the global task balancer and report how many tasks moved.
 pub async fn rebalance(state: &ServerState) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let moved = orch.rebalance();
     ToolResult::ok(format!("Rebalanced {} tasks", moved)).to_json()
 }
@@ -140,7 +140,7 @@ pub async fn map_agent_session(
     state: &ServerState,
     params: crate::MapAgentSessionParams,
 ) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     match orch.map_agent_session(
         vox_orchestrator::AgentId(params.agent_id),
@@ -169,7 +169,7 @@ pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> Str
         let mut all_records = Vec::new();
 
         let agent_ids = {
-            let orch = state.orchestrator.lock().await;
+            let orch = &state.orchestrator;
             orch.agent_ids()
         };
 
@@ -203,7 +203,7 @@ pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> Str
 /// Dump the affinity map as JSON (path → owner relationships).
 /// Serialize the orchestrator affinity map to JSON (path keys → owning agent ids).
 pub async fn file_graph(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let map = orch.affinity_map().as_json();
     ToolResult::ok(map).to_json()
@@ -212,7 +212,7 @@ pub async fn file_graph(state: &ServerState) -> String {
 /// Merge orchestrator config with on-disk `VoxConfig` toolchain map.
 /// Return merged JSON: live `OrchestratorConfig` plus `VoxConfig` toolchain map from disk.
 pub async fn config_get(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
     let orch_cfg = serde_json::to_value(orch.config().clone()).unwrap_or_default();
 
     // Load VoxConfig SSOT (toolchain settings) and merge on top
@@ -232,7 +232,7 @@ pub async fn config_get(state: &ServerState) -> String {
 /// Patch [`OrchestratorConfig`] by shallow-merging JSON keys into the live instance.
 /// Deep-merge `params` into the current orchestrator JSON config (mutates in-memory orchestrator).
 pub async fn config_set(state: &ServerState, params: serde_json::Value) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let config = orch.config().clone();
     let mut current_json = serde_json::to_value(&config).unwrap_or_default();
@@ -257,7 +257,7 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
 /// Idempotent "fleet running" probe returning the current agent count.
 /// Report agent count for the embedded orchestrator (no separate process spawn in this crate).
 pub async fn orchestrator_start(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     // In a real execution, we would start AgentFleet by moving Orchestrator into it.
     // However, since we hold it in ServerState inside a Mutex, we simply return
@@ -284,7 +284,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         mesh_control_url,
         mesh_http_timeout_ms,
     ) = {
-        let orch = state.orchestrator.lock().await;
+        let orch = &state.orchestrator;
         let cfg = orch.config();
         let effective = cfg.scaling_threshold as f64 * cfg.scaling_profile.threshold_multiplier();
         (
@@ -471,7 +471,7 @@ async fn persist_mesh_snapshot_codex_opt(state: &ServerState, snap: &serde_json:
 
 /// Check which agent owns a given file path (async).
 pub async fn check_file_owner(state: &ServerState, path: &str) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let affinity_map = orch.affinity_map();
     match affinity_map.lookup(&PathBuf::from(path)) {
@@ -482,7 +482,7 @@ pub async fn check_file_owner(state: &ServerState, path: &str) -> String {
 
 /// Unified VCS status: snapshots, oplog, conflicts, workspaces, and changes.
 pub async fn vcs_status(state: &ServerState) -> String {
-    let orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let snapshot_count = orch.snapshot_store().count();
     let oplog_count = orch.oplog().count();
@@ -572,7 +572,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
         let limit = params.limit.unwrap_or(50);
         let mut all_events = Vec::new();
         let agent_ids = {
-            let orch = state.orchestrator.lock().await;
+            let orch = &state.orchestrator;
             orch.agent_ids()
         };
 
@@ -638,7 +638,7 @@ pub struct SubmitTaskParams {
 
 /// Submit a task through the orchestrator (simpler shape than [`crate::params::SubmitTaskParams`]).
 pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     let affinities = params
         .affinites
@@ -673,7 +673,7 @@ pub struct HeartbeatParams {
 
 /// Emit a synthetic busy event for the agent mapped to `session_id`.
 pub async fn heartbeat(state: &ServerState, params: HeartbeatParams) -> String {
-    let mut orch = state.orchestrator.lock().await;
+    let orch = &state.orchestrator;
 
     // Try finding the agent mapped to this session
     let mut target = None;
@@ -714,7 +714,7 @@ pub struct RecordCostParams {
 /// Persist a cost row (when DB present) and emit `CostIncurred` on the orchestrator bus.
 pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> String {
     let (target_id, event_bus) = {
-        let orch = state.orchestrator.lock().await;
+        let orch = &state.orchestrator;
 
         let mut target = None;
         for agent in orch.status().agents {

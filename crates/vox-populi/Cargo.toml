@@ -29,6 +29,9 @@ safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
+async-trait = { version = "0.1", optional = true }
+futures = { version = "0.3", optional = true }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false, optional = true }
 
 [features]
 default = []
@@ -53,6 +56,11 @@ candle-qlora-metal = [
 ]
 train = ["gpu", "vox-tensor/train", "candle-qlora"]
 hf-hub = ["dep:hf-hub", "tokio/rt-multi-thread"]
+cloud = [
+    "dep:async-trait",
+    "dep:futures",
+    "dep:reqwest",
+]
 
 [dependencies.vox-metal-shim]
 path = "../vox-metal-shim"

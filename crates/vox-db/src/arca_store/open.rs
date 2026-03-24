@@ -67,12 +67,6 @@ impl crate::VoxDb {
         Ok(())
     }
 
-    /// legacy shim for coordination DDL (now part of baseline).
-    #[deprecated(note = "coordination is now part of baseline_sql")]
-    pub(crate) async fn migrate_coordination(_conn: &turso::Connection) -> Result<(), StoreError> {
-        Ok(())
-    }
-
     /// Open local file **without** running `migrate` (export tools only — reads legacy multi-version DBs).
     #[cfg(feature = "local")]
     pub async fn open_local_legacy_export(path: &str) -> Result<Self, StoreError> {
