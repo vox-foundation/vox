@@ -1,0 +1,80 @@
+version: 1
+
+decision_labels:
+  publish: "Publish"
+  ask_for_evidence: "AskForEvidence"
+  abstain_do_not_publish: "Abstain/DoNotPublish"
+
+hard_red_lines:
+  - id: fabricated_citation
+    description: "Fabricated or unresolved citations used as evidence."
+    enabled: true
+  - id: claim_evidence_mismatch
+    description: "Core claims not traceable to data/artifacts."
+    enabled: true
+  - id: undisclosed_ai_substantive_content
+    description: "Undisclosed AI-generated substantive content where disclosure is required."
+    enabled: true
+  - id: ai_authorship_forbidden
+    description: "AI listed as author/contributor in violation of venue policy."
+    enabled: true
+  - id: disallowed_ai_generated_figures
+    description: "AI-generated images in a venue profile that forbids them."
+    enabled: true
+  - id: unverifiable_benchmark_delta
+    description: "Missing baseline/candidate comparability for benchmark deltas."
+    enabled: true
+  - id: missing_reproducibility_essentials
+    description: "Insufficient replay/provenance data for key claims."
+    enabled: true
+  - id: unresolved_socrates_contradiction
+    description: "Unresolved contradiction state for publication-critical claims."
+    enabled: true
+
+thresholds:
+  claim_evidence_coverage_min: 0.90
+  artifact_replayability_min: 0.85
+  before_after_pair_integrity_min: 0.90
+  metadata_completeness_min: 0.90
+  ai_disclosure_compliance_exact: 1.0
+  publish_score_min: 0.85
+  abstain_score_max: 0.65
+
+weights:
+  epistemic: 0.30
+  reproducibility: 0.25
+  novelty: 0.20
+  reliability: 0.15
+  metadata_policy: 0.10
+
+venue_profiles:
+  tmlr_double_blind:
+    description: "Double-blind profile with broader-impact and stronger anonymization checks."
+    required_checks:
+      - "double_blind_anonymization"
+      - "broader_impact_statement_when_risky"
+      - "socrates_strict_contradiction_gate"
+  jmlr_camera_ready:
+    description: "Camera-ready source package with compileability and formatting checks."
+    required_checks:
+      - "source_archive_complete"
+      - "latexmk_compileable"
+      - "jmlr_template_conformance"
+  jair_camera_ready:
+    description: "JAIR formatting and source archive readiness profile."
+    required_checks:
+      - "jair_template_conformance"
+      - "source_archive_complete"
+      - "final_prep_checklist_complete"
+  arxiv_direct:
+    description: "arXiv direct publication profile."
+    required_checks:
+      - "arxiv_format_requirements"
+      - "references_complete"
+      - "code_data_links_public"
+  zenodo_archive:
+    description: "Zenodo archival metadata and provenance profile."
+    required_checks:
+      - "zenodo_metadata_complete"
+      - "artifact_manifest_immutable"
+      - "license_declared"

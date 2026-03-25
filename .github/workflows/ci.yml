@@ -52,6 +52,11 @@ jobs:
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance
 
+      - name: Contracts index + scaling policy SSOT
+        run: |
+          cargo run -p vox-cli --quiet -- ci contracts-index
+          cargo run -p vox-cli --quiet -- ci scaling-audit verify
+
       - name: Doc inventory matches generator (Rust)
         run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
 

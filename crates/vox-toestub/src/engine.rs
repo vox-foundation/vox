@@ -10,6 +10,20 @@ use crate::task_queue::TaskQueue;
 // Configuration
 // ---------------------------------------------------------------------------
 
+/// How CI / CLI should treat findings for exit status.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ToestubRunMode {
+    /// Fail only on [`Severity::Error`] or higher (historical `toestub` behavior).
+    #[default]
+    Legacy,
+    /// Emit all severities (`Info`+), never fail (audit report).
+    Audit,
+    /// Fail on [`Severity::Critical`] only.
+    EnforceWarn,
+    /// Fail on [`Severity::Warning`] or higher.
+    EnforceStrict,
+}
+
 /// Configuration for a TOESTUB analysis run.
 #[derive(Debug, Clone)]
 pub struct ToestubConfig {
@@ -31,6 +45,8 @@ pub struct ToestubConfig {
     pub schema_path: Option<PathBuf>,
     /// Path to unwired.json for scope-aware prioritization.
     pub unwired_path: Option<PathBuf>,
+    /// Exit-code policy for CLI / CI (see [`ToestubRunMode`]).
+    pub run_mode: ToestubRunMode,
 }
 
 impl Default for ToestubConfig {
@@ -45,6 +61,7 @@ impl Default for ToestubConfig {
             rule_filter: None,
             schema_path: None,
             unwired_path: None,
+            run_mode: ToestubRunMode::default(),
         }
     }
 }
@@ -168,6 +185,20 @@ impl AnalysisResult {
     /// Returns `true` if any findings are at or above [`Severity::Error`].
     pub fn has_errors(&self) -> bool {
         self.findings.iter().any(|f| f.severity >= Severity::Error)
+    }
+
+    /// Whether the process should exit with failure for the given mode.
+    pub fn should_fail_build(&self, mode: ToestubRunMode) -> bool {
+        match mode {
+            ToestubRunMode::Legacy => self.has_errors(),
+            ToestubRunMode::Audit => false,
+            ToestubRunMode::EnforceWarn => {
+                self.findings.iter().any(|f| f.severity >= Severity::Critical)
+            }
+            ToestubRunMode::EnforceStrict => {
+                self.findings.iter().any(|f| f.severity >= Severity::Warning)
+            }
+        }
     }
 
     /// Summary counts by severity.

@@ -10,6 +10,8 @@ training_eligible: true
 
 This workflow uses a single publication manifest in Codex (`publication_manifests`) with digest-bound approvals and scholarly submission tracking.
 
+> Note: the current submit path is `publication-submit-local` via the local scholarly ledger adapter. For policy boundaries and automation SSOT, see `docs/src/architecture/scientia-publication-automation-ssot.md` and `docs/src/reference/scientia-publication-worthiness-rules.md`. For implementation roadmap detail, see `docs/src/architecture/scientia-publication-readiness-audit.md`.
+
 ## 1) Prepare a manifest
 
 ```bash
@@ -20,7 +22,9 @@ vox scientia publication-prepare \
   docs/src/research/ai-research-2026-03.md
 ```
 
-Optional: pass `--abstract-text` and `--citations-json <file>`.
+Optional: pass `--abstract-text`, `--citations-json <file>`, and `--scholarly-metadata-json <file>` (structured JSON for `scientific_publication`: authors with optional ORCID/affiliation, `license_spdx`, `funding_statement`, `competing_interests_statement`, `reproducibility`, `ethics_and_impact` — see `vox_publisher::scientific_metadata`). The same `--scholarly-metadata-json` flag works on `vox db publication-prepare`.
+
+Use `--preflight` (or `publication-prepare-validated`) to run `vox_publisher::publication_preflight` before persisting. Use `publication-preflight` to inspect readiness JSON for an existing id. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
 
 ## 2) Record approvals (two distinct approvers)
 

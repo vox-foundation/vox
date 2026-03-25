@@ -1,0 +1,353 @@
+use crate::hir::{HirActivity, HirActor, HirFn, HirModule, HirStmt, HirType, HirWorkflow};
+
+use super::stmt_expr::{emit_expr, emit_stmt};
+use super::tables::emit_table_struct;
+use super::types::emit_type;
+
+pub fn emit_lib(module: &HirModule) -> String {
+    let mut out = String::new();
+    out.push_str("use serde::{Serialize, Deserialize};\n");
+
+    // Only import runtime types when actors are present
+    if !module.actors.is_empty() {
+        out.push_str(
+            "use vox_runtime::{ProcessContext, Envelope, MessagePayload, Pid, Message};\n",
+        );
+    }
+
+    if !module.tables.is_empty() {
+        out.push_str("use vox_db::Codex;\n");
+    }
+
+    out.push('\n');
+
+    // Helper for casts
+    out.push_str("pub fn as_string<T: serde::Serialize>(v: &T) -> String {\n");
+    out.push_str("    let val = serde_json::to_value(v).expect(\"vox codegen: serde_json::to_value failed\");\n");
+    out.push_str("    if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }\n");
+    out.push_str("}\n\n");
+
+    // Only emit append helper when actors are present (used for list operations in handlers)
+    if !module.actors.is_empty() {
+        out.push_str("pub fn append(list: &Vec<serde_json::Value>, item: &serde_json::Value) -> Vec<serde_json::Value> {\n");
+        out.push_str("    let mut new_list = list.clone();\n");
+        out.push_str("    new_list.push(item.clone());\n");
+        out.push_str("    new_list\n");
+        out.push_str("}\n\n");
+    }
+
+    // Re-export variants
+    for typedef in &module.types {
+        out.push_str(&format!("pub use self::{}::*;\n", typedef.name));
+    }
+
+    // Types
+    for typedef in &module.types {
+        out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+        out.push_str(&format!("pub enum {} {{\n", typedef.name));
+        for variant in &typedef.variants {
+            if variant.fields.is_empty() {
+                out.push_str(&format!("    {},\n", variant.name));
+            } else {
+                out.push_str(&format!("    {}(", variant.name));
+                for (_fname, ftype) in &variant.fields {
+                    out.push_str(&format!("{}, ", emit_type(ftype)));
+                }
+                out.push_str("),\n");
+            }
+        }
+        out.push_str("}\n\n");
+    }
+
+    // Table structs
+    for table in &module.tables {
+        out.push_str(&emit_table_struct(table));
+    }
+
+    // Functions (skip components)
+    for func in &module.functions {
+        if !func.is_component {
+            out.push_str(&emit_fn(func));
+        }
+    }
+
+    // Workflows (async functions with durable execution semantics)
+    for workflow in &module.workflows {
+        out.push_str(&emit_workflow(workflow));
+    }
+
+    // Activities (async functions with retry/timeout support)
+    for activity in &module.activities {
+        out.push_str(&emit_activity(activity));
+    }
+
+    // Actors
+    for actor in &module.actors {
+        out.push_str(&emit_actor(actor));
+    }
+
+    // Tests
+    for test in &module.tests {
+        if test.is_async {
+            out.push_str("#[tokio::test]\n");
+        } else {
+            out.push_str("#[test]\n");
+        }
+        out.push_str(&emit_fn(test));
+    }
+
+    out
+}
+
+/// Emit a single HIR function (or test) as Rust source.
+pub fn emit_fn(func: &HirFn) -> String {
+    let mut out = String::new();
+    let pub_kw = if func.is_pub { "pub " } else { "" };
+    let async_kw = if func.is_async { "async " } else { "" };
+    out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name));
+    for param in &func.params {
+        out.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
+    }
+    out.push_str(") ");
+    if let Some(ret) = &func.return_type {
+        out.push_str(&format!("-> {} ", emit_type(ret)));
+    }
+    out.push_str("{\n");
+    for stmt in &func.body {
+        out.push_str(&emit_stmt(stmt, 1, false, false));
+    }
+    out.push_str("}\n\n");
+    out
+}
+
+fn emit_activity(func: &HirActivity) -> String {
+    let mut out = String::new();
+    // Activities are always async public functions in the library crate
+    out.push_str(&format!("pub async fn {}(", func.name));
+    for param in &func.params {
+        out.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
+    }
+    out.push_str(") ");
+    if let Some(ret) = &func.return_type {
+        out.push_str(&format!("-> {} ", emit_type(ret)));
+    }
+    out.push_str("{\n");
+    for stmt in &func.body {
+        out.push_str(&emit_stmt(stmt, 1, false, false));
+    }
+    out.push_str("}\n\n");
+    out
+}
+
+fn emit_workflow(wf: &HirWorkflow) -> String {
+    let mut out = String::new();
+    // Workflows are async public functions (orchestrators of activities)
+    out.push_str(&format!("pub async fn {}(", wf.name));
+    for param in &wf.params {
+        out.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
+    }
+    out.push_str(") ");
+    if let Some(ret) = &wf.return_type {
+        out.push_str(&format!("-> {} ", emit_type(ret)));
+    }
+    out.push_str("{\n");
+    for stmt in &wf.body {
+        out.push_str(&emit_stmt(stmt, 1, false, false));
+    }
+    out.push_str("}\n\n");
+    out
+}
+
+fn emit_actor(actor: &HirActor) -> String {
+    let mut out = String::new();
+    let msg_enum = format!("{}Message", actor.name);
+
+    // Actor Message Enum
+    out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+    out.push_str(&format!("pub enum {} {{\n", msg_enum));
+    for handler in &actor.handlers {
+        out.push_str(&format!("    {} {{ ", capitalize(&handler.event_name)));
+        for param in &handler.params {
+            out.push_str(&format!(
+                "{}: {}, ",
+                param.name,
+                emit_type(
+                    param
+                        .type_ann
+                        .as_ref()
+                        .unwrap_or(&HirType::Named("serde_json::Value".into()))
+                )
+            ));
+        }
+        out.push_str("},\n");
+    }
+    out.push_str("}\n\n");
+
+    // Actor Logic — handles Request envelopes with reply channels
+    out.push_str(&format!("pub struct {};\n", actor.name));
+    out.push_str(&format!("impl {} {{\n", actor.name));
+    out.push_str("    pub async fn run(mut ctx: ProcessContext) {\n");
+    out.push_str("        while let Some(envelope) = ctx.receive().await {\n");
+    out.push_str("            match envelope {\n");
+    out.push_str("                vox_runtime::Envelope::Request(req) => {\n");
+    out.push_str(
+        "                    if let vox_runtime::MessagePayload::Json(json_str) = &req.payload {\n",
+    );
+    out.push_str(&format!(
+        "                        if let Ok(actor_msg) = serde_json::from_str::<{}>(&json_str) {{\n",
+        msg_enum
+    ));
+    out.push_str("                            let reply_str = match actor_msg {\n");
+
+    for handler in &actor.handlers {
+        out.push_str(&format!(
+            "                                {}::{} {{ ",
+            msg_enum,
+            capitalize(&handler.event_name)
+        ));
+        for param in &handler.params {
+            out.push_str(&format!("{}, ", param.name));
+        }
+        out.push_str("} => {\n");
+        // Emit handler body statements. The last expression is the reply value.
+        // Must produce a String — serialize if needed.
+        if handler.body.is_empty() {
+            out.push_str("                                    String::new()\n");
+        } else {
+            // Emit all statements except the last as regular statements
+            for stmt in &handler.body[..handler.body.len().saturating_sub(1)] {
+                out.push_str(&emit_stmt(stmt, 10, false, true));
+            }
+            // For the last statement, extract the value and serialize to String
+            if let Some(last) = handler.body.last() {
+                match last {
+                    HirStmt::Return {
+                        value: Some(val), ..
+                    } => {
+                        let val_str = emit_expr(val);
+                        out.push_str(&format!("                                    serde_json::to_string(&({})).unwrap_or_default()\n", val_str));
+                    }
+                    HirStmt::Expr { expr, .. } => {
+                        let val_str = emit_expr(expr);
+                        out.push_str(&format!("                                    serde_json::to_string(&({})).unwrap_or_default()\n", val_str));
+                    }
+                    _ => {
+                        out.push_str(&emit_stmt(last, 10, false, true));
+                        out.push_str("                                    String::new()\n");
+                    }
+                }
+            }
+        }
+        out.push_str("                                }\n");
+    }
+
+    out.push_str("                            };\n");
+    out.push_str("                            ProcessContext::reply(req, reply_str);\n");
+    out.push_str("                        }\n");
+    out.push_str("                    }\n");
+    out.push_str("                }\n");
+    out.push_str("                vox_runtime::Envelope::Message(msg) => {\n");
+    out.push_str("                    // Fire-and-forget: process but don't reply\n");
+    out.push_str(
+        "                    if let vox_runtime::MessagePayload::Json(json_str) = msg.payload {\n",
+    );
+    out.push_str(&format!(
+        "                        if let Ok(actor_msg) = serde_json::from_str::<{}>(&json_str) {{\n",
+        msg_enum
+    ));
+    out.push_str("                            let _ = actor_msg; // processed\n");
+    out.push_str("                        }\n");
+    out.push_str("                    }\n");
+    out.push_str("                }\n");
+    out.push_str("                _ => {}\n");
+    out.push_str("            }\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+    out.push_str("}\n\n");
+
+    // Typed Handle — uses call() for request-response
+    out.push_str(&format!(
+        "#[derive(Clone)]\npub struct {}Handle {{\n",
+        actor.name
+    ));
+    out.push_str("    handle: vox_runtime::ProcessHandle,\n");
+    out.push_str("}\n");
+    out.push_str(&format!("impl {}Handle {{\n", actor.name));
+    out.push_str(
+        "    pub fn new(handle: vox_runtime::ProcessHandle) -> Self { Self { handle } }\n",
+    );
+    out.push_str("    pub fn spawn() -> Self {\n");
+    out.push_str(&format!(
+        "        let handle = vox_runtime::spawn_process({}::run);\n",
+        actor.name
+    ));
+    out.push_str("        Self::new(handle)\n");
+    out.push_str("    }\n");
+
+    for handler in &actor.handlers {
+        out.push_str(&format!("    pub async fn {}(&self, ", handler.event_name));
+        for param in &handler.params {
+            out.push_str(&format!(
+                "{}: {}, ",
+                param.name,
+                emit_type(
+                    param
+                        .type_ann
+                        .as_ref()
+                        .unwrap_or(&HirType::Named("serde_json::Value".into()))
+                )
+            ));
+        }
+        out.push_str(") -> String {\n");
+        out.push_str(&format!(
+            "        let msg = {}::{} {{ ",
+            msg_enum,
+            capitalize(&handler.event_name)
+        ));
+        for param in &handler.params {
+            out.push_str(&format!("{}, ", param.name));
+        }
+        out.push_str("};\n");
+        out.push_str("        let payload = vox_runtime::MessagePayload::Json(serde_json::to_string(&msg).expect(\"vox codegen: actor message JSON\"));\n");
+        out.push_str("        self.handle.call(payload).await.unwrap_or_else(|e| format!(\"Actor error: {}\", e))\n");
+        out.push_str("    }\n");
+    }
+    out.push_str("}\n\n");
+
+    out
+}
+
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}

@@ -1,0 +1,72 @@
+//! Static lists and description strings for doc inventory.
+
+pub const HOTSPOT_TIER1: &[&str] = &[
+    "AGENTS.md",
+    "docs/src/api/DOC_GAPS.md",
+    "docs/src/api/vox-ast.md",
+    "crates/vox-ast/src/expr.rs",
+    "crates/vox-cli/src/lib.rs",
+    "crates/vox-hir/src/hir.rs",
+    "crates/vox-mcp/src/memory.rs",
+    "crates/vox-orchestrator/src/events.rs",
+    "crates/vox-orchestrator/src/oplog.rs",
+    "crates/vox-orchestrator/src/orchestrator.rs",
+    "crates/vox-orchestrator/src/session.rs",
+    "crates/vox-orchestrator/src/types.rs",
+    "crates/vox-pm/src/store/types.rs",
+    "crates/vox-populi/src/mens/tensor/qlora_preflight.rs",
+    "crates/vox-mcp/src/tools/input_schemas.rs",
+    "docs/src/ci/rust-modernization-baseline.md",
+];
+
+pub const HOTSPOT_TIER2_RUST: &[&str] = &[
+    "crates/vox-populi/src/mens/tensor/lora.rs",
+    "crates/vox-cli/src/commands/mens/mod.rs",
+    "crates/vox-orchestrator/src/memory.rs",
+    "crates/vox-db/src/lib.rs",
+    "crates/vox-forge/src/types.rs",
+    "crates/vox-pm/src/store/ops.rs",
+    "crates/vox-codegen-rust/src/emit.rs",
+    "crates/vox-dei/src/research/orchestrator.rs",
+    "crates/vox-gamify/src/db.rs",
+    "crates/vox-mcp/src/tools/chat_tools.rs",
+    "crates/vox-dei/src/selection/mod.rs",
+    "crates/vox-db/src/schema_digest.rs",
+    "crates/vox-cli/src/cli_actions.rs",
+    "crates/vox-ast/src/decl/mod.rs",
+    "crates/vox-orchestrator/src/compaction.rs",
+    "crates/vox-lexer/src/token.rs",
+    "crates/vox-mcp/src/params.rs",
+    "crates/vox-orchestrator/src/config.rs",
+    "crates/vox-orchestrator/src/jj_backend.rs",
+    "crates/vox-orchestrator/src/snapshot.rs",
+];
+
+pub const SYMBOL_HINT_PATHS: &[&str] = &[
+    "crates/vox-ast/src/expr.rs",
+    "crates/vox-cli/src/lib.rs",
+    "crates/vox-hir/src/hir.rs",
+    "crates/vox-mcp/src/memory.rs",
+    "crates/vox-orchestrator/src/events.rs",
+    "crates/vox-orchestrator/src/oplog.rs",
+    "crates/vox-orchestrator/src/orchestrator.rs",
+    "crates/vox-orchestrator/src/session.rs",
+    "crates/vox-orchestrator/src/types.rs",
+    "crates/vox-pm/src/store/types.rs",
+    "crates/vox-populi/src/mens/tensor/qlora_preflight.rs",
+];
+
+pub const SKIP_DIR_NAMES: &[&str] = &[
+    "target",
+    ".git",
+    ".venv",
+    "node_modules",
+    "dist",
+    "build",
+    "__pycache__",
+];
+
+pub const INVENTORY_DESCRIPTION: &str = "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).";
+
+/// Default output path relative to repository root.
+pub const DEFAULT_INVENTORY_PATH: &str = "docs/agents/doc-inventory.json";

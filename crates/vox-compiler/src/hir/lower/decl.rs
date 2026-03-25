@@ -1,0 +1,243 @@
+use crate::ast::decl::*;
+use crate::ast::expr;
+use crate::ast::types::TypeExpr;
+use crate::hir::*;
+
+use super::LowerCtx;
+
+impl LowerCtx {
+    pub(crate) fn lower_fn(&mut self, f: &FnDecl, is_component: bool) -> HirFn {
+        let id = self.def_map.define(f.name.clone());
+        self.def_map.push_scope();
+        let params = f.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = f.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirFn {
+            id,
+            name: f.name.clone(),
+            generics: f.generics.clone(),
+            params,
+            return_type: f.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            is_component,
+            is_async: false,
+            is_pub: f.is_pub,
+            is_deprecated: f.is_deprecated,
+            span: f.span,
+        }
+    }
+
+    pub(crate) fn lower_param(&mut self, p: &expr::Param) -> HirParam {
+        let id = self.def_map.define(p.name.clone());
+        HirParam {
+            id,
+            name: p.name.clone(),
+            type_ann: p.type_ann.as_ref().map(|t| self.lower_type(t)),
+            default: p.default.as_ref().map(|e| self.lower_expr(e)),
+            span: p.span,
+        }
+    }
+
+    pub(crate) fn lower_type(&self, t: &TypeExpr) -> HirType {
+        match t {
+            TypeExpr::Named { name, .. } => {
+                if name == "Unit" {
+                    HirType::Unit
+                } else {
+                    HirType::Named(name.clone())
+                }
+            }
+            TypeExpr::Generic { name, args, .. } => HirType::Generic(
+                name.clone(),
+                args.iter().map(|a| self.lower_type(a)).collect(),
+            ),
+            TypeExpr::Function {
+                params,
+                return_type,
+                ..
+            } => HirType::Function(
+                params.iter().map(|p| self.lower_type(p)).collect(),
+                Box::new(self.lower_type(return_type)),
+            ),
+            TypeExpr::Tuple { elements, .. } => {
+                HirType::Tuple(elements.iter().map(|e| self.lower_type(e)).collect())
+            }
+            TypeExpr::Unit { .. } => HirType::Unit,
+        }
+    }
+    pub(crate) fn lower_typedef(&mut self, t: &TypeDefDecl) -> HirTypeDef {
+        let id = self.def_map.define(t.name.clone());
+        HirTypeDef {
+            id,
+            name: t.name.clone(),
+            variants: t
+                .variants
+                .iter()
+                .map(|v| HirVariant {
+                    name: v.name.clone(),
+                    fields: v
+                        .fields
+                        .iter()
+                        .map(|f| (f.name.clone(), self.lower_type(&f.type_ann)))
+                        .collect(),
+                    span: v.span,
+                })
+                .collect(),
+            is_pub: t.is_pub,
+            span: t.span,
+        }
+    }
+
+    pub(crate) fn lower_route(&mut self, r: &HttpRouteDecl) -> HirRoute {
+        let method = match r.method {
+            HttpMethod::Get => HirHttpMethod::Get,
+            HttpMethod::Post => HirHttpMethod::Post,
+            HttpMethod::Put => HirHttpMethod::Put,
+            HttpMethod::Delete => HirHttpMethod::Delete,
+        };
+        self.def_map.push_scope();
+        let body = r.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirRoute {
+            method,
+            path: r.path.clone(),
+            return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            span: r.span,
+        }
+    }
+
+    pub(crate) fn lower_actor(&mut self, a: &ActorDecl) -> HirActor {
+        let id = self.def_map.define(a.name.clone());
+        HirActor {
+            id,
+            name: a.name.clone(),
+            handlers: a
+                .handlers
+                .iter()
+                .map(|h| {
+                    self.def_map.push_scope();
+                    let params = h.params.iter().map(|p| self.lower_param(p)).collect();
+                    let body = h.body.iter().map(|s| self.lower_stmt(s)).collect();
+                    self.def_map.pop_scope();
+                    HirActorHandler {
+                        event_name: h.event_name.clone(),
+                        params,
+                        return_type: h.return_type.as_ref().map(|t| self.lower_type(t)),
+                        body,
+                        span: h.span,
+                    }
+                })
+                .collect(),
+            span: a.span,
+        }
+    }
+
+    pub(crate) fn lower_workflow(&mut self, w: &WorkflowDecl) -> HirWorkflow {
+        let id = self.def_map.define(w.name.clone());
+        self.def_map.push_scope();
+        let params = w.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirWorkflow {
+            id,
+            name: w.name.clone(),
+            params,
+            return_type: w.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            span: w.span,
+        }
+    }
+
+    pub(crate) fn lower_activity(&mut self, a: &ActivityDecl) -> HirActivity {
+        let id = self.def_map.define(a.name.clone());
+        self.def_map.push_scope();
+        let params = a.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = a.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirActivity {
+            id,
+            name: a.name.clone(),
+            params,
+            return_type: a.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            span: a.span,
+        }
+    }
+
+    pub(crate) fn lower_table(&mut self, t: &TableDecl) -> HirTable {
+        let id = self.def_map.define(t.name.clone());
+        HirTable {
+            id,
+            name: t.name.clone(),
+            fields: t
+                .fields
+                .iter()
+                .map(|f| HirTableField {
+                    name: f.name.clone(),
+                    type_ann: self.lower_type(&f.type_ann),
+                    span: f.span,
+                })
+                .collect(),
+            is_pub: t.is_pub,
+            is_deprecated: t.is_deprecated,
+            span: t.span,
+        }
+    }
+
+    pub(crate) fn lower_reactive_component(
+        &mut self,
+        r: &ReactiveComponentDecl,
+    ) -> HirReactiveComponent {
+        let id = self.def_map.define(r.name.clone());
+        self.def_map.push_scope();
+        let params = r.params.iter().map(|p| self.lower_param(p)).collect();
+        let members = r
+            .members
+            .iter()
+            .map(|m| match m {
+                ReactiveMemberDecl::State(s) => HirReactiveMember::State(HirState {
+                    id: self.def_map.define(s.name.clone()),
+                    name: s.name.clone(),
+                    ty: s.ty.as_ref().map(|t| self.lower_type(t)),
+                    init: self.lower_expr(&s.init),
+                    span: s.span,
+                }),
+                ReactiveMemberDecl::Derived(d) => HirReactiveMember::Derived(HirDerived {
+                    id: self.def_map.define(d.name.clone()),
+                    name: d.name.clone(),
+                    ty: d.ty.as_ref().map(|t| self.lower_type(t)),
+                    expr: self.lower_expr(&d.expr),
+                    span: d.span,
+                }),
+                ReactiveMemberDecl::Effect(e) => HirReactiveMember::Effect(HirEffect {
+                    body: self.lower_expr(&e.body),
+                    span: e.span,
+                }),
+                ReactiveMemberDecl::OnMount(m) => HirReactiveMember::OnMount(HirOnMount {
+                    body: self.lower_expr(&m.body),
+                    span: m.span,
+                }),
+                ReactiveMemberDecl::OnCleanup(c) => HirReactiveMember::OnCleanup(HirOnCleanup {
+                    body: self.lower_expr(&c.body),
+                    span: c.span,
+                }),
+            })
+            .collect();
+        let view = r.view.as_ref().map(|v| self.lower_expr(v));
+        self.def_map.pop_scope();
+
+        HirReactiveComponent {
+            id,
+            name: r.name.clone(),
+            params,
+            members,
+            view,
+            span: r.span,
+        }
+    }
+}

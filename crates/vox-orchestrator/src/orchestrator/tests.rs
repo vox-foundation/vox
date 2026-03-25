@@ -10,7 +10,7 @@ mod orch_smoke {
         Orchestrator::new(OrchestratorConfig::for_testing())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn spawn_agent() {
         let orch = test_orchestrator();
         let id = orch.spawn_agent("parser").expect("spawn");
@@ -18,7 +18,7 @@ mod orch_smoke {
         assert!(orch.agent_queue(id).is_some());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn max_agents_enforced() {
         let orch = Orchestrator::new(OrchestratorConfig {
             max_agents: 2,
@@ -33,13 +33,13 @@ mod orch_smoke {
         ));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn submit_and_route() {
         let orch = test_orchestrator();
         let task_id = orch
             .submit_task(
                 "Fix parser bug",
-                vec![FileAffinity::write("crates/vox-parser/src/grammar.rs")],
+                vec![FileAffinity::write("grammar.rs")],
                 None,
                 None,
             )
@@ -50,7 +50,7 @@ mod orch_smoke {
         assert!(orch.task_assignments.read().unwrap().contains_key(&task_id));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn submit_seeds_socrates_from_session_retrieval_envelope_key() {
         let orch = test_orchestrator();
         let sid = "orch-test-session";
@@ -83,18 +83,14 @@ mod orch_smoke {
         let aid = *orch.task_assignments.read().unwrap().get(&tid).unwrap();
         let q_lock = orch.agent_queue(aid).unwrap();
         let q = q_lock.read().unwrap();
-        let t = q
-            .tasks()
-            .iter()
-            .find(|t| t.id == tid)
-            .expect("queued task");
+        let t = q.tasks().iter().find(|t| t.id == tid).expect("queued task");
         let soc = t.socrates.as_ref().expect("socrates from context store");
         assert_eq!(soc.retrieval_tier.as_deref(), Some("hybrid"));
         assert_eq!(soc.evidence_count, 3);
         assert!(soc.retrieval_used_vector);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn same_file_routes_to_same_agent() {
         let orch = test_orchestrator();
         let t1 = orch
@@ -125,7 +121,7 @@ mod orch_smoke {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn different_files_can_route_to_different_agents() {
         let orch = test_orchestrator();
         orch.submit_task(
@@ -149,7 +145,7 @@ mod orch_smoke {
         assert!(orch.status().agent_count >= 1);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn complete_task_flow() {
         let orch = test_orchestrator();
         let task_id = orch
@@ -176,7 +172,7 @@ mod orch_smoke {
         assert_eq!(orch.status().total_completed, 1);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn retire_agent_returns_tasks() {
         let orch = test_orchestrator();
         let agent_id = orch.spawn_agent("temp").unwrap();
@@ -194,7 +190,7 @@ mod orch_smoke {
         assert!(orch.agent_queue(agent_id).is_none());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn pause_resume_agent() {
         let orch = test_orchestrator();
         let agent_id = orch.spawn_agent("test").unwrap();
@@ -219,7 +215,7 @@ mod orch_smoke {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn disabled_orchestrator_rejects_tasks() {
         let orch = Orchestrator::new(OrchestratorConfig {
             enabled: false,
@@ -232,7 +228,7 @@ mod orch_smoke {
         assert!(matches!(err, OrchestratorError::Disabled));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn status_snapshot() {
         let orch = test_orchestrator();
         orch.submit_task("t1", vec![FileAffinity::write("a.rs")], None, None)
@@ -247,7 +243,7 @@ mod orch_smoke {
         assert!(status.total_queued >= 2);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn task_trace_after_submit() {
         let orch = test_orchestrator();
         let task_id = orch
@@ -267,7 +263,7 @@ mod orch_smoke {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn task_trace_after_complete() {
         let orch = test_orchestrator();
         let task_id = orch
@@ -289,7 +285,7 @@ mod orch_smoke {
         assert_eq!(outcome.detail.as_deref(), Some("completed"));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn task_trace_after_fail() {
         let orch = test_orchestrator();
         let task_id = orch
@@ -319,7 +315,7 @@ mod orch_smoke {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn socrates_enforced_gate_requeues_low_confidence_task() {
         let mut cfg = OrchestratorConfig::for_testing();
         cfg.socrates_gate_enforce = true;
@@ -364,7 +360,7 @@ mod orch_smoke {
         assert!(!q.is_empty());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn submit_goal_falls_back_to_direct_when_planning_disabled() {
         let orch = test_orchestrator();
         let task_id = orch
@@ -380,7 +376,7 @@ mod orch_smoke {
         assert!(orch.task_assignments.read().unwrap().contains_key(&task_id));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn submit_goal_force_plan_attaches_plan_metadata() {
         let orch = Orchestrator::new(OrchestratorConfig {
             planning_enabled: true,
@@ -412,7 +408,7 @@ mod orch_smoke {
         assert!(has_meta, "planned task should contain planning metadata");
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn fail_task_with_replan_trigger_enqueues_recovery_work() {
         let orch = Orchestrator::new(OrchestratorConfig {
             planning_enabled: true,

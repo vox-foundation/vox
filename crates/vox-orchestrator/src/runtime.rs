@@ -385,7 +385,13 @@ impl AgentFleet {
                         || h.capabilities.npu
                 })
                 .count();
-            (status, idle_dynamic, config, budget_manager, remote_gpu_capacity)
+            (
+                status,
+                idle_dynamic,
+                config,
+                budget_manager,
+                remote_gpu_capacity,
+            )
         };
 
         let load_history: Vec<f64> = Vec::new();

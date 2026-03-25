@@ -110,6 +110,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
 | `mens-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/mens/gates.yaml` steps |
 | `toestub-scoped` | Default scan `crates/vox-repository` |
+| `scaling-audit verify \| emit-reports` | Scaling SSOT: validate `contracts/scaling/policy.yaml`; `emit-reports` regenerates per-crate backlog markdown + rollup + TOESTUB JSON on `crates/` |
 | `cuda-features` | Optional CUDA compile checks when `nvcc` exists |
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, `vox-cli --features oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
@@ -208,7 +209,10 @@ Common subcommands: `status`, `schema`, `sample`, `migrate`, `export` / `import`
 
 - Research/capability helpers: `capability-list`, `research-list`, `research-map-list`, `retrieval-status`, `research-refresh`.
 - Scientific publication lifecycle:
-  - `vox scientia publication-prepare --publication-id <id> --author <name> --title <title> <path.md>`
+  - `vox scientia publication-prepare --publication-id <id> --author <name> --title <title> [--scholarly-metadata-json <file>] [--preflight] [--preflight-profile default|double-blind] <path.md>`
+  - `vox scientia publication-prepare-validated` (same flags as prepare except preflight is always on)
+  - `vox scientia publication-preflight --publication-id <id> [--profile default|double-blind]`
+  - `vox scientia publication-zenodo-metadata --publication-id <id>` (stdout JSON for Zenodo deposit metadata; no HTTP)
   - `vox scientia publication-approve --publication-id <id> --approver <identity>`
   - `vox scientia publication-submit-local --publication-id <id>`
   - `vox scientia publication-status --publication-id <id>`

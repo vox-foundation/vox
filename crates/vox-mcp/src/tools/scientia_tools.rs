@@ -2,7 +2,9 @@ use crate::{ServerState, ToolResult};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_publisher::publication::PublicationManifest;
+use vox_publisher::publication_preflight::PreflightProfile;
 use vox_publisher::scholarly::{LocalLedgerAdapter, ScholarlyAdapter};
+use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationPrepareParams {
@@ -14,6 +16,29 @@ pub struct VoxScientiaPublicationPrepareParams {
     pub abstract_text: Option<String>,
     #[serde(default)]
     pub citations_json: Option<serde_json::Value>,
+    #[serde(default)]
+    pub scholarly_metadata: Option<serde_json::Value>,
+    #[serde(default)]
+    pub preflight: bool,
+    #[serde(default)]
+    pub preflight_profile: Option<PreflightProfileParam>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PreflightProfileParam {
+    #[default]
+    Default,
+    DoubleBlind,
+}
+
+impl From<PreflightProfileParam> for PreflightProfile {
+    fn from(p: PreflightProfileParam) -> Self {
+        match p {
+            PreflightProfileParam::Default => Self::Default,
+            PreflightProfileParam::DoubleBlind => Self::DoubleBlind,
+        }
+    }
 }
 
 pub async fn vox_scientia_publication_prepare(
@@ -27,6 +52,27 @@ pub async fn vox_scientia_publication_prepare(
         .citations_json
         .as_ref()
         .map(serde_json::Value::to_string);
+    let scientific = match params.scholarly_metadata.as_ref() {
+        None => None,
+        Some(v) => match serde_json::from_value::<ScientificPublicationMetadata>(v.clone()) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                return ToolResult::<String>::err(format!("scholarly_metadata: {e}")).to_json();
+            }
+        },
+    };
+    let profile: PreflightProfile = params
+        .preflight_profile
+        .unwrap_or_default()
+        .into();
+    let metadata_json = match vox_publisher::scientific_metadata::build_scientia_metadata_json(
+        "vox_scientia_publication_prepare",
+        Some(state.repository.repository_id.as_str()),
+        scientific.as_ref(),
+    ) {
+        Ok(s) => s,
+        Err(e) => return ToolResult::<String>::err(format!("metadata_json: {e}")).to_json(),
+    };
     let manifest = PublicationManifest {
         publication_id: params.publication_id.clone(),
         content_type: "scientia".to_string(),
@@ -36,14 +82,20 @@ pub async fn vox_scientia_publication_prepare(
         abstract_text: params.abstract_text,
         body_markdown: params.content,
         citations_json: citations_json.clone(),
-        metadata_json: Some(
-            serde_json::json!({
-                "prepared_by": "vox_scientia_publication_prepare",
-                "repository_id": state.repository.repository_id
-            })
-            .to_string(),
-        ),
+        metadata_json: Some(metadata_json),
     };
+
+    if params.preflight {
+        let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+        if !report.ok {
+            return ToolResult::<()>::err(format!(
+                "preflight failed: {}",
+                serde_json::to_string(&report).unwrap_or_default()
+            ))
+            .to_json();
+        }
+    }
+
     let digest = manifest.content_sha3_256();
     if let Err(e) = db
         .upsert_publication_manifest(vox_db::PublicationManifestParams {
@@ -85,10 +137,11 @@ pub async fn vox_scientia_publication_approve(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let Some(manifest) = (match db.get_publication_manifest(&params.publication_id).await {
+    let manifest = match db.get_publication_manifest(&params.publication_id).await {
         Ok(m) => m,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
-    }) else {
+    };
+    let Some(manifest) = manifest else {
         return ToolResult::<String>::err("publication not found".to_string()).to_json();
     };
     let approver = params.approver.trim();
@@ -138,10 +191,11 @@ pub async fn vox_scientia_publication_submit_local(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let Some(row) = (match db.get_publication_manifest(&params.publication_id).await {
+    let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
-    }) else {
+    };
+    let Some(row) = row else {
         return ToolResult::<String>::err("publication not found".to_string()).to_json();
     };
     let dual = match db
@@ -214,10 +268,11 @@ pub async fn vox_scientia_publication_status(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let Some(row) = (match db.get_publication_manifest(&params.publication_id).await {
+    let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
-    }) else {
+    };
+    let Some(row) = row else {
         return ToolResult::<String>::err("publication not found".to_string()).to_json();
     };
     let approvals = match db
@@ -241,4 +296,41 @@ pub async fn vox_scientia_publication_status(
         scholarly_submissions: submissions,
     })
     .to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationPreflightParams {
+    pub publication_id: String,
+    #[serde(default)]
+    pub profile: Option<PreflightProfileParam>,
+}
+
+pub async fn vox_scientia_publication_preflight(
+    state: &ServerState,
+    params: VoxScientiaPublicationPreflightParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let row = match db.get_publication_manifest(&params.publication_id).await {
+        Ok(r) => r,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    let Some(row) = row else {
+        return ToolResult::<String>::err("publication not found".to_string()).to_json();
+    };
+    let manifest = PublicationManifest {
+        publication_id: row.publication_id,
+        content_type: row.content_type,
+        source_ref: row.source_ref,
+        title: row.title,
+        author: row.author,
+        abstract_text: row.abstract_text,
+        body_markdown: row.body_markdown,
+        citations_json: row.citations_json,
+        metadata_json: row.metadata_json,
+    };
+    let profile: PreflightProfile = params.profile.unwrap_or_default().into();
+    let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    ToolResult::ok(report).to_json()
 }

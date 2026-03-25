@@ -54,6 +54,7 @@ vox-pm                    = { path = "crates/vox-pm" }
 vox-protocol              = { path = "crates/vox-protocol" }
 vox-repository            = { path = "crates/vox-repository" }
 vox-runtime               = { path = "crates/vox-runtime" }
+vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
 vox-skills                = { path = "crates/vox-skills" }
 vox-socrates-policy       = { path = "crates/vox-socrates-policy" }
 vox-ssg                   = { path = "crates/vox-ssg" }

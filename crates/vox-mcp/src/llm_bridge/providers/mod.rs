@@ -1,0 +1,14 @@
+//! HTTP clients for OpenRouter-compatible, Gemini, and Ollama chat APIs.
+
+mod gemini;
+mod metadata;
+mod ollama_chat;
+mod openai;
+mod probe;
+mod types;
+
+pub(crate) use gemini::{http_gemini, http_gemini_with_metadata};
+pub(crate) use metadata::{HttpCallMetadata, ollama_base_url};
+pub(crate) use ollama_chat::{http_ollama, http_ollama_with_metadata};
+pub(crate) use openai::{http_openai_compatible, http_openai_compatible_with_headers};
+pub(crate) use probe::probe_ollama_tags;

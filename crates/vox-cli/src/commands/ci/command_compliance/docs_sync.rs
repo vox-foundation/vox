@@ -1,0 +1,73 @@
+//! Doc loading and markdown section helpers for compliance checks.
+
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::Path;
+
+/// Extract the `### `vox ci …` section from the CLI reference doc (until the next `### ` heading).
+pub(crate) fn ref_cli_vox_ci_section(ref_text: &str) -> Option<&str> {
+    let key = "### `vox ci";
+    let start = ref_text.find(key)?;
+    let after = &ref_text[start + 1..];
+    let rel = after.find("\n### ").unwrap_or(after.len());
+    let end = start + 1 + rel;
+    Some(&ref_text[start..end])
+}
+
+/// Extract the `### `vox codex` section from the CLI reference doc (until the next `### ` heading).
+pub(crate) fn ref_cli_vox_codex_section(ref_text: &str) -> Option<&str> {
+    let key = "### `vox codex";
+    let start = ref_text.find(key)?;
+    let after = &ref_text[start + 1..];
+    let rel = after.find("\n### ").unwrap_or(after.len());
+    let end = start + 1 + rel;
+    Some(&ref_text[start..end])
+}
+
+pub(crate) fn markdown_section<'a>(doc: &'a str, heading: &str) -> Option<&'a str> {
+    let start = doc.find(heading)?;
+    let after = &doc[start + heading.len()..];
+    let rel_end = after.find("\n## ").unwrap_or(after.len());
+    Some(&doc[start..start + heading.len() + rel_end])
+}
+
+/// CLI reference text for `ref_cli_required` needles: `docs/src/ref-cli.md` if present, else canonical `docs/src/reference/cli.md`.
+/// Strict `check_ref_cli` always runs on the resolved body (no silent skip when only the canonical doc exists).
+pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<String> {
+    let legacy = repo_root.join("docs/src/ref-cli.md");
+    if legacy.is_file() {
+        return fs::read_to_string(&legacy).with_context(|| format!("read {}", legacy.display()));
+    }
+    let canonical = repo_root.join("docs/src/reference/cli.md");
+    fs::read_to_string(&canonical).with_context(|| {
+        format!(
+            "read {} (and docs/src/ref-cli.md is absent)",
+            canonical.display()
+        )
+    })
+}
+
+pub(crate) fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
+    let preferred = repo_root.join("docs/src/reference/env-vars-ssot.md");
+    if preferred.is_file() {
+        return fs::read_to_string(&preferred)
+            .with_context(|| format!("read {}", preferred.display()));
+    }
+    let fallback = repo_root.join("docs/src/reference/env-vars.md");
+    fs::read_to_string(&fallback).with_context(|| {
+        format!(
+            "read {} (fallback when docs/src/reference/env-vars-ssot.md is absent)",
+            fallback.display()
+        )
+    })
+}
+
+pub(crate) fn read_reachability_doc(repo_root: &Path) -> Result<String> {
+    let p = repo_root.join("docs/src/reference/cli.md");
+    fs::read_to_string(&p).with_context(|| {
+        format!(
+            "read {} (reachability matrix under 'CLI command reachability')",
+            p.display()
+        )
+    })
+}

@@ -61,7 +61,7 @@ async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result
 
     let out_hint = output_dir
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "mens/runs/qwen25_qlora".to_string());
+        .unwrap_or_else(|| vox_scaling_policy::DEFAULT_MENS_RUNS_QWEN_QLORA.to_string());
 
     anyhow::bail!(
         "`vox train --provider local` does not run `scripts/train_qlora.vox` (not shipped).\n\

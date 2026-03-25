@@ -1,0 +1,173 @@
+//! Core manifest types, submit configuration, and [`SemanticPlanner`].
+
+use serde::{Deserialize, Serialize};
+
+use super::groups::{
+    DEFAULT_MAX_FILES_PER_PR, IGNORED_DIRS, IGNORED_EXTENSIONS, IGNORED_ROOT_EXACT,
+    IGNORED_ROOT_PATTERNS, SEMANTIC_GROUPS,
+};
+use super::super::limits;
+use super::super::path_policy;
+
+/// A single named semantic group of files (≤ max_files_per_pr).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticChunk {
+    /// Ordering key (lower = earlier PR).
+    pub order: u32,
+    /// Human-readable group name (stable, used for branch names).
+    pub name: String,
+    /// Relative repository paths.
+    pub files: Vec<String>,
+}
+
+/// Manifest produced by [`SemanticPlanner::plan`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticManifest {
+    pub generated_at: String,
+    pub baseline_branch: String,
+    pub total_files: usize,
+    pub chunks: Vec<SemanticChunk>,
+}
+
+/// Diff-based semantic PR planner.
+pub struct SemanticPlanner {
+    max_files_per_pr: usize,
+}
+
+impl SemanticPlanner {
+    pub fn new(max_files_per_pr: usize) -> Self {
+        Self { max_files_per_pr }
+    }
+
+    /// Returns `true` if the file should be excluded from review PRs.
+    pub fn is_ignored(path: &str) -> bool {
+        let p = path.replace('\\', "/");
+
+        if path_policy::is_coderabbit_local_tool_path(&p) {
+            return true;
+        }
+
+        if IGNORED_DIRS.iter().any(|d| p.starts_with(d)) {
+            return true;
+        }
+        if IGNORED_EXTENSIONS.iter().any(|e| p.ends_with(e)) {
+            return true;
+        }
+        // Root-level scratch patterns and exact names (no directory component)
+        if !p.contains('/') {
+            if IGNORED_ROOT_EXACT.contains(&p.as_str()) {
+                return true;
+            }
+            if IGNORED_ROOT_PATTERNS.iter().any(|pat| p.ends_with(pat)) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Map a file path to its `(order, group_name)`.
+    pub fn get_group(path: &str) -> (u32, &'static str) {
+        let p = path.replace('\\', "/");
+        for (order, name, matcher) in SEMANTIC_GROUPS {
+            if matcher.matches(&p) {
+                return (*order, name);
+            }
+        }
+        (199, "99_unassigned")
+    }
+
+    /// Plan semantic chunks from a list of files.
+    ///
+    /// Large groups are sub-divided into `_part1`, `_part2`, … ensuring no chunk
+    /// exceeds [`SemanticPlanner::max_files_per_pr`].
+    pub fn plan(&self, files: Vec<String>, baseline_branch: &str) -> SemanticManifest {
+        use std::collections::BTreeMap;
+
+        let mut groups: BTreeMap<(u32, &'static str), Vec<String>> = BTreeMap::new();
+        let mut total = 0usize;
+
+        for f in files {
+            if Self::is_ignored(&f) {
+                continue;
+            }
+            total += 1;
+            let (order, name) = Self::get_group(&f);
+            groups.entry((order, name)).or_default().push(f);
+        }
+
+        let mut chunks: Vec<SemanticChunk> = Vec::new();
+        for ((order, name), mut group_files) in groups {
+            group_files.sort(); // stable, alphabetical
+            if group_files.len() <= self.max_files_per_pr {
+                chunks.push(SemanticChunk {
+                    order,
+                    name: name.to_string(),
+                    files: group_files,
+                });
+            } else {
+                // Sub-divide
+                for (i, batch) in group_files.chunks(self.max_files_per_pr).enumerate() {
+                    chunks.push(SemanticChunk {
+                        order,
+                        name: format!("{}_part{}", name, i + 1),
+                        files: batch.to_vec(),
+                    });
+                }
+            }
+        }
+
+        chunks.sort_by_key(|c| c.order);
+
+        SemanticManifest {
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            baseline_branch: baseline_branch.to_string(),
+            total_files: total,
+            chunks,
+        }
+    }
+}
+
+/// Configuration for a semantic-submit run.
+#[derive(Debug, Clone)]
+pub struct SemanticSubmitConfig {
+    /// CodeRabbit tier (affects rate-limit delay).
+    pub tier: limits::CodeRabbitTier,
+    /// Max files per review PR chunk (clamped to tier file cap).
+    pub max_files_per_pr: usize,
+    /// Seconds between PR triggers (0 = use tier default).
+    pub delay_secs: u64,
+    /// If false, only plan + write manifest (no git remotes, no PRs).
+    pub execute: bool,
+    /// Legacy: commit all planned files to `default_branch` and push before opening chunk PRs.
+    pub commit_main: bool,
+    /// Reuse baseline branch name (enables `--resume` across invocations).
+    pub baseline_branch: Option<String>,
+    /// Skip chunks already marked `completed` in `.coderabbit/run-state.json`.
+    pub resume: bool,
+    /// Re-run every chunk even if previously completed.
+    pub force_chunks: bool,
+    /// Optional pattern filter — only process groups whose name contains this.
+    pub group_filter: Option<String>,
+    /// Review the **entire tracked repository** from scratch (`git ls-files`) instead of
+    /// only files that differ from HEAD. When true, the drift check is skipped (N/A).
+    pub full_repo: bool,
+}
+
+impl Default for SemanticSubmitConfig {
+    fn default() -> Self {
+        let tier = limits::CodeRabbitTier::Pro;
+        let delay = tier.min_delay_between_prs_secs();
+        Self {
+            tier,
+            max_files_per_pr: DEFAULT_MAX_FILES_PER_PR,
+            delay_secs: delay,
+            execute: false,
+            commit_main: false,
+            baseline_branch: None,
+            resume: false,
+            force_chunks: false,
+            group_filter: None,
+            full_repo: false,
+        }
+    }
+}

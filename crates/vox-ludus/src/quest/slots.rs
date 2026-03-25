@@ -1,0 +1,116 @@
+//! Slot pools and template fill.
+
+// ─── Slot Pools ──────────────────────────────────────────
+
+pub(crate) static CRATE_POOL: &[&str] = &[
+    "vox-hir",
+    "vox-ast",
+    "vox-lexer",
+    "vox-cli",
+    "vox-db",
+    "vox-dei",
+    "vox-ludus",
+    "vox-arca",
+    "vox-typeck",
+    "vox-codegen-rust",
+    "vox-ssg",
+    "vox-lsp",
+    "vox-mcp",
+    "vox-fabrica",
+    "vox-oratio",
+];
+
+static TOESTUB_RULE_POOL: &[&str] = &[
+    "UnannotatedAxumHandler",
+    "MissingDocComment",
+    "CircularReExport",
+    "RecreatedDeletedModule",
+    "FlatSiblingModule",
+    "NullStateUsage",
+    "UnregisteredCapability",
+];
+
+static LANGUAGE_POOL: &[&str] = &["Rust", "Vox", "SQL", "TOML", "Markdown"];
+
+static DOC_CATEGORY_POOL: &[&str] = &[
+    "struct fields",
+    "pub fns",
+    "trait methods",
+    "enum variants",
+    "module-level items",
+];
+
+static BUILD_CRATE_POOL: &[&str] = &[
+    "vox-lexer",
+    "vox-parser",
+    "vox-ast",
+    "vox-hir",
+    "vox-typeck",
+    "vox-codegen-rust",
+    "vox-ssg",
+    "vox-cli",
+];
+
+static TEST_MODULE_POOL: &[&str] = &[
+    "the tokenizer",
+    "the parser's error recovery",
+    "HIR lowering",
+    "the typeck inference engine",
+    "codegen output",
+    "the reward policy",
+    "the streak tracker",
+];
+
+static RESEARCH_TOPIC_POOL: &[&str] = &[
+    "actor runtime patterns",
+    "Server-rendered HTML vs client React (Vox web SSOT)",
+    "QLoRA fine-tuning strategies",
+    "Turso vs SQLite benchmarks",
+    "MCP server design",
+    "Vox vs competitors",
+    "Build reproducibility techniques",
+];
+
+static ISLAND_COMPONENT_POOL: &[&str] = &[
+    "login form",
+    "data table",
+    "notification bell",
+    "theme toggle",
+    "code editor",
+    "progress bar",
+    "file upload widget",
+];
+
+/// Fill a template string with seeded-random slot values.
+///
+/// Supported slots: `{CRATE}`, `{RULE}`, `{LANGUAGE}`, `{DOC_CATEGORY}`,
+/// `{BUILD_CRATE}`, `{TEST_MODULE}`, `{RESEARCH_TOPIC}`, `{ISLAND_COMPONENT}`.
+pub fn slot_fill(template: &str, seed: u64) -> String {
+    fn pick<'a>(pool: &'a [&'a str], seed: u64) -> &'a str {
+        pool[(seed as usize) % pool.len()]
+    }
+    template
+        .replace("{CRATE}", pick(CRATE_POOL, seed))
+        .replace("{RULE}", pick(TOESTUB_RULE_POOL, seed.wrapping_add(1)))
+        .replace("{LANGUAGE}", pick(LANGUAGE_POOL, seed.wrapping_add(2)))
+        .replace(
+            "{DOC_CATEGORY}",
+            pick(DOC_CATEGORY_POOL, seed.wrapping_add(3)),
+        )
+        .replace(
+            "{BUILD_CRATE}",
+            pick(BUILD_CRATE_POOL, seed.wrapping_add(4)),
+        )
+        .replace(
+            "{TEST_MODULE}",
+            pick(TEST_MODULE_POOL, seed.wrapping_add(5)),
+        )
+        .replace(
+            "{RESEARCH_TOPIC}",
+            pick(RESEARCH_TOPIC_POOL, seed.wrapping_add(6)),
+        )
+        .replace(
+            "{ISLAND_COMPONENT}",
+            pick(ISLAND_COMPONENT_POOL, seed.wrapping_add(7)),
+        )
+}

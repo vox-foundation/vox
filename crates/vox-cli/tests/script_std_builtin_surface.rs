@@ -4,11 +4,11 @@
 fn glob_and_run_capture_exist_in_all_layers() {
     let checker = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-compiler/src/typeck/checker.rs"
+        "/../vox-compiler/src/typeck/checker/expr_field.rs"
     ));
     let emit = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-compiler/src/codegen_rust/emit.rs"
+        "/../vox-compiler/src/codegen_rust/emit/stmt_expr.rs"
     ));
     let builtins = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -33,11 +33,11 @@ fn glob_and_run_capture_exist_in_all_layers() {
 fn std_env_fs_path_process_core_methods_align() {
     let checker = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-compiler/src/typeck/checker.rs"
+        "/../vox-compiler/src/typeck/checker/expr_field.rs"
     ));
     let emit = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-compiler/src/codegen_rust/emit.rs"
+        "/../vox-compiler/src/codegen_rust/emit/stmt_expr.rs"
     ));
     let builtins = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

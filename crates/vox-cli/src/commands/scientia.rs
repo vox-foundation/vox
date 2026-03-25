@@ -3,7 +3,8 @@
 //! Delegates to [`super::db_cli::DbCli`] so `vox db …` remains the implementation SSOT.
 
 use clap::Subcommand;
-use std::path::PathBuf;
+
+use super::db_cli::{DbPreflightProfileCli, PublicationPrepareBodyCli};
 
 /// Subcommands for `vox scientia`.
 #[derive(Subcommand)]
@@ -53,24 +54,33 @@ pub enum ScientiaCmd {
     /// Prepare a scientific publication manifest from markdown.
     #[command(name = "publication-prepare")]
     PublicationPrepare {
-        /// Stable publication id.
+        #[command(flatten)]
+        body: PublicationPrepareBodyCli,
+        #[arg(long, default_value_t = false)]
+        preflight: bool,
+        #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
+        preflight_profile: DbPreflightProfileCli,
+    },
+    /// Same as `publication-prepare` with mandatory preflight.
+    #[command(name = "publication-prepare-validated")]
+    PublicationPrepareValidated {
+        #[command(flatten)]
+        body: PublicationPrepareBodyCli,
+        #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
+        preflight_profile: DbPreflightProfileCli,
+    },
+    /// JSON preflight report for an existing publication id.
+    #[command(name = "publication-preflight")]
+    PublicationPreflight {
         #[arg(long)]
         publication_id: String,
-        /// Author identity.
+        #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
+        profile: DbPreflightProfileCli,
+    },
+    #[command(name = "publication-zenodo-metadata")]
+    PublicationZenodoMetadata {
         #[arg(long)]
-        author: String,
-        /// Human title.
-        #[arg(long)]
-        title: String,
-        /// Path to markdown body.
-        #[arg(required = true)]
-        path: PathBuf,
-        /// Optional abstract text.
-        #[arg(long)]
-        abstract_text: Option<String>,
-        /// Optional citations JSON file path.
-        #[arg(long)]
-        citations_json: Option<PathBuf>,
+        publication_id: String,
     },
     /// Record digest-bound approval for a prepared publication.
     #[command(name = "publication-approve")]
@@ -126,20 +136,32 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             DbCli::ResearchRefresh { vendor, dry_run }
         }
         ScientiaCmd::PublicationPrepare {
-            publication_id,
-            author,
-            title,
-            path,
-            abstract_text,
-            citations_json,
+            body,
+            preflight,
+            preflight_profile,
         } => DbCli::PublicationPrepare {
-            publication_id,
             content_type: "scientia".to_string(),
-            author,
-            title,
-            path,
-            abstract_text,
-            citations_json,
+            body,
+            preflight,
+            preflight_profile,
+        },
+        ScientiaCmd::PublicationPrepareValidated {
+            body,
+            preflight_profile,
+        } => DbCli::PublicationPrepareValidated {
+            content_type: "scientia".to_string(),
+            body,
+            preflight_profile,
+        },
+        ScientiaCmd::PublicationPreflight {
+            publication_id,
+            profile,
+        } => DbCli::PublicationPreflight {
+            publication_id,
+            profile,
+        },
+        ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
+            DbCli::PublicationZenodoMetadata { publication_id }
         },
         ScientiaCmd::PublicationApprove {
             publication_id,

@@ -1,0 +1,56 @@
+use std::path::PathBuf;
+
+use crate::{NodeRecord, PopuliRegistryError};
+
+use super::A2AStoredMessage;
+use super::PopuliTransportState;
+
+pub(super) fn a2a_store_path_from_env() -> Option<PathBuf> {
+    if let Ok(v) = std::env::var("VOX_MESH_A2A_STORE_PATH") {
+        let trimmed = v.trim();
+        if !trimmed.is_empty() {
+            return Some(PathBuf::from(trimmed));
+        }
+    }
+    let mut p = crate::local_registry_path();
+    p.set_file_name("a2a-store.json");
+    Some(p)
+}
+
+pub(super) fn load_a2a_store(
+    path: &std::path::Path,
+) -> Result<Vec<A2AStoredMessage>, PopuliRegistryError> {
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let raw = std::fs::read_to_string(path).map_err(PopuliRegistryError::Io)?;
+    serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))
+}
+
+pub(super) fn persist_a2a_store(
+    path: &std::path::Path,
+    rows: &[A2AStoredMessage],
+) -> Result<(), PopuliRegistryError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(PopuliRegistryError::Io)?;
+    }
+    let payload =
+        serde_json::to_string_pretty(rows).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, payload.as_bytes()).map_err(PopuliRegistryError::Io)?;
+    std::fs::rename(&tmp, path).map_err(PopuliRegistryError::Io)?;
+    Ok(())
+}
+
+impl Default for PopuliTransportState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub(super) fn scope_ok(state: &PopuliTransportState, node: &NodeRecord) -> bool {
+    match &state.required_scope {
+        None => true,
+        Some(req) => node.scope_id.as_deref().is_some_and(|s| s == req.as_ref()),
+    }
+}

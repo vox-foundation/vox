@@ -16,7 +16,7 @@ on:
       - 'examples/**'
       - 'scripts/vox_system_prompt.txt'
       - 'crates/vox-cli/src/training/**'
-      - 'crates/vox-cli/src/commands/corpus.rs'
+      - 'crates/vox-cli/src/commands/corpus/**'
       - 'populi/data/**'
   schedule:
     - cron: '0 4 * * *'  # 4 AM UTC nightly

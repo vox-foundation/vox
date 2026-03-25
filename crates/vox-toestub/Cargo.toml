@@ -6,6 +6,7 @@ edition.workspace = true
 
 [dependencies]
 syn = { version = "2", features = ["full", "visit", "parsing", "extra-traits"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
 walkdir = "2"
 regex = "1"
 serde = { workspace = true }
@@ -17,6 +18,8 @@ similar = "2"
 globset = "0.4"
 reqwest = { version = "0.13", features = ["json", "rustls"], default-features = false }
 anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+vox-scaling-policy = { workspace = true }
 vox-socrates-policy = { workspace = true }
 
 [lints]

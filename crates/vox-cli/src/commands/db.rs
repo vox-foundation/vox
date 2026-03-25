@@ -318,6 +318,9 @@ pub async fn publication_prepare(
     path: &PathBuf,
     abstract_text: Option<&str>,
     citations_json_path: Option<&PathBuf>,
+    scholarly_metadata_json_path: Option<&PathBuf>,
+    preflight: bool,
+    preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let body_markdown = fs::read_to_string(path)
@@ -330,6 +333,30 @@ pub async fn publication_prepare(
     } else {
         None
     };
+    let scientific = if let Some(p) = scholarly_metadata_json_path {
+        let raw = fs::read_to_string(p).with_context(|| {
+            format!("failed to read scholarly metadata JSON from {}", p.display())
+        })?;
+        Some(
+            serde_json::from_str::<vox_publisher::scientific_metadata::ScientificPublicationMetadata>(
+                raw.trim(),
+            )
+            .with_context(|| {
+                format!(
+                    "invalid scholarly metadata JSON (see scientific_publication schema in vox-publisher): {}",
+                    p.display()
+                )
+            })?,
+        )
+    } else {
+        None
+    };
+    let metadata_json = vox_publisher::scientific_metadata::build_scientia_metadata_json(
+        "vox db publication-prepare",
+        None,
+        scientific.as_ref(),
+    )
+    .context("build publication metadata_json")?;
     let manifest = vox_publisher::publication::PublicationManifest {
         publication_id: publication_id.to_string(),
         content_type: content_type.to_string(),
@@ -339,13 +366,19 @@ pub async fn publication_prepare(
         abstract_text: abstract_text.map(std::string::ToString::to_string),
         body_markdown,
         citations_json: citations_json.clone(),
-        metadata_json: Some(
-            serde_json::json!({
-                "prepared_by": "vox db publication-prepare",
-            })
-            .to_string(),
-        ),
+        metadata_json: Some(metadata_json),
     };
+    if preflight {
+        let report = vox_publisher::publication_preflight::run_preflight(&manifest, preflight_profile);
+        if !report.ok {
+            anyhow::bail!(
+                "publication preflight failed (readiness {}):\n{}",
+                report.readiness_score,
+                serde_json::to_string_pretty(&report)?
+            );
+        }
+    }
+
     let digest = manifest.content_sha3_256();
     db.upsert_publication_manifest(vox_db::PublicationManifestParams {
         publication_id: &manifest.publication_id,
@@ -365,6 +398,53 @@ pub async fn publication_prepare(
         "Prepared publication '{}' ({}) digest={}",
         publication_id, content_type, digest
     );
+    Ok(())
+}
+
+/// Print a JSON preflight report for a manifest already in Codex (no DB writes).
+pub async fn publication_preflight(
+    publication_id: &str,
+    profile: vox_publisher::publication_preflight::PreflightProfile,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    };
+    let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    Ok(())
+}
+
+/// Print Zenodo-oriented deposition metadata JSON (no network).
+pub async fn publication_zenodo_metadata(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    };
+    let z = vox_publisher::zenodo_metadata::zenodo_deposition_metadata(&manifest);
+    println!("{}", serde_json::to_string_pretty(&z)?);
     Ok(())
 }
 
@@ -463,4 +543,4 @@ pub async fn publication_status(publication_id: &str) -> Result<()> {
     Ok(())
 }
 
-include!("db_research_impl.rs");
+pub use super::db_research::*;

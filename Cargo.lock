@@ -9844,6 +9844,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-runtime",
+ "vox-scaling-policy",
  "vox-skills",
  "vox-ssg",
  "vox-tensor",
@@ -10262,6 +10263,7 @@ dependencies = [
  "octocrab",
  "pulldown-cmark",
  "quick-xml",
+ "regex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -10303,6 +10305,14 @@ dependencies = [
  "vox-config",
  "vox-db",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-scaling-policy"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]
@@ -10387,9 +10397,11 @@ name = "vox-toestub"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "globset",
  "miette",
  "owo-colors",
+ "proc-macro2",
  "regex",
  "reqwest 0.13.2",
  "serde",
@@ -10397,6 +10409,7 @@ dependencies = [
  "similar",
  "syn",
  "thiserror 1.0.69",
+ "vox-scaling-policy",
  "vox-socrates-policy",
  "walkdir",
 ]

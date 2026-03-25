@@ -2,9 +2,12 @@ pub mod adapters;
 pub mod contract;
 pub mod gate;
 pub mod publication;
+pub mod publication_preflight;
 pub mod scholarly;
+pub mod scientific_metadata;
 pub mod templates;
 pub mod types;
+pub mod zenodo_metadata;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

@@ -1,6 +1,6 @@
 //! JSON Schema fragments for MCP tool `input_schema` (draft-07 subset).
 //!
-//! Keep shapes aligned with [`crate::params`], [`crate::memory`], [`super::affinity`],
+//! Keep shapes aligned with [`crate::params`], [`crate::memory`], [`crate::affinity`],
 //! and [`super::chat_tools`] `Deserialize` structs. Unknown tools fall back to an empty map
 //! (caller may treat as unconstrained JSON).
 
@@ -388,7 +388,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"content":{"type":"string","minLength":1}},"required":["news_id","content"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_prepare" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"content":{"type":"string","minLength":1},"abstract_text":{"type":"string"},"citations_json":{"type":"object"}},"required":["publication_id","title","author","content"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"content":{"type":"string","minLength":1},"abstract_text":{"type":"string"},"citations_json":{"type":"object"},"scholarly_metadata":{"type":"object","description":"ScientificPublicationMetadata (authors, license_spdx, funding_statement, ...)","additionalProperties":true},"preflight":{"type":"boolean","description":"If true, run publication_preflight before upsert; fail on error-level findings."},"preflight_profile":{"type":"string","enum":["default","double_blind"]}},"required":["publication_id","title","author","content"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_preflight" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"profile":{"type":"string","enum":["default","double_blind"]}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_approve" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id","approver"],"additionalProperties":false}"#,

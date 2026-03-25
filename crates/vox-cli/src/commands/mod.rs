@@ -19,6 +19,8 @@ pub mod ci;
 pub mod codex;
 /// Training data extraction / mixing pipelines (`vox corpus`).
 pub mod corpus;
+/// Codex research ingest / reliability helpers (`vox db` research subcommands).
+mod db_research;
 /// Local VoxDB / Codex diagnostics (`vox db`).
 pub mod db;
 /// Clap entrypoints for `vox db`.
@@ -66,6 +68,9 @@ pub mod stub_check;
 /// Ludus gamification systems logic wrapper.
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
+/// `vox gamify` companion / quest / battle helpers (explicit modules; `extras-ludus`).
+#[cfg(feature = "extras-ludus")]
+pub mod gamify;
 /// AI-powered CodeRabbit review adapter (`vox review`).
 #[cfg(any(feature = "mens-dei", feature = "coderabbit"))]
 pub mod review;

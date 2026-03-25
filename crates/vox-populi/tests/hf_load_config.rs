@@ -1,5 +1,7 @@
 //! Integration tests: HF `config.json` parsing (`tensor::hf_load`).
 
+#![cfg(feature = "mens")]
+
 use std::path::PathBuf;
 
 use tempfile::tempdir;

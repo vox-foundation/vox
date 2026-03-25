@@ -16,6 +16,7 @@ octocrab = "0.38"
 quick-xml = { version = "0.31", features = ["serialize"] }
 reqwest = { workspace = true }
 sha3 = { workspace = true }
+regex = { workspace = true }
 pulldown-cmark = "0.13"
 
 [dev-dependencies]

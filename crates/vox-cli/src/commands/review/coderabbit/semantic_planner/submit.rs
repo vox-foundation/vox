@@ -1,0 +1,362 @@
+//! Execute semantic-submit: plan, manifest, optional baseline + worktree PRs.
+
+use std::path::Path;
+use std::process::Command;
+
+use anyhow::{Context, Result};
+use vox_forge::GitForgeProvider;
+use vox_forge::github::GitHubProvider;
+use vox_git::GitBridge;
+
+use super::collector::{collect_all_files, collect_changed_files};
+use super::manifest::write_semantic_manifest;
+use super::super::{config, github, path_policy};
+use super::super::run_state as cr_run_state;
+use super::types::{SemanticPlanner, SemanticSubmitConfig};
+
+/// Entry point: collect files, plan groups, optionally push baseline + isolated worktree PRs.
+pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Result<()> {
+    // ── 1. Collect files ────────────────────────────────────────────────────
+    let mode_label = if cfg.full_repo {
+        "full-repo (git ls-files)"
+    } else {
+        "diff-based (changes since HEAD)"
+    };
+    eprintln!("[semantic-submit] Collecting files ({mode_label})…");
+    let mut all_files = if cfg.full_repo {
+        collect_all_files(repo)
+            .await
+            .context("collect all tracked files")?
+    } else {
+        collect_changed_files(repo)
+            .await
+            .context("collect changed files")?
+    };
+    let dropped_tool = path_policy::retain_non_coderabbit_tool_paths(&mut all_files);
+    if dropped_tool > 0 {
+        eprintln!(
+            "[semantic-submit] Dropped {dropped_tool} path(s) under `.coderabbit/` (tooling worktrees/state; not reviewed)."
+        );
+    }
+    if all_files.is_empty() {
+        if cfg.full_repo {
+            anyhow::bail!("No tracked files found in the repository.");
+        } else {
+            anyhow::bail!("No changed or untracked files found. Working tree is already clean.");
+        }
+    }
+    eprintln!(
+        "[semantic-submit] Raw file count (before ignore filter): {}",
+        all_files.len()
+    );
+
+    let vox_cfg = config::load_from_dir(repo);
+    if !vox_cfg.exclude_prefixes.is_empty() {
+        all_files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
+        eprintln!(
+            "[semantic-submit] After Vox.toml exclude_prefixes: {} paths",
+            all_files.len()
+        );
+    }
+
+    let mut plan_snapshot = all_files.clone();
+    plan_snapshot.sort();
+
+    // Secure the workspace before messing with branches and run_state
+    let guard = super::super::git::WorkspaceGuard::new(repo).await?;
+
+    let res = run_semantic_submit_core(repo, cfg, all_files, plan_snapshot).await;
+
+    guard.restore().await?;
+    res
+}
+
+async fn run_semantic_submit_core(
+    repo: &Path,
+    cfg: &SemanticSubmitConfig,
+    all_files: Vec<String>,
+    _plan_snapshot: Vec<String>,
+) -> Result<()> {
+    // ── 2. Build semantic plan ──────────────────────────────────────────────
+    let baseline_branch = if cfg.resume && !cfg.force_chunks {
+        let prev = cr_run_state::CoderabbitRunState::load(repo)?.ok_or_else(|| {
+            anyhow::anyhow!(
+                "`--resume` requires `.coderabbit/run-state.json` in the repo root. \
+                 Run once with `--execute`, or pass `--baseline-branch` matching a prior run and use a compatible run-state."
+            )
+        })?;
+        match &cfg.baseline_branch {
+            None => {
+                eprintln!(
+                    "[resume] reusing baseline branch `{}` from run-state",
+                    prev.baseline_branch
+                );
+                prev.baseline_branch.clone()
+            }
+            Some(want) if want != &prev.baseline_branch => {
+                anyhow::bail!(
+                    "`--resume` run-state baseline is `{}` but `--baseline-branch` is `{}`. \
+                     Omit `--baseline-branch` to reuse the run-state baseline, or align the flag with the saved baseline.",
+                    prev.baseline_branch,
+                    want
+                );
+            }
+            Some(want) => want.clone(),
+        }
+    } else if let Some(b) = cfg.baseline_branch.clone() {
+        b
+    } else {
+        format!("cr-baseline-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"))
+    };
+    let tier_cap = cfg.tier.files_per_review() as usize;
+    let max_per = cfg.max_files_per_pr.max(1).min(tier_cap);
+    if cfg.max_files_per_pr > tier_cap {
+        eprintln!(
+            "[semantic-submit] Tier {}: clamped max_files_per_pr {} → {}",
+            cfg.tier, cfg.max_files_per_pr, max_per
+        );
+    }
+    let planner = SemanticPlanner::new(max_per);
+    let mut sem_manifest = planner.plan(all_files, &baseline_branch);
+
+    // Apply group filter if requested
+    if let Some(ref filter) = cfg.group_filter {
+        sem_manifest
+            .chunks
+            .retain(|c| c.name.contains(filter.as_str()));
+    }
+
+    // ── 3. Print plan summary ───────────────────────────────────────────────
+    eprintln!("\n══════════════════════════════════════════════");
+    eprintln!("  SEMANTIC-SUBMIT plan");
+    eprintln!("══════════════════════════════════════════════");
+    eprintln!(
+        "  Mode         : {}",
+        if cfg.execute { "EXECUTE" } else { "PLAN ONLY" }
+    );
+    eprintln!(
+        "  Tier         : {} ({} files/PR, {}s delay)",
+        cfg.tier,
+        cfg.tier.files_per_review(),
+        cfg.tier.min_delay_between_prs_secs()
+    );
+    eprintln!(
+        "  Files/PR cap : {} (effective {})",
+        cfg.max_files_per_pr, max_per
+    );
+    eprintln!("  Baseline     : {}", baseline_branch);
+    eprintln!("  Total files  : {}", sem_manifest.total_files);
+    eprintln!("  Chunks       : {}", sem_manifest.chunks.len());
+    eprintln!("──────────────────────────────────────────────");
+    for chunk in &sem_manifest.chunks {
+        eprintln!("  {:.<30} {} files", chunk.name, chunk.files.len());
+    }
+    eprintln!("══════════════════════════════════════════════\n");
+
+    let manifest_path = write_semantic_manifest(repo, &sem_manifest)?;
+    eprintln!("[manifest] Written to: {}", manifest_path.display());
+
+    if !cfg.execute {
+        eprintln!(
+            "\n[PLAN ONLY] No git mutations. Re-run with `--execute` to push baseline + open PRs from isolated worktrees."
+        );
+        return Ok(());
+    }
+
+    // ── 4. Resolve default branch + publish baseline at origin tip ───────────
+    let bridge = GitBridge::open(repo).context("open git repo")?;
+    let remote_url = bridge.remote_url().context("get remote URL")?;
+    let (owner, repo_name) = github::parse_github_owner_repo(&remote_url)
+        .context("parse owner/repo from remote URL")?;
+    let token = github::github_token()?;
+    let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let repo_info = provider
+        .repo_info(&owner, &repo_name)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let default_branch = repo_info.default_branch.clone();
+
+    eprintln!(
+        "\n[phase-1] Publishing baseline `{}` at origin/{default_branch} tip",
+        baseline_branch
+    );
+    let _baseline_sha = github::push_baseline_from_origin(
+        repo,
+        &baseline_branch,
+        &default_branch,
+        cfg.full_repo,
+    )
+    .context("push baseline from origin")?;
+
+    // Optional legacy: commit everything to default branch (broad `git add -u`).
+    if cfg.commit_main {
+        eprintln!("\n[legacy] --commit-main: staging all manifest paths + push {default_branch}");
+        let _ = Command::new("git")
+            .args(["rm", "--cached", "-r", "--ignore-unmatch", "docs/book/"])
+            .current_dir(repo)
+            .status();
+        let add_all = Command::new("git")
+            .args(["add", "-u"])
+            .current_dir(repo)
+            .status()
+            .context("git add -u")?;
+        if !add_all.success() {
+            anyhow::bail!("git add -u failed");
+        }
+        let all_new: Vec<_> = sem_manifest
+            .chunks
+            .iter()
+            .flat_map(|c| c.files.iter().cloned())
+            .collect();
+        for batch in all_new.chunks(200) {
+            let mut args = vec!["add", "--"];
+            args.extend(batch.iter().map(|s| s.as_str()));
+            let _ = Command::new("git").args(&args).current_dir(repo).status();
+        }
+        let timestamp = chrono::Utc::now().format("%Y-%m-%d");
+        let commit_msg = format!(
+            "feat: batch-commit {timestamp} — {} files across {} semantic groups\n\n\
+             Committed via `vox review coderabbit semantic-submit --commit-main`.",
+            sem_manifest.total_files,
+            sem_manifest.chunks.len(),
+        );
+        let status = Command::new("git")
+            .args(["commit", "-m", &commit_msg])
+            .current_dir(repo)
+            .status()
+            .context("git commit")?;
+        if !status.success() {
+            anyhow::bail!("git commit failed — nothing staged or commit error");
+        }
+        let push = Command::new("git")
+            .args(["push", "origin", &default_branch])
+            .current_dir(repo)
+            .status()
+            .context("git push origin default branch")?;
+        if !push.success() {
+            anyhow::bail!("git push origin {default_branch} failed");
+        }
+        eprintln!("[legacy] ✓ pushed {default_branch}");
+    }
+
+    // ── 5. Resume state ─────────────────────────────────────────────────────
+    let source_tree = repo.to_path_buf();
+    let mut run_state = cr_run_state::CoderabbitRunState {
+        baseline_branch: baseline_branch.clone(),
+        default_branch: default_branch.clone(),
+        started_at: chrono::Utc::now().to_rfc3339(),
+        chunks: sem_manifest
+            .chunks
+            .iter()
+            .map(|c| cr_run_state::ChunkRunRecord {
+                name: c.name.clone(),
+                branch: format!("cr/review-{}", c.name),
+                pr_number: None,
+                status: "pending".to_string(),
+                error: None,
+            })
+            .collect(),
+    };
+
+    if cfg.resume && !cfg.force_chunks {
+        if let Some(prev) = cr_run_state::CoderabbitRunState::load(repo)? {
+            if prev.baseline_branch == baseline_branch {
+                for rec in &mut run_state.chunks {
+                    if let Some(o) = prev
+                        .chunks
+                        .iter()
+                        .find(|p| p.name == rec.name && p.status == "completed")
+                    {
+                        *rec = o.clone();
+                    }
+                }
+            }
+        }
+    }
+    run_state.save(repo).context("write initial run-state")?;
+
+    // ── 6. Isolated worktree PRs (independent base = baseline) ─────────────
+
+    eprintln!(
+        "\n[phase-2] Creating {} review PR(s) via worktrees…",
+        sem_manifest.chunks.len()
+    );
+    let delay = if cfg.delay_secs > 0 {
+        cfg.delay_secs
+    } else {
+        cfg.tier.min_delay_between_prs_secs()
+    };
+
+    for (i, chunk) in sem_manifest.chunks.iter().enumerate() {
+        if !cfg.force_chunks && run_state.chunks[i].status == "completed" {
+            eprintln!(
+                "[resume] skip completed chunk {} (PR #{})",
+                chunk.name,
+                run_state.chunks[i].pr_number.unwrap_or(0)
+            );
+            continue;
+        }
+
+        let cr_branch = format!("cr/review-{}", chunk.name);
+        eprintln!(
+            "\n[{}/{}] {} ({} files) → branch: {}",
+            i + 1,
+            sem_manifest.chunks.len(),
+            chunk.name,
+            chunk.files.len(),
+            cr_branch
+        );
+
+        let res = github::create_chunk_pr_via_worktree(
+            repo,
+            &source_tree,
+            &default_branch,
+            &baseline_branch,
+            &cr_branch,
+            &chunk.files,
+            true,
+        )
+        .await;
+
+        match res {
+            Ok(pr_num) => {
+                run_state.chunks[i].status = "completed".to_string();
+                run_state.chunks[i].pr_number = Some(pr_num);
+                run_state.chunks[i].error = None;
+            }
+            Err(e) => {
+                run_state.chunks[i].status = "failed".to_string();
+                run_state.chunks[i].error = Some(format!("{e:#}"));
+                run_state.save(repo)?;
+                return Err(e).with_context(|| format!("chunk {}", chunk.name));
+            }
+        }
+        run_state.save(repo)?;
+
+        if i + 1 < sem_manifest.chunks.len() && delay > 0 {
+            eprintln!("[rate-limit] waiting {delay}s before next PR…");
+            tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
+        }
+    }
+
+    eprintln!("\n══════════════════════════════════════════════");
+    let n_done = run_state
+        .chunks
+        .iter()
+        .filter(|c| c.pr_number.is_some())
+        .count();
+    eprintln!("  DONE — {n_done} PR(s) with numbers recorded");
+    for (chunk, rec) in sem_manifest.chunks.iter().zip(&run_state.chunks) {
+        if let Some(pr_num) = rec.pr_number {
+            eprintln!("  PR #{pr_num:>6}  {}", chunk.name);
+        } else if rec.status == "failed" {
+            eprintln!("  (failed)         {}", chunk.name);
+        }
+    }
+    eprintln!("══════════════════════════════════════════════");
+    eprintln!("Next: monitor PRs, then ingest findings:");
+    eprintln!("  vox review coderabbit ingest <pr_number>");
+    eprintln!("  vox review coderabbit tasks <pr_number> --format markdown");
+
+    Ok(())
+}

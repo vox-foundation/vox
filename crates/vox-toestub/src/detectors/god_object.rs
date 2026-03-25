@@ -46,8 +46,14 @@ impl DetectionRule for GodObjectDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Check file line count
-        if file.lines.len() > self.max_lines {
+        let nonblank_lines = file
+            .lines
+            .iter()
+            .filter(|l| !l.trim().is_empty())
+            .count();
+
+        // Check file size using non-blank lines (matches workspace god-object checklist / PowerShell Trim rule).
+        if nonblank_lines > self.max_lines {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
                 rule_name: self.name().to_string(),
@@ -56,8 +62,8 @@ impl DetectionRule for GodObjectDetector {
                 line: 1,
                 column: 0,
                 message: format!(
-                    "File is too large ({} lines). Maximum allowed is {}.",
-                    file.lines.len(),
+                    "File is too large ({} non-blank lines). Maximum allowed is {}.",
+                    nonblank_lines,
                     self.max_lines
                 ),
                 suggestion: Some(

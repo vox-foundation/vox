@@ -84,3 +84,5 @@ docs/book/
 # Large model and data artifacts
 *.safetensors
 *.jsonl
+mens/runs/latest/training_manifest.json
+mens/runs/latest/checkpoint_state.json

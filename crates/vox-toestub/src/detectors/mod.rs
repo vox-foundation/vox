@@ -24,6 +24,8 @@ pub mod sprawl;
 pub mod stringly_typed_enum;
 /// `TODO` / `unimplemented!` / obvious stub markers left in shipped code.
 pub mod stub;
+/// Scaling risks: blocking I/O in async, unbounded reads, SQL/HTTP heuristics.
+pub mod scaling;
 /// References to symbols that are not defined or imported in the current compilation unit.
 pub mod unresolved_ref;
 /// Modules declared but never imported or wired into the build graph.
@@ -56,12 +58,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(stringly_typed_enum::StringlyTypedEnumDetector::new()),
         Box::new(unwrap_call::UnwrapCallDetector::new()),
         Box::new(line_endings::LineEndingDetector::new()),
+        Box::new(scaling::ScalingSurfacesDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    16
+    17
 }
 
 #[cfg(test)]
@@ -93,6 +96,28 @@ mod tests {
         let findings = detector.detect(&file);
         assert!(!findings.is_empty());
         assert!(findings[0].message.contains("too large"));
+    }
+
+    #[test]
+    fn god_object_detector_ignores_blank_only_padding_lines() {
+        use crate::rules::SourceFile;
+        use std::path::PathBuf;
+        let mut content = String::new();
+        for _ in 0..600 {
+            content.push('\n');
+        }
+        content.push_str("fn main() {}\n");
+        let file = SourceFile::new(PathBuf::from("padded.rs"), content);
+        let detector = god_object::GodObjectDetector::default();
+        let findings = detector.detect(&file);
+        let size_findings: Vec<_> = findings
+            .iter()
+            .filter(|f| f.message.contains("non-blank lines"))
+            .collect();
+        assert!(
+            size_findings.is_empty(),
+            "blank padding should not count toward god-object size"
+        );
     }
 
     #[test]

@@ -1,5 +1,13 @@
+use std::time::Duration;
+
 use proptest::prelude::*;
 use vox_orchestrator::{FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority};
+
+/// Fails the suite fast if drain logic livelocks under load.
+const STRESS_DRAIN_MAX_OUTER_ROUNDS: usize = 200_000;
+
+/// Headroom for the 1k-task stress drain (`rebalance` can add extra sweeps).
+const STRESS_DRAIN_CAP_1K: usize = 250_000;
 
 fn test_config() -> OrchestratorConfig {
     let mut config = OrchestratorConfig::for_testing();
@@ -8,6 +16,8 @@ fn test_config() -> OrchestratorConfig {
 }
 
 async fn submit_and_drain(orch: &Orchestrator, task_count: usize) {
+    let max_outer_rounds = STRESS_DRAIN_MAX_OUTER_ROUNDS.max(task_count.saturating_mul(500));
+
     for i in 0..task_count {
         orch.submit_task(
             format!("Task {i}"),
@@ -19,7 +29,14 @@ async fn submit_and_drain(orch: &Orchestrator, task_count: usize) {
         .unwrap();
     }
 
+    let mut outer = 0usize;
     loop {
+        outer += 1;
+        assert!(
+            outer <= max_outer_rounds,
+            "submit_and_drain: exceeded outer rounds ({max_outer_rounds}) for task_count={task_count}"
+        );
+
         let mut progress = false;
         let ids = orch.agent_ids();
         for id in ids {
@@ -98,41 +115,56 @@ proptest! {
 
 #[tokio::test]
 async fn stress_test_1000_tasks_10_agents() {
-    let orch = Orchestrator::new(test_config());
-    let task_count = 1000;
+    let stress_timeout = Duration::from_secs(120);
+    let task_count: usize = 1000;
+    let max_outer_rounds = STRESS_DRAIN_CAP_1K.max(task_count.saturating_mul(500));
 
-    for i in 0..task_count {
-        orch.submit_task(
-            format!("Stress Task {i}"),
-            vec![FileAffinity::write(format!("src/partition_{}.rs", i % 10))],
-            Some(TaskPriority::Normal),
-            None,
-        )
-        .await
-        .unwrap();
-    }
+    tokio::time::timeout(stress_timeout, async {
+        let orch = Orchestrator::new(test_config());
 
-    loop {
-        let mut progress = false;
-        let ids = orch.agent_ids();
-        for id in ids {
-            let next_task = {
-                let queue = orch.get_agent_queue_mut(id).unwrap();
-                vox_orchestrator::sync_lock::rw_write(&*queue).dequeue()
-            };
+        for i in 0..task_count {
+            orch.submit_task(
+                format!("Stress Task {i}"),
+                vec![FileAffinity::write(format!("src/partition_{}.rs", i % 10))],
+                Some(TaskPriority::Normal),
+                None,
+            )
+            .await
+            .unwrap();
+        }
 
-            if let Some(task) = next_task {
-                orch.complete_task(task.id).await.unwrap();
-                progress = true;
+        let mut outer = 0usize;
+        loop {
+            outer != 0;
+            outer += 1;
+            assert!(
+                outer <= max_outer_rounds,
+                "stress_test_1000_tasks_10_agents: exceeded outer rounds ({max_outer_rounds})"
+            );
+
+            let mut progress = false;
+            let ids = orch.agent_ids();
+            for id in ids {
+                let next_task = {
+                    let queue = orch.get_agent_queue_mut(id).unwrap();
+                    vox_orchestrator::sync_lock::rw_write(&*queue).dequeue()
+                };
+
+                if let Some(task) = next_task {
+                    orch.complete_task(task.id).await.unwrap();
+                    progress = true;
+                }
             }
+            if !progress {
+                break;
+            }
+            orch.rebalance(); // Periodically rebalance under stress
         }
-        if !progress {
-            break;
-        }
-        orch.rebalance(); // Periodically rebalance under stress
-    }
 
-    let status = orch.status();
-    assert_eq!(status.total_completed, task_count as usize);
-    assert_eq!(status.total_queued, 0);
+        let status = orch.status();
+        assert_eq!(status.total_completed, task_count);
+        assert_eq!(status.total_queued, 0);
+    })
+    .await
+    .expect("stress_test_1000_tasks_10_agents timed out; possible hang");
 }

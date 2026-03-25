@@ -1,0 +1,51 @@
+use crate::{learning, memory::MemoryParams, EmbeddingEntry, StoreError};
+
+impl crate::VoxDb {
+    // ── Memory Convenience Methods ──────────────────────
+
+    /// Persist an agent memory row (`memories` table). See [`MemoryParams`] for fields.
+    pub async fn store_memory(&self, params: MemoryParams<'_>) -> Result<i64, StoreError> {
+        self.save_memory(params).await
+    }
+
+    /// Full-text-ish search over knowledge nodes (delegates to `VoxDb::query_knowledge_nodes`).
+    ///
+    /// Returns `(id, title, snippet)` tuples as produced by the store layer.
+    pub async fn search_memories(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<(String, String, String)>, StoreError> {
+        self.query_knowledge_nodes(query, limit).await
+    }
+
+    /// Vector similarity search in `embeddings` (optional `source_type` filter).
+    pub async fn search_embeddings(
+        &self,
+        vector: &[f32],
+        source_type: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
+        self.search_similar_embeddings(vector, source_type, limit)
+            .await
+    }
+
+    /// Return a behavioral learner for this database.
+    pub fn learner(&self) -> learning::BehavioralLearner<'_> {
+        learning::BehavioralLearner::new(self)
+    }
+
+    /// Run a parameterized `SELECT` and collect all rows (for small result sets).
+    pub async fn query_all(
+        &self,
+        sql: &str,
+        params: impl turso::IntoParams + Send,
+    ) -> Result<Vec<turso::Row>, StoreError> {
+        let mut cursor = self.conn.query(sql, params).await?;
+        let mut rows = Vec::new();
+        while let Some(row) = cursor.next().await? {
+            rows.push(row);
+        }
+        Ok(rows)
+    }
+}

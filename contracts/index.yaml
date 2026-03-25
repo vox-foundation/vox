@@ -83,6 +83,37 @@ contracts:
       - vox ci command-compliance
       - cargo build -p vox-mcp-registry
 
+  - id: scientia-publication-worthiness-schema
+    path: contracts/scientia/publication-worthiness.schema.json
+    owner: scientia
+    kind: json-schema
+    description: JSON Schema for scientia publication worthiness policy contracts.
+    enforced_by: []
+
+  - id: scientia-publication-worthiness-default
+    path: contracts/scientia/publication-worthiness.default.yaml
+    owner: scientia
+    kind: yaml
+    description: Default publication worthiness thresholds, red lines, and venue profile checks.
+    enforced_by: []
+
+  - id: scaling-policy
+    path: contracts/scaling/policy.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Scaling SSOT — thresholds, path literals, magic numeric hints, per-crate overrides.
+    enforced_by:
+      - vox ci scaling-audit
+      - cargo test -p vox-scaling-policy
+
+  - id: scaling-policy-schema
+    path: contracts/scaling/policy.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for scaling policy YAML.
+    enforced_by:
+      - vox ci scaling-audit
+
   - id: sql-write-ownership-rev-c
     path: contracts/reports/sql-write-ownership-rev-c.json
     owner: platform-ci

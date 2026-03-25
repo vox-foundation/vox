@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/scientia/publication-worthiness.schema.json",
+  "title": "Scientia Publication Worthiness Contract",
+  "description": "Machine-readable policy for classifying publication candidates as Publish / AskForEvidence / AbstainDoNotPublish.",
+  "type": "object",
+  "required": [
+    "version",
+    "decision_labels",
+    "hard_red_lines",
+    "thresholds",
+    "weights",
+    "venue_profiles"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "decision_labels": {
+      "type": "object",
+      "required": [
+        "publish",
+        "ask_for_evidence",
+        "abstain_do_not_publish"
+      ],
+      "properties": {
+        "publish": {
+          "const": "Publish"
+        },
+        "ask_for_evidence": {
+          "const": "AskForEvidence"
+        },
+        "abstain_do_not_publish": {
+          "const": "Abstain/DoNotPublish"
+        }
+      },
+      "additionalProperties": false
+    },
+    "hard_red_lines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "enabled"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_\\-]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "required": [
+        "claim_evidence_coverage_min",
+        "artifact_replayability_min",
+        "before_after_pair_integrity_min",
+        "metadata_completeness_min",
+        "ai_disclosure_compliance_exact",
+        "publish_score_min",
+        "abstain_score_max"
+      ],
+      "properties": {
+        "claim_evidence_coverage_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "artifact_replayability_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "before_after_pair_integrity_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "metadata_completeness_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "ai_disclosure_compliance_exact": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "publish_score_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "abstain_score_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "weights": {
+      "type": "object",
+      "required": [
+        "epistemic",
+        "reproducibility",
+        "novelty",
+        "reliability",
+        "metadata_policy"
+      ],
+      "properties": {
+        "epistemic": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reproducibility": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "novelty": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reliability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "metadata_policy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "venue_profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "description",
+          "required_checks"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required_checks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

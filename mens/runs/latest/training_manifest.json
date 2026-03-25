@@ -10,7 +10,7 @@
   "alpha": 32.0,
   "seq_len": 384,
   "epochs": 1,
-  "run_id": "20260325T093529Z",
+  "run_id": "20260325T094255Z",
   "git_sha": "unknown",
   "device_profile": "AdapterRAM",
   "seed": 42,

@@ -1,0 +1,208 @@
+use anyhow::{Context, Result, anyhow};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use crate::commands::ci::cargo_bin;
+use crate::commands::ci::cmd_enums::ToestubCiMode;
+use crate::commands::ci::constants::FEATURE_SETS;
+
+pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+        let entry = entry?;
+        let p = entry.path();
+        let t = entry.file_type()?;
+        if t.is_dir() {
+            visit_rs_files(&p, f)?;
+        } else if t.is_file() && p.extension().and_then(|x| x.to_str()) == Some("rs") {
+            f(&p)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
+    let src = root.join("crates/vox-cli/src");
+    let re = regex::Regex::new(r"\bvox_dei::")?;
+    visit_rs_files(&src, &mut |p: &Path| {
+        let text = fs::read_to_string(p)?;
+        if re.is_match(&text) {
+            return Err(anyhow!(
+                "vox-cli must not reference vox_dei:: (crate is workspace-excluded). Offender: {}",
+                p.display()
+            ));
+        }
+        Ok(())
+    })?;
+    println!("vox-cli no-vox_dei guard OK");
+    Ok(())
+}
+
+pub(crate) fn check_workflow_scripts(root: &Path, allowlist_path: &Path) -> Result<()> {
+    let allow_path = root.join(allowlist_path);
+    let allowed: std::collections::HashSet<String> = if allow_path.is_file() {
+        fs::read_to_string(&allow_path)?
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    } else {
+        return Err(anyhow!("missing allowlist: {}", allow_path.display()));
+    };
+
+    let wf_dir = root.join(".github/workflows");
+    let re = regex::Regex::new(r"scripts/[A-Za-z0-9_./-]+")?;
+    let mut violations = Vec::new();
+    for entry in fs::read_dir(&wf_dir).with_context(|| format!("read {}", wf_dir.display()))? {
+        let entry = entry?;
+        let p = entry.path();
+        if p.extension().and_then(|x| x.to_str()) != Some("yml")
+            && p.extension().and_then(|x| x.to_str()) != Some("yaml")
+        {
+            continue;
+        }
+        let text = fs::read_to_string(&p)?;
+        for cap in re.find_iter(&text) {
+            let path = cap.as_str().to_string();
+            if !allowed.contains(&path) {
+                violations.push(format!("{}: {}", p.display(), path));
+            }
+        }
+    }
+    if !violations.is_empty() {
+        return Err(anyhow!(
+            "workflow references scripts/ not in allowlist:\n{}",
+            violations.join("\n")
+        ));
+    }
+    println!("workflow-scripts allowlist OK");
+    Ok(())
+}
+
+pub(crate) fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
+    let manifest_path = root.join("scripts/mens/gates.yaml");
+    let raw = fs::read_to_string(&manifest_path)
+        .with_context(|| format!("read {}", manifest_path.display()))?;
+    let doc: serde_yaml::Value = serde_yaml::from_str(&raw)?;
+    let profiles = doc
+        .get("profiles")
+        .and_then(|p| p.as_mapping())
+        .ok_or_else(|| anyhow!("gates.yaml: missing profiles"))?;
+    let prof = profiles
+        .get(serde_yaml::Value::String(profile.to_string()))
+        .ok_or_else(|| anyhow!("unknown profile: {profile}"))?;
+    let steps = prof
+        .get("steps")
+        .and_then(|s| s.as_sequence())
+        .ok_or_else(|| anyhow!("profile {profile}: missing steps"))?;
+
+    let cargo = cargo_bin();
+    for step in steps {
+        let cmd = step
+            .get("command")
+            .and_then(|c| c.as_str())
+            .unwrap_or("cargo");
+        let args = step
+            .get("args")
+            .and_then(|a| a.as_sequence())
+            .ok_or_else(|| anyhow!("step missing args"))?;
+        let arg_strs: Vec<String> = args
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
+        eprintln!(">> {cmd} {}", arg_strs.join(" "));
+        let st = if cmd == "cargo" {
+            Command::new(&cargo)
+                .current_dir(root)
+                .args(&arg_strs)
+                .status()?
+        } else {
+            Command::new(cmd)
+                .current_dir(root)
+                .args(&arg_strs)
+                .status()?
+        };
+        if !st.success() {
+            return Err(anyhow!("mens-gate step failed: {cmd} {:?}", arg_strs));
+        }
+    }
+    println!("Mens gate OK ({profile})");
+    Ok(())
+}
+
+pub(crate) fn run_toestub_scoped(
+    repo: &Path,
+    scan_root: &Path,
+    mode: ToestubCiMode,
+) -> Result<()> {
+    let root: PathBuf = if scan_root.is_absolute() {
+        scan_root.to_path_buf()
+    } else {
+        repo.join(scan_root)
+    };
+    let cargo = cargo_bin();
+    let mut c = Command::new(&cargo);
+    c.current_dir(repo)
+        .args(["run", "-p", "vox-toestub", "--bin", "toestub", "--"]);
+    if mode != ToestubCiMode::Legacy {
+        c.arg("--mode").arg(mode.as_cli_str());
+    }
+    c.arg(root.to_string_lossy().as_ref());
+    let st = c.status()?;
+    if !st.success() {
+        return Err(anyhow!("toestub scoped run failed"));
+    }
+    Ok(())
+}
+
+pub(crate) fn run_feature_matrix(root: &Path) -> Result<()> {
+    let cargo = cargo_bin();
+    for f in FEATURE_SETS {
+        if f.is_empty() {
+            eprintln!("==> cargo check -p vox-cli (default features)");
+            let st = Command::new(&cargo)
+                .current_dir(root)
+                .args(["check", "-p", "vox-cli"])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!("cargo check -p vox-cli failed"));
+            }
+        } else {
+            eprintln!("==> cargo check -p vox-cli --features {f}");
+            let st = Command::new(&cargo)
+                .current_dir(root)
+                .args(["check", "-p", "vox-cli", "--features", f])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!("cargo check -p vox-cli --features {f} failed"));
+            }
+        }
+    }
+    println!("vox-cli feature matrix OK");
+    Ok(())
+}
+
+#[cfg(test)]
+mod feature_matrix_contract_tests {
+    use crate::commands::ci::constants::FEATURE_SETS;
+
+    #[test]
+    fn feature_sets_include_script_execution_lane() {
+        assert!(
+            FEATURE_SETS.contains(&"script-execution"),
+            "CI feature matrix must compile the script-execution lane"
+        );
+        assert!(
+            FEATURE_SETS.contains(&"script-execution,stub-check"),
+            "CI feature matrix must include a mixed script-execution + stub-check build"
+        );
+    }
+
+    #[test]
+    fn feature_sets_include_populi_oratio_lane() {
+        assert!(
+            FEATURE_SETS.contains(&"oratio"),
+            "CI feature matrix must compile the oratio (Oratio STT) lane"
+        );
+    }
+}

@@ -27,7 +27,7 @@ pub mod scanner;
 pub mod task_queue;
 
 pub use ai_analyze::{AiAnalyzer, AiProvider};
-pub use engine::{ToestubConfig, ToestubEngine};
+pub use engine::{ToestubConfig, ToestubEngine, ToestubRunMode};
 pub use report::{OutputFormat, Reporter};
 pub use review::{
     ReviewCategory, ReviewClient, ReviewConfig, ReviewFinding, ReviewOutputFormat, ReviewProvider,

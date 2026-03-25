@@ -18,7 +18,7 @@ pub const FALLBACK_REVIEW_PREMIUM_MODEL_ID: &str = "gpt-4o";
 /// Default NLI model id in [`super::config::VerifierConfig`] before research run resolution.
 ///
 /// The research pipeline replaces this sentinel with the resolved claim-stage model when
-/// `VerifierConfig.nli_model_id` still equals this constant (see `verifier_config_for_research_run` in `orchestrator.rs`).
+/// `VerifierConfig.nli_model_id` still equals this constant (see `verifier_config_for_research_run` in `orchestrator/helpers.rs`).
 ///
 /// **SSOT:** mirror `NLI_FALLBACK` in `crates/vox-config/src/bootstrap_inference.rs`.
 pub const FALLBACK_NLI_MODEL_ID: &str = "gpt-4o-mini";

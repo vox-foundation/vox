@@ -4,11 +4,16 @@
 //! `OpLog`, and the optional Codex `db_snapshots` table.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::oplog::{OperationId, OperationKind};
 use crate::orchestrator::OrchestratorError;
 use crate::snapshot::SnapshotId;
 use crate::types::AgentId;
+
+/// Wall-clock bound for Turso / sqlite snapshot and CAS writes so hung DB layers
+/// cannot block the orchestrator forever inside an async poll.
+const DB_IO_TIMEOUT: Duration = Duration::from_secs(60);
 
 impl crate::orchestrator::Orchestrator {
     /// Take a filesystem snapshot of `paths` and optionally persist their bytes to
@@ -28,24 +33,52 @@ impl crate::orchestrator::Orchestrator {
                 &desc,
             );
         }
-        let snap_id =
-            crate::sync_lock::rw_write(&*self.snapshot_store).take_snapshot(agent_id, paths, &desc);
 
-        // Only attempt CAS upload if a DB is attached (never in tests).
-        let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
-        if let Some(db) = db_opt {
-            for p in paths {
-                // Skip non-existent files (relative paths in tests, missing artifacts).
-                if !p.exists() {
-                    continue;
-                }
-                if let Ok(data) = std::fs::read(p) {
-                    let _ = db.store("file", &data).await;
-                }
-            }
+        // Unit tests (`cargo test -p vox-orchestrator`) compile this crate with `cfg(test)`.
+        // Avoid real filesystem reads there: they can stall on CI/Windows (AV, locks) and are
+        // not needed to validate routing/queue behavior. Integration tests link the library
+        // without `cfg(test)` and still exercise real `std::fs::read` paths.
+        #[cfg(test)]
+        {
+            // Synthetic snapshot only: keeps unit tests hermetic and fast (no `std::fs::read`).
+            let prefetched: Vec<(PathBuf, Option<Vec<u8>>)> =
+                paths.iter().map(|p| (p.clone(), None)).collect();
+            let mut store = crate::sync_lock::rw_write(&*self.snapshot_store);
+            return store.take_snapshot_prefetched(agent_id, &prefetched, desc);
         }
 
-        snap_id
+        #[cfg(not(test))]
+        {
+            // Prefetch outside the `snapshot_store` write guard.
+            let prefetched: Vec<(PathBuf, Option<Vec<u8>>)> = paths
+                .iter()
+                .map(|p| match std::fs::read(p) {
+                    Ok(data) => (p.clone(), Some(data)),
+                    Err(_) => (p.clone(), None),
+                })
+                .collect();
+
+            let snap_id = {
+                let mut store = crate::sync_lock::rw_write(&*self.snapshot_store);
+                store.take_snapshot_prefetched(agent_id, &prefetched, &desc)
+            };
+
+            let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+            if let Some(db) = db_opt {
+                for (_path, maybe_data) in &prefetched {
+                    if let Some(data) = maybe_data {
+                        match tokio::time::timeout(DB_IO_TIMEOUT, db.store("file", data.as_slice()))
+                            .await
+                        {
+                            Ok(Ok(_)) | Ok(Err(_)) => {}
+                            Err(_) => tracing::warn!("capture_snapshot: db.store timed out"),
+                        }
+                    }
+                }
+            }
+
+            snap_id
+        }
     }
 
     /// Record a generic operation in the oplog, capturing a pre-op DB snapshot when
@@ -94,12 +127,15 @@ impl crate::orchestrator::Orchestrator {
         if let Some(db) = db_opt {
             let snap_id = crate::sync_lock::rw_write(&*self.oplog).next_db_snapshot_id();
             let desc = description.into();
-            if db
-                .take_db_snapshot(snap_id, &agent_id.to_string(), &desc)
-                .await
-                .is_ok()
+            match tokio::time::timeout(
+                DB_IO_TIMEOUT,
+                db.take_db_snapshot(snap_id, &agent_id.to_string(), &desc),
+            )
+            .await
             {
-                return Some(snap_id);
+                Ok(Ok(())) => return Some(snap_id),
+                Ok(Err(_)) => {}
+                Err(_) => tracing::warn!("take_db_snapshot: timed out after {:?}", DB_IO_TIMEOUT),
             }
         }
         None

@@ -1,5 +1,7 @@
 //! LoRA parameter / memory estimates (no GPU).
 
+#![cfg(feature = "mens")]
+
 use vox_populi::mens::tensor::lora::{LoraConfig, lora_memory_estimate};
 
 #[test]

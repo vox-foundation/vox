@@ -1,0 +1,88 @@
+use crate::compaction::CompactionConfig;
+use crate::contract::{OrchestrationMigrationFlags, TaskCapabilityHints};
+use crate::memory::MemoryConfig;
+use crate::scope::ScopeEnforcement;
+use crate::session::SessionConfig;
+use crate::types::TaskPriority;
+
+use super::defaults::*;
+use super::enums::{OverflowStrategy, ScalingProfile};
+use super::news::NewsConfig;
+use super::orchestrator_fields::OrchestratorConfig;
+
+impl Default for OrchestratorConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_agents: 8,
+            default_priority: TaskPriority::Normal,
+            queue_overflow_strategy: OverflowStrategy::SpawnNewAgent,
+            lock_timeout_ms: 30_000,
+            bulletin_capacity: 256,
+            fallback_to_single_agent: true,
+            toestub_gate: true,
+            max_debug_iterations: 3,
+            socrates_gate_shadow: default_false(),
+            socrates_gate_enforce: default_false(),
+            socrates_reputation_routing: default_false(),
+            log_level: "info".to_string(),
+            idle_timeout_ms: default_idle_timeout(),
+            task_timeout_ms: default_task_timeout(),
+            heartbeat_interval_ms: default_heartbeat_interval(),
+            stale_threshold_ms: default_stale_threshold(),
+            auto_continue_enabled: default_true(),
+            continuation_cooldown_ms: default_continuation_cooldown(),
+            max_auto_continuations: default_max_auto_continuations(),
+            scope_enforcement: ScopeEnforcement::default(),
+            event_bus_capacity: default_event_capacity(),
+            default_agent_capabilities: TaskCapabilityHints::default(),
+            orchestration_migration: OrchestrationMigrationFlags::default(),
+            min_agents: default_min_agents(),
+            scaling_threshold: default_scaling_threshold(),
+            idle_retirement_ms: default_idle_retirement(),
+            scaling_enabled: default_false(),
+            cost_preference: default_cost_preference(),
+            scaling_lookback_ticks: default_lookback_ticks(),
+            resource_weight: default_resource_weight(),
+            resource_cpu_multiplier: default_cpu_multiplier(),
+            resource_mem_multiplier: default_mem_multiplier(),
+            resource_exponent: default_resource_exponent(),
+            scaling_profile: ScalingProfile::default(),
+            max_spawn_per_tick: default_max_spawn_per_tick(),
+            scaling_cooldown_ms: default_scaling_cooldown_ms(),
+            urgent_rebalance_threshold: default_urgent_rebalance_threshold(),
+            compaction: CompactionConfig::default(),
+            memory: MemoryConfig::default(),
+            session: SessionConfig::default(),
+            socrates_policy: None,
+            socrates_reputation_weight: default_socrates_reputation_weight(),
+            populi_control_url: None,
+            populi_scope_id: None,
+            populi_poll_interval_secs: default_populi_poll_interval_secs(),
+            populi_http_timeout_ms: default_populi_http_timeout_ms(),
+            populi_routing_experimental: default_false(),
+            populi_remote_execute_experimental: default_false(),
+            chatml_strict: default_false(),
+            planning_enabled: default_false(),
+            planning_router_enabled: default_false(),
+            planning_replan_enabled: default_false(),
+            planning_workflow_handoff_enabled: default_false(),
+            planning_shadow_mode: default_false(),
+            planning_auto_mode_enabled: default_false(),
+            planning_rollout_percent: 0,
+            // Phase 15: Attention budget
+            attention_enabled: false,
+            attention_budget_ms: default_attention_budget_ms(),
+            attention_alert_threshold: default_attention_alert_threshold(),
+            attention_interrupt_cost_ms: default_attention_interrupt_cost_ms(),
+            trust_ewma_alpha: default_trust_ewma_alpha(),
+            trust_provisional_threshold: default_trust_provisional_threshold(),
+            trust_trusted_threshold: default_trust_trusted_threshold(),
+            trust_auto_approve_min: default_trust_auto_approve_min(),
+            attention_trust_routing_weight: default_attention_trust_routing_weight(),
+            attention_tlx_weights: crate::attention::NasaTlxWeights::default(),
+            tier_gate: crate::attention::TierGateConfig::default(),
+            news: NewsConfig::default(),
+        }
+    }
+}

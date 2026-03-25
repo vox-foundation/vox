@@ -58,3 +58,13 @@ Adopt a single publication domain model centered on a canonical manifest persist
   - `publication-submit-local`
   - `publication-status`
 - MCP gains matching scientia publication tools for non-CLI clients.
+- Optional structured scholarly metadata (`scientific_publication` inside `metadata_json`) is carried on prepare via `--scholarly-metadata-json` / MCP `scholarly_metadata` (see `vox_publisher::scientific_metadata`).
+- Preflight: `publication-prepare --preflight`, `publication-prepare-validated`, `publication-preflight`, MCP `vox_scientia_publication_preflight` + prepare `preflight` flags (`vox_publisher::publication_preflight`).
+- Zenodo metadata JSON (no HTTP): `publication-zenodo-metadata` (`vox_publisher::zenodo_metadata`).
+
+## Related publication readiness guidance
+
+- For journal and self-publication interoperability requirements, gap analysis, and phased implementation guidance, see:
+  - `docs/src/architecture/scientia-publication-readiness-audit.md`
+  - `docs/src/architecture/scientia-publication-automation-ssot.md`
+  - `docs/src/reference/scientia-publication-worthiness-rules.md`

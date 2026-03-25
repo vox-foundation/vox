@@ -25,6 +25,9 @@ operations:
   - { surface: vox-cli, path: [db], status: active, latin_ns: codex, handler_rust: commands::db_cli }
   - { surface: vox-cli, path: [scientia], status: active, latin_ns: codex, handler_rust: commands::scientia }
   - { surface: vox-cli, path: [scientia, publication-prepare], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [scientia, publication-prepare-validated], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [scientia, publication-preflight], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [scientia, publication-zenodo-metadata], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-approve], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-submit-local], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-status], status: active, latin_ns: codex, ref_cli_required: true }
@@ -43,6 +46,9 @@ operations:
   - { surface: vox-cli, path: [ci, line-endings], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, mens-gate], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, toestub-scoped], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, scaling-audit], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, scaling-audit, verify], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, scaling-audit, emit-reports], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, cuda-features], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, build-timings], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, grammar-drift], status: active, reachability_required: false }

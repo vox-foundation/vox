@@ -1,0 +1,236 @@
+use serde::{Deserialize, Serialize};
+
+use crate::compaction::CompactionConfig;
+use crate::contract::{OrchestrationMigrationFlags, TaskCapabilityHints};
+use crate::memory::MemoryConfig;
+use crate::scope::ScopeEnforcement;
+use crate::session::SessionConfig;
+use crate::types::TaskPriority;
+use vox_socrates_policy::ConfidencePolicyOverride;
+
+use super::defaults::*;
+use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};
+use super::news::NewsConfig;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct OrchestratorConfig {
+    /// Whether the orchestrator is enabled (default: true).
+    pub enabled: bool,
+    /// Maximum number of concurrent agents (default: 8).
+    pub max_agents: usize,
+    /// Default priority for new tasks (default: Normal).
+    pub default_priority: TaskPriority,
+    /// How to handle queue overflow (default: SpawnNewAgent).
+    pub queue_overflow_strategy: OverflowStrategy,
+    /// Lock timeout in milliseconds (default: 30000).
+    pub lock_timeout_ms: u64,
+    /// Bulletin board broadcast channel capacity (default: 256).
+    pub bulletin_capacity: usize,
+    /// Whether to fall back to a single agent when routing is ambiguous (default: true).
+    pub fallback_to_single_agent: bool,
+    /// Whether to run TOESTUB validation after each completed task (default: true).
+    pub toestub_gate: bool,
+    /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
+    pub max_debug_iterations: u8,
+    /// Emit Socrates gate decisions to logs without blocking completion (default: false).
+    #[serde(default = "default_false")]
+    pub socrates_gate_shadow: bool,
+    /// When true, a non-answer Socrates risk decision requeues the task for remediation (default: false).
+    #[serde(default = "default_false")]
+    pub socrates_gate_enforce: bool,
+    /// Blend `agent_reliability` (Arca V10) into routing when a VoxDb is attached (default: false).
+    #[serde(default = "default_false")]
+    pub socrates_reputation_routing: bool,
+    /// Optional Socrates confidence thresholds merged onto [`ConfidencePolicy::workspace_default`].
+    #[serde(default)]
+    pub socrates_policy: Option<ConfidencePolicyOverride>,
+    /// Weight applied to Arca `agent_reliability` when blending into routing scores (default: 1.0).
+    #[serde(default = "default_socrates_reputation_weight")]
+    pub socrates_reputation_weight: f64,
+    /// Log level for orchestrator events (default: "info").
+    pub log_level: String,
+    /// Global system idle timeout in milliseconds (default: 600000 / 10min).
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout_ms: u64,
+    /// Default task execution timeout in milliseconds (default: 1800000 / 30min).
+    #[serde(default = "default_task_timeout")]
+    pub task_timeout_ms: u64,
+
+    // ── Phase 1: New fields ──────────────────────────────────
+    /// Heartbeat check interval in milliseconds (default: 5000).
+    #[serde(default = "default_heartbeat_interval")]
+    pub heartbeat_interval_ms: u64,
+    /// Threshold in milliseconds before an agent is considered stale (default: 60000).
+    #[serde(default = "default_stale_threshold")]
+    pub stale_threshold_ms: u64,
+    /// Whether auto-continuation is enabled (default: true).
+    #[serde(default = "default_true")]
+    pub auto_continue_enabled: bool,
+    /// Cooldown between auto-continuations per agent in ms (default: 30000).
+    #[serde(default = "default_continuation_cooldown")]
+    pub continuation_cooldown_ms: u64,
+    /// Maximum auto-continuations before requiring manual intervention (default: 5).
+    #[serde(default = "default_max_auto_continuations")]
+    pub max_auto_continuations: u32,
+    /// How strictly to enforce agent scope boundaries (default: Warn).
+    #[serde(default)]
+    pub scope_enforcement: ScopeEnforcement,
+    /// Event bus capacity (default: 1024).
+    #[serde(default = "default_event_capacity")]
+    pub event_bus_capacity: usize,
+    /// Default GPU / capability hints for newly spawned agent queues.
+    #[serde(default)]
+    pub default_agent_capabilities: TaskCapabilityHints,
+    /// MCP/CLI wire migration toggles (v2 contract hints, legacy fallback).
+    #[serde(default)]
+    pub orchestration_migration: OrchestrationMigrationFlags,
+
+    // ── Phase 12: Scaling & Cost ─────────────────────────────
+    /// Minimum number of concurrent agents (default: 1).
+    #[serde(default = "default_min_agents")]
+    pub min_agents: usize,
+    /// Number of queued tasks per agent to trigger scaling (default: 5).
+    #[serde(default = "default_scaling_threshold")]
+    pub scaling_threshold: usize,
+    /// Time an idle dynamic agent lives before retirement in ms (default: 300000 / 5min).
+    #[serde(default = "default_idle_retirement")]
+    pub idle_retirement_ms: u64,
+    /// Whether dynamic scaling is enabled (default: false).
+    #[serde(default = "default_false")]
+    pub scaling_enabled: bool,
+    /// Preference for cost vs performance (default: Performance).
+    #[serde(default = "default_cost_preference")]
+    pub cost_preference: CostPreference,
+    /// Number of ticks to look back for predictive scaling (default: 5).
+    #[serde(default = "default_lookback_ticks")]
+    pub scaling_lookback_ticks: usize,
+    /// Weight of system resource usage in load calculation (0.0 to 1.0, default: 0.3).
+    #[serde(default = "default_resource_weight")]
+    pub resource_weight: f64,
+    /// Baseline multiplier for CPU usage in the load calculation (default: 0.7).
+    #[serde(default = "default_cpu_multiplier")]
+    pub resource_cpu_multiplier: f64,
+    /// Baseline multiplier for Memory usage in the load calculation (default: 0.3).
+    #[serde(default = "default_mem_multiplier")]
+    pub resource_mem_multiplier: f64,
+    /// Exponent to apply to the final resource factor, allowing exponential scaling (default: 1.0).
+    #[serde(default = "default_resource_exponent")]
+    pub resource_exponent: f64,
+    /// User-governable scaling profile (conservative / balanced / aggressive).
+    #[serde(default)]
+    pub scaling_profile: ScalingProfile,
+    /// Max number of agents to spawn in one scaling tick (default: 1).
+    #[serde(default = "default_max_spawn_per_tick")]
+    pub max_spawn_per_tick: usize,
+    /// Cooldown in ms between scale-up actions (default: 5000).
+    #[serde(default = "default_scaling_cooldown_ms")]
+    pub scaling_cooldown_ms: u64,
+    /// Number of Urgent tasks on a single agent that triggers an automatic rebalance (default: 3).
+    /// Set to 0 to disable urgent auto-rebalance.
+    #[serde(default = "default_urgent_rebalance_threshold")]
+    pub urgent_rebalance_threshold: usize,
+
+    // ── OpenClaw-Inspired Features ───────────────────────────────────────
+    /// Configuration for the context compaction engine.
+    #[serde(default)]
+    pub compaction: CompactionConfig,
+    /// Configuration for the persistent memory system.
+    #[serde(default)]
+    pub memory: MemoryConfig,
+    /// Configuration for the session lifecycle manager.
+    #[serde(default)]
+    pub session: SessionConfig,
+    /// Optional mens HTTP control plane base URL (`GET /v1/populi/nodes`) for read-only status federation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub populi_control_url: Option<String>,
+    /// Optional mens cluster / tenancy id from `Vox.toml` `[mens].scope_id` or `VOX_MESH_SCOPE_ID` (env wins).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "mesh_scope_id"
+    )]
+    pub populi_scope_id: Option<String>,
+    /// Background poll interval (seconds) for MCP populi federation cache; `0` disables the poller.
+    #[serde(
+        default = "default_populi_poll_interval_secs",
+        alias = "mesh_poll_interval_secs"
+    )]
+    pub populi_poll_interval_secs: u64,
+    /// HTTP client timeout (milliseconds) for populi control plane `GET /v1/populi/nodes`.
+    #[serde(
+        default = "default_populi_http_timeout_ms",
+        alias = "mesh_http_timeout_ms"
+    )]
+    pub populi_http_timeout_ms: u64,
+    /// Experimental: use remote populi node labels when scoring routes (no remote task execution).
+    #[serde(default = "default_false", alias = "mesh_routing_experimental")]
+    pub populi_routing_experimental: bool,
+    /// Experimental: allow remote task-envelope dispatch over populi A2A relay with local fallback.
+    #[serde(default = "default_false", alias = "mesh_remote_execute_experimental")]
+    pub populi_remote_execute_experimental: bool,
+    /// When true, MCP tool LLM calls collapse system/user turns into a single string
+    /// formatted with `<|im_start|>` markers instead of JSON message arrays.
+    #[serde(default = "default_false")]
+    pub chatml_strict: bool,
+    /// Enable dynamic planning mode (router + plan execution bridge).
+    #[serde(default = "default_false")]
+    pub planning_enabled: bool,
+    /// Enable intake router classification at ingress.
+    #[serde(default = "default_false")]
+    pub planning_router_enabled: bool,
+    /// Enable branch-based replanning after qualifying failures.
+    #[serde(default = "default_false")]
+    pub planning_replan_enabled: bool,
+    /// Allow workflow runtime handoff path from planner.
+    #[serde(default = "default_false")]
+    pub planning_workflow_handoff_enabled: bool,
+    /// Compute planning decisions but keep direct execution path.
+    #[serde(default = "default_false")]
+    pub planning_shadow_mode: bool,
+    /// Enable `planning_mode=auto` behavior for goal ingress.
+    #[serde(default = "default_false")]
+    pub planning_auto_mode_enabled: bool,
+    /// Rollout percentage for auto planning (0-100).
+    #[serde(default)]
+    pub planning_rollout_percent: u8,
+
+    // ── Phase 15: Attention Budget ─────────────────────────────────────────────
+    /// Enable attention budget tracking. Default: false (shadow/observe mode).
+    #[serde(default = "default_false")]
+    pub attention_enabled: bool,
+    /// Pilot attention budget per session period in ms. Default: 3_600_000 (1 hr).
+    #[serde(default = "default_attention_budget_ms")]
+    pub attention_budget_ms: u64,
+    /// Ratio of budget that triggers AttentionHigh signal. Default: 0.7.
+    #[serde(default = "default_attention_alert_threshold")]
+    pub attention_alert_threshold: f64,
+    /// Baseline interrupt recovery cost in ms. Default: 23_250 (Gloria Mark).
+    #[serde(default = "default_attention_interrupt_cost_ms")]
+    pub attention_interrupt_cost_ms: u64,
+    /// EWMA alpha for trust score updates. Default: 0.1.
+    #[serde(default = "default_trust_ewma_alpha")]
+    pub trust_ewma_alpha: f64,
+    /// Minimum outcomes for Untrusted → Provisional. Default: 5.
+    #[serde(default = "default_trust_provisional_threshold")]
+    pub trust_provisional_threshold: u32,
+    /// Minimum outcomes for Provisional → Trusted. Default: 20.
+    #[serde(default = "default_trust_trusted_threshold")]
+    pub trust_trusted_threshold: u32,
+    /// Minimum trust score for auto-approve eligibility. Default: 0.85.
+    #[serde(default = "default_trust_auto_approve_min")]
+    pub trust_auto_approve_min: f64,
+    /// Routing weight applied to trust scores in step 3d. Default: 2.0.
+    #[serde(default = "default_attention_trust_routing_weight")]
+    pub attention_trust_routing_weight: f64,
+    /// NASA TLX subscale weights for attention cost computation.
+    /// Defaults to validated pilot-study values (mental=0.35, temporal=0.25, etc.).
+    #[serde(default)]
+    pub attention_tlx_weights: crate::attention::NasaTlxWeights,
+    /// Approval tier gate thresholds. Override to tune auto-approve graduation.
+    #[serde(default)]
+    pub tier_gate: crate::attention::TierGateConfig,
+    /// Configuration for the unified news publisher (docs/news/ → RSS/X/GitHub).
+    #[serde(default)]
+    pub news: NewsConfig,
+}

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 /// Prints all trained Mens models found in the run directories.
 pub fn run_models(_verbose: bool) -> Result<()> {
-    let runs_dir = PathBuf::from("mens/runs");
+    let runs_dir = PathBuf::from(vox_scaling_policy::DEFAULT_MENS_RUNS_ROOT);
     if !runs_dir.exists() {
         eprintln!(
             "{} No models found ({} does not exist)",

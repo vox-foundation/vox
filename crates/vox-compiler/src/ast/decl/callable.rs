@@ -1,0 +1,481 @@
+//! Security and decorator patching on Decl (OP-0207).
+
+use super::types::Decl;
+
+impl Decl {
+    pub fn set_security(&mut self, auth: Option<String>, roles: Vec<String>, cors: Option<String>) {
+        if auth.is_none() && roles.is_empty() && cors.is_none() {
+            return;
+        }
+        match self {
+            Decl::Function(f) => {
+                if auth.is_some() {
+                    f.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    f.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    f.cors = cors;
+                }
+            }
+            Decl::Component(c) => {
+                if auth.is_some() {
+                    c.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    c.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    c.func.cors = cors;
+                }
+            }
+            Decl::ServerFn(s) => {
+                if auth.is_some() {
+                    s.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    s.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    s.func.cors = cors;
+                }
+            }
+            Decl::Query(q) => {
+                if auth.is_some() {
+                    q.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    q.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    q.func.cors = cors;
+                }
+            }
+            Decl::Mutation(m) => {
+                if auth.is_some() {
+                    m.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    m.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    m.func.cors = cors;
+                }
+            }
+            Decl::Action(a) => {
+                if auth.is_some() {
+                    a.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    a.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    a.func.cors = cors;
+                }
+            }
+            Decl::HttpRoute(h) => {
+                if auth.is_some() {
+                    h.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    h.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    h.cors = cors;
+                }
+            }
+            Decl::Table(t) => {
+                if auth.is_some() {
+                    t.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    t.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    t.cors = cors;
+                }
+            }
+            Decl::Layout(l) => {
+                if auth.is_some() {
+                    l.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    l.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    l.func.cors = cors;
+                }
+            }
+            Decl::Loading(l) => {
+                if auth.is_some() {
+                    l.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    l.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    l.func.cors = cors;
+                }
+            }
+            Decl::NotFound(n) => {
+                if auth.is_some() {
+                    n.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    n.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    n.func.cors = cors;
+                }
+            }
+            Decl::ErrorBoundary(e) => {
+                if auth.is_some() {
+                    e.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    e.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    e.func.cors = cors;
+                }
+            }
+            Decl::Page(p) => {
+                if auth.is_some() {
+                    p.func.auth_provider = auth;
+                }
+                if !roles.is_empty() {
+                    p.func.roles.extend(roles);
+                }
+                if cors.is_some() {
+                    p.func.cors = cors;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// Applies boolean flags from `@` decorators (deprecated, pure, traced, LLM, metrics, health, …).
+    ///
+    /// The flat parameter list matches legacy parser entry points; each flag updates only the
+    /// declaration kinds where that concept exists (e.g. `is_layout` only touches [`Decl::Function`]).
+    pub fn set_decorators(
+        &mut self,
+        is_deprecated: bool,
+        is_pure: bool,
+        is_traced: bool,
+        is_llm: bool,
+        llm_model: Option<String>,
+        is_layout: bool,
+        is_metric: bool,
+        metric_name: Option<String>,
+        is_health: bool,
+    ) {
+        match self {
+            Decl::Function(f) => {
+                if is_deprecated {
+                    f.is_deprecated = true;
+                }
+                if is_pure {
+                    f.is_pure = true;
+                }
+                if is_traced {
+                    f.is_traced = true;
+                }
+                if is_llm {
+                    f.is_llm = true;
+                    f.llm_model = llm_model;
+                }
+                if is_layout {
+                    f.is_layout = true;
+                }
+                if is_health {
+                    f.is_health = true;
+                }
+            }
+            Decl::Component(c) => {
+                if is_deprecated {
+                    c.func.is_deprecated = true;
+                }
+                if is_traced {
+                    c.func.is_traced = true;
+                }
+                if is_metric {
+                    c.func.is_metric = true;
+                    c.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    c.func.is_health = true;
+                }
+            }
+            Decl::Test(t) => {
+                if is_deprecated {
+                    t.func.is_deprecated = true;
+                }
+                if is_traced {
+                    t.func.is_traced = true;
+                }
+                if is_metric {
+                    t.func.is_metric = true;
+                    t.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    t.func.is_health = true;
+                }
+            }
+            Decl::ServerFn(s) => {
+                if is_deprecated {
+                    s.func.is_deprecated = true;
+                }
+                if is_traced {
+                    s.func.is_traced = true;
+                }
+                if is_metric {
+                    s.func.is_metric = true;
+                    s.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    s.func.is_health = true;
+                }
+            }
+            Decl::Query(q) => {
+                if is_deprecated {
+                    q.func.is_deprecated = true;
+                }
+                if is_traced {
+                    q.func.is_traced = true;
+                }
+                if is_metric {
+                    q.func.is_metric = true;
+                    q.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    q.func.is_health = true;
+                }
+            }
+            Decl::Mutation(m) => {
+                if is_deprecated {
+                    m.func.is_deprecated = true;
+                }
+                if is_traced {
+                    m.func.is_traced = true;
+                }
+                if is_metric {
+                    m.func.is_metric = true;
+                    m.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    m.func.is_health = true;
+                }
+            }
+            Decl::Action(a) => {
+                if is_deprecated {
+                    a.func.is_deprecated = true;
+                }
+                if is_traced {
+                    a.func.is_traced = true;
+                }
+                if is_metric {
+                    a.func.is_metric = true;
+                    a.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    a.func.is_health = true;
+                }
+            }
+            Decl::Skill(s) => {
+                if is_deprecated {
+                    s.func.is_deprecated = true;
+                }
+                if is_traced {
+                    s.func.is_traced = true;
+                }
+                if is_metric {
+                    s.func.is_metric = true;
+                    s.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    s.func.is_health = true;
+                }
+            }
+            Decl::AgentDef(a) => {
+                if is_deprecated {
+                    a.func.is_deprecated = true;
+                }
+                if is_traced {
+                    a.func.is_traced = true;
+                }
+                if is_metric {
+                    a.func.is_metric = true;
+                    a.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    a.func.is_health = true;
+                }
+            }
+            Decl::Scheduled(s) => {
+                if is_deprecated {
+                    s.func.is_deprecated = true;
+                }
+                if is_traced {
+                    s.func.is_traced = true;
+                }
+                if is_metric {
+                    s.func.is_metric = true;
+                    s.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    s.func.is_health = true;
+                }
+            }
+            Decl::McpTool(m) => {
+                if is_deprecated {
+                    m.func.is_deprecated = true;
+                }
+                if is_traced {
+                    m.func.is_traced = true;
+                }
+                if is_metric {
+                    m.func.is_metric = true;
+                    m.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    m.func.is_health = true;
+                }
+            }
+            Decl::McpResource(m) => {
+                if is_deprecated {
+                    m.func.is_deprecated = true;
+                }
+                if is_traced {
+                    m.func.is_traced = true;
+                }
+                if is_metric {
+                    m.func.is_metric = true;
+                    m.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    m.func.is_health = true;
+                }
+            }
+            Decl::Page(p) => {
+                if is_deprecated {
+                    p.func.is_deprecated = true;
+                }
+                if is_traced {
+                    p.func.is_traced = true;
+                }
+                if is_metric {
+                    p.func.is_metric = true;
+                    p.func.metric_name = metric_name.clone();
+                }
+                if is_health {
+                    p.func.is_health = true;
+                }
+            }
+            Decl::Workflow(w) => {
+                if is_deprecated {
+                    w.is_deprecated = true;
+                }
+                if is_traced {
+                    w.is_traced = true;
+                }
+            }
+            Decl::Activity(a) => {
+                if is_deprecated {
+                    a.is_deprecated = true;
+                }
+                if is_traced {
+                    a.is_traced = true;
+                }
+            }
+            Decl::HttpRoute(h) => {
+                if is_deprecated {
+                    h.is_deprecated = true;
+                }
+                if is_traced {
+                    h.is_traced = true;
+                }
+            }
+            Decl::Actor(a) => {
+                if is_deprecated {
+                    a.is_deprecated = true;
+                }
+            }
+            Decl::Table(t) => {
+                if is_deprecated {
+                    t.is_deprecated = true;
+                }
+            }
+            Decl::Trait(t) => {
+                if is_deprecated {
+                    t.is_deprecated = true;
+                }
+            }
+            Decl::TypeDef(t) => {
+                if is_deprecated {
+                    t.is_deprecated = true;
+                }
+            }
+            Decl::Const(c) => {
+                if is_deprecated {
+                    c.is_deprecated = true;
+                }
+            }
+            Decl::Config(c) => {
+                if is_deprecated {
+                    c.is_deprecated = true;
+                }
+            }
+            Decl::Environment(e) => {
+                if is_deprecated {
+                    e.is_deprecated = true;
+                }
+            }
+            Decl::Agent(a) => {
+                if is_deprecated {
+                    a.is_deprecated = true;
+                }
+            }
+            Decl::Message(m) => {
+                if is_deprecated {
+                    m.is_deprecated = true;
+                }
+            }
+            Decl::Layout(l) => {
+                if is_deprecated {
+                    l.func.is_deprecated = true;
+                }
+                if is_traced {
+                    l.func.is_traced = true;
+                }
+            }
+            Decl::Loading(l) => {
+                if is_deprecated {
+                    l.func.is_deprecated = true;
+                }
+                if is_traced {
+                    l.func.is_traced = true;
+                }
+            }
+            Decl::NotFound(n) => {
+                if is_deprecated {
+                    n.func.is_deprecated = true;
+                }
+                if is_traced {
+                    n.func.is_traced = true;
+                }
+            }
+            Decl::ErrorBoundary(e) => {
+                if is_deprecated {
+                    e.func.is_deprecated = true;
+                }
+                if is_traced {
+                    e.func.is_traced = true;
+                }
+            }
+            _ => {}
+        }
+    }
+}

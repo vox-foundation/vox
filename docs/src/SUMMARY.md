@@ -1,6 +1,5 @@
 # Summary
 
-
 # Getting Started
 
 - [Vox: The AI-Native Programming Language](api/decorators/index.md)
@@ -46,6 +45,14 @@
 - [Research Notes: Achieving Serverless-like Performance with MCP](explanation/mcp_serverless_research.md)
 - [Vox FAQ: Frequently Asked Questions](explanation/faq.md)
 - [Zig-Inspired Deployment Architecture](explanation/zig-inspired-deployment.md)
+
+# Architecture (scaling SSOT)
+
+- [Scaling audit baseline](architecture/scaling-audit-baseline.md)
+- [TOESTUB scaling rules](architecture/scaling-toestub-rules.md)
+- [Scaling CI enforcement rollout](architecture/scaling-ci-enforcement.md)
+- [SCIENTIA publication readiness audit](architecture/scientia-publication-readiness-audit.md)
+- [SCIENTIA publication automation SSOT](architecture/scientia-publication-automation-ssot.md)
 
 # Reference
 
@@ -134,6 +141,7 @@
 - [ret](api/keywords/ret.md)
 - [Searching the Documentation](reference/ref-search.md)
 - [Socrates protocol — single source of truth](reference/socrates-protocol.md)
+- [SCIENTIA publication worthiness rules](reference/scientia-publication-worthiness-rules.md)
 - [spawn](api/keywords/spawn.md)
 - [type](api/keywords/type.md)
 - [Unified orchestration — SSOT](reference/orchestration-unified.md)
