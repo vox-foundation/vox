@@ -2,9 +2,12 @@ use crate::contract::NewsSiteConfig;
 use crate::types::UnifiedNewsItem;
 use anyhow::{Context, Result};
 use std::fs;
+use std::io::ErrorKind;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub async fn update_feed(item: &UnifiedNewsItem, site: &NewsSiteConfig) -> Result<()> {
     let feed_path = site.rss_feed_path.clone();
+    let _lock = acquire_feed_lock(&feed_path)?;
 
     let pub_date = item.published_at.to_rfc2822();
     let link = site.news_item_link(&item.id);
@@ -48,11 +51,15 @@ pub async fn update_feed(item: &UnifiedNewsItem, site: &NewsSiteConfig) -> Resul
         if let Some(p) = feed_path.parent() {
             fs::create_dir_all(p)?;
         }
-        fs::write(&feed_path, base)?;
+        atomic_write(&feed_path, &base)?;
         return Ok(());
     }
 
     let existing = fs::read_to_string(&feed_path).context("Failed to read feed.xml")?;
+    if existing.contains(&format!("<guid isPermaLink=\"true\">{link}</guid>")) {
+        tracing::info!("RSS item already exists for {}; skipping duplicate insert.", item.id);
+        return Ok(());
+    }
 
     let mut reader = quick_xml::Reader::from_str(&existing);
     let mut buf = Vec::new();
@@ -96,7 +103,7 @@ pub async fn update_feed(item: &UnifiedNewsItem, site: &NewsSiteConfig) -> Resul
 
     if inserted {
         let updated = String::from_utf8(writer.into_inner())?;
-        fs::write(&feed_path, updated).context("Failed to write updated XML")?;
+        atomic_write(&feed_path, &updated).context("Failed to write updated XML")?;
         tracing::info!("Successfully injected RSS item using quick-xml.");
     } else {
         tracing::error!("Failed to find <item> or </channel> tags to inject into RSS feed.");
@@ -109,4 +116,55 @@ fn xml_escape_minimal(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+fn atomic_write(path: &std::path::Path, content: &str) -> Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("RSS path has no parent: {:?}", path))?;
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let tmp = parent.join(format!(
+        ".{}.{}.tmp",
+        path.file_name().and_then(|n| n.to_str()).unwrap_or("feed"),
+        ts
+    ));
+    fs::write(&tmp, content)?;
+    if let Err(e) = fs::rename(&tmp, path) {
+        if e.kind() == ErrorKind::AlreadyExists {
+            fs::remove_file(path)?;
+            fs::rename(&tmp, path)?;
+        } else {
+            return Err(anyhow::anyhow!("atomic rename failed: {e}"));
+        }
+    }
+    Ok(())
+}
+
+fn acquire_feed_lock(path: &std::path::Path) -> Result<FeedLock> {
+    let lock_path = path.with_extension("xml.lock");
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+    {
+        Ok(_) => Ok(FeedLock { lock_path }),
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err(anyhow::anyhow!(
+            "RSS feed lock already held for {:?}",
+            path
+        )),
+        Err(e) => Err(anyhow::anyhow!("Failed to acquire RSS feed lock: {e}")),
+    }
+}
+
+struct FeedLock {
+    lock_path: std::path::PathBuf,
+}
+
+impl Drop for FeedLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.lock_path);
+    }
 }

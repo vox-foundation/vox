@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sha3::{Digest, Sha3_256};
 
 use crate::contract::validate_github_repo;
 
@@ -161,5 +162,22 @@ impl UnifiedNewsItem {
             }
         }
         Ok(())
+    }
+
+    #[must_use]
+    pub fn content_sha3_256(&self) -> String {
+        let canonical = serde_json::json!({
+            "id": self.id,
+            "title": self.title,
+            "author": self.author,
+            "published_at": self.published_at.to_rfc3339(),
+            "tags": self.tags,
+            "content_markdown": self.content_markdown,
+            "syndication": self.syndication,
+        });
+        let mut hasher = Sha3_256::new();
+        hasher.update(canonical.to_string().as_bytes());
+        let digest = hasher.finalize();
+        format!("{digest:x}")
     }
 }

@@ -45,7 +45,7 @@ async fn test_dry_run_zero_web_leakage() {
 
     let out = publisher.publish_all(&test_item).await.unwrap();
 
-    assert_eq!(out.twitter_id.unwrap(), "dry-run-tweet-test-offline-123");
-    assert_eq!(out.github_id.unwrap(), "dry-run-github-test-offline-123");
-    assert_eq!(out.oc_id.unwrap(), "dry-run-oc-test-offline-123");
+    assert_eq!(out.twitter_id(), Some("dry-run-tweet-test-offline-123"));
+    assert_eq!(out.github_id(), Some("dry-run-github-test-offline-123"));
+    assert_eq!(out.oc_id(), Some("dry-run-oc-test-offline-123"));
 }

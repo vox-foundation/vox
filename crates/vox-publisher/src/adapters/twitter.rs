@@ -18,12 +18,17 @@ pub async fn post(
         .unwrap_or_else(|| DEFAULT_TWITTER_API_BASE.to_string());
     let root = root.trim_end_matches('/').to_string();
     let url = format!("{}/2/tweets", root);
+    let chunk_max = publisher_cfg
+        .twitter_text_chunk_max
+        .unwrap_or(TWITTER_TEXT_CHUNK_MAX)
+        .max(1);
+    let truncation_suffix = publisher_cfg
+        .twitter_truncation_suffix
+        .as_deref()
+        .unwrap_or("...");
 
     let primary_text = config.short_text.clone().unwrap_or_else(|| {
-        truncate_chars(
-            &item.content_markdown,
-            TWITTER_TEXT_CHUNK_MAX.saturating_sub(3),
-        )
+        truncate_chars(&item.content_markdown, chunk_max, truncation_suffix)
     });
 
     let mut texts = if config.thread {
@@ -31,7 +36,7 @@ pub async fn post(
             .short_text
             .clone()
             .unwrap_or_else(|| item.content_markdown.clone());
-        chunk_chars(&full, TWITTER_TEXT_CHUNK_MAX)
+        chunk_chars(&full, chunk_max)
     } else {
         vec![primary_text]
     };
@@ -79,13 +84,14 @@ pub async fn post(
     Ok(last_id.unwrap_or_default())
 }
 
-fn truncate_chars(s: &str, max_chars: usize) -> String {
+fn truncate_chars(s: &str, max_chars: usize, suffix: &str) -> String {
     let count = s.chars().count();
     if count <= max_chars {
         return s.to_string();
     }
-    let take = max_chars.saturating_sub(3);
-    format!("{}...", s.chars().take(take).collect::<String>())
+    let suffix_len = suffix.chars().count();
+    let take = max_chars.saturating_sub(suffix_len);
+    format!("{}{}", s.chars().take(take).collect::<String>(), suffix)
 }
 
 fn chunk_chars(s: &str, max_chars: usize) -> Vec<String> {

@@ -11,7 +11,7 @@ Searchable SSOT for **why** automated outbound publishing fails in production an
    Many social/write APIs (e.g. X posting) do not offer a full “sandbox” identical to production; validation is often **contract testing** (local HTTP mocks) plus dry-run. Mitigation: `vox-publisher` tests hit **local Axum mocks**; production paths stay behind gates.
 
 3. **Retry / idempotency bugs**  
-   Marking a post as “done” before all channels succeed causes skipped retries on some channels; marking too late causes duplicate posts. Mitigation: `published_news` row is written only after `publish_all` returns `Ok`; partial failure logs errors and does not mark published (orchestrator `continue`).
+   Marking a post as “done” before all channels succeed causes skipped retries on some channels; marking too late causes duplicate posts. Mitigation: each run records `news_publish_attempts` with per-channel outcomes, and `published_news` is written only for successful **live** runs with no enabled-channel failures.
 
 4. **GitHub releases trigger notifications**  
    GitHub documents that creating a release can trigger notifications; rapid writes can hit secondary rate limits. Mitigation: default research/release templates use **`draft: true`** for GitHub `Release`; prefer draft until human publish. See [GitHub REST: create a release](https://docs.github.com/en/rest/releases/releases#create-a-release) and [best practices for using the REST API](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api).
@@ -20,7 +20,7 @@ Searchable SSOT for **why** automated outbound publishing fails in production an
    Invalid RSS breaks subscribers silently. Mitigation: validate `feed.xml` structure in CI where practical (e.g. W3C Feed Validator docs: [validator.w3.org/feed/docs](https://validator.w3.org/feed/docs/)); keep links and `pubDate` RFC-2822-shaped via `chrono`.
 
 6. **Insufficient human gates**  
-   Single-person publish from automation. Mitigation: **two distinct approvers** in `news_publish_approvals` before live syndication (enforced in `NewsService`).
+   Single-person publish from automation. Mitigation: **two distinct approvers** in `news_publish_approvals_v2` for the current `content_sha3_256` digest before live syndication (enforced in `NewsService`; legacy id-only approvals are migration fallback).
 
 ## Vox-specific controls (code pointers)
 
@@ -29,7 +29,7 @@ Searchable SSOT for **why** automated outbound publishing fails in production an
 | Global + per-item dry run | `vox_publisher::Publisher::publish_all` |
 | Recursive draft pickup | `vox_orchestrator::services::news::collect_news_markdown_paths` |
 | Dual approval + armed gate | `vox_orchestrator::services::news::NewsService::tick` |
-| Approval persistence | `vox_db::VoxDb::record_news_approval`, `has_dual_news_approval` |
+| Approval persistence | `vox_db::VoxDb::record_news_approval_for_digest`, `has_dual_news_approval_with_fallback` |
 | MCP tools (no live by default) | `vox_mcp::tools::news_tools` |
 | Canonical templates | `crates/vox-publisher/news-templates/*.md` |
 

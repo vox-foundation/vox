@@ -35,14 +35,14 @@ The `Publisher` honors `config.dry_run || item.syndication.dry_run`. When true:
 For **live** syndication (`!orchestrator.news.dry_run` and `!item.syndication.dry_run`):
 
 1. **VoxDb** must be attached.
-2. **`news_publish_approvals`** must contain **two distinct** `approver` values for the news `id` (MCP: `vox_news_approve`).
+2. **`news_publish_approvals_v2`** must contain **two distinct** `approver` values for the news `id` + current content digest (`content_sha3_256`) (MCP: `vox_news_approve`). Legacy id-only approvals are migration fallback only.
 3. **`publish_armed`** must be true in `[orchestrator.news]` **or** environment `VOX_NEWS_PUBLISH_ARMED=1` (see [env-vars.md](../src/reference/env-vars.md)).
 
 If any check fails, `NewsService` skips the item (no publish, no `published_news` row).
 
 ### D. Idempotency (`published_news`)
 
-Before work, `NewsService` skips ids already present. After a successful `publish_all`, `mark_news_published` stores **GitHub, Twitter, and Open Collective** ids in columns matching their names (historical call-order bug fixed).
+Before work, `NewsService` skips ids already present. Each publish attempt is recorded in `news_publish_attempts` (JSON per-channel outcomes). After a successful **live** publish with no enabled-channel failures, `mark_news_published` stores **GitHub, Twitter, and Open Collective** ids in columns matching their names (historical call-order bug fixed).
 
 ### E. Discovery
 

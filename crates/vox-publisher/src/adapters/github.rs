@@ -55,12 +55,30 @@ async fn post_release(
     let release = octocrab
         .repos(owner, repo)
         .releases()
-        .create(tag_name)
-        .name(&item.title)
-        .body(&item.content_markdown)
-        .draft(config.draft)
-        .send()
-        .await?;
+        .get_by_tag(tag_name)
+        .await;
+    let release = match release {
+        Ok(existing) => {
+            tracing::info!(
+                "GitHub release tag already exists (idempotent reuse): {}/{} {}",
+                owner,
+                repo,
+                tag_name
+            );
+            existing
+        }
+        Err(_) => {
+            octocrab
+                .repos(owner, repo)
+                .releases()
+                .create(tag_name)
+                .name(&item.title)
+                .body(&item.content_markdown)
+                .draft(config.draft)
+                .send()
+                .await?
+        }
+    };
     tracing::info!("Created GitHub Release: {}", release.html_url);
     Ok(release.html_url.to_string())
 }

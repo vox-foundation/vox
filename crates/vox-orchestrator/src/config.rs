@@ -319,6 +319,12 @@ pub struct NewsConfig {
     pub github_rest_base: Option<String>,
     #[serde(default)]
     pub twitter_api_base: Option<String>,
+    /// Optional override for tweet chunk max chars (defaults to publisher contract constant).
+    #[serde(default)]
+    pub twitter_text_chunk_max: Option<usize>,
+    /// Optional truncation suffix for non-thread tweet shortening (default "...").
+    #[serde(default)]
+    pub twitter_truncation_suffix: Option<String>,
 }
 
 impl Default for NewsConfig {
@@ -338,6 +344,8 @@ impl Default for NewsConfig {
             github_graphql_url: None,
             github_rest_base: None,
             twitter_api_base: None,
+            twitter_text_chunk_max: None,
+            twitter_truncation_suffix: None,
         }
     }
 }
@@ -962,6 +970,21 @@ impl OrchestratorConfig {
         if let Ok(v) = std::env::var("VOX_NEWS_SCAN_RECURSIVE") {
             self.news.scan_recursive =
                 parse_or_warn("VOX_NEWS_SCAN_RECURSIVE", &v, self.news.scan_recursive);
+        }
+        if let Ok(v) = std::env::var("VOX_NEWS_TWITTER_TEXT_CHUNK_MAX") {
+            self.news.twitter_text_chunk_max = Some(parse_or_warn(
+                "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
+                &v,
+                self.news.twitter_text_chunk_max.unwrap_or(280),
+            ));
+        }
+        if let Ok(v) = std::env::var("VOX_NEWS_TWITTER_TRUNCATION_SUFFIX") {
+            let t = v.trim();
+            if t.is_empty() {
+                self.news.twitter_truncation_suffix = None;
+            } else {
+                self.news.twitter_truncation_suffix = Some(t.to_string());
+            }
         }
     }
 

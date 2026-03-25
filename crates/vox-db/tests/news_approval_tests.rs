@@ -37,6 +37,45 @@ async fn news_publish_approvals_require_two_distinct_approvers() {
 }
 
 #[tokio::test]
+async fn digest_bound_approvals_require_two_distinct_for_same_digest() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    let id = "2026-03-25-example";
+    let d1 = "abc123";
+    let d2 = "def456";
+
+    db.record_news_approval_for_digest(id, d1, "alice")
+        .await
+        .unwrap();
+    assert_eq!(db.count_news_approvers_for_digest(id, d1).await.unwrap(), 1);
+    assert!(!db.has_dual_news_approval_for_digest(id, d1).await.unwrap());
+
+    db.record_news_approval_for_digest(id, d2, "bob")
+        .await
+        .unwrap();
+    assert_eq!(db.count_news_approvers_for_digest(id, d1).await.unwrap(), 1);
+    assert!(!db.has_dual_news_approval_for_digest(id, d1).await.unwrap());
+
+    db.record_news_approval_for_digest(id, d1, "bob")
+        .await
+        .unwrap();
+    assert!(db.has_dual_news_approval_for_digest(id, d1).await.unwrap());
+}
+
+#[tokio::test]
+async fn digest_approval_fallback_uses_legacy_table_for_migration_window() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    let id = "2026-03-25-example";
+    db.record_news_approval(id, "alice").await.unwrap();
+    db.record_news_approval(id, "bob").await.unwrap();
+
+    let ok = db
+        .has_dual_news_approval_with_fallback(id, "digest-not-yet-approved")
+        .await
+        .unwrap();
+    assert!(ok);
+}
+
+#[tokio::test]
 async fn mark_news_published_column_order_matches_github_twitter_oc() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     db.mark_news_published("x", Some("gh"), Some("tw"), Some("oc"))

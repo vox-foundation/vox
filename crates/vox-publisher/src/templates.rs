@@ -33,6 +33,13 @@ pub fn render_placeholders(template: &str, vars: &[(&str, &str)]) -> String {
     out
 }
 
+pub fn ensure_no_unresolved_placeholders(rendered: &str) -> anyhow::Result<()> {
+    if rendered.contains("{{") || rendered.contains("}}") {
+        anyhow::bail!("Template rendering left unresolved placeholders.");
+    }
+    Ok(())
+}
+
 /// Embedded canonical templates (LF). Paths are relative to repo root for human editing; crate copies stay in sync via tests.
 pub fn template_source(id: NewsTemplateId) -> &'static str {
     match id {
@@ -72,7 +79,7 @@ pub fn render_research_update(
     abstract_text: &str,
 ) -> String {
     let base = template_source(NewsTemplateId::ResearchUpdate);
-    render_placeholders(
+    let rendered = render_placeholders(
         base,
         &[
             ("id", id),
@@ -84,7 +91,12 @@ pub fn render_research_update(
             ("default_github_repo", DEFAULT_GITHUB_REPO),
             ("default_collective_slug", DEFAULT_OPENCOLLECTIVE_SLUG),
         ],
-    )
+    );
+    // Keep behavior deterministic for callers: unresolved placeholders are an authoring error.
+    if let Err(e) = ensure_no_unresolved_placeholders(&rendered) {
+        tracing::warn!("research template unresolved placeholders: {}", e);
+    }
+    rendered
 }
 
 #[cfg(test)]
@@ -98,5 +110,19 @@ mod tests {
         assert!(s.contains("# T"));
         assert!(s.contains("Abstract here"));
         assert!(!s.contains("{{"));
+    }
+
+    #[test]
+    fn docs_mirror_research_template_matches_crate_template() {
+        let crate_src = template_source(NewsTemplateId::ResearchUpdate).replace("\r\n", "\n");
+        let docs_src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/news/templates/research_update.md"
+        ))
+        .replace("\r\n", "\n");
+        assert_eq!(
+            crate_src, docs_src,
+            "docs/news/templates/research_update.md must mirror crates/vox-publisher/news-templates/research_update.md"
+        );
     }
 }

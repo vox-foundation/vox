@@ -44,3 +44,30 @@ async fn test_mcp_tool_dispatch_skill_list() {
     assert_eq!(val["success"], true);
     assert!(val["data"].is_array());
 }
+
+#[tokio::test]
+async fn test_news_gate_simulation_returns_structured_reason_codes() {
+    let state = ServerState::new_test().await;
+    let result = tools::handle_tool_call(
+        &state,
+        "vox_news_simulate_publish_gate",
+        json!({
+            "news_id": "example-news",
+            "content": "not-frontmatter"
+        }),
+    )
+    .await
+    .expect("tool call succeeds");
+
+    let val: serde_json::Value = serde_json::from_str(&result).expect("Valid JSON");
+    assert_eq!(val["success"], true);
+    let reasons = val["data"]["blocking_reasons"]
+        .as_array()
+        .expect("blocking_reasons array");
+    assert!(
+        reasons
+            .iter()
+            .any(|r| r["code"].as_str() == Some("parse_error")),
+        "expected parse_error reason code"
+    );
+}

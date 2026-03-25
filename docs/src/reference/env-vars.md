@@ -54,6 +54,8 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_NEWS_SITE_BASE_URL` | Public site base URL for RSS links (overrides `[orchestrator.news].site_base_url`). |
 | `VOX_NEWS_RSS_FEED_PATH` | Repo-relative path to `feed.xml` (overrides `[orchestrator.news].rss_feed_path`). |
 | `VOX_NEWS_SCAN_RECURSIVE` | `0`/`1`: whether `NewsService` walks `news_dir` recursively (default `1`). |
+| `VOX_NEWS_TWITTER_TEXT_CHUNK_MAX` | Optional integer override for tweet chunk length (defaults to publisher contract value). |
+| `VOX_NEWS_TWITTER_TRUNCATION_SUFFIX` | Optional suffix used when shortening non-thread tweets (default `...`). |
 
 Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates/vox-socrates-policy/src/lib.rs); optional TOML overrides live under `[orchestrator]` as `socrates_policy` (see `OrchestratorConfig`).
 

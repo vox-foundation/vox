@@ -2,6 +2,7 @@ use crate::PublisherConfig;
 use crate::contract::DEFAULT_OPENCOLLECTIVE_GRAPHQL_URL;
 use crate::types::{OpenCollectiveConfig, UnifiedNewsItem};
 use anyhow::{Result, anyhow};
+use pulldown_cmark::{Options, Parser, html};
 use reqwest::Client;
 use serde_json::json;
 
@@ -31,7 +32,7 @@ pub async fn post(
     let variables = json!({
         "update": {
             "title": &item.title,
-            "html": &item.content_markdown,
+            "html": markdown_to_html(&item.content_markdown),
             "isPrivate": config.is_private,
             "makePublicOn": null,
             "account": {
@@ -67,4 +68,11 @@ pub async fn post(
         .unwrap_or_default();
     tracing::info!("Created Open Collective Update successfully: {}", update_id);
     Ok(update_id)
+}
+
+fn markdown_to_html(markdown: &str) -> String {
+    let parser = Parser::new_ext(markdown, Options::all());
+    let mut out = String::new();
+    html::push_html(&mut out, parser);
+    out
 }

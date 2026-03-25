@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
+use vox_publisher::gate::{GateReason, PublishGateInputs, evaluate_publish_gate};
 use vox_publisher::templates;
 use vox_publisher::types::UnifiedNewsItem;
 use vox_publisher::{Publisher, PublisherConfig};
@@ -118,21 +119,36 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
         )
         .to_json();
     };
-    match db.record_news_approval(&params.news_id, approver).await {
+    let news_path = PathBuf::from("docs/news").join(format!("{}.md", params.news_id));
+    let draft_path = PathBuf::from("docs/news/drafts").join(format!("{}.md", params.news_id));
+    let content = fs::read_to_string(&news_path)
+        .or_else(|_| fs::read_to_string(&draft_path))
+        .unwrap_or_default();
+    let digest = match UnifiedNewsItem::parse(&content, &params.news_id) {
+        Ok(item) => item.content_sha3_256(),
+        Err(_) => "unparsed-content".to_string(),
+    };
+    match db
+        .record_news_approval_for_digest(&params.news_id, &digest, approver)
+        .await
+    {
         Ok(()) => {}
         Err(e) => {
             return ToolResult::<String>::err(format!("DB error: {}", e)).to_json();
         }
     }
-    let count = match db.count_news_approvers(&params.news_id).await {
+    let count = match db
+        .count_news_approvers_for_digest(&params.news_id, &digest)
+        .await
+    {
         Ok(c) => c,
         Err(e) => {
             return ToolResult::<String>::err(format!("DB error: {}", e)).to_json();
         }
     };
     ToolResult::ok(format!(
-        "Recorded approval from {:?} for news_id {:?}. Distinct approver count: {} (need 2 for live).",
-        approver, params.news_id, count
+        "Recorded approval from {:?} for news_id {:?} digest {}. Distinct approver count: {} (need 2 for live).",
+        approver, params.news_id, digest, count
     ))
     .to_json()
 }
@@ -145,6 +161,7 @@ pub struct VoxNewsApprovalStatusParams {
 #[derive(Debug, Serialize)]
 struct ApprovalStatusBody {
     news_id: String,
+    content_sha3_256: String,
     distinct_approver_count: i64,
     dual_approval_met: bool,
 }
@@ -159,16 +176,32 @@ pub async fn vox_news_approval_status(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let count = match db.count_news_approvers(&params.news_id).await {
+    let news_path = PathBuf::from("docs/news").join(format!("{}.md", params.news_id));
+    let draft_path = PathBuf::from("docs/news/drafts").join(format!("{}.md", params.news_id));
+    let content = fs::read_to_string(&news_path)
+        .or_else(|_| fs::read_to_string(&draft_path))
+        .unwrap_or_default();
+    let digest = match UnifiedNewsItem::parse(&content, &params.news_id) {
+        Ok(item) => item.content_sha3_256(),
+        Err(_) => "unparsed-content".to_string(),
+    };
+    let count = match db
+        .count_news_approvers_for_digest(&params.news_id, &digest)
+        .await
+    {
         Ok(c) => c,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
     };
-    let dual = match db.has_dual_news_approval(&params.news_id).await {
+    let dual = match db
+        .has_dual_news_approval_with_fallback(&params.news_id, &digest)
+        .await
+    {
         Ok(b) => b,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
     };
     ToolResult::ok(ApprovalStatusBody {
         news_id: params.news_id,
+        content_sha3_256: digest,
         distinct_approver_count: count,
         dual_approval_met: dual,
     })
@@ -189,7 +222,7 @@ struct GateReport {
     dual_approval_met: bool,
     orchestrator_publish_armed: bool,
     would_be_live_without_dry_run: bool,
-    blocking_reasons: Vec<String>,
+    blocking_reasons: Vec<GateReason>,
 }
 
 pub async fn vox_news_simulate_publish_gate(
@@ -207,7 +240,13 @@ pub async fn vox_news_simulate_publish_gate(
                 dual_approval_met: false,
                 orchestrator_publish_armed: state.orchestrator_config.news.publish_armed,
                 would_be_live_without_dry_run: false,
-                blocking_reasons: reasons,
+                blocking_reasons: reasons
+                    .into_iter()
+                    .map(|m| GateReason {
+                        code: "parse_error".to_string(),
+                        message: m,
+                    })
+                    .collect(),
             })
             .to_json();
         }
@@ -221,39 +260,42 @@ pub async fn vox_news_simulate_publish_gate(
         }
     };
 
-    let would_live = !state.orchestrator_config.news.dry_run && !item.syndication.dry_run;
+    let digest = item.content_sha3_256();
 
     let dual = if let Some(db) = &state.db {
-        db.has_dual_news_approval(&params.news_id)
+        db.has_dual_news_approval_with_fallback(&params.news_id, &digest)
             .await
             .unwrap_or(false)
     } else {
-        reasons.push("no VoxDb: cannot verify approvals".into());
+        reasons.push("no VoxDb: cannot verify approvals".to_string());
         false
     };
 
-    let armed = state.orchestrator_config.news.publish_armed
-        || std::env::var("VOX_NEWS_PUBLISH_ARMED")
+    let gate = evaluate_publish_gate(PublishGateInputs {
+        orchestrator_dry_run: state.orchestrator_config.news.dry_run,
+        item_dry_run: item.syndication.dry_run,
+        publish_armed_config: state.orchestrator_config.news.publish_armed,
+        publish_armed_env: std::env::var("VOX_NEWS_PUBLISH_ARMED")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-
-    if would_live && !dual {
-        reasons.push("need two distinct approvers (vox_news_approve)".into());
-    }
-    if would_live && !armed {
-        reasons.push("publish not armed: set [orchestrator.news].publish_armed=true or VOX_NEWS_PUBLISH_ARMED=1".into());
-    }
-    if would_live && state.db.is_none() {
-        reasons.push("live publish requires VoxDb".into());
+            .unwrap_or(false),
+        db_present: state.db.is_some(),
+        dual_approval_met: dual,
+    });
+    let mut blocking_reasons = gate.blocking_reasons;
+    if !validate_ok {
+        blocking_reasons.push(GateReason {
+            code: "validate_error".to_string(),
+            message: reasons.join("; "),
+        });
     }
 
     ToolResult::ok(GateReport {
         parse_ok: true,
         validate_ok,
         dual_approval_met: dual,
-        orchestrator_publish_armed: armed,
-        would_be_live_without_dry_run: would_live,
-        blocking_reasons: reasons,
+        orchestrator_publish_armed: gate.armed,
+        would_be_live_without_dry_run: gate.would_be_live_without_dry_run,
+        blocking_reasons,
     })
     .to_json()
 }

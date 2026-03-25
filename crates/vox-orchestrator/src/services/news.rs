@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::Orchestrator;
+use vox_publisher::gate::{PublishGateInputs, evaluate_publish_gate};
 use vox_publisher::types::UnifiedNewsItem;
 use vox_publisher::{NewsSiteConfig, Publisher, PublisherConfig};
 use walkdir::WalkDir;
@@ -40,6 +41,8 @@ impl NewsService {
             github_rest_base: config.news.github_rest_base.clone(),
             github_graphql_url: config.news.github_graphql_url.clone(),
             opencollective_graphql_url: config.news.opencollective_graphql_url.clone(),
+            twitter_text_chunk_max: config.news.twitter_text_chunk_max,
+            twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
             ..Default::default()
         };
         let publisher = Publisher::new(publisher_config);
@@ -82,40 +85,43 @@ impl NewsService {
                     continue;
                 }
             };
+            let content_digest = item.content_sha3_256();
 
-            let syndicate_live = !config.news.dry_run && !item.syndication.dry_run;
-            if syndicate_live {
-                let env_armed = std::env::var("VOX_NEWS_PUBLISH_ARMED")
-                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                    .unwrap_or(false);
-                if !config.news.publish_armed && !env_armed {
-                    tracing::warn!(
-                        "Skipping live syndication for {}: set news.publish_armed=true or VOX_NEWS_PUBLISH_ARMED=1",
-                        id
-                    );
-                    continue;
-                }
-                let Some(db) = orch.db() else {
-                    tracing::error!(
-                        "Skipping live syndication for {}: VoxDb is required for dual-approval gate",
-                        id
-                    );
-                    continue;
-                };
-                match db.has_dual_news_approval(id).await {
-                    Ok(true) => {}
-                    Ok(false) => {
-                        tracing::warn!(
-                            "Skipping live syndication for {}: need two distinct approvers (MCP vox_news_approve or DB news_publish_approvals)",
-                            id
-                        );
-                        continue;
-                    }
+            let db_opt = orch.db();
+            let dual_approval_met = if let Some(db) = &db_opt {
+                match db.has_dual_news_approval_with_fallback(id, &content_digest).await {
+                    Ok(v) => v,
                     Err(e) => {
                         tracing::error!("Approval check failed for {}: {}", id, e);
-                        continue;
+                        false
                     }
                 }
+            } else {
+                false
+            };
+            let env_armed = std::env::var("VOX_NEWS_PUBLISH_ARMED")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let gate = evaluate_publish_gate(PublishGateInputs {
+                orchestrator_dry_run: config.news.dry_run,
+                item_dry_run: item.syndication.dry_run,
+                publish_armed_config: config.news.publish_armed,
+                publish_armed_env: env_armed,
+                db_present: db_opt.is_some(),
+                dual_approval_met,
+            });
+            if gate.has_blockers() {
+                let reason_codes: Vec<&str> = gate
+                    .blocking_reasons
+                    .iter()
+                    .map(|r| r.code.as_str())
+                    .collect();
+                tracing::warn!(
+                    "Skipping syndication for {} due to gate blockers: {:?}",
+                    id,
+                    reason_codes
+                );
+                continue;
             }
 
             tracing::info!("Publishing new news item: {}", id);
@@ -128,15 +134,22 @@ impl NewsService {
                 }
             };
 
-            if let Some(db) = orch.db() {
-                let _ = db
-                    .mark_news_published(
-                        id,
-                        result.github_id.as_deref(),
-                        result.twitter_id.as_deref(),
-                        result.oc_id.as_deref(),
-                    )
-                    .await;
+            if let Some(db) = db_opt {
+                if let Ok(result_json) = serde_json::to_string(&result) {
+                    let _ = db
+                        .record_news_publish_attempt(id, &content_digest, &result_json)
+                        .await;
+                }
+                if gate.live_publish_allowed && result.all_enabled_channels_succeeded(&item) {
+                    let _ = db
+                        .mark_news_published(id, result.github_id(), result.twitter_id(), result.oc_id())
+                        .await;
+                } else if result.has_failures() {
+                    tracing::warn!(
+                        "Publish attempt for {} had channel failures; not marking as published.",
+                        id
+                    );
+                }
             }
         }
 

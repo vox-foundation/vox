@@ -1,9 +1,11 @@
 pub mod adapters;
 pub mod contract;
+pub mod gate;
 pub mod templates;
 pub mod types;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 use types::UnifiedNewsItem;
 
@@ -19,6 +21,8 @@ pub struct PublisherConfig {
     pub github_rest_base: Option<String>,
     pub github_graphql_url: Option<String>,
     pub opencollective_graphql_url: Option<String>,
+    pub twitter_text_chunk_max: Option<usize>,
+    pub twitter_truncation_suffix: Option<String>,
 }
 
 impl Default for PublisherConfig {
@@ -33,6 +37,8 @@ impl Default for PublisherConfig {
             github_rest_base: None,
             github_graphql_url: None,
             opencollective_graphql_url: None,
+            twitter_text_chunk_max: None,
+            twitter_truncation_suffix: None,
         }
     }
 }
@@ -41,11 +47,104 @@ pub struct Publisher {
     config: PublisherConfig,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SyndicationResult {
-    pub twitter_id: Option<String>,
-    pub github_id: Option<String>,
-    pub oc_id: Option<String>,
+    pub rss: ChannelOutcome,
+    pub twitter: ChannelOutcome,
+    pub github: ChannelOutcome,
+    pub open_collective: ChannelOutcome,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ChannelOutcome {
+    Disabled,
+    DryRun {
+        external_id: Option<String>,
+    },
+    Success {
+        external_id: Option<String>,
+    },
+    Failed {
+        code: String,
+        message: String,
+        retryable: bool,
+    },
+}
+
+impl Default for ChannelOutcome {
+    fn default() -> Self {
+        Self::Disabled
+    }
+}
+
+impl SyndicationResult {
+    #[must_use]
+    pub fn has_failures(&self) -> bool {
+        [
+            &self.rss,
+            &self.twitter,
+            &self.github,
+            &self.open_collective,
+        ]
+        .iter()
+        .any(|o| matches!(o, ChannelOutcome::Failed { .. }))
+    }
+
+    #[must_use]
+    pub fn all_enabled_channels_succeeded(&self, item: &UnifiedNewsItem) -> bool {
+        fn ok(outcome: &ChannelOutcome) -> bool {
+            matches!(
+                outcome,
+                ChannelOutcome::Success { .. } | ChannelOutcome::Disabled | ChannelOutcome::DryRun { .. }
+            )
+        }
+
+        let rss_ok = !item.syndication.rss || ok(&self.rss);
+        let twitter_ok = item.syndication.twitter.is_none() || ok(&self.twitter);
+        let github_ok = item.syndication.github.is_none() || ok(&self.github);
+        let oc_ok = item.syndication.open_collective.is_none() || ok(&self.open_collective);
+        rss_ok && twitter_ok && github_ok && oc_ok
+    }
+
+    #[must_use]
+    pub fn github_id(&self) -> Option<&str> {
+        match &self.github {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn twitter_id(&self) -> Option<&str> {
+        match &self.twitter {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn oc_id(&self) -> Option<&str> {
+        match &self.open_collective {
+            ChannelOutcome::Success {
+                external_id: Some(v),
+            }
+            | ChannelOutcome::DryRun {
+                external_id: Some(v),
+            } => Some(v.as_str()),
+            _ => None,
+        }
+    }
 }
 
 impl Publisher {
@@ -66,22 +165,53 @@ impl Publisher {
         if item.syndication.rss {
             if is_dry_run {
                 info!("[DRY RUN] Would update RSS feed for {}", item.id);
+                result.rss = ChannelOutcome::DryRun { external_id: None };
             } else {
-                adapters::rss::update_feed(item, &self.config.site).await?;
-                info!("RSS feed updated.");
+                match adapters::rss::update_feed(item, &self.config.site).await {
+                    Ok(()) => {
+                        result.rss = ChannelOutcome::Success { external_id: None };
+                        info!("RSS feed updated.");
+                    }
+                    Err(e) => {
+                        result.rss = ChannelOutcome::Failed {
+                            code: "rss_update_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
             }
         }
 
         if let Some(twitter) = &item.syndication.twitter {
             if is_dry_run {
                 info!("[DRY RUN] Would post to Twitter: {:?}", twitter);
-                result.twitter_id = Some(format!("dry-run-tweet-{}", item.id));
+                result.twitter = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-tweet-{}", item.id)),
+                };
             } else if let Some(token) = &self.config.twitter_bearer_token {
-                let id = adapters::twitter::post(&self.config, token, item, twitter).await?;
-                result.twitter_id = Some(id);
-                info!("Posted to Twitter.");
+                match adapters::twitter::post(&self.config, token, item, twitter).await {
+                    Ok(id) => {
+                        result.twitter = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to Twitter.");
+                    }
+                    Err(e) => {
+                        result.twitter = ChannelOutcome::Failed {
+                            code: "twitter_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
             } else {
                 warn!("Twitter config present but no API token.");
+                result.twitter = ChannelOutcome::Failed {
+                    code: "missing_twitter_token".to_string(),
+                    message: "Twitter config present but no API token.".to_string(),
+                    retryable: false,
+                };
             }
         }
 
@@ -91,13 +221,32 @@ impl Publisher {
                     "[DRY RUN] Would post to GitHub repository {} as {:?}",
                     github.repo, github.post_type
                 );
-                result.github_id = Some(format!("dry-run-github-{}", item.id));
+                result.github = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-github-{}", item.id)),
+                };
             } else if let Some(token) = &self.config.github_token {
-                let id = adapters::github::post(&self.config, token, item, github).await?;
-                result.github_id = Some(id);
-                info!("Posted to GitHub.");
+                match adapters::github::post(&self.config, token, item, github).await {
+                    Ok(id) => {
+                        result.github = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to GitHub.");
+                    }
+                    Err(e) => {
+                        result.github = ChannelOutcome::Failed {
+                            code: "github_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
             } else {
                 warn!("GitHub config present but no API token.");
+                result.github = ChannelOutcome::Failed {
+                    code: "missing_github_token".to_string(),
+                    message: "GitHub config present but no API token.".to_string(),
+                    retryable: false,
+                };
             }
         }
 
@@ -107,13 +256,32 @@ impl Publisher {
                     "[DRY RUN] Would post to Open Collective slug {}",
                     oc.collective_slug
                 );
-                result.oc_id = Some(format!("dry-run-oc-{}", item.id));
+                result.open_collective = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-oc-{}", item.id)),
+                };
             } else if let Some(token) = &self.config.open_collective_token {
-                let id = adapters::opencollective::post(&self.config, token, item, oc).await?;
-                result.oc_id = Some(id);
-                info!("Posted to Open Collective.");
+                match adapters::opencollective::post(&self.config, token, item, oc).await {
+                    Ok(id) => {
+                        result.open_collective = ChannelOutcome::Success {
+                            external_id: Some(id),
+                        };
+                        info!("Posted to Open Collective.");
+                    }
+                    Err(e) => {
+                        result.open_collective = ChannelOutcome::Failed {
+                            code: "opencollective_post_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: true,
+                        };
+                    }
+                }
             } else {
                 warn!("Open Collective config present but no API token.");
+                result.open_collective = ChannelOutcome::Failed {
+                    code: "missing_opencollective_token".to_string(),
+                    message: "Open Collective config present but no API token.".to_string(),
+                    retryable: false,
+                };
             }
         }
 
