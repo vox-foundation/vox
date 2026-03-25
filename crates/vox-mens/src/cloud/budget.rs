@@ -21,7 +21,10 @@ impl BudgetLedger {
     ///
     /// Cap is taken from `config.max_budget_usd` — **not** re-read from env.
     pub fn new(db: Option<Arc<VoxDb>>, config: &CloudProviderConfig) -> Self {
-        Self { db, global_cap_usd: config.max_budget_usd }
+        Self {
+            db,
+            global_cap_usd: config.max_budget_usd,
+        }
     }
 
     /// Current accrued cost from all running jobs (pro-rated by elapsed time).
@@ -78,7 +81,9 @@ impl BudgetLedger {
                 handle.price_per_hour_usd,
                 est_cost,
                 job_kind,
-            ).await.map_err(anyhow::Error::from)
+            )
+            .await
+            .map_err(anyhow::Error::from)
         } else {
             Ok(())
         }
@@ -93,7 +98,8 @@ impl BudgetLedger {
     ) -> anyhow::Result<()> {
         if let Some(ref db) = self.db {
             db.cloud_close_job(job_id, actual_cost, reason.as_str())
-                .await.map_err(anyhow::Error::from)
+                .await
+                .map_err(anyhow::Error::from)
         } else {
             Ok(())
         }

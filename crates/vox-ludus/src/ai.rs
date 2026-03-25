@@ -846,5 +846,3 @@ mod tests {
         assert_eq!(client.providers().len(), 2);
     }
 }
-
-

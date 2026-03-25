@@ -20,7 +20,12 @@ pub struct ReplayRow {
 }
 
 #[cfg(feature = "database")]
-pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score: f64) -> anyhow::Result<Vec<ReplayRow>> {
+pub async fn extract_arca_pairs(
+    db: &VoxDb,
+    limit: i64,
+    chatml: bool,
+    _min_score: f64,
+) -> anyhow::Result<Vec<ReplayRow>> {
     let mut rows = Vec::new();
 
     // Replay 1: A2A Messages
@@ -34,7 +39,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
         ORDER BY id DESC
         LIMIT ?1
     ";
-    
+
     match db.query_all(sql_a2a, turso::params![limit]).await {
         Ok(results) => {
             for row in results {
@@ -53,7 +58,10 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                         record_type: "a2a_trace".to_string(),
                         chatml: false,
                         repository_id: "unknown".to_string(), // A2A table needs repository_id column in V33+
-                        difficulty: Some(crate::training::construct_difficulty(&msg_type, "a2a_trace")),
+                        difficulty: Some(crate::training::construct_difficulty(
+                            &msg_type,
+                            "a2a_trace",
+                        )),
                     });
                 }
             }
@@ -73,7 +81,8 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
         LIMIT ?1
     ";
 
-    let mut sessions: std::collections::HashMap<String, Vec<serde_json::Value>> = std::collections::HashMap::new();
+    let mut sessions: std::collections::HashMap<String, Vec<serde_json::Value>> =
+        std::collections::HashMap::new();
 
     match db.query_all(sql_events, turso::params![limit]).await {
         Ok(results) => {
@@ -84,18 +93,30 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                 if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&payload) {
                     // Ensure event type is captured in json if missing
                     if !json.as_object().unwrap().contains_key("type") {
-                        json.as_object_mut().unwrap().insert("type".to_string(), serde_json::Value::String(event_type.clone()));
+                        json.as_object_mut().unwrap().insert(
+                            "type".to_string(),
+                            serde_json::Value::String(event_type.clone()),
+                        );
                     }
 
                     if let Some(session_id) = json.get("session_id").and_then(|v| v.as_str()) {
-                        sessions.entry(session_id.to_string()).or_default().push(json.clone());
+                        sessions
+                            .entry(session_id.to_string())
+                            .or_default()
+                            .push(json.clone());
                     } else if !chatml {
                         if event_type == "tool_call" {
                             // Fallback for flat tool calls
-                            let tool_name = json.get("tool").and_then(|v| v.as_str()).unwrap_or("unknown_tool");
+                            let tool_name = json
+                                .get("tool")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown_tool");
                             let args = json.get("args").and_then(|v| v.as_str()).unwrap_or("{}");
-                            let repo_id = json.get("repository_id").and_then(|v| v.as_str()).unwrap_or("unknown");
-                            
+                            let repo_id = json
+                                .get("repository_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown");
+
                             rows.push(ReplayRow {
                                 prompt: format!("Call tool {}", tool_name),
                                 response: args.to_string(),
@@ -103,13 +124,19 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                                 record_type: "tool_trace".to_string(),
                                 chatml: false,
                                 repository_id: repo_id.to_string(),
-                                difficulty: Some(crate::training::construct_difficulty(tool_name, "tool_trace")),
+                                difficulty: Some(crate::training::construct_difficulty(
+                                    tool_name,
+                                    "tool_trace",
+                                )),
                             });
                         } else if event_type == "llm_turn" {
                             // Fallback for flat LLM turns
                             if let Some(prompt) = json.get("prompt").and_then(|v| v.as_str()) {
                                 if let Some(resp) = json.get("response").and_then(|v| v.as_str()) {
-                                    let repo_id = json.get("repository_id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                                    let repo_id = json
+                                        .get("repository_id")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("unknown");
                                     rows.push(ReplayRow {
                                         prompt: prompt.to_string(),
                                         response: resp.to_string(),
@@ -131,7 +158,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                     // Placeholder for min_score integration if scores were tracked per session in metrics
                     // let score = check_session_score(db, &session_id).await.unwrap_or(0.0);
                     // if _min_score > 0.0 && score < _min_score { continue; }
-                    
+
                     if let Some(chatml_row) = compile_chatml_session(&session_id, &events) {
                         rows.push(chatml_row);
                     }
@@ -197,7 +224,8 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
                 }
             }
             "tool_call" => {
-                let tool = sanitize_chatml(ev.get("tool").and_then(|v| v.as_str()).unwrap_or("unknown"));
+                let tool =
+                    sanitize_chatml(ev.get("tool").and_then(|v| v.as_str()).unwrap_or("unknown"));
                 let args = sanitize_chatml(ev.get("args").and_then(|v| v.as_str()).unwrap_or("{}"));
                 chatml_buffer.push_str(&format!(
                     "<|im_start|>assistant\n<|tool_call|>{{\"name\":\"{tool}\", \"args\":{args}}}<|tool_end|><|im_end|>\n"
@@ -219,9 +247,8 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
                         .unwrap_or(""),
                 );
                 if !result.is_empty() {
-                    chatml_buffer.push_str(&format!(
-                        "<|im_start|>tool\n[{tool}]: {result}<|im_end|>\n"
-                    ));
+                    chatml_buffer
+                        .push_str(&format!("<|im_start|>tool\n[{tool}]: {result}<|im_end|>\n"));
                 }
             }
             "TaskCompleted" => {
@@ -243,7 +270,10 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
         record_type: "chatml_trace".to_string(),
         chatml: true,
         repository_id: repo_id,
-        difficulty: Some(crate::training::construct_difficulty("multi_turn_session", "chatml_trace")),
+        difficulty: Some(crate::training::construct_difficulty(
+            "multi_turn_session",
+            "chatml_trace",
+        )),
     })
 }
 

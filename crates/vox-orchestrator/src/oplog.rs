@@ -57,19 +57,20 @@ pub async fn append_to_db(
 ) -> Result<(), String> {
     let kind_json = serde_json::to_string(kind).map_err(|e| e.to_string())?;
 
-    store.append_oplog_entry(
-        &agent_id.0.to_string(),
-        op_id_str,
-        &kind_json,
-        description,
-        predecessor_hash,
-        model_id,
-        change_id.map(|c| c.0 as i64),
-        timestamp_ms as i64,
-        repository_id,
-    )
-    .await
-    .map_err(|e| e.to_string())
+    store
+        .append_oplog_entry(
+            &agent_id.0.to_string(),
+            op_id_str,
+            &kind_json,
+            description,
+            predecessor_hash,
+            model_id,
+            change_id.map(|c| c.0 as i64),
+            timestamp_ms as i64,
+            repository_id,
+        )
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// List operations from the database for a repository/agent.
@@ -94,8 +95,14 @@ pub async fn list_from_db(
         let predecessor_hash = row[4].clone();
         let model_id = row[5].clone();
         let change_id = row[6].as_ref().and_then(|s| s.parse::<i64>().ok());
-        let timestamp_ms = row[7].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-        let undone = row[8].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+        let timestamp_ms = row[7]
+            .as_ref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
+        let undone = row[8]
+            .as_ref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
 
         let op_id = OperationId(
             op_id_str
@@ -135,7 +142,8 @@ pub async fn mark_undone_in_db(
     operation_id: &str,
     undone: bool,
 ) -> Result<(), String> {
-    store.set_oplog_undone(operation_id, undone)
+    store
+        .set_oplog_undone(operation_id, undone)
         .await
         .map_err(|e| e.to_string())
 }

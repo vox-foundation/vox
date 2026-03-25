@@ -37,9 +37,14 @@ async fn test_dynamic_scaling_and_retirement() {
     {
         let o = orch.lock().await;
         for i in 0..10 {
-            o.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Normal), None)
-                .await
-                .unwrap();
+            o.submit_task(
+                format!("task-{}", i),
+                vec![],
+                Some(TaskPriority::Normal),
+                None,
+            )
+            .await
+            .unwrap();
         }
     }
 
@@ -102,9 +107,14 @@ async fn test_predictive_scaling_uses_trend() {
 
     // Submit enough tasks to push predicted_load above threshold
     for i in 0..9 {
-        orch.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Urgent), None)
-            .await
-            .unwrap();
+        orch.submit_task(
+            format!("task-{}", i),
+            vec![],
+            Some(TaskPriority::Urgent),
+            None,
+        )
+        .await
+        .unwrap();
     }
 
     // Simulate 3 ticks building up a rising trend in load_history
@@ -183,9 +193,14 @@ async fn test_urgent_rebalance_trigger() {
 
     // Load 4 Urgent tasks onto agent-a directly
     for i in 0..4 {
-        orch.submit_task(format!("urgent-{}", i), vec![], Some(TaskPriority::Urgent), None)
-            .await
-            .unwrap();
+        orch.submit_task(
+            format!("urgent-{}", i),
+            vec![],
+            Some(TaskPriority::Urgent),
+            None,
+        )
+        .await
+        .unwrap();
     }
 
     // All tasks should currently be assigned (some may already route to b via the routing service)
@@ -206,7 +221,11 @@ async fn test_urgent_rebalance_trigger() {
     let total_after: usize = orch
         .agent_ids()
         .iter()
-        .map(|id| orch.agent_queue(*id).map(|q| vox_orchestrator::sync_lock::rw_read(&*q).len()).unwrap_or(0))
+        .map(|id| {
+            orch.agent_queue(*id)
+                .map(|q| vox_orchestrator::sync_lock::rw_read(&*q).len())
+                .unwrap_or(0)
+        })
         .sum();
 
     // All tasks should still exist (no data loss)

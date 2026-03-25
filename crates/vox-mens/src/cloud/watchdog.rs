@@ -57,7 +57,8 @@ impl CloudWatchdog {
             None
         };
 
-        let startup_grace_end = started + Duration::from_secs(self.config.watchdog_startup_grace_secs);
+        let startup_grace_end =
+            started + Duration::from_secs(self.config.watchdog_startup_grace_secs);
         let poll_interval = Duration::from_secs(self.config.watchdog_poll_secs);
         let mut idle_since: Option<Instant> = None;
         let mut consecutive_failures: u32 = 0;
@@ -71,9 +72,11 @@ impl CloudWatchdog {
             if abs_deadline.map_or(false, |d| now >= d) {
                 tracing::warn!(
                     "[watchdog:{}] Absolute hard cap {}s reached (${accrued:.3}). Terminating.",
-                    self.handle.job_id, self.config.absolute_max_runtime_secs
+                    self.handle.job_id,
+                    self.config.absolute_max_runtime_secs
                 );
-                self.terminate_and_close(accrued, TerminationReason::WatchdogAbsoluteCap).await;
+                self.terminate_and_close(accrued, TerminationReason::WatchdogAbsoluteCap)
+                    .await;
                 return;
             }
 
@@ -83,9 +86,11 @@ impl CloudWatchdog {
             if accrued >= self.config.max_budget_usd {
                 tracing::warn!(
                     "[watchdog:{}] Budget cap ${:.2} reached (accrued ${accrued:.3}). Terminating.",
-                    self.handle.job_id, self.config.max_budget_usd
+                    self.handle.job_id,
+                    self.config.max_budget_usd
                 );
-                self.terminate_and_close(accrued, TerminationReason::WatchdogBudget).await;
+                self.terminate_and_close(accrued, TerminationReason::WatchdogBudget)
+                    .await;
                 return;
             }
 
@@ -95,7 +100,8 @@ impl CloudWatchdog {
                     "[watchdog:{}] Time limit {time_limit_secs:.0}s exceeded. Terminating.",
                     self.handle.job_id
                 );
-                self.terminate_and_close(accrued, TerminationReason::WatchdogTime).await;
+                self.terminate_and_close(accrued, TerminationReason::WatchdogTime)
+                    .await;
                 return;
             }
 
@@ -109,35 +115,52 @@ impl CloudWatchdog {
                                 "[watchdog:{}] Completed normally (accrued ${accrued:.3}).",
                                 self.handle.job_id
                             );
-                            let _ = self.budget.close_job(
-                                &self.handle.job_id, accrued, TerminationReason::Completed,
-                            ).await;
+                            let _ = self
+                                .budget
+                                .close_job(
+                                    &self.handle.job_id,
+                                    accrued,
+                                    TerminationReason::Completed,
+                                )
+                                .await;
                             return;
                         }
                         JobStatus::Terminated => {
-                            tracing::info!("[watchdog:{}] Terminated by provider/user.", self.handle.job_id);
-                            let _ = self.budget.close_job(
-                                &self.handle.job_id, accrued, TerminationReason::Completed,
-                            ).await;
+                            tracing::info!(
+                                "[watchdog:{}] Terminated by provider/user.",
+                                self.handle.job_id
+                            );
+                            let _ = self
+                                .budget
+                                .close_job(
+                                    &self.handle.job_id,
+                                    accrued,
+                                    TerminationReason::Completed,
+                                )
+                                .await;
                             return;
                         }
                         JobStatus::Failed(e) => {
                             tracing::error!("[watchdog:{}] Failed: {e}", self.handle.job_id);
-                            let _ = self.budget.close_job(
-                                &self.handle.job_id, accrued, TerminationReason::Failed,
-                            ).await;
+                            let _ = self
+                                .budget
+                                .close_job(&self.handle.job_id, accrued, TerminationReason::Failed)
+                                .await;
                             return;
                         }
-                        JobStatus::Running { gpu_util_pct: Some(util), .. }
-                            if now >= startup_grace_end && util < self.config.watchdog_idle_pct =>
-                        {
+                        JobStatus::Running {
+                            gpu_util_pct: Some(util),
+                            ..
+                        } if now >= startup_grace_end && util < self.config.watchdog_idle_pct => {
                             let since = idle_since.get_or_insert(now);
                             if since.elapsed().as_secs() >= self.config.watchdog_idle_grace_secs {
                                 tracing::warn!(
                                     "[watchdog:{}] GPU idle {util:.0}% for {}s. Terminating.",
-                                    self.handle.job_id, since.elapsed().as_secs()
+                                    self.handle.job_id,
+                                    since.elapsed().as_secs()
                                 );
-                                self.terminate_and_close(accrued, TerminationReason::WatchdogIdle).await;
+                                self.terminate_and_close(accrued, TerminationReason::WatchdogIdle)
+                                    .await;
                                 return;
                             }
                         }
@@ -158,16 +181,20 @@ impl CloudWatchdog {
                     consecutive_failures += 1;
                     tracing::warn!(
                         "[watchdog:{}] Poll failure {}/{}: {e}",
-                        self.handle.job_id, consecutive_failures, self.config.watchdog_max_poll_failures
+                        self.handle.job_id,
+                        consecutive_failures,
+                        self.config.watchdog_max_poll_failures
                     );
                     if consecutive_failures >= self.config.watchdog_max_poll_failures {
                         tracing::error!(
                             "[watchdog:{}] Orphaned — {} consecutive poll failures. Recording and exiting.",
-                            self.handle.job_id, consecutive_failures
+                            self.handle.job_id,
+                            consecutive_failures
                         );
-                        let _ = self.budget.close_job(
-                            &self.handle.job_id, accrued, TerminationReason::Orphaned,
-                        ).await;
+                        let _ = self
+                            .budget
+                            .close_job(&self.handle.job_id, accrued, TerminationReason::Orphaned)
+                            .await;
                         return;
                     }
                 }
@@ -182,7 +209,11 @@ impl CloudWatchdog {
                 self.handle.job_id
             );
         }
-        if let Err(e) = self.budget.close_job(&self.handle.job_id, accrued_cost, reason).await {
+        if let Err(e) = self
+            .budget
+            .close_job(&self.handle.job_id, accrued_cost, reason)
+            .await
+        {
             tracing::error!(
                 "[watchdog:{}] Failed to close budget record: {e}",
                 self.handle.job_id

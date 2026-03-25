@@ -6,10 +6,10 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use serde_json::json;
 use chrono::{NaiveDate, Utc};
-use serde::Deserialize;
 use regex::Regex;
+use serde::Deserialize;
+use serde_json::json;
 
 #[derive(Deserialize, Debug)]
 #[serde(default)]
@@ -89,44 +89,49 @@ impl DocTrainingPair {
 /// Returns `(is_eligible, penalty)` where penalty increases with age (0-3 scale).
 fn parse_frontmatter(content: &str) -> (bool, u8) {
     // Explicit deprecation check acts as a hard short-circuit
-    if content.contains("status: deprecated") || content.contains("status: \"deprecated\"") || content.contains("status: 'deprecated'") {
+    if content.contains("status: deprecated")
+        || content.contains("status: \"deprecated\"")
+        || content.contains("status: 'deprecated'")
+    {
         return (false, 0);
     }
 
     if !content.starts_with("---") {
         // Fallback for files without frontmatter
-        let eligible = !(content.contains("training_eligible: false") || content.contains("training_eligible:false"));
+        let eligible = !(content.contains("training_eligible: false")
+            || content.contains("training_eligible:false"));
         return (eligible, 0);
     }
-    
+
     let parts: Vec<&str> = content.splitn(3, "---").collect();
     if parts.len() < 3 {
-        let eligible = !(content.contains("training_eligible: false") || content.contains("training_eligible:false"));
+        let eligible = !(content.contains("training_eligible: false")
+            || content.contains("training_eligible:false"));
         return (eligible, 0);
     }
-    
+
     let yaml_str = parts[1];
-    
+
     // Extract using serde_yaml, fallback to true if malformed
     let fm: Frontmatter = serde_yaml::from_str(yaml_str).unwrap_or_default();
-    
+
     if !fm.training_eligible {
         return (false, 0);
     }
-    
+
     let mut penalty = 0;
     if let Some(date_str) = fm.last_updated {
         if let Ok(last_updated) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
             let now = Utc::now().date_naive();
             let days_old = now.signed_duration_since(last_updated).num_days();
-            
+
             // Penalize by 1 for every 90 days (approx 3 months), max penalty of 3
             if days_old > 0 {
                 penalty = (days_old / 90).min(3) as u8;
             }
         }
     }
-    
+
     (true, penalty)
 }
 
@@ -135,8 +140,8 @@ pub fn extract_from_md_file(
     path: &Path,
     config: &ExtractDocsConfig,
 ) -> anyhow::Result<Vec<DocTrainingPair>> {
-    let source = std::fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let source =
+        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
 
     let (eligible, staleness_penalty) = parse_frontmatter(&source);
     if !eligible {
@@ -161,7 +166,12 @@ pub fn extract_from_md_file(
 }
 
 /// Extract fenced code blocks tagged with `vox` language.
-fn extract_code_blocks(source: &str, path: &Path, staleness_penalty: u8, out: &mut Vec<DocTrainingPair>) {
+fn extract_code_blocks(
+    source: &str,
+    path: &Path,
+    staleness_penalty: u8,
+    out: &mut Vec<DocTrainingPair>,
+) {
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
     let mut preceding_context = String::new();
@@ -175,7 +185,8 @@ fn extract_code_blocks(source: &str, path: &Path, staleness_penalty: u8, out: &m
         } else if !trimmed.is_empty()
             && !trimmed.starts_with("```")
             && !trimmed.starts_with("---")
-            && !trimmed.starts_with('>') {
+            && !trimmed.starts_with('>')
+        {
             // Accumulate paragraph text (last paragraph before code block)
             if preceding_context.len() < 200 {
                 if !preceding_context.is_empty() {
@@ -202,10 +213,7 @@ fn extract_code_blocks(source: &str, path: &Path, staleness_penalty: u8, out: &m
                 let prompt = if !preceding_context.is_empty() {
                     format!(
                         "Show me Vox code for: {}",
-                        preceding_context
-                            .chars()
-                            .take(200)
-                            .collect::<String>()
+                        preceding_context.chars().take(200).collect::<String>()
                     )
                 } else {
                     "Write an example Vox program".to_string()
@@ -251,13 +259,14 @@ fn extract_qa_sections(
             {
                 let prompt = format!("Explain the Vox concept: {}", current_heading);
                 let mut response = current_body.trim().to_string();
-                
+
                 // Relational Chunking: Inject linked .vox examples directly into the training response
                 if let Ok(link_re) = Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)") {
                     let mut extra_context = String::new();
                     for cap in link_re.captures_iter(&response.clone()) {
                         let target_path_str = &cap[1];
-                        let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
+                        let abs_target =
+                            path.parent().unwrap_or(Path::new("")).join(target_path_str);
                         if let Ok(can) = std::fs::canonicalize(&abs_target) {
                             if let Ok(vox_code) = std::fs::read_to_string(&can) {
                                 extra_context.push_str("\n\n```vox\n");
@@ -279,10 +288,7 @@ fn extract_qa_sections(
             }
 
             heading_level = trimmed.chars().take_while(|&c| c == '#').count();
-            current_heading = trimmed
-                .trim_start_matches('#')
-                .trim()
-                .to_string();
+            current_heading = trimmed.trim_start_matches('#').trim().to_string();
             current_body.clear();
         } else if !trimmed.is_empty() {
             current_body.push_str(trimmed);
@@ -297,7 +303,7 @@ fn extract_qa_sections(
     {
         let prompt = format!("Explain the Vox concept: {}", current_heading);
         let mut response = current_body.trim().to_string();
-        
+
         // Relational Chunking: Inject linked .vox examples directly into the training response
         if let Ok(link_re) = Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)") {
             let mut extra_context = String::new();

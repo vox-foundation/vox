@@ -1,9 +1,9 @@
 //! Typechecking pipeline helpers.
 
-use vox_compiler::ast::decl::Module;
-use vox_compiler::typeck::{typecheck_module, Diagnostic};
-use crate::pipeline::parser::parse_str_unwrap;
 use crate::assertions::assert_no_errors;
+use crate::pipeline::parser::parse_str_unwrap;
+use vox_compiler::ast::decl::Module;
+use vox_compiler::typeck::{Diagnostic, typecheck_module};
 
 /// Lex, parse, and typecheck `src`, returning the module and all diagnostics.
 ///

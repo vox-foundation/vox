@@ -44,7 +44,12 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
 
     // 2. Submit a second task — should capture pre-task snapshot and record in oplog
     let task_id = orch
-        .submit_task("test task", vec![FileAffinity::write("src/lib.rs")], None, None)
+        .submit_task(
+            "test task",
+            vec![FileAffinity::write("src/lib.rs")],
+            None,
+            None,
+        )
         .await
         .expect("submit should succeed");
 
@@ -85,26 +90,28 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
 
     // 4. Create a change and verify lifecycle
     let wm_lock = orch.workspace_manager_mut();
-    let change_id = wm_lock.write().unwrap()
+    let change_id = wm_lock
+        .write()
+        .unwrap()
         .create_change(agent_a, "Fix parser bug");
-    wm_lock.write().unwrap()
+    wm_lock
+        .write()
+        .unwrap()
         .add_snapshot_to_change(change_id, snap_id);
     {
         let manager = wm_lock.read().unwrap();
-        let change = manager
-            .get_change(change_id)
-            .expect("change exists");
+        let change = manager.get_change(change_id).expect("change exists");
         assert_eq!(change.status, ChangeStatus::InProgress);
         assert_eq!(change.snapshots.len(), 1);
     }
 
-    wm_lock.write().unwrap()
+    wm_lock
+        .write()
+        .unwrap()
         .update_change_status(change_id, ChangeStatus::Merged);
     {
         let manager = wm_lock.read().unwrap();
-        let change = manager
-            .get_change(change_id)
-            .expect("change exists");
+        let change = manager.get_change(change_id).expect("change exists");
         assert_eq!(change.status, ChangeStatus::Merged);
     }
 
@@ -118,7 +125,9 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
     assert_eq!(cm_lock.read().unwrap().active_count(), 1);
 
     // Resolve it
-    cm_lock.write().unwrap()
+    cm_lock
+        .write()
+        .unwrap()
         .resolve(conflict_id, ConflictResolution::TakeLeft);
     assert_eq!(cm_lock.read().unwrap().active_count(), 0);
 
@@ -177,10 +186,12 @@ async fn vcs_workspace_overlap_detection() {
     // Both modify the same file
     {
         let mut manager = wm_lock.write().unwrap();
-        manager.get_workspace_mut(agent_a)
+        manager
+            .get_workspace_mut(agent_a)
             .unwrap()
             .record_modification("shared.rs", "hash_a".into());
-        manager.get_workspace_mut(agent_b)
+        manager
+            .get_workspace_mut(agent_b)
             .unwrap()
             .record_modification("shared.rs", "hash_b".into());
     }
@@ -191,7 +202,9 @@ async fn vcs_workspace_overlap_detection() {
     assert_eq!(overlaps[0], PathBuf::from("shared.rs"));
 
     // Non-overlapping files
-    wm_lock.write().unwrap()
+    wm_lock
+        .write()
+        .unwrap()
         .get_workspace_mut(agent_a)
         .unwrap()
         .record_modification("unique_a.rs", "hash_c".into());

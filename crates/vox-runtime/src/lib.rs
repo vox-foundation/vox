@@ -20,12 +20,12 @@ pub mod llm;
 pub mod llm_result;
 /// Actor mailboxes: envelopes, messages, requests, and process signals.
 pub mod mailbox;
+/// Mens/Ollama HTTP client for generate, embed, classify, and RAG helpers.
+pub mod mens;
 /// SSOT chat routing: manual URL, Mens, HF dedicated/router, OpenRouter.
 pub mod model_resolution;
 /// Opaque process identifiers for actors and messaging.
 pub mod pid;
-/// Mens/Ollama HTTP client for generate, embed, classify, and RAG helpers.
-pub mod mens;
 /// Actor `ProcessContext`, `ProcessHandle`, and `spawn_process`.
 pub mod process;
 /// Prompt normalization, conflict detection, and safety pass for LLM ingress.

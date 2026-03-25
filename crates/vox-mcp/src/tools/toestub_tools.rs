@@ -1,6 +1,6 @@
+use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
-use serde::Deserialize;
 
 use crate::params::ToolResult;
 use crate::server::ServerState;
@@ -15,7 +15,10 @@ pub struct ToestubFindingsParams {
 }
 
 /// Upsert TOESTUB findings into the repository-local queue.
-pub async fn toestub_findings_upsert(_state: &ServerState, params: ToestubFindingsParams) -> String {
+pub async fn toestub_findings_upsert(
+    _state: &ServerState,
+    params: ToestubFindingsParams,
+) -> String {
     let repo_root = if let Ok(p) = std::env::var("VOX_REPOSITORY_ROOT") {
         PathBuf::from(p)
     } else {
@@ -28,7 +31,7 @@ pub async fn toestub_findings_upsert(_state: &ServerState, params: ToestubFindin
     }
 
     let findings_path = dot_vox.join("toestub_findings.jsonl");
-    
+
     // Append findings as JSONL for high-concurrency safety (lock-free append)
     let mut data = String::new();
     for finding in &params.findings {
@@ -46,9 +49,14 @@ pub async fn toestub_findings_upsert(_state: &ServerState, params: ToestubFindin
         Ok(mut file) => {
             use std::io::Write;
             if let Err(e) = file.write_all(data.as_bytes()) {
-                 return ToolResult::<String>::err(format!("Write failed: {e}")).to_json();
+                return ToolResult::<String>::err(format!("Write failed: {e}")).to_json();
             }
-            ToolResult::ok(format!("Upserted {} findings to {}", params.findings.len(), findings_path.display())).to_json()
+            ToolResult::ok(format!(
+                "Upserted {} findings to {}",
+                params.findings.len(),
+                findings_path.display()
+            ))
+            .to_json()
         }
         Err(e) => ToolResult::<String>::err(format!("Failed to open findings file: {e}")).to_json(),
     }

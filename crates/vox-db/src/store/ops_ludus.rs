@@ -9,7 +9,6 @@
 
 use turso::params;
 
-
 use crate::store::types::StoreError;
 
 impl crate::VoxDb {
@@ -37,9 +36,7 @@ impl crate::VoxDb {
             params![user_id],
         ).await?;
         if let Some(row) = rows.next().await? {
-            let vals: Vec<i64> = (0..17)
-                .map(|i| row.get::<i64>(i).unwrap_or(0))
-                .collect();
+            let vals: Vec<i64> = (0..17).map(|i| row.get::<i64>(i).unwrap_or(0)).collect();
             Ok(Some(vals))
         } else {
             Ok(None)
@@ -97,10 +94,12 @@ impl crate::VoxDb {
         user_id: &str,
         lumens_delta: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE gamify_profiles SET lumens = COALESCE(lumens, 0) + ?1 WHERE user_id = ?2",
-            params![lumens_delta, user_id],
-        ).await?;
+        self.conn
+            .execute(
+                "UPDATE gamify_profiles SET lumens = COALESCE(lumens, 0) + ?1 WHERE user_id = ?2",
+                params![lumens_delta, user_id],
+            )
+            .await?;
         Ok(())
     }
 
@@ -116,12 +115,21 @@ impl crate::VoxDb {
         xp_rewarded: i64,
         crystals_rewarded: i64,
     ) -> Result<bool, StoreError> {
-        let affected = self.conn.execute(
-            "INSERT OR IGNORE INTO gamify_achievements
+        let affected = self
+            .conn
+            .execute(
+                "INSERT OR IGNORE INTO gamify_achievements
              (id, user_id, unlocked_at, xp_rewarded, crystals_rewarded)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![achievement_id, user_id, unlocked_at, xp_rewarded, crystals_rewarded],
-        ).await?;
+                params![
+                    achievement_id,
+                    user_id,
+                    unlocked_at,
+                    xp_rewarded,
+                    crystals_rewarded
+                ],
+            )
+            .await?;
         Ok(affected > 0)
     }
 
@@ -165,7 +173,9 @@ impl crate::VoxDb {
 
     /// Delete a companion record by ID.
     pub async fn delete_gamify_companion(&self, id: &str) -> Result<(), StoreError> {
-        self.conn.execute("DELETE FROM gamify_companions WHERE id = ?1", params![id]).await?;
+        self.conn
+            .execute("DELETE FROM gamify_companions WHERE id = ?1", params![id])
+            .await?;
         Ok(())
     }
 
@@ -178,11 +188,13 @@ impl crate::VoxDb {
         xp_at_level: i64,
         created_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_level_history (user_id, level, title, xp_at_level, created_at)
+        self.conn
+            .execute(
+                "INSERT INTO gamify_level_history (user_id, level, title, xp_at_level, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![user_id, level, title, xp_at_level, created_at],
-        ).await?;
+                params![user_id, level, title, xp_at_level, created_at],
+            )
+            .await?;
         Ok(())
     }
 
@@ -254,13 +266,16 @@ impl crate::VoxDb {
         &self,
         user_id: &str,
     ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT id, quest_type, description, CAST(target AS TEXT), CAST(progress AS TEXT),
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, quest_type, description, CAST(target AS TEXT), CAST(progress AS TEXT),
                     CAST(crystal_reward AS TEXT), CAST(xp_reward AS TEXT), CAST(completed AS TEXT),
                     CAST(expires_at AS TEXT), hint, modifier, status
              FROM gamify_quests WHERE user_id = ?1",
-            params![user_id],
-        ).await?;
+                params![user_id],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             let cols: Vec<Option<String>> = (0..12)
@@ -320,10 +335,9 @@ impl crate::VoxDb {
 
     /// Delete a quest by id.
     pub async fn delete_gamify_quest(&self, id: &str) -> Result<(), StoreError> {
-        self.conn.execute(
-            "DELETE FROM gamify_quests WHERE id = ?1",
-            params![id],
-        ).await?;
+        self.conn
+            .execute("DELETE FROM gamify_quests WHERE id = ?1", params![id])
+            .await?;
         Ok(())
     }
 
@@ -333,12 +347,19 @@ impl crate::VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
-        let mut rows = self.conn.query(
-            "SELECT COUNT(*) FROM gamify_quests
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM gamify_quests
              WHERE user_id = ?1 AND status = 'active' AND (expires_at = 0 OR expires_at > ?2)",
-            params![user_id, now],
-        ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0))
+                params![user_id, now],
+            )
+            .await?;
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(0))
+            .unwrap_or(0))
     }
 
     // ── Battles (gamify_battles) ──────────────────────────────────────────────
@@ -349,13 +370,16 @@ impl crate::VoxDb {
         user_id: &str,
         limit: i64,
     ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT id, companion_id, bug_type, bug_description, bug_code, submitted_code,
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, companion_id, bug_type, bug_description, bug_code, submitted_code,
                     CAST(success AS TEXT), CAST(crystals_earned AS TEXT),
                     CAST(xp_earned AS TEXT), CAST(duration_secs AS TEXT), CAST(created_at AS TEXT)
              FROM gamify_battles WHERE user_id = ?1 ORDER BY created_at DESC LIMIT ?2",
-            params![user_id, limit],
-        ).await?;
+                params![user_id, limit],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             let cols: Vec<Option<String>> = (0..11)
@@ -379,7 +403,9 @@ impl crate::VoxDb {
             params![id],
         ).await?;
         Ok(rows.next().await?.map(|row| {
-            (0..12).map(|i| row.get::<Option<String>>(i).unwrap_or(None)).collect()
+            (0..12)
+                .map(|i| row.get::<Option<String>>(i).unwrap_or(None))
+                .collect()
         }))
     }
 
@@ -400,15 +426,28 @@ impl crate::VoxDb {
         duration_secs: i64,
         created_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_battles
+        self.conn
+            .execute(
+                "INSERT INTO gamify_battles
              (id, user_id, companion_id, bug_type, bug_description, bug_code, submitted_code,
               success, crystals_earned, xp_earned, duration_secs, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-            params![id, user_id, companion_id, bug_type, bug_description, bug_code,
-                    submitted_code, if success { 1i64 } else { 0i64 },
-                    crystals_earned, xp_earned, duration_secs, created_at],
-        ).await?;
+                params![
+                    id,
+                    user_id,
+                    companion_id,
+                    bug_type,
+                    bug_description,
+                    bug_code,
+                    submitted_code,
+                    if success { 1i64 } else { 0i64 },
+                    crystals_earned,
+                    xp_earned,
+                    duration_secs,
+                    created_at
+                ],
+            )
+            .await?;
         Ok(())
     }
 
@@ -422,22 +461,37 @@ impl crate::VoxDb {
         xp_earned: i64,
         duration_secs: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE gamify_battles SET submitted_code=?1, success=?2, crystals_earned=?3,
+        self.conn
+            .execute(
+                "UPDATE gamify_battles SET submitted_code=?1, success=?2, crystals_earned=?3,
              xp_earned=?4, duration_secs=?5 WHERE id=?6",
-            params![submitted_code, if success { 1i64 } else { 0i64 },
-                    crystals_earned, xp_earned, duration_secs, id],
-        ).await?;
+                params![
+                    submitted_code,
+                    if success { 1i64 } else { 0i64 },
+                    crystals_earned,
+                    xp_earned,
+                    duration_secs,
+                    id
+                ],
+            )
+            .await?;
         Ok(())
     }
 
     /// Count all battles for a user.
     pub async fn count_gamify_battles(&self, user_id: &str) -> Result<i64, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT COUNT(*) FROM gamify_battles WHERE user_id = ?1",
-            params![user_id],
-        ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0))
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM gamify_battles WHERE user_id = ?1",
+                params![user_id],
+            )
+            .await?;
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(0))
+            .unwrap_or(0))
     }
 
     // ── Agent Events (agent_events — ludus path) ─────────────────────────────
@@ -455,7 +509,8 @@ impl crate::VoxDb {
             event_type,
             payload.unwrap_or("{}"),
             env!("CARGO_PKG_VERSION"),
-        ).await?;
+        )
+        .await?;
         Ok(())
     }
 
@@ -465,11 +520,14 @@ impl crate::VoxDb {
         agent_id: &str,
         limit: i64,
     ) -> Result<Vec<(i64, String, String, Option<String>, String)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT id, agent_id, event_type, payload, timestamp
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, agent_id, event_type, payload, timestamp
              FROM agent_events WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
-            params![agent_id, limit],
-        ).await?;
+                params![agent_id, limit],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             out.push((
@@ -497,22 +555,39 @@ impl crate::VoxDb {
         output_tokens: i64,
         cost_usd: f64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO cost_records (agent_id, session_id, provider, model,
+        self.conn
+            .execute(
+                "INSERT INTO cost_records (agent_id, session_id, provider, model,
              input_tokens, output_tokens, cost_usd)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd],
-        ).await?;
+                params![
+                    agent_id,
+                    session_id,
+                    provider,
+                    model,
+                    input_tokens,
+                    output_tokens,
+                    cost_usd
+                ],
+            )
+            .await?;
         Ok(())
     }
 
     /// Get total cost in USD for an agent.
     pub async fn get_gamify_agent_cost_usd(&self, agent_id: &str) -> Result<f64, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM cost_records WHERE agent_id = ?1",
-            params![agent_id],
-        ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<f64>(0).unwrap_or(0.0)).unwrap_or(0.0))
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COALESCE(SUM(cost_usd), 0.0) FROM cost_records WHERE agent_id = ?1",
+                params![agent_id],
+            )
+            .await?;
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<f64>(0).unwrap_or(0.0))
+            .unwrap_or(0.0))
     }
 
     /// List cost records for an agent, newest first.
@@ -520,7 +595,20 @@ impl crate::VoxDb {
         &self,
         agent_id: &str,
         limit: i64,
-    ) -> Result<Vec<(i64, String, Option<String>, String, Option<String>, i64, i64, f64, String)>, StoreError> {
+    ) -> Result<
+        Vec<(
+            i64,
+            String,
+            Option<String>,
+            String,
+            Option<String>,
+            i64,
+            i64,
+            f64,
+            String,
+        )>,
+        StoreError,
+    > {
         let mut rows = self.conn.query(
             "SELECT id, agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, timestamp
              FROM cost_records WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
@@ -576,17 +664,31 @@ impl crate::VoxDb {
 
     /// End a session with a status and set ended_at.
     pub async fn end_gamify_session(&self, id: &str, status: &str) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE agent_sessions SET status=?1, ended_at=datetime('now') WHERE id=?2",
-            params![status, id],
-        ).await?;
+        self.conn
+            .execute(
+                "UPDATE agent_sessions SET status=?1, ended_at=datetime('now') WHERE id=?2",
+                params![status, id],
+            )
+            .await?;
         Ok(())
     }
 
     /// List active sessions.
     pub async fn list_gamify_active_sessions(
         &self,
-    ) -> Result<Vec<(String, String, Option<String>, String, Option<String>, String, Option<String>, Option<String>)>, StoreError> {
+    ) -> Result<
+        Vec<(
+            String,
+            String,
+            Option<String>,
+            String,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+        )>,
+        StoreError,
+    > {
         let mut rows = self.conn.query(
             "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary
              FROM agent_sessions WHERE status='active' ORDER BY started_at DESC",
@@ -618,13 +720,15 @@ impl crate::VoxDb {
         metric_value: f64,
         period: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
+        self.conn
+            .execute(
+                "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
              VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(agent_id, metric_name, period) DO UPDATE SET
                metric_value=excluded.metric_value, timestamp=datetime('now')",
-            params![agent_id, metric_name, metric_value, period],
-        ).await?;
+                params![agent_id, metric_name, metric_value, period],
+            )
+            .await?;
         Ok(())
     }
 
@@ -634,11 +738,14 @@ impl crate::VoxDb {
         agent_id: &str,
         period: &str,
     ) -> Result<Vec<(String, f64)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT metric_name, metric_value FROM agent_metrics
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT metric_name, metric_value FROM agent_metrics
              WHERE agent_id=?1 AND period=?2",
-            params![agent_id, period],
-        ).await?;
+                params![agent_id, period],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             out.push((row.get::<String>(0)?, row.get::<f64>(1).unwrap_or(0.0)));
@@ -650,11 +757,18 @@ impl crate::VoxDb {
 
     /// Get a persistent counter value for a user.
     pub async fn get_gamify_counter(&self, user_id: &str, name: &str) -> Result<i64, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT count FROM gamify_counters WHERE user_id=?1 AND name=?2",
-            params![user_id, name],
-        ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0))
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT count FROM gamify_counters WHERE user_id=?1 AND name=?2",
+                params![user_id, name],
+            )
+            .await?;
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(0))
+            .unwrap_or(0))
     }
 
     /// Set a persistent counter to an explicit value.
@@ -664,11 +778,13 @@ impl crate::VoxDb {
         name: &str,
         value: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
+        self.conn
+            .execute(
+                "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
              ON CONFLICT(user_id, name) DO UPDATE SET count=excluded.count",
-            params![user_id, name, value],
-        ).await?;
+                params![user_id, name, value],
+            )
+            .await?;
         Ok(())
     }
 
@@ -678,16 +794,25 @@ impl crate::VoxDb {
         user_id: &str,
         name: &str,
     ) -> Result<i64, StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, 1)
+        self.conn
+            .execute(
+                "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, 1)
              ON CONFLICT(user_id, name) DO UPDATE SET count=count+1",
-            params![user_id, name],
-        ).await?;
-        let mut rows = self.conn.query(
-            "SELECT count FROM gamify_counters WHERE user_id=?1 AND name=?2",
-            params![user_id, name],
-        ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<i64>(0).unwrap_or(1)).unwrap_or(1))
+                params![user_id, name],
+            )
+            .await?;
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT count FROM gamify_counters WHERE user_id=?1 AND name=?2",
+                params![user_id, name],
+            )
+            .await?;
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(1))
+            .unwrap_or(1))
     }
 
     /// Increment a daily counter (gamify_daily_counters); returns new value.
@@ -706,7 +831,11 @@ impl crate::VoxDb {
             "SELECT count FROM gamify_daily_counters WHERE user_id=?1 AND event_type=?2 AND day=?3",
             params![user_id, event_type, day],
         ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<i64>(0).unwrap_or(1)).unwrap_or(1))
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(1))
+            .unwrap_or(1))
     }
 
     /// Get a daily counter value without incrementing.
@@ -720,7 +849,11 @@ impl crate::VoxDb {
             "SELECT count FROM gamify_daily_counters WHERE user_id=?1 AND event_type=?2 AND day=?3",
             params![user_id, event_type, day],
         ).await?;
-        Ok(rows.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0))
+        Ok(rows
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(0))
+            .unwrap_or(0))
     }
 
     // ── Event Config (gamify_event_config) ────────────────────────────────────
@@ -729,14 +862,21 @@ impl crate::VoxDb {
     pub async fn list_gamify_event_config_overrides(
         &self,
     ) -> Result<Vec<(String, i64, i64)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT event_type, COALESCE(xp_override, 0), COALESCE(crystals_override, 0)
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT event_type, COALESCE(xp_override, 0), COALESCE(crystals_override, 0)
              FROM gamify_event_config WHERE enabled=1",
-            (),
-        ).await?;
+                (),
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            out.push((row.get::<String>(0)?, row.get::<i64>(1).unwrap_or(0), row.get::<i64>(2).unwrap_or(0)));
+            out.push((
+                row.get::<String>(0)?,
+                row.get::<i64>(1).unwrap_or(0),
+                row.get::<i64>(2).unwrap_or(0),
+            ));
         }
         Ok(out)
     }
@@ -768,13 +908,20 @@ impl crate::VoxDb {
         &self,
         limit: i64,
     ) -> Result<Vec<(String, i64, i64)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT user_id, level, xp FROM gamify_profiles ORDER BY xp DESC LIMIT ?1",
-            params![limit],
-        ).await?;
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT user_id, level, xp FROM gamify_profiles ORDER BY xp DESC LIMIT ?1",
+                params![limit],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            out.push((row.get::<String>(0)?, row.get::<i64>(1)?, row.get::<i64>(2)?));
+            out.push((
+                row.get::<String>(0)?,
+                row.get::<i64>(1)?,
+                row.get::<i64>(2)?,
+            ));
         }
         Ok(out)
     }
@@ -790,26 +937,41 @@ impl crate::VoxDb {
         ).await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            out.push((row.get::<String>(0)?, row.get::<i64>(1)?, row.get::<i64>(2)?));
+            out.push((
+                row.get::<String>(0)?,
+                row.get::<i64>(1)?,
+                row.get::<i64>(2)?,
+            ));
         }
         Ok(out)
     }
 
     /// Get aggregate profile stats (completed quests, won battles).
-    pub async fn get_gamify_profile_stats(
-        &self,
-        user_id: &str,
-    ) -> Result<(i64, i64), StoreError> {
-        let mut r1 = self.conn.query(
-            "SELECT COUNT(id) FROM gamify_quests WHERE user_id=?1 AND completed=1",
-            params![user_id],
-        ).await?;
-        let quests = r1.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
-        let mut r2 = self.conn.query(
-            "SELECT COUNT(id) FROM gamify_battles WHERE user_id=?1 AND success=1",
-            params![user_id],
-        ).await?;
-        let battles = r2.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
+    pub async fn get_gamify_profile_stats(&self, user_id: &str) -> Result<(i64, i64), StoreError> {
+        let mut r1 = self
+            .conn
+            .query(
+                "SELECT COUNT(id) FROM gamify_quests WHERE user_id=?1 AND completed=1",
+                params![user_id],
+            )
+            .await?;
+        let quests = r1
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(0))
+            .unwrap_or(0);
+        let mut r2 = self
+            .conn
+            .query(
+                "SELECT COUNT(id) FROM gamify_battles WHERE user_id=?1 AND success=1",
+                params![user_id],
+            )
+            .await?;
+        let battles = r2
+            .next()
+            .await?
+            .map(|r| r.get::<i64>(0).unwrap_or(0))
+            .unwrap_or(0);
         Ok((quests, battles))
     }
 
@@ -817,10 +979,12 @@ impl crate::VoxDb {
 
     /// Acknowledge an A2A message by row id.
     pub async fn acknowledge_a2a_message_by_id(&self, id: i64) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE a2a_messages SET acknowledged=1 WHERE id=?1",
-            params![id],
-        ).await?;
+        self.conn
+            .execute(
+                "UPDATE a2a_messages SET acknowledged=1 WHERE id=?1",
+                params![id],
+            )
+            .await?;
         Ok(())
     }
 
@@ -872,10 +1036,12 @@ impl crate::VoxDb {
 
     /// Acknowledge an A2A message by UUID.
     pub async fn acknowledge_a2a_message_by_uuid(&self, uuid: &str) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE a2a_messages SET acknowledged=1 WHERE message_uuid=?1",
-            params![uuid],
-        ).await?;
+        self.conn
+            .execute(
+                "UPDATE a2a_messages SET acknowledged=1 WHERE message_uuid=?1",
+                params![uuid],
+            )
+            .await?;
         Ok(())
     }
 
@@ -888,7 +1054,6 @@ impl crate::VoxDb {
         let affected = self.conn.execute(&sql, ()).await?;
         Ok(affected as u64)
     }
-
 
     // ── OpLog (agent_oplog) ───────────────────────────────────────────────────
 
@@ -928,14 +1093,20 @@ impl crate::VoxDb {
                               CAST(change_id AS TEXT), CAST(timestamp_ms AS TEXT), CAST(undone AS TEXT)
                        FROM agent_oplog WHERE repository_id=?1 AND agent_id=?2
                        ORDER BY timestamp_ms DESC LIMIT ?3";
-            let rows = self.conn.query(sql, params![repository_id, aid, limit as i64]).await?;
+            let rows = self
+                .conn
+                .query(sql, params![repository_id, aid, limit as i64])
+                .await?;
             (sql, rows)
         } else {
             let sql = "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
                               CAST(change_id AS TEXT), CAST(timestamp_ms AS TEXT), CAST(undone AS TEXT)
                        FROM agent_oplog WHERE repository_id=?1
                        ORDER BY timestamp_ms DESC LIMIT ?2";
-            let rows = self.conn.query(sql, params![repository_id, limit as i64]).await?;
+            let rows = self
+                .conn
+                .query(sql, params![repository_id, limit as i64])
+                .await?;
             (sql, rows)
         };
         let _ = sql;
@@ -956,10 +1127,12 @@ impl crate::VoxDb {
         operation_id: &str,
         undone: bool,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE agent_oplog SET undone=?1 WHERE operation_id=?2",
-            params![if undone { 1i64 } else { 0i64 }, operation_id],
-        ).await?;
+        self.conn
+            .execute(
+                "UPDATE agent_oplog SET undone=?1 WHERE operation_id=?2",
+                params![if undone { 1i64 } else { 0i64 }, operation_id],
+            )
+            .await?;
         Ok(())
     }
 
@@ -967,29 +1140,33 @@ impl crate::VoxDb {
 
     /// Save a JSON-serialized actor state value under a key (upsert).
     pub async fn save_actor_state(&self, key: &str, value_json: &str) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO actor_state (key, value) VALUES (?1, ?2)
+        self.conn
+            .execute(
+                "INSERT INTO actor_state (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')",
-            params![key, value_json],
-        ).await?;
+                params![key, value_json],
+            )
+            .await?;
         Ok(())
     }
 
     /// Load a JSON-serialized actor state value by key.
     pub async fn load_actor_state(&self, key: &str) -> Result<Option<String>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT value FROM actor_state WHERE key=?1",
-            params![key],
-        ).await?;
-        Ok(rows.next().await?.and_then(|r| r.get::<Option<String>>(0).unwrap_or(None)))
+        let mut rows = self
+            .conn
+            .query("SELECT value FROM actor_state WHERE key=?1", params![key])
+            .await?;
+        Ok(rows
+            .next()
+            .await?
+            .and_then(|r| r.get::<Option<String>>(0).unwrap_or(None)))
     }
 
     /// Delete an actor state entry.
     pub async fn delete_actor_state(&self, key: &str) -> Result<(), StoreError> {
-        self.conn.execute(
-            "DELETE FROM actor_state WHERE key=?1",
-            params![key],
-        ).await?;
+        self.conn
+            .execute("DELETE FROM actor_state WHERE key=?1", params![key])
+            .await?;
         Ok(())
     }
 
@@ -1002,24 +1179,25 @@ impl crate::VoxDb {
         agent_id: &str,
         repository_id: &str,
     ) -> Result<bool, StoreError> {
-        let affected = self.conn.execute(
-            "INSERT OR IGNORE INTO agent_locks (path, agent_id, repository_id, acquired_at)
+        let affected = self
+            .conn
+            .execute(
+                "INSERT OR IGNORE INTO agent_locks (path, agent_id, repository_id, acquired_at)
              VALUES (?1, ?2, ?3, datetime('now'))",
-            params![path, agent_id, repository_id],
-        ).await?;
+                params![path, agent_id, repository_id],
+            )
+            .await?;
         Ok(affected > 0)
     }
 
     /// Release a file lock held by an agent.
-    pub async fn release_file_lock(
-        &self,
-        path: &str,
-        agent_id: &str,
-    ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "DELETE FROM agent_locks WHERE path=?1 AND agent_id=?2",
-            params![path, agent_id],
-        ).await?;
+    pub async fn release_file_lock(&self, path: &str, agent_id: &str) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "DELETE FROM agent_locks WHERE path=?1 AND agent_id=?2",
+                params![path, agent_id],
+            )
+            .await?;
         Ok(())
     }
 
@@ -1028,13 +1206,20 @@ impl crate::VoxDb {
         &self,
         repository_id: &str,
     ) -> Result<Vec<(String, String, String)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT path, agent_id, acquired_at FROM agent_locks WHERE repository_id=?1",
-            params![repository_id],
-        ).await?;
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT path, agent_id, acquired_at FROM agent_locks WHERE repository_id=?1",
+                params![repository_id],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            out.push((row.get::<String>(0)?, row.get::<String>(1)?, row.get::<String>(2)?));
+            out.push((
+                row.get::<String>(0)?,
+                row.get::<String>(1)?,
+                row.get::<String>(2)?,
+            ));
         }
         Ok(out)
     }
@@ -1048,13 +1233,15 @@ impl crate::VoxDb {
         repository_id: &str,
         status: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO agent_heartbeats (agent_id, repository_id, status, last_seen)
+        self.conn
+            .execute(
+                "INSERT INTO agent_heartbeats (agent_id, repository_id, status, last_seen)
              VALUES (?1, ?2, ?3, datetime('now'))
              ON CONFLICT(agent_id, repository_id) DO UPDATE SET
                status=excluded.status, last_seen=datetime('now')",
-            params![agent_id, repository_id, status],
-        ).await?;
+                params![agent_id, repository_id, status],
+            )
+            .await?;
         Ok(())
     }
 
@@ -1063,24 +1250,34 @@ impl crate::VoxDb {
         &self,
         repository_id: &str,
     ) -> Result<Vec<(String, String, String)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT agent_id, status, last_seen FROM agent_heartbeats WHERE repository_id=?1",
-            params![repository_id],
-        ).await?;
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT agent_id, status, last_seen FROM agent_heartbeats WHERE repository_id=?1",
+                params![repository_id],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            out.push((row.get::<String>(0)?, row.get::<String>(1)?, row.get::<String>(2)?));
+            out.push((
+                row.get::<String>(0)?,
+                row.get::<String>(1)?,
+                row.get::<String>(2)?,
+            ));
         }
         Ok(out)
     }
 
     /// Delete heartbeats not updated within `timeout_secs` seconds.
     pub async fn prune_stale_heartbeats(&self, timeout_secs: i64) -> Result<u64, StoreError> {
-        let affected = self.conn.execute(
-            "DELETE FROM agent_heartbeats
+        let affected = self
+            .conn
+            .execute(
+                "DELETE FROM agent_heartbeats
              WHERE last_seen < datetime('now', '-' || ?1 || ' seconds')",
-            params![timeout_secs],
-        ).await?;
+                params![timeout_secs],
+            )
+            .await?;
         Ok(affected as u64)
     }
 
@@ -1102,14 +1299,27 @@ impl crate::VoxDb {
         grind_capped: bool,
         lumens: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_policy_snapshots
+        self.conn
+            .execute(
+                "INSERT INTO gamify_policy_snapshots
              (user_id, event_type, base_xp, base_crystals, mode_label, effective_multiplier,
               awarded_xp, awarded_crystals, streak_days, grind_capped, lumens)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![user_id, event_type, base_xp, base_crystals, mode_label, effective_multiplier,
-                    awarded_xp, awarded_crystals, streak_days, if grind_capped { 1i64 } else { 0i64 }, lumens],
-        ).await?;
+                params![
+                    user_id,
+                    event_type,
+                    base_xp,
+                    base_crystals,
+                    mode_label,
+                    effective_multiplier,
+                    awarded_xp,
+                    awarded_crystals,
+                    streak_days,
+                    if grind_capped { 1i64 } else { 0i64 },
+                    lumens
+                ],
+            )
+            .await?;
         Ok(())
     }
 
@@ -1120,19 +1330,24 @@ impl crate::VoxDb {
         &self,
         user_id: &str,
     ) -> Result<Option<(String, String, String, i64)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT c.id, c.name, m.role, COALESCE(c.lumens, 0)
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT c.id, c.name, m.role, COALESCE(c.lumens, 0)
              FROM gamify_collegium c
              JOIN gamify_collegium_members m ON c.id=m.collegium_id
              WHERE m.user_id=?1",
-            params![user_id],
-        ).await?;
-        Ok(rows.next().await?.map(|r| (
-            r.get::<String>(0).unwrap_or_default(),
-            r.get::<String>(1).unwrap_or_default(),
-            r.get::<String>(2).unwrap_or_default(),
-            r.get::<i64>(3).unwrap_or(0),
-        )))
+                params![user_id],
+            )
+            .await?;
+        Ok(rows.next().await?.map(|r| {
+            (
+                r.get::<String>(0).unwrap_or_default(),
+                r.get::<String>(1).unwrap_or_default(),
+                r.get::<String>(2).unwrap_or_default(),
+                r.get::<i64>(3).unwrap_or(0),
+            )
+        }))
     }
 
     /// Add lumens to a collegium.
@@ -1141,10 +1356,12 @@ impl crate::VoxDb {
         collegium_id: &str,
         lumens_delta: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE gamify_collegium SET lumens=COALESCE(lumens, 0)+?1 WHERE id=?2",
-            params![lumens_delta, collegium_id],
-        ).await?;
+        self.conn
+            .execute(
+                "UPDATE gamify_collegium SET lumens=COALESCE(lumens, 0)+?1 WHERE id=?2",
+                params![lumens_delta, collegium_id],
+            )
+            .await?;
         Ok(())
     }
 }

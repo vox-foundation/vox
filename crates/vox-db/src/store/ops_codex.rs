@@ -12,10 +12,9 @@
 
 use turso::params;
 
-
 use crate::store::types::{
-    CodexChangeLogEntry, EndpointReliabilityEntry, PackageSearchResult, SkillManifestEntry, SkillExecutionParams,
-    SkillExecutionRow, StoreError, WorkflowExecutionRow,
+    CodexChangeLogEntry, EndpointReliabilityEntry, PackageSearchResult, SkillExecutionParams,
+    SkillExecutionRow, SkillManifestEntry, StoreError, WorkflowExecutionRow,
 };
 
 impl crate::VoxDb {
@@ -66,9 +65,17 @@ impl crate::VoxDb {
                   input_hash, output_size, error_kind, reflection_score)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![
-                    p.skill_id, p.version, p.session_id, p.workflow_id, p.agent_id,
-                    p.status, p.duration_ms, p.input_hash, p.output_size,
-                    p.error_kind, p.reflection_score
+                    p.skill_id,
+                    p.version,
+                    p.session_id,
+                    p.workflow_id,
+                    p.agent_id,
+                    p.status,
+                    p.duration_ms,
+                    p.input_hash,
+                    p.output_size,
+                    p.error_kind,
+                    p.reflection_score
                 ],
             )
             .await?;
@@ -114,19 +121,19 @@ impl crate::VoxDb {
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             out.push(SkillExecutionRow {
-                id:               row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-                skill_id:         row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
-                version:          row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
-                session_id:       row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
-                workflow_id:      row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
-                agent_id:         row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
-                status:           row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
-                duration_ms:      row.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
-                input_hash:       row.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
-                output_size:      row.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
-                error_kind:       row.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
+                id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                skill_id: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                version: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                session_id: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                workflow_id: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                agent_id: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                status: row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                duration_ms: row.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+                input_hash: row.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
+                output_size: row.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
+                error_kind: row.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
                 reflection_score: row.get(11).map_err(|e| StoreError::Db(e.to_string()))?,
-                created_at:       row.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
+                created_at: row.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
             });
         }
         Ok(out)
@@ -174,7 +181,10 @@ impl crate::VoxDb {
     }
 
     /// Insert a record for an activity execution into `execution_log`.
-    pub async fn log_execution(&self, p: &crate::store::types::LogExecutionParams<'_>) -> Result<i64, StoreError> {
+    pub async fn log_execution(
+        &self,
+        p: &crate::store::types::LogExecutionParams<'_>,
+    ) -> Result<i64, StoreError> {
         self.conn
             .execute(
                 "INSERT INTO execution_log (
@@ -240,17 +250,16 @@ impl crate::VoxDb {
             .await?;
         match rows.next().await? {
             Some(row) => Ok(Some(WorkflowExecutionRow {
-                workflow_id:  row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-                status:       row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
-                step_count:   row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
-                error_count:  row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
-                started_at:   row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
-                finished_at:  row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                workflow_id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                status: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                step_count: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                error_count: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                started_at: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                finished_at: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
             })),
             None => Ok(None),
         }
     }
-
 
     // ── Codex Change Log (codex_change_log) ──────────────────────────────────
 
@@ -688,12 +697,21 @@ impl crate::VoxDb {
             out.push(EndpointReliabilityEntry {
                 endpoint_url: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
                 model_id: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
-                total_requests: row.get::<i64>(2).map_err(|e| StoreError::Db(e.to_string()))? as u64,
+                total_requests: row
+                    .get::<i64>(2)
+                    .map_err(|e| StoreError::Db(e.to_string()))?
+                    as u64,
                 hallucination_proxy_ewma: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
                 contradiction_ratio_ewma: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
                 infra_failure_ewma: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
-                rate_limit_hits: row.get::<i64>(6).map_err(|e| StoreError::Db(e.to_string()))? as u64,
-                timeout_hits: row.get::<i64>(7).map_err(|e| StoreError::Db(e.to_string()))? as u64,
+                rate_limit_hits: row
+                    .get::<i64>(6)
+                    .map_err(|e| StoreError::Db(e.to_string()))?
+                    as u64,
+                timeout_hits: row
+                    .get::<i64>(7)
+                    .map_err(|e| StoreError::Db(e.to_string()))?
+                    as u64,
                 updated_at_ms: row.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
             });
         }
@@ -755,7 +773,12 @@ impl crate::VoxDb {
                 "INSERT OR IGNORE INTO corpus_snapshots
                      (fingerprint, generator_version, total_pairs, pair_breakdown_json)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![fingerprint, generator_version, total_pairs, pair_breakdown_json],
+                params![
+                    fingerprint,
+                    generator_version,
+                    total_pairs,
+                    pair_breakdown_json
+                ],
             )
             .await?;
         Ok(self.conn.last_insert_rowid())
@@ -868,10 +891,7 @@ impl crate::VoxDb {
     /// Called from `vox-skills/src/registry.rs` `SkillRegistry::uninstall`.
     pub async fn unpublish_skill(&self, id: &str) -> Result<(), StoreError> {
         self.conn
-            .execute(
-                "DELETE FROM skill_manifests WHERE id = ?1",
-                params![id],
-            )
+            .execute("DELETE FROM skill_manifests WHERE id = ?1", params![id])
             .await?;
         Ok(())
     }

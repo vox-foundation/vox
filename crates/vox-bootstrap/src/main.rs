@@ -23,6 +23,12 @@ struct Cli {
     /// Actually install the vox CLI (`cargo install --path crates/vox-cli`) after successful probe.
     #[arg(long)]
     install: bool,
+    /// Force source install (skip release binary attempt).
+    #[arg(long)]
+    source_only: bool,
+    /// Optional release version/tag (for example `v1.2.3`) when installing from binary.
+    #[arg(long)]
+    version: Option<String>,
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -44,6 +50,8 @@ fn main() {
         install_clang: cli.install_clang,
         apply: cli.apply,
         install: cli.install,
+        source_only: cli.source_only,
+        version: cli.version,
     };
 
     match cli.command {
@@ -53,6 +61,8 @@ fn main() {
                 install_clang: opts.install_clang,
                 apply: false,
                 install: false,
+                source_only: opts.source_only,
+                version: opts.version.clone(),
             });
             let stdout = io::stdout();
             let mut lock = stdout.lock();

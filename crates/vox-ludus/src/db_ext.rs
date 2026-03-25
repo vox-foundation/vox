@@ -27,7 +27,9 @@ pub async fn increment_daily_counter(db: &Codex, user_id: &str, event_type: &str
             params![user_id, event_type, day],
         )
         .await?;
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT count FROM gamify_daily_counters \
          WHERE user_id = ?1 AND event_type = ?2 AND day = ?3",
             params![user_id, event_type, day],
@@ -43,7 +45,9 @@ pub async fn increment_daily_counter(db: &Codex, user_id: &str, event_type: &str
 /// Get today's counter value without incrementing.
 pub async fn get_daily_counter(db: &Codex, user_id: &str, event_type: &str) -> Result<i64> {
     let day = current_day();
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT count FROM gamify_daily_counters \
          WHERE user_id = ?1 AND event_type = ?2 AND day = ?3",
             params![user_id, event_type, day],
@@ -63,7 +67,9 @@ pub async fn load_event_config_overrides(
     db: &Codex,
 ) -> Result<crate::reward_policy::EventConfigOverrides> {
     let mut ov = crate::reward_policy::EventConfigOverrides::default();
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT event_type, xp_override, crystals_override \
          FROM gamify_event_config WHERE enabled = 1",
             turso::params![],
@@ -114,7 +120,9 @@ pub async fn set_event_config_override(
 /// Returns `true` if the user has already had at least one `build_failed` today.
 pub async fn has_failed_today(db: &Codex, user_id: &str) -> Result<bool> {
     let day = current_day();
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT count FROM gamify_daily_counters \
          WHERE user_id=?1 AND event_type='build_failed' AND day=?2",
             params![user_id, day],

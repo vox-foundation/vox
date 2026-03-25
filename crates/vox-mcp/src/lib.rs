@@ -28,28 +28,28 @@ pub mod client;
 pub mod context;
 /// Thin `vox-dei-d` JSON-line RPC client for planning (`ai.plan.*`) without linking `vox-cli`.
 pub mod dei_ipc;
+/// Live DEI orchestrator inspection: queues, locks, VCS, config, costs, task submit, heartbeats.
+pub mod dei_tools;
 /// Gamify companions and orchestrator queue status surfaced as MCP tool JSON.
 pub mod gamify;
 /// Resolves sticky chat/inline model overrides and performs HTTP LLM calls (OpenRouter, etc.).
 pub mod llm_bridge;
 /// Long-term MEMORY.md, Codex knowledge graph, sessions, and user preference tools.
 pub mod memory;
-/// Best-effort mens registry publish on MCP startup (`VOX_MESH_ENABLED`).
-pub mod populi_startup;
 /// Model registry MCP tools: list models, suggest by task category, per-agent overrides.
 pub mod models;
-/// Live DEI orchestrator inspection: queues, locks, VCS, config, costs, task submit, heartbeats.
-pub mod dei_tools;
 /// Shared `ToolResult` envelope and Deserialize/Serialize shapes for MCP tool arguments.
 pub mod params;
+/// Best-effort mens registry publish on MCP startup (`VOX_MESH_ENABLED`).
+pub mod populi_startup;
 /// Bulletin-board Q&A between agents (ask, answer, pending, broadcast).
 pub mod qa;
-/// Sync locking helpers (re-exported from vox-orchestrator).
-pub mod sync_lock;
 /// [`ServerState`], MCP initialize/handler, and stdio server wiring.
 pub mod server;
 /// vox-skills marketplace: install, search, parse `SKILL.md`, list installed skills.
 pub mod skills;
+/// Sync locking helpers (re-exported from vox-orchestrator).
+pub mod sync_lock;
 /// Tool name registry, `handle_tool_call` dispatcher, and submodule implementations.
 pub mod tools;
 

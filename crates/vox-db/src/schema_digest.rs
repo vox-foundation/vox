@@ -478,7 +478,10 @@ pub fn digest_to_json(digest: &SchemaDigest) -> Result<String, serde_json::Error
 
 // ── Private Helpers ─────────────────────────────────────
 
-fn extract_table_info(table: &vox_compiler::ast::decl::TableDecl, all_table_names: &[String]) -> TableInfo {
+fn extract_table_info(
+    table: &vox_compiler::ast::decl::TableDecl,
+    all_table_names: &[String],
+) -> TableInfo {
     let fields: Vec<FieldInfo> = table
         .fields
         .iter()
@@ -519,7 +522,10 @@ fn extract_collection_info(
     }
 }
 
-fn extract_field_info(field: &vox_compiler::ast::decl::TableField, all_table_names: &[String]) -> FieldInfo {
+fn extract_field_info(
+    field: &vox_compiler::ast::decl::TableField,
+    all_table_names: &[String],
+) -> FieldInfo {
     let type_str = type_expr_to_string(&field.type_ann);
     let is_optional = matches!(&field.type_ann, TypeExpr::Generic { name, .. } if name == "Option");
     let references_table = detect_table_reference(&field.type_ann, all_table_names);
@@ -532,7 +538,10 @@ fn extract_field_info(field: &vox_compiler::ast::decl::TableField, all_table_nam
     }
 }
 
-fn extract_function_info(func: &vox_compiler::ast::decl::FnDecl, all_table_names: &[String]) -> FunctionInfo {
+fn extract_function_info(
+    func: &vox_compiler::ast::decl::FnDecl,
+    all_table_names: &[String],
+) -> FunctionInfo {
     let params: Vec<ParamInfo> = func
         .params
         .iter()
@@ -744,7 +753,6 @@ mod tests {
     use vox_compiler::ast::decl::*;
     use vox_compiler::ast::types::TypeExpr;
     use vox_test_harness::spans::dummy_span;
-
 
     fn make_field(name: &str, type_name: &str) -> TableField {
         TableField {

@@ -76,8 +76,7 @@ impl ExecutionPlanner {
             anyhow::bail!(super::operator_messages::QLORA_REQUIRES_HF_TOKENIZER);
         }
 
-        if c.data.tokenizer_mode == MensTokenizerMode::Hf
-            && c.adapter.method == AdapterMethod::Lora
+        if c.data.tokenizer_mode == MensTokenizerMode::Hf && c.adapter.method == AdapterMethod::Lora
         {
             let Some(ref cfg) = c.model.config_json else {
                 anyhow::bail!(super::operator_messages::BURN_HF_CONFIG_REQUIRED);

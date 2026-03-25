@@ -5,7 +5,13 @@ use anyhow::Context;
 use crate::cli::{Args, Cmd};
 
 pub fn run(args: Args) -> anyhow::Result<()> {
-    let Cmd::Merge { base_shard, adapter, meta, output } = args.cmd else {
+    let Cmd::Merge {
+        base_shard,
+        adapter,
+        meta,
+        output,
+    } = args.cmd
+    else {
         unreachable!()
     };
     if base_shard.is_empty() {
@@ -29,8 +35,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     if !meta.is_file() {
         anyhow::bail!("meta JSON not found: {}", meta.display());
     }
-    let raw = std::fs::read_to_string(&meta)
-        .with_context(|| format!("read {}", meta.display()))?;
+    let raw = std::fs::read_to_string(&meta).with_context(|| format!("read {}", meta.display()))?;
     let meta_v2 = if let Ok(m) =
         serde_json::from_str::<vox_mens::tensor::candle_qlora_merge::QloraAdapterMetaV2>(&raw)
     {

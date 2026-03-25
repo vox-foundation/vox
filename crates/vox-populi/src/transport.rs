@@ -24,7 +24,7 @@ use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetReques
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-use crate::{PopuliRegistryFile, NodeRecord, PopuliRegistryError};
+use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
 /// Body for [`leave_node`]: remove a node id from the in-memory registry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -196,7 +196,7 @@ async fn deliver_a2a(
     State(_st): State<MeshTransportState>,
     Json(_req): Json<A2ADeliverRequest>,
 ) -> StatusCode {
-    // This route is a stub in the control plane itself; 
+    // This route is a stub in the control plane itself;
     // real delivery happens in the local node's proxy or orchestrator.
     StatusCode::ACCEPTED
 }

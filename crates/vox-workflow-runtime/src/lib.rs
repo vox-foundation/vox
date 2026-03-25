@@ -358,7 +358,9 @@ pub async fn interpret_workflow_durable(
 ) -> anyhow::Result<Vec<Value>> {
     let plan = plan_workflow_activities(hir, workflow_name)?;
     let mut journal = Vec::new();
-    tracker.on_workflow_started(workflow_name, plan.len()).await?;
+    tracker
+        .on_workflow_started(workflow_name, plan.len())
+        .await?;
     journal.push(json!({
         "event": "WorkflowStarted",
         "workflow": workflow_name,
@@ -370,7 +372,10 @@ pub async fn interpret_workflow_durable(
             .clone()
             .unwrap_or_else(|| format!("{workflow_name}-{idx}"));
 
-        if tracker.is_activity_completed(workflow_name, &activity_id).await? {
+        if tracker
+            .is_activity_completed(workflow_name, &activity_id)
+            .await?
+        {
             journal.push(json!({
                 "event": "ActivitySkipped",
                 "workflow": workflow_name,
@@ -381,14 +386,16 @@ pub async fn interpret_workflow_durable(
             continue;
         }
 
-        tracker.on_activity_started(workflow_name, &step.name, &activity_id).await?;
+        tracker
+            .on_activity_started(workflow_name, &step.name, &activity_id)
+            .await?;
         journal.push(json!({
             "event": "ActivityStarted",
             "workflow": workflow_name,
             "activity": step.name,
             "activity_id": activity_id,
         }));
-        
+
         let entry = if step.mens {
             #[cfg(feature = "mens")]
             {
@@ -417,8 +424,10 @@ pub async fn interpret_workflow_durable(
                 "status": "noop",
             })
         };
-        
-        tracker.on_activity_completed(workflow_name, &step.name, &activity_id, &entry).await?;
+
+        tracker
+            .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
+            .await?;
         journal.push(entry);
 
         journal.push(json!({

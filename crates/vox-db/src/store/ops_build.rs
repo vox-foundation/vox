@@ -74,21 +74,23 @@ impl crate::VoxDb {
         fresh_count: i64,
         dep_fingerprint: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn.execute(
-            "INSERT INTO build_run (repository_id, run_name, rustc_version, profile, total_ms,
+        self.conn
+            .execute(
+                "INSERT INTO build_run (repository_id, run_name, rustc_version, profile, total_ms,
              crate_count, fresh_count, dep_fingerprint)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            (
-                repository_id,
-                run_name,
-                rustc_version,
-                profile,
-                total_ms,
-                crate_count,
-                fresh_count,
-                dep_fingerprint,
-            ),
-        ).await?;
+                (
+                    repository_id,
+                    run_name,
+                    rustc_version,
+                    profile,
+                    total_ms,
+                    crate_count,
+                    fresh_count,
+                    dep_fingerprint,
+                ),
+            )
+            .await?;
         let mut rows = self.conn.query("SELECT last_insert_rowid()", ()).await?;
         let id: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
         Ok(id)
@@ -117,11 +119,14 @@ impl crate::VoxDb {
         warnings: &[(&str, &str, Option<&str>, &str)],
     ) -> Result<(), StoreError> {
         for (crate_name, level, code, message) in warnings {
-            let _ = self.conn.execute(
-                "INSERT INTO build_warning (run_id, crate_name, level, code, message)
+            let _ = self
+                .conn
+                .execute(
+                    "INSERT INTO build_warning (run_id, crate_name, level, code, message)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                (run_id, *crate_name, *level, *code, *message),
-            ).await;
+                    (run_id, *crate_name, *level, *code, *message),
+                )
+                .await;
         }
         Ok(())
     }
@@ -132,14 +137,19 @@ impl crate::VoxDb {
         repository_id: &str,
     ) -> Result<Option<BuildHealthSummary>, StoreError> {
         // Latest run id
-        let mut rows = self.conn.query(
-            "SELECT id, total_ms, crate_count, fresh_count, dep_fingerprint
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, total_ms, crate_count, fresh_count, dep_fingerprint
              FROM build_run WHERE repository_id = ?1
              ORDER BY recorded_at DESC LIMIT 1",
-            (repository_id,),
-        ).await?;
+                (repository_id,),
+            )
+            .await?;
 
-        let Some(row) = rows.next().await? else { return Ok(None) };
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
         let run_id: i64 = row.get(0)?;
         let total_ms: i64 = row.get(1)?;
         let crate_count: i64 = row.get(2)?;
@@ -147,39 +157,57 @@ impl crate::VoxDb {
         let dep_fp: Option<String> = row.get(4).ok().flatten();
 
         // Previous fingerprint
-        let mut prev_rows = self.conn.query(
-            "SELECT dep_fingerprint FROM build_run WHERE repository_id = ?1
+        let mut prev_rows = self
+            .conn
+            .query(
+                "SELECT dep_fingerprint FROM build_run WHERE repository_id = ?1
              ORDER BY recorded_at DESC LIMIT 1 OFFSET 1",
-            (repository_id,),
-        ).await?;
-        let prev_fp: Option<String> = prev_rows.next().await?
-            .and_then(|r| r.get(0).ok()).flatten();
+                (repository_id,),
+            )
+            .await?;
+        let prev_fp: Option<String> = prev_rows
+            .next()
+            .await?
+            .and_then(|r| r.get(0).ok())
+            .flatten();
         let dep_changed = dep_fp != prev_fp;
 
         // Slowest crates
-        let mut s_rows = self.conn.query(
-            "SELECT name, elapsed_ms FROM build_crate_sample
+        let mut s_rows = self
+            .conn
+            .query(
+                "SELECT name, elapsed_ms FROM build_crate_sample
              WHERE run_id = ?1 AND fresh = 0
              ORDER BY elapsed_ms DESC LIMIT 5",
-            (run_id,),
-        ).await?;
+                (run_id,),
+            )
+            .await?;
         let mut slowest = Vec::new();
         while let Some(r) = s_rows.next().await? {
             let name: String = r.get(0)?;
             let elapsed_ms: Option<i64> = r.get(1).ok();
-            let hint = elapsed_ms.and(
-                crate::build_hints::lookup_hint(&name, None).map(|s| s.to_string())
-            );
-            slowest.push(CrateSample { name, elapsed_ms, hint });
+            let hint =
+                elapsed_ms.and(crate::build_hints::lookup_hint(&name, None).map(|s| s.to_string()));
+            slowest.push(CrateSample {
+                name,
+                elapsed_ms,
+                hint,
+            });
         }
 
         // Warning count
-        let mut w_rows = self.conn.query(
-            "SELECT COUNT(*) FROM build_warning WHERE run_id = ?1",
-            (run_id,),
-        ).await?;
-        let warning_count: i64 = w_rows.next().await?
-            .and_then(|r| r.get(0).ok()).unwrap_or(0);
+        let mut w_rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM build_warning WHERE run_id = ?1",
+                (run_id,),
+            )
+            .await?;
+        let warning_count: i64 = w_rows
+            .next()
+            .await?
+            .and_then(|r| r.get(0).ok())
+            .unwrap_or(0);
 
         Ok(Some(BuildHealthSummary {
             total_ms,
@@ -197,8 +225,10 @@ impl crate::VoxDb {
         repository_id: &str,
         run_id: i64,
     ) -> Result<Vec<RegressionRow>, StoreError> {
-        let mut rows = self.conn.query(
-            "WITH baseline AS (
+        let mut rows = self
+            .conn
+            .query(
+                "WITH baseline AS (
                 SELECT cs.name, AVG(cs.elapsed_ms) AS avg_ms
                 FROM build_crate_sample cs
                 JOIN build_run br ON cs.run_id = br.id
@@ -215,8 +245,9 @@ impl crate::VoxDb {
             )
             WHERE ratio >= 1.5
             ORDER BY ratio DESC",
-            (repository_id, run_id),
-        ).await?;
+                (repository_id, run_id),
+            )
+            .await?;
 
         let mut results = Vec::new();
         while let Some(r) = rows.next().await? {
@@ -224,9 +255,14 @@ impl crate::VoxDb {
             let elapsed_ms: i64 = r.get(1).unwrap_or(0);
             let avg_ms: f64 = r.get(2).unwrap_or(0.0);
             let ratio: f64 = r.get(3).unwrap_or(0.0);
-            let hint = crate::build_hints::lookup_hint(&name, None)
-                .map(|s| s.to_string());
-            results.push(RegressionRow { name, elapsed_ms, avg_ms, ratio, hint });
+            let hint = crate::build_hints::lookup_hint(&name, None).map(|s| s.to_string());
+            results.push(RegressionRow {
+                name,
+                elapsed_ms,
+                avg_ms,
+                ratio,
+                hint,
+            });
         }
         Ok(results)
     }
@@ -252,13 +288,22 @@ impl crate::VoxDb {
         while let Some(r) = rows.next().await? {
             let crate_name: String = r.get(0)?;
             let raw_code: String = r.get(1)?;
-            let code = if raw_code.is_empty() { None } else { Some(raw_code) };
+            let code = if raw_code.is_empty() {
+                None
+            } else {
+                Some(raw_code)
+            };
             let occurrences: i64 = r.get(2).unwrap_or(0);
             let message: String = r.get(3).unwrap_or_default();
-            let hint = crate::build_hints::lookup_hint(
-                &crate_name, code.as_deref()
-            ).map(|s| s.to_string());
-            results.push(WarningRow { crate_name, code, occurrences, message, hint });
+            let hint = crate::build_hints::lookup_hint(&crate_name, code.as_deref())
+                .map(|s| s.to_string());
+            results.push(WarningRow {
+                crate_name,
+                code,
+                occurrences,
+                message,
+                hint,
+            });
         }
         Ok(results)
     }

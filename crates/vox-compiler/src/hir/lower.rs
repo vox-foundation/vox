@@ -1,10 +1,10 @@
-use crate::hir::def_map::DefMap;
-use crate::hir::*;
 use crate::ast::decl::*;
 use crate::ast::expr::{self, BinOp, Expr, UnOp};
 use crate::ast::pattern::Pattern;
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
+use crate::hir::def_map::DefMap;
+use crate::hir::*;
 
 /// Lower an AST Module to a HirModule.
 pub fn lower_module(module: &Module) -> HirModule {
@@ -161,7 +161,8 @@ impl LowerCtx {
                     hir.not_founds.push(HirNotFound(decl.clone()));
                 }
                 Decl::ReactiveComponent(decl) => {
-                    hir.reactive_components.push(self.lower_reactive_component(decl));
+                    hir.reactive_components
+                        .push(self.lower_reactive_component(decl));
                 }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());

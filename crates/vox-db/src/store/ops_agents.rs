@@ -6,7 +6,6 @@
 
 use turso::params;
 
-
 use crate::store::types::{StoreError, TrainingPair};
 
 impl crate::VoxDb {
@@ -216,7 +215,11 @@ impl crate::VoxDb {
     /// The look-up key is `"{namespace}.{key}"` and returns the `value` column,
     /// or `StoreError::NotFound` when absent. Used by `vox doctor` to detect
     /// registered project workspaces.
-    pub async fn get_object_metadata(&self, namespace: &str, key: &str) -> Result<String, StoreError> {
+    pub async fn get_object_metadata(
+        &self,
+        namespace: &str,
+        key: &str,
+    ) -> Result<String, StoreError> {
         let lookup = format!("{namespace}.{key}");
         let mut rows = self
             .conn
@@ -258,13 +261,16 @@ impl crate::VoxDb {
 
     /// Export training pairs for RLHF fine-tuning.
     pub async fn export_training_pairs(&self, limit: i64) -> Result<Vec<TrainingPair>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT i.prompt, i.response, f.rating, f.correction_text, f.feedback_type
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT i.prompt, i.response, f.rating, f.correction_text, f.feedback_type
              FROM llm_interactions i
              LEFT JOIN llm_feedback f ON f.interaction_id = i.rowid
              ORDER BY i.rowid DESC LIMIT ?1",
-            params![limit],
-        ).await?;
+                params![limit],
+            )
+            .await?;
 
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
@@ -273,14 +279,19 @@ impl crate::VoxDb {
                 response: row.get(1)?,
                 rating: row.get::<Option<i64>>(2)?,
                 correction: row.get::<Option<String>>(3)?,
-                feedback_type: row.get::<Option<String>>(4)?.unwrap_or_else(|| "none".to_string()),
+                feedback_type: row
+                    .get::<Option<String>>(4)?
+                    .unwrap_or_else(|| "none".to_string()),
             });
         }
         Ok(out)
     }
 
     /// Load all events for a given session for replay.
-    pub async fn load_session_events(&self, session_id: &str) -> Result<Vec<(String, String)>, StoreError> {
+    pub async fn load_session_events(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<(String, String)>, StoreError> {
         let mut rows = self.conn.query(
             "SELECT event_type, payload_json FROM agent_session_events WHERE session_id = ?1 ORDER BY id ASC",
             params![session_id],
@@ -294,12 +305,17 @@ impl crate::VoxDb {
     }
 
     /// Append a single event to a session's history in the DB.
-    pub async fn append_session_event(&self, session_id: &str, event_type: &str, payload_json: &str) -> Result<(), StoreError> {
+    pub async fn append_session_event(
+        &self,
+        session_id: &str,
+        event_type: &str,
+        payload_json: &str,
+    ) -> Result<(), StoreError> {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-            
+
         self.conn.execute(
             "INSERT INTO agent_session_events (session_id, event_type, payload_json, created_at_ms)
              VALUES (?1, ?2, ?3, ?4)",

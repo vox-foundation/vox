@@ -61,8 +61,12 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
     let orch = &state.orchestrator;
     let ttl = params.ttl_seconds.unwrap_or(0);
     let ctx_handle = orch.context_handle();
-    ctx_handle.write().unwrap()
-        .set(vox_orchestrator::AgentId(params.agent_id), &params.key, &params.value, ttl);
+    ctx_handle.write().unwrap().set(
+        vox_orchestrator::AgentId(params.agent_id),
+        &params.key,
+        &params.value,
+        ttl,
+    );
     ToolResult::ok(format!("Key '{}' set successfully", params.key)).to_json()
 }
 
@@ -106,8 +110,10 @@ pub async fn context_budget(state: &ServerState, params: ContextBudgetParams) ->
 pub async fn handoff_context(state: &ServerState, params: HandoffContextParams) -> String {
     let orch = &state.orchestrator;
     let summary_handle = orch.summary_handle();
-    summary_handle.write().unwrap()
-        .handoff(vox_orchestrator::AgentId(params.from_agent), vox_orchestrator::AgentId(params.to_agent));
+    summary_handle.write().unwrap().handoff(
+        vox_orchestrator::AgentId(params.from_agent),
+        vox_orchestrator::AgentId(params.to_agent),
+    );
     ToolResult::ok(format!(
         "Context handed off from agent {} to {}",
         params.from_agent, params.to_agent

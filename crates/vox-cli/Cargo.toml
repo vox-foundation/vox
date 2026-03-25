@@ -156,6 +156,9 @@ twox-hash = { version = "2", optional = true }
 which = { version = "8", optional = true }
 wasmtime = { version = "42.0.1", optional = true }
 wasmtime-wasi = { version = "42.0.1", optional = true }
+flate2 = "1.1.9"
+tar = "0.4.45"
+zip = { version = "8.4.0", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4", optional = true }

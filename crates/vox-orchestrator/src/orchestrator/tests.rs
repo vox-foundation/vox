@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::OrchestratorConfig;
-use crate::types::{AgentTask, TaskPriority, FileAffinity, TaskId};
+use crate::types::{AgentTask, FileAffinity, TaskId, TaskPriority};
 
 #[cfg(test)]
 mod tests {
@@ -54,11 +54,21 @@ mod tests {
     async fn same_file_routes_to_same_agent() {
         let orch = test_orchestrator();
         let t1 = orch
-            .submit_task("Task 1", vec![FileAffinity::write("src/lib.rs")], None, None)
+            .submit_task(
+                "Task 1",
+                vec![FileAffinity::write("src/lib.rs")],
+                None,
+                None,
+            )
             .await
             .unwrap();
         let t2 = orch
-            .submit_task("Task 2", vec![FileAffinity::write("src/lib.rs")], None, None)
+            .submit_task(
+                "Task 2",
+                vec![FileAffinity::write("src/lib.rs")],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -99,14 +109,23 @@ mod tests {
     async fn complete_task_flow() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Test task", vec![FileAffinity::write("test.rs")], None, None)
+            .submit_task(
+                "Test task",
+                vec![FileAffinity::write("test.rs")],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
 
         // Dequeue the task (simulating an agent picking it up)
-        orch.agent_queue(agent_id).unwrap().write().unwrap().dequeue();
+        orch.agent_queue(agent_id)
+            .unwrap()
+            .write()
+            .unwrap()
+            .dequeue();
 
         // Complete it
         orch.complete_task(task_id).await.expect("complete");
@@ -120,7 +139,11 @@ mod tests {
 
         // Manually enqueue a task
         let task = AgentTask::new(TaskId(99), "leftover", TaskPriority::Normal, vec![]);
-        orch.agent_queue(agent_id).unwrap().write().unwrap().enqueue(task);
+        orch.agent_queue(agent_id)
+            .unwrap()
+            .write()
+            .unwrap()
+            .enqueue(task);
 
         let remaining = orch.retire_agent(agent_id).unwrap();
         assert_eq!(remaining.len(), 1);
@@ -133,10 +156,23 @@ mod tests {
         let agent_id = orch.spawn_agent("test").unwrap();
 
         orch.pause_agent(agent_id).unwrap();
-        assert!(orch.agent_queue(agent_id).unwrap().read().unwrap().is_paused());
+        assert!(
+            orch.agent_queue(agent_id)
+                .unwrap()
+                .read()
+                .unwrap()
+                .is_paused()
+        );
 
         orch.resume_agent(agent_id).unwrap();
-        assert!(!orch.agent_queue(agent_id).unwrap().read().unwrap().is_paused());
+        assert!(
+            !orch
+                .agent_queue(agent_id)
+                .unwrap()
+                .read()
+                .unwrap()
+                .is_paused()
+        );
     }
 
     #[tokio::test]
@@ -145,7 +181,10 @@ mod tests {
             enabled: false,
             ..OrchestratorConfig::for_testing()
         });
-        let err = orch.submit_task("test", vec![], None, None).await.unwrap_err();
+        let err = orch
+            .submit_task("test", vec![], None, None)
+            .await
+            .unwrap_err();
         assert!(matches!(err, OrchestratorError::Disabled));
     }
 
@@ -192,7 +231,11 @@ mod tests {
             .await
             .unwrap();
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
-        orch.agent_queue(agent_id).unwrap().write().unwrap().dequeue();
+        orch.agent_queue(agent_id)
+            .unwrap()
+            .write()
+            .unwrap()
+            .dequeue();
         orch.complete_task(task_id).await.unwrap();
         let steps = orch.task_trace(task_id).expect("trace exists");
         let outcome = steps
@@ -210,7 +253,11 @@ mod tests {
             .await
             .unwrap();
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
-        orch.agent_queue(agent_id).unwrap().write().unwrap().dequeue();
+        orch.agent_queue(agent_id)
+            .unwrap()
+            .write()
+            .unwrap()
+            .dequeue();
         orch.fail_task(task_id, "timeout".to_string())
             .await
             .unwrap();
@@ -257,7 +304,10 @@ mod tests {
             queue.enqueue(task);
             let _ = queue.dequeue();
         }
-        orch.task_assignments.write().unwrap().insert(task_id, agent_id);
+        orch.task_assignments
+            .write()
+            .unwrap()
+            .insert(task_id, agent_id);
 
         orch.complete_task(task_id).await.expect("gate path");
 

@@ -1,6 +1,6 @@
+use super::{Orchestrator, OrchestratorError};
 use crate::planning::PlanningTaskMeta;
 use crate::types::{FileAffinity, TaskId, TaskPriority};
-use super::{Orchestrator, OrchestratorError};
 
 impl Orchestrator {
     /// Bridge planner workflow handoff decisions back into orchestrator execution.
@@ -26,10 +26,11 @@ impl Orchestrator {
                 .to_string(),
             ),
         };
-        self.event_bus.emit(crate::events::AgentEventKind::WorkflowHandoffRequested {
-            plan_session_id: plan_session_id.clone(),
-            workflow_name: "auto".to_string(),
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::WorkflowHandoffRequested {
+                plan_session_id: plan_session_id.clone(),
+                workflow_name: "auto".to_string(),
+            });
         let task_id = self
             .submit_task_with_agent_planned(
                 format!("[workflow-handoff] {}", goal),
@@ -41,10 +42,11 @@ impl Orchestrator {
                 Some(meta),
             )
             .await?;
-        self.event_bus.emit(crate::events::AgentEventKind::WorkflowHandoffCompleted {
-            plan_session_id,
-            task_id: task_id.0,
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::WorkflowHandoffCompleted {
+                plan_session_id,
+                task_id: task_id.0,
+            });
         Ok(task_id)
     }
 }

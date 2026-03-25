@@ -6,7 +6,7 @@
 use std::ffi::OsString;
 use std::sync::Mutex;
 
-use vox_compiler::codegen_ts::{generate, generate_with_options, CodegenOptions};
+use vox_compiler::codegen_ts::{CodegenOptions, generate, generate_with_options};
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parser::parse;
 use vox_compiler::typeck::typecheck_module;
@@ -713,7 +713,6 @@ fn dashboard_full_pipeline_e2e() {
         types.1.contains("Message"),
         "types.ts should contain Message type"
     );
-
 }
 
 #[test]
@@ -856,10 +855,16 @@ fn pipeline_generics_option_codegen() {
     let hir = vox_compiler::hir::lower_module(&module);
     let output = generate(&hir).unwrap();
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
-    assert!(types.1.contains("export type Option"), "Should export Option");
+    assert!(
+        types.1.contains("export type Option"),
+        "Should export Option"
+    );
     assert!(types.1.contains("_tag: \"Some\""), "Should have Some tag");
     assert!(types.1.contains("_tag: \"None\""), "Should have None tag");
-    assert!(types.1.contains("export type Result"), "Should export Result");
+    assert!(
+        types.1.contains("export type Result"),
+        "Should export Result"
+    );
     assert!(types.1.contains("_tag: \"Ok\""), "Should have Ok tag");
     assert!(types.1.contains("_tag: \"Err\""), "Should have Err tag");
 }
@@ -913,10 +918,7 @@ fn pipeline_hooks_demo_codegen() {
     assert!(tsx.1.contains("useMemo"), "Should use useMemo");
     assert!(tsx.1.contains("useRef"), "Should use useRef");
     assert!(tsx.1.contains("useCallback"), "Should use useCallback");
-    assert!(
-        tsx.1.contains("import React,"),
-        "Should have React import"
-    );
+    assert!(tsx.1.contains("import React,"), "Should have React import");
 }
 
 // island_demo.vox
@@ -1186,10 +1188,7 @@ fn pipeline_multi_route_codegen() {
         filenames.contains(&"TodoList.tsx"),
         "Should produce TodoList.tsx"
     );
-    assert!(
-        filenames.contains(&"About.tsx"),
-        "Should produce About.tsx"
-    );
+    assert!(filenames.contains(&"About.tsx"), "Should produce About.tsx");
     assert!(
         filenames.contains(&"App.tsx"),
         "Should produce App.tsx for routes:"
@@ -1218,4 +1217,3 @@ fn pipeline_multi_route_rust_codegen() {
         "Should have server fn handler for get_stats"
     );
 }
-

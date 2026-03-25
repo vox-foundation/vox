@@ -83,10 +83,7 @@ fn infer_category(path: &Path) -> String {
     for component in path.components() {
         let s = component.as_os_str().to_string_lossy();
         if s.starts_with("vox-") {
-            return s
-                .trim_start_matches("vox-")
-                .replace('-', "_")
-                .to_string();
+            return s.trim_start_matches("vox-").replace('-', "_").to_string();
         }
     }
     "rust_source".to_string()
@@ -110,8 +107,8 @@ pub fn extract_from_file(
     config: &ExtractRsConfig,
     category: &str,
 ) -> anyhow::Result<Vec<RsTrainingPair>> {
-    let source = std::fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let source =
+        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     extract_from_source(&source, path, config, category)
 }
 
@@ -301,10 +298,7 @@ fn walk_dir_rs(
         let path = entry.path();
         if path.is_dir() {
             // Skip target/, .git/, and similar noise
-            let name = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("");
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if matches!(name, "target" | ".git" | "node_modules" | ".vox") {
                 continue;
             }
@@ -400,8 +394,8 @@ mod tests {
             skip_tests: true,
             ..ExtractRsConfig::default()
         };
-        let pairs = extract_from_source(SAMPLE_RS, Path::new("lib.rs"), &cfg, "test")
-            .expect("extract");
+        let pairs =
+            extract_from_source(SAMPLE_RS, Path::new("lib.rs"), &cfg, "test").expect("extract");
         for p in &pairs {
             assert!(
                 !p.response.contains("it_works"),
@@ -417,8 +411,8 @@ mod tests {
             skip_tests: false,
             ..ExtractRsConfig::default()
         };
-        let pairs = extract_from_source(SAMPLE_RS, Path::new("lib.rs"), &cfg, "test")
-            .expect("extract");
+        let pairs =
+            extract_from_source(SAMPLE_RS, Path::new("lib.rs"), &cfg, "test").expect("extract");
         // add() has 1 body line, complex() has 3 — neither meets 4
         assert!(
             pairs.is_empty(),
@@ -438,14 +432,14 @@ mod tests {
 
     #[test]
     fn generic_prompt_for_no_doc_fn() {
-        let src = "fn my_helper(x: u32) -> u32 {\n    let a = x + 1;\n    let b = a * 2;\n    b\n}\n";
+        let src =
+            "fn my_helper(x: u32) -> u32 {\n    let a = x + 1;\n    let b = a * 2;\n    b\n}\n";
         let cfg = ExtractRsConfig {
             min_body_lines: 2,
             skip_tests: false,
             ..ExtractRsConfig::default()
         };
-        let pairs = extract_from_source(src, Path::new("lib.rs"), &cfg, "core")
-            .expect("extract");
+        let pairs = extract_from_source(src, Path::new("lib.rs"), &cfg, "core").expect("extract");
         assert!(!pairs.is_empty());
         assert!(
             pairs[0].prompt.contains("my_helper"),

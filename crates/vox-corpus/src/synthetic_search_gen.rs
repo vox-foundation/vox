@@ -15,25 +15,46 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
 
     // ── 1. Tool implementation search ────────────────────────────────────────
     let tool_search_templates = [
-        ("Where is the `{tool}` MCP tool implemented?", "{tool} implementation"),
-        ("How does `{tool}` handle its arguments?", "{tool} handler arguments"),
+        (
+            "Where is the `{tool}` MCP tool implemented?",
+            "{tool} implementation",
+        ),
+        (
+            "How does `{tool}` handle its arguments?",
+            "{tool} handler arguments",
+        ),
         ("Show me the source code for `{tool}`", "{tool} source code"),
     ];
     for &tool in TOOL_REGISTRY_SLIM.iter().take(30) {
         let tmpl = &tool_search_templates[count % tool_search_templates.len()];
         let query = tmpl.0.replace("{tool}", tool);
         let search_query = tmpl.1.replace("{tool}", tool);
-        let fake_file = format!("crates/vox-mcp/src/tools/{}.rs", tool.trim_start_matches("vox_"));
+        let fake_file = format!(
+            "crates/vox-mcp/src/tools/{}.rs",
+            tool.trim_start_matches("vox_")
+        );
         emit_search_trace(out, &query, &search_query, &fake_file, tool)?;
         count += 1;
     }
 
     // ── 2. Construct parsing search ──────────────────────────────────────────
     let construct_templates = [
-        ("How does the Vox parser handle `{construct}` declarations?", "{construct} parser grammar"),
-        ("Where is `{construct}` lowered to HIR?", "{construct} HIR lowering"),
-        ("How does type checking work for `{construct}`?", "{construct} typeck"),
-        ("What codegen does Vox produce for a `{construct}`?", "{construct} codegen"),
+        (
+            "How does the Vox parser handle `{construct}` declarations?",
+            "{construct} parser grammar",
+        ),
+        (
+            "Where is `{construct}` lowered to HIR?",
+            "{construct} HIR lowering",
+        ),
+        (
+            "How does type checking work for `{construct}`?",
+            "{construct} typeck",
+        ),
+        (
+            "What codegen does Vox produce for a `{construct}`?",
+            "{construct} codegen",
+        ),
     ];
     for construct in TAXONOMY_FROM_AST.iter().take(20) {
         let tmpl = &construct_templates[count % construct_templates.len()];
@@ -47,7 +68,10 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
     // ── 3. CLI command usage search ──────────────────────────────────────────
     let cli_templates = [
         ("How do I use `vox {cmd}`?", "vox {cmd} usage"),
-        ("What flags does `vox {cmd}` accept?", "vox {cmd} flags arguments"),
+        (
+            "What flags does `vox {cmd}` accept?",
+            "vox {cmd} flags arguments",
+        ),
         ("Show me an example of `vox {cmd}`", "vox {cmd} example"),
     ];
     for &(ref cmd, ref desc) in CLI_COMMANDS {
@@ -90,38 +114,54 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
 
     // ── 4. Architecture cross-crate questions ────────────────────────────────
     let arch_scenarios = [
-        ("How does data flow from a .vox file to running Rust code?",
-         "compiler pipeline source to runtime",
-         "crates/vox-parser/src/lib.rs",
-         "The Vox compiler pipeline follows: Source → Lexer (vox-lexer, logos) → Parser (vox-parser, Rowan CST) → AST (vox-ast, typed wrappers) → HIR (vox-hir, desugaring) → TypeCheck (vox-typeck, bidirectional inference) → CodeGen (vox-codegen-rust, quote!) → Rust source → cargo build → binary."),
-        ("How does the actor system work in Vox?",
-         "actor mailbox runtime tokio",
-         "crates/vox-runtime/src/actor.rs",
-         "Every `actor` declaration compiles to a Tokio task with an `mpsc` channel mailbox. Messages are dispatched via pattern matching on message types. State is isolated per actor instance, preventing data races."),
-        ("How does Vox handle database schemas?",
-         "@table schema codegen SQL",
-         "crates/vox-codegen-rust/src/db.rs",
-         "`@table type Name { }` declarations are lowered to Codex SQL schemas with automatic migration support. Fields become columns with Vox-to-SQL type mapping. Indices, vector indices, and search indices are separate declarations."),
-        ("How does the MCP server expose tools?",
-         "MCP tool registration server",
-         "crates/vox-mcp/src/server.rs",
-         "MCP tools are registered in `vox-mcp-meta` and served via Axum. Each `@mcp.tool` declaration in .vox becomes a handler function. Tool discovery is automatic via the dynamic registry."),
-        ("How does QLoRA training work with Vox Mens?",
-         "QLoRA candle training pipeline",
-         "crates/vox-mens/src/tensor/candle_qlora_train.rs",
-         "QLoRA training uses Candle + qlora-rs: NF4 frozen projection/LM-head linears + trainable LoRA adapters. Training data is loaded from JSONL, tokenized with ChatML format, and trained with causal language modeling loss."),
-        ("How does the orchestrator route tasks to agents?",
-         "orchestrator routing affinity groups",
-         "crates/vox-orchestrator/src/routing.rs",
-         "The orchestrator uses affinity groups (from Vox.toml or detected from workspace layout) to route tasks. Socrates reputation scores blend with routing decisions. File ownership and lock status determine agent assignment."),
-        ("What is the Codex/Arca data architecture?",
-         "Codex VoxDb Arca CodeStore Turso",
-         "crates/vox-db/src/lib.rs",
-         "Codex is the public unified data API (VoxDb type). Arca is the internal schema + CodeStore on Turso. VoxDb::store() returns &CodeStore. Migrations use execute_batch (no row-returning statements)."),
-        ("How does Vox handle component rendering?",
-         "component JSX React island SSR",
-         "crates/vox-codegen-ts/src/component.rs",
-         "Vox components compile to React functional components. Server-side rendering happens in Rust, while islands hydrate on the client. The TanStack web stack provides routing and state management."),
+        (
+            "How does data flow from a .vox file to running Rust code?",
+            "compiler pipeline source to runtime",
+            "crates/vox-parser/src/lib.rs",
+            "The Vox compiler pipeline follows: Source → Lexer (vox-lexer, logos) → Parser (vox-parser, Rowan CST) → AST (vox-ast, typed wrappers) → HIR (vox-hir, desugaring) → TypeCheck (vox-typeck, bidirectional inference) → CodeGen (vox-codegen-rust, quote!) → Rust source → cargo build → binary.",
+        ),
+        (
+            "How does the actor system work in Vox?",
+            "actor mailbox runtime tokio",
+            "crates/vox-runtime/src/actor.rs",
+            "Every `actor` declaration compiles to a Tokio task with an `mpsc` channel mailbox. Messages are dispatched via pattern matching on message types. State is isolated per actor instance, preventing data races.",
+        ),
+        (
+            "How does Vox handle database schemas?",
+            "@table schema codegen SQL",
+            "crates/vox-codegen-rust/src/db.rs",
+            "`@table type Name { }` declarations are lowered to Codex SQL schemas with automatic migration support. Fields become columns with Vox-to-SQL type mapping. Indices, vector indices, and search indices are separate declarations.",
+        ),
+        (
+            "How does the MCP server expose tools?",
+            "MCP tool registration server",
+            "crates/vox-mcp/src/server.rs",
+            "MCP tools are registered in `vox-mcp-meta` and served via Axum. Each `@mcp.tool` declaration in .vox becomes a handler function. Tool discovery is automatic via the dynamic registry.",
+        ),
+        (
+            "How does QLoRA training work with Vox Mens?",
+            "QLoRA candle training pipeline",
+            "crates/vox-mens/src/tensor/candle_qlora_train.rs",
+            "QLoRA training uses Candle + qlora-rs: NF4 frozen projection/LM-head linears + trainable LoRA adapters. Training data is loaded from JSONL, tokenized with ChatML format, and trained with causal language modeling loss.",
+        ),
+        (
+            "How does the orchestrator route tasks to agents?",
+            "orchestrator routing affinity groups",
+            "crates/vox-orchestrator/src/routing.rs",
+            "The orchestrator uses affinity groups (from Vox.toml or detected from workspace layout) to route tasks. Socrates reputation scores blend with routing decisions. File ownership and lock status determine agent assignment.",
+        ),
+        (
+            "What is the Codex/Arca data architecture?",
+            "Codex VoxDb Arca CodeStore Turso",
+            "crates/vox-db/src/lib.rs",
+            "Codex is the public unified data API (VoxDb type). Arca is the internal schema + CodeStore on Turso. VoxDb::store() returns &CodeStore. Migrations use execute_batch (no row-returning statements).",
+        ),
+        (
+            "How does Vox handle component rendering?",
+            "component JSX React island SSR",
+            "crates/vox-codegen-ts/src/component.rs",
+            "Vox components compile to React functional components. Server-side rendering happens in Rust, while islands hydrate on the client. The TanStack web stack provides routing and state management.",
+        ),
     ];
 
     for (query, search_query, file, answer) in &arch_scenarios {

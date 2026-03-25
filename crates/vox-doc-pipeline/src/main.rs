@@ -80,12 +80,17 @@ fn main() {
             let rel = e.file.strip_prefix(docs_src).unwrap_or(&e.file);
             match &e.kind {
                 LintKind::UnclosedCodeFence => {
-                    eprintln!("  ERROR  {} — unclosed code fence (file ends with open ```)", rel.display());
+                    eprintln!(
+                        "  ERROR  {} — unclosed code fence (file ends with open ```)",
+                        rel.display()
+                    );
                 }
                 LintKind::ShortCodeFence { backticks, at_line } => {
                     eprintln!(
                         "  ERROR  {}:{} — code fence has only {} backtick(s); mdBook requires 3 (```)",
-                        rel.display(), at_line, backticks
+                        rel.display(),
+                        at_line,
+                        backticks
                     );
                 }
                 LintKind::GenericDescription => {
@@ -95,14 +100,23 @@ fn main() {
                     );
                 }
                 LintKind::MissingFrontmatter => {
-                    eprintln!("  WARN   {} — no YAML frontmatter block; add title/description/category", rel.display());
+                    eprintln!(
+                        "  WARN   {} — no YAML frontmatter block; add title/description/category",
+                        rel.display()
+                    );
                 }
             }
         }
 
-        let hard_errors = lint_errors.iter().filter(|e| !matches!(e.kind, LintKind::MissingFrontmatter)).count();
+        let hard_errors = lint_errors
+            .iter()
+            .filter(|e| !matches!(e.kind, LintKind::MissingFrontmatter))
+            .count();
         if hard_errors > 0 {
-            eprintln!("\n{} hard error(s) — fix before building docs.", hard_errors);
+            eprintln!(
+                "\n{} hard error(s) — fix before building docs.",
+                hard_errors
+            );
             std::process::exit(1);
         }
         eprintln!(); // warnings only — continue
@@ -118,7 +132,13 @@ fn main() {
     let mut root_pages = Vec::new();
     let mut all_pages: Vec<Page> = Vec::new();
 
-    walk_dir(docs_src, docs_src, &mut sections, &mut root_pages, &mut all_pages);
+    walk_dir(
+        docs_src,
+        docs_src,
+        &mut sections,
+        &mut root_pages,
+        &mut all_pages,
+    );
 
     let mut output = String::from("# Summary\n\n");
 
@@ -170,7 +190,9 @@ fn main() {
     if check_mode {
         let current = fs::read_to_string(&summary_path).unwrap_or_default();
         if current.trim() != output.trim() {
-            eprintln!("SUMMARY.md is out of sync with docs/src. Run `cargo run -p vox-doc-pipeline` to update.");
+            eprintln!(
+                "SUMMARY.md is out of sync with docs/src. Run `cargo run -p vox-doc-pipeline` to update."
+            );
             std::process::exit(1);
         }
         println!("vox-doc-pipeline check passed.");
@@ -190,24 +212,44 @@ fn main() {
 /// Parse an ISO `YYYY-MM-DD` date string to RFC 822 (`Tue, 24 Mar 2026 00:00:00 GMT`).
 fn iso_to_rfc822(iso: &str) -> Option<String> {
     let parts: Vec<&str> = iso.trim().split('-').collect();
-    if parts.len() != 3 { return None; }
+    if parts.len() != 3 {
+        return None;
+    }
     let year: u32 = parts[0].parse().ok()?;
     let month: u32 = parts[1].parse().ok()?;
     let day: u32 = parts[2].parse().ok()?;
     let month_str = match month {
-        1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
-        5 => "May", 6 => "Jun", 7 => "Jul", 8 => "Aug",
-        9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dec",
+        1 => "Jan",
+        2 => "Feb",
+        3 => "Mar",
+        4 => "Apr",
+        5 => "May",
+        6 => "Jun",
+        7 => "Jul",
+        8 => "Aug",
+        9 => "Sep",
+        10 => "Oct",
+        11 => "Nov",
+        12 => "Dec",
         _ => return None,
     };
     // 0-based weekday (Zeller's congruence, simplified)
-    let (m, y) = if month < 3 { (month + 12, year - 1) } else { (month, year) };
+    let (m, y) = if month < 3 {
+        (month + 12, year - 1)
+    } else {
+        (month, year)
+    };
     let k = (y % 100) as i32;
     let j = (y / 100) as i32;
     let h = (day as i32 + (13 * (m as i32 + 1)) / 5 + k + k / 4 + j / 4 - 2 * j) % 7;
     let dow = match ((h + 6) % 7) as u32 {
-        0 => "Sun", 1 => "Mon", 2 => "Tue", 3 => "Wed",
-        4 => "Thu", 5 => "Fri", _ => "Sat",
+        0 => "Sun",
+        1 => "Mon",
+        2 => "Tue",
+        3 => "Wed",
+        4 => "Thu",
+        5 => "Fri",
+        _ => "Sat",
     };
     Some(format!("{dow}, {day:02} {month_str} {year} 00:00:00 GMT"))
 }
@@ -240,13 +282,22 @@ fn build_date_rfc822() -> String {
             let month = m + 3 - 12 * (m / 10);
             let year = 100 * b + d - 4800 + m / 10;
             let month_str = match month {
-                1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
-                5 => "May", 6 => "Jun", 7 => "Jul", 8 => "Aug",
-                9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dec",
+                1 => "Jan",
+                2 => "Feb",
+                3 => "Mar",
+                4 => "Apr",
+                5 => "May",
+                6 => "Jun",
+                7 => "Jul",
+                8 => "Aug",
+                9 => "Sep",
+                10 => "Oct",
+                11 => "Nov",
+                12 => "Dec",
                 _ => "Jan",
             };
             let dow_idx = (days_since_epoch + 4) % 7; // 1970-01-01 was Thursday (index 4)
-            let dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dow_idx as usize % 7];
+            let dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dow_idx as usize % 7];
             return format!("{dow}, {day:02} {month_str} {year} {h:02}:{mins:02}:{s:02} GMT");
         }
         // ISO 8601 timestamp from GitHub Actions (e.g. "2026-03-24T19:00:00Z")
@@ -266,7 +317,11 @@ fn build_date_rfc822() -> String {
         .unwrap_or(0);
     let days_since_epoch = epoch_secs / 86_400;
     let time_of_day = epoch_secs % 86_400;
-    let (h, mins, s) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
+    let (h, mins, s) = (
+        time_of_day / 3600,
+        (time_of_day % 3600) / 60,
+        time_of_day % 60,
+    );
     let jd = days_since_epoch as i64 + 2_440_588;
     let a = jd + 32044;
     let b = (4 * a + 3) / 146_097;
@@ -278,23 +333,32 @@ fn build_date_rfc822() -> String {
     let month = m + 3 - 12 * (m / 10);
     let year = 100 * b + d_val - 4800 + m / 10;
     let month_str = match month {
-        1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
-        5 => "May", 6 => "Jun", 7 => "Jul", 8 => "Aug",
-        9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dec",
+        1 => "Jan",
+        2 => "Feb",
+        3 => "Mar",
+        4 => "Apr",
+        5 => "May",
+        6 => "Jun",
+        7 => "Jul",
+        8 => "Aug",
+        9 => "Sep",
+        10 => "Oct",
+        11 => "Nov",
+        12 => "Dec",
         _ => "Jan",
     };
     let dow_idx = (days_since_epoch + 4) % 7;
-    let dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dow_idx as usize % 7];
+    let dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dow_idx as usize % 7];
     format!("{dow}, {day:02} {month_str} {year} {h:02}:{mins:02}:{s:02} GMT")
 }
 
 /// Escape XML special characters in a string.
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
-     .replace('<', "&lt;")
-     .replace('>', "&gt;")
-     .replace('"', "&quot;")
-     .replace('\'', "&apos;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 /// Generate `docs/src/feed.xml` from all pages that have a `last_updated` field.
@@ -306,15 +370,14 @@ fn generate_feed(docs_src: &Path, pages: &[Page]) {
     const MAX_ITEMS: usize = 20;
 
     // Collect pages that have both last_updated and a description.
-    let mut dated: Vec<&Page> = pages
-        .iter()
-        .filter(|p| p.last_updated.is_some())
-        .collect();
+    let mut dated: Vec<&Page> = pages.iter().filter(|p| p.last_updated.is_some()).collect();
 
     // Sort newest-first by last_updated string (ISO dates sort lexicographically).
     dated.sort_by(|a, b| {
-        b.last_updated.as_deref().unwrap_or("")
-         .cmp(a.last_updated.as_deref().unwrap_or(""))
+        b.last_updated
+            .as_deref()
+            .unwrap_or("")
+            .cmp(a.last_updated.as_deref().unwrap_or(""))
     });
     dated.truncate(MAX_ITEMS);
 
@@ -323,27 +386,26 @@ fn generate_feed(docs_src: &Path, pages: &[Page]) {
     let mut xml = String::from(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n\
          <rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n\
-         <channel>\n"
+         <channel>\n",
     );
     xml.push_str(&format!("  <title>Vox Language Updates</title>\n"));
     xml.push_str(&format!("  <link>{BASE_URL}/</link>\n"));
     xml.push_str("  <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>\n");
     xml.push_str("  <language>en-us</language>\n");
     xml.push_str(&format!("  <lastBuildDate>{build_date}</lastBuildDate>\n"));
-    xml.push_str(&format!("  <atom:link href=\"{BASE_URL}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n"));
+    xml.push_str(&format!(
+        "  <atom:link href=\"{BASE_URL}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n"
+    ));
     xml.push('\n');
 
     for page in &dated {
         // Convert the relative path (e.g. "index.md") to an HTML slug.
-        let slug = page.path
-            .trim_end_matches(".md")
-            .replace('\\', "/");
+        let slug = page.path.trim_end_matches(".md").replace('\\', "/");
         let url = format!("{BASE_URL}/{slug}.html");
         let title = xml_escape(&page.title);
-        let description = xml_escape(
-            page.description.as_deref().unwrap_or(&page.title)
-        );
-        let pub_date = page.last_updated
+        let description = xml_escape(page.description.as_deref().unwrap_or(&page.title));
+        let pub_date = page
+            .last_updated
             .as_deref()
             .and_then(iso_to_rfc822)
             .unwrap_or_else(|| build_date.clone());
@@ -388,7 +450,10 @@ r#"  <item>
 
     let feed_path = docs_src.join("feed.xml");
     fs::write(&feed_path, xml).expect("Failed to write feed.xml");
-    println!("Successfully generated feed.xml with {} item(s).", dated.len());
+    println!(
+        "Successfully generated feed.xml with {} item(s).",
+        dated.len()
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -421,14 +486,22 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
 
     // Check for missing frontmatter
     if !content.trim_start().starts_with("---") {
-        errors.push(LintError { file: path.to_owned(), line: 1, kind: LintKind::MissingFrontmatter });
+        errors.push(LintError {
+            file: path.to_owned(),
+            line: 1,
+            kind: LintKind::MissingFrontmatter,
+        });
     }
 
     // Check for generic batch-script descriptions
     if content.contains("Official documentation for ")
         && content.contains("in the Vox programming language ecosystem.")
     {
-        errors.push(LintError { file: path.to_owned(), line: 0, kind: LintKind::GenericDescription });
+        errors.push(LintError {
+            file: path.to_owned(),
+            line: 0,
+            kind: LintKind::GenericDescription,
+        });
     }
 
     // Code-fence balance checks
@@ -439,8 +512,12 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
         // Count leading backtick runs
         let backtick_count = trimmed.chars().take_while(|&c| c == '`').count();
 
-        if backtick_count >= 1 && trimmed.chars().all(|c| c == '`' || c.is_alphanumeric() || c == '-' || c == '_' || c == ' ')
-            && (trimmed == "`".repeat(backtick_count) || trimmed.starts_with(&"`".repeat(backtick_count)))
+        if backtick_count >= 1
+            && trimmed
+                .chars()
+                .all(|c| c == '`' || c.is_alphanumeric() || c == '-' || c == '_' || c == ' ')
+            && (trimmed == "`".repeat(backtick_count)
+                || trimmed.starts_with(&"`".repeat(backtick_count)))
         {
             if backtick_count < 3 && backtick_count >= 1 {
                 // This looks like it's trying to be a code fence but isn't valid
@@ -448,7 +525,10 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
                     errors.push(LintError {
                         file: path.to_owned(),
                         line: line_no,
-                        kind: LintKind::ShortCodeFence { backticks: backtick_count, at_line: line_no },
+                        kind: LintKind::ShortCodeFence {
+                            backticks: backtick_count,
+                            at_line: line_no,
+                        },
                     });
                 }
             } else if backtick_count >= 3 {
@@ -488,7 +568,12 @@ fn walk_dir(
             if path.is_dir() {
                 walk_dir(root, &path, sections, root_pages, all_pages);
             } else if path.extension().map(|e| e == "md").unwrap_or(false) {
-                let rel_path = path.strip_prefix(root).unwrap().to_str().unwrap().replace('\\', "/");
+                let rel_path = path
+                    .strip_prefix(root)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .replace('\\', "/");
                 if rel_path == "SUMMARY.md" {
                     continue;
                 }
@@ -497,7 +582,13 @@ fn walk_dir(
                 let (title, category, sort_order, description, last_updated) =
                     parse_frontmatter(&content, &path);
 
-                let page = Page { title, path: rel_path.clone(), sort_order, description, last_updated };
+                let page = Page {
+                    title,
+                    path: rel_path.clone(),
+                    sort_order,
+                    description,
+                    last_updated,
+                };
                 all_pages.push(page);
 
                 // Also push a lightweight copy to the section/root buckets for SUMMARY.
@@ -544,10 +635,17 @@ fn parse_frontmatter(
                     title = t.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
                 } else if let Some(d) = line.strip_prefix("description:") {
                     let raw = d.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
-                    if !raw.is_empty() { description = Some(raw); }
+                    if !raw.is_empty() {
+                        description = Some(raw);
+                    }
                 } else if let Some(lu) = line.strip_prefix("last_updated:") {
-                    let raw = lu.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
-                    if !raw.is_empty() { last_updated = Some(raw); }
+                    let raw = lu
+                        .trim()
+                        .trim_matches(|c| c == '"' || c == '\'')
+                        .to_string();
+                    if !raw.is_empty() {
+                        last_updated = Some(raw);
+                    }
                 } else if let Some(c) = line.strip_prefix("category:") {
                     let cat = c.trim().trim_matches(|c| c == '"' || c == '\'');
                     category = Some(
@@ -587,7 +685,10 @@ fn title_case(s: &str) -> String {
             let mut chars = word.chars();
             match chars.next() {
                 None => String::new(),
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str().to_lowercase().as_str(),
+                Some(first) => {
+                    first.to_uppercase().collect::<String>()
+                        + chars.as_str().to_lowercase().as_str()
+                }
             }
         })
         .collect::<Vec<_>>()

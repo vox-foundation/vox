@@ -6,7 +6,8 @@ fn test_continuation_engine() {
     let bus = EventBus::new(16);
     let agent_id = AgentId(1);
 
-    let prompt1 = engine.generate_continuation(agent_id, ContinuationStrategy::Continue, 1, 0, &bus);
+    let prompt1 =
+        engine.generate_continuation(agent_id, ContinuationStrategy::Continue, 1, 0, &bus);
     assert!(prompt1.is_some());
     assert_eq!(prompt1.unwrap().agent_id, agent_id);
     assert_eq!(engine.continuation_count(agent_id), 1);

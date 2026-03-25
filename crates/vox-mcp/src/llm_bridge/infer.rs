@@ -114,7 +114,10 @@ async fn http_infer_model(
         | ProviderType::SambaNova
         | ProviderType::Custom(_) => Err(HttpInferError {
             status: 0,
-            message: format!("Provider {:?} not yet fully supported via MCP infer bridge", model.provider_type),
+            message: format!(
+                "Provider {:?} not yet fully supported via MCP infer bridge",
+                model.provider_type
+            ),
         }),
     }
 }
@@ -232,7 +235,8 @@ pub async fn mcp_infer_completion(
         } else {
             None
         };
-        let (final_system, final_user): (&str, &str) = if let Some(ref collapsed) = chatml_collapsed {
+        let (final_system, final_user): (&str, &str) = if let Some(ref collapsed) = chatml_collapsed
+        {
             ("", collapsed.as_str())
         } else {
             (system_prompt, routing.user_prompt)

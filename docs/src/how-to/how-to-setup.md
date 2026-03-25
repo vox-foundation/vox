@@ -21,16 +21,19 @@ git clone https://github.com/vox-foundation/vox && cd vox
 .\scripts\install.ps1
 ```
 
-Both scripts ensure **rustup/cargo**, then run **`vox-bootstrap`** (`cargo run --locked -p vox-bootstrap`): same logic on every OS. See `crates/vox-bootstrap/README.md`.
+Both scripts ensure **rustup/cargo**, then run **`vox-bootstrap`** (`cargo run --locked -p vox-bootstrap`): same logic on every OS. When `--install` is used, bootstrap now attempts a GitHub Release binary first (with checksum verification) and automatically falls back to source install if the binary lane is unavailable. See `crates/vox-bootstrap/README.md`.
 
 | Flag / args | Effect |
 |-------------|--------|
 | `--dev` / `-Dev` (PS1) | Request rustfmt + clippy (with `--apply`) |
 | `--install-clang` / `-InstallClang` | Install clang where supported (e.g. winget `LLVM.LLVM` on Windows) |
 | `--apply` / `-Apply` | Actually run installs; without it, the tool **plans** only |
+| `--install` / `-Install` | Install `vox` after checks (binary-first; source fallback) |
+| `--source-only` / `-SourceOnly` | Skip release binary path and force source install |
+| `--version <tag>` / `-Version <tag>` | Pin release install to a specific tag (for example `v1.2.3`) |
 | `plan` | Machine plan as **JSON** on stdout (exit 1 if requirements missing); `plan --human` for debug text |
 
-Examples: `./scripts/install.sh --install-clang --apply`, `.\scripts\install.ps1 -InstallClang -Apply`, `./scripts/install.sh plan`.
+Examples: `./scripts/install.sh --install --version v1.2.3`, `.\scripts\install.ps1 -Install`, `./scripts/install.sh --install --source-only`, `./scripts/install.sh plan`.
 
 Then build the CLI with `cargo build -p vox-cli` and run **`vox setup`** for keys, wasm, and project checks.
 

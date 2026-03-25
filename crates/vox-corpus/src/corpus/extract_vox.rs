@@ -74,51 +74,84 @@ impl VoxTrainingPair {
 
 /// Prompt templates for different construct types discovered in Vox files.
 const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
-    ("fn", &[
-        "Write a Vox function called `{name}`",
-        "Implement the `{name}` function in Vox",
-        "Show me a Vox function named `{name}`",
-    ]),
-    ("actor", &[
-        "Define a Vox actor called `{name}`",
-        "Create an actor named `{name}` in Vox with state and message handlers",
-    ]),
-    ("workflow", &[
-        "Write a durable Vox workflow called `{name}`",
-        "Implement the `{name}` workflow with retry semantics in Vox",
-    ]),
-    ("activity", &[
-        "Define a Vox activity called `{name}`",
-        "Write an activity function named `{name}` in Vox",
-    ]),
-    ("component", &[
-        "Create a Vox UI component called `{name}`",
-        "Write a component function named `{name}` that returns Element",
-    ]),
-    ("table", &[
-        "Define a Vox @table schema called `{name}`",
-        "Write a database table definition named `{name}` in Vox",
-    ]),
-    ("type", &[
-        "Define a Vox type called `{name}`",
-        "Create a tagged union type named `{name}` in Vox",
-    ]),
-    ("query", &[
-        "Write a Vox @query function called `{name}`",
-        "Implement a read-only data query named `{name}` in Vox",
-    ]),
-    ("mutation", &[
-        "Write a Vox @mutation function called `{name}`",
-        "Implement a data mutation named `{name}` in Vox",
-    ]),
-    ("mcp_tool", &[
-        "Define an MCP tool called `{name}` in Vox",
-        "Write a @mcp.tool function named `{name}`",
-    ]),
-    ("test", &[
-        "Write a Vox test called `{name}`",
-        "Create a unit test named `{name}` in Vox",
-    ]),
+    (
+        "fn",
+        &[
+            "Write a Vox function called `{name}`",
+            "Implement the `{name}` function in Vox",
+            "Show me a Vox function named `{name}`",
+        ],
+    ),
+    (
+        "actor",
+        &[
+            "Define a Vox actor called `{name}`",
+            "Create an actor named `{name}` in Vox with state and message handlers",
+        ],
+    ),
+    (
+        "workflow",
+        &[
+            "Write a durable Vox workflow called `{name}`",
+            "Implement the `{name}` workflow with retry semantics in Vox",
+        ],
+    ),
+    (
+        "activity",
+        &[
+            "Define a Vox activity called `{name}`",
+            "Write an activity function named `{name}` in Vox",
+        ],
+    ),
+    (
+        "component",
+        &[
+            "Create a Vox UI component called `{name}`",
+            "Write a component function named `{name}` that returns Element",
+        ],
+    ),
+    (
+        "table",
+        &[
+            "Define a Vox @table schema called `{name}`",
+            "Write a database table definition named `{name}` in Vox",
+        ],
+    ),
+    (
+        "type",
+        &[
+            "Define a Vox type called `{name}`",
+            "Create a tagged union type named `{name}` in Vox",
+        ],
+    ),
+    (
+        "query",
+        &[
+            "Write a Vox @query function called `{name}`",
+            "Implement a read-only data query named `{name}` in Vox",
+        ],
+    ),
+    (
+        "mutation",
+        &[
+            "Write a Vox @mutation function called `{name}`",
+            "Implement a data mutation named `{name}` in Vox",
+        ],
+    ),
+    (
+        "mcp_tool",
+        &[
+            "Define an MCP tool called `{name}` in Vox",
+            "Write a @mcp.tool function named `{name}`",
+        ],
+    ),
+    (
+        "test",
+        &[
+            "Write a Vox test called `{name}`",
+            "Create a unit test named `{name}` in Vox",
+        ],
+    ),
 ];
 
 /// Extract the first comment block from the top of a `.vox` file as the prompt.
@@ -151,7 +184,10 @@ fn extract_file_doc(source: &str) -> Option<String> {
 
 /// Infer a category from filename and content keywords.
 fn infer_vox_category(path: &Path, source: &str) -> String {
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown");
 
     // Check for specific construct keywords in source
     let content_lower = source.to_lowercase();
@@ -200,7 +236,8 @@ fn extract_construct_blocks(source: &str) -> Vec<(&'static str, String, String)>
         let trimmed = lines[i].trim();
 
         // Detect construct starts
-        let (construct_type, name) = if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
+        let (construct_type, name) = if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ")
+        {
             let n = extract_vox_name(trimmed, "fn ");
             ("fn", n)
         } else if trimmed.starts_with("actor ") {
@@ -257,7 +294,12 @@ fn extract_construct_blocks(source: &str) -> Vec<(&'static str, String, String)>
                 break;
             }
             // Also stop if we hit a new top-level construct (no braces found after 2 lines)
-            if !found_open && i > block_start + 2 && !lines.get(i).map_or(true, |l| l.starts_with(' ') || l.starts_with('\t') || l.trim().is_empty()) {
+            if !found_open
+                && i > block_start + 2
+                && !lines.get(i).map_or(true, |l| {
+                    l.starts_with(' ') || l.starts_with('\t') || l.trim().is_empty()
+                })
+            {
                 break;
             }
         }
@@ -313,7 +355,10 @@ fn is_eligible_for_training(content: &str) -> bool {
     if content.contains("training_eligible: false") || content.contains("training_eligible:false") {
         return false;
     }
-    if content.contains("status: deprecated") || content.contains("status: \"deprecated\"") || content.contains("status: 'deprecated'") {
+    if content.contains("status: deprecated")
+        || content.contains("status: \"deprecated\"")
+        || content.contains("status: 'deprecated'")
+    {
         return false;
     }
     true
@@ -324,8 +369,8 @@ pub fn extract_from_vox_file(
     path: &Path,
     config: &ExtractVoxConfig,
 ) -> anyhow::Result<Vec<VoxTrainingPair>> {
-    let source = std::fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let source =
+        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
 
     if !is_eligible_for_training(&source) {
         return Ok(Vec::new());
@@ -348,7 +393,10 @@ pub fn extract_from_vox_file(
 
     // 1. Whole-file pair
     let file_prompt = extract_file_doc(&source).unwrap_or_else(|| {
-        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("program");
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("program");
         format!(
             "Write a complete Vox program that implements {}",
             stem.replace('_', " ")
@@ -380,8 +428,14 @@ pub fn extract_from_vox_file(
 
         // "explain-from-code" pair
         if i % 2 == 0 {
-            let explain_prompt = format!("Explain the purpose and function of the following Vox {} snippet:\n```vox\n{}\n```", construct_type, block);
-            let explain_response = format!("This is a Vox {} named `{}`. It demonstrates standard Vox syntax, explicit typing, and safe state management.", construct_type, name);
+            let explain_prompt = format!(
+                "Explain the purpose and function of the following Vox {} snippet:\n```vox\n{}\n```",
+                construct_type, block
+            );
+            let explain_response = format!(
+                "This is a Vox {} named `{}`. It demonstrates standard Vox syntax, explicit typing, and safe state management.",
+                construct_type, name
+            );
             pairs.push(VoxTrainingPair {
                 source_path: path.to_path_buf(),
                 category: format!("vox_{construct_type}_explain"),
@@ -432,7 +486,10 @@ fn walk_vox_dir(
         let path = entry.path();
         if path.is_dir() {
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if matches!(name, "target" | ".git" | "node_modules" | ".vox" | "vox-vscode") {
+            if matches!(
+                name,
+                "target" | ".git" | "node_modules" | ".vox" | "vox-vscode"
+            ) {
                 continue;
             }
             walk_vox_dir(&path, config, out)?;

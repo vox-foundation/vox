@@ -1,4 +1,3 @@
-
 use crate::types::{AgentId, TaskId};
 
 #[derive(Debug, thiserror::Error)]
@@ -118,4 +117,3 @@ pub struct AgentSummary {
     /// Linked Codex session id when known.
     pub agent_session_id: Option<String>,
 }
-

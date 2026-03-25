@@ -12,11 +12,10 @@
 //! | [`scaling`] | `rebalance`, `tick` |
 //! | [`vcs_ops`] | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
 
-mod core;
 mod agent_lifecycle;
+mod core;
 mod scaling;
 mod vcs_ops;
-
 
 use std::collections::HashMap;
 
@@ -27,22 +26,21 @@ use crate::groups::AffinityGroupRegistry;
 use crate::locks::FileLockManager;
 use crate::queue::AgentQueue;
 use crate::scope::ScopeGuard;
-use crate::types::{
-    AgentId, AgentIdGenerator, TaskId, TaskIdGenerator,
-};
+use crate::types::{AgentId, AgentIdGenerator, TaskId, TaskIdGenerator};
 
-/// Error type for orchestrator operations.
-
-pub mod types;
-pub mod task_dispatch;
-pub mod workflow_bridge;
 pub mod accessors;
 pub mod comms;
+pub mod task_dispatch;
+/// Error type for orchestrator operations.
+pub mod types;
+pub mod workflow_bridge;
 
 #[cfg(test)]
 mod tests;
 
-pub use types::{AgentSummary, OrchestratorError, OrchestratorStatus, TaskTraceStep, MAX_TASK_TRACES};
+pub use types::{
+    AgentSummary, MAX_TASK_TRACES, OrchestratorError, OrchestratorStatus, TaskTraceStep,
+};
 
 pub struct Orchestrator {
     pub config: std::sync::Arc<std::sync::RwLock<OrchestratorConfig>>,
@@ -53,7 +51,9 @@ pub struct Orchestrator {
     pub summary_manager: std::sync::Arc<std::sync::RwLock<crate::summary::SummaryManager>>,
     pub models: std::sync::Arc<std::sync::RwLock<crate::models::ModelRegistry>>,
     pub bulletin: BulletinBoard,
-    pub agents: std::sync::Arc<std::sync::RwLock<HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>>>,
+    pub agents: std::sync::Arc<
+        std::sync::RwLock<HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>>,
+    >,
     pub groups: std::sync::Arc<std::sync::RwLock<AffinityGroupRegistry>>,
     pub task_id_gen: TaskIdGenerator,
     pub agent_id_gen: AgentIdGenerator,
@@ -66,7 +66,8 @@ pub struct Orchestrator {
     /// IDs of agents that were dynamically spawned (transient).
     pub dynamic_agents: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<AgentId>>>,
     /// Handles to the running agent processes.
-    pub agent_handles: std::sync::Arc<std::sync::RwLock<HashMap<AgentId, vox_runtime::ProcessHandle>>>,
+    pub agent_handles:
+        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, vox_runtime::ProcessHandle>>>,
     pub heartbeat_monitor: std::sync::Arc<std::sync::RwLock<crate::heartbeat::HeartbeatMonitor>>,
     /// System resource monitor.
     #[cfg(feature = "system-metrics")]
@@ -79,7 +80,7 @@ pub struct Orchestrator {
     pub task_traces: std::sync::Arc<std::sync::RwLock<HashMap<TaskId, Vec<TaskTraceStep>>>>,
     /// **Codex** database handle (Turso/libSQL).
     pub db: std::sync::Arc<std::sync::RwLock<Option<std::sync::Arc<vox_db::VoxDb>>>>,
- 
+
     // -- JJ-inspired subsystems --
     /// Auto-snapshot store for tracking file state changes.
     pub snapshot_store: std::sync::Arc<std::sync::RwLock<crate::snapshot::SnapshotStore>>,
@@ -94,5 +95,6 @@ pub struct Orchestrator {
     /// Last global activity timestamp (ms) for idle detection.
     pub last_activity_ms: std::sync::atomic::AtomicU64,
     /// Last remote mens snapshot hints (from MCP federation poller); read-only placement signals.
-    pub remote_mesh_routing_hints: std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemoteMeshRoutingHint>>>,
+    pub remote_mesh_routing_hints:
+        std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemoteMeshRoutingHint>>>,
 }

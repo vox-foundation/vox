@@ -1,7 +1,7 @@
+use crate::PublisherConfig;
 use crate::contract::{DEFAULT_GITHUB_GRAPHQL_URL, DEFAULT_GITHUB_REST_BASE};
 use crate::types::{GitHubConfig, GitHubPostType, UnifiedNewsItem};
-use crate::PublisherConfig;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use reqwest::Client;
 use serde_json::json;
 
@@ -187,10 +187,7 @@ async fn post_discussion(
         .map(std::string::ToString::to_string)
         .unwrap_or_default();
     if url.is_empty() {
-        return Err(anyhow!(
-            "createDiscussion returned empty url: {}",
-            body2
-        ));
+        return Err(anyhow!("createDiscussion returned empty url: {}", body2));
     }
     tracing::info!("Created GitHub Discussion: {}", url);
     Ok(url)

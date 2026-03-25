@@ -203,7 +203,12 @@ mod tests {
             0.010,
         ));
         agg.record(CostRecord::new_ephemeral(
-            "agent-2", "ollama", Some("llama3".to_string()), 500, 200, 0.0,
+            "agent-2",
+            "ollama",
+            Some("llama3".to_string()),
+            500,
+            200,
+            0.0,
         ));
 
         let summary = agg.agent_summary("agent-1");

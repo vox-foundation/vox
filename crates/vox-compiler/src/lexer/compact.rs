@@ -120,8 +120,14 @@ mod tests {
         let src = "fn main() {\n    let x = 10\n    ret x\n}";
         let compacted = compact(src);
         // No newlines in output — single-line serialization achieved
-        assert!(!compacted.contains('\n'), "Compacted output should be single-line");
-        assert!(compacted.contains("fn main()"), "Should preserve function name");
+        assert!(
+            !compacted.contains('\n'),
+            "Compacted output should be single-line"
+        );
+        assert!(
+            compacted.contains("fn main()"),
+            "Should preserve function name"
+        );
         assert!(compacted.contains('{'), "Should preserve LBrace");
         assert!(compacted.contains('}'), "Should preserve RBrace");
         assert!(compacted.contains("ret x"), "Should preserve ret statement");
@@ -133,7 +139,7 @@ mod tests {
         let compacted = compact(src);
         // No space before `{` (Ident→LBrace: needs_space=false)
         // No space before `ret` (LBrace is not a word, ret is: no space added)
-        // No space before `x` or `}` 
+        // No space before `x` or `}`
         assert!(compacted.contains("fn f"), "should have fn f");
         assert!(compacted.contains("to int"), "should have return type");
         assert!(compacted.contains('{'), "should have LBrace");
@@ -146,7 +152,10 @@ mod tests {
     fn test_compaction_strips_comments() {
         let src = "let x = 1 // trailing comment\nlet y = 2";
         let compacted = compact(src);
-        assert!(!compacted.contains("trailing"), "Comment should be stripped");
+        assert!(
+            !compacted.contains("trailing"),
+            "Comment should be stripped"
+        );
         assert!(compacted.contains("let x"), "let x should be present");
         assert!(compacted.contains("let y"), "let y should be present");
     }

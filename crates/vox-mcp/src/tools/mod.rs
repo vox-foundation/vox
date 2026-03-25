@@ -19,24 +19,24 @@ pub mod compiler_tools;
 pub mod db_tools;
 /// Thin `git` CLI wrappers scoped to the discovered git root.
 pub mod git_tools;
-/// Local mens registry status (`vox_populi_local_status`).
-pub mod populi_tools;
-/// Oratio speech-to-text (Candle Whisper).
-pub mod oratio_tools;
-/// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
-pub mod repo_index;
-/// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
-pub mod toestub_tools;
-/// Orchestrator task submit/status/cancel/drain tools.
-pub mod task_tools;
-/// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
-pub mod training_tools;
-/// Snapshot / oplog / workspace orchestrator VCS tools.
-pub mod vcs_tools;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
 /// Unified News Publishing System tools
 pub mod news_tools;
+/// Oratio speech-to-text (Candle Whisper).
+pub mod oratio_tools;
+/// Local mens registry status (`vox_populi_local_status`).
+pub mod populi_tools;
+/// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
+pub mod repo_index;
+/// Orchestrator task submit/status/cancel/drain tools.
+pub mod task_tools;
+/// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
+pub mod toestub_tools;
+/// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
+pub mod training_tools;
+/// Snapshot / oplog / workspace orchestrator VCS tools.
+pub mod vcs_tools;
 
 mod input_schemas;
 mod tool_aliases;
@@ -450,7 +450,6 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_db_research_metric_linked",
         "Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).",
     ),
-
     (
         "vox_benchmark_record",
         "Record a new benchmark observation (e.g. wall-clock time for a build phase).",
@@ -576,14 +575,14 @@ pub async fn handle_tool_call(
 ) -> Result<String, anyhow::Error> {
     let start_time = std::time::Instant::now();
     let name_canonical = tool_aliases::canonical_tool_name(name);
-    
+
     // Check if the agent ID or session ID is included in meta arguments
     let agent_id = args.get("agent_id").and_then(|v| v.as_str());
     let session_id = args.get("session_id").and_then(|v| v.as_str());
-    
+
     let result = handle_tool_call_inner(state, name_canonical, args.clone()).await;
     let duration_ms = start_time.elapsed().as_millis() as i64;
-    
+
     // Record tool telemetry in agent_events if DB is enabled
     if let Some(db) = &state.db {
         let mut payload = serde_json::json!({
@@ -597,16 +596,12 @@ pub async fn handle_tool_call(
         if let Some(sid) = session_id {
             payload["session_id"] = serde_json::Value::String(sid.to_string());
         }
-        
+
         let agent_str = agent_id.unwrap_or("0");
-        let _ = vox_ludus::db::insert_event(
-            db,
-            agent_str,
-            "tool_call",
-            Some(&payload.to_string()),
-        ).await;
+        let _ = vox_ludus::db::insert_event(db, agent_str, "tool_call", Some(&payload.to_string()))
+            .await;
     }
-    
+
     result
 }
 
@@ -623,9 +618,7 @@ async fn handle_tool_call_inner(
         "vox_task_status" => {
             Ok(task_tools::task_status(state, serde_json::from_value(args)?).await)
         }
-        "vox_orchestrator_status" => {
-            Ok(crate::dei_tools::orchestrator_status(state).await)
-        }
+        "vox_orchestrator_status" => Ok(crate::dei_tools::orchestrator_status(state).await),
         "vox_orchestrator_start" => Ok(crate::dei_tools::orchestrator_start(state).await),
         "vox_complete_task" => {
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
@@ -667,18 +660,21 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
-        
+
         "vox_language_surface" => Ok(introspection_tools::language_surface().to_string()),
         "vox_compiler::ast_inspect" => Ok(introspection_tools::ast_inspect(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
-        ).await?.to_string()),
+        )
+        .await?
+        .to_string()),
         "vox_pipeline_status" => Ok(introspection_tools::pipeline_status().await.to_string()),
         "vox_decorator_registry" => Ok(introspection_tools::decorator_registry().to_string()),
         "vox_builtin_registry" => Ok(introspection_tools::builtin_registry().to_string()),
-        "vox_workspace_modules" => Ok(introspection_tools::workspace_modules(state).await?.to_string()),
+        "vox_workspace_modules" => Ok(introspection_tools::workspace_modules(state)
+            .await?
+            .to_string()),
         "vox_a2a_tasks" => Ok(introspection_tools::a2a_tasks(state).await?.to_string()),
-
 
         "vox_snapshot_list" => Ok(vcs_tools::snapshot_list(state, args).await),
         "vox_snapshot_diff" => Ok(vcs_tools::snapshot_diff(state, args).await),
@@ -776,13 +772,17 @@ async fn handle_tool_call_inner(
         "vox_news_draft_research" => {
             Ok(news_tools::vox_news_draft_research(state, serde_json::from_value(args)?).await)
         }
-        "vox_news_approve" => Ok(news_tools::vox_news_approve(state, serde_json::from_value(args)?).await),
+        "vox_news_approve" => {
+            Ok(news_tools::vox_news_approve(state, serde_json::from_value(args)?).await)
+        }
         "vox_news_approval_status" => {
             Ok(news_tools::vox_news_approval_status(state, serde_json::from_value(args)?).await)
         }
-        "vox_news_simulate_publish_gate" => Ok(
-            news_tools::vox_news_simulate_publish_gate(state, serde_json::from_value(args)?).await,
-        ),
+        "vox_news_simulate_publish_gate" => Ok(news_tools::vox_news_simulate_publish_gate(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
 
         // Delegate others to existing modules
         "vox_my_files" => Ok(crate::affinity::my_files(state, serde_json::from_value(args)?).await),
@@ -898,11 +898,9 @@ async fn handle_tool_call_inner(
         "vox_file_graph" => Ok(crate::dei_tools::file_graph(state).await),
         "vox_config_get" => Ok(crate::dei_tools::config_get(state).await),
         "vox_config_set" => Ok(crate::dei_tools::config_set(state, args).await),
-        "vox_map_agent_session" => Ok(crate::dei_tools::map_agent_session(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
+        "vox_map_agent_session" => {
+            Ok(crate::dei_tools::map_agent_session(state, serde_json::from_value(args)?).await)
+        }
         "vox_poll_events" => {
             Ok(crate::dei_tools::poll_events(state, serde_json::from_value(args)?).await)
         }
@@ -964,7 +962,7 @@ async fn handle_tool_call_inner(
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
         "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),
-        
+
         "vox_benchmark_list" => {
             Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)
         }

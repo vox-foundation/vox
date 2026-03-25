@@ -211,7 +211,9 @@ impl DbConfig {
                 });
                 #[cfg(not(feature = "replication"))]
                 {
-                    tracing::warn!("EmbeddedReplica requested for mens but 'replication' feature is disabled; falling back to Remote");
+                    tracing::warn!(
+                        "EmbeddedReplica requested for mens but 'replication' feature is disabled; falling back to Remote"
+                    );
                     Ok(Self::Remote { url: u, token: t })
                 }
             }

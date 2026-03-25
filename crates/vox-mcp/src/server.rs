@@ -11,13 +11,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex as SyncMutex;
-use tokio::sync::Mutex;
 use std::sync::RwLock;
+use tokio::sync::Mutex;
 
 use vox_db::VoxDb;
 use vox_orchestrator::{
-    AffinityGroupRegistry, AgentEvent, BudgetManager, PopuliNodeBrief, Orchestrator,
-    OrchestratorConfig, RemoteMeshRoutingHint, RemoteMeshSnapshot, SessionConfig, SessionManager,
+    AffinityGroupRegistry, AgentEvent, BudgetManager, Orchestrator, OrchestratorConfig,
+    PopuliNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot, SessionConfig, SessionManager,
     load_from_config,
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
@@ -84,12 +84,8 @@ impl ServerState {
             repository_id: Some(repository.repository_id.clone()),
             ..SessionConfig::default()
         };
-        let session_manager = SessionManager::new(session_cfg.clone()).unwrap_or_else(|e| {
-            panic!(
-                "in-memory session manager initialization failed: {}",
-                e
-            )
-        });
+        let session_manager = SessionManager::new(session_cfg.clone())
+            .unwrap_or_else(|e| panic!("in-memory session manager initialization failed: {}", e));
         let registry = new_registry_arc();
 
         // Auto-install built-in skills in the background
@@ -172,8 +168,9 @@ impl ServerState {
             loop {
                 tick.tick().await;
                 let timeout = std::time::Duration::from_millis(timeout_ms);
-                let client = vox_populi::http_client::MeshHttpClient::new_with_timeout(&url, timeout)
-                    .with_env_token();
+                let client =
+                    vox_populi::http_client::MeshHttpClient::new_with_timeout(&url, timeout)
+                        .with_env_token();
                 let now = vox_populi::wall_clock_unix_ms();
                 match client.list_nodes().await {
                     Ok(f) => {
@@ -195,9 +192,9 @@ impl ServerState {
                                 gpu_metal: n.capabilities.gpu_metal,
                             })
                             .collect();
-                        
+
                         orch.set_remote_mesh_routing_hints(routing_hints);
-                        
+
                         let mut w = snap.write().unwrap();
                         *w = RemoteMeshSnapshot::success(now, f.schema_version, brief);
                     }
@@ -265,10 +262,7 @@ impl ServerState {
         };
         self.session_manager = Arc::new(Mutex::new(
             SessionManager::new(session_cfg.clone()).unwrap_or_else(|e| {
-                panic!(
-                    "in-memory session manager initialization failed: {}",
-                    e
-                )
+                panic!("in-memory session manager initialization failed: {}", e)
             }),
         ));
 
@@ -329,9 +323,7 @@ impl ServerState {
         session_cfg.repository_id = Some(self.repository.repository_id.clone());
         self.session_manager = Arc::new(Mutex::new(
             SessionManager::new(session_cfg.clone())
-                .unwrap_or_else(|e| {
-                    panic!("session manager initialization failed: {}", e)
-                })
+                .unwrap_or_else(|e| panic!("session manager initialization failed: {}", e))
                 .with_db(db_arc.clone()),
         ));
 

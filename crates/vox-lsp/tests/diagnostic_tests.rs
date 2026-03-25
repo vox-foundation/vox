@@ -30,7 +30,11 @@ fn minimal_valid_workflow_produces_no_errors() {
         .iter()
         .filter(|d| d.severity == Some(DiagnosticSeverity::ERROR))
         .collect();
-    assert!(errors.is_empty(), "clean workflow must have no errors: {:?}", errors);
+    assert!(
+        errors.is_empty(),
+        "clean workflow must have no errors: {:?}",
+        errors
+    );
 }
 
 #[test]
@@ -40,7 +44,11 @@ fn valid_let_binding_no_diagnostics() {
         .iter()
         .filter(|d| d.severity == Some(DiagnosticSeverity::ERROR))
         .collect();
-    assert!(errors.is_empty(), "valid let binding must parse clean: {:?}", errors);
+    assert!(
+        errors.is_empty(),
+        "valid let binding must parse clean: {:?}",
+        errors
+    );
 }
 
 // ── Mens activity warnings ────────────────────────────────────────────────────
@@ -54,10 +62,13 @@ fn mesh_activity_warning_fires_when_mesh_disabled() {
     unsafe { std::env::remove_var("VOX_MESH_ENABLED") };
 
     let has_warn = diags.iter().any(|d| {
-        d.severity == Some(DiagnosticSeverity::WARNING)
-            && d.message.contains("Mens activity call")
+        d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")
     });
-    assert!(has_warn, "Expected mens warning when disabled; got: {:?}", diags);
+    assert!(
+        has_warn,
+        "Expected mens warning when disabled; got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -69,10 +80,13 @@ fn mesh_activity_no_warning_when_enabled() {
     unsafe { std::env::remove_var("VOX_MESH_ENABLED") };
 
     let has_warn = diags.iter().any(|d| {
-        d.severity == Some(DiagnosticSeverity::WARNING)
-            && d.message.contains("Mens activity call")
+        d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")
     });
-    assert!(!has_warn, "Expected NO mens warning when enabled; got: {:?}", diags);
+    assert!(
+        !has_warn,
+        "Expected NO mens warning when enabled; got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -85,10 +99,13 @@ fn mesh_activity_warning_only_inside_workflow_not_fn() {
     unsafe { std::env::remove_var("VOX_MESH_ENABLED") };
 
     let has_warn = diags.iter().any(|d| {
-        d.severity == Some(DiagnosticSeverity::WARNING)
-            && d.message.contains("Mens activity call")
+        d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")
     });
-    assert!(!has_warn, "Mens warning should not fire outside workflow; got: {:?}", diags);
+    assert!(
+        !has_warn,
+        "Mens warning should not fire outside workflow; got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -105,7 +122,10 @@ fn multiple_mesh_calls_each_produce_a_warning() {
                 && d.message.contains("Mens activity call")
         })
         .count();
-    assert!(warn_count >= 2, "Expected at least 2 mens warnings; got {warn_count}");
+    assert!(
+        warn_count >= 2,
+        "Expected at least 2 mens warnings; got {warn_count}"
+    );
 }
 
 // ── Diagnostic source labelling ───────────────────────────────────────────────
@@ -128,5 +148,9 @@ fn syntax_error_produces_error_diagnostic() {
     let has_error = diags
         .iter()
         .any(|d| d.severity == Some(DiagnosticSeverity::ERROR));
-    assert!(has_error, "malformed source must produce at least one ERROR: {:?}", diags);
+    assert!(
+        has_error,
+        "malformed source must produce at least one ERROR: {:?}",
+        diags
+    );
 }

@@ -5,6 +5,8 @@
 #   ./scripts/install.sh
 #   ./scripts/install.sh --dev
 #   ./scripts/install.sh --install-clang --apply
+#   ./scripts/install.sh --install
+#   ./scripts/install.sh --install --version v1.2.3
 #   ./scripts/install.sh plan
 #   ./scripts/install.sh plan --human
 set -euo pipefail

@@ -14,6 +14,7 @@ training_eligible: true
 | `.github/workflows/docs-deploy.yml` | Build `vox-doc-pipeline`, run doc pair extraction, mdBook build, Pages artifact. |
 | `.github/workflows/link_checker.yml` | Link validation for docs site. |
 | `.github/workflows/ml_data_extraction.yml` | ML / corpus maintenance jobs. Grammar drift via **`vox ci grammar-drift --emit github`**; eval summary via **`vox corpus eval --print-summary`** (no Python). |
+| `.github/workflows/release-binaries.yml` | Tag-only release publish (`v*`): build artifacts via **`vox ci release-build --target <triple> --version <tag>`** for Linux (`[self-hosted, linux, x64]`), Windows (`windows-latest`), macOS (`macos-latest`), then publish release assets with consolidated `checksums.txt`. |
 
 **CUDA / GPU compile gates:** when a job needs `nvcc` or CUDA-enabled `cargo check`, use the **Docker** self-hosted profile (`[self-hosted, linux, x64, docker]`) per [runner contract](runner-contract.md); keep `runs-on` explicit per job.
 

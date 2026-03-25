@@ -11,18 +11,9 @@ async fn planning_schema_and_ops_roundtrip() {
     db.append_plan_version("p1", 1, None, None, None)
         .await
         .expect("version");
-    db.upsert_plan_node(
-        "p1",
-        1,
-        "n1",
-        "do work",
-        "[]",
-        "{}",
-        "pending",
-        None,
-    )
-    .await
-    .expect("node");
+    db.upsert_plan_node("p1", 1, "n1", "do work", "[]", "{}", "pending", None)
+        .await
+        .expect("node");
     let head = db.load_plan_head("p1").await.expect("head");
     assert_eq!(head, Some(1));
     let runnable = db.list_runnable_nodes("p1", 1).await.expect("runnable");

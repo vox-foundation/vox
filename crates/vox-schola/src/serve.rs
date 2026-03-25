@@ -101,7 +101,14 @@ async fn chat_completions(
         let device = state.config.device.clone();
         let prompt_clone = prompt.clone();
         move || {
-            generate_response(&model_dir, &prompt_clone, &device, max_tokens, temperature, top_p)
+            generate_response(
+                &model_dir,
+                &prompt_clone,
+                &device,
+                max_tokens,
+                temperature,
+                top_p,
+            )
         }
     })
     .await;
@@ -115,7 +122,10 @@ async fn chat_completions(
                 object: "chat.completion".into(),
                 choices: vec![ChatChoice {
                     index: 0,
-                    message: ChatMessage { role: "assistant".into(), content: text },
+                    message: ChatMessage {
+                        role: "assistant".into(),
+                        content: text,
+                    },
                     finish_reason: "stop".into(),
                 }],
                 usage: UsageSummary {
@@ -174,8 +184,7 @@ fn generate_response(
     top_p: Option<f64>,
 ) -> Result<String> {
     // Resolve device
-    let device_kind = vox_mens::normalize_device(device)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let device_kind = vox_mens::normalize_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_mens::apply_backend_env(device_kind);
 
     let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
@@ -188,20 +197,26 @@ fn generate_response(
         );
     }
     if !tokenizer_path.is_file() {
-        anyhow::bail!(
-            "tokenizer.json not found at {}.",
-            tokenizer_path.display()
-        );
+        anyhow::bail!("tokenizer.json not found at {}.", tokenizer_path.display());
     }
 
-    let mut engine = vox_mens::tensor::candle_inference_serve::InferenceEngine::load(model_dir, &device_kind)?;
+    let mut engine =
+        vox_mens::tensor::candle_inference_serve::InferenceEngine::load(model_dir, &device_kind)?;
     engine.generate(prompt, max_new_tokens, temperature, top_p)
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub async fn run(args: Args) -> Result<()> {
-    let Cmd::Serve { model, port, host, max_tokens, temperature, device } = args.cmd else {
+    let Cmd::Serve {
+        model,
+        port,
+        host,
+        max_tokens,
+        temperature,
+        device,
+    } = args.cmd
+    else {
         unreachable!()
     };
 

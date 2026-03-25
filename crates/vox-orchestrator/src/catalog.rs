@@ -1,5 +1,5 @@
-use std::time::Duration;
 use crate::models::{ModelCapabilities, ModelSpec, ProviderType};
+use std::time::Duration;
 
 #[async_trait::async_trait]
 pub trait ModelCatalog: Send + Sync {
@@ -51,9 +51,16 @@ struct OpenRouterPricing {
 impl ModelCatalog for OpenRouterCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
         // Unauthenticated request is fine for getting the OpenRouter model list.
-        let resp = self.client.get("https://openrouter.ai/api/v1/models").send().await?;
+        let resp = self
+            .client
+            .get("https://openrouter.ai/api/v1/models")
+            .send()
+            .await?;
         if !resp.status().is_success() {
-            return Err(anyhow::anyhow!("Failed to fetch models from OpenRouter: HTTP {}", resp.status()));
+            return Err(anyhow::anyhow!(
+                "Failed to fetch models from OpenRouter: HTTP {}",
+                resp.status()
+            ));
         }
 
         let body: OpenRouterModelsResponse = resp.json().await?;
@@ -67,10 +74,10 @@ impl ModelCatalog for OpenRouterCatalog {
             let cost_per_1k = (cost_input + cost_output) / 2.0;
 
             let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
-            
+
             let mut capabilities = ModelCapabilities::default();
             capabilities.max_context = m.context_length;
-            
+
             models.push(ModelSpec {
                 id: m.id.clone(),
                 canonical_slug: m.id.clone(),

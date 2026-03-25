@@ -286,5 +286,3 @@ impl PopuliClient {
         Ok(resp.response)
     }
 }
-
-

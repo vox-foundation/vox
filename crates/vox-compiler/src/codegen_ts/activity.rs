@@ -1,6 +1,6 @@
+use crate::ast::decl::ActivityDecl;
 use crate::codegen_ts::component::map_vox_type_to_ts;
 use crate::codegen_ts::jsx::emit_stmt;
-use crate::ast::decl::ActivityDecl;
 
 /// Generate a TypeScript async function from a Vox activity declaration.
 /// Returns the TypeScript source code for the activity.

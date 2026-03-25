@@ -1,5 +1,5 @@
-use crate::types::AgentId;
 use super::Orchestrator;
+use crate::types::AgentId;
 
 impl Orchestrator {
     pub fn send_a2a(

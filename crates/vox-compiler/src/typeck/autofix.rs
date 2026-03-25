@@ -54,8 +54,8 @@ impl AutoFixer for StubAutoFixer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::typeck::diagnostics::Severity;
     use crate::ast::span::Span;
+    use crate::typeck::diagnostics::Severity;
 
     #[test]
     fn stub_autofixer_one_fix_per_diagnostic() {

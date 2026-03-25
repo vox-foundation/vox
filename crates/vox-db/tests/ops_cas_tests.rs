@@ -1,5 +1,5 @@
-use vox_db::VoxDb;
 use tempfile::tempdir;
+use vox_db::VoxDb;
 
 #[tokio::test]
 async fn test_cas_store_and_get() {
@@ -9,7 +9,7 @@ async fn test_cas_store_and_get() {
 
     let data = b"hello vox cas";
     let hash = store.store("test_blob", data).await.unwrap();
-    
+
     assert_eq!(hash, vox_db::hash::content_hash(data));
 
     let retrieved = store.get(&hash).await.unwrap();
@@ -37,9 +37,9 @@ async fn test_cas_bind_name() {
 
     let data = b"named object";
     let hash = store.store("blob", data).await.unwrap();
-    
+
     store.bind_name("user", "my_file", &hash).await.unwrap();
-    
-    // Verification would typically involve querying names, 
+
+    // Verification would typically involve querying names,
     // but assuming bind succeeds if hash exists.
 }

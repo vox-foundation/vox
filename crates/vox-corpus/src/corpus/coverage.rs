@@ -159,7 +159,12 @@ fn build_report(
         }
     }
 
-    let min_covered_count = taxonomy_counts.iter().filter(|&&c| c > 0).copied().min().unwrap_or(0);
+    let min_covered_count = taxonomy_counts
+        .iter()
+        .filter(|&&c| c > 0)
+        .copied()
+        .min()
+        .unwrap_or(0);
     let max_covered_count = taxonomy_counts.iter().copied().max().unwrap_or(0);
 
     // Balance score: 1 - CV (coefficient of variation), clamped to [0,1].
@@ -238,8 +243,15 @@ mod tests {
         // "function" has 1 pair, threshold is 5 → underrepresented
         let jsonl = make_jsonl(&["function"]);
         let report = analyse_str_with_taxonomy(&jsonl, 5, taxonomy);
-        let under_keys: Vec<&str> = report.underrepresented_types.iter().map(|(k, _)| k.as_str()).collect();
-        assert!(under_keys.contains(&"function"), "function should be underrepresented");
+        let under_keys: Vec<&str> = report
+            .underrepresented_types
+            .iter()
+            .map(|(k, _)| k.as_str())
+            .collect();
+        assert!(
+            under_keys.contains(&"function"),
+            "function should be underrepresented"
+        );
     }
 
     #[test]
@@ -278,16 +290,26 @@ mod tests {
         let jsonl = make_jsonl(&["function"]);
         let report = analyse_str_with_taxonomy(&jsonl, 1, taxonomy);
         let s = report.summary();
-        assert!(s.contains("[coverage]"), "summary should contain [coverage]: {s}");
+        assert!(
+            s.contains("[coverage]"),
+            "summary should contain [coverage]: {s}"
+        );
     }
 
     #[test]
     fn is_sufficient_only_when_all_covered() {
         let all: Vec<&str> = vec!["function", "actor", "table", "workflow"];
         // Repeat each 5 times so threshold of 5 is met
-        let rows: Vec<&str> = all.iter().flat_map(|t| std::iter::repeat(*t).take(5)).collect();
+        let rows: Vec<&str> = all
+            .iter()
+            .flat_map(|t| std::iter::repeat(*t).take(5))
+            .collect();
         let jsonl = make_jsonl(&rows);
         let report = analyse_str_with_taxonomy(&jsonl, 5, &all);
-        assert!(report.is_sufficient(), "should be sufficient: {:?}", report.missing_types);
+        assert!(
+            report.is_sufficient(),
+            "should be sufficient: {:?}",
+            report.missing_types
+        );
     }
 }

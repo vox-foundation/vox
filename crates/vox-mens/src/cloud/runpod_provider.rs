@@ -11,8 +11,8 @@ use serde::Deserialize;
 use tokio::sync::RwLock;
 
 use super::{
-    CloudJobSpec, CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobKind,
-    JobStatus, ProviderKind, RunPodCloudType, normalize_gpu_name,
+    CloudJobSpec, CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobKind, JobStatus,
+    ProviderKind, RunPodCloudType, normalize_gpu_name,
 };
 
 const BASE: &str = "https://rest.runpod.io/v1";
@@ -82,9 +82,11 @@ pub struct RunPodClient {
 impl RunPodClient {
     /// Construct from `VOX_RUNPOD_API_KEY`.
     pub fn from_env(config: Arc<CloudProviderConfig>) -> anyhow::Result<Self> {
-        let key = std::env::var("VOX_RUNPOD_API_KEY").map_err(|_| anyhow::anyhow!(
-            "VOX_RUNPOD_API_KEY not set. Get it at https://www.runpod.io/console/user/settings"
-        ))?;
+        let key = std::env::var("VOX_RUNPOD_API_KEY").map_err(|_| {
+            anyhow::anyhow!(
+                "VOX_RUNPOD_API_KEY not set. Get it at https://www.runpod.io/console/user/settings"
+            )
+        })?;
         Ok(Self::new(key, config))
     }
 
@@ -98,7 +100,10 @@ impl RunPodClient {
             http,
             api_key,
             config,
-            cache: RwLock::new(Cache { fetched_at: None, offers: vec![] }),
+            cache: RwLock::new(Cache {
+                fetched_at: None,
+                offers: vec![],
+            }),
         }
     }
 
@@ -141,7 +146,9 @@ impl RunPodClient {
             env.push(serde_json::json!({"key": "VOX_ADAPTER_UPLOAD_HF", "value": a}));
         }
         if spec.job_kind != JobKind::Train {
-            env.push(serde_json::json!({"key": "VOX_SERVE_PORT", "value": spec.serve_port.to_string()}));
+            env.push(
+                serde_json::json!({"key": "VOX_SERVE_PORT", "value": spec.serve_port.to_string()}),
+            );
         }
         for (k, v) in &spec.extra_env {
             env.push(serde_json::json!({"key": k, "value": v}));
@@ -152,26 +159,41 @@ impl RunPodClient {
 
 #[async_trait::async_trait]
 impl CloudProvider for RunPodClient {
-    fn kind(&self) -> ProviderKind { ProviderKind::RunPod }
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::RunPod
+    }
 
     async fn list_offers(&self, min_vram_mb: u64) -> anyhow::Result<Vec<GpuOffer>> {
         let ttl = Duration::from_secs(self.config.price_cache_ttl_secs);
         {
             let c = self.cache.read().await;
             if c.fetched_at.map_or(false, |t| t.elapsed() < ttl) {
-                return Ok(c.offers.iter().filter(|o| o.vram_mb >= min_vram_mb).cloned().collect());
+                return Ok(c
+                    .offers
+                    .iter()
+                    .filter(|o| o.vram_mb >= min_vram_mb)
+                    .cloned()
+                    .collect());
             }
         }
-        let raw = self.http
+        let raw = self
+            .http
             .get(format!("{BASE}/gpus"))
             .bearer_auth(&self.api_key)
-            .send().await.context("RunPod GET /gpus")?;
+            .send()
+            .await
+            .context("RunPod GET /gpus")?;
         let resp = raw
-            .error_for_status().context("RunPod /gpus error status")?
-            .json::<GpusResp>().await.context("RunPod /gpus parse")?;
+            .error_for_status()
+            .context("RunPod /gpus error status")?
+            .json::<GpusResp>()
+            .await
+            .context("RunPod /gpus parse")?;
 
         let now = Instant::now();
-        let offers: Vec<GpuOffer> = resp.gpus.unwrap_or_default()
+        let offers: Vec<GpuOffer> = resp
+            .gpus
+            .unwrap_or_default()
             .into_iter()
             .filter_map(|g| self.map_gpu(g, now))
             .collect();
@@ -180,13 +202,19 @@ impl CloudProvider for RunPodClient {
             c.fetched_at = Some(now);
             c.offers = offers.clone();
         }
-        Ok(offers.into_iter().filter(|o| o.vram_mb >= min_vram_mb).collect())
+        Ok(offers
+            .into_iter()
+            .filter(|o| o.vram_mb >= min_vram_mb)
+            .collect())
     }
 
     async fn dispatch(&self, offer: &GpuOffer, spec: &CloudJobSpec) -> anyhow::Result<JobHandle> {
         let ttl = Duration::from_secs(self.config.price_cache_ttl_secs);
         if offer.is_stale(ttl) {
-            anyhow::bail!("RunPod offer {} is stale — re-query before dispatch", offer.offer_id);
+            anyhow::bail!(
+                "RunPod offer {} is stale — re-query before dispatch",
+                offer.offer_id
+            );
         }
 
         let name = format!(
@@ -209,19 +237,30 @@ impl CloudProvider for RunPodClient {
             "startJupyter": false,
         });
 
-        let raw = self.http
+        let raw = self
+            .http
             .post(format!("{BASE}/pods"))
             .bearer_auth(&self.api_key)
             .json(&body)
-            .send().await.context("RunPod POST /pods")?;
+            .send()
+            .await
+            .context("RunPod POST /pods")?;
         let resp = raw
-            .error_for_status().context("RunPod POST /pods error")?
-            .json::<CreateResp>().await.context("RunPod create parse")?;
-        let pod_id = resp.id.ok_or_else(|| anyhow::anyhow!("RunPod: no pod id in response"))?;
+            .error_for_status()
+            .context("RunPod POST /pods error")?
+            .json::<CreateResp>()
+            .await
+            .context("RunPod create parse")?;
+        let pod_id = resp
+            .id
+            .ok_or_else(|| anyhow::anyhow!("RunPod: no pod id in response"))?;
 
         tracing::info!(
             "RunPod pod {} created ({}, job={:?}, ${:.3}/hr)",
-            pod_id, offer.gpu_name, spec.job_kind, offer.price_per_hour_usd
+            pod_id,
+            offer.gpu_name,
+            spec.job_kind,
+            offer.price_per_hour_usd
         );
 
         Ok(JobHandle {
@@ -234,20 +273,30 @@ impl CloudProvider for RunPodClient {
     }
 
     async fn poll_status(&self, handle: &JobHandle) -> anyhow::Result<JobStatus> {
-        let raw = self.http
+        let raw = self
+            .http
             .get(format!("{BASE}/pods/{}", handle.job_id))
             .bearer_auth(&self.api_key)
-            .send().await.context("RunPod GET /pods/{id}")?;
+            .send()
+            .await
+            .context("RunPod GET /pods/{id}")?;
         let pod = raw.error_for_status()?.json::<PodResp>().await?;
 
-        let gpu_util = pod.runtime.as_ref()
+        let gpu_util = pod
+            .runtime
+            .as_ref()
             .and_then(|r| r.gpus.as_ref())
             .and_then(|g| g.first())
             .and_then(|g| g.gpu_util_percent);
 
         Ok(match pod.desired_status.as_deref() {
-            Some("RUNNING") => JobStatus::Running { progress_pct: None, gpu_util_pct: gpu_util },
-            Some("EXITED") | Some("STOPPED") => JobStatus::Completed { adapter_uploaded: false },
+            Some("RUNNING") => JobStatus::Running {
+                progress_pct: None,
+                gpu_util_pct: gpu_util,
+            },
+            Some("EXITED") | Some("STOPPED") => JobStatus::Completed {
+                adapter_uploaded: false,
+            },
             Some("FAILED") | Some("TERMINATED") => JobStatus::Terminated,
             _ => JobStatus::Pending,
         })
@@ -255,14 +304,19 @@ impl CloudProvider for RunPodClient {
 
     async fn terminate(&self, handle: &JobHandle) -> anyhow::Result<()> {
         // Best-effort stop first (graceful), then hard delete
-        let _ = self.http
+        let _ = self
+            .http
             .post(format!("{BASE}/pods/{}/stop", handle.job_id))
             .bearer_auth(&self.api_key)
-            .send().await;
-        let raw = self.http
+            .send()
+            .await;
+        let raw = self
+            .http
             .delete(format!("{BASE}/pods/{}", handle.job_id))
             .bearer_auth(&self.api_key)
-            .send().await.context("RunPod DELETE /pods/{id}")?;
+            .send()
+            .await
+            .context("RunPod DELETE /pods/{id}")?;
         raw.error_for_status().context("RunPod terminate error")?;
         tracing::info!("RunPod pod {} terminated.", handle.job_id);
         Ok(())

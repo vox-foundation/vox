@@ -40,6 +40,7 @@ operations:
   - { surface: vox-cli, path: [ci, grammar-drift], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, repo-guards], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, release-build], status: active, reachability_required: false }
   - { surface: vox-cli, path: [completions], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
   - { surface: vox-cli, path: [fabrica], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
   - { surface: vox-cli, path: [mens], status: active, latin_ns: mens, ref_cli_required: false, reachability_required: false }

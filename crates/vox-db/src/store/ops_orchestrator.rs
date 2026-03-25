@@ -3,7 +3,6 @@
 
 use turso::params;
 
-
 use crate::store::types::StoreError;
 
 impl crate::VoxDb {
@@ -19,11 +18,14 @@ impl crate::VoxDb {
         ttl_secs: i64,
         repository_id: &str,
     ) -> Result<Result<i64, String>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT holder_node, fence_token FROM distributed_locks
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT holder_node, fence_token FROM distributed_locks
              WHERE lock_key = ?1 AND repository_id = ?2 AND expires_at > datetime('now')",
-            params![lock_key, repository_id],
-        ).await?;
+                params![lock_key, repository_id],
+            )
+            .await?;
 
         if let Some(row) = rows.next().await? {
             let holder: String = row.get(0)?;
@@ -36,7 +38,7 @@ impl crate::VoxDb {
             "SELECT COALESCE(MAX(fence_token), 0) + 1 FROM distributed_locks WHERE lock_key = ?1",
             params![lock_key],
         ).await?;
-        
+
         let next_fence: i64 = if let Some(row) = rows.next().await? {
             row.get(0)?
         } else {
@@ -74,10 +76,13 @@ impl crate::VoxDb {
 
     /// Prune all expired distributed locks.
     pub async fn prune_stale_distributed_locks(&self) -> Result<u64, StoreError> {
-        let rows_affected = self.conn.execute(
-            "DELETE FROM distributed_locks WHERE expires_at <= datetime('now')",
-            (),
-        ).await?;
+        let rows_affected = self
+            .conn
+            .execute(
+                "DELETE FROM distributed_locks WHERE expires_at <= datetime('now')",
+                (),
+            )
+            .await?;
         Ok(rows_affected as u64)
     }
 
@@ -110,12 +115,15 @@ impl crate::VoxDb {
         min_seen_ms: i64,
         repository_id: &str,
     ) -> Result<Vec<Vec<String>>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT node_id, agent_id, activity, CAST(last_seen_ms AS TEXT)
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT node_id, agent_id, activity, CAST(last_seen_ms AS TEXT)
              FROM mesh_heartbeats
              WHERE last_seen_ms >= ?1 AND repository_id = ?2",
-            params![min_seen_ms, repository_id],
-        ).await?;
+                params![min_seen_ms, repository_id],
+            )
+            .await?;
 
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
@@ -131,10 +139,13 @@ impl crate::VoxDb {
 
     /// Remove heartbeats older than threshold.
     pub async fn evict_dead_heartbeats(&self, min_seen_ms: i64) -> Result<u64, StoreError> {
-        let affected = self.conn.execute(
-            "DELETE FROM mesh_heartbeats WHERE last_seen_ms < ?1",
-            params![min_seen_ms],
-        ).await?;
+        let affected = self
+            .conn
+            .execute(
+                "DELETE FROM mesh_heartbeats WHERE last_seen_ms < ?1",
+                params![min_seen_ms],
+            )
+            .await?;
         Ok(affected as u64)
     }
 }

@@ -1,23 +1,26 @@
+use std::collections::HashMap;
 use vox_orchestrator::{
-    services::{RoutingService, RouteResult},
-    OrchestratorConfig, AgentId,
+    AgentId, OrchestratorConfig,
     affinity::FileAffinityMap,
+    contract::TaskCapabilityHints,
     groups::AffinityGroupRegistry,
     queue::AgentQueue,
-    contract::TaskCapabilityHints,
-    types::FileAffinity
+    services::{RouteResult, RoutingService},
+    types::FileAffinity,
 };
-use std::collections::HashMap;
 
 #[tokio::test]
 async fn test_routing_service_affinity_assignment() {
     let mut config = OrchestratorConfig::default();
-    config.default_agent_capabilities.labels.push("research".to_string());
-    
+    config
+        .default_agent_capabilities
+        .labels
+        .push("research".to_string());
+
     let affinity_map = FileAffinityMap::new();
     let groups = AffinityGroupRegistry::defaults();
     let mut agents = HashMap::new();
-    
+
     let a1 = AgentId(1);
     let mut q1 = AgentQueue::new(a1, "pm-group");
     q1.capabilities.labels.push("research".to_string());
@@ -40,7 +43,7 @@ async fn test_routing_service_affinity_assignment() {
         Some(&caps),
         None,
     );
-    
+
     match route {
         RouteResult::Existing(id) => assert_eq!(id, a1),
         _ => panic!("Expected existing agent routing"),
@@ -53,18 +56,18 @@ async fn test_routing_service_load_balancing() {
     let affinity_map = FileAffinityMap::new();
     let groups = AffinityGroupRegistry::defaults();
     let mut agents = HashMap::new();
-    
+
     let a1 = AgentId(1);
     let a2 = AgentId(2);
-    
+
     let q1 = AgentQueue::new(a1, "a1");
     let q2 = AgentQueue::new(a2, "a2");
-    
+
     agents.insert(a1, std::sync::Arc::new(std::sync::RwLock::new(q1)));
     agents.insert(a2, std::sync::Arc::new(std::sync::RwLock::new(q2)));
-    
+
     let task_manifest = vec![]; // No file affinity
-    
+
     let route = RoutingService::route(
         &task_manifest,
         &affinity_map,
@@ -75,7 +78,7 @@ async fn test_routing_service_load_balancing() {
         None,
         None,
     );
-    
+
     match route {
         RouteResult::Existing(id) => assert!(id == a1 || id == a2),
         _ => panic!("Expected existing agent routing"),

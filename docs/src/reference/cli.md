@@ -108,6 +108,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, `vox-cli --features mens-oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
+| `release-build --target <triple> [--version <tag>] [--out-dir dist]` | Build and package `vox` for a target (`.tar.gz` on Unix, `.zip` on Windows) and write `checksums.txt` for release publishing |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, `ref-cli.md`, reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
 
 **Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.

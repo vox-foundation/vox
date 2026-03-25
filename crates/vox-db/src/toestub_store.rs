@@ -1,8 +1,8 @@
 //! TOESTUB persistence on top of Codex (idempotent auxiliary tables).
 
 use crate::VoxDb;
-use turso::params;
 use crate::store::StoreError;
+use turso::params;
 
 const ENSURE_SQL: &str = "
 CREATE TABLE IF NOT EXISTS toestub_task_queue (
@@ -91,8 +91,7 @@ pub async fn save_baseline(
     findings_json: &str,
 ) -> Result<(), StoreError> {
     ensure_tables(db).await?;
-    db
-        .connection()
+    db.connection()
         .execute(
             "INSERT OR REPLACE INTO toestub_baselines (name, run_scope, findings_json, updated_at)
              VALUES (?1, ?2, ?3, datetime('now'))",
@@ -108,7 +107,8 @@ pub async fn load_latest_task_queue(
     user_id: &str,
 ) -> Result<Option<(i64, String)>, StoreError> {
     ensure_tables(db).await?;
-    let mut rows = db.connection()
+    let mut rows = db
+        .connection()
         .query(
             "SELECT total_findings, fix_suggestions_json FROM toestub_task_queue
              WHERE user_id = ?1 ORDER BY updated_at DESC LIMIT 1",

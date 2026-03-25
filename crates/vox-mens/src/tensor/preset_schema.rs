@@ -171,7 +171,9 @@ pub fn resolve_effective_profile(
 
     let mut p = if name == "auto" {
         if let Some(specs) = load_gpu_specs() {
-            if let Some((_name, preset_spec)) = TrainingPreset::best_for_vram(&specs.presets, device.vram_mb as u64) {
+            if let Some((_name, preset_spec)) =
+                TrainingPreset::best_for_vram(&specs.presets, device.vram_mb as u64)
+            {
                 TrainPresetProfile {
                     rank: 16,
                     alpha: 32.0,
@@ -231,8 +233,8 @@ pub fn resolve_effective_profile(
 /// Back-compat alias used in older docs.
 pub type DatasetProfile = TrainPresetProfile;
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Top-level structure of `mens/config/gpu-specs.yaml`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -277,7 +279,8 @@ impl TrainingPreset {
         presets: &'a HashMap<String, TrainingPreset>,
         vram_mb: u64,
     ) -> Option<(&'a str, &'a TrainingPreset)> {
-        presets.iter()
+        presets
+            .iter()
             .filter(|(_, p)| p.max_vram_mb <= vram_mb)
             .max_by_key(|(_, p)| p.max_vram_mb)
             .map(|(k, v)| (k.as_str(), v))

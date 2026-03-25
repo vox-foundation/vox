@@ -17,12 +17,12 @@ use crate::llm_bridge::{
 };
 use crate::params::ToolResult;
 use crate::server::ServerState;
+use chrono;
 use regex::Regex;
 use std::sync::LazyLock;
 use turso::params;
 use vox_orchestrator::types::AgentId;
 use vox_socrates_policy::ConfidencePolicy;
-use chrono;
 
 static MENTION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap());
@@ -486,9 +486,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     .map(|h| format!("- [{}:{}] {}", h.source, h.line, h.content))
                     .collect::<Vec<_>>()
                     .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — MEMORY.md]:\n{snippets}"
-                ));
+                context_parts.push(format!("[AUTONOMOUS RESEARCH — MEMORY.md]:\n{snippets}"));
                 tracing::debug!(
                     target: "vox_mcp::autonomous_research",
                     hits = relevant.len(),
@@ -545,7 +543,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
     let session_id = params.session_id.as_deref().unwrap_or("default");
     let ctx_handle = state.orchestrator.context_handle();
-    let session_ts = ctx_handle.read().unwrap()
+    let session_ts = ctx_handle
+        .read()
+        .unwrap()
         .age_secs(&format!("chat_history:{session_id}"))
         .map(|a: u64| format!(" Session last active: {a}s ago."))
         .unwrap_or_default();
@@ -568,7 +568,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 },
                 ..Default::default()
             };
-            let temperature = if profile == "creative" { 0.8_f32 } else { 0.3_f32 };
+            let temperature = if profile == "creative" {
+                0.8_f32
+            } else {
+                0.3_f32
+            };
             match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
                 Ok((model, free_only)) => {
                     let pref = state.mcp_chat_model_override.read().unwrap().clone();
@@ -661,7 +665,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     };
 
     let ctx_handle = state.orchestrator.context_handle();
-    let existing_history: Vec<ChatTranscriptEntry> = ctx_handle.read().unwrap()
+    let existing_history: Vec<ChatTranscriptEntry> = ctx_handle
+        .read()
+        .unwrap()
         .get(&history_key)
         .and_then(|s: String| serde_json::from_str(&s).ok())
         .unwrap_or_default();
@@ -678,8 +684,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     match serde_json::to_string(&history) {
         Ok(history_json) => {
             let ctx_handle = state.orchestrator.context_handle();
-            ctx_handle.write().unwrap()
-                .set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
+            ctx_handle.write().unwrap().set(
+                vox_orchestrator::AgentId(0),
+                &history_key,
+                &history_json,
+                0,
+            );
         }
         Err(e) => {
             tracing::warn!(
@@ -695,7 +705,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let repo_id = &state.repository.repository_id;
         let q_session = session_id.to_string();
         let q_repo = repo_id.to_string();
-        
+
         // Insert user turn
         let _ = db.connection()
             .execute(
@@ -734,7 +744,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let date_str = ts_to_date_str(now_s);
         let server_idle_secs = now_s.saturating_sub(state.orchestrator.last_activity_ms() / 1000);
         let ctx_handle = state.orchestrator.context_handle();
-        let session_age_secs = ctx_handle.read().unwrap().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0);
+        let session_age_secs = ctx_handle
+            .read()
+            .unwrap()
+            .age_secs(&format!("chat_history:{session_id}"))
+            .unwrap_or(0);
 
         // Record high-quality LLM turn in agent_events for Mens replay/SFT
         let mut payload = serde_json::json!({
@@ -756,7 +770,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             "0", // Global AI/Orchestrator surface agent_id
             "llm_turn",
             Some(&payload.to_string()),
-        ).await;
+        )
+        .await;
     }
 
     // 5. Return updated history + the new assistant message
@@ -792,7 +807,9 @@ pub async fn chat_history(state: &ServerState, params: ChatHistoryParams) -> Str
     let history_key = format!("chat_history:{session_id}");
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
-    let history: Vec<ChatTranscriptEntry> = ctx_handle.read().unwrap()
+    let history: Vec<ChatTranscriptEntry> = ctx_handle
+        .read()
+        .unwrap()
         .get(&history_key)
         .and_then(|s: String| serde_json::from_str(&s).ok())
         .unwrap_or_default();
@@ -960,10 +977,13 @@ Rules:
         ..Default::default()
     };
 
-    let (model, free_only) = match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
-        Ok(pair) => pair,
-        Err(e) => return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json(),
-    };
+    let (model, free_only) =
+        match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
+            Ok(pair) => pair,
+            Err(e) => {
+                return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json();
+            }
+        };
 
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let routing = McpInferRouting {
@@ -993,9 +1013,19 @@ Rules:
     // Strip any markdown fences if the model still included them despite JSON mode
     let block = response_json.trim();
     let cleaned = if block.starts_with("```json") {
-        block.strip_prefix("```json").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim()
+        block
+            .strip_prefix("```json")
+            .unwrap_or(block)
+            .strip_suffix("```")
+            .unwrap_or(block)
+            .trim()
     } else if block.starts_with("```") {
-        block.strip_prefix("```").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim()
+        block
+            .strip_prefix("```")
+            .unwrap_or(block)
+            .strip_suffix("```")
+            .unwrap_or(block)
+            .trim()
     } else {
         block
     };
@@ -1004,11 +1034,16 @@ Rules:
         Ok(p) => p,
         Err(e) => {
             tracing::error!(error = %e, raw = cleaned, "plan_goal: JSON decode failed after cleanup");
-            return ToolResult::<String>::err(format!("Failed to parse task list JSON: {e}")).to_json();
+            return ToolResult::<String>::err(format!("Failed to parse task list JSON: {e}"))
+                .to_json();
         }
     };
 
-    let summary = if parsed.summary.is_empty() { "No summary provided.".to_string() } else { parsed.summary };
+    let summary = if parsed.summary.is_empty() {
+        "No summary provided.".to_string()
+    } else {
+        parsed.summary
+    };
     let tasks = parsed.tasks;
 
     // Manual markdown generation for the on-disk/visual summary
@@ -1410,7 +1445,6 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
         }
     }
 
-
     let total = decorations.len().min(limit);
     decorations.truncate(limit);
 
@@ -1550,9 +1584,10 @@ mod routing_tests {
                 { "id": 1, "description": "Do thing", "files": [], "estimated_complexity": 1, "depends_on": [] }
             ]
         }"#;
-        let tasks: Vec<PlanTask> =
-            serde_json::from_value(serde_json::from_str::<serde_json::Value>(json).unwrap()["tasks"].clone())
-                .expect("PlanTask deserialization");
+        let tasks: Vec<PlanTask> = serde_json::from_value(
+            serde_json::from_str::<serde_json::Value>(json).unwrap()["tasks"].clone(),
+        )
+        .expect("PlanTask deserialization");
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].description, "Do thing");
         assert_eq!(tasks[0].estimated_complexity, 1);

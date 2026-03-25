@@ -1,6 +1,6 @@
 //! GPU mens training scaffolding for future multi-device support.
-//! 
-//! This module establishes the integration points for data-parallel training 
+//!
+//! This module establishes the integration points for data-parallel training
 //! without adding runtime overhead to single-device runs.
 
 /// Configuration for a distributed GPU mens training worker.
@@ -17,7 +17,9 @@ pub struct MeshTrainConfig {
 /// Returns true if `VOX_MESH_TRAIN=1` is set in the environment.
 pub fn is_mesh_mode() -> bool {
     // Check environment; default to false (single-node)
-    std::env::var("VOX_MESH_TRAIN").map(|v| v == "1").unwrap_or(false)
+    std::env::var("VOX_MESH_TRAIN")
+        .map(|v| v == "1")
+        .unwrap_or(false)
 }
 
 /// Returns the calculated rank for this worker from environment variables.

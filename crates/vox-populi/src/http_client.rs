@@ -6,8 +6,8 @@
 
 use std::time::Duration;
 
-use crate::transport::{LeaveRequest, A2ADeliverRequest};
-use crate::{PopuliRegistryFile, NodeRecord, PopuliRegistryError};
+use crate::transport::{A2ADeliverRequest, LeaveRequest};
+use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
 /// Call the populi HTTP API (join / list / heartbeat / leave).
 #[derive(Debug, Clone)]

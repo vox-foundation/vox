@@ -7,8 +7,8 @@
 //! All functions in this module are pure (no I/O, no async).
 //! Persistence lives in [`crate::attention_tracker`].
 
-use serde::{Deserialize, Serialize};
 use crate::types::{AgentId, TaskId, TaskPriority};
+use serde::{Deserialize, Serialize};
 
 // ── Configurable weight structs ────────────────────────────────────────────
 
@@ -28,7 +28,12 @@ pub struct NasaTlxWeights {
 
 impl Default for NasaTlxWeights {
     fn default() -> Self {
-        Self { mental: 0.35, temporal: 0.25, frustration: 0.20, trust_discount: 0.20 }
+        Self {
+            mental: 0.35,
+            temporal: 0.25,
+            frustration: 0.20,
+            trust_discount: 0.20,
+        }
     }
 }
 
@@ -204,12 +209,17 @@ impl Default for AttentionBudget {
 impl AttentionBudget {
     /// Create a budget with a custom ceiling.
     pub fn with_max(max_attention_ms: u64) -> Self {
-        Self { max_attention_ms, ..Default::default() }
+        Self {
+            max_attention_ms,
+            ..Default::default()
+        }
     }
 
     /// Fraction of budget consumed (0.0–1.0+).
     pub fn spent_ratio(&self) -> f64 {
-        if self.max_attention_ms == 0 { return 1.0; }
+        if self.max_attention_ms == 0 {
+            return 1.0;
+        }
         self.spent_ms as f64 / self.max_attention_ms as f64
     }
 
@@ -225,13 +235,17 @@ impl AttentionBudget {
 
     /// Efficiency: what fraction of approvals were useful (not rejected).
     pub fn efficiency(&self) -> f64 {
-        if self.total_requests == 0 { return 1.0; }
+        if self.total_requests == 0 {
+            return 1.0;
+        }
         1.0 - (self.rejected as f64 / self.total_requests as f64)
     }
 
     /// Auto-approve ratio: higher means less attention drain.
     pub fn auto_approve_ratio(&self) -> f64 {
-        if self.total_requests == 0 { return 0.0; }
+        if self.total_requests == 0 {
+            return 0.0;
+        }
         self.auto_approved as f64 / self.total_requests as f64
     }
 
@@ -288,7 +302,9 @@ impl AgentTrustScore {
         self.trust_score = alpha * outcome + (1.0 - alpha) * self.trust_score;
         self.trust_score = self.trust_score.clamp(0.0, 1.0);
         self.total_outcomes += 1;
-        if success { self.successful_outcomes += 1; }
+        if success {
+            self.successful_outcomes += 1;
+        }
         self.last_updated_ms = crate::types::now_unix_ms();
         self.update_tier(provisional_min, trusted_min);
         self.trust_score
@@ -296,10 +312,10 @@ impl AgentTrustScore {
 
     fn update_tier(&mut self, provisional_min: u32, trusted_min: u32) {
         let lower = match self.tier {
-            TrustTier::Untrusted   => 0.0,
+            TrustTier::Untrusted => 0.0,
             TrustTier::Provisional => 0.45,
-            TrustTier::Trusted     => 0.70,
-            TrustTier::System      => 0.90,
+            TrustTier::Trusted => 0.70,
+            TrustTier::System => 0.90,
         };
 
         // Promotion checks (System is operator-only; not auto-promoted)
@@ -325,10 +341,10 @@ impl AgentTrustScore {
             self.below_tier_streak += 1;
             if self.below_tier_streak >= 3 {
                 self.tier = match self.tier {
-                    TrustTier::System      => TrustTier::Trusted,
-                    TrustTier::Trusted     => TrustTier::Provisional,
+                    TrustTier::System => TrustTier::Trusted,
+                    TrustTier::Trusted => TrustTier::Provisional,
                     TrustTier::Provisional => TrustTier::Untrusted,
-                    TrustTier::Untrusted   => TrustTier::Untrusted,
+                    TrustTier::Untrusted => TrustTier::Untrusted,
                 };
                 self.below_tier_streak = 0;
             }
@@ -365,13 +381,12 @@ pub fn compute_attention_cost_ms(
     weights: &NasaTlxWeights,
 ) -> u64 {
     let token_complexity = (action.tokens_output as f64 / 1000.0).min(10.0);
-    let effective_complexity = 0.4 * (action.estimated_complexity as f64)
-        + 0.6 * token_complexity;
+    let effective_complexity = 0.4 * (action.estimated_complexity as f64) + 0.6 * token_complexity;
     let mental = (effective_complexity / 10.0).clamp(0.0, 1.0);
 
     let temporal = match action.priority {
-        TaskPriority::Urgent     => 1.0,
-        TaskPriority::Normal     => 0.5,
+        TaskPriority::Urgent => 1.0,
+        TaskPriority::Normal => 0.5,
         TaskPriority::Background => 0.2,
     };
 
@@ -385,8 +400,7 @@ pub fn compute_attention_cost_ms(
         + weights.frustration * frustration
         + weights.trust_discount * trust_discount;
 
-    let csm = (1.0 + (action.concurrent_tasks.saturating_sub(1) as f64) * 0.3)
-        .clamp(1.0, 3.0);
+    let csm = (1.0 + (action.concurrent_tasks.saturating_sub(1) as f64) * 0.3).clamp(1.0, 3.0);
 
     (base_ms as f64 * weighted * csm) as u64
 }
@@ -410,7 +424,9 @@ pub fn classify_tier(
     gate: &TierGateConfig,
 ) -> ApprovalTier {
     // Hard blocks first
-    if action.external { return ApprovalTier::Blocked; }
+    if action.external {
+        return ApprovalTier::Blocked;
+    }
     if action.write_file_count > gate.untrusted_max_writes_before_block
         && trust.tier == TrustTier::Untrusted
     {
@@ -489,7 +505,10 @@ mod tests {
         let high = make_action(1, false, 5000, 5);
         let cost_low = compute_attention_cost_ms(&low, 0.5, DEFAULT_INTERRUPT_COST_MS, &w);
         let cost_high = compute_attention_cost_ms(&high, 0.5, DEFAULT_INTERRUPT_COST_MS, &w);
-        assert!(cost_high > cost_low, "high-token output should cost more attention");
+        assert!(
+            cost_high > cost_low,
+            "high-token output should cost more attention"
+        );
     }
 
     #[test]
@@ -499,8 +518,12 @@ mod tests {
             ts.record_outcome(true, 0.1, 5, 20);
         }
         assert_eq!(ts.total_outcomes, 5);
-        assert!(ts.trust_score > 0.45 || ts.tier == TrustTier::Provisional || ts.total_outcomes < 5,
-            "score={:.3}, tier={:?}", ts.trust_score, ts.tier);
+        assert!(
+            ts.trust_score > 0.45 || ts.tier == TrustTier::Provisional || ts.total_outcomes < 5,
+            "score={:.3}, tier={:?}",
+            ts.trust_score,
+            ts.tier
+        );
     }
 
     #[test]
@@ -521,7 +544,10 @@ mod tests {
         let trust = make_trust(TrustTier::Untrusted, 0.2);
         let action = make_action(0, false, 100, 3);
         let gate = TierGateConfig::default();
-        assert_eq!(classify_tier(&trust, &action, 0.5, &gate), ApprovalTier::AutoApprove);
+        assert_eq!(
+            classify_tier(&trust, &action, 0.5, &gate),
+            ApprovalTier::AutoApprove
+        );
     }
 
     #[test]
@@ -529,7 +555,10 @@ mod tests {
         let trust = make_trust(TrustTier::Untrusted, 0.2);
         let action = make_action(4, false, 100, 3);
         let gate = TierGateConfig::default();
-        assert_eq!(classify_tier(&trust, &action, 0.5, &gate), ApprovalTier::Blocked);
+        assert_eq!(
+            classify_tier(&trust, &action, 0.5, &gate),
+            ApprovalTier::Blocked
+        );
     }
 
     #[test]
@@ -537,7 +566,10 @@ mod tests {
         let trust = make_trust(TrustTier::System, 0.99);
         let action = make_action(0, true, 100, 1);
         let gate = TierGateConfig::default();
-        assert_eq!(classify_tier(&trust, &action, 0.0, &gate), ApprovalTier::Blocked);
+        assert_eq!(
+            classify_tier(&trust, &action, 0.0, &gate),
+            ApprovalTier::Blocked
+        );
     }
 
     #[test]
@@ -549,7 +581,10 @@ mod tests {
     #[test]
     fn shannon_entropy_max_at_half() {
         let h = decision_entropy_bits(0.5);
-        assert!((h - 1.0).abs() < 0.01, "H should be ~1.0 at p=0.5, got {h:.4}");
+        assert!(
+            (h - 1.0).abs() < 0.01,
+            "H should be ~1.0 at p=0.5, got {h:.4}"
+        );
     }
 
     #[test]
@@ -580,8 +615,14 @@ mod tests {
         action.repeated_approve_count = 10;
         let gate = TierGateConfig::default();
         // entropy < 0.15 AND trust >= 0.85 should auto-approve
-        assert_eq!(classify_tier(&trust, &action, 0.10, &gate), ApprovalTier::AutoApprove);
+        assert_eq!(
+            classify_tier(&trust, &action, 0.10, &gate),
+            ApprovalTier::AutoApprove
+        );
         // entropy > 0.15 should not
-        assert_ne!(classify_tier(&trust, &action, 0.50, &gate), ApprovalTier::AutoApprove);
+        assert_ne!(
+            classify_tier(&trust, &action, 0.50, &gate),
+            ApprovalTier::AutoApprove
+        );
     }
 }

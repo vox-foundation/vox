@@ -84,26 +84,26 @@ pub async fn get_profile(db: &Codex, user_id: &str) -> Result<Option<LudusProfil
 /// Upsert a gamify profile to the DB (includes streak state).
 pub async fn upsert_profile(db: &Codex, p: &LudusProfile) -> Result<()> {
     db.upsert_gamify_profile(
-            &p.user_id,
-            p.level as i64,
-            p.xp as i64,
-            p.crystals as i64,
-            p.energy as i64,
-            p.max_energy as i64,
-            p.last_energy_regen,
-            p.last_active,
-            p.streak.current_streak as i64,
-            p.streak.longest_streak as i64,
-            p.streak.last_activity_ts,
-            p.streak.grace_periods_available as i64,
-            p.streak.grace_periods_used as i64,
-            p.total_xp_earned as i64,
-            p.prestige_level as i64,
-            p.lumens,
-            p.generosity_lumens,
-            p.streak_shields as i64,
-        )
-        .await?;
+        &p.user_id,
+        p.level as i64,
+        p.xp as i64,
+        p.crystals as i64,
+        p.energy as i64,
+        p.max_energy as i64,
+        p.last_energy_regen,
+        p.last_active,
+        p.streak.current_streak as i64,
+        p.streak.longest_streak as i64,
+        p.streak.last_activity_ts,
+        p.streak.grace_periods_available as i64,
+        p.streak.grace_periods_used as i64,
+        p.total_xp_earned as i64,
+        p.prestige_level as i64,
+        p.lumens,
+        p.generosity_lumens,
+        p.streak_shields as i64,
+    )
+    .await?;
     Ok(())
 }
 
@@ -117,13 +117,9 @@ pub async fn unlock_achievement(
     crystals: u32,
 ) -> Result<bool> {
     let now = crate::util::now_unix();
-    Ok(db.unlock_gamify_achievement(
-        user_id,
-        achievement_id,
-        now,
-        xp as i64,
-        crystals as i64,
-    ).await?)
+    Ok(db
+        .unlock_gamify_achievement(user_id, achievement_id, now, xp as i64, crystals as i64)
+        .await?)
 }
 
 /// Record a level-up event in the level history table.
@@ -135,13 +131,8 @@ pub async fn record_level_up(
     xp_at_level: u64,
 ) -> Result<()> {
     let now = crate::util::now_unix();
-    db.record_gamify_level_up(
-        user_id,
-        level as i64,
-        title,
-        xp_at_level as i64,
-        now,
-    ).await?;
+    db.record_gamify_level_up(user_id, level as i64, title, xp_at_level as i64, now)
+        .await?;
     Ok(())
 }
 
@@ -169,13 +160,35 @@ pub async fn list_companions(db: &Codex, user_id: &str) -> Result<Vec<Companion>
             code_hash: row[4].clone(),
             language: row[5].clone().unwrap_or_default(),
             ascii_sprite: row[6].clone(),
-            mood: row[7].as_deref().unwrap_or("neutral").parse::<Mood>().unwrap_or(Mood::Neutral),
-            health: row[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_health: row[9].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            energy: row[10].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_energy: row[11].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            code_quality: row[12].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(50) as u8,
-            last_active: row[13].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(),
+            mood: row[7]
+                .as_deref()
+                .unwrap_or("neutral")
+                .parse::<Mood>()
+                .unwrap_or(Mood::Neutral),
+            health: row[8]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_health: row[9]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            energy: row[10]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_energy: row[11]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            code_quality: row[12]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(50) as u8,
+            last_active: row[13]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or_default(),
             personality,
         });
     }
@@ -201,7 +214,8 @@ pub async fn upsert_companion(db: &Codex, c: &Companion) -> Result<()> {
         c.code_quality as i64,
         c.last_active,
         c.personality.as_str(),
-    ).await?;
+    )
+    .await?;
     Ok(())
 }
 
@@ -222,13 +236,35 @@ pub async fn get_companion(db: &Codex, id: &str) -> Result<Option<Companion>> {
             code_hash: row[4].clone(),
             language: row[5].clone().unwrap_or_default(),
             ascii_sprite: row[6].clone(),
-            mood: row[7].as_deref().unwrap_or("neutral").parse::<Mood>().unwrap_or(Mood::Neutral),
-            health: row[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_health: row[9].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            energy: row[10].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_energy: row[11].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            code_quality: row[12].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(50) as u8,
-            last_active: row[13].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(),
+            mood: row[7]
+                .as_deref()
+                .unwrap_or("neutral")
+                .parse::<Mood>()
+                .unwrap_or(Mood::Neutral),
+            health: row[8]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_health: row[9]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            energy: row[10]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_energy: row[11]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            code_quality: row[12]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(50) as u8,
+            last_active: row[13]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or_default(),
             personality,
         }))
     } else {
@@ -250,7 +286,11 @@ pub async fn list_quests(db: &Codex, user_id: &str) -> Result<Vec<Quest>> {
     let mut quests = Vec::new();
 
     for row in rows {
-        let completed = row[7].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 0;
+        let completed = row[7]
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0)
+            != 0;
         let modifier_str = row[10].as_deref().unwrap_or("none");
         let modifier = match modifier_str {
             "blessed" => QuestModifier::Blessed,
@@ -270,14 +310,29 @@ pub async fn list_quests(db: &Codex, user_id: &str) -> Result<Vec<Quest>> {
             user_id: user_id.to_string(),
             quest_type: parse_quest_type(&row[1].as_deref().unwrap_or("build").to_string()), // Reverted to use parse_quest_type
             description: row[2].clone().unwrap_or_default(),
-            target: row[3].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(1) as u32,
-            progress: row[4].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) as u32,
-            crystal_reward: row[5].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(10) as u64, // Changed to u64
-            xp_reward: row[6].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(15) as u64, // Changed to u64
+            target: row[3]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(1) as u32,
+            progress: row[4]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(0) as u32,
+            crystal_reward: row[5]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(10) as u64, // Changed to u64
+            xp_reward: row[6]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(15) as u64, // Changed to u64
             modifier,
             completed,
             status: row[11].clone().unwrap_or_else(|| "active".to_string()),
-            expires_at: row[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(), // Changed to i64
+            expires_at: row[8]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or_default(), // Changed to i64
             hint: row[9].clone().unwrap_or_default(),
         });
     }
@@ -299,7 +354,8 @@ pub async fn upsert_quest(db: &Codex, q: &Quest) -> Result<()> {
         &q.status,
         q.expires_at,
         q.completed,
-    ).await?;
+    )
+    .await?;
     Ok(())
 }
 
@@ -348,7 +404,8 @@ pub async fn get_quest(db: &Codex, id: &str) -> Result<Option<Quest>> {
 /// Update quest status: "pending" | "active" | "completed" | "abandoned".
 pub async fn update_quest_status(db: &Codex, user_id: &str, id: &str, status: &str) -> Result<()> {
     let completed = status == "completed";
-    db.update_gamify_quest_status(id, user_id, status, completed).await?;
+    db.update_gamify_quest_status(id, user_id, status, completed)
+        .await?;
     Ok(())
 }
 
@@ -411,7 +468,8 @@ pub async fn insert_battle(db: &Codex, b: &Battle) -> Result<()> {
         b.xp_earned as i64,
         b.duration_secs as i64,
         b.created_at,
-    ).await?;
+    )
+    .await?;
     Ok(())
 }
 
@@ -459,7 +517,8 @@ pub async fn update_battle(db: &Codex, b: &Battle) -> Result<()> {
         b.crystals_earned as i64,
         b.xp_earned as i64,
         b.duration_secs as i64,
-    ).await?;
+    )
+    .await?;
     Ok(())
 }
 
@@ -560,7 +619,8 @@ pub async fn insert_event(
     event_type: &str,
     payload: Option<&str>,
 ) -> Result<()> {
-    db.insert_gamify_event(agent_id, event_type, payload).await?;
+    db.insert_gamify_event(agent_id, event_type, payload)
+        .await?;
     Ok(())
 }
 
@@ -631,7 +691,16 @@ pub async fn insert_cost_record(
     output_tokens: i64,
     cost_usd: f64,
 ) -> Result<()> {
-    db.insert_gamify_cost_record(agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd).await?;
+    db.insert_gamify_cost_record(
+        agent_id,
+        session_id,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        cost_usd,
+    )
+    .await?;
     Ok(())
 }
 
@@ -644,7 +713,18 @@ pub async fn get_agent_cost_usd(db: &Codex, agent_id: &str) -> Result<f64> {
 pub async fn list_cost_records(db: &Codex, agent_id: &str, limit: i64) -> Result<Vec<CostRecord>> {
     let rows = db.list_gamify_cost_records(agent_id, limit).await?;
     let mut records = Vec::new();
-    for (id, agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, timestamp) in rows {
+    for (
+        id,
+        agent_id,
+        session_id,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        cost_usd,
+        timestamp,
+    ) in rows
+    {
         records.push(CostRecord {
             id,
             agent_id,
@@ -659,8 +739,6 @@ pub async fn list_cost_records(db: &Codex, agent_id: &str, limit: i64) -> Result
     }
     Ok(records)
 }
-
-
 
 /// Acknowledge an A2A message by ID.
 pub async fn acknowledge_message(db: &Codex, id: i64) -> Result<()> {
@@ -710,7 +788,8 @@ pub async fn update_agent_session(
     task_snapshot: Option<&str>,
     context_summary: Option<&str>,
 ) -> Result<()> {
-    db.update_gamify_session(id, status, task_snapshot, context_summary).await?;
+    db.update_gamify_session(id, status, task_snapshot, context_summary)
+        .await?;
     Ok(())
 }
 
@@ -749,7 +828,8 @@ pub async fn upsert_agent_metric(
     metric_value: f64,
     period: &str,
 ) -> Result<()> {
-    db.upsert_gamify_agent_metric(agent_id, metric_name, metric_value, period).await?;
+    db.upsert_gamify_agent_metric(agent_id, metric_name, metric_value, period)
+        .await?;
     Ok(())
 }
 
@@ -1158,7 +1238,9 @@ use crate::teaching::TeachingProfile;
 
 /// Load a teaching profile. Returns a fresh default if none exists yet.
 pub async fn get_teaching_profile(db: &Codex, user_id: &str) -> Result<TeachingProfile> {
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT stage, silenced, mistake_counts, cooldowns
              FROM gamify_teaching_profiles WHERE user_id = ?1",
             params![user_id.to_string()],
@@ -1317,7 +1399,9 @@ pub async fn list_unread_notifications(
     limit: u32,
 ) -> Result<Vec<crate::notifications::Notification>> {
     let now = crate::util::now_unix();
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT id, notification_type, title, message, created_at
              FROM gamify_notifications
              WHERE user_id = ?1 AND read = 0 AND (expires_at = 0 OR expires_at > ?2)
@@ -1369,7 +1453,8 @@ pub async fn mark_all_notifications_read(db: &Codex, user_id: &str) -> Result<()
 /// Delete notifications older than their `expires_at` timestamp (TTL cleanup).
 pub async fn cleanup_expired_notifications(db: &Codex) -> Result<u64> {
     let now = crate::util::now_unix();
-    let rows = db.connection()
+    let rows = db
+        .connection()
         .execute(
             "DELETE FROM gamify_notifications WHERE expires_at > 0 AND expires_at < ?1",
             params![now],
@@ -1487,7 +1572,9 @@ pub async fn get_reward_claim(
 
 /// Get a specific counter for a user.
 pub async fn get_counter(db: &Codex, user_id: &str, name: &str) -> Result<u32> {
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT count FROM gamify_counters WHERE user_id = ?1 AND counter_name = ?2",
             params![user_id, name],
         )
@@ -1710,7 +1797,9 @@ pub async fn arena_event_leaderboard(
     event_id: &str,
     limit: i64,
 ) -> Result<Vec<(String, i64, i64)>> {
-    let mut rows = db.connection().query(
+    let mut rows = db
+        .connection()
+        .query(
             "SELECT user_id, xp_contributed, lumens_contributed
          FROM gamify_arena_participants
          WHERE event_id = ?1

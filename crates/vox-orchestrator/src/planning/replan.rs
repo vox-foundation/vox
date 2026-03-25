@@ -1,6 +1,6 @@
+use crate::Orchestrator;
 use crate::planning::synthesizer::synthesize_plan_nodes;
 use crate::planning::{PlanNode, PlanningTaskMeta};
-use crate::Orchestrator;
 
 pub fn trigger_matches(reason: &str, policy_json: Option<&str>) -> bool {
     let Some(policy_json) = policy_json else {

@@ -1,0 +1,71 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ fromJson(matrix.runs_on) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["self-hosted","linux","x64"]'
+          - target: x86_64-pc-windows-msvc
+            runs_on: '["windows-latest"]'
+          - target: x86_64-apple-darwin
+            runs_on: '["macos-latest"]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build and package release artifact
+        run: cargo run -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    runs-on: [self-hosted, linux, x64]
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Generate consolidated checksums
+        run: |
+          cd release-artifacts
+          rm -f checksums.txt
+          for f in release-*/*; do
+            sum="$(sha256sum "$f" | cut -d ' ' -f 1)"
+            echo "$sum  $(basename "$f")" >> checksums.txt
+          done
+
+      - name: Create release with assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/release-*/*
+            release-artifacts/checksums.txt
+          generate_release_notes: true

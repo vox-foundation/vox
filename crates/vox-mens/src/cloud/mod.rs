@@ -107,8 +107,7 @@ impl JobKind {
 // ── Provider configuration ────────────────────────────────────────────────────
 
 /// Default Docker image for cloud GPU jobs.
-pub const DEFAULT_CLOUD_IMAGE: &str =
-    "ghcr.io/vox-foundation/vox-mens-cuda:latest";
+pub const DEFAULT_CLOUD_IMAGE: &str = "ghcr.io/vox-foundation/vox-mens-cuda:latest";
 
 /// Conservative fallback ms/step when no measured profile exists.
 /// At 200 ms/step a 5k-sample × 3-epoch run takes ~600s.
@@ -171,8 +170,8 @@ impl Default for CloudProviderConfig {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(30_u64);
-        let image = std::env::var("VOX_CLOUD_IMAGE")
-            .unwrap_or_else(|_| DEFAULT_CLOUD_IMAGE.to_string());
+        let image =
+            std::env::var("VOX_CLOUD_IMAGE").unwrap_or_else(|_| DEFAULT_CLOUD_IMAGE.to_string());
         let abs_max = std::env::var("VOX_CLOUD_MAX_RUNTIME")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -521,9 +520,9 @@ impl std::str::FromStr for CloudTarget {
             "auto" => Ok(Self::Auto),
             "vast" => Ok(Self::Vast),
             "runpod" | "run-pod" | "run_pod" => Ok(Self::RunPod),
-            other => anyhow::bail!(
-                "Unknown cloud target '{other}'. Valid: local, auto, vast, runpod"
-            ),
+            other => {
+                anyhow::bail!("Unknown cloud target '{other}'. Valid: local, auto, vast, runpod")
+            }
         }
     }
 }
@@ -608,17 +607,24 @@ mod tests {
     fn cloud_target_parse() {
         assert_eq!("auto".parse::<CloudTarget>().unwrap(), CloudTarget::Auto);
         assert_eq!("vast".parse::<CloudTarget>().unwrap(), CloudTarget::Vast);
-        assert_eq!("runpod".parse::<CloudTarget>().unwrap(), CloudTarget::RunPod);
+        assert_eq!(
+            "runpod".parse::<CloudTarget>().unwrap(),
+            CloudTarget::RunPod
+        );
         assert!("gcp".parse::<CloudTarget>().is_err());
     }
 
     #[test]
     fn job_spec_effective_runtime_caps() {
-        let cfg = CloudProviderConfig { absolute_max_runtime_secs: 3600, ..Default::default() };
-        let spec = CloudJobSpec { max_runtime_secs: Some(7200), ..CloudJobSpec::new_train(&cfg) };
+        let cfg = CloudProviderConfig {
+            absolute_max_runtime_secs: 3600,
+            ..Default::default()
+        };
+        let spec = CloudJobSpec {
+            max_runtime_secs: Some(7200),
+            ..CloudJobSpec::new_train(&cfg)
+        };
         // explicit 7200 capped by abs 3600
         assert_eq!(spec.effective_max_runtime(&cfg), 3600);
     }
 }
-
-

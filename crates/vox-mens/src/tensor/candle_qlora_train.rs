@@ -102,7 +102,11 @@ fn select_candle_device(kind: DeviceKind) -> Result<(Device, String)> {
                         train_log::warn("CUDA unavailable — falling back to CPU");
                         Device::Cpu
                     });
-                    let lbl = if matches!(d, Device::Cpu) { "cpu(fallback)" } else { "cuda:0" };
+                    let lbl = if matches!(d, Device::Cpu) {
+                        "cpu(fallback)"
+                    } else {
+                        "cuda:0"
+                    };
                     (d, lbl.into())
                 }
                 "apple" => {
@@ -110,7 +114,11 @@ fn select_candle_device(kind: DeviceKind) -> Result<(Device, String)> {
                         train_log::warn("Metal unavailable — falling back to CPU");
                         Device::Cpu
                     });
-                    let lbl = if matches!(d, Device::Cpu) { "cpu(fallback)" } else { "metal:0" };
+                    let lbl = if matches!(d, Device::Cpu) {
+                        "cpu(fallback)"
+                    } else {
+                        "metal:0"
+                    };
                     (d, lbl.into())
                 }
                 v => {
@@ -128,8 +136,13 @@ fn load_adapter_into_trainer(trainer: &mut QLoraTrainer, path: &Path) -> Result<
     if !path.exists() {
         anyhow::bail!("checkpoint adapter not found: {}", path.display());
     }
-    trainer.load_lora_weights(path).context("warm-start LoRA weights")?;
-    train_log::info(&format!("Warm-started LoRA weights from {}", path.display()));
+    trainer
+        .load_lora_weights(path)
+        .context("warm-start LoRA weights")?;
+    train_log::info(&format!(
+        "Warm-started LoRA weights from {}",
+        path.display()
+    ));
     Ok(())
 }
 
@@ -180,9 +193,10 @@ pub fn run_candle_qlora_train(
         .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
     // Resolve training data path: config.train_file → data_dir/train.jsonl fallback
-    let train_path: PathBuf = config.train_file.clone().unwrap_or_else(|| {
-        data_dir.join("train.jsonl")
-    });
+    let train_path: PathBuf = config
+        .train_file
+        .clone()
+        .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
     let mut pairs = vox_tensor::data::load_all(&train_path, config.min_rating)
         .with_context(|| format!("load training data from {}", train_path.display()))?;
@@ -191,7 +205,8 @@ pub fn run_candle_qlora_train(
     }
 
     let val_count = {
-        let pct_count = (pairs.len() as f64 * config.validation_split_ratio.unwrap_or(0.05)) as usize;
+        let pct_count =
+            (pairs.len() as f64 * config.validation_split_ratio.unwrap_or(0.05)) as usize;
         // Task 4.2 request: 10 hold-out inputs
         if pairs.len() > 20 {
             pct_count.max(10).min(pairs.len() / 2)
@@ -213,9 +228,8 @@ pub fn run_candle_qlora_train(
 
     // ── mmap base weights ─────────────────────────────────────────────────────
     #[allow(unsafe_code)]
-    let vb_mmap = unsafe {
-        VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)?
-    };
+    let vb_mmap =
+        unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
     let wte = vb_mmap.get((bundle.vocab, bundle.d_model), &bundle.embed_key)?;
 
     // ── qlora-rs config ───────────────────────────────────────────────────────
@@ -224,7 +238,9 @@ pub fn run_candle_qlora_train(
     let qlora_cfg = QLoraConfig::preset_qv_bf16(rank, alpha_u);
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
-    let warmup_steps = config.warmup_steps.min((total_steps_planned / 10).max(1) as usize);
+    let warmup_steps = config
+        .warmup_steps
+        .min((total_steps_planned / 10).max(1) as usize);
 
     let mut train_cfg = QLoraTrainingConfig::default();
     train_cfg.adapter_config = AdapterTrainingConfig {
@@ -254,8 +270,12 @@ pub fn run_candle_qlora_train(
             // ── Layer norms ───────────────────────────────────────────────────
             let ln1_key = format!("model.layers.{i}.input_layernorm.weight");
             let ln2_key = format!("model.layers.{i}.post_attention_layernorm.weight");
-            let w_ln1 = vb_mmap.get(bundle.d_model, &ln1_key)?.to_dtype(DType::F32)?;
-            let w_ln2 = vb_mmap.get(bundle.d_model, &ln2_key)?.to_dtype(DType::F32)?;
+            let w_ln1 = vb_mmap
+                .get(bundle.d_model, &ln1_key)?
+                .to_dtype(DType::F32)?;
+            let w_ln2 = vb_mmap
+                .get(bundle.d_model, &ln2_key)?
+                .to_dtype(DType::F32)?;
             let ln1 = candle_nn::RmsNorm::new(w_ln1, 1e-6);
             let ln2 = candle_nn::RmsNorm::new(w_ln2, 1e-6);
 
@@ -265,45 +285,106 @@ pub fn run_candle_qlora_train(
             let v_key = format!("model.layers.{i}.self_attn.v_proj.weight");
             let o_key = format!("model.layers.{i}.self_attn.o_proj.weight");
 
-            let w_q = vb_mmap.get((bundle.d_model, bundle.d_model), &q_key)?.to_dtype(DType::F32)?;
-            let w_k = vb_mmap.get((kv_dim, bundle.d_model), &k_key)?.to_dtype(DType::F32)?;
-            let w_v = vb_mmap.get((kv_dim, bundle.d_model), &v_key)?.to_dtype(DType::F32)?;
-            let w_o = vb_mmap.get((bundle.d_model, bundle.d_model), &o_key)?.to_dtype(DType::F32)?;
+            let w_q = vb_mmap
+                .get((bundle.d_model, bundle.d_model), &q_key)?
+                .to_dtype(DType::F32)?;
+            let w_k = vb_mmap
+                .get((kv_dim, bundle.d_model), &k_key)?
+                .to_dtype(DType::F32)?;
+            let w_v = vb_mmap
+                .get((kv_dim, bundle.d_model), &v_key)?
+                .to_dtype(DType::F32)?;
+            let w_o = vb_mmap
+                .get((bundle.d_model, bundle.d_model), &o_key)?
+                .to_dtype(DType::F32)?;
 
             let q_label = format!("l{i}.q");
             let k_label = format!("l{i}.k");
             let v_label = format!("l{i}.v");
             let o_label = format!("l{i}.o");
 
-            let q_proj = QuantizedLinear::from_weight_with_varbuilder(&w_q, None, &qlora_cfg, vb.pp(&q_label))?;
-            let k_proj = QuantizedLinear::from_weight_with_varbuilder(&w_k, None, &qlora_cfg, vb.pp(&k_label))?;
-            let v_proj = QuantizedLinear::from_weight_with_varbuilder(&w_v, None, &qlora_cfg, vb.pp(&v_label))?;
-            let o_proj = QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+            let q_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_q,
+                None,
+                &qlora_cfg,
+                vb.pp(&q_label),
+            )?;
+            let k_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_k,
+                None,
+                &qlora_cfg,
+                vb.pp(&k_label),
+            )?;
+            let v_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_v,
+                None,
+                &qlora_cfg,
+                vb.pp(&v_label),
+            )?;
+            let o_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_o,
+                None,
+                &qlora_cfg,
+                vb.pp(&o_label),
+            )?;
 
-            for (lbl, bk) in [(&q_label, &q_key), (&k_label, &k_key), (&v_label, &v_key), (&o_label, &o_key)] {
+            for (lbl, bk) in [
+                (&q_label, &q_key),
+                (&k_label, &k_key),
+                (&v_label, &v_key),
+                (&o_label, &o_key),
+            ] {
                 adapter_layer_order.push(lbl.clone());
                 base_key_map.insert(lbl.clone(), bk.clone());
             }
 
             // ── MLP projections ───────────────────────────────────────────────
-            let inter_sz = bundle.layout.intermediate_size.unwrap_or(bundle.d_model * 4);
+            let inter_sz = bundle
+                .layout
+                .intermediate_size
+                .unwrap_or(bundle.d_model * 4);
             let gate_key = format!("model.layers.{i}.mlp.gate_proj.weight");
-            let up_key   = format!("model.layers.{i}.mlp.up_proj.weight");
+            let up_key = format!("model.layers.{i}.mlp.up_proj.weight");
             let down_key = format!("model.layers.{i}.mlp.down_proj.weight");
 
-            let w_gate = vb_mmap.get((inter_sz, bundle.d_model), &gate_key)?.to_dtype(DType::F32)?;
-            let w_up   = vb_mmap.get((inter_sz, bundle.d_model), &up_key)?.to_dtype(DType::F32)?;
-            let w_down = vb_mmap.get((bundle.d_model, inter_sz), &down_key)?.to_dtype(DType::F32)?;
+            let w_gate = vb_mmap
+                .get((inter_sz, bundle.d_model), &gate_key)?
+                .to_dtype(DType::F32)?;
+            let w_up = vb_mmap
+                .get((inter_sz, bundle.d_model), &up_key)?
+                .to_dtype(DType::F32)?;
+            let w_down = vb_mmap
+                .get((bundle.d_model, inter_sz), &down_key)?
+                .to_dtype(DType::F32)?;
 
             let gate_label = format!("l{i}.gate");
-            let up_label   = format!("l{i}.up");
+            let up_label = format!("l{i}.up");
             let down_label = format!("l{i}.down");
 
-            let gate_proj = QuantizedLinear::from_weight_with_varbuilder(&w_gate, None, &qlora_cfg, vb.pp(&gate_label))?;
-            let up_proj   = QuantizedLinear::from_weight_with_varbuilder(&w_up,   None, &qlora_cfg, vb.pp(&up_label))?;
-            let down_proj = QuantizedLinear::from_weight_with_varbuilder(&w_down,  None, &qlora_cfg, vb.pp(&down_label))?;
+            let gate_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_gate,
+                None,
+                &qlora_cfg,
+                vb.pp(&gate_label),
+            )?;
+            let up_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_up,
+                None,
+                &qlora_cfg,
+                vb.pp(&up_label),
+            )?;
+            let down_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_down,
+                None,
+                &qlora_cfg,
+                vb.pp(&down_label),
+            )?;
 
-            for (lbl, bk) in [(&gate_label, &gate_key), (&up_label, &up_key), (&down_label, &down_key)] {
+            for (lbl, bk) in [
+                (&gate_label, &gate_key),
+                (&up_label, &up_key),
+                (&down_label, &down_key),
+            ] {
                 adapter_layer_order.push(lbl.clone());
                 base_key_map.insert(lbl.clone(), bk.clone());
             }
@@ -318,29 +399,47 @@ pub fn run_candle_qlora_train(
             model_layers.push(crate::tensor::candle_model_qwen::Qwen2Layer {
                 input_layernorm: ln1,
                 self_attn: crate::tensor::candle_model_qwen::Qwen2Attention {
-                    q_proj, k_proj, v_proj, o_proj,
-                    n_heads, n_kv_heads, head_dim,
+                    q_proj,
+                    k_proj,
+                    v_proj,
+                    o_proj,
+                    n_heads,
+                    n_kv_heads,
+                    head_dim,
                 },
                 post_attention_layernorm: ln2,
-                mlp: crate::tensor::candle_model_qwen::Qwen2MLP { gate_proj, up_proj, down_proj },
+                mlp: crate::tensor::candle_model_qwen::Qwen2MLP {
+                    gate_proj,
+                    up_proj,
+                    down_proj,
+                },
                 inv_freq,
             });
         }
 
         // ── Final norm + LM head (weight-tied to embeddings) ─────────────────
-        let fnorm_w = vb_mmap.get(bundle.d_model, "model.norm.weight")?.to_dtype(DType::F32)?;
+        let fnorm_w = vb_mmap
+            .get(bundle.d_model, "model.norm.weight")?
+            .to_dtype(DType::F32)?;
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
         let w_lm = wte.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
-        let lm_base  = bundle.embed_key.clone();
-        let lm_head = QuantizedLinear::from_weight_with_varbuilder(&w_lm, None, &qlora_cfg, vb.pp(&lm_label))?;
+        let lm_base = bundle.embed_key.clone();
+        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+            &w_lm,
+            None,
+            &qlora_cfg,
+            vb.pp(&lm_label),
+        )?;
         adapter_layer_order.push(lm_label.clone());
         base_key_map.insert(lm_label, lm_base);
 
         (final_norm, lm_head)
     }; // vb dropped here — VarMap retains trainable LoRA vars
 
-    trainer.init_optimizer(&[]).context("init qlora optimizer")?;
+    trainer
+        .init_optimizer(&[])
+        .context("init qlora optimizer")?;
 
     let model = crate::tensor::candle_model_qwen::Qwen2Model {
         embed_tokens: wte,
@@ -351,10 +450,13 @@ pub fn run_candle_qlora_train(
 
     // ── Async VoxDB writer ────────────────────────────────────────────────────
     let run_id = config.run_id.clone().unwrap_or_else(|| {
-        format!("qlora_{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs())
+        format!(
+            "qlora_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        )
     });
 
     let (db_tx, mut db_rx) = tokio::sync::mpsc::unbounded_channel::<TrainingDbEvent>();
@@ -367,7 +469,14 @@ pub fn run_candle_qlora_train(
         };
         while let Some(evt) = db_rx.recv().await {
             match evt {
-                TrainingDbEvent::Start { run_id, adapter_tag, model_name, output_dir, data_dir, planned_steps } => {
+                TrainingDbEvent::Start {
+                    run_id,
+                    adapter_tag,
+                    model_name,
+                    output_dir,
+                    data_dir,
+                    planned_steps,
+                } => {
                     let params = vox_db::training_run::TrainingRunStartParams {
                         run_id: run_id.clone(),
                         adapter_tag,
@@ -377,19 +486,62 @@ pub fn run_candle_qlora_train(
                         planned_steps,
                     };
                     let _ = db.record_training_run_start(&params).await;
-                    let _ = db.record_training_event(&run_id, "train_start", serde_json::json!({"run_id": run_id})).await;
+                    let _ = db
+                        .record_training_event(
+                            &run_id,
+                            "train_start",
+                            serde_json::json!({"run_id": run_id}),
+                        )
+                        .await;
                 }
-                TrainingDbEvent::Checkpoint { run_id, epoch, global_step, last_loss, adapter_path } => {
-                    let _ = db.update_training_checkpoint(&run_id, epoch, global_step, last_loss, Some(&adapter_path)).await;
-                    let _ = db.record_training_checkpoint(&run_id, epoch, global_step, &adapter_path).await;
+                TrainingDbEvent::Checkpoint {
+                    run_id,
+                    epoch,
+                    global_step,
+                    last_loss,
+                    adapter_path,
+                } => {
+                    let _ = db
+                        .update_training_checkpoint(
+                            &run_id,
+                            epoch,
+                            global_step,
+                            last_loss,
+                            Some(&adapter_path),
+                        )
+                        .await;
+                    let _ = db
+                        .record_training_checkpoint(&run_id, epoch, global_step, &adapter_path)
+                        .await;
                 }
-                TrainingDbEvent::Complete { run_id, global_step, adapter_path } => {
-                    let _ = db.mark_training_complete(&run_id, global_step, Some(&adapter_path)).await;
-                    let _ = db.record_training_event(&run_id, "train_complete", serde_json::json!({"global_step": global_step})).await;
+                TrainingDbEvent::Complete {
+                    run_id,
+                    global_step,
+                    adapter_path,
+                } => {
+                    let _ = db
+                        .mark_training_complete(&run_id, global_step, Some(&adapter_path))
+                        .await;
+                    let _ = db
+                        .record_training_event(
+                            &run_id,
+                            "train_complete",
+                            serde_json::json!({"global_step": global_step}),
+                        )
+                        .await;
                 }
-                TrainingDbEvent::Failed { run_id, global_step } => {
+                TrainingDbEvent::Failed {
+                    run_id,
+                    global_step,
+                } => {
                     let _ = db.mark_training_failed(&run_id, global_step).await;
-                    let _ = db.record_training_event(&run_id, "train_failed", serde_json::json!({"global_step": global_step})).await;
+                    let _ = db
+                        .record_training_event(
+                            &run_id,
+                            "train_failed",
+                            serde_json::json!({"global_step": global_step}),
+                        )
+                        .await;
                 }
             }
         }
@@ -473,7 +625,8 @@ fn run_training_loop(
             ));
             // Attempt to warm-start LoRA weights
             if std::path::Path::new(&ckpt.adapter_path).exists() {
-                let _ = load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path));
+                let _ =
+                    load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path));
             }
             start_epoch = ckpt.epoch as usize;
             global_step = ckpt.global_step;
@@ -552,7 +705,7 @@ fn run_training_loop(
         };
 
         trainer.start_epoch();
-        
+
         if config.curriculum {
             let max_difficulty = if config.epochs > 1 {
                 let progress = (epoch - 1) as f32 / (config.epochs - 1) as f32;
@@ -560,13 +713,20 @@ fn run_training_loop(
             } else {
                 10
             };
-            train_log::info(&format!("Epoch {}/{} curriculum threshold: diff <= {}", epoch, config.epochs, max_difficulty));
+            train_log::info(&format!(
+                "Epoch {}/{} curriculum threshold: diff <= {}",
+                epoch, config.epochs, max_difficulty
+            ));
         }
 
         let mut epoch_loss_sum = 0.0f64;
         let mut epoch_steps = 0u32;
 
-        let pair_start = if epoch == start_epoch { resume_pair_offset } else { 0 };
+        let pair_start = if epoch == start_epoch {
+            resume_pair_offset
+        } else {
+            0
+        };
 
         // Curriculum learning: compute max allowed difficulty for this epoch
         let max_difficulty = if config.curriculum {
@@ -581,16 +741,19 @@ fn run_training_loop(
             10
         };
 
-        for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start) {
+        for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start)
+        {
             let pair = &pairs[pair_real_idx];
-            
+
             // Curriculum filter
             if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
                 continue;
             }
 
             let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
-            let enc = tokenizer.encode(text, true).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let enc = tokenizer
+                .encode(text, true)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
             let mut ids = enc.get_ids().to_vec();
             total_tokens += ids.len();
             if ids.len() > config.seq_len {
@@ -602,7 +765,8 @@ fn run_training_loop(
             }
 
             // Separate input (all but last) and target (all but first) tokens
-            let input_ids = candle_core::Tensor::new(&ids[..ids.len() - 1], device)?.unsqueeze(0)?;
+            let input_ids =
+                candle_core::Tensor::new(&ids[..ids.len() - 1], device)?.unsqueeze(0)?;
             let targets = candle_core::Tensor::new(&ids[1..], device)?.unsqueeze(0)?;
 
             let loss_val = (|| -> Result<f32> {
@@ -612,9 +776,11 @@ fn run_training_loop(
                 let targets_flat = targets.flatten_all()?;
 
                 // ── Supervision masking (Option 1: Prompt offset) ────────────
-                let prompt_only = tokenizer.encode(pair.prompt.clone(), false).map_err(|e| anyhow::anyhow!("{e}"))?;
+                let prompt_only = tokenizer
+                    .encode(pair.prompt.clone(), false)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
                 let prompt_len = prompt_only.get_ids().len();
-                
+
                 // Mask tokens that belong to the prompt (system + human)
                 // IDs are [seq] (input is ids[..n-1], targets are ids[1..n])
                 // If ids = [S, H, A, A], seq=4. input=[S, H, A], targets=[H, A, A].
@@ -624,11 +790,13 @@ fn run_training_loop(
                     .map(|i| if (i + 1) >= prompt_len { 1.0f32 } else { 0.0 })
                     .collect();
                 let mask = candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device)?;
-                
+
                 // Apply mask to loss (cross_entropy already averages, so we need per-token CE)
                 // For custom masking we use log_softmax + gather.
                 let log_sm = candle_nn::ops::log_softmax(&logits, 1)?;
-                let logprobs = log_sm.gather(&targets_flat.unsqueeze(1)?, 1)?.flatten_all()?;
+                let logprobs = log_sm
+                    .gather(&targets_flat.unsqueeze(1)?, 1)?
+                    .flatten_all()?;
                 let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
                 // Invert sign because log_softmax is negative
                 let loss = (loss * -1.0)?;
@@ -638,7 +806,12 @@ fn run_training_loop(
                     .map_err(|e| anyhow::anyhow!("{e}"))?;
 
                 // ── Cosine LR Update ─────────────────────────────────────────
-                let lr = compute_cosine_lr(global_step, warmup_steps, total_steps_planned, config.learning_rate);
+                let lr = compute_cosine_lr(
+                    global_step,
+                    warmup_steps,
+                    total_steps_planned,
+                    config.learning_rate,
+                );
                 trainer.config.adapter_config.learning_rate = lr;
                 trainer.update_lr();
 
@@ -646,7 +819,10 @@ fn run_training_loop(
             })()?;
 
             if loss_val.is_nan() {
-                train_log::warn(&format!("⚠ NaN loss detected at epoch {} step {} — skipping gradient update. Consider reducing --lr or increasing --warmup.", epoch, global_step));
+                train_log::warn(&format!(
+                    "⚠ NaN loss detected at epoch {} step {} — skipping gradient update. Consider reducing --lr or increasing --warmup.",
+                    epoch, global_step
+                ));
                 continue;
             }
 
@@ -656,7 +832,7 @@ fn run_training_loop(
             total_loss_sum += loss_val as f64;
             total_step_count += 1;
             last_loss_val = loss_val;
-            
+
             ema_loss_val = Some(match ema_loss_val {
                 None => loss_val as f64,
                 Some(prev) => 0.1 * (loss_val as f64) + 0.9 * prev,
@@ -666,7 +842,10 @@ fn run_training_loop(
             let elapsed_since_progress = last_progress.elapsed();
             if elapsed_since_progress >= progress_every {
                 let now = Instant::now();
-                let dt = now.duration_since(progress_anchor_time).as_secs_f64().max(1e-3);
+                let dt = now
+                    .duration_since(progress_anchor_time)
+                    .as_secs_f64()
+                    .max(1e-3);
                 let ds = (global_step - progress_anchor_step) as f64;
                 let sps = ds / dt;
                 ema_steps_per_sec = Some(match ema_steps_per_sec {
@@ -675,9 +854,15 @@ fn run_training_loop(
                 });
                 let pct = if total_steps_planned > 0 {
                     100.0 * global_step as f64 / total_steps_planned as f64
-                } else { 0.0 };
+                } else {
+                    0.0
+                };
                 let eta_s = ema_steps_per_sec.map(|s| {
-                    if s > 0.0 { (total_steps_planned.saturating_sub(global_step) as f64 / s) as u64 } else { 0 }
+                    if s > 0.0 {
+                        (total_steps_planned.saturating_sub(global_step) as f64 / s) as u64
+                    } else {
+                        0
+                    }
                 });
                 let eta_str = eta_s.map_or("eta ?".into(), |s| {
                     if s >= 3600 {
@@ -688,20 +873,34 @@ fn run_training_loop(
                 });
                 let current_lr = trainer.current_lr();
                 let eff_batch = config.batch_size.max(1) * config.grad_accum.max(1);
-                let ema_str = ema_loss_val.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "----".to_string());
+                let ema_str = ema_loss_val
+                    .map(|v| format!("{:.4}", v))
+                    .unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
                     "E{:02}/{} step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {}",
-                    epoch, config.epochs, global_step, loss_val, ema_str, current_lr, eff_batch, pct, eta_str
+                    epoch,
+                    config.epochs,
+                    global_step,
+                    loss_val,
+                    ema_str,
+                    current_lr,
+                    eff_batch,
+                    pct,
+                    eta_str
                 ));
-                telemetry::append(out, telemetry_schema::events::TRAIN_STEP, serde_json::json!({
-                    telemetry_schema::keys::EPOCH: epoch,
-                    telemetry_schema::keys::STEP: global_step,
-                    telemetry_schema::keys::LOSS: loss_val,
-                    telemetry_schema::keys::LR: current_lr,
-                    telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_s,
-                    telemetry_schema::keys::PROGRESS_FRACTION: global_step as f64 / total_steps_planned.max(1) as f64,
-                    telemetry_schema::keys::STEPS_PER_SEC_EMA: ema_steps_per_sec,
-                }))?;
+                telemetry::append(
+                    out,
+                    telemetry_schema::events::TRAIN_STEP,
+                    serde_json::json!({
+                        telemetry_schema::keys::EPOCH: epoch,
+                        telemetry_schema::keys::STEP: global_step,
+                        telemetry_schema::keys::LOSS: loss_val,
+                        telemetry_schema::keys::LR: current_lr,
+                        telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_s,
+                        telemetry_schema::keys::PROGRESS_FRACTION: global_step as f64 / total_steps_planned.max(1) as f64,
+                        telemetry_schema::keys::STEPS_PER_SEC_EMA: ema_steps_per_sec,
+                    }),
+                )?;
                 progress_anchor_step = global_step;
                 progress_anchor_time = now;
                 last_progress = now;
@@ -710,7 +909,9 @@ fn run_training_loop(
             // ── Graceful pause check ──────────────────────────────────────────
             if PAUSE_FLAG.load(Ordering::SeqCst) {
                 let ckpt_path = out.join(format!("pause_step_{global_step}.safetensors"));
-                trainer.save_adapter(&ckpt_path).context("save pause adapter")?;
+                trainer
+                    .save_adapter(&ckpt_path)
+                    .context("save pause adapter")?;
                 let state = CheckpointState {
                     schema: super::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
                     run_id: run_id.to_string(),
@@ -726,8 +927,15 @@ fn run_training_loop(
                 };
                 state.save(out).context("save CheckpointState on pause")?;
                 let wall_secs = run_start_inst.elapsed().as_secs_f64();
-                let ms_per_step = if global_step > 0 { (wall_secs * 1000.0) / global_step as f64 } else { 0.0 };
-                train_log::warn(&format!("Training paused at step {global_step}. Resume with 'vox schola train --resume {}'", out.display()));
+                let ms_per_step = if global_step > 0 {
+                    (wall_secs * 1000.0) / global_step as f64
+                } else {
+                    0.0
+                };
+                train_log::warn(&format!(
+                    "Training paused at step {global_step}. Resume with 'vox schola train --resume {}'",
+                    out.display()
+                ));
                 return Ok(crate::tensor::backend::TrainingSummary {
                     wall_secs,
                     total_steps: global_step as usize,
@@ -740,7 +948,9 @@ fn run_training_loop(
             if let Some(every) = config.checkpoint_every {
                 if every > 0 && (pair_loop_idx + 1) % every == 0 {
                     let ckpt_path = out.join(format!("checkpoint_step_{global_step}.safetensors"));
-                    trainer.save_adapter(&ckpt_path).context("save mid-epoch adapter")?;
+                    trainer
+                        .save_adapter(&ckpt_path)
+                        .context("save mid-epoch adapter")?;
 
                     let state = CheckpointState {
                         schema: super::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
@@ -772,9 +982,13 @@ fn run_training_loop(
         let mut val_loss_sum = 0.0f64;
         let mut val_steps = 0u32;
         if !eval_pairs.is_empty() {
-            train_log::info(&format!("Running validation on {} pairs...", eval_pairs.len()));
-            for  pair in &eval_pairs {
-                let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
+            train_log::info(&format!(
+                "Running validation on {} pairs...",
+                eval_pairs.len()
+            ));
+            for pair in &eval_pairs {
+                let text =
+                    plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
                 if let Ok(enc) = tokenizer.encode(text, true) {
                     let mut ids = enc.get_ids().to_vec();
                     if ids.len() > config.seq_len {
@@ -782,21 +996,45 @@ fn run_training_loop(
                         ids = ids[start..].to_vec();
                     }
                     if ids.len() >= 2 {
-                        if let Ok(input_ids) = candle_core::Tensor::new(&ids[..ids.len() - 1], device).and_then(|t| t.unsqueeze(0)) {
-                            if let Ok(targets) = candle_core::Tensor::new(&ids[1..], device).and_then(|t| t.unsqueeze(0)) {
+                        if let Ok(input_ids) =
+                            candle_core::Tensor::new(&ids[..ids.len() - 1], device)
+                                .and_then(|t| t.unsqueeze(0))
+                        {
+                            if let Ok(targets) = candle_core::Tensor::new(&ids[1..], device)
+                                .and_then(|t| t.unsqueeze(0))
+                            {
                                 if let Ok(logits) = model.forward(&input_ids) {
                                     if let Ok(logits) = logits.flatten_to(1) {
                                         if let Ok(targets_flat) = targets.flatten_all() {
-                                            if let Ok(prompt_only) = tokenizer.encode(pair.prompt.clone(), false) {
+                                            if let Ok(prompt_only) =
+                                                tokenizer.encode(pair.prompt.clone(), false)
+                                            {
                                                 let prompt_len = prompt_only.get_ids().len();
                                                 let ids_len = ids.len();
                                                 let mask_vec: Vec<f32> = (0..ids_len - 1)
-                                                    .map(|i| if (i + 1) >= prompt_len { 1.0f32 } else { 0.0 })
+                                                    .map(|i| {
+                                                        if (i + 1) >= prompt_len {
+                                                            1.0f32
+                                                        } else {
+                                                            0.0
+                                                        }
+                                                    })
                                                     .collect();
-                                                if let Ok(mask) = candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device) {
-                                                    if let Ok(log_sm) = candle_nn::ops::log_softmax(&logits, 1) {
-                                                        if let Ok(tgt_uns) = targets_flat.unsqueeze(1) {
-                                                            if let Ok(logprobs) = log_sm.gather(&tgt_uns, 1).and_then(|t| t.flatten_all()) {
+                                                if let Ok(mask) = candle_core::Tensor::from_vec(
+                                                    mask_vec,
+                                                    ids_len - 1,
+                                                    device,
+                                                ) {
+                                                    if let Ok(log_sm) =
+                                                        candle_nn::ops::log_softmax(&logits, 1)
+                                                    {
+                                                        if let Ok(tgt_uns) =
+                                                            targets_flat.unsqueeze(1)
+                                                        {
+                                                            if let Ok(logprobs) = log_sm
+                                                                .gather(&tgt_uns, 1)
+                                                                .and_then(|t| t.flatten_all())
+                                                            {
                                                                 if let Ok(loss) = logprobs.broadcast_mul(&mask)
                                                                     .and_then(|m| m.sum_all())
                                                                     .and_then(|sum_m| sum_m.broadcast_div(&mask.sum_all().unwrap_or_else(|_| candle_core::Tensor::new(1f32, device).unwrap()))) 
@@ -822,15 +1060,25 @@ fn run_training_loop(
         }
 
         // ── Epoch boundary: summary + checkpoint ──────────────────────────────
-        let avg_loss = if epoch_steps > 0 { epoch_loss_sum / epoch_steps as f64 } else { 0.0 };
-        let avg_val_loss = if val_steps > 0 { val_loss_sum / val_steps as f64 } else { 0.0 };
+        let avg_loss = if epoch_steps > 0 {
+            epoch_loss_sum / epoch_steps as f64
+        } else {
+            0.0
+        };
+        let avg_val_loss = if val_steps > 0 {
+            val_loss_sum / val_steps as f64
+        } else {
+            0.0
+        };
         train_log::info(&format!(
             "Epoch {}/{} complete — avg_loss={:.4} val_loss={:.4} ({} steps, {} val steps)",
             epoch, config.epochs, avg_loss, avg_val_loss, epoch_steps, val_steps
         ));
 
         let epoch_ckpt = out.join(format!("checkpoint_epoch_{epoch}.safetensors"));
-        trainer.save_adapter(&epoch_ckpt).context("save epoch adapter")?;
+        trainer
+            .save_adapter(&epoch_ckpt)
+            .context("save epoch adapter")?;
 
         // next_epoch = epoch + 1; pair_offset = 0 (fresh shuffle on resume)
         let epoch_state = CheckpointState {
@@ -846,7 +1094,9 @@ fn run_training_loop(
             wall_seconds_elapsed: progress_anchor_time.elapsed().as_secs_f64(),
             saved_at_utc: CheckpointState::now_utc(),
         };
-        epoch_state.save(out).context("save CheckpointState at epoch boundary")?;
+        epoch_state
+            .save(out)
+            .context("save CheckpointState at epoch boundary")?;
 
         let _ = db_tx.send(TrainingDbEvent::Checkpoint {
             run_id: run_id.to_string(),
@@ -856,20 +1106,26 @@ fn run_training_loop(
             adapter_path: epoch_ckpt.display().to_string(),
         });
 
-        telemetry::append(out, "epoch_complete", serde_json::json!({
-            "epoch": epoch,
-            "avg_loss": avg_loss,
-            "val_loss": avg_val_loss,
-            "steps": epoch_steps,
-            "val_steps": val_steps,
-            "global_step": global_step,
-            "checkpoint": epoch_ckpt.display().to_string(),
-        }))?;
+        telemetry::append(
+            out,
+            "epoch_complete",
+            serde_json::json!({
+                "epoch": epoch,
+                "avg_loss": avg_loss,
+                "val_loss": avg_val_loss,
+                "steps": epoch_steps,
+                "val_steps": val_steps,
+                "global_step": global_step,
+                "checkpoint": epoch_ckpt.display().to_string(),
+            }),
+        )?;
     }
 
     // ── Final adapter save ────────────────────────────────────────────────────
     let final_path = out.join("candle_qlora_adapter.safetensors");
-    trainer.save_adapter(&final_path).context("save final adapter")?;
+    trainer
+        .save_adapter(&final_path)
+        .context("save final adapter")?;
 
     // ── Model card (auto-generate MODEL_CARD.md) ──────────────────────────────
     let final_avg_loss = if total_step_count > 0 {
@@ -905,7 +1161,10 @@ fn run_training_loop(
     if let Err(e) = super::model_card::write(out, &card) {
         train_log::warn(&format!("MODEL_CARD.md could not be written: {e}"));
     } else {
-        train_log::info(&format!("Wrote MODEL_CARD.md to {}", out.join("MODEL_CARD.md").display()));
+        train_log::info(&format!(
+            "Wrote MODEL_CARD.md to {}",
+            out.join("MODEL_CARD.md").display()
+        ));
     }
 
     // Write adapter meta with actual layer-to-key mapping (fixes Bug 1.6)
@@ -935,11 +1194,15 @@ fn run_training_loop(
         adapter_path: final_path.display().to_string(),
     });
 
-    telemetry::append(out, telemetry_schema::events::TRAIN_COMPLETE, serde_json::json!({
-        "global_step": global_step,
-        "final_adapter": final_path.display().to_string(),
-        "run_id": run_id,
-    }))?;
+    telemetry::append(
+        out,
+        telemetry_schema::events::TRAIN_COMPLETE,
+        serde_json::json!({
+            "global_step": global_step,
+            "final_adapter": final_path.display().to_string(),
+            "run_id": run_id,
+        }),
+    )?;
 
     train_log::info(&format!(
         "Training complete — {global_step} steps — adapter: {}",
@@ -947,7 +1210,11 @@ fn run_training_loop(
     ));
 
     let wall_secs = run_start_inst.elapsed().as_secs_f64();
-    let ms_per_step = if global_step > 0 { (wall_secs * 1000.0) / global_step as f64 } else { 0.0 };
+    let ms_per_step = if global_step > 0 {
+        (wall_secs * 1000.0) / global_step as f64
+    } else {
+        0.0
+    };
 
     Ok(crate::tensor::backend::TrainingSummary {
         wall_secs,

@@ -56,18 +56,17 @@
 pub mod auto_migrate;
 /// Benchmark observations stored in `research_metrics` (`bench:<repository_id>` sessions).
 pub mod benchmark_telemetry;
-/// User chat, tool calls, usage limits, topics (manifest chat/search slices).
-mod codex_chat;
+pub mod build_hints;
 /// Circuit breaker for write operations.
 pub mod circuit_breaker;
+/// User chat, tool calls, usage limits, topics (manifest chat/search slices).
+mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
+pub mod schema;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
-pub mod schema;
-pub mod build_hints;
 
-pub mod hash;
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
@@ -78,17 +77,18 @@ pub mod ddl;
 pub mod error_enrichment;
 /// Parameters for [`VoxDb::record_eval_run`].
 mod eval_params;
+pub mod hash;
 pub mod learning;
 /// Parameters for [`VoxDb::store_memory`].
 pub mod memory;
-/// Mens control-plane audit (`populi_control_event` in `research_metrics`).
-pub mod populi_control_telemetry;
-/// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
-pub mod populi_registry_telemetry;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
 pub mod paths;
+/// Mens control-plane audit (`populi_control_event` in `research_metrics`).
+pub mod populi_control_telemetry;
+/// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
+pub mod populi_registry_telemetry;
 /// Registry-scoped user preferences (stored as JSON in the local config directory).
 pub mod preferences;
 pub mod project_store;
@@ -102,10 +102,10 @@ pub mod secrets;
 mod socrates_telemetry;
 mod sync_invocables;
 pub mod toestub_store;
-/// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
-pub mod workflow_journal;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
+/// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
+pub mod workflow_journal;
 use crate::paths::local_user_id;
 
 pub use auto_migrate::AutoMigrator;
@@ -133,19 +133,23 @@ pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, genera
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
+pub use store::{
+    A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
+    BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry, CloudCostSummary,
+    CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample,
+    CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary,
+    LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
+    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublishArtifactParams,
+    QuestionRow, RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams,
+    SaveSnippetParams, ScheduledEntry, SessionEventRow, SessionRow, SessionTurnEntry,
+    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
+    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry,
+    WarningRow, WorkflowExecutionRow,
+};
 pub use sync_invocables::InvocableSyncEngine;
 pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
-};
-pub use store::{
-    A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
-    CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample, CrateSampleRow,
-    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
-    LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
-    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, SessionEventRow, SessionRow, SessionTurnEntry,
-    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
-    TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
@@ -173,8 +177,6 @@ const DEFAULT_MAX_RETRIES: u64 = 3;
 const DEFAULT_RETRY_BASE_MS: u64 = 500;
 
 impl VoxDb {
-    
-
     /// Wrap an already-open [`VoxDb`] (e.g. after custom Turso setup).
     pub fn from_store(conn: turso::Connection, sync_db: Option<turso::sync::Database>) -> Self {
         Self {
@@ -217,8 +219,7 @@ impl VoxDb {
     }
 
     /// Optional hook before dropping a database handle (flush/sync); currently a no-op.
-    pub fn shutdown_for_drop(&self) {
-    }
+    pub fn shutdown_for_drop(&self) {}
 
     /// Connect with configurable retry parameters.
     ///
@@ -234,13 +235,19 @@ impl VoxDb {
             let result = match &config {
                 #[cfg(feature = "local")]
                 DbConfig::Local { path } => {
-                    let db = turso::Builder::new_local(path).build().await.map_err(StoreError::from)?;
+                    let db = turso::Builder::new_local(path)
+                        .build()
+                        .await
+                        .map_err(StoreError::from)?;
                     let conn = db.connect().map_err(StoreError::from)?;
                     Ok((conn, None))
                 }
                 #[cfg(feature = "local")]
                 DbConfig::Memory => {
-                    let db = turso::Builder::new_local(":memory:").build().await.map_err(StoreError::from)?;
+                    let db = turso::Builder::new_local(":memory:")
+                        .build()
+                        .await
+                        .map_err(StoreError::from)?;
                     let conn = db.connect().map_err(StoreError::from)?;
                     Ok((conn, None))
                 }
@@ -249,17 +256,23 @@ impl VoxDb {
                         .with_remote_url(url)
                         .with_auth_token(token)
                         .build()
-                        .await.map_err(StoreError::from)?;
+                        .await
+                        .map_err(StoreError::from)?;
                     let conn = db.connect().await.map_err(StoreError::from)?;
                     Ok((conn, Some(db)))
                 }
                 #[cfg(feature = "replication")]
-                DbConfig::EmbeddedReplica { local_path, url, token } => {
+                DbConfig::EmbeddedReplica {
+                    local_path,
+                    url,
+                    token,
+                } => {
                     let db = turso::sync::Builder::new_remote(local_path)
                         .with_remote_url(url)
                         .with_auth_token(token)
                         .build()
-                        .await.map_err(StoreError::from)?;
+                        .await
+                        .map_err(StoreError::from)?;
                     let conn = db.connect().await.map_err(StoreError::from)?;
                     Ok((conn, Some(db)))
                 }
@@ -330,7 +343,6 @@ impl VoxDb {
     ///
     /// Naming: this method is spelled like the type; the content-addressed write API is
     /// [`VoxDb::store`].
-    
 
     /// Access the circuit breaker for this database.
     pub fn breaker(&self) -> &DbCircuitBreaker {
@@ -410,8 +422,7 @@ impl VoxDb {
         source_type: Option<&str>,
         limit: i64,
     ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
-        self
-            .search_similar_embeddings(vector, source_type, limit)
+        self.search_similar_embeddings(vector, source_type, limit)
             .await
     }
 
@@ -453,8 +464,7 @@ impl VoxDb {
     /// docs.
     pub async fn apply_migrations(&self, migrations: &[Migration]) -> Result<Vec<i64>, StoreError> {
         validate_migrations(migrations)?;
-        self
-            .connection()
+        self.connection()
             .execute_batch(
                 "CREATE TABLE IF NOT EXISTS schema_version (
                     version INTEGER PRIMARY KEY,
@@ -469,12 +479,8 @@ impl VoxDb {
             if migration.version <= current {
                 continue;
             }
-            self
-                .connection()
-                .execute_batch(&migration.up_sql)
-                .await?;
-            self
-                .connection()
+            self.connection().execute_batch(&migration.up_sql).await?;
+            self.connection()
                 .execute(
                     "INSERT INTO schema_version (version) VALUES (?1)",
                     (migration.version,),
@@ -486,7 +492,6 @@ impl VoxDb {
     }
 
     /// Record an eval run row (`eval_runs`, schema V3+) for regression / RLHF-style tracking.
-    
 
     /// Record a generated corpus snapshot (fingerprint) into `corpus_snapshots`.
 
@@ -501,12 +506,14 @@ impl VoxDb {
         payload: serde_json::Value,
     ) -> Result<(), store::StoreError> {
         let store = self;
-        store.record_agent_event(
-            &format!("populi_train:{run_id}"),
-            event_kind,
-            &payload.to_string(),
-            env!("CARGO_PKG_VERSION"),
-        ).await?;
+        store
+            .record_agent_event(
+                &format!("populi_train:{run_id}"),
+                event_kind,
+                &payload.to_string(),
+                env!("CARGO_PKG_VERSION"),
+            )
+            .await?;
         Ok(())
     }
 
@@ -518,12 +525,17 @@ impl VoxDb {
         global_step: u32,
         adapter_path: &str,
     ) -> Result<(), store::StoreError> {
-        self.record_training_event(run_id, "checkpoint_saved", serde_json::json!({
-            "run_id": run_id,
-            "epoch": epoch,
-            "global_step": global_step,
-            "adapter_path": adapter_path,
-        })).await
+        self.record_training_event(
+            run_id,
+            "checkpoint_saved",
+            serde_json::json!({
+                "run_id": run_id,
+                "epoch": epoch,
+                "global_step": global_step,
+                "adapter_path": adapter_path,
+            }),
+        )
+        .await
     }
 
     /// Return true if the given fingerprint is already recorded in Arca `corpus_snapshots`.
@@ -561,15 +573,14 @@ impl VoxDb {
         let abs_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         let path_str = abs_path.to_string_lossy();
 
-        self
-            .register_component(
-                name,
-                "local", // namespace for local projects
-                None,    // schema_hash not needed for projects
-                Some(&format!("Local project at {}", path_str)),
-                "1.0.0",
-            )
-            .await?;
+        self.register_component(
+            name,
+            "local", // namespace for local projects
+            None,    // schema_hash not needed for projects
+            Some(&format!("Local project at {}", path_str)),
+            "1.0.0",
+        )
+        .await?;
 
         // Also store the path in user_preferences as a 'known_project'
         let _ = self
@@ -658,20 +669,11 @@ mod tests {
     use crate::codex_schema::missing_codex_reactivity_tables;
     use crate::schema::{BASELINE_VERSION, CODEX_CHAT_TABLES};
 
-
     #[tokio::test]
     async fn cas_store_and_load_is_idempotent() {
-        let db = VoxDb::connect(DbConfig::Memory)
-            .await
-            .expect("db");
-        let hash = db
-            .store("test_kind", b"test_data")
-            .await
-            .expect("store");
-        let data = db
-            .get(&hash)
-            .await
-            .expect("get");
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let hash = db.store("test_kind", b"test_data").await.expect("store");
+        let data = db.get(&hash).await.expect("get");
         assert_eq!(data, b"test_data");
     }
 
@@ -733,8 +735,6 @@ mod tests {
 
     #[tokio::test]
     async fn baseline_schema_includes_chat_and_search_tables() {
-
-
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
         assert_eq!(
             db.schema_version().await.expect("schema_version"),
@@ -796,10 +796,10 @@ mod tests {
     async fn legacy_chain_db_export_then_import_into_baseline_roundtrips_objects() {
         use crate::StoreError;
         use crate::codex_legacy::{export_legacy_jsonl, import_legacy_jsonl};
+        use crate::schema::BASELINE_VERSION;
         use std::io::Cursor;
         use tempfile::tempdir;
         use turso::Builder;
-        use crate::schema::BASELINE_VERSION;
 
         let dir = tempdir().expect("tempdir");
         let legacy_path = dir.path().join("legacy.db");

@@ -206,7 +206,10 @@ mod tests {
         let source = "fn foo() to int {\n    ret 5\n}";
         let tokens = lex_tokens(source);
         // Should contain Newline tokens but no Indent/Dedent
-        assert!(tokens.contains(&Token::Newline), "Newlines should be emitted");
+        assert!(
+            tokens.contains(&Token::Newline),
+            "Newlines should be emitted"
+        );
         assert!(tokens.contains(&Token::LBrace), "Should have LBrace");
         assert!(tokens.contains(&Token::RBrace), "Should have RBrace");
     }

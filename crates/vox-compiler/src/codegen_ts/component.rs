@@ -1,8 +1,8 @@
-use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing, emit_stmt};
 use crate::ast::decl::FnDecl;
 use crate::ast::expr::Expr;
 use crate::ast::scalar_mapping::VoxScalar;
 use crate::ast::stmt::Stmt;
+use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing, emit_stmt};
 use std::collections::BTreeSet;
 
 /// Mapping from Vox `use_*` snake_case names to React camelCase hook names.
@@ -199,11 +199,18 @@ fn collect_hooks_in_expr(expr: &Expr, out: &mut BTreeSet<String>) {
             collect_hooks_in_expr(right, out);
         }
         Expr::Spawn { target, .. } => collect_hooks_in_expr(target, out),
-        Expr::With { operand, options, .. } => {
+        Expr::With {
+            operand, options, ..
+        } => {
             collect_hooks_in_expr(operand, out);
             collect_hooks_in_expr(options, out);
         }
-        Expr::If { condition, then_body, else_body, .. } => {
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             collect_hooks_in_expr(condition, out);
             for s in then_body {
                 collect_hooks_in_stmt(s, out);

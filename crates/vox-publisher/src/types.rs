@@ -102,7 +102,10 @@ impl UnifiedNewsItem {
         let published_at = if let Some(ref s) = front.published_at {
             DateTime::parse_from_rfc3339(s)
                 .map(|dt| dt.with_timezone(&Utc))
-                .or_else(|_| s.parse::<DateTime<Utc>>().map_err(|e| anyhow::anyhow!("{}", e)))?
+                .or_else(|_| {
+                    s.parse::<DateTime<Utc>>()
+                        .map_err(|e| anyhow::anyhow!("{}", e))
+                })?
         } else {
             Utc::now()
         };
@@ -139,7 +142,11 @@ impl UnifiedNewsItem {
                     }
                 }
                 GitHubPostType::Discussion => {
-                    let cat = gh.discussion_category.as_deref().map(str::trim).unwrap_or("");
+                    let cat = gh
+                        .discussion_category
+                        .as_deref()
+                        .map(str::trim)
+                        .unwrap_or("");
                     if cat.is_empty() {
                         anyhow::bail!(
                             "github.discussion_category is required when post_type is Discussion"

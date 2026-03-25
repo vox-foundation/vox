@@ -14,8 +14,7 @@ impl VoxDb {
         user_id: Option<&str>,
         title: &str,
     ) -> Result<i64, StoreError> {
-        self
-            .connection()
+        self.connection()
             .execute(
                 "INSERT INTO conversations (user_id, title) VALUES (?1, ?2)",
                 params![user_id, title],
@@ -26,8 +25,7 @@ impl VoxDb {
 
     /// Bump `conversations.updated_at` for listing recency (V11+).
     pub async fn chat_touch_conversation(&self, conversation_id: i64) -> Result<(), StoreError> {
-        self
-            .connection()
+        self.connection()
             .execute(
                 "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?1",
                 params![conversation_id],
@@ -101,8 +99,7 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        self
-            .connection()
+        self.connection()
             .execute(
                 "UPDATE conversation_tool_calls
                  SET status = ?2, result_json = ?3, error_text = ?4, finished_at_ms = ?5
@@ -155,8 +152,7 @@ impl VoxDb {
         period_start: &str,
         delta: i64,
     ) -> Result<i64, StoreError> {
-        self
-            .connection()
+        self.connection()
             .execute(
                 "INSERT INTO usage_counter_snapshots
                     (metric_key, scope_kind, scope_id, period_start, amount, updated_at)
@@ -167,7 +163,8 @@ impl VoxDb {
                 params![metric_key, scope_kind, scope_id, period_start, delta],
             )
             .await?;
-        let mut rows = self.connection()
+        let mut rows = self
+            .connection()
             .query(
                 "SELECT amount FROM usage_counter_snapshots
                  WHERE metric_key = ?1 AND scope_kind = ?2 AND scope_id = ?3 AND period_start = ?4",
@@ -215,7 +212,8 @@ impl VoxDb {
         scope_id: &str,
         period_kind: &str,
     ) -> Result<Option<i64>, StoreError> {
-        let mut rows = self.connection()
+        let mut rows = self
+            .connection()
             .query(
                 "SELECT limit_value FROM usage_limit_definitions
                  WHERE metric_key = ?1 AND scope_kind = ?2 AND scope_id = ?3 AND period_kind = ?4
@@ -233,14 +231,14 @@ impl VoxDb {
 
     /// `INSERT OR IGNORE` then return `topics.id` for `slug` (V14+).
     pub async fn chat_ensure_topic(&self, slug: &str, label: &str) -> Result<i64, StoreError> {
-        self
-            .connection()
+        self.connection()
             .execute(
                 "INSERT OR IGNORE INTO topics (slug, label) VALUES (?1, ?2)",
                 params![slug, label],
             )
             .await?;
-        let mut rows = self.connection()
+        let mut rows = self
+            .connection()
             .query(
                 "SELECT id FROM topics WHERE slug = ?1 LIMIT 1",
                 params![slug],
@@ -261,8 +259,7 @@ impl VoxDb {
         topic_id: i64,
         weight: f64,
     ) -> Result<(), StoreError> {
-        self
-            .connection()
+        self.connection()
             .execute(
                 "INSERT INTO conversation_topics (conversation_id, topic_id, weight)
                  VALUES (?1, ?2, ?3)
@@ -303,8 +300,7 @@ mod tests {
             crate::schema::BASELINE_VERSION
         );
 
-        db
-            .connection()
+        db.connection()
             .execute(
                 "INSERT OR IGNORE INTO users (id, display_name, role) VALUES ('u1', 'u1', 'user')",
                 (),

@@ -1,11 +1,14 @@
-use vox_db::{VoxDb, DbConfig};
 use tempfile::tempdir;
+use vox_db::{DbConfig, VoxDb};
 
 #[tokio::test]
 async fn test_db_memory_smoke() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    assert_eq!(db.schema_version().await.unwrap(), vox_db::schema::BASELINE_VERSION);
-    
+    assert_eq!(
+        db.schema_version().await.unwrap(),
+        vox_db::schema::BASELINE_VERSION
+    );
+
     let hash = db.store("test", b"hello").await.unwrap();
     assert!(!hash.is_empty());
 }
@@ -18,12 +21,18 @@ async fn test_db_local_file_persistence() {
     let hash;
 
     {
-        let db = VoxDb::connect(DbConfig::Local { path: path_str.clone() }).await.unwrap();
+        let db = VoxDb::connect(DbConfig::Local {
+            path: path_str.clone(),
+        })
+        .await
+        .unwrap();
         hash = db.store("perm", b"data").await.unwrap();
     }
 
     // Reopen and check if it still works
-    let db = VoxDb::connect(DbConfig::Local { path: path_str }).await.unwrap();
+    let db = VoxDb::connect(DbConfig::Local { path: path_str })
+        .await
+        .unwrap();
     let obj = db.get(&hash).await.unwrap();
     assert_eq!(obj, b"data");
 }
@@ -33,15 +42,15 @@ async fn test_db_circuit_breaker() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     let breaker = db.breaker();
     assert_eq!(breaker.state(), vox_db::CircuitState::Closed);
-    
-    // We can't easily trigger a real failure in memory without mock, 
+
+    // We can't easily trigger a real failure in memory without mock,
     // but we can check if it exists and is closed.
 }
 
 #[tokio::test]
 async fn test_db_transaction_success() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    
+
     db.transaction(async {
         db.save_memory(vox_db::MemoryParams {
             agent_id: "tx_agent",
@@ -51,9 +60,12 @@ async fn test_db_transaction_success() {
             metadata: None,
             importance: 1.0,
             vcs_snapshot_id: None,
-        }).await?;
+        })
+        .await?;
         Ok(())
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 
     let recalled = db.recall_memory("tx_agent", None, 10, None).await.unwrap();
     assert_eq!(recalled.len(), 1);

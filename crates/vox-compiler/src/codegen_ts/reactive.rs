@@ -20,7 +20,10 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
     if !rc.params.is_empty() {
         out.push_str(&format!("export interface {name}Props {{\n"));
         for param in &rc.params {
-            let ts_type = param.type_ann.as_ref().map_or("any".to_string(), map_hir_type_to_ts);
+            let ts_type = param
+                .type_ann
+                .as_ref()
+                .map_or("any".to_string(), map_hir_type_to_ts);
             out.push_str(&format!("  {}: {};\n", param.name, ts_type));
         }
         out.push_str("}\n\n");
@@ -28,7 +31,9 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
 
     // Component Function
     if rc.params.is_empty() {
-        out.push_str(&format!("export function {name}(): React.ReactElement {{\n"));
+        out.push_str(&format!(
+            "export function {name}(): React.ReactElement {{\n"
+        ));
     } else {
         let param_names: Vec<String> = rc.params.iter().map(|p| p.name.clone()).collect();
         out.push_str(&format!(
@@ -60,7 +65,10 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
                 let stmts_str = emit_block_stmts(&e.body, &state_names, 2);
                 let deps = extract_state_deps(&e.body, &state_names);
                 let dep_str = deps.join(", ");
-                out.push_str(&format!("  useEffect(() => {{\n{}  }}, [{}]);\n", stmts_str, dep_str));
+                out.push_str(&format!(
+                    "  useEffect(() => {{\n{}  }}, [{}]);\n",
+                    stmts_str, dep_str
+                ));
             }
             HirReactiveMember::OnMount(m) => {
                 let stmts_str = emit_block_stmts(&m.body, &state_names, 2);
@@ -68,7 +76,10 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
             }
             HirReactiveMember::OnCleanup(c) => {
                 let stmts_str = emit_block_stmts(&c.body, &state_names, 2);
-                out.push_str(&format!("  useEffect(() => () => {{\n{}  }}, []);\n", stmts_str));
+                out.push_str(&format!(
+                    "  useEffect(() => () => {{\n{}  }}, []);\n",
+                    stmts_str
+                ));
             }
         }
     }
@@ -141,7 +152,13 @@ fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             for child in &el.children {
                 children.push(emit_hir_expr(child, state_names));
             }
-            format!("<{} {}\n>\n  {}\n</{}>", el.tag, attrs.join(" "), children.join("\n  "), el.tag)
+            format!(
+                "<{} {}\n>\n  {}\n</{}>",
+                el.tag,
+                attrs.join(" "),
+                children.join("\n  "),
+                el.tag
+            )
         }
         HirExpr::JsxSelfClosing(el) => {
             let mut attrs = Vec::new();
@@ -153,21 +170,33 @@ fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             format!("<{} {} />", el.tag, attrs.join(" "))
         }
         HirExpr::ObjectLit(fields, _) => {
-            let pairs: Vec<String> = fields.iter().map(|(k, v)| format!("{k}: {}", emit_hir_expr(v, state_names))).collect();
+            let pairs: Vec<String> = fields
+                .iter()
+                .map(|(k, v)| format!("{k}: {}", emit_hir_expr(v, state_names)))
+                .collect();
             format!("{{ {} }}", pairs.join(", "))
         }
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
-            let items: Vec<String> = elems.iter().map(|e| emit_hir_expr(e, state_names)).collect();
+            let items: Vec<String> = elems
+                .iter()
+                .map(|e| emit_hir_expr(e, state_names))
+                .collect();
             format!("[{}]", items.join(", "))
         }
         HirExpr::Call(callee, args, _, _) => {
             let callee_str = emit_hir_expr(callee, state_names);
-            let args_str: Vec<String> = args.iter().map(|a| emit_hir_expr(&a.value, state_names)).collect();
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| emit_hir_expr(&a.value, state_names))
+                .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
         HirExpr::MethodCall(obj, method, args, _) => {
             let obj_str = emit_hir_expr(obj, state_names);
-            let args_str: Vec<String> = args.iter().map(|a| emit_hir_expr(&a.value, state_names)).collect();
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| emit_hir_expr(&a.value, state_names))
+                .collect();
             format!("{obj_str}.{method}({})", args_str.join(", "))
         }
         HirExpr::FieldAccess(obj, field, _) => {
@@ -177,10 +206,14 @@ fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
             let c = emit_hir_expr(cond, state_names);
             let mut then_out = String::new();
-            for s in then_stmts { then_out.push_str(&emit_hir_stmt(s, state_names, 0)); }
+            for s in then_stmts {
+                then_out.push_str(&emit_hir_stmt(s, state_names, 0));
+            }
             let mut else_out = String::new();
             if let Some(estmts) = else_stmts {
-                for s in estmts { else_out.push_str(&emit_hir_stmt(s, state_names, 0)); }
+                for s in estmts {
+                    else_out.push_str(&emit_hir_stmt(s, state_names, 0));
+                }
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
@@ -202,7 +235,10 @@ fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
                 let body = emit_hir_expr(&arm.body, state_names);
                 arms_out.push(format!("case {pat}: return {body};"));
             }
-            format!("((_val) => {{ switch(_val) {{ {} }} }})({s})", arms_out.join(" "))
+            format!(
+                "((_val) => {{ switch(_val) {{ {} }} }})({s})",
+                arms_out.join(" ")
+            )
         }
         _ => "null".to_string(),
     }
@@ -211,13 +247,25 @@ fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
 /// Emit a JSX attribute value with context awareness.
 /// If the mapped attribute name is an event handler (starts with "on"),
 /// block expressions are emitted as arrow functions instead of IIFEs.
-fn emit_hir_expr_attr_value(expr: &HirExpr, state_names: &HashSet<String>, attr_name: &str) -> String {
-    let is_event_handler = attr_name.starts_with("on") && attr_name.len() > 2
-        && attr_name.chars().nth(2).map(|c| c.is_uppercase()).unwrap_or(false);
+fn emit_hir_expr_attr_value(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    attr_name: &str,
+) -> String {
+    let is_event_handler = attr_name.starts_with("on")
+        && attr_name.len() > 2
+        && attr_name
+            .chars()
+            .nth(2)
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false);
     if is_event_handler {
         match expr {
             HirExpr::Block(stmts, _) => {
-                let stmts_str = stmts.iter().map(|s| emit_hir_stmt(s, state_names, 2)).collect::<String>();
+                let stmts_str = stmts
+                    .iter()
+                    .map(|s| emit_hir_stmt(s, state_names, 2))
+                    .collect::<String>();
                 return format!("() => {{\n{}}}", stmts_str);
             }
             _ => {}
@@ -230,9 +278,10 @@ fn emit_hir_expr_attr_value(expr: &HirExpr, state_names: &HashSet<String>, attr_
 /// Returns an empty string if the expression is not a Block.
 fn emit_block_stmts(expr: &HirExpr, state_names: &HashSet<String>, indent: usize) -> String {
     match expr {
-        HirExpr::Block(stmts, _) => {
-            stmts.iter().map(|s| emit_hir_stmt(s, state_names, indent)).collect()
-        }
+        HirExpr::Block(stmts, _) => stmts
+            .iter()
+            .map(|s| emit_hir_stmt(s, state_names, indent))
+            .collect(),
         _ => {
             // Fallback: emit as a single expression statement
             let e = emit_hir_expr(expr, state_names);
@@ -245,7 +294,12 @@ fn emit_block_stmts(expr: &HirExpr, state_names: &HashSet<String>, indent: usize
 fn emit_hir_stmt(stmt: &HirStmt, state_names: &HashSet<String>, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     match stmt {
-        HirStmt::Let { pattern, value, mutable, .. } => {
+        HirStmt::Let {
+            pattern,
+            value,
+            mutable,
+            ..
+        } => {
             let keyword = if *mutable { "let" } else { "const" };
             let pat = emit_hir_pattern(pattern);
             let val = emit_hir_expr(value, state_names);
@@ -258,7 +312,11 @@ fn emit_hir_stmt(stmt: &HirStmt, state_names: &HashSet<String>, indent: usize) -
                     return format!("{pad}set_{name}({val});\n");
                 }
             }
-            format!("{pad}{} = {};\n", emit_hir_expr(target, state_names), emit_hir_expr(value, state_names))
+            format!(
+                "{pad}{} = {};\n",
+                emit_hir_expr(target, state_names),
+                emit_hir_expr(value, state_names)
+            )
         }
         HirStmt::Expr { expr, .. } => {
             format!("{pad}{};\n", emit_hir_expr(expr, state_names))
@@ -280,15 +338,13 @@ fn emit_hir_pattern(pattern: &HirPattern) -> String {
             let s: Vec<String> = elems.iter().map(emit_hir_pattern).collect();
             format!("[{}]", s.join(", "))
         }
-        HirPattern::Literal(lit, _) => {
-            match lit.as_ref() {
-                HirExpr::IntLit(v, _) =>v.to_string(),
-                HirExpr::FloatLit(v, _) => v.to_string(),
-                HirExpr::StringLit(s, _) => format!("\"{s}\""),
-                HirExpr::BoolLit(b, _) => b.to_string(),
-                _ => "_".to_string(),
-            }
-        }
+        HirPattern::Literal(lit, _) => match lit.as_ref() {
+            HirExpr::IntLit(v, _) => v.to_string(),
+            HirExpr::FloatLit(v, _) => v.to_string(),
+            HirExpr::StringLit(s, _) => format!("\"{s}\""),
+            HirExpr::BoolLit(b, _) => b.to_string(),
+            _ => "_".to_string(),
+        },
         HirPattern::Wildcard(_) => "_".to_string(),
         _ => "_".to_string(),
     }

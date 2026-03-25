@@ -33,7 +33,8 @@ async fn test_economy_preference_rebalancing() {
     });
 
     // Override cheap agent's model
-    mh.write().unwrap()
+    mh.write()
+        .unwrap()
         .set_override(cheap_id.0, "cheap-model".to_string());
 
     // Fill expensive agent with tasks
@@ -48,11 +49,11 @@ async fn test_economy_preference_rebalancing() {
             .await
             .unwrap();
         // Force assignment to expensive_id for setup (manually move)
-        let _ = orch.retire_agent(expensive_id); 
+        let _ = orch.retire_agent(expensive_id);
     }
 
     // Re-setup: put many tasks on expensive, 0 on cheap
-    let expensive_id = orch.spawn_agent("expensive").unwrap(); 
+    let expensive_id = orch.spawn_agent("expensive").unwrap();
 
     // Manually populate queues for the test
     let task = vox_orchestrator::types::AgentTask::new(
@@ -103,7 +104,9 @@ async fn test_model_selection_preference() {
     });
 
     // Performance preference (default) should pick Sonnet
-    let best_perf = mh.read().unwrap()
+    let best_perf = mh
+        .read()
+        .unwrap()
         .best_for(
             vox_orchestrator::types::TaskCategory::CodeGen,
             5,
@@ -113,7 +116,9 @@ async fn test_model_selection_preference() {
     assert_eq!(best_perf.id, "anthropic/claude-sonnet-4.5");
 
     // Economy preference should pick budget-coder
-    let best_econ = mh.read().unwrap()
+    let best_econ = mh
+        .read()
+        .unwrap()
         .best_for(
             vox_orchestrator::types::TaskCategory::CodeGen,
             5,
@@ -123,7 +128,9 @@ async fn test_model_selection_preference() {
     assert_eq!(best_econ.id, "budget-coder");
 
     // Dynamic Tiering: Low complexity (2) should pick budget-coder even in Performance mode
-    let best_dynamic = mh.read().unwrap()
+    let best_dynamic = mh
+        .read()
+        .unwrap()
         .best_for(
             vox_orchestrator::types::TaskCategory::CodeGen,
             2,

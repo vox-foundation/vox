@@ -9,16 +9,16 @@ pub mod activity;
 pub mod adt;
 /// `@component` and related React component codegen.
 pub mod component;
-/// Reactive components codegen (Path C).
-pub mod reactive;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
 /// JSX lowering and attribute handling.
 pub mod jsx;
+/// Reactive components codegen (Path C).
+pub mod reactive;
 /// File-based routes → TS route tables.
 pub mod routes;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).
 pub mod schema;
 
-pub use emitter::{generate, generate_with_options, CodegenOptions};
+pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::generate_voxdb_schema;

@@ -3,9 +3,7 @@
 //! Provides zero-boilerplate constructors for common HIR nodes so that
 //! `minimal_module()` and similar helpers are never redefined per-file.
 
-use vox_compiler::hir::{
-    HirFn, HirModule, HirRoute, HirTable,
-};
+use vox_compiler::hir::{HirFn, HirModule, HirRoute, HirTable};
 
 use crate::spans::dummy_span;
 

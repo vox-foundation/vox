@@ -1,6 +1,6 @@
+use crate::Orchestrator;
 use crate::planning::{PlanNode, PlanningTaskMeta};
 use crate::types::{FileAffinity, TaskId, TaskPriority};
-use crate::Orchestrator;
 
 pub async fn enqueue_plan_node(
     orch: &Orchestrator,

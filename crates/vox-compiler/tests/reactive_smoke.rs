@@ -1,4 +1,3 @@
-
 #[test]
 fn test_reactive_codegen_smoke() {
     let source = r#"
@@ -26,10 +25,15 @@ component Counter(initial: int) {
     let module = vox_compiler::parser::parse(tokens).expect("Parsing failed");
     let hir = vox_compiler::hir::lower_module(&module);
     let output = vox_compiler::codegen_ts::generate(&hir).expect("Codegen failed");
-    
-    let ts = output.files.iter().find(|(f, _)| f == "Counter.tsx").map(|(_, c)| c).expect("Counter.tsx not found");
+
+    let ts = output
+        .files
+        .iter()
+        .find(|(f, _)| f == "Counter.tsx")
+        .map(|(_, c)| c)
+        .expect("Counter.tsx not found");
     println!("Generated TSX:\n{}", ts);
-    
+
     assert!(ts.contains("function Counter"));
     assert!(ts.contains("useMemo(() => count * 2, [count])"));
     assert!(ts.contains("useEffect(() => {"));

@@ -1,5 +1,5 @@
 //! Native Candle inference server bridging to `vox mens serve` payload
-//! 
+//!
 //! Loads the base model from local cache (via HF hub or specified path) + LoRA adapter,
 //! and runs autoregressive generation with KV caching.
 
@@ -7,12 +7,12 @@ use std::path::Path;
 
 use anyhow::Result;
 use candle_core::{Device, Tensor};
-use tokenizers::Tokenizer;
-use safetensors::SafeTensors;
-use safetensors::Dtype;
 use qlora_rs::QuantizedLinear;
+use safetensors::Dtype;
+use safetensors::SafeTensors;
+use tokenizers::Tokenizer;
 
-use crate::tensor::candle_model_qwen::{Qwen2Model, ForwardCache};
+use crate::tensor::candle_model_qwen::{ForwardCache, Qwen2Model};
 
 pub struct InferenceEngine {
     pub model: Qwen2Model,
@@ -43,28 +43,35 @@ impl InferenceEngine {
         let meta_path = model_dir.join("meta.json");
 
         if !adapter_path.is_file() || !meta_path.is_file() {
-            anyhow::bail!("LoRA adapter or meta.json not found in {}", model_dir.display());
+            anyhow::bail!(
+                "LoRA adapter or meta.json not found in {}",
+                model_dir.display()
+            );
         }
 
         let meta_raw = std::fs::read_to_string(&meta_path)?;
-        let meta: crate::tensor::candle_qlora_merge::QloraAdapterMetaV2 = serde_json::from_str(&meta_raw)?;
+        let meta: crate::tensor::candle_qlora_merge::QloraAdapterMetaV2 =
+            serde_json::from_str(&meta_raw)?;
 
         // Resolve base shards
         let base_shards = if let Some(ref base) = meta.base_model {
-             if Path::new(base).is_dir() {
-                 let mut shards = Vec::new();
-                 for entry in std::fs::read_dir(base)? {
-                     let p = entry?.path();
-                     if p.extension().map(|e| e == "safetensors").unwrap_or(false) && p.file_name().unwrap().to_string_lossy().contains("model") {
-                         shards.push(p);
-                     }
-                 }
-                 shards
-             } else {
-                 // Try to download/lookup via hub
-                 let files = tokio::runtime::Runtime::new()?.block_on(crate::hub::download_model(base))?;
-                 files.weights
-             }
+            if Path::new(base).is_dir() {
+                let mut shards = Vec::new();
+                for entry in std::fs::read_dir(base)? {
+                    let p = entry?.path();
+                    if p.extension().map(|e| e == "safetensors").unwrap_or(false)
+                        && p.file_name().unwrap().to_string_lossy().contains("model")
+                    {
+                        shards.push(p);
+                    }
+                }
+                shards
+            } else {
+                // Try to download/lookup via hub
+                let files =
+                    tokio::runtime::Runtime::new()?.block_on(crate::hub::download_model(base))?;
+                files.weights
+            }
         } else {
             anyhow::bail!("meta.json missing base_model reference. Cannot load frozen weights.");
         };
@@ -88,15 +95,19 @@ impl InferenceEngine {
         let get_tensor = |key: &str| -> Result<Tensor> {
             for st in &weight_maps {
                 if let Ok(view) = st.tensor(key) {
-                   let shape = view.shape().to_vec();
-                   let dtype = match view.dtype() {
-                       Dtype::F32 => candle_core::DType::F32,
-                       Dtype::BF16 => candle_core::DType::BF16,
-                       Dtype::F16 => candle_core::DType::F16,
-                       _ => continue,
-                   };
-                   let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, &_device)?;
-                   return if t.dtype() == candle_core::DType::F32 { Ok(t) } else { Ok(t.to_dtype(candle_core::DType::F32)?) };
+                    let shape = view.shape().to_vec();
+                    let dtype = match view.dtype() {
+                        Dtype::F32 => candle_core::DType::F32,
+                        Dtype::BF16 => candle_core::DType::BF16,
+                        Dtype::F16 => candle_core::DType::F16,
+                        _ => continue,
+                    };
+                    let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, &_device)?;
+                    return if t.dtype() == candle_core::DType::F32 {
+                        Ok(t)
+                    } else {
+                        Ok(t.to_dtype(candle_core::DType::F32)?)
+                    };
                 }
             }
             anyhow::bail!("Weight not found: {key}");
@@ -110,8 +121,8 @@ impl InferenceEngine {
             let s = std::fs::read_to_string(&config_path)?;
             crate::tensor::hf_load::HfTransformerLayout::from_config_json_str(&s)?
         } else {
-             // Fallback to a common layout if config.json is missing?
-             anyhow::bail!("config.json missing in {}", model_dir.display());
+            // Fallback to a common layout if config.json is missing?
+            anyhow::bail!("config.json missing in {}", model_dir.display());
         };
 
         let mut layers = Vec::new();
@@ -127,26 +138,64 @@ impl InferenceEngine {
             let o_key = format!("model.layers.{i}.self_attn.o_proj.weight");
 
             let head_dim = layout.hidden_size / layout.num_attention_heads;
-            let q_proj = QuantizedLinear::from_weight(&get_tensor(&q_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?;
-            let k_proj = QuantizedLinear::from_weight(&get_tensor(&k_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?;
-            let v_proj = QuantizedLinear::from_weight(&get_tensor(&v_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?;
-            let o_proj = QuantizedLinear::from_weight(&get_tensor(&o_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?;
+            let q_proj = QuantizedLinear::from_weight(
+                &get_tensor(&q_key)?,
+                None,
+                &qlora_rs::qlora::QLoraConfig::default(),
+                &_device,
+            )?;
+            let k_proj = QuantizedLinear::from_weight(
+                &get_tensor(&k_key)?,
+                None,
+                &qlora_rs::qlora::QLoraConfig::default(),
+                &_device,
+            )?;
+            let v_proj = QuantizedLinear::from_weight(
+                &get_tensor(&v_key)?,
+                None,
+                &qlora_rs::qlora::QLoraConfig::default(),
+                &_device,
+            )?;
+            let o_proj = QuantizedLinear::from_weight(
+                &get_tensor(&o_key)?,
+                None,
+                &qlora_rs::qlora::QLoraConfig::default(),
+                &_device,
+            )?;
 
             let att = crate::tensor::candle_model_qwen::Qwen2Attention {
-                q_proj, k_proj, v_proj, o_proj,
+                q_proj,
+                k_proj,
+                v_proj,
+                o_proj,
                 n_heads: layout.num_attention_heads,
                 n_kv_heads: layout.num_key_value_heads,
                 head_dim,
             };
 
             let gate_key = format!("model.layers.{i}.mlp.gate_proj.weight");
-            let up_key   = format!("model.layers.{i}.mlp.up_proj.weight");
+            let up_key = format!("model.layers.{i}.mlp.up_proj.weight");
             let down_key = format!("model.layers.{i}.mlp.down_proj.weight");
 
             let mlp = crate::tensor::candle_model_qwen::Qwen2MLP {
-                gate_proj: QuantizedLinear::from_weight(&get_tensor(&gate_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?,
-                up_proj:   QuantizedLinear::from_weight(&get_tensor(&up_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?,
-                down_proj: QuantizedLinear::from_weight(&get_tensor(&down_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?,
+                gate_proj: QuantizedLinear::from_weight(
+                    &get_tensor(&gate_key)?,
+                    None,
+                    &qlora_rs::qlora::QLoraConfig::default(),
+                    &_device,
+                )?,
+                up_proj: QuantizedLinear::from_weight(
+                    &get_tensor(&up_key)?,
+                    None,
+                    &qlora_rs::qlora::QLoraConfig::default(),
+                    &_device,
+                )?,
+                down_proj: QuantizedLinear::from_weight(
+                    &get_tensor(&down_key)?,
+                    None,
+                    &qlora_rs::qlora::QLoraConfig::default(),
+                    &_device,
+                )?,
             };
 
             let inv_freq_key = format!("model.layers.{i}.self_attn.rotary_emb.inv_freq");
@@ -162,8 +211,20 @@ impl InferenceEngine {
         }
 
         let norm = candle_nn::RmsNorm::new(get_tensor("model.norm.weight")?, 1e-6);
-        let lm_head_key = if weight_maps.iter().any(|st: &SafeTensors| st.tensor("lm_head.weight").is_ok()) { "lm_head.weight" } else { "model.embed_tokens.weight" };
-        let lm_head = QuantizedLinear::from_weight(&get_tensor(lm_head_key)?, None, &qlora_rs::qlora::QLoraConfig::default(), &_device)?;
+        let lm_head_key = if weight_maps
+            .iter()
+            .any(|st: &SafeTensors| st.tensor("lm_head.weight").is_ok())
+        {
+            "lm_head.weight"
+        } else {
+            "model.embed_tokens.weight"
+        };
+        let lm_head = QuantizedLinear::from_weight(
+            &get_tensor(lm_head_key)?,
+            None,
+            &qlora_rs::qlora::QLoraConfig::default(),
+            &_device,
+        )?;
 
         let model = crate::tensor::candle_model_qwen::Qwen2Model {
             embed_tokens: get_tensor("model.embed_tokens.weight")?,
@@ -188,13 +249,15 @@ impl InferenceEngine {
         _temperature: f64,
         _top_p: Option<f64>,
     ) -> Result<String> {
-        let mut tokens = self.tokenizer.encode(prompt, true)
+        let mut tokens = self
+            .tokenizer
+            .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("tokenizer error: {e}"))?
             .get_ids()
             .to_vec();
 
         let mut generated = String::new();
-        
+
         // Very basic inference loop
         for i in 0..max_tokens {
             let input = if i == 0 {
@@ -204,7 +267,9 @@ impl InferenceEngine {
                 Tensor::new(&[last], &self.device)?.unsqueeze(0)?
             };
 
-            let logits = self.model.forward_with_cache(&input, i, &mut self.kv_cache)?;
+            let logits = self
+                .model
+                .forward_with_cache(&input, i, &mut self.kv_cache)?;
             let logits = logits.squeeze(0)?.squeeze(0)?; // Assuming bs=1, seq=1
 
             let slice = logits.to_vec1::<f32>()?;
@@ -219,7 +284,7 @@ impl InferenceEngine {
             let next_token = next_token as u32;
 
             tokens.push(next_token);
-            
+
             if let Some(txt) = self.tokenizer.decode(&[next_token], false).ok() {
                 generated.push_str(&txt);
             }

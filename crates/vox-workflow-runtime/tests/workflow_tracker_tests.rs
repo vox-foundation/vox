@@ -5,9 +5,11 @@ use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{DefId, HirExpr, HirModule, HirStmt, HirWorkflow};
-use vox_workflow_runtime::{interpret_workflow_durable, WorkflowTracker};
+use vox_workflow_runtime::{WorkflowTracker, interpret_workflow_durable};
 
-fn sp() -> Span { Span { start: 0, end: 0 } }
+fn sp() -> Span {
+    Span { start: 0, end: 0 }
+}
 
 fn call_stmt(name: &str) -> HirStmt {
     HirStmt::Expr {
@@ -122,12 +124,15 @@ async fn durable_tracker_receives_all_hooks_for_two_activities() {
     assert!(events.iter().any(|e| e == "activity_completed:step_a"));
     assert!(events.iter().any(|e| e == "activity_started:step_b"));
     assert!(events.iter().any(|e| e == "activity_completed:step_b"));
-    assert!(events.last().map(|e| e.starts_with("workflow_completed")).unwrap_or(false));
+    assert!(
+        events
+            .last()
+            .map(|e| e.starts_with("workflow_completed"))
+            .unwrap_or(false)
+    );
 
     // Journal must contain matching event entries
-    let jevents: Vec<_> = journal.iter()
-        .filter_map(|v| v["event"].as_str())
-        .collect();
+    let jevents: Vec<_> = journal.iter().filter_map(|v| v["event"].as_str()).collect();
     assert!(jevents.contains(&"WorkflowStarted"));
     assert!(jevents.contains(&"ActivityStarted"));
     assert!(jevents.contains(&"ActivityCompleted"));
@@ -143,15 +148,26 @@ async fn durable_tracker_skips_already_completed_activity() {
         .await
         .expect("interpret");
     // step_a (w2-0) should be skipped
-    assert!(!tracker.events().iter().any(|e| e == "activity_started:step_a"),
-        "skipped activity must not fire on_activity_started");
+    assert!(
+        !tracker
+            .events()
+            .iter()
+            .any(|e| e == "activity_started:step_a"),
+        "skipped activity must not fire on_activity_started"
+    );
     // step_b (w2-1) should still run
-    assert!(tracker.events().iter().any(|e| e == "activity_started:step_b"));
+    assert!(
+        tracker
+            .events()
+            .iter()
+            .any(|e| e == "activity_started:step_b")
+    );
     // Journal should contain a Skip event for step_a
-    let jevents: Vec<_> = journal.iter()
-        .filter_map(|v| v["event"].as_str())
-        .collect();
-    assert!(jevents.contains(&"ActivitySkipped"), "journal must contain ActivitySkipped");
+    let jevents: Vec<_> = journal.iter().filter_map(|v| v["event"].as_str()).collect();
+    assert!(
+        jevents.contains(&"ActivitySkipped"),
+        "journal must contain ActivitySkipped"
+    );
 }
 
 #[tokio::test]
@@ -161,8 +177,18 @@ async fn empty_workflow_fires_started_and_completed() {
     interpret_workflow_durable(&hir, "empty_wf", &mut tracker)
         .await
         .expect("interpret");
-    assert!(tracker.events().iter().any(|e| e.starts_with("workflow_started:empty_wf:0")));
-    assert!(tracker.events().iter().any(|e| e == "workflow_completed:empty_wf"));
+    assert!(
+        tracker
+            .events()
+            .iter()
+            .any(|e| e.starts_with("workflow_started:empty_wf:0"))
+    );
+    assert!(
+        tracker
+            .events()
+            .iter()
+            .any(|e| e == "workflow_completed:empty_wf")
+    );
 }
 
 #[tokio::test]

@@ -3,9 +3,9 @@
 //! **SSOT:** This manifest defines the current global Arca schema collapsed into logical domains.
 //! Baseline version is [`BASELINE_VERSION`] (see monolithic DDL in `baseline_sql()`).
 
-use std::sync::OnceLock;
-use sha3::{Digest, Keccak256};
 use super::domains;
+use sha3::{Digest, Keccak256};
+use std::sync::OnceLock;
 
 /// Latest unified schema baseline version for new and existing databases.
 pub const BASELINE_VERSION: i64 = 37;
@@ -19,7 +19,7 @@ pub struct SchemaFragment {
     pub sql: &'static str,
 }
 
-/// Baseline tables required for Codex HTTP API (ready check). 
+/// Baseline tables required for Codex HTTP API (ready check).
 pub const CODEX_API_REQUIRED_TABLES: &[&str] = &[
     "conversations",
     "conversation_messages",
@@ -30,10 +30,7 @@ pub const CODEX_API_REQUIRED_TABLES: &[&str] = &[
 ];
 
 /// Subset of CORE chat tables for cleanup and diagnostics.
-pub const CODEX_CHAT_TABLES: &[&str] = &[
-    "conversations",
-    "conversation_messages",
-];
+pub const CODEX_CHAT_TABLES: &[&str] = &["conversations", "conversation_messages"];
 
 /// Tables that trigger reactivity/SSE broadcast on mutate.
 pub const CODEX_REACTIVITY_TABLES: &[&str] = &[
@@ -106,7 +103,6 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::news::SCHEMA_NEWS,
     },
 ];
-
 
 /// Hex encoded Keccak-256 digest of [`baseline_sql`].
 pub fn schema_baseline_digest_hex() -> String {

@@ -1,13 +1,13 @@
 //! HIR type Checker aligned with `crate::hir::hir` (current lowered AST).
 
+use crate::ast::span::Span;
+use crate::hir::hir::*;
 use crate::typeck::builtins::BuiltinTypes;
 use crate::typeck::diagnostics::{Diagnostic, Severity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::registration::{register_hir_module, resolve_hir_type};
 use crate::typeck::ty::Ty;
 use crate::typeck::unify::InferenceContext;
-use crate::ast::span::Span;
-use crate::hir::hir::*;
 
 pub struct Checker<'a> {
     pub env: &'a mut TypeEnv,
@@ -1047,7 +1047,10 @@ impl<'a> Checker<'a> {
                 if let Ty::Tuple(tys) = &ty {
                     if tys.len() != patterns.len() {
                         self.diags.push(Diagnostic::error(
-                            crate::typeck::diagnostics::msg_tuple_size_mismatch(tys.len(), patterns.len()),
+                            crate::typeck::diagnostics::msg_tuple_size_mismatch(
+                                tys.len(),
+                                patterns.len(),
+                            ),
                             *span,
                             self.source,
                         ));

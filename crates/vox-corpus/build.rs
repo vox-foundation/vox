@@ -16,13 +16,16 @@ use syn::visit::{self, Visit};
 
 /// Convert `CamelCase` to `snake_case`.
 fn to_snake(name: &str) -> String {
-    name.chars().enumerate().map(|(i, c)| {
-        if c.is_uppercase() && i > 0 {
-            format!("_{}", c.to_lowercase())
-        } else {
-            c.to_lowercase().to_string()
-        }
-    }).collect()
+    name.chars()
+        .enumerate()
+        .map(|(i, c)| {
+            if c.is_uppercase() && i > 0 {
+                format!("_{}", c.to_lowercase())
+            } else {
+                c.to_lowercase().to_string()
+            }
+        })
+        .collect()
 }
 
 /// Generic visitor: extract variant names from a named enum.
@@ -71,7 +74,11 @@ fn walk_enum(source_path: &PathBuf, enum_name: &'static str, use_snake: bool) ->
         Ok(f) => f,
         Err(_) => return vec![],
     };
-    let mut visitor = EnumVariantVisitor { target: enum_name, variants: vec![], use_snake };
+    let mut visitor = EnumVariantVisitor {
+        target: enum_name,
+        variants: vec![],
+        use_snake,
+    };
     visit::visit_file(&mut visitor, &file);
     visitor.variants.sort();
     visitor.variants.dedup();
@@ -93,18 +100,26 @@ impl<'ast> Visit<'ast> for CliVisitor {
                 for attr in &v.attrs {
                     if attr.path().is_ident("doc") {
                         if let syn::Meta::NameValue(nv) = &attr.meta {
-                            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value {
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: syn::Lit::Str(s),
+                                ..
+                            }) = &nv.value
+                            {
                                 let text = s.value();
                                 let text = text.trim();
                                 if !text.is_empty() {
-                                    if !desc.is_empty() { desc.push(' '); }
+                                    if !desc.is_empty() {
+                                        desc.push(' ');
+                                    }
                                     desc.push_str(text);
                                 }
                             }
                         }
                     }
                 }
-                if desc.is_empty() { desc = format!("{snake} command"); }
+                if desc.is_empty() {
+                    desc = format!("{snake} command");
+                }
                 // Truncate at first parenthesis for cleaner training data
                 if let Some(pos) = desc.find('(') {
                     desc.truncate(pos);
@@ -119,7 +134,9 @@ impl<'ast> Visit<'ast> for CliVisitor {
 
 // ── A2A visitor (serde-renamed unit variants) ─────────────────────────────────
 
-struct A2AVisitor { variants: Vec<String> }
+struct A2AVisitor {
+    variants: Vec<String>,
+}
 
 impl<'ast> Visit<'ast> for A2AVisitor {
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
@@ -138,7 +155,9 @@ impl<'ast> Visit<'ast> for A2AVisitor {
                             }
                         }
                     }
-                    if name == v.ident.to_string() { name = to_snake(&name); }
+                    if name == v.ident.to_string() {
+                        name = to_snake(&name);
+                    }
                     self.variants.push(name);
                 }
             }
@@ -149,12 +168,18 @@ impl<'ast> Visit<'ast> for A2AVisitor {
 
 // ── MCP tool visitor ──────────────────────────────────────────────────────────
 
-struct ToolRegistryVisitor { tools: Vec<String> }
+struct ToolRegistryVisitor {
+    tools: Vec<String>,
+}
 
 impl<'ast> Visit<'ast> for ToolRegistryVisitor {
     fn visit_lit_str(&mut self, i: &'ast syn::LitStr) {
         let val = i.value();
-        if val.starts_with("vox_") && val.chars().all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit()) {
+        if val.starts_with("vox_")
+            && val
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
+        {
             self.tools.push(val);
         }
         visit::visit_lit_str(self, i);
@@ -214,7 +239,11 @@ fn main() {
         let file = syn::parse_file(&source).unwrap_or_else(|_| syn::parse_str("").unwrap());
         let mut v = CliVisitor { commands: vec![] };
         visit::visit_file(&mut v, &file);
-        if v.commands.is_empty() { default_cli_commands() } else { v.commands }
+        if v.commands.is_empty() {
+            default_cli_commands()
+        } else {
+            v.commands
+        }
     };
 
     // ── 3. Walk A2A types ─────────────────────────────────────────────────────
@@ -225,9 +254,17 @@ fn main() {
             if let Ok(file) = syn::parse_file(&src) {
                 let mut v = A2AVisitor { variants: vec![] };
                 visit::visit_file(&mut v, &file);
-                if v.variants.is_empty() { default_a2a() } else { v.variants }
-            } else { default_a2a() }
-        } else { default_a2a() }
+                if v.variants.is_empty() {
+                    default_a2a()
+                } else {
+                    v.variants
+                }
+            } else {
+                default_a2a()
+            }
+        } else {
+            default_a2a()
+        }
     };
 
     // ── 4. Walk MCP tool registry ─────────────────────────────────────────────
@@ -235,7 +272,7 @@ fn main() {
         let mut tools = vec![];
         for path in &[
             manifest_dir.join("../vox-mcp-meta/src/lib.rs"),
-            manifest_dir.join("../vox-mcp/src/tools/input_schemas.rs")
+            manifest_dir.join("../vox-mcp/src/tools/input_schemas.rs"),
         ] {
             if path.exists() {
                 let src = fs::read_to_string(path).unwrap_or_default();
@@ -246,32 +283,74 @@ fn main() {
                 }
             }
         }
-        let mut t = if tools.is_empty() { default_mcp_tools() } else { tools };
-        t.sort(); t.dedup(); t
+        let mut t = if tools.is_empty() {
+            default_mcp_tools()
+        } else {
+            tools
+        };
+        t.sort();
+        t.dedup();
+        t
     };
 
     // ── 5. Emit dynamic_registry.rs ──────────────────────────────────────────
     let mut out = String::from("// AUTO-GENERATED by vox-corpus/build.rs — DO NOT EDIT\n");
     out.push_str("// Regenerated whenever any vox-ast enum file changes.\n\n");
 
-    emit_str_slice(&mut out, "TAXONOMY_FROM_AST", &taxonomy,
-        "Auto-derived from `vox-ast` `Decl` enum variants (snake_case).");
-    emit_str_slice(&mut out, "EXPR_VARIANTS", &expr_variants,
-        "Auto-derived from `vox-ast` `Expr` enum variants (snake_case).");
-    emit_str_slice(&mut out, "BINOP_VARIANTS", &binop_variants,
-        "Auto-derived from `vox-ast` `BinOp` enum variants (CamelCase).");
-    emit_str_slice(&mut out, "UNOP_VARIANTS", &unop_variants,
-        "Auto-derived from `vox-ast` `UnOp` enum variants (CamelCase).");
-    emit_str_slice(&mut out, "TYPE_EXPR_VARIANTS", &type_variants,
-        "Auto-derived from `vox-ast` `TypeExpr` enum variants (CamelCase).");
-    emit_str_slice(&mut out, "PATTERN_VARIANTS", &pattern_variants,
-        "Auto-derived from `vox-ast` `Pattern` enum variants (CamelCase).");
-    emit_str_slice(&mut out, "STMT_VARIANTS", &stmt_variants,
-        "Auto-derived from `vox-ast` `Stmt` enum variants (CamelCase).");
-    emit_str_slice(&mut out, "A2A_MESSAGE_TYPES", &a2a,
-        "Auto-derived from `vox-orchestrator` `A2AMessageType` variants.");
-    emit_str_slice(&mut out, "TOOL_REGISTRY_SLIM", &mcp_tools,
-        "Auto-derived from `vox-mcp-meta` tool registry.");
+    emit_str_slice(
+        &mut out,
+        "TAXONOMY_FROM_AST",
+        &taxonomy,
+        "Auto-derived from `vox-ast` `Decl` enum variants (snake_case).",
+    );
+    emit_str_slice(
+        &mut out,
+        "EXPR_VARIANTS",
+        &expr_variants,
+        "Auto-derived from `vox-ast` `Expr` enum variants (snake_case).",
+    );
+    emit_str_slice(
+        &mut out,
+        "BINOP_VARIANTS",
+        &binop_variants,
+        "Auto-derived from `vox-ast` `BinOp` enum variants (CamelCase).",
+    );
+    emit_str_slice(
+        &mut out,
+        "UNOP_VARIANTS",
+        &unop_variants,
+        "Auto-derived from `vox-ast` `UnOp` enum variants (CamelCase).",
+    );
+    emit_str_slice(
+        &mut out,
+        "TYPE_EXPR_VARIANTS",
+        &type_variants,
+        "Auto-derived from `vox-ast` `TypeExpr` enum variants (CamelCase).",
+    );
+    emit_str_slice(
+        &mut out,
+        "PATTERN_VARIANTS",
+        &pattern_variants,
+        "Auto-derived from `vox-ast` `Pattern` enum variants (CamelCase).",
+    );
+    emit_str_slice(
+        &mut out,
+        "STMT_VARIANTS",
+        &stmt_variants,
+        "Auto-derived from `vox-ast` `Stmt` enum variants (CamelCase).",
+    );
+    emit_str_slice(
+        &mut out,
+        "A2A_MESSAGE_TYPES",
+        &a2a,
+        "Auto-derived from `vox-orchestrator` `A2AMessageType` variants.",
+    );
+    emit_str_slice(
+        &mut out,
+        "TOOL_REGISTRY_SLIM",
+        &mcp_tools,
+        "Auto-derived from `vox-mcp-meta` tool registry.",
+    );
 
     // CLI commands: (name, description) tuples
     out.push_str("/// CLI subcommands auto-derived from `vox-cli` `Cli` enum.\n");
@@ -321,16 +400,28 @@ fn default_cli_commands() -> Vec<(String, String)> {
         ("test", "Run Vox test declarations"),
         ("mens", "Mens training and inference"),
         ("ci", "CI guards and checks"),
-    ].into_iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+    ]
+    .into_iter()
+    .map(|(a, b)| (a.to_string(), b.to_string()))
+    .collect()
 }
 
 fn default_a2a() -> Vec<String> {
-    ["task_started", "task_completed", "delegation_request",
-     "delegation_response", "knowledge_share"]
-        .iter().map(|s| s.to_string()).collect()
+    [
+        "task_started",
+        "task_completed",
+        "delegation_request",
+        "delegation_response",
+        "knowledge_share",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
 }
 
 fn default_mcp_tools() -> Vec<String> {
     ["vox_search_web", "vox_view_file", "vox_skill_install"]
-        .iter().map(|s| s.to_string()).collect()
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }

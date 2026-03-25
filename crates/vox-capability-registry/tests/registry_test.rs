@@ -2,8 +2,7 @@
 //! Smoke tests for `vox-capability-registry` public API.
 
 use vox_capability_registry::{
-    PopuliExposure, capability_to_openai_function, default_registry,
-    mens_chat_parameters,
+    PopuliExposure, capability_to_openai_function, default_registry, mens_chat_parameters,
 };
 
 #[test]

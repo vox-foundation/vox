@@ -37,5 +37,3 @@ CREATE TABLE IF NOT EXISTS toestub_suppressions (
 
 CREATE INDEX IF NOT EXISTS idx_toestub_suppressions_path ON toestub_suppressions(path);
 ";
-
-

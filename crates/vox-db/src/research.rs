@@ -5,9 +5,9 @@
 //! with a [`ResearchIngestRequest`]. Capability-map DDL is applied when those APIs touch the map.
 
 use crate::VoxDb;
+use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
 use turso::params;
-use crate::store::StoreError;
 
 const CAP_TABLE: &str = "
 CREATE TABLE IF NOT EXISTS codex_capability_map (
@@ -210,8 +210,7 @@ impl VoxDb {
         &self,
         req: &mut ResearchIngestRequest,
     ) -> Result<ResearchIngestResult, StoreError> {
-        self
-            .block_on(self.ingest_research_document_async(req))
+        self.block_on(self.ingest_research_document_async(req))
     }
 
     /// Deserialize recent `external_research` rows from `knowledge_nodes` (optional vendor/topic filter).
@@ -293,8 +292,7 @@ impl VoxDb {
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
             let meta = serde_json::to_string(&rec.metadata)
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
-            self
-                .connection()
+            self.connection()
                 .execute(
                     "INSERT INTO codex_capability_map (
                         topic, vendor, area, openclaw_capability, vox_evidence, status,
@@ -420,9 +418,7 @@ pub struct RetrievalDiagnostics {
 }
 
 /// Cheap `COUNT(*)` snapshots over retrieval-related tables.
-pub fn retrieval_diagnostics(
-    store: &crate::VoxDb,
-) -> Result<RetrievalDiagnostics, StoreError> {
+pub fn retrieval_diagnostics(store: &crate::VoxDb) -> Result<RetrievalDiagnostics, StoreError> {
     store.block_on(async {
         let mut r1 = store
             .connection()

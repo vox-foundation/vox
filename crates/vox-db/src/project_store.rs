@@ -1,6 +1,6 @@
-use crate::VoxDb;
 use crate::DbConfig;
-use crate::store::{StoreError, DEFAULT_PROJECT_STORE_PATH};
+use crate::VoxDb;
+use crate::store::{DEFAULT_PROJECT_STORE_PATH, StoreError};
 
 /// Opens the project-local VoxDb (Arca store under `.vox/store.db`).
 ///
@@ -9,7 +9,7 @@ use crate::store::{StoreError, DEFAULT_PROJECT_STORE_PATH};
 pub async fn open_project_db() -> Result<VoxDb, StoreError> {
     let cwd = std::env::current_dir().map_err(StoreError::Io)?;
     let repo = vox_repository::discover_repository_or_fallback(&cwd);
-    
+
     let db_path = repo.root.join(DEFAULT_PROJECT_STORE_PATH);
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent).map_err(StoreError::Io)?;

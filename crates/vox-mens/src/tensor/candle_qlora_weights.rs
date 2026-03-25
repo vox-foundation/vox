@@ -3,8 +3,8 @@
 //! Pure key naming lives in [`super::hf_keymap`]; this module keeps shard I/O.
 
 pub use super::hf_keymap::{
-    missing_middle_keys_report, ordered_full_block_weight_keys,
-    ordered_middle_projection_keys, sample_present_keys_sorted_from_present,
+    missing_middle_keys_report, ordered_full_block_weight_keys, ordered_middle_projection_keys,
+    sample_present_keys_sorted_from_present,
 };
 
 use super::hf_load::HfTransformerLayout;
@@ -81,5 +81,3 @@ mod coverage_tests {
         assert!(!cov.complete);
     }
 }
-
-

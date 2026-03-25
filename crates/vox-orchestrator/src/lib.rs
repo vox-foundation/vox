@@ -53,6 +53,8 @@ pub mod budget;
 pub mod bulletin;
 /// Host capability probing and merge with `OrchestratorConfig::default_agent_capabilities`.
 pub mod capability_probe;
+/// Dynamic model catalogs.
+pub mod catalog;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
@@ -83,20 +85,18 @@ pub mod locks;
 pub mod memory;
 /// Hybrid search over orchestrator memory (lexical + embeddings).
 pub mod memory_search;
-/// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
-pub mod populi_federation;
-/// Dynamic planning domain (router, synthesis, policies, replanning).
-pub mod planning;
 /// LLM model registry and provider configuration.
 pub mod models;
-/// Dynamic model catalogs.
-pub mod catalog;
 /// Lightweight AI usage / behavior monitor hooks.
 pub mod monitor;
 /// Append-only operation log for durable orchestration history.
 pub mod oplog;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
+/// Dynamic planning domain (router, synthesis, policies, replanning).
+pub mod planning;
+/// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
+pub mod populi_federation;
 /// Question/answer routing between agents.
 pub mod qa;
 /// Priority task queues and overflow handling.
@@ -128,8 +128,6 @@ pub mod usage;
 /// Per-agent workspace views and pending change tracking.
 pub mod workspace;
 
-
-
 /// TOESTUB-based output validation gate integration.
 #[cfg(feature = "toestub-gate")]
 pub mod validation;
@@ -144,15 +142,14 @@ pub mod lsp;
 
 // Re-export key public types for ergonomic access.
 pub use a2a::{
-    send_to_db, poll_inbox_from_db, acknowledge_db_message,
-    prune_old_a2a_messages, DbA2AMessage, A2ARoute,
+    A2ARoute, DbA2AMessage, acknowledge_db_message, poll_inbox_from_db, prune_old_a2a_messages,
+    send_to_db,
 };
 pub use attention::{
-    ApprovalTier, TrustTier, FocusDepth, ActionDescriptor, AttentionBudget,
-    AgentTrustScore, AttentionEvent, AttentionEventType, ApprovalOutcome,
-    NasaTlxWeights, TierGateConfig,
-    compute_attention_cost_ms, decision_entropy_bits, classify_tier,
-    DEFAULT_INTERRUPT_COST_MS, DEFAULT_ATTENTION_BUDGET_MS,
+    ActionDescriptor, AgentTrustScore, ApprovalOutcome, ApprovalTier, AttentionBudget,
+    AttentionEvent, AttentionEventType, DEFAULT_ATTENTION_BUDGET_MS, DEFAULT_INTERRUPT_COST_MS,
+    FocusDepth, NasaTlxWeights, TierGateConfig, TrustTier, classify_tier,
+    compute_attention_cost_ms, decision_entropy_bits,
 };
 pub use budget::{AgentBudgetAllocation, BudgetManager, BudgetSignal, ContextBudget};
 pub use compaction::{
@@ -173,18 +170,21 @@ pub use groups::{AffinityGroup, AffinityGroupRegistry, load_from_config};
 pub use handoff::{
     HandoffInvariantError, HandoffPayload, execute_handoff, validate_handoff_invariants,
 };
-pub use heartbeat::{persist_heartbeat, live_nodes_from_db, evict_dead_heartbeats, AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel};
+pub use heartbeat::{
+    AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel, evict_dead_heartbeats,
+    live_nodes_from_db, persist_heartbeat,
+};
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
 pub use memory::{DailyLog, LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
 pub use memory_search::{HybridSearchHit, MemorySearchEngine};
-pub use populi_federation::{PopuliNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot};
+pub use monitor::AiMonitor;
+pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
+pub use orchestrator::{Orchestrator, TaskTraceStep};
 pub use planning::{
     ExecutionPolicy, PlanNode, PlanSessionRecord, PlanStatus, PlanVersionRecord, PlanningMode,
     PlanningStrategy, PlanningTaskMeta, ReplanTrigger, RouterEvaluation,
 };
-pub use monitor::AiMonitor;
-pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
-pub use orchestrator::{Orchestrator, TaskTraceStep};
+pub use populi_federation::{PopuliNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot};
 pub use scope::{ScopeCheckResult, ScopeEnforcement, ScopeGuard};
 pub use security::{
     AuditEntry, AuditLog, AuditResult, PolicyRule, SecurityAction, SecurityGuard, SecurityPolicy,
@@ -199,11 +199,10 @@ pub use socrates::{SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_g
 pub use summary::SummaryManager;
 pub use types::{
     A2AMessage, A2AMessageType, AccessKind, AgentId, AgentIdGenerator, AgentMessage, AgentTask,
-    BatchId, CorrelationId, CorrelationIdGenerator, MessageEnvelope, FileAffinity, MessageId,
+    BatchId, CorrelationId, CorrelationIdGenerator, FileAffinity, MessageEnvelope, MessageId,
     MessagePriority, TaskCategory, TaskDescriptor, TaskId, TaskIdGenerator, TaskPriority,
     TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
 
 pub use usage::LlmUsageKey;
 pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
-

@@ -375,9 +375,21 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         // Robust fence stripping: strip the language tag and then any trailing ```
         let block = completion.trim();
         completion = if block.starts_with("```vox") {
-            block.strip_prefix("```vox").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim().to_string()
+            block
+                .strip_prefix("```vox")
+                .unwrap_or(block)
+                .strip_suffix("```")
+                .unwrap_or(block)
+                .trim()
+                .to_string()
         } else if block.starts_with("```") {
-            block.strip_prefix("```").unwrap_or(block).strip_suffix("```").unwrap_or(block).trim().to_string()
+            block
+                .strip_prefix("```")
+                .unwrap_or(block)
+                .strip_suffix("```")
+                .unwrap_or(block)
+                .trim()
+                .to_string()
         } else {
             block.to_string()
         };
@@ -389,9 +401,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         let diagnostics = vox_lsp::validate_document(&completion);
         let errors: Vec<_> = diagnostics
             .iter()
-            .filter(|d| {
-                d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)
-            })
+            .filter(|d| d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR))
             .collect();
 
         if errors.is_empty() {
@@ -409,7 +419,9 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         }
 
         // Add diagnostics to prompt for retry
-        let mut feedback = String::from("\n\nThe previous generation had these errors. Fix them and re-generate ONLY the corrected .vox code:\n");
+        let mut feedback = String::from(
+            "\n\nThe previous generation had these errors. Fix them and re-generate ONLY the corrected .vox code:\n",
+        );
         for (i, err) in errors.iter().enumerate() {
             feedback.push_str(&format!(
                 "{}. [L{}:C{}] {}\n",

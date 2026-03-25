@@ -81,10 +81,10 @@ pub fn construct_difficulty(category: &str, record_type: &str) -> u8 {
         "skill" => 7,
         "a2a" | "a2a_trace" => 6,
         _ => match category {
-           "boilerplate" => 2,
-           "basic_syntax" => 3,
-           "complex_logic" => 9,
-           _ => 5,
-        }
+            "boilerplate" => 2,
+            "basic_syntax" => 3,
+            "complex_logic" => 9,
+            _ => 5,
+        },
     }
 }

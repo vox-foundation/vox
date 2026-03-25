@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use super::{AgentSummary, Orchestrator, OrchestratorStatus, TaskTraceStep};
 use crate::affinity::FileAffinityMap;
 use crate::bulletin::BulletinBoard;
@@ -6,6 +5,7 @@ use crate::config::OrchestratorConfig;
 use crate::locks::FileLockManager;
 use crate::queue::AgentQueue;
 use crate::types::{AgentId, TaskId};
+use std::collections::HashMap;
 
 impl Orchestrator {
     pub fn status(&self) -> OrchestratorStatus {
@@ -21,7 +21,8 @@ impl Orchestrator {
                     queued: queue.len(),
                     urgent_count: queue.depth_by_priority(crate::types::TaskPriority::Urgent),
                     normal_count: queue.depth_by_priority(crate::types::TaskPriority::Normal),
-                    background_count: queue.depth_by_priority(crate::types::TaskPriority::Background),
+                    background_count: queue
+                        .depth_by_priority(crate::types::TaskPriority::Background),
                     in_progress: queue.has_in_progress(),
                     completed: queue.completed_count(),
                     paused: queue.is_paused(),
@@ -61,8 +62,7 @@ impl Orchestrator {
         let predicted_load = if history.is_empty() {
             total_weighted_load
         } else {
-            let avg: f64 =
-                history.iter().copied().sum::<f64>() / history.len() as f64;
+            let avg: f64 = history.iter().copied().sum::<f64>() / history.len() as f64;
             if history.len() >= 2 {
                 let last = *history.back().unwrap();
                 let trend = last - avg;
@@ -91,17 +91,27 @@ impl Orchestrator {
     }
 
     /// Get a shared lock to an agent's queue.
-    pub fn agent_queue(&self, agent_id: AgentId) -> Option<std::sync::Arc<std::sync::RwLock<AgentQueue>>> {
-        crate::sync_lock::rw_read(&self.agents).get(&agent_id).cloned()
+    pub fn agent_queue(
+        &self,
+        agent_id: AgentId,
+    ) -> Option<std::sync::Arc<std::sync::RwLock<AgentQueue>>> {
+        crate::sync_lock::rw_read(&self.agents)
+            .get(&agent_id)
+            .cloned()
     }
 
     /// Get a shared lock to an agent's queue (alias for agent_queue).
-    pub fn get_agent_queue_mut(&self, agent_id: AgentId) -> Option<std::sync::Arc<std::sync::RwLock<AgentQueue>>> {
+    pub fn get_agent_queue_mut(
+        &self,
+        agent_id: AgentId,
+    ) -> Option<std::sync::Arc<std::sync::RwLock<AgentQueue>>> {
         self.agent_queue(agent_id)
     }
 
     /// Get a shared lock to the budget manager.
-    pub fn budget_manager_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::budget::BudgetManager>> {
+    pub fn budget_manager_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::budget::BudgetManager>> {
         std::sync::Arc::clone(&self.budget_manager)
     }
 
@@ -141,7 +151,10 @@ impl Orchestrator {
 
     /// List all agent IDs.
     pub fn agent_ids(&self) -> Vec<AgentId> {
-        crate::sync_lock::rw_read(&self.agents).keys().copied().collect()
+        crate::sync_lock::rw_read(&self.agents)
+            .keys()
+            .copied()
+            .collect()
     }
 
     /// List all tasks (queued or in-progress) from all agents.
@@ -167,11 +180,15 @@ impl Orchestrator {
 
     /// Get the lifecycle timeline for a task (ingress → route → outcome), if recorded.
     pub fn task_trace(&self, task_id: TaskId) -> Option<Vec<TaskTraceStep>> {
-        crate::sync_lock::rw_read(&self.task_traces).get(&task_id).cloned()
+        crate::sync_lock::rw_read(&self.task_traces)
+            .get(&task_id)
+            .cloned()
     }
 
     /// Get a handle to the shared context store.
-    pub fn context_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::context::ContextStore>> {
+    pub fn context_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::context::ContextStore>> {
         std::sync::Arc::clone(&self.context_store)
     }
 
@@ -181,7 +198,9 @@ impl Orchestrator {
     }
 
     /// Get a handle to the summary manager.
-    pub fn summary_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::summary::SummaryManager>> {
+    pub fn summary_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::summary::SummaryManager>> {
         std::sync::Arc::clone(&self.summary_manager)
     }
 
@@ -208,12 +227,16 @@ impl Orchestrator {
     // -- JJ-inspired subsystem accessors --
 
     /// Access the auto-snapshot store handle.
-    pub fn snapshot_store_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::snapshot::SnapshotStore>> {
+    pub fn snapshot_store_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::snapshot::SnapshotStore>> {
         std::sync::Arc::clone(&self.snapshot_store)
     }
 
     /// Alias for snapshot_store_handle.
-    pub fn snapshot_store_mut(&self) -> std::sync::Arc<std::sync::RwLock<crate::snapshot::SnapshotStore>> {
+    pub fn snapshot_store_mut(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::snapshot::SnapshotStore>> {
         self.snapshot_store_handle()
     }
 
@@ -228,22 +251,30 @@ impl Orchestrator {
     }
 
     /// Access the conflict manager handle.
-    pub fn conflict_manager_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>> {
+    pub fn conflict_manager_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>> {
         std::sync::Arc::clone(&self.conflict_manager)
     }
 
     /// Alias for conflict_manager_handle.
-    pub fn conflict_manager_mut(&self) -> std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>> {
+    pub fn conflict_manager_mut(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>> {
         self.conflict_manager_handle()
     }
 
     /// Access the workspace manager handle.
-    pub fn workspace_manager_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>> {
+    pub fn workspace_manager_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>> {
         std::sync::Arc::clone(&self.workspace_manager)
     }
 
     /// Alias for workspace_manager_handle.
-    pub fn workspace_manager_mut(&self) -> std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>> {
+    pub fn workspace_manager_mut(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>> {
         self.workspace_manager_handle()
     }
 }

@@ -4,8 +4,6 @@
 //! mechanisms (NVML env vars, sysfs, or compile-time hints). Falls back to
 //! a user-supplied override or safe defaults.
 
-
-
 /// Query available GPU VRAM in GiB.
 ///
 /// Resolution order:
@@ -76,8 +74,13 @@ pub fn vram_summary(device_is_cuda: bool) -> String {
     let preset = auto_preset(device_is_cuda, vram);
     match (vram, preset) {
         (Some(v), Some(p)) => format!("{:.1} GiB VRAM detected → preset '{p}'", v),
-        (Some(v), None) => format!("{:.1} GiB VRAM detected (no matching preset; specify --preset manually)", v),
-        (None, _) => "Could not detect VRAM (set VOX_VRAM_OVERRIDE_GB or pass --preset manually)".to_string(),
+        (Some(v), None) => format!(
+            "{:.1} GiB VRAM detected (no matching preset; specify --preset manually)",
+            v
+        ),
+        (None, _) => {
+            "Could not detect VRAM (set VOX_VRAM_OVERRIDE_GB or pass --preset manually)".to_string()
+        }
     }
 }
 
@@ -98,8 +101,12 @@ mod tests {
     #[allow(unsafe_code)]
     fn vram_override_env_is_respected() {
         // Set a fake value and confirm it returns correctly.
-        unsafe { std::env::set_var("VOX_VRAM_OVERRIDE_GB", "20.0"); }
+        unsafe {
+            std::env::set_var("VOX_VRAM_OVERRIDE_GB", "20.0");
+        }
         assert_eq!(get_system_vram_gb(), Some(20.0));
-        unsafe { std::env::remove_var("VOX_VRAM_OVERRIDE_GB"); }
+        unsafe {
+            std::env::remove_var("VOX_VRAM_OVERRIDE_GB");
+        }
     }
 }

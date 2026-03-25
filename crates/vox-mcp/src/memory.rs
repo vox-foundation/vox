@@ -477,10 +477,7 @@ pub struct MemoryRecallDbParams {
 pub async fn preference_get(state: &ServerState, params: PreferenceGetParams) -> String {
     match &state.db {
         None => ToolResult::<String>::err("VoxDb not attached").to_json(),
-        Some(db) => match db
-            .get_user_preference(&params.user_id, &params.key)
-            .await
-        {
+        Some(db) => match db.get_user_preference(&params.user_id, &params.key).await {
             Ok(Some(val)) => ToolResult::ok(val).to_json(),
             Ok(None) => ToolResult::<String>::err(format!("Preference '{}' not found", params.key))
                 .to_json(),
@@ -521,8 +518,7 @@ pub async fn preference_list(state: &ServerState, params: PreferenceListParams) 
             .await
         {
             Ok(prefs) => {
-                let lines: Vec<String> =
-                    prefs.iter().map(|(k, v)| format!("{k} = {v}")).collect();
+                let lines: Vec<String> = prefs.iter().map(|(k, v)| format!("{k} = {v}")).collect();
                 ToolResult::ok(lines.join("\n")).to_json()
             }
             Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),

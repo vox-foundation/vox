@@ -5,9 +5,9 @@
 //! experience. It sits on top of the `VoxDb` CRUD layer and provides
 //! higher-level analytics.
 
-use std::collections::HashMap;
-use crate::store::{LearnedPatternEntry, StoreError};
 use crate::VoxDb;
+use crate::store::{LearnedPatternEntry, StoreError};
+use std::collections::HashMap;
 
 /// Minimum number of observations before a pattern is considered confident.
 const MIN_EVIDENCE_FOR_PATTERN: i64 = 3;

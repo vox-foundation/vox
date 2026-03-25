@@ -121,7 +121,10 @@ pub async fn pending_questions(state: &ServerState, params: PendingQuestionsPara
     let orch = &state.orchestrator;
 
     let q_router = orch.qa_router_handle();
-    let questions = q_router.read().unwrap().pending_questions(AgentId(params.agent_id));
+    let questions = q_router
+        .read()
+        .unwrap()
+        .pending_questions(AgentId(params.agent_id));
 
     let result: Vec<PendingQuestionResponse> = questions
         .into_iter()

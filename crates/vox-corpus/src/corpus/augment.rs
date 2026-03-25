@@ -120,11 +120,17 @@ static SYNONYMS: &[(&str, &[&str])] = &[
     ("mutation", &["write", "update", "modify", "change"]),
     ("called", &["named", "with name"]),
     ("using", &["with", "via", "through"]),
-    ("in vox", &["with vox", "using the vox language", "vox style"]),
+    (
+        "in vox",
+        &["with vox", "using the vox language", "vox style"],
+    ),
     ("a vox", &["a", "the vox"]),
     ("proper", &["correct", "full", "appropriate"]),
     // Vox-domain synonyms
-    ("handler", &["on message", "event handler", "message handler"]),
+    (
+        "handler",
+        &["on message", "event handler", "message handler"],
+    ),
     ("decorator", &["annotation", "attribute", "tag"]),
     ("durable", &["persistent", "reliable", "fault-tolerant"]),
     ("spawn", &["create", "launch", "start"]),
@@ -145,7 +151,6 @@ static SYNONYMS: &[(&str, &[&str])] = &[
     ("skill", &["capability", "ability", "competency"]),
     ("route", &["path", "URL", "endpoint"]),
 ];
-
 
 /// Apply a single character-level typo mutation to `word`.
 /// Returns the mutated string. Preserves length boundaries.
@@ -266,9 +271,12 @@ fn apply_word_shuffle(prompt: &str, rng: &mut impl Rng) -> String {
     let mut prefix: Vec<&str> = words[..pivot].to_vec();
     prefix.shuffle(rng);
     let suffix = &words[pivot..];
-    let combined: Vec<&str> = prefix.iter().map(|s| *s).chain(suffix.iter().map(|s| *s)).collect();
+    let combined: Vec<&str> = prefix
+        .iter()
+        .map(|s| *s)
+        .chain(suffix.iter().map(|s| *s))
+        .collect();
     combined.join(" ")
-
 }
 
 /// Generate `config.variants_per_prompt` augmented variants of `prompt`.
@@ -368,11 +376,7 @@ pub fn augment_prompt(prompt: &str, config: &AugmentConfig, seed: u64) -> Vec<St
 /// Lines that already have `record_format` or non-plain fields are emitted as-is.
 /// For each parseable `{"prompt": ..., "response": ...}` pair, `config.variants_per_prompt`
 /// augmented instruction variants are appended. The response is unchanged.
-pub fn augment_jsonl_lines(
-    lines: &[String],
-    config: &AugmentConfig,
-    seed: u64,
-) -> Vec<String> {
+pub fn augment_jsonl_lines(lines: &[String], config: &AugmentConfig, seed: u64) -> Vec<String> {
     let mut out = Vec::with_capacity(lines.len() * (1 + config.variants_per_prompt));
     for line in lines {
         out.push(line.clone());
@@ -385,31 +389,28 @@ pub fn augment_jsonl_lines(
         let Some(response) = v.get("response").and_then(|x| x.as_str()) else {
             continue;
         };
-        
+
         let category = v.get("category").and_then(|x| x.as_str()).unwrap_or("");
         if category == "negative_preference" {
             continue;
         }
-        
+
         let variants_to_gen = if category == "documentation" {
             1.min(config.variants_per_prompt)
         } else {
             config.variants_per_prompt
         };
-        
+
         if variants_to_gen == 0 {
             continue;
         }
-        
+
         let mut local_config = config.clone();
         local_config.variants_per_prompt = variants_to_gen;
 
         let variants = augment_prompt(prompt, &local_config, seed);
         for variant_prompt in variants {
-            let mut row = v
-                .as_object()
-                .cloned()
-                .unwrap_or_default();
+            let mut row = v.as_object().cloned().unwrap_or_default();
             row.insert(
                 "prompt".to_string(),
                 serde_json::Value::String(variant_prompt),
@@ -469,7 +470,10 @@ mod tests {
         let cfg = AugmentConfig::default();
         let variants = augment_prompt("Write a Vox function called greet", &cfg, 42);
         // Must produce at least 1 distinct variant
-        assert!(!variants.is_empty(), "expected at least one augmented variant");
+        assert!(
+            !variants.is_empty(),
+            "expected at least one augmented variant"
+        );
         // None should equal the original
         for v in &variants {
             assert_ne!(
@@ -511,10 +515,17 @@ mod tests {
             r#"{"prompt":"Write a Vox function called foo","response":"fn foo() to Unit:\n  ret"}"#
                 .to_string(),
         ];
-        let cfg = AugmentConfig { variants_per_prompt: 2, ..AugmentConfig::default() };
+        let cfg = AugmentConfig {
+            variants_per_prompt: 2,
+            ..AugmentConfig::default()
+        };
         let out = augment_jsonl_lines(&lines, &cfg, 7);
         // Original + up to 2 augmented variants
-        assert!(out.len() >= 2, "expected at least 2 rows, got {}", out.len());
+        assert!(
+            out.len() >= 2,
+            "expected at least 2 rows, got {}",
+            out.len()
+        );
         // First row must be the original
         assert_eq!(out[0], lines[0]);
     }
@@ -535,30 +546,43 @@ mod tests {
         for _ in 0..100 {
             let mutated = typo_mutate(word, &mut rng);
             let mut_chars: Vec<char> = mutated.chars().collect();
-            if mut_chars.len() == original_chars.len() { // mostly looking for substitution
+            if mut_chars.len() == original_chars.len() {
+                // mostly looking for substitution
                 let mut changes = 0;
                 let mut is_swap = false;
                 for i in 0..original_chars.len().saturating_sub(1) {
-                    if original_chars[i] == mut_chars[i+1] && original_chars[i+1] == mut_chars[i] {
+                    if original_chars[i] == mut_chars[i + 1]
+                        && original_chars[i + 1] == mut_chars[i]
+                    {
                         is_swap = true;
                         break;
                     }
                 }
-                if is_swap { continue; }
-                
+                if is_swap {
+                    continue;
+                }
+
                 for (i, &c) in original_chars.iter().enumerate() {
                     let mc = mut_chars[i];
                     if c != mc {
                         // Check if mc is in qwerty_neighbors(c)
                         if let Some(nbrs) = qwerty_neighbors(c) {
-                            assert!(nbrs.contains(&mc), "Mutated char {} must be a neighbor of {}", mc, c);
+                            assert!(
+                                nbrs.contains(&mc),
+                                "Mutated char {} must be a neighbor of {}",
+                                mc,
+                                c
+                            );
                         } else {
                             assert_eq!(mc, c); // if not in QWERTY, shouldn't change
                         }
                         changes += 1;
                     }
                 }
-                assert!(changes <= 1, "Only one substitution should happen at a time");
+                assert!(
+                    changes <= 1,
+                    "Only one substitution should happen at a time"
+                );
             }
         }
     }
@@ -568,7 +592,13 @@ mod tests {
         let mut rng = rand::rngs::StdRng::seed_from_u64(1);
         let result = apply_word_shuffle("Write a Vox function called {name}", &mut rng);
         // The result should still contain all the original words
-        assert!(result.contains("{name}"), "template variable must be preserved: {result}");
-        assert!(result.contains("function"), "key words must be preserved: {result}");
+        assert!(
+            result.contains("{name}"),
+            "template variable must be preserved: {result}"
+        );
+        assert!(
+            result.contains("function"),
+            "key words must be preserved: {result}"
+        );
     }
 }

@@ -303,9 +303,18 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
             Some(effective),
             orch.snapshot_store_handle().read().unwrap().count(),
             orch.oplog_handle().read().unwrap().count(),
-            orch.conflict_manager_handle().read().unwrap().active_count(),
-            orch.workspace_manager_handle().read().unwrap().list_workspaces().len(),
-            orch.workspace_manager_handle().read().unwrap()
+            orch.conflict_manager_handle()
+                .read()
+                .unwrap()
+                .active_count(),
+            orch.workspace_manager_handle()
+                .read()
+                .unwrap()
+                .list_workspaces()
+                .len(),
+            orch.workspace_manager_handle()
+                .read()
+                .unwrap()
                 .list_changes(None, usize::MAX)
                 .len(),
             cfg.populi_control_url.clone(),
@@ -321,10 +330,13 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         .and_then(|s| s.trim().parse().ok())
         .filter(|n| *n > 0);
 
-    let mesh_snapshot = if let Some(url) = populi_control_url.as_ref().filter(|s: &&String| !s.trim().is_empty()) {
+    let mesh_snapshot = if let Some(url) = populi_control_url
+        .as_ref()
+        .filter(|s: &&String| !s.trim().is_empty())
+    {
         let timeout = std::time::Duration::from_millis(mesh_http_timeout_ms.max(500_u64));
-        let client =
-            vox_populi::http_client::MeshHttpClient::new_with_timeout(url, timeout).with_env_token();
+        let client = vox_populi::http_client::MeshHttpClient::new_with_timeout(url, timeout)
+            .with_env_token();
         match client.list_nodes().await {
             Ok(f) => {
                 let f = vox_populi::filter_registry_by_max_stale_ms(f, max_stale_ms);
@@ -371,15 +383,16 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         } else {
             None
         }
-        .unwrap_or_else(|| {
-            vox_ludus::companion::Companion::new(id, "user", "Vox DEI", "vox")
-        });
+        .unwrap_or_else(|| vox_ludus::companion::Companion::new(id, "user", "Vox DEI", "vox"));
 
         comp.ascii_sprite = Some("🧑‍💻".to_string());
         Some(comp)
     };
 
-    let scaling_line = match (scaling_profile.as_ref().map(|s: &String| s.as_str()), effective_scale_up_threshold) {
+    let scaling_line = match (
+        scaling_profile.as_ref().map(|s: &String| s.as_str()),
+        effective_scale_up_threshold,
+    ) {
         (Some(prof), Some(eff)) => format!(
             "**Scaling:** profile={}, effective scale-up threshold={:.1}\n\n",
             prof, eff
@@ -521,26 +534,30 @@ pub async fn vcs_status(state: &ServerState) -> String {
 
     let snapshot_count = crate::sync_lock::rw_read(&*orch.snapshot_store_handle()).count();
     let oplog_count = crate::sync_lock::rw_read(&*orch.oplog_handle()).count();
-    let active_conflicts = crate::sync_lock::rw_read(&*orch.conflict_manager_handle()).active_count();
+    let active_conflicts =
+        crate::sync_lock::rw_read(&*orch.conflict_manager_handle()).active_count();
     let total_conflicts = crate::sync_lock::rw_read(&*orch.conflict_manager_handle()).total_count();
-    let active_workspaces = crate::sync_lock::rw_read(&*orch.workspace_manager_handle()).list_workspaces().len();
+    let active_workspaces = crate::sync_lock::rw_read(&*orch.workspace_manager_handle())
+        .list_workspaces()
+        .len();
     let active_changes = crate::sync_lock::rw_read(&*orch.workspace_manager_handle())
         .list_changes(None, usize::MAX)
         .len();
 
     // Build workspace details
-    let workspace_details: Vec<serde_json::Value> = crate::sync_lock::rw_read(&*orch.workspace_manager_handle())
-        .list_workspaces()
-        .iter()
-        .map(|ws| {
-            serde_json::json!({
-                "agent_id": ws.agent_id.0,
-                "base_snapshot": ws.base_snapshot.0,
-                "modified_files": ws.modified_count(),
-                "active_change": ws.active_change.map(|c| c.0),
+    let workspace_details: Vec<serde_json::Value> =
+        crate::sync_lock::rw_read(&*orch.workspace_manager_handle())
+            .list_workspaces()
+            .iter()
+            .map(|ws| {
+                serde_json::json!({
+                    "agent_id": ws.agent_id.0,
+                    "base_snapshot": ws.base_snapshot.0,
+                    "modified_files": ws.modified_count(),
+                    "active_change": ws.active_change.map(|c| c.0),
+                })
             })
-        })
-        .collect();
+            .collect();
 
     // Build recent oplog entries (last 10)
     let recent_ops: Vec<serde_json::Value> = crate::sync_lock::rw_read(&*orch.oplog_handle())
@@ -558,18 +575,19 @@ pub async fn vcs_status(state: &ServerState) -> String {
         .collect();
 
     // Build active conflict details
-    let conflict_details: Vec<serde_json::Value> = crate::sync_lock::rw_read(&*orch.conflict_manager_handle())
-        .active_conflicts()
-        .iter()
-        .map(|c| {
-            serde_json::json!({
-                "id": c.id.to_string(),
-                "path": c.path.display().to_string(),
-                "sides": c.sides.len(),
-                "created_ms": c.created_ms,
+    let conflict_details: Vec<serde_json::Value> =
+        crate::sync_lock::rw_read(&*orch.conflict_manager_handle())
+            .active_conflicts()
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "id": c.id.to_string(),
+                    "path": c.path.display().to_string(),
+                    "sides": c.sides.len(),
+                    "created_ms": c.created_ms,
+                })
             })
-        })
-        .collect();
+            .collect();
 
     let result = serde_json::json!({
         "snapshots": snapshot_count,
@@ -608,8 +626,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
         };
 
         for id in agent_ids {
-            if let Ok(records) =
-                vox_ludus::db::get_events(db, &id.0.to_string(), Some(limit)).await
+            if let Ok(records) = vox_ludus::db::get_events(db, &id.0.to_string(), Some(limit)).await
             {
                 all_events.extend(records);
             }

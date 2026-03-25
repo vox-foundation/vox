@@ -4,6 +4,10 @@
 
 - Probes Rust, MSVC/C compiler, and **clang / clang-cl** (needed for `turso` → `aegis` native builds).
 - Optional **`--apply`**: `rustup component add` (with `--dev`), `winget install LLVM.LLVM` on Windows (with `--install-clang`).
+- Optional **`--install`**: installs `vox` after checks.
+  - Binary-first from GitHub Releases (`checksums.txt` verified), then source fallback (`cargo install --path crates/vox-cli`) if binary install fails.
+  - Use `--source-only` to skip binary install.
+  - Use `--version <tag>` to pin a specific release.
 - **`plan --json`**: stable machine-readable manifest for CI/docs tooling.
 
 Full project setup (API keys, wasm target, Codex) remains **`vox setup`** in the main CLI when that binary is built.

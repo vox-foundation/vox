@@ -121,10 +121,7 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
     let user_id = vox_db::paths::local_user_id();
 
     if let Some(db) = &state.db {
-        if let Ok(Some(pref)) = db
-            .get_user_preference(&user_id, "task.estimate_ms")
-            .await
-        {
+        if let Ok(Some(pref)) = db.get_user_preference(&user_id, "task.estimate_ms").await {
             if let Ok(val) = pref.parse::<usize>() {
                 ms_per_task = val;
             }

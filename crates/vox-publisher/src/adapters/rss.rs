@@ -42,10 +42,7 @@ pub async fn update_feed(item: &UnifiedNewsItem, site: &NewsSiteConfig) -> Resul
 {3}
 </channel>
 </rss>"#,
-            site.base_url,
-            pub_date,
-            self_link,
-            new_item_xml
+            site.base_url, pub_date, self_link, new_item_xml
         );
 
         if let Some(p) = feed_path.parent() {

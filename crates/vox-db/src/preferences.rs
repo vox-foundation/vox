@@ -30,8 +30,7 @@ pub async fn get_registry_preference(
 pub async fn reset_registry_preferences(registry: &str) -> Result<(), StoreError> {
     let db = crate::VoxDb::connect_default().await?;
     let prefix = format!("{}.", registry);
-    db
-        .connection()
+    db.connection()
         .execute(
             "DELETE FROM user_preferences WHERE user_id = 'local_user' AND key LIKE ?1",
             (format!("{}%", prefix),),
@@ -46,10 +45,12 @@ pub async fn get_all_registry_preferences(
 ) -> Result<Vec<(String, String)>, StoreError> {
     let db = crate::VoxDb::connect_default().await?;
     let prefix = format!("{}.", registry);
-    
+
     // Efficiently fetch only keys matching the registry prefix
-    let matching = db.list_user_preferences("local_user", Some(&prefix)).await?;
-    
+    let matching = db
+        .list_user_preferences("local_user", Some(&prefix))
+        .await?;
+
     let mut out = Vec::new();
     for (k, v) in matching {
         if let Some(stripped) = k.strip_prefix(&prefix) {

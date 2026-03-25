@@ -134,7 +134,7 @@ impl RoutingService {
                         // Blend average skill reliability at 50% reputation weight
                         *score += (skill_rel_sum / skill_count as f64) * rep_w * 0.5;
                     }
-                    
+
                     // Small contextual boost if this agent is dedicated to a workflow
                     if queue.workflow_context.is_some() {
                         *score += rep_w * 0.1;
@@ -293,9 +293,12 @@ impl RoutingService {
             return;
         };
         if !req.labels.is_empty() {
-            let local_matches = agents
-                .values()
-                .any(|q_lock| Self::labels_cover(&crate::sync_lock::rw_read(q_lock).capabilities.labels, &req.labels));
+            let local_matches = agents.values().any(|q_lock| {
+                Self::labels_cover(
+                    &crate::sync_lock::rw_read(q_lock).capabilities.labels,
+                    &req.labels,
+                )
+            });
             let remote_candidates = remote
                 .iter()
                 .filter(|r| Self::remote_hint_matches_task(r, req))
@@ -318,7 +321,10 @@ impl RoutingService {
             if local_matches {
                 for (agent_id, score) in scores.iter_mut() {
                     if let Some(q_lock) = agents.get(agent_id) {
-                        if Self::labels_cover(&crate::sync_lock::rw_read(q_lock).capabilities.labels, &req.labels) {
+                        if Self::labels_cover(
+                            &crate::sync_lock::rw_read(q_lock).capabilities.labels,
+                            &req.labels,
+                        ) {
                             *score += LABEL_BUMP;
                         }
                     }
@@ -382,8 +388,14 @@ mod tests {
         let mut agents = HashMap::new();
         let a1 = AgentId(1);
         let a2 = AgentId(2);
-        agents.insert(a1, Arc::new(std::sync::RwLock::new(AgentQueue::new(a1, "core-group"))));
-        agents.insert(a2, Arc::new(std::sync::RwLock::new(AgentQueue::new(a2, "core-group"))));
+        agents.insert(
+            a1,
+            Arc::new(std::sync::RwLock::new(AgentQueue::new(a1, "core-group"))),
+        );
+        agents.insert(
+            a2,
+            Arc::new(std::sync::RwLock::new(AgentQueue::new(a2, "core-group"))),
+        );
 
         let mut config = OrchestratorConfig::for_testing();
         config.socrates_reputation_routing = true;

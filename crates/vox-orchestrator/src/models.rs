@@ -704,7 +704,8 @@ impl ModelRegistry {
                 api_key: None,
                 temperature: None,
                 max_tokens: Some(spec.max_tokens),
-                response_format: None, timeout_ms: None,
+                response_format: None,
+                timeout_ms: None,
             })
     }
 }
@@ -909,9 +910,7 @@ mod registry_filter_tests {
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
-        let picked = r
-            .cheapest_free_with_filter(|_| true)
-            .expect("free model");
+        let picked = r.cheapest_free_with_filter(|_| true).expect("free model");
         assert_eq!(picked.id, "a-free");
     }
 

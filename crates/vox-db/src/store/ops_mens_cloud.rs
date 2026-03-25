@@ -11,15 +11,22 @@ impl crate::VoxDb {
     /// Uses `unixepoch` for second-precision elapsed time (not julianday which
     /// accumulates float errors for sub-hour durations).
     pub async fn cloud_accrued_cost_usd(&self) -> Result<f64, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT COALESCE(SUM(
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COALESCE(SUM(
                  (CAST(unixepoch('now') - unixepoch(created_at) AS REAL) / 3600.0)
                  * price_per_hr_usd
              ), 0.0)
              FROM cloud_dispatch_log WHERE status = 'running'",
-            (),
-        ).await?;
-        let cost: f64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0.0);
+                (),
+            )
+            .await?;
+        let cost: f64 = rows
+            .next()
+            .await?
+            .and_then(|r| r.get(0).ok())
+            .unwrap_or(0.0);
         Ok(cost.max(0.0))
     }
 
@@ -36,14 +43,24 @@ impl crate::VoxDb {
         estimated_cost: f64,
         job_kind: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO cloud_dispatch_log
+        self.conn
+            .execute(
+                "INSERT INTO cloud_dispatch_log
              (job_id, provider, offer_id, gpu_name, vram_mb, price_per_hr_usd,
               estimated_cost, job_kind, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'running')",
-            (job_id, provider, offer_id, gpu_name, vram_mb as i64,
-             price_per_hr_usd, estimated_cost, job_kind),
-        ).await?;
+                (
+                    job_id,
+                    provider,
+                    offer_id,
+                    gpu_name,
+                    vram_mb as i64,
+                    price_per_hr_usd,
+                    estimated_cost,
+                    job_kind,
+                ),
+            )
+            .await?;
         Ok(())
     }
 
@@ -54,15 +71,17 @@ impl crate::VoxDb {
         actual_cost: f64,
         termination_reason: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE cloud_dispatch_log
+        self.conn
+            .execute(
+                "UPDATE cloud_dispatch_log
              SET status = 'completed',
                  actual_cost = ?2,
                  termination_reason = ?3,
                  completed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
              WHERE job_id = ?1",
-            (job_id, actual_cost, termination_reason),
-        ).await?;
+                (job_id, actual_cost, termination_reason),
+            )
+            .await?;
         Ok(())
     }
 
@@ -78,8 +97,9 @@ impl crate::VoxDb {
         total_tokens: Option<i64>,
     ) -> Result<(), StoreError> {
         // Compute tokens_per_dollar if we have both tokens and enough cost accrued
-        self.conn.execute(
-            "UPDATE cloud_dispatch_log SET
+        self.conn
+            .execute(
+                "UPDATE cloud_dispatch_log SET
                 setup_secs    = COALESCE(?2, setup_secs),
                 download_secs = COALESCE(?3, download_secs),
                 train_secs    = COALESCE(?4, train_secs),
@@ -92,9 +112,17 @@ impl crate::VoxDb {
                     ELSE tokens_per_dollar
                 END
              WHERE job_id = ?1",
-            (job_id, setup_secs, download_secs, train_secs, upload_secs,
-             total_steps, total_tokens),
-        ).await?;
+                (
+                    job_id,
+                    setup_secs,
+                    download_secs,
+                    train_secs,
+                    upload_secs,
+                    total_steps,
+                    total_tokens,
+                ),
+            )
+            .await?;
         Ok(())
     }
 
@@ -104,12 +132,15 @@ impl crate::VoxDb {
     pub async fn cloud_load_throughput_profiles(
         &self,
     ) -> Result<Vec<(String, usize, usize, f64)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT gpu_name, seq_len, batch_size, ms_per_step
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT gpu_name, seq_len, batch_size, ms_per_step
              FROM training_throughput_profiles
              ORDER BY gpu_name, seq_len, batch_size",
-            (),
-        ).await?;
+                (),
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(r) = rows.next().await? {
             let gpu: String = r.get(0)?;
@@ -129,16 +160,18 @@ impl crate::VoxDb {
         batch_size: usize,
         ms_per_step: f64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO training_throughput_profiles
+        self.conn
+            .execute(
+                "INSERT INTO training_throughput_profiles
              (gpu_name, seq_len, batch_size, ms_per_step, sample_count)
              VALUES (?1, ?2, ?3, ?4, 1)
              ON CONFLICT(gpu_name, seq_len, batch_size) DO UPDATE SET
                ms_per_step = 0.3 * excluded.ms_per_step + 0.7 * ms_per_step,
                sample_count = sample_count + 1,
                last_updated = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
-            (gpu_name, seq_len as i64, batch_size as i64, ms_per_step),
-        ).await?;
+                (gpu_name, seq_len as i64, batch_size as i64, ms_per_step),
+            )
+            .await?;
         Ok(())
     }
 
@@ -153,16 +186,28 @@ impl crate::VoxDb {
         total_tokens: i64,
         ms_per_step: Option<f64>,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO local_train_log
+        self.conn
+            .execute(
+                "INSERT INTO local_train_log
              (gpu_name, model_id, preset, wall_secs, total_steps, total_tokens, ms_per_step)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            (gpu_name, model_id, preset, wall_secs, total_steps, total_tokens, ms_per_step),
-        ).await?;
+                (
+                    gpu_name,
+                    model_id,
+                    preset,
+                    wall_secs,
+                    total_steps,
+                    total_tokens,
+                    ms_per_step,
+                ),
+            )
+            .await?;
         // Also upsert the throughput profile so the cloud estimator has local data
         if let Some(ms) = ms_per_step {
             // Derive seq_len/batch_size from preset name (stored separately; use defaults)
-            let _ = self.cloud_upsert_throughput_profile(gpu_name, 512, 1, ms).await;
+            let _ = self
+                .cloud_upsert_throughput_profile(gpu_name, 512, 1, ms)
+                .await;
         }
         Ok(())
     }

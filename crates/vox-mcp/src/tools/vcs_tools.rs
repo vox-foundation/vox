@@ -268,8 +268,10 @@ pub async fn conflict_diff(state: &ServerState, args: serde_json::Value) -> Stri
     for (idx, side) in c.sides.iter().enumerate() {
         let side_snap = store.get(side.snapshot_id).cloned();
         let side_entry = side_snap.as_ref().and_then(|snap| snap.files.get(&c.path));
-        
-        let side_hash = side_entry.map(|e| e.content_hash.clone()).unwrap_or_default();
+
+        let side_hash = side_entry
+            .map(|e| e.content_hash.clone())
+            .unwrap_or_default();
         if !side_hash.is_empty() {
             unique_hashes.insert(side_hash.clone());
         }
@@ -386,7 +388,11 @@ pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> S
     };
 
     let mgr_handle = orch.workspace_manager_handle();
-    let ws = mgr_handle.write().unwrap().create_workspace(AgentId(agent_id), base_id).clone();
+    let ws = mgr_handle
+        .write()
+        .unwrap()
+        .create_workspace(AgentId(agent_id), base_id)
+        .clone();
 
     ToolResult::ok(serde_json::json!({
         "workspace_created": true,
@@ -462,7 +468,9 @@ pub async fn change_create(state: &ServerState, args: serde_json::Value) -> Stri
     let orch = &state.orchestrator;
 
     let mgr_handle = orch.workspace_manager_handle();
-    let change_id = mgr_handle.write().unwrap()
+    let change_id = mgr_handle
+        .write()
+        .unwrap()
         .create_change(AgentId(agent_id), description);
 
     ToolResult::ok(serde_json::json!({

@@ -56,7 +56,11 @@ impl Default for ExecutionPolicy {
     fn default() -> Self {
         Self {
             allowed_skills: vec![],
-            allowed_action_labels: vec!["read".to_string(), "write".to_string(), "execute".to_string()],
+            allowed_action_labels: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "execute".to_string(),
+            ],
             replan_triggers: vec![],
             max_retries: 1,
             timeout_ms: None,

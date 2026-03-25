@@ -7,7 +7,6 @@ use crate::types::AgentId;
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 use crate::types::{MessagePriority, ThreadId, VcsContext};
 
-
 /// Database-persisted A2A message row.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbA2AMessage {
@@ -23,8 +22,6 @@ pub struct DbA2AMessage {
     pub created_at: String,
     pub repository_id: String,
 }
-
-
 
 /// Relay a message to another mens node via HTTP.
 pub async fn relay_to_mesh(
@@ -94,18 +91,19 @@ pub async fn send_to_db(
     let payload = payload.into();
     let thread_str = thread_id.map(|t| t.0);
 
-    store.send_a2a_message(
-        &uuid,
-        &sender.0.to_string(),
-        &receiver.0.to_string(),
-        msg_type.into_str(),
-        &payload,
-        priority_val,
-        thread_str.as_deref(),
-        repository_id,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    store
+        .send_a2a_message(
+            &uuid,
+            &sender.0.to_string(),
+            &receiver.0.to_string(),
+            msg_type.into_str(),
+            &payload,
+            priority_val,
+            thread_str.as_deref(),
+            repository_id,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(uuid)
 }
@@ -124,15 +122,25 @@ pub async fn poll_inbox_from_db(
     let mut msgs = Vec::new();
     for row in rows {
         msgs.push(DbA2AMessage {
-            id: row[0].as_ref().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0),
+            id: row[0]
+                .as_ref()
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(0),
             message_uuid: row[1].clone().unwrap_or_default(),
             sender_agent: row[2].clone().unwrap_or_default(),
             receiver_agent: row[3].clone().unwrap_or_default(),
             msg_type: row[4].clone().unwrap_or_default(),
             payload: row[5].clone().unwrap_or_default(),
-            priority: row[6].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(1),
+            priority: row[6]
+                .as_ref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(1),
             thread_id: row[7].clone(),
-            acknowledged: row[8].as_ref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0) != 0,
+            acknowledged: row[8]
+                .as_ref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(0)
+                != 0,
             created_at: row[9].clone().unwrap_or_default(),
             repository_id: row[10].clone().unwrap_or_default(),
         });
@@ -145,7 +153,8 @@ pub async fn acknowledge_db_message(
     store: &vox_db::VoxDb,
     message_uuid: &str,
 ) -> Result<(), String> {
-    store.acknowledge_a2a_message_by_uuid(message_uuid)
+    store
+        .acknowledge_a2a_message_by_uuid(message_uuid)
         .await
         .map_err(|e| e.to_string())
 }
@@ -155,7 +164,8 @@ pub async fn prune_old_a2a_messages(
     store: &vox_db::VoxDb,
     older_than_days: u32,
 ) -> Result<u64, String> {
-    store.prune_a2a_messages(older_than_days)
+    store
+        .prune_a2a_messages(older_than_days)
         .await
         .map_err(|e| e.to_string())
 }
@@ -177,7 +187,8 @@ pub enum A2ARoute {
 /// broadcast, and multicast delivery.
 pub struct MessageBus {
     /// Per-agent inboxes.
-    pub(crate) inboxes: std::sync::RwLock<HashMap<AgentId, std::sync::RwLock<VecDeque<A2AMessage>>>>,
+    pub(crate) inboxes:
+        std::sync::RwLock<HashMap<AgentId, std::sync::RwLock<VecDeque<A2AMessage>>>>,
     /// Audit trail of all messages (most recent at back).
     audit_trail: std::sync::RwLock<Vec<A2AMessage>>,
     /// ID generator.
@@ -207,7 +218,9 @@ impl MessageBus {
         if !inboxes.contains_key(&agent_id) {
             drop(inboxes);
             let mut inboxes = crate::sync_lock::rw_write(&self.inboxes);
-            inboxes.entry(agent_id).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+            inboxes
+                .entry(agent_id)
+                .or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
         }
     }
 
@@ -234,7 +247,9 @@ impl MessageBus {
             } else {
                 drop(inboxes);
                 let mut inboxes = crate::sync_lock::rw_write(&self.inboxes);
-                let inbox_lock = inboxes.entry(receiver).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+                let inbox_lock = inboxes
+                    .entry(receiver)
+                    .or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
                 let mut inbox = crate::sync_lock::rw_write(inbox_lock);
                 if inbox.len() >= self.max_inbox_size {
                     inbox.pop_front();
@@ -324,15 +339,19 @@ impl MessageBus {
             .get(&agent_id)
             .map(|inbox_lock| {
                 let inbox = crate::sync_lock::rw_read(inbox_lock);
-                inbox.iter().filter(|m| {
-                    if m.acknowledged {
-                        return false;
-                    }
-                    if m.is_expired() {
-                        return false;
-                    }
-                    true
-                }).cloned().collect()
+                inbox
+                    .iter()
+                    .filter(|m| {
+                        if m.acknowledged {
+                            return false;
+                        }
+                        if m.is_expired() {
+                            return false;
+                        }
+                        true
+                    })
+                    .cloned()
+                    .collect()
             })
             .unwrap_or_default();
         // Sort descending by priority (Critical=3 > High=2 > Normal=1 > Low=0).
@@ -610,7 +629,9 @@ mod tests {
             .with_priority(MessagePriority::Low);
         {
             let mut inboxes = crate::sync_lock::rw_write(&bus.inboxes);
-            let inbox_lock = inboxes.entry(a2).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+            let inbox_lock = inboxes
+                .entry(a2)
+                .or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
             crate::sync_lock::rw_write(inbox_lock).push_back(low_msg.clone());
         }
         crate::sync_lock::rw_write(&bus.audit_trail).push(low_msg);
@@ -626,7 +647,9 @@ mod tests {
         .with_priority(MessagePriority::Critical);
         {
             let mut inboxes = crate::sync_lock::rw_write(&bus.inboxes);
-            let inbox_lock = inboxes.entry(a2).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+            let inbox_lock = inboxes
+                .entry(a2)
+                .or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
             crate::sync_lock::rw_write(inbox_lock).push_back(crit_msg.clone());
         }
         crate::sync_lock::rw_write(&bus.audit_trail).push(crit_msg);

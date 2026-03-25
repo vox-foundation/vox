@@ -1,8 +1,8 @@
+use crate::ast::expr::{BinOp, Expr};
+use crate::ast::stmt::Stmt;
 use crate::typeck::builtins::BuiltinTypes;
 use crate::typeck::ty::Ty;
 use crate::typeck::unify::InferenceContext;
-use crate::ast::expr::{BinOp, Expr};
-use crate::ast::stmt::Stmt;
 
 /// Infer the type of an expression.
 pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTypes) -> Ty {

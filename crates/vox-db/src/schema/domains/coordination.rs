@@ -60,5 +60,3 @@ CREATE TABLE IF NOT EXISTS mesh_heartbeats (
 
 CREATE INDEX IF NOT EXISTS idx_mesh_heartbeats_seen ON mesh_heartbeats(last_seen_ms);
 ";
-
-

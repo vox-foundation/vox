@@ -43,7 +43,9 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
     let preference = vox_orchestrator::sync_lock::rw_read(&*orch.config_handle()).cost_preference;
     let complexity = 5; // Default for interactive suggestions
     let handle = orch.models_handle();
-    if let Some(model) = vox_orchestrator::sync_lock::rw_read(&*handle).best_for(category, complexity, preference) {
+    if let Some(model) =
+        vox_orchestrator::sync_lock::rw_read(&*handle).best_for(category, complexity, preference)
+    {
         ToolResult::ok(model).to_json()
     } else {
         ToolResult::<String>::err("No suitable model found for category").to_json()
@@ -82,7 +84,8 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
 
     let handle = orch.models_handle();
     if let Some(_) = vox_orchestrator::sync_lock::rw_read(&*handle).get(&params.model_id) {
-        vox_orchestrator::sync_lock::rw_write(&*handle).set_override(params.agent_id, params.model_id.clone());
+        vox_orchestrator::sync_lock::rw_write(&*handle)
+            .set_override(params.agent_id, params.model_id.clone());
         ToolResult::ok(format!(
             "Successfully overridden model to {} for agent {}",
             params.model_id, params.agent_id

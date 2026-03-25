@@ -14,7 +14,10 @@ pub struct VoxNewsTestSyndicateParams {
     pub content: String,
 }
 
-pub async fn vox_news_test_syndicate(_state: &ServerState, params: VoxNewsTestSyndicateParams) -> String {
+pub async fn vox_news_test_syndicate(
+    _state: &ServerState,
+    params: VoxNewsTestSyndicateParams,
+) -> String {
     let item = match UnifiedNewsItem::parse(&params.content, "test-id") {
         Ok(mut it) => {
             it.syndication.dry_run = true;
@@ -40,7 +43,8 @@ pub async fn vox_news_test_syndicate(_state: &ServerState, params: VoxNewsTestSy
     let result = match publisher.publish_all(&item).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<String>::err(format!("Dry-run syndication failed: {}", e)).to_json();
+            return ToolResult::<String>::err(format!("Dry-run syndication failed: {}", e))
+                .to_json();
         }
     };
 
@@ -60,7 +64,10 @@ pub struct VoxNewsDraftResearchParams {
     pub abstract_text: String,
 }
 
-pub async fn vox_news_draft_research(_state: &ServerState, params: VoxNewsDraftResearchParams) -> String {
+pub async fn vox_news_draft_research(
+    _state: &ServerState,
+    params: VoxNewsDraftResearchParams,
+) -> String {
     if let Err(e) = vox_publisher::contract::validate_news_id(&params.id) {
         return ToolResult::<String>::err(e.to_string()).to_json();
     }
@@ -79,8 +86,11 @@ pub async fn vox_news_draft_research(_state: &ServerState, params: VoxNewsDraftR
     }
 
     if let Err(e) = fs::write(&draft_path, draft_content) {
-        return ToolResult::<String>::err(format!("Failed to write draft to {:?}: {}", draft_path, e))
-            .to_json();
+        return ToolResult::<String>::err(format!(
+            "Failed to write draft to {:?}: {}",
+            draft_path, e
+        ))
+        .to_json();
     }
 
     ToolResult::ok(format!("Research draft written to {:?}", draft_path)).to_json()
@@ -139,7 +149,10 @@ struct ApprovalStatusBody {
     dual_approval_met: bool,
 }
 
-pub async fn vox_news_approval_status(state: &ServerState, params: VoxNewsApprovalStatusParams) -> String {
+pub async fn vox_news_approval_status(
+    state: &ServerState,
+    params: VoxNewsApprovalStatusParams,
+) -> String {
     if let Err(e) = vox_publisher::contract::validate_news_id(&params.news_id) {
         return ToolResult::<String>::err(e.to_string()).to_json();
     }
@@ -179,7 +192,10 @@ struct GateReport {
     blocking_reasons: Vec<String>,
 }
 
-pub async fn vox_news_simulate_publish_gate(state: &ServerState, params: VoxNewsSimulatePublishGateParams) -> String {
+pub async fn vox_news_simulate_publish_gate(
+    state: &ServerState,
+    params: VoxNewsSimulatePublishGateParams,
+) -> String {
     let mut reasons = Vec::new();
     let item = match UnifiedNewsItem::parse(&params.content, &params.news_id) {
         Ok(i) => i,
@@ -208,7 +224,9 @@ pub async fn vox_news_simulate_publish_gate(state: &ServerState, params: VoxNews
     let would_live = !state.orchestrator_config.news.dry_run && !item.syndication.dry_run;
 
     let dual = if let Some(db) = &state.db {
-        db.has_dual_news_approval(&params.news_id).await.unwrap_or(false)
+        db.has_dual_news_approval(&params.news_id)
+            .await
+            .unwrap_or(false)
     } else {
         reasons.push("no VoxDb: cannot verify approvals".into());
         false

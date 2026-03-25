@@ -1,12 +1,21 @@
 //! Bootstrap evaluation: probe host toolchain; optional `--apply` runs low-risk heals.
 
-use std::io::{self, Write};
+use flate2::read::GzDecoder;
+use reqwest::blocking::Client;
+use sha2::{Digest, Sha256};
+use std::fs;
+use std::io::{self, Cursor, Read, Write};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use tar::Archive;
+use zip::ZipArchive;
 
 use crate::report::{BootstrapItem, BootstrapReport};
 
 /// CLI-driven options for probing (and optionally fixing) the host toolchain.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BootstrapOptions {
     /// Include dev probes (`rustfmt`, `clippy`).
     pub dev: bool,
@@ -16,6 +25,10 @@ pub struct BootstrapOptions {
     pub apply: bool,
     /// Install the vox CLI via cargo after successful checks.
     pub install: bool,
+    /// Skip release-binary install and force source install.
+    pub source_only: bool,
+    /// Optional release version/tag override (`v1.2.3`).
+    pub version: Option<String>,
 }
 
 fn platform_str() -> String {
@@ -146,7 +159,7 @@ pub fn evaluate(opts: BootstrapOptions) -> BootstrapReport {
 
 /// Print a human-readable report; returns process exit code (`0` = all required probes passed).
 pub fn run_and_print(opts: BootstrapOptions, w: &mut impl Write) -> io::Result<i32> {
-    let report = evaluate(opts);
+    let report = evaluate(opts.clone());
     writeln!(w, "Platform: {}", report.platform)?;
     for item in &report.items {
         let status = if item.ok { "OK" } else { "FAIL" };
@@ -160,14 +173,264 @@ pub fn run_and_print(opts: BootstrapOptions, w: &mut impl Write) -> io::Result<i
     let ok = report.required_ok();
     if ok && opts.install {
         writeln!(w, "\nDependencies met. Installing vox-cli...")?;
-        let status = Command::new("cargo")
-            .args(["install", "--path", "crates/vox-cli"])
-            .status()?;
-        if !status.success() {
-            writeln!(w, "Failed to install vox-cli")?;
-            return Ok(1);
+        if opts.source_only {
+            install_from_source(w)?;
+        } else {
+            match install_from_binary(opts.version.as_deref(), w) {
+                Ok(()) => {}
+                Err(e) => {
+                    writeln!(w, "Binary install unavailable: {e}")?;
+                    writeln!(
+                        w,
+                        "Falling back to source install (`cargo install --path crates/vox-cli`)..."
+                    )?;
+                    install_from_source(w)?;
+                }
+            }
         }
-        writeln!(w, "vox-cli installed successfully!")?;
     }
     Ok(if ok { 0 } else { 1 })
+}
+
+fn install_from_source(w: &mut impl Write) -> io::Result<()> {
+    let status = Command::new("cargo")
+        .args(["install", "--path", "crates/vox-cli"])
+        .status()?;
+    if !status.success() {
+        writeln!(w, "Failed to install vox-cli from source")?;
+        return Err(io::Error::other("source install command failed"));
+    }
+    writeln!(w, "vox-cli installed from source successfully.")?;
+    Ok(())
+}
+
+fn install_from_binary(version: Option<&str>, w: &mut impl Write) -> io::Result<()> {
+    let target = host_target_triple()
+        .ok_or_else(|| io::Error::other("unsupported host target for binary installer"))?;
+    let ext = if target.contains("windows") {
+        "zip"
+    } else {
+        "tar.gz"
+    };
+    let version_part = version.unwrap_or("latest");
+    let asset_name = format!("vox-{version_part}-{target}.{ext}");
+    let (asset_url, checksums_url) = release_urls(version, &asset_name);
+    writeln!(
+        w,
+        "  Attempting release binary install for target `{target}`..."
+    )?;
+
+    let client = Client::builder().build().map_err(io::Error::other)?;
+    let asset_bytes = http_get_bytes(&client, &asset_url)?;
+    let checksums = http_get_text(&client, &checksums_url)?;
+    verify_checksum(&asset_bytes, &checksums, &asset_name)?;
+
+    let install_dir = install_bin_dir()?;
+    fs::create_dir_all(&install_dir)?;
+    let dst = install_dir.join(if target.contains("windows") {
+        "vox.exe"
+    } else {
+        "vox"
+    });
+    extract_binary(&asset_bytes, target, &dst)?;
+    writeln!(w, "  Installed binary to {}", dst.display())?;
+    Ok(())
+}
+
+fn release_urls(version: Option<&str>, asset_name: &str) -> (String, String) {
+    let base = "https://github.com/vox-foundation/vox/releases";
+    if let Some(v) = version {
+        let tag = if v.starts_with('v') {
+            v.to_string()
+        } else {
+            format!("v{v}")
+        };
+        (
+            format!("{base}/download/{tag}/{asset_name}"),
+            format!("{base}/download/{tag}/checksums.txt"),
+        )
+    } else {
+        (
+            format!("{base}/latest/download/{asset_name}"),
+            format!("{base}/latest/download/checksums.txt"),
+        )
+    }
+}
+
+fn http_get_bytes(client: &Client, url: &str) -> io::Result<Vec<u8>> {
+    let resp = client
+        .get(url)
+        .header("User-Agent", "vox-bootstrap")
+        .send()
+        .map_err(io::Error::other)?;
+    if !resp.status().is_success() {
+        return Err(io::Error::other(format!(
+            "download failed ({url}): {}",
+            resp.status()
+        )));
+    }
+    resp.bytes().map(|b| b.to_vec()).map_err(io::Error::other)
+}
+
+fn http_get_text(client: &Client, url: &str) -> io::Result<String> {
+    let resp = client
+        .get(url)
+        .header("User-Agent", "vox-bootstrap")
+        .send()
+        .map_err(io::Error::other)?;
+    if !resp.status().is_success() {
+        return Err(io::Error::other(format!(
+            "download failed ({url}): {}",
+            resp.status()
+        )));
+    }
+    resp.text().map_err(io::Error::other)
+}
+
+fn verify_checksum(asset_bytes: &[u8], checksums_txt: &str, asset_name: &str) -> io::Result<()> {
+    let expected = checksum_for_asset(checksums_txt, asset_name).ok_or_else(|| {
+        io::Error::other(format!(
+            "checksum entry not found for {asset_name} in checksums.txt"
+        ))
+    })?;
+    let actual = sha256_hex(asset_bytes);
+    if actual != expected {
+        return Err(io::Error::other(format!(
+            "checksum mismatch for {asset_name} (expected {expected}, got {actual})"
+        )));
+    }
+    Ok(())
+}
+
+fn checksum_for_asset(checksums_txt: &str, asset_name: &str) -> Option<String> {
+    for line in checksums_txt.lines() {
+        let mut parts = line.split_whitespace();
+        let hash = parts.next()?;
+        let file = parts.next()?;
+        let file_name = Path::new(file)
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or(file);
+        if file_name == asset_name {
+            return Some(hash.to_lowercase());
+        }
+    }
+    None
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+fn extract_binary(archive: &[u8], target: &str, destination: &Path) -> io::Result<()> {
+    if target.contains("windows") {
+        extract_zip_binary(archive, destination)
+    } else {
+        extract_tar_binary(archive, destination)
+    }
+}
+
+fn extract_zip_binary(archive: &[u8], destination: &Path) -> io::Result<()> {
+    let cursor = Cursor::new(archive);
+    let mut zip = ZipArchive::new(cursor).map_err(io::Error::other)?;
+    let mut file = zip
+        .by_name("vox.exe")
+        .map_err(|e| io::Error::other(format!("vox.exe not found in zip: {e}")))?;
+    write_reader_to_path(&mut file, destination)?;
+    Ok(())
+}
+
+fn extract_tar_binary(archive: &[u8], destination: &Path) -> io::Result<()> {
+    let cursor = Cursor::new(archive);
+    let decoder = GzDecoder::new(cursor);
+    let mut tar = Archive::new(decoder);
+    for entry in tar.entries().map_err(io::Error::other)? {
+        let mut entry = entry.map_err(io::Error::other)?;
+        let path = entry.path().map_err(io::Error::other)?;
+        let is_vox = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .map(|f| f == "vox")
+            .unwrap_or(false);
+        if is_vox {
+            write_reader_to_path(&mut entry, destination)?;
+            return Ok(());
+        }
+    }
+    Err(io::Error::other("vox binary not found in tar.gz"))
+}
+
+fn write_reader_to_path(reader: &mut impl Read, destination: &Path) -> io::Result<()> {
+    let mut out = fs::File::create(destination)?;
+    io::copy(reader, &mut out)?;
+    #[cfg(unix)]
+    {
+        let perms = fs::Permissions::from_mode(0o755);
+        fs::set_permissions(destination, perms)?;
+    }
+    Ok(())
+}
+
+fn install_bin_dir() -> io::Result<PathBuf> {
+    if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+        return Ok(PathBuf::from(cargo_home).join("bin"));
+    }
+    if cfg!(target_os = "windows") {
+        let user =
+            std::env::var("USERPROFILE").map_err(|_| io::Error::other("USERPROFILE is not set"))?;
+        Ok(PathBuf::from(user).join(".cargo").join("bin"))
+    } else {
+        let home = std::env::var("HOME").map_err(|_| io::Error::other("HOME is not set"))?;
+        Ok(PathBuf::from(home).join(".cargo").join("bin"))
+    }
+}
+
+fn host_target_triple() -> Option<&'static str> {
+    if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        return Some("x86_64-unknown-linux-gnu");
+    }
+    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        return Some("x86_64-pc-windows-msvc");
+    }
+    if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        return Some("x86_64-apple-darwin");
+    }
+    if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        return Some("aarch64-apple-darwin");
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{checksum_for_asset, release_urls, sha256_hex};
+
+    #[test]
+    fn release_urls_support_latest_and_tagged() {
+        let (latest_asset, latest_checksums) =
+            release_urls(None, "vox-latest-x86_64-unknown-linux-gnu.tar.gz");
+        assert!(latest_asset.contains("/latest/download/"));
+        assert!(latest_checksums.ends_with("/latest/download/checksums.txt"));
+
+        let (tagged_asset, tagged_checksums) =
+            release_urls(Some("v1.2.3"), "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz");
+        assert!(tagged_asset.contains("/download/v1.2.3/"));
+        assert!(tagged_checksums.contains("/download/v1.2.3/checksums.txt"));
+    }
+
+    #[test]
+    fn checksum_lookup_accepts_path_prefix() {
+        let txt =
+            "abc123  release-x86_64-unknown-linux-gnu/vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n";
+        let found = checksum_for_asset(txt, "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz");
+        assert_eq!(found.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn sha256_hex_has_expected_length() {
+        let h = sha256_hex(b"vox");
+        assert_eq!(h.len(), 64);
+    }
 }

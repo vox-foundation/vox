@@ -16,14 +16,11 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::Context;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // ─── Compile-time source tables ──────────────────────────────────────────────
 
-pub use vox_mcp_meta::{
-    SKILL_TOOLS,
-    ORCHESTRATOR_TOOLS,
-};
+pub use vox_mcp_meta::{ORCHESTRATOR_TOOLS, SKILL_TOOLS};
 
 include!(concat!(env!("OUT_DIR"), "/dynamic_registry.rs"));
 
@@ -285,19 +282,34 @@ fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
             json!({ "agent_id": 1 })
         }
         "vox_queue_status" | "vox_my_files" => json!({ "agent_id": 1 }),
-        "vox_budget_status" | "vox_lock_status" | "vox_orchestrator_status"
-        | "vox_test_all" | "vox_check_workspace" | "vox_file_graph" | "vox_config_get"
-        | "vox_repo_index_status" | "vox_repo_index_refresh" | "vox_vcs_status"
-        | "vox_session_list" | "vox_memory_list_keys" | "vox_session_cleanup"
-        | "vox_lock_status2" | "vox_rebalance" | "vox_oratio_status"
-        | "vox_chat_history" | "vox_get_active_model" | "vox_populi_local_status"
+        "vox_budget_status"
+        | "vox_lock_status"
+        | "vox_orchestrator_status"
+        | "vox_test_all"
+        | "vox_check_workspace"
+        | "vox_file_graph"
+        | "vox_config_get"
+        | "vox_repo_index_status"
+        | "vox_repo_index_refresh"
+        | "vox_vcs_status"
+        | "vox_session_list"
+        | "vox_memory_list_keys"
+        | "vox_session_cleanup"
+        | "vox_lock_status2"
+        | "vox_rebalance"
+        | "vox_oratio_status"
+        | "vox_chat_history"
+        | "vox_get_active_model"
+        | "vox_populi_local_status"
         | "vox_benchmark_list" => json!({}),
         "vox_run_tests" => json!({ "crate_name": "vox-cli", "filter": "training" }),
         "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
             json!({ "crate_name": "vox-cli" })
         }
         "vox_transfer_file" => json!({ "path": "src/main.vox", "to_agent_id": 2 }),
-        "vox_ask_agent" => json!({ "agent_id": 2, "question": "Have you finished the auth module?" }),
+        "vox_ask_agent" => {
+            json!({ "agent_id": 2, "question": "Have you finished the auth module?" })
+        }
         "vox_answer_question" => {
             json!({ "agent_id": 1, "question_id": 42, "answer": "Yes, auth is complete." })
         }
@@ -318,7 +330,9 @@ fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
         }
         "vox_skill_uninstall" | "vox_skill_info" => json!({ "skill_id": "vox-lint-fixer" }),
         "vox_skill_search" => json!({ "query": "lint" }),
-        "vox_skill_parse" => json!({ "skill_md": "---\nname: vox-lint-fixer\nversion: 1.0.0\n---\nFixes lint warnings." }),
+        "vox_skill_parse" => {
+            json!({ "skill_md": "---\nname: vox-lint-fixer\nversion: 1.0.0\n---\nFixes lint warnings." })
+        }
         "vox_compaction_status" => json!({ "agent_id": 1 }),
         "vox_session_create" => {
             json!({ "agent_id": 1, "model_id": "anthropic/claude-3-5-haiku", "system_prompt": "You are a Vox expert." })
@@ -365,7 +379,9 @@ fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
         "vox_workspace_create" => json!({ "agent_id": 2, "base": "main" }),
         "vox_workspace_merge" => json!({ "agent_id": 2 }),
         "vox_workspace_status" => json!({ "agent_id": 2 }),
-        "vox_change_create" => json!({ "name": "auth-refactor", "description": "Refactor the auth module" }),
+        "vox_change_create" => {
+            json!({ "name": "auth-refactor", "description": "Refactor the auth module" })
+        }
         "vox_change_log" => json!({ "change_id": "chg-001" }),
         "vox_a2a_send" => {
             json!({ "sender_id": 1, "receiver_id": 2, "msg_type": "plan_handoff", "payload": "{\"plan\":\"implement auth\"}" })
@@ -407,7 +423,9 @@ fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
         "vox_plan" => {
             json!({ "goal": "Add authentication to the API", "write_to_disk": false })
         }
-        "vox_replan" => json!({ "session_id": "sess-abc123", "delta_hint": "User wants OAuth instead of basic auth" }),
+        "vox_replan" => {
+            json!({ "session_id": "sess-abc123", "delta_hint": "User wants OAuth instead of basic auth" })
+        }
         "vox_plan_status" => json!({ "session_id": "sess-abc123" }),
         "vox_schola_submit" => {
             json!({ "description": "Train Mens on the updated corpus", "require_cuda": true })
@@ -439,7 +457,8 @@ fn a2a_prompt_templates() -> &'static [String] {
         // Fallback static array wrapped in LazyLock or just vector
         static FALLBACK: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| {
             vec![
-                "Send a {msg_type} message from {from} to {to}. Use the appropriate Vox A2A tool.".into(),
+                "Send a {msg_type} message from {from} to {to}. Use the appropriate Vox A2A tool."
+                    .into(),
                 "Agent {from} needs to inform agent {to} about a {msg_type} event. How?".into(),
                 "Use vox_a2a_send to deliver a {msg_type} from {from} to {to}.".into(),
                 "Broadcast a {msg_type} to all agents except {from}.".into(),
@@ -453,10 +472,7 @@ fn a2a_prompt_templates() -> &'static [String] {
     }
 }
 
-fn generate_a2a_pairs(
-    out: &mut impl Write,
-    cfg: &SyntheticGenConfig,
-) -> anyhow::Result<usize> {
+fn generate_a2a_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
     let mut count = 0usize;
     let prompts = a2a_prompt_templates();
     for &msg_type in A2A_MESSAGE_TYPES {
@@ -481,10 +497,7 @@ fn generate_a2a_pairs(
                     }),
                 )
             } else if tmpl.contains("inbox") || tmpl.contains("acknowledge") {
-                (
-                    "vox_a2a_inbox",
-                    json!({ "agent_id": 2 }),
-                )
+                ("vox_a2a_inbox", json!({ "agent_id": 2 }))
             } else {
                 (
                     "vox_a2a_send",
@@ -531,9 +544,7 @@ fn generate_workflow_pairs(
         let snippet = &def.snippet;
         let mut rng = Rng::new(cfg.seed, name_hash(name));
         for (j, tmpl) in prompts.iter().enumerate() {
-            let prompt = tmpl
-                .replace("{name}", name)
-                .replace("{desc}", desc);
+            let prompt = tmpl.replace("{name}", name).replace("{desc}", desc);
             let response = json!({
                 "construct": "workflow_def",
                 "name": name,
@@ -557,16 +568,13 @@ const EXAMPLE_SKILLS: &[&str] = &[
     "vox-refactor-bot",
 ];
 
-fn generate_skill_pairs(
-    out: &mut impl Write,
-    cfg: &SyntheticGenConfig,
-) -> anyhow::Result<usize> {
+fn generate_skill_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
     let mut count = 0;
     let skill_templates = &TEMPLATES.skills;
 
     for &skill in EXAMPLE_SKILLS {
         let _seed = cfg.seed; // Keep for deterministic iteration if needed later
-        
+
         for tmpl in skill_templates {
             let prompt = tmpl.replace("{value}", skill);
             let response = json!({
@@ -613,12 +621,18 @@ fn generate_orchestrator_pairs(
     let orch_tools: Vec<_> = TOOL_REGISTRY_SLIM
         .iter()
         .filter(|&name| {
-            name.starts_with("vox_submit") || name.starts_with("vox_task") ||
-            name.starts_with("vox_orchestrator") || name.starts_with("vox_complete") ||
-            name.starts_with("vox_fail") || name.starts_with("vox_cancel") ||
-            name.starts_with("vox_rebalance") || name.starts_with("vox_reorder") ||
-            name.starts_with("vox_drain") || name.starts_with("vox_queue") ||
-            name.starts_with("vox_lock") || name.starts_with("vox_budget")
+            name.starts_with("vox_submit")
+                || name.starts_with("vox_task")
+                || name.starts_with("vox_orchestrator")
+                || name.starts_with("vox_complete")
+                || name.starts_with("vox_fail")
+                || name.starts_with("vox_cancel")
+                || name.starts_with("vox_rebalance")
+                || name.starts_with("vox_reorder")
+                || name.starts_with("vox_drain")
+                || name.starts_with("vox_queue")
+                || name.starts_with("vox_lock")
+                || name.starts_with("vox_budget")
         })
         .map(|s| *s)
         .collect();
@@ -647,18 +661,22 @@ fn generate_orchestrator_pairs(
 
     // Multi-step orchestrator interaction scenarios
     let scenarios = [
-        ("Submit a task, poll its status, then mark it complete when done.",
-         vec![
-             json!({"tool":"vox_submit_task","arguments":{"description":"implement login","files":["src/login.vox"]}}),
-             json!({"tool":"vox_task_status","arguments":{"task_id":"task-001"}}),
-             json!({"tool":"vox_complete_task","arguments":{"task_id":"task-001"}}),
-         ]),
-        ("Start the orchestrator, assign a file to an agent, then check locks.",
-         vec![
-             json!({"tool":"vox_orchestrator_start","arguments":{}}),
-             json!({"tool":"vox_claim_file","arguments":{"path":"src/auth.vox"}}),
-             json!({"tool":"vox_lock_status","arguments":{}}),
-         ]),
+        (
+            "Submit a task, poll its status, then mark it complete when done.",
+            vec![
+                json!({"tool":"vox_submit_task","arguments":{"description":"implement login","files":["src/login.vox"]}}),
+                json!({"tool":"vox_task_status","arguments":{"task_id":"task-001"}}),
+                json!({"tool":"vox_complete_task","arguments":{"task_id":"task-001"}}),
+            ],
+        ),
+        (
+            "Start the orchestrator, assign a file to an agent, then check locks.",
+            vec![
+                json!({"tool":"vox_orchestrator_start","arguments":{}}),
+                json!({"tool":"vox_claim_file","arguments":{"path":"src/auth.vox"}}),
+                json!({"tool":"vox_lock_status","arguments":{}}),
+            ],
+        ),
     ];
 
     for (desc, steps) in &scenarios {
@@ -673,29 +691,62 @@ fn generate_orchestrator_pairs(
 // ─── Web construct SFT pairs ──────────────────────────────────────────────────
 
 const WEB_CONSTRUCTS: &[(&str, &str, &str)] = &[
-    ("component", "Navbar", "component Navbar {\n  ret <nav><ul><li>Home</li></ul></nav>\n}"),
-    ("island", "Counter", "island Counter {\n  state count: int = 0\n  ret <button onClick={|| self.count += 1}>{self.count}</button>\n}"),
-    ("page", "Dashboard", "@route(\"/dash\")\npage Dashboard {\n  ret <main><h1>Dashboard</h1><Counter /></main>\n}"),
-    ("@query", "get_user", "@query\nfn get_user(id: int) -> Option[User] {\n  ret VoxDb::query(\"SELECT * FROM users WHERE id = ?1\", [id]).first()\n}"),
-    ("@mutation", "update_user", "@mutation\nfn update_user(id: int, name: str) -> Result[Unit] {\n  VoxDb::execute(\"UPDATE users SET name = ?2 WHERE id = ?1\", [id, name])\n  ret Ok(())\n}"),
-    ("@action", "submit_form", "@action\nfn submit_form(data: FormData) -> Result[Unit] {\n  // form logic\n  ret Ok(())\n}"),
-    ("@server", "generate_pdf", "@server\nfn generate_pdf(report: str) -> bytes {\n  // server side only logic\n  ret b\"...\"\n}"),
+    (
+        "component",
+        "Navbar",
+        "component Navbar {\n  ret <nav><ul><li>Home</li></ul></nav>\n}",
+    ),
+    (
+        "island",
+        "Counter",
+        "island Counter {\n  state count: int = 0\n  ret <button onClick={|| self.count += 1}>{self.count}</button>\n}",
+    ),
+    (
+        "page",
+        "Dashboard",
+        "@route(\"/dash\")\npage Dashboard {\n  ret <main><h1>Dashboard</h1><Counter /></main>\n}",
+    ),
+    (
+        "@query",
+        "get_user",
+        "@query\nfn get_user(id: int) -> Option[User] {\n  ret VoxDb::query(\"SELECT * FROM users WHERE id = ?1\", [id]).first()\n}",
+    ),
+    (
+        "@mutation",
+        "update_user",
+        "@mutation\nfn update_user(id: int, name: str) -> Result[Unit] {\n  VoxDb::execute(\"UPDATE users SET name = ?2 WHERE id = ?1\", [id, name])\n  ret Ok(())\n}",
+    ),
+    (
+        "@action",
+        "submit_form",
+        "@action\nfn submit_form(data: FormData) -> Result[Unit] {\n  // form logic\n  ret Ok(())\n}",
+    ),
+    (
+        "@server",
+        "generate_pdf",
+        "@server\nfn generate_pdf(report: str) -> bytes {\n  // server side only logic\n  ret b\"...\"\n}",
+    ),
 ];
 
-fn generate_web_construct_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
+fn generate_web_construct_pairs(
+    out: &mut impl Write,
+    cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
     let mut count = 0;
     let prompts = [
         "Implement a {name} {construct} in Vox.",
         "Show me how to write a {construct} named {name}.",
         "Provide a Vox {construct} definition for {name}.",
         "Create a {name} that acts as a {construct}.",
-        "Write the {name} {construct} in Vox syntax."
+        "Write the {name} {construct} in Vox syntax.",
     ];
 
     for (construct, name, snippet) in WEB_CONSTRUCTS {
         let mut rng = Rng::new(cfg.seed, name_hash(name));
         for (j, tmpl) in prompts.iter().enumerate() {
-            let prompt = tmpl.replace("{name}", name).replace("{construct}", construct);
+            let prompt = tmpl
+                .replace("{name}", name)
+                .replace("{construct}", construct);
             let response = json!({
                 "construct": construct,
                 "name": name,
@@ -724,30 +775,37 @@ fn generate_web_construct_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) 
 
 // ─── Negative Preference (Rejection Sampling) SFT pairs ───────────────────────
 
-fn generate_negative_preference_pairs(out: &mut impl Write, _cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
+fn generate_negative_preference_pairs(
+    out: &mut impl Write,
+    _cfg: &SyntheticGenConfig,
+) -> anyhow::Result<usize> {
     let mut count = 0;
-    
+
     // Hardcoded negative preference scenarios (tool hallucination, bad params, etc)
     let negatives = [
         (
             "I need to query the database. Can you run select * from users?",
-            "vox_sql_execute", "Query tool hallucinated raw SQL when it should use the Codex query builder.",
-            json!({"sql": "SELECT * FROM users"})
+            "vox_sql_execute",
+            "Query tool hallucinated raw SQL when it should use the Codex query builder.",
+            json!({"sql": "SELECT * FROM users"}),
         ),
         (
             "Create a new component.",
-            "vox_file_write", "Writing without gathering requirements is an anti-pattern.",
-            json!({"path": "src/Component.tsx", "content": "export default function Component() {}"})
+            "vox_file_write",
+            "Writing without gathering requirements is an anti-pattern.",
+            json!({"path": "src/Component.tsx", "content": "export default function Component() {}"}),
         ),
         (
             "Change the CSS for the button.",
-            "vox_run_command", "Attempted to use sed to modify CSS instead of file write.",
-            json!({"command": "sed -i 's/blue/red/g' style.css"})
+            "vox_run_command",
+            "Attempted to use sed to modify CSS instead of file write.",
+            json!({"command": "sed -i 's/blue/red/g' style.css"}),
         ),
         (
             "Delete the whole directory.",
-            "vox_run_command", "Dangerous rm -rf without confirmation checks.",
-            json!({"command": "rm -rf ."})
+            "vox_run_command",
+            "Dangerous rm -rf without confirmation checks.",
+            json!({"command": "rm -rf ."}),
         ),
     ];
 
@@ -757,19 +815,22 @@ fn generate_negative_preference_pairs(out: &mut impl Write, _cfg: &SyntheticGenC
             "reason": reason,
             "arguments": bad_args,
         });
-        emit_line(out, prompt, &response, "negative_routing", "negative_preference")?;
+        emit_line(
+            out,
+            prompt,
+            &response,
+            "negative_routing",
+            "negative_preference",
+        )?;
         count += 1;
     }
-    
+
     Ok(count)
 }
 
 // ─── Agent construct SFT pairs ────────────────────────────────────────────────
 
-fn generate_agent_pairs(
-    out: &mut impl Write,
-    cfg: &SyntheticGenConfig,
-) -> anyhow::Result<usize> {
+fn generate_agent_pairs(out: &mut impl Write, cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
     let mut count = 0;
     let prompts = [
         "Define a Vox AI agent called {name} that can {desc}.",
@@ -807,10 +868,7 @@ fn generate_agent_pairs(
 
 // ─── CLI command SFT pairs ────────────────────────────────────────────────────
 
-fn generate_cli_pairs(
-    out: &mut impl Write,
-    _cfg: &SyntheticGenConfig,
-) -> anyhow::Result<usize> {
+fn generate_cli_pairs(out: &mut impl Write, _cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
     let mut count = 0;
 
     let templates = [
@@ -844,10 +902,7 @@ fn generate_cli_pairs(
 
 // ─── Shell script SFT pairs ──────────────────────────────────────────────────
 
-fn generate_script_pairs(
-    out: &mut impl Write,
-    _cfg: &SyntheticGenConfig,
-) -> anyhow::Result<usize> {
+fn generate_script_pairs(out: &mut impl Write, _cfg: &SyntheticGenConfig) -> anyhow::Result<usize> {
     let mut count = 0;
 
     let scripts: &[(&str, &str, &str)] = &[
@@ -1153,37 +1208,162 @@ pub fn generate_negative_preference_pairs_expanded(
 
     let negatives: &[(&str, &str, &str, serde_json::Value)] = &[
         // Tool hallucination (invoking tools that don't exist)
-        ("Query the database for all users", "vox_sql_execute", "Hallucinated raw SQL tool — use Codex query builder or vox_db_suggest_query instead", json!({"sql": "SELECT * FROM users"})),
-        ("Search the web for Vox documentation", "vox_web_search", "vox_web_search does not exist — use vox_knowledge_query or vox_memory_search for local knowledge", json!({"query": "Vox documentation"})),
-        ("Deploy to production", "vox_deploy_production", "No such tool — deployment must go through vox_submit_task with deploy_type=production after human approval", json!({"target": "prod"})),
-        ("Send an email to the user", "vox_send_email", "vox_send_email does not exist in the Vox tool registry — use the appropriate notification workflow", json!({"to": "user@example.com"})),
-        ("Read the entire codebase into memory", "vox_read_all_files", "No bulk file reader tool — use vox_repo_index_files or vox_check_workspace for bounded scanning", json!({})),
+        (
+            "Query the database for all users",
+            "vox_sql_execute",
+            "Hallucinated raw SQL tool — use Codex query builder or vox_db_suggest_query instead",
+            json!({"sql": "SELECT * FROM users"}),
+        ),
+        (
+            "Search the web for Vox documentation",
+            "vox_web_search",
+            "vox_web_search does not exist — use vox_knowledge_query or vox_memory_search for local knowledge",
+            json!({"query": "Vox documentation"}),
+        ),
+        (
+            "Deploy to production",
+            "vox_deploy_production",
+            "No such tool — deployment must go through vox_submit_task with deploy_type=production after human approval",
+            json!({"target": "prod"}),
+        ),
+        (
+            "Send an email to the user",
+            "vox_send_email",
+            "vox_send_email does not exist in the Vox tool registry — use the appropriate notification workflow",
+            json!({"to": "user@example.com"}),
+        ),
+        (
+            "Read the entire codebase into memory",
+            "vox_read_all_files",
+            "No bulk file reader tool — use vox_repo_index_files or vox_check_workspace for bounded scanning",
+            json!({}),
+        ),
         // Bad parameter usage
-        ("Check the status of task 42", "vox_task_status", "task_id must be a UUID string, not an integer — use 'task-00000000-0000-0000-0000-000000000042' format", json!({"task_id": 42})),
-        ("Set context with null value", "vox_set_context", "null is banned in Vox — use Option[T] = None or omit the field entirely", json!({"key": "phase", "value": null})),
-        ("Ask the agent to do something with empty description", "vox_submit_task", "Empty description provides no grounding for the agent — always include specific, actionable text", json!({"description": ""})),
-        ("Send A2A message with untyped payload", "vox_a2a_send", "msg_type must be a known A2A type (plan_handoff, task_result, etc.), not arbitrary string 'thing'", json!({"sender_id": 1, "receiver_id": 2, "msg_type": "thing", "payload": "{}"})),
-        ("Store a value with integer key", "vox_memory_store", "Memory keys must be strings — integer keys cause type errors in the Arca store", json!({"key": 42, "value": "data"})),
+        (
+            "Check the status of task 42",
+            "vox_task_status",
+            "task_id must be a UUID string, not an integer — use 'task-00000000-0000-0000-0000-000000000042' format",
+            json!({"task_id": 42}),
+        ),
+        (
+            "Set context with null value",
+            "vox_set_context",
+            "null is banned in Vox — use Option[T] = None or omit the field entirely",
+            json!({"key": "phase", "value": null}),
+        ),
+        (
+            "Ask the agent to do something with empty description",
+            "vox_submit_task",
+            "Empty description provides no grounding for the agent — always include specific, actionable text",
+            json!({"description": ""}),
+        ),
+        (
+            "Send A2A message with untyped payload",
+            "vox_a2a_send",
+            "msg_type must be a known A2A type (plan_handoff, task_result, etc.), not arbitrary string 'thing'",
+            json!({"sender_id": 1, "receiver_id": 2, "msg_type": "thing", "payload": "{}"}),
+        ),
+        (
+            "Store a value with integer key",
+            "vox_memory_store",
+            "Memory keys must be strings — integer keys cause type errors in the Arca store",
+            json!({"key": 42, "value": "data"}),
+        ),
         // Dangerous commands
-        ("Delete all generated files", "vox_run_command", "rm -rf without scope guard destroys untracked files shared with other agents — use targeted deletion or file ownership checkout first", json!({"command": "rm -rf target/"})),
-        ("Reset all local git changes", "vox_run_command", "git reset --hard is permanently banned — it destroys uncommitted changes from other concurrent agents (see AGENTS.md git-concurrency-policy)", json!({"command": "git reset --hard HEAD"})),
-        ("Restore the file to its last commit state", "vox_run_command", "git restore is banned — it silently discards working-tree changes. Use git show HEAD:path/file instead (read-only)", json!({"command": "git restore src/auth.vox"})),
-        ("Clean up untracked files", "vox_run_command", "git clean -fd is banned — deletes newly created files from other agents without trace", json!({"command": "git clean -fd"})),
-        ("Stash current changes before switching context", "vox_run_command", "git stash is banned — agents lack shared context on stash contents; use 'git commit -m wip:' instead", json!({"command": "git stash"})),
+        (
+            "Delete all generated files",
+            "vox_run_command",
+            "rm -rf without scope guard destroys untracked files shared with other agents — use targeted deletion or file ownership checkout first",
+            json!({"command": "rm -rf target/"}),
+        ),
+        (
+            "Reset all local git changes",
+            "vox_run_command",
+            "git reset --hard is permanently banned — it destroys uncommitted changes from other concurrent agents (see AGENTS.md git-concurrency-policy)",
+            json!({"command": "git reset --hard HEAD"}),
+        ),
+        (
+            "Restore the file to its last commit state",
+            "vox_run_command",
+            "git restore is banned — it silently discards working-tree changes. Use git show HEAD:path/file instead (read-only)",
+            json!({"command": "git restore src/auth.vox"}),
+        ),
+        (
+            "Clean up untracked files",
+            "vox_run_command",
+            "git clean -fd is banned — deletes newly created files from other agents without trace",
+            json!({"command": "git clean -fd"}),
+        ),
+        (
+            "Stash current changes before switching context",
+            "vox_run_command",
+            "git stash is banned — agents lack shared context on stash contents; use 'git commit -m wip:' instead",
+            json!({"command": "git stash"}),
+        ),
         // Vox syntax anti-patterns
-        ("Create a nullable user field", "vox_generate_code", "null is banned in Vox — use Option[User] = None instead of User | null", json!({"prompt": "let user: User | null = null"})),
-        ("Write a function that returns null on error", "vox_generate_code", "null returns are banned — use Result[T] or Option[T] to model absence or failure explicitly", json!({"prompt": "fn find_user(id: int) -> User { return null }"})),
-        ("Write a class with mutable global state", "vox_generate_code", "Vox has no classes or mutable globals — use actors with isolated state or workflows for durable state machines", json!({"prompt": "class GlobalState { static mut count: int = 0 }"})),
+        (
+            "Create a nullable user field",
+            "vox_generate_code",
+            "null is banned in Vox — use Option[User] = None instead of User | null",
+            json!({"prompt": "let user: User | null = null"}),
+        ),
+        (
+            "Write a function that returns null on error",
+            "vox_generate_code",
+            "null returns are banned — use Result[T] or Option[T] to model absence or failure explicitly",
+            json!({"prompt": "fn find_user(id: int) -> User { return null }"}),
+        ),
+        (
+            "Write a class with mutable global state",
+            "vox_generate_code",
+            "Vox has no classes or mutable globals — use actors with isolated state or workflows for durable state machines",
+            json!({"prompt": "class GlobalState { static mut count: int = 0 }"}),
+        ),
         // Orchestrator misrouting
-        ("Review the code changes before merging", "vox_submit_task", "Code review is a human gate — submit_task dispatches to an agent; reviews requiring judgment should use the review agent explicitly or defer to human approval", json!({"description": "Review and auto-approve all changes"})),
-        ("Run the entire test suite and auto-merge if passing", "vox_run_tests", "Auto-merge after tests is a dangerous automation pattern — never combine test execution with merge decisions in a single agent step without explicit human approval gate", json!({"crate_name": "all", "auto_merge": true})),
+        (
+            "Review the code changes before merging",
+            "vox_submit_task",
+            "Code review is a human gate — submit_task dispatches to an agent; reviews requiring judgment should use the review agent explicitly or defer to human approval",
+            json!({"description": "Review and auto-approve all changes"}),
+        ),
+        (
+            "Run the entire test suite and auto-merge if passing",
+            "vox_run_tests",
+            "Auto-merge after tests is a dangerous automation pattern — never combine test execution with merge decisions in a single agent step without explicit human approval gate",
+            json!({"crate_name": "all", "auto_merge": true}),
+        ),
         // Wrong tool for job
-        ("Save important findings about the codebase", "vox_set_context", "Context is ephemeral (TTL-based) — use vox_memory_store for persistent facts that must survive session restarts", json!({"key": "findings", "value": "...", "ttl_secs": 30})),
-        ("Get the list of all available MCP tools", "vox_repo_index_files", "Repo index lists *files*, not *tools* — use vox_orchestrator_status or consult the tool registry directly for MCP tool discovery", json!({})),
-        ("Remember which agent is assigned to the auth task", "vox_broadcast", "Broadcast is for one-to-many notifications — use vox_memory_store to persist assignment facts for later retrieval", json!({"agent_id": 1, "message": "auth assigned to agent 2"})),
+        (
+            "Save important findings about the codebase",
+            "vox_set_context",
+            "Context is ephemeral (TTL-based) — use vox_memory_store for persistent facts that must survive session restarts",
+            json!({"key": "findings", "value": "...", "ttl_secs": 30}),
+        ),
+        (
+            "Get the list of all available MCP tools",
+            "vox_repo_index_files",
+            "Repo index lists *files*, not *tools* — use vox_orchestrator_status or consult the tool registry directly for MCP tool discovery",
+            json!({}),
+        ),
+        (
+            "Remember which agent is assigned to the auth task",
+            "vox_broadcast",
+            "Broadcast is for one-to-many notifications — use vox_memory_store to persist assignment facts for later retrieval",
+            json!({"agent_id": 1, "message": "auth assigned to agent 2"}),
+        ),
         // Type safety violations
-        ("Use Box<dyn Error> in a public Vox API", "vox_generate_code", "Box<dyn std::error::Error> is banned in public crate APIs — use a typed error enum (e.g. vox_ludus::Error) per the 5.6 data architecture policy", json!({"prompt": "pub fn load() -> Result<Data, Box<dyn Error>>"})),
-        ("Use parallel crates for the same domain", "vox_generate_code", "Creating two crates with overlapping purpose violates the 'No Parallel Crates for the Same Domain' rule (AGENTS.md 5.4) — add to the existing crate", json!({"prompt": "create new crate vox-gamify alongside vox-ludus"})),
+        (
+            "Use Box<dyn Error> in a public Vox API",
+            "vox_generate_code",
+            "Box<dyn std::error::Error> is banned in public crate APIs — use a typed error enum (e.g. vox_ludus::Error) per the 5.6 data architecture policy",
+            json!({"prompt": "pub fn load() -> Result<Data, Box<dyn Error>>"}),
+        ),
+        (
+            "Use parallel crates for the same domain",
+            "vox_generate_code",
+            "Creating two crates with overlapping purpose violates the 'No Parallel Crates for the Same Domain' rule (AGENTS.md 5.4) — add to the existing crate",
+            json!({"prompt": "create new crate vox-gamify alongside vox-ludus"}),
+        ),
     ];
 
     for (prompt, bad_tool, reason, bad_args) in negatives {
@@ -1193,7 +1373,13 @@ pub fn generate_negative_preference_pairs_expanded(
             "arguments": bad_args,
             "policy": "vox_dogfood",
         });
-        emit_line(out, prompt, &response, "negative_routing", "negative_preference")?;
+        emit_line(
+            out,
+            prompt,
+            &response,
+            "negative_routing",
+            "negative_preference",
+        )?;
         count += 1;
     }
     Ok(count)
@@ -1301,35 +1487,69 @@ pub fn generate_multi_agent_conversation_pairs(
         (
             "Orchestrator delegates auth task to worker, worker reports completion",
             &[
-                ("orchestrator→worker", json!({"tool": "vox_a2a_send", "arguments": {"sender_id": 1, "receiver_id": 2, "msg_type": "task_assignment", "payload": "{\"task\": \"implement auth module\", \"file\": \"src/auth.vox\"}"}})),
-                ("worker acks", json!({"tool": "vox_a2a_ack", "arguments": {"agent_id": 2, "message_id": 101}})),
-                ("worker claims file", json!({"tool": "vox_claim_file", "arguments": {"path": "src/auth.vox"}})),
-                ("worker completes task", json!({"tool": "vox_a2a_send", "arguments": {"sender_id": 2, "receiver_id": 1, "msg_type": "task_result", "payload": "{\"status\": \"complete\", \"artifact\": \"src/auth.vox\"}"}}))
+                (
+                    "orchestrator→worker",
+                    json!({"tool": "vox_a2a_send", "arguments": {"sender_id": 1, "receiver_id": 2, "msg_type": "task_assignment", "payload": "{\"task\": \"implement auth module\", \"file\": \"src/auth.vox\"}"}}),
+                ),
+                (
+                    "worker acks",
+                    json!({"tool": "vox_a2a_ack", "arguments": {"agent_id": 2, "message_id": 101}}),
+                ),
+                (
+                    "worker claims file",
+                    json!({"tool": "vox_claim_file", "arguments": {"path": "src/auth.vox"}}),
+                ),
+                (
+                    "worker completes task",
+                    json!({"tool": "vox_a2a_send", "arguments": {"sender_id": 2, "receiver_id": 1, "msg_type": "task_result", "payload": "{\"status\": \"complete\", \"artifact\": \"src/auth.vox\"}"}}),
+                ),
             ],
         ),
         (
             "Planner creates plan and dispatches work to two parallel agents",
             &[
-                ("planner creates plan", json!({"tool": "vox_plan", "arguments": {"goal": "Build user management system with auth and profile pages", "write_to_disk": true}})),
-                ("planner dispatches auth", json!({"tool": "vox_submit_task", "arguments": {"description": "Implement auth.vox", "files": ["src/auth.vox"]}})),
-                ("planner dispatches profile", json!({"tool": "vox_submit_task", "arguments": {"description": "Implement profile.vox", "files": ["src/profile.vox"]}})),
-                ("planner broadcasts phase start", json!({"tool": "vox_a2a_broadcast", "arguments": {"sender_id": 1, "msg_type": "phase_start", "payload": "{\"phase\": 2, \"tasks\": 2}"}}))
+                (
+                    "planner creates plan",
+                    json!({"tool": "vox_plan", "arguments": {"goal": "Build user management system with auth and profile pages", "write_to_disk": true}}),
+                ),
+                (
+                    "planner dispatches auth",
+                    json!({"tool": "vox_submit_task", "arguments": {"description": "Implement auth.vox", "files": ["src/auth.vox"]}}),
+                ),
+                (
+                    "planner dispatches profile",
+                    json!({"tool": "vox_submit_task", "arguments": {"description": "Implement profile.vox", "files": ["src/profile.vox"]}}),
+                ),
+                (
+                    "planner broadcasts phase start",
+                    json!({"tool": "vox_a2a_broadcast", "arguments": {"sender_id": 1, "msg_type": "phase_start", "payload": "{\"phase\": 2, \"tasks\": 2}"}}),
+                ),
             ],
         ),
         (
             "Agent asks peer for status, peer responds with progress",
             &[
-                ("agent checks peer status", json!({"tool": "vox_agent_status", "arguments": {"agent_id": 3}})),
-                ("agent queries peer inbox", json!({"tool": "vox_a2a_inbox", "arguments": {"agent_id": 1}})),
-                ("agent asks direct question", json!({"tool": "vox_ask_agent", "arguments": {"agent_id": 3, "question": "Have you finished the database index?"}}))
+                (
+                    "agent checks peer status",
+                    json!({"tool": "vox_agent_status", "arguments": {"agent_id": 3}}),
+                ),
+                (
+                    "agent queries peer inbox",
+                    json!({"tool": "vox_a2a_inbox", "arguments": {"agent_id": 1}}),
+                ),
+                (
+                    "agent asks direct question",
+                    json!({"tool": "vox_ask_agent", "arguments": {"agent_id": 3, "question": "Have you finished the database index?"}}),
+                ),
             ],
         ),
     ];
 
     for (desc, turns) in scenarios {
-        let turns_json: Vec<_> = turns.iter().map(|(speaker, action)| {
-            json!({"speaker": speaker, "action": action})
-        }).collect();
+        let turns_json: Vec<_> = turns
+            .iter()
+            .map(|(speaker, action)| json!({"speaker": speaker, "action": action}))
+            .collect();
         let prompts = [
             format!("Show the complete multi-agent interaction for: {desc}"),
             format!("Walk through the agent coordination sequence for: {desc}"),
@@ -1341,7 +1561,13 @@ pub fn generate_multi_agent_conversation_pairs(
                 "turns": turns_json,
                 "pattern": "sequential_a2a",
             });
-            emit_line(out, prompt, &response, "multi_agent_flow", "multi_agent_trace")?;
+            emit_line(
+                out,
+                prompt,
+                &response,
+                "multi_agent_flow",
+                "multi_agent_trace",
+            )?;
             count += 1;
         }
     }
@@ -1556,7 +1782,9 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
             // Compact variant: every 5th pair gets a compact form (20%)
             if i % 5 == 0 && !pair.response.is_empty() {
                 let compact_line = crate::corpus::preflight::compact_variant(
-                    &pair.prompt, &pair.response, &pair.category
+                    &pair.prompt,
+                    &pair.response,
+                    &pair.category,
                 );
                 writeln!(file, "{}", compact_line)?;
                 total += 1;
@@ -1567,21 +1795,22 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
             if i % 2 == 0 {
                 use crate::corpus::preflight::{BrokenKind, break_vox, error_fix_to_jsonl};
                 let kind = match i % 12 {
-                    0  => BrokenKind::MissingReturnArrow,
-                    1  => BrokenKind::UnclosedBrace,
-                    2  => BrokenKind::KeywordTypo,
-                    3  => BrokenKind::MissingRet,
-                    4  => BrokenKind::MissingToUnit,
-                    5  => BrokenKind::TypeMismatch,
-                    6  => BrokenKind::OptionUnwrapMissing,
-                    7  => BrokenKind::BadReturnType,
-                    8  => BrokenKind::WrongType,
-                    9  => BrokenKind::UnresolvedGenericArity,
+                    0 => BrokenKind::MissingReturnArrow,
+                    1 => BrokenKind::UnclosedBrace,
+                    2 => BrokenKind::KeywordTypo,
+                    3 => BrokenKind::MissingRet,
+                    4 => BrokenKind::MissingToUnit,
+                    5 => BrokenKind::TypeMismatch,
+                    6 => BrokenKind::OptionUnwrapMissing,
+                    7 => BrokenKind::BadReturnType,
+                    8 => BrokenKind::WrongType,
+                    9 => BrokenKind::UnresolvedGenericArity,
                     10 => BrokenKind::InferenceAmbiguity,
-                    _  => BrokenKind::UnreachableMatchArm,
+                    _ => BrokenKind::UnreachableMatchArm,
                 };
                 let (broken, explanation) = break_vox(&pair.response, kind);
-                let fix_line = error_fix_to_jsonl(&broken, &explanation, &pair.response, &pair.category);
+                let fix_line =
+                    error_fix_to_jsonl(&broken, &explanation, &pair.response, &pair.category);
                 writeln!(file, "{}", fix_line)?;
                 total += 1;
                 error_fix_count += 1;
@@ -1590,7 +1819,11 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
             // Multi-turn conversations
             if i % 10 == 0 {
                 use crate::corpus::preflight::{gen_multiturn_vox, multiturn_to_jsonl};
-                let decl_type = pair.coverage_tags.first().map(|s| s.as_str()).unwrap_or("function");
+                let decl_type = pair
+                    .coverage_tags
+                    .first()
+                    .map(|s| s.as_str())
+                    .unwrap_or("function");
                 let name = pair.category.split('.').next().unwrap_or("handler");
                 // The signature in preflight.rs is gen_multiturn_vox(construct, name, base_code, template_idx)
                 let turns = gen_multiturn_vox(decl_type, name, &pair.response, i);
@@ -1602,7 +1835,11 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         }
         eprintln!(
             "  [synthetic] organic_vox: {} pairs ({} verified) +{} compact +{} error_fix +{} multiturn",
-            organic.len(), verified, compact_count, error_fix_count, multiturn_count
+            organic.len(),
+            verified,
+            compact_count,
+            error_fix_count,
+            multiturn_count
         );
 
         // Architectural Q&A pairs (static, high-signal)
@@ -1623,7 +1860,11 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         let explain_lines = crate::corpus::preflight::gen_explain_pairs(&organic_triples, 5);
         let debug_lines = crate::corpus::preflight::gen_debug_pairs(&organic_triples, 7);
         let refactor_lines = crate::corpus::preflight::gen_refactor_pairs(&organic_triples, 7);
-        for line in explain_lines.iter().chain(debug_lines.iter()).chain(refactor_lines.iter()) {
+        for line in explain_lines
+            .iter()
+            .chain(debug_lines.iter())
+            .chain(refactor_lines.iter())
+        {
             writeln!(file, "{line}")?;
             total += 1;
         }
@@ -1679,8 +1920,10 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
     }
 
     file.flush()?;
-    eprintln!("  [synthetic] total: {total} pairs → {}", output_path.display());
-
+    eprintln!(
+        "  [synthetic] total: {total} pairs → {}",
+        output_path.display()
+    );
 
     // ── Post-generation augmentation ────────────────────────────────────
     // Re-read the generated JSONL and apply the typo/synonym/case augmentation
@@ -1723,11 +1966,19 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
             .truncate(true)
             .write(true)
             .open(&search_output_path)
-            .with_context(|| format!("create synthetic search corpus: {}", search_output_path.display()))?,
+            .with_context(|| {
+                format!(
+                    "create synthetic search corpus: {}",
+                    search_output_path.display()
+                )
+            })?,
     );
     let n = crate::synthetic_search_gen::generate_search_traces(&mut search_file)?;
     search_file.flush()?;
-    eprintln!("  [synthetic_search] total: {n} pairs → {}", search_output_path.display());
+    eprintln!(
+        "  [synthetic_search] total: {n} pairs → {}",
+        search_output_path.display()
+    );
 
     // ── Coverage report ──────────────────────────────────────────────────
     // Re-generate the organic corpus to compute coverage metrics.
@@ -1807,27 +2058,45 @@ mod tests {
 
     #[test]
     fn all_workflow_scenarios_appear_in_output() {
-    let out = run_all_to_string(&default_cfg());
-    let yaml = include_str!("../../../mens/config/templates.yaml");
-    let cfg: serde_json::Value = serde_yaml::from_str(yaml).unwrap();
-    let workflows = cfg.get("synthetic").unwrap().get("workflows").unwrap().as_array().unwrap();
-    for w in workflows {
-        let name = w.get("name").unwrap().as_str().unwrap();
-        assert!(out.contains(name), "workflow {name} missing from synthetic output");
+        let out = run_all_to_string(&default_cfg());
+        let yaml = include_str!("../../../mens/config/templates.yaml");
+        let cfg: serde_json::Value = serde_yaml::from_str(yaml).unwrap();
+        let workflows = cfg
+            .get("synthetic")
+            .unwrap()
+            .get("workflows")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        for w in workflows {
+            let name = w.get("name").unwrap().as_str().unwrap();
+            assert!(
+                out.contains(name),
+                "workflow {name} missing from synthetic output"
+            );
+        }
     }
-}
 
     #[test]
     fn all_agent_scenarios_appear_in_output() {
-    let out = run_all_to_string(&default_cfg());
-    let yaml = include_str!("../../../mens/config/templates.yaml");
-    let cfg: serde_json::Value = serde_yaml::from_str(yaml).unwrap();
-    let agents = cfg.get("synthetic").unwrap().get("agents").unwrap().as_array().unwrap();
-    for a in agents {
-        let name = a.get("name").unwrap().as_str().unwrap();
-        assert!(out.contains(name), "agent {name} missing from synthetic output");
+        let out = run_all_to_string(&default_cfg());
+        let yaml = include_str!("../../../mens/config/templates.yaml");
+        let cfg: serde_json::Value = serde_yaml::from_str(yaml).unwrap();
+        let agents = cfg
+            .get("synthetic")
+            .unwrap()
+            .get("agents")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        for a in agents {
+            let name = a.get("name").unwrap().as_str().unwrap();
+            assert!(
+                out.contains(name),
+                "agent {name} missing from synthetic output"
+            );
+        }
     }
-}
 
     #[test]
     fn min_phrasings_respected() {

@@ -368,14 +368,19 @@ pub async fn infer_with_retry(
 
     for candidate in candidates {
         match llm_chat(options, messages.clone(), candidate.clone()).await {
-            ActivityResult::Ok(Ok(response)) => return ActivityResult::Ok(Ok((response, candidate))),
+            ActivityResult::Ok(Ok(response)) => {
+                return ActivityResult::Ok(Ok((response, candidate)));
+            }
             ActivityResult::Ok(Err(api_err)) => {
                 // If it's a hard error like invalid key, we should try the next candidate
                 last_error = format!("Candidate {} failed: {}", candidate.model, api_err);
             }
             ActivityResult::Failed(activity_err) => {
                 // Activity was aborted or failed
-                last_error = format!("Candidate {} activity error: {:?}", candidate.model, activity_err);
+                last_error = format!(
+                    "Candidate {} activity error: {:?}",
+                    candidate.model, activity_err
+                );
             }
             ActivityResult::Cancelled => {
                 return ActivityResult::Cancelled;

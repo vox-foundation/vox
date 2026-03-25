@@ -1,7 +1,7 @@
+use crate::PublisherConfig;
 use crate::contract::{DEFAULT_TWITTER_API_BASE, TWITTER_TEXT_CHUNK_MAX};
 use crate::types::{TwitterConfig, UnifiedNewsItem};
-use crate::PublisherConfig;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use reqwest::Client;
 use serde_json::json;
 
@@ -20,11 +20,17 @@ pub async fn post(
     let url = format!("{}/2/tweets", root);
 
     let primary_text = config.short_text.clone().unwrap_or_else(|| {
-        truncate_chars(&item.content_markdown, TWITTER_TEXT_CHUNK_MAX.saturating_sub(3))
+        truncate_chars(
+            &item.content_markdown,
+            TWITTER_TEXT_CHUNK_MAX.saturating_sub(3),
+        )
     });
 
     let mut texts = if config.thread {
-        let full = config.short_text.clone().unwrap_or_else(|| item.content_markdown.clone());
+        let full = config
+            .short_text
+            .clone()
+            .unwrap_or_else(|| item.content_markdown.clone());
         chunk_chars(&full, TWITTER_TEXT_CHUNK_MAX)
     } else {
         vec![primary_text]
@@ -63,7 +69,10 @@ pub async fn post(
             .map(std::string::ToString::to_string)
             .filter(|s| !s.is_empty());
         if last_id.is_none() {
-            return Err(anyhow!("Twitter API missing tweet id in response: {}", data));
+            return Err(anyhow!(
+                "Twitter API missing tweet id in response: {}",
+                data
+            ));
         }
     }
 

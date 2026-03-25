@@ -218,7 +218,8 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 10); // no cooldown for testing
         let agent = AgentId(1);
 
-        let prompt = engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, 30, &bus);
+        let prompt =
+            engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, 30, &bus);
 
         assert!(prompt.is_some());
         let p = prompt.unwrap();
@@ -278,7 +279,8 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 10);
         engine.set_enabled(false);
 
-        let p = engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, 30, &bus);
+        let p =
+            engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, 30, &bus);
         assert!(p.is_none());
     }
 }

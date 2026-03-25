@@ -1,8 +1,8 @@
 //! Persist **Socrates** calibration signals into `research_metrics` / `eval_runs` for drift monitoring
 //! and proxy “hallucination risk” tracking when gold labels are absent.
 
-use serde::{Deserialize, Serialize};
 use crate::store::StoreError;
+use serde::{Deserialize, Serialize};
 use vox_socrates_policy::RiskDecision;
 
 use crate::VoxDb;
@@ -64,7 +64,6 @@ pub struct SocratesSurfaceAggregate {
 
 impl VoxDb {
     /// Low-level append to `research_metrics`.
-
 
     /// Record one Socrates tool turn under session `mcp:<repository_id>`, metric type `socrates_surface`.
     pub async fn record_socrates_surface_event(
@@ -136,8 +135,7 @@ impl VoxDb {
         let prefix = repository_id
             .map(|r| format!("mcp:{r}"))
             .unwrap_or_default();
-        self
-            .list_research_metrics_by_type("socrates_surface", &prefix, limit)
+        self.list_research_metrics_by_type("socrates_surface", &prefix, limit)
             .await
     }
 
@@ -240,8 +238,8 @@ impl VoxDb {
 
 #[cfg(all(test, feature = "local"))]
 mod db_tests {
-    use crate::{DbConfig, VoxDb};
     use crate::store::StoreError;
+    use crate::{DbConfig, VoxDb};
     use vox_socrates_policy::RiskDecision;
 
     #[tokio::test]
@@ -285,7 +283,10 @@ mod db_tests {
             .expect_err("expected empty window");
         match err {
             StoreError::Db(msg) => {
-                assert!(msg.contains("no socrates_surface"), "unexpected message: {msg}");
+                assert!(
+                    msg.contains("no socrates_surface"),
+                    "unexpected message: {msg}"
+                );
             }
             _ => panic!("expected StoreError::Db, got {err:?}"),
         }

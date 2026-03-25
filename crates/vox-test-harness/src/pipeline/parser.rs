@@ -1,8 +1,8 @@
 //! Parser pipeline helpers.
 
+use crate::pipeline::lexer::lex_str;
 use vox_compiler::ast::decl::Module;
 use vox_compiler::parser::parse;
-use crate::pipeline::lexer::lex_str;
 
 /// Lex and parse `src`, panicking with a clear message if parsing fails.
 ///

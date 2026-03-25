@@ -307,7 +307,14 @@ impl AgentFleet {
             let orch: tokio::sync::MutexGuard<'_, Orchestrator> = self.orchestrator.lock().await;
             let ids = orch.agent_ids();
             ids.iter()
-                .map(|id| (*id, crate::sync_lock::rw_read(&*orch.agent_queue(*id).unwrap()).name.clone()))
+                .map(|id| {
+                    (
+                        *id,
+                        crate::sync_lock::rw_read(&*orch.agent_queue(*id).unwrap())
+                            .name
+                            .clone(),
+                    )
+                })
                 .collect()
         };
 
@@ -362,7 +369,10 @@ impl AgentFleet {
                 .agents
                 .iter()
                 .filter(|a| a.dynamic && a.queued == 0 && !a.in_progress)
-                .filter_map(|a| orch.agent_queue(a.id).map(|q| (a.id, crate::sync_lock::rw_read(&*q).last_active)))
+                .filter_map(|a| {
+                    orch.agent_queue(a.id)
+                        .map(|q| (a.id, crate::sync_lock::rw_read(&*q).last_active))
+                })
                 .collect();
             let budget_manager = orch.budget_manager_handle();
             (status, idle_dynamic, config, budget_manager)

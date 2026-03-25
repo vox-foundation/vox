@@ -22,10 +22,18 @@ impl crate::orchestrator::Orchestrator {
             config: std::sync::Arc::new(std::sync::RwLock::new(config.clone())),
             affinity_map: FileAffinityMap::new(),
             lock_manager: FileLockManager::new(),
-            context_store: std::sync::Arc::new(std::sync::RwLock::new(crate::context::ContextStore::new())),
-            budget_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::budget::BudgetManager::new())),
-            summary_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::summary::SummaryManager::new())),
-            models: std::sync::Arc::new(std::sync::RwLock::new(crate::models::ModelRegistry::new())),
+            context_store: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::context::ContextStore::new(),
+            )),
+            budget_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::budget::BudgetManager::new(),
+            )),
+            summary_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::summary::SummaryManager::new(),
+            )),
+            models: std::sync::Arc::new(
+                std::sync::RwLock::new(crate::models::ModelRegistry::new()),
+            ),
             bulletin,
             agents: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
             groups: std::sync::Arc::new(std::sync::RwLock::new(AffinityGroupRegistry::defaults())),
@@ -40,18 +48,32 @@ impl crate::orchestrator::Orchestrator {
             ))),
             event_bus: crate::events::EventBus::new(1024),
             message_bus: crate::a2a::MessageBus::new(100),
-            dynamic_agents: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            dynamic_agents: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::HashSet::new(),
+            )),
             agent_handles: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
-            heartbeat_monitor: std::sync::Arc::new(std::sync::RwLock::new(crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms))),
+            heartbeat_monitor: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms),
+            )),
             #[cfg(feature = "system-metrics")]
             sys: std::sync::Arc::new(std::sync::RwLock::new(sysinfo::System::new_all())),
-            load_history: std::sync::Arc::new(std::sync::RwLock::new(std::collections::VecDeque::with_capacity(config.scaling_lookback_ticks))),
-            scope_guard: std::sync::Arc::new(std::sync::RwLock::new(ScopeGuard::new(config.scope_enforcement))),
+            load_history: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::VecDeque::with_capacity(config.scaling_lookback_ticks),
+            )),
+            scope_guard: std::sync::Arc::new(std::sync::RwLock::new(ScopeGuard::new(
+                config.scope_enforcement,
+            ))),
             task_traces: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
-            snapshot_store: std::sync::Arc::new(std::sync::RwLock::new(crate::snapshot::SnapshotStore::default())),
+            snapshot_store: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::snapshot::SnapshotStore::default(),
+            )),
             oplog: std::sync::Arc::new(std::sync::RwLock::new(crate::oplog::OpLog::default())),
-            conflict_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::conflicts::ConflictManager::new())),
-            workspace_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::workspace::WorkspaceManager::new())),
+            conflict_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::conflicts::ConflictManager::new(),
+            )),
+            workspace_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::workspace::WorkspaceManager::new(),
+            )),
             db: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
@@ -65,10 +87,18 @@ impl crate::orchestrator::Orchestrator {
             config: std::sync::Arc::new(std::sync::RwLock::new(config.clone())),
             affinity_map: FileAffinityMap::new(),
             lock_manager: FileLockManager::new(),
-            context_store: std::sync::Arc::new(std::sync::RwLock::new(crate::context::ContextStore::new())),
-            budget_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::budget::BudgetManager::new())),
-            summary_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::summary::SummaryManager::new())),
-            models: std::sync::Arc::new(std::sync::RwLock::new(crate::models::ModelRegistry::new())),
+            context_store: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::context::ContextStore::new(),
+            )),
+            budget_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::budget::BudgetManager::new(),
+            )),
+            summary_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::summary::SummaryManager::new(),
+            )),
+            models: std::sync::Arc::new(
+                std::sync::RwLock::new(crate::models::ModelRegistry::new()),
+            ),
             bulletin,
             agents: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
             groups: std::sync::Arc::new(std::sync::RwLock::new(groups)),
@@ -83,18 +113,32 @@ impl crate::orchestrator::Orchestrator {
             ))),
             event_bus: crate::events::EventBus::new(1024),
             message_bus: crate::a2a::MessageBus::new(100),
-            dynamic_agents: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            dynamic_agents: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::HashSet::new(),
+            )),
             agent_handles: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
-            heartbeat_monitor: std::sync::Arc::new(std::sync::RwLock::new(crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms))),
+            heartbeat_monitor: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::heartbeat::HeartbeatMonitor::new(config.stale_threshold_ms),
+            )),
             #[cfg(feature = "system-metrics")]
             sys: std::sync::Arc::new(std::sync::RwLock::new(sysinfo::System::new_all())),
-            load_history: std::sync::Arc::new(std::sync::RwLock::new(std::collections::VecDeque::with_capacity(config.scaling_lookback_ticks))),
-            scope_guard: std::sync::Arc::new(std::sync::RwLock::new(ScopeGuard::new(config.scope_enforcement))),
+            load_history: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::VecDeque::with_capacity(config.scaling_lookback_ticks),
+            )),
+            scope_guard: std::sync::Arc::new(std::sync::RwLock::new(ScopeGuard::new(
+                config.scope_enforcement,
+            ))),
             task_traces: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
-            snapshot_store: std::sync::Arc::new(std::sync::RwLock::new(crate::snapshot::SnapshotStore::default())),
+            snapshot_store: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::snapshot::SnapshotStore::default(),
+            )),
             oplog: std::sync::Arc::new(std::sync::RwLock::new(crate::oplog::OpLog::default())),
-            conflict_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::conflicts::ConflictManager::new())),
-            workspace_manager: std::sync::Arc::new(std::sync::RwLock::new(crate::workspace::WorkspaceManager::new())),
+            conflict_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::conflicts::ConflictManager::new(),
+            )),
+            workspace_manager: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::workspace::WorkspaceManager::new(),
+            )),
             db: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
@@ -110,7 +154,7 @@ impl crate::orchestrator::Orchestrator {
         db.sync_schema_from_digest(&crate::schema::orchestrator_schema())
             .await
             .map_err(|e| OrchestratorError::DatabaseError(format!("DB sync failed: {}", e)))?;
-        
+
         crate::sync_lock::rw_write(&*self.db).replace(db);
         Ok(())
     }
@@ -128,12 +172,16 @@ impl crate::orchestrator::Orchestrator {
 
     /// Update the global activity timestamp.
     pub fn record_activity(&self) {
-        self.last_activity_ms.store(crate::types::now_unix_ms(), std::sync::atomic::Ordering::Relaxed);
+        self.last_activity_ms.store(
+            crate::types::now_unix_ms(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 
     /// Get the global last activity timestamp in milliseconds.
     pub fn last_activity_ms(&self) -> u64 {
-        self.last_activity_ms.load(std::sync::atomic::Ordering::Relaxed)
+        self.last_activity_ms
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Access the internal context store.
@@ -149,7 +197,8 @@ impl crate::orchestrator::Orchestrator {
         task: &crate::types::AgentTask,
     ) -> String {
         let mut base = session.temporal_summary();
-        let elapsed_secs = task.created_at
+        let elapsed_secs = task
+            .created_at
             .map(|i| std::time::Instant::now().duration_since(i).as_secs())
             .unwrap_or_else(|| {
                 crate::types::now_unix_ms().saturating_sub(task.created_at_ms) / 1000

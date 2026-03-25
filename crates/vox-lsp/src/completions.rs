@@ -1,5 +1,5 @@
 //! Completion engine for `vox-lsp`.
-//! 
+//!
 //! Provides context-aware completions for keywords, decorators, types, and builtins.
 
 use tower_lsp::lsp_types::*;
@@ -122,8 +122,17 @@ impl CompletionEngine {
 
     fn add_types(items: &mut Vec<CompletionItem>) {
         let types = vec![
-            "int", "str", "bool", "float", "Unit", "Element",
-            "List[T]", "Map[K, V]", "Set[T]", "Result[T, E]", "Option[T]"
+            "int",
+            "str",
+            "bool",
+            "float",
+            "Unit",
+            "Element",
+            "List[T]",
+            "Map[K, V]",
+            "Set[T]",
+            "Result[T, E]",
+            "Option[T]",
         ];
 
         for t in types {

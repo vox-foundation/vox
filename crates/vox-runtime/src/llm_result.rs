@@ -63,7 +63,7 @@ impl<T: for<'de> Deserialize<'de>> LlmResult<T> {
     /// It attempts `serde_json::from_str` and wraps parse failures in
     /// `LlmError::ParseError` with the raw string preserved for debugging.
     ///
-    /// It automatically strips Markdown code fences (e.g. ```json ... ```) 
+    /// It automatically strips Markdown code fences (e.g. ```json ... ```)
     /// which LLMs often include even when requested not to.
     pub fn parse_from(raw: &str) -> Self {
         let clean = maybe_strip_markdown_json_fences(raw);
@@ -73,7 +73,11 @@ impl<T: for<'de> Deserialize<'de>> LlmResult<T> {
                 tracing::warn!(
                     "LlmResult::parse_from failed: {} — raw (first 500 chars): {}",
                     e,
-                    if clean.len() < 500 { clean } else { &clean[..500] }
+                    if clean.len() < 500 {
+                        clean
+                    } else {
+                        &clean[..500]
+                    }
                 );
                 LlmResult::Err(LlmError::ParseError {
                     error: e.to_string(),
@@ -244,7 +248,10 @@ mod tests {
     fn strip_fences_various_formats() {
         assert_eq!(maybe_strip_markdown_json_fences("```\n{}\n```"), "{}");
         assert_eq!(maybe_strip_markdown_json_fences("```json\n{}\n```"), "{}");
-        assert_eq!(maybe_strip_markdown_json_fences("  ```json\n{}\n```  "), "{}");
+        assert_eq!(
+            maybe_strip_markdown_json_fences("  ```json\n{}\n```  "),
+            "{}"
+        );
         assert_eq!(maybe_strip_markdown_json_fences("{}"), "{}");
     }
 

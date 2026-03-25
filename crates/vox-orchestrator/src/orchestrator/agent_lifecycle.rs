@@ -25,11 +25,10 @@ impl crate::orchestrator::Orchestrator {
         let agent_id = self.agent_id_gen.next();
         let mut queue = crate::queue::AgentQueue::new(agent_id, name);
         let probed = crate::capability_probe::probe_host_capabilities();
-        queue.capabilities = crate::capability_probe::merge_agent_capabilities(
-            &default_caps,
-            probed,
-        );
-        crate::sync_lock::rw_write(&*self.agents).insert(agent_id, std::sync::Arc::new(std::sync::RwLock::new(queue)));
+        queue.capabilities =
+            crate::capability_probe::merge_agent_capabilities(&default_caps, probed);
+        crate::sync_lock::rw_write(&*self.agents)
+            .insert(agent_id, std::sync::Arc::new(std::sync::RwLock::new(queue)));
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).register(agent_id);
         MessageGateway::publish_agent_spawned(
             &self.bulletin,
@@ -86,10 +85,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Retire an agent: release all locks/affinity/scope, drain its queue, and return remaining tasks.
-    pub fn retire_agent(
-        &self,
-        agent_id: AgentId,
-    ) -> Result<Vec<AgentTask>, OrchestratorError> {
+    pub fn retire_agent(&self, agent_id: AgentId) -> Result<Vec<AgentTask>, OrchestratorError> {
         let queue_lock = crate::sync_lock::rw_write(&*self.agents)
             .remove(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
@@ -113,10 +109,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Cancel a queued task. Returns an error if the task is in-progress or not found.
-    pub fn cancel_task(
-        &self,
-        task_id: crate::types::TaskId,
-    ) -> Result<(), OrchestratorError> {
+    pub fn cancel_task(&self, task_id: crate::types::TaskId) -> Result<(), OrchestratorError> {
         let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
             .get(&task_id)
             .copied()
@@ -138,11 +131,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Register a `vox-runtime` process handle for an agent.
-    pub fn register_agent_handle(
-        &self,
-        agent_id: AgentId,
-        handle: vox_runtime::ProcessHandle,
-    ) {
+    pub fn register_agent_handle(&self, agent_id: AgentId, handle: vox_runtime::ProcessHandle) {
         crate::sync_lock::rw_write(&*self.agent_handles).insert(agent_id, handle);
     }
 
@@ -165,10 +154,11 @@ impl crate::orchestrator::Orchestrator {
                 age_ms / 1000,
                 timeout / 1000
             );
-            self.event_bus.emit(crate::events::AgentEventKind::AgentHandoffRejected {
-                from: from_agent,
-                reason: reason.clone(),
-            });
+            self.event_bus
+                .emit(crate::events::AgentEventKind::AgentHandoffRejected {
+                    from: from_agent,
+                    reason: reason.clone(),
+                });
             tracing::warn!("{}", reason);
             return Err(OrchestratorError::StaleHandoff {
                 agent_id: from_agent,
@@ -267,10 +257,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Drain all queued tasks from an agent without retiring it.
-    pub fn drain_agent(
-        &self,
-        agent_id: AgentId,
-    ) -> Result<Vec<AgentTask>, OrchestratorError> {
+    pub fn drain_agent(&self, agent_id: AgentId) -> Result<Vec<AgentTask>, OrchestratorError> {
         let agents = crate::sync_lock::rw_read(&self.agents);
         let queue_lock = agents
             .get(&agent_id)

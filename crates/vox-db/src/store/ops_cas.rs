@@ -44,7 +44,12 @@ impl crate::VoxDb {
     /// Bind (or rebind) a logical `name` in `namespace` to a content hash in the `names` table.
     ///
     /// The `hash` must already exist in `objects`; the schema enforces the FK constraint.
-    pub async fn bind_name(&self, namespace: &str, name: &str, hash: &str) -> Result<(), StoreError> {
+    pub async fn bind_name(
+        &self,
+        namespace: &str,
+        name: &str,
+        hash: &str,
+    ) -> Result<(), StoreError> {
         self.conn
             .execute(
                 "INSERT INTO names (namespace, name, hash, updated_at)
@@ -61,10 +66,7 @@ impl crate::VoxDb {
     pub async fn schema_version(&self) -> Result<i64, StoreError> {
         let mut rows = self
             .conn
-            .query(
-                "SELECT COALESCE(MAX(version), 0) FROM schema_version",
-                (),
-            )
+            .query("SELECT COALESCE(MAX(version), 0) FROM schema_version", ())
             .await?;
         let row = rows
             .next()
@@ -97,8 +99,8 @@ impl crate::VoxDb {
             let n: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
             names.push(n);
         }
-        let payload = serde_json::to_string(&names)
-            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let payload =
+            serde_json::to_string(&names).map_err(|e| StoreError::Serialization(e.to_string()))?;
 
         self.conn
             .execute(

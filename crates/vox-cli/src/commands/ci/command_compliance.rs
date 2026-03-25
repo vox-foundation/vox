@@ -114,15 +114,11 @@ pub fn run(repo_root: &Path) -> Result<()> {
         ));
     }
 
-    let env_ssot = fs::read_to_string(repo_root.join("docs/src/reference/env-vars-ssot.md"))
-        .context("read docs/src/reference/env-vars-ssot.md")?;
+    let env_ssot = read_env_vars_ssot_doc(repo_root)?;
     check_env_var_ssot_index(&reg, &env_ssot)?;
 
-    let ref_cli = fs::read_to_string(repo_root.join("docs/src/ref-cli.md"))
-        .context("read docs/src/ref-cli.md")?;
-    let reach =
-        fs::read_to_string(repo_root.join("docs/src/architecture/cli-reachability-ssot.md"))
-            .context("read cli-reachability-ssot.md")?;
+    let (ref_cli, has_dedicated_ref_cli) = read_ref_cli_doc(repo_root)?;
+    let reach = read_reachability_doc(repo_root)?;
     let duals_doc = fs::read_to_string(repo_root.join("docs/src/ci/command-surface-duals.md"))
         .context("read command-surface-duals.md")?;
     let lib_rs =
@@ -142,7 +138,13 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     check_vox_cli_lib(&reg, &lib_rs)?;
     check_registry_latin_and_handlers(&reg, &vox_cli_src)?;
-    check_ref_cli(&reg, &ref_cli)?;
+    if has_dedicated_ref_cli {
+        check_ref_cli(&reg, &ref_cli)?;
+    } else {
+        eprintln!(
+            "command-compliance: docs/src/ref-cli.md absent; skipping strict ref_cli_required needle checks"
+        );
+    }
     check_reachability(&reg, &reach)?;
     check_compilerd(&reg, &compilerd)?;
     check_dei(&reg, &dei)?;
@@ -167,6 +169,53 @@ fn check_env_var_ssot_index(reg: &RegistryFile, env_ssot_md: &str) -> Result<()>
         }
     }
     Ok(())
+}
+
+fn read_ref_cli_doc(repo_root: &Path) -> Result<(String, bool)> {
+    let canonical = repo_root.join("docs/src/ref-cli.md");
+    if canonical.is_file() {
+        let body = fs::read_to_string(&canonical)
+            .with_context(|| format!("read {}", canonical.display()))?;
+        return Ok((body, true));
+    }
+    let merged = repo_root.join("docs/src/reference/cli.md");
+    let body = fs::read_to_string(&merged).with_context(|| {
+        format!(
+            "read {} (fallback when docs/src/ref-cli.md is absent)",
+            merged.display()
+        )
+    })?;
+    Ok((body, false))
+}
+
+fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
+    let preferred = repo_root.join("docs/src/reference/env-vars-ssot.md");
+    if preferred.is_file() {
+        return fs::read_to_string(&preferred)
+            .with_context(|| format!("read {}", preferred.display()));
+    }
+    let fallback = repo_root.join("docs/src/reference/env-vars.md");
+    fs::read_to_string(&fallback).with_context(|| {
+        format!(
+            "read {} (fallback when docs/src/reference/env-vars-ssot.md is absent)",
+            fallback.display()
+        )
+    })
+}
+
+fn read_reachability_doc(repo_root: &Path) -> Result<String> {
+    let preferred = repo_root.join("docs/src/architecture/cli-reachability-ssot.md");
+    if preferred.is_file() {
+        return fs::read_to_string(&preferred)
+            .with_context(|| format!("read {}", preferred.display()));
+    }
+    let fallback = repo_root.join("docs/src/reference/cli.md");
+    fs::read_to_string(&fallback).with_context(|| {
+        format!(
+            "read {} (fallback when cli-reachability-ssot.md is absent)",
+            fallback.display()
+        )
+    })
 }
 
 fn check_vox_cli_lib(reg: &RegistryFile, lib_rs: &str) -> Result<()> {

@@ -147,7 +147,10 @@ impl NewsService {
 fn collect_news_markdown_paths(news_dir: &Path, recursive: bool) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if recursive {
-        for entry in WalkDir::new(news_dir).into_iter().filter_map(std::result::Result::ok) {
+        for entry in WalkDir::new(news_dir)
+            .into_iter()
+            .filter_map(std::result::Result::ok)
+        {
             let p = entry.path();
             if p.extension().and_then(|s| s.to_str()) == Some("md") {
                 out.push(p.to_path_buf());

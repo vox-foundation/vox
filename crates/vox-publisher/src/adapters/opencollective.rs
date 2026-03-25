@@ -1,7 +1,7 @@
+use crate::PublisherConfig;
 use crate::contract::DEFAULT_OPENCOLLECTIVE_GRAPHQL_URL;
 use crate::types::{OpenCollectiveConfig, UnifiedNewsItem};
-use crate::PublisherConfig;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use reqwest::Client;
 use serde_json::json;
 

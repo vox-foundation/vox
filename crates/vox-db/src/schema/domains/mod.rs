@@ -9,7 +9,7 @@ pub mod execution;
 pub mod gamification;
 pub mod identity;
 pub mod knowledge;
-pub mod packages;
 pub mod mens_cloud;
 pub mod news;
+pub mod packages;
 pub mod toestub;

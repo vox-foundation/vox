@@ -35,5 +35,9 @@ workflow handle_branding(description: str) to Unit {
     assert_eq!(hir.activities[0].name, "generate_banner");
 
     let diagnostics = typecheck_module(&module, "");
-    assert!(diagnostics.is_empty(), "Typecheck failed: {:?}", diagnostics);
+    assert!(
+        diagnostics.is_empty(),
+        "Typecheck failed: {:?}",
+        diagnostics
+    );
 }

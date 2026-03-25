@@ -54,10 +54,18 @@ pub fn run(run_dir: Option<PathBuf>) -> Result<()> {
     }
 
     println!("Status:      {status}");
-    if let Some(ep) = last_epoch { println!("Last epoch:  {ep}"); }
-    if let Some(s) = last_step  { println!("Last step:   {s}"); }
-    if let Some(l) = last_loss  { println!("Last loss:   {:.4}", l); }
-    if let Some(lr) = last_lr   { println!("Last LR:     {:.2e}", lr); }
+    if let Some(ep) = last_epoch {
+        println!("Last epoch:  {ep}");
+    }
+    if let Some(s) = last_step {
+        println!("Last step:   {s}");
+    }
+    if let Some(l) = last_loss {
+        println!("Last loss:   {:.4}", l);
+    }
+    if let Some(lr) = last_lr {
+        println!("Last LR:     {:.2e}", lr);
+    }
 
     let ckpt = dir.join("checkpoint_state.json");
     if ckpt.is_file() {

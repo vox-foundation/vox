@@ -421,14 +421,30 @@ fn default_task_timeout() -> u64 {
 }
 
 // Phase 15: Attention budget defaults
-fn default_attention_budget_ms() -> u64 { 3_600_000 }
-fn default_attention_alert_threshold() -> f64 { 0.7 }
-fn default_attention_interrupt_cost_ms() -> u64 { 23_250 }
-fn default_trust_ewma_alpha() -> f64 { 0.1 }
-fn default_trust_provisional_threshold() -> u32 { 5 }
-fn default_trust_trusted_threshold() -> u32 { 20 }
-fn default_trust_auto_approve_min() -> f64 { 0.85 }
-fn default_attention_trust_routing_weight() -> f64 { 2.0 }
+fn default_attention_budget_ms() -> u64 {
+    3_600_000
+}
+fn default_attention_alert_threshold() -> f64 {
+    0.7
+}
+fn default_attention_interrupt_cost_ms() -> u64 {
+    23_250
+}
+fn default_trust_ewma_alpha() -> f64 {
+    0.1
+}
+fn default_trust_provisional_threshold() -> u32 {
+    5
+}
+fn default_trust_trusted_threshold() -> u32 {
+    20
+}
+fn default_trust_auto_approve_min() -> f64 {
+    0.85
+}
+fn default_attention_trust_routing_weight() -> f64 {
+    2.0
+}
 
 fn apply_vox_populi_toml(config: &mut OrchestratorConfig, mens: &vox_repository::VoxMeshToml) {
     if let Some(url) = mens
@@ -806,11 +822,8 @@ impl OrchestratorConfig {
             );
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CHATML_STRICT") {
-            self.chatml_strict = parse_or_warn(
-                "VOX_ORCHESTRATOR_CHATML_STRICT",
-                &val,
-                self.chatml_strict,
-            );
+            self.chatml_strict =
+                parse_or_warn("VOX_ORCHESTRATOR_CHATML_STRICT", &val, self.chatml_strict);
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ENABLED") {
             self.planning_enabled = parse_or_warn(
@@ -863,35 +876,72 @@ impl OrchestratorConfig {
         }
         // Phase 15: Attention Budget env overrides
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_ENABLED") {
-            self.attention_enabled = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_ENABLED", &v, self.attention_enabled);
+            self.attention_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_ATTENTION_ENABLED",
+                &v,
+                self.attention_enabled,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS") {
-            self.attention_budget_ms = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS", &v, self.attention_budget_ms);
+            self.attention_budget_ms = parse_or_warn(
+                "VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS",
+                &v,
+                self.attention_budget_ms,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD") {
-            self.attention_alert_threshold = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD", &v, self.attention_alert_threshold);
+            self.attention_alert_threshold = parse_or_warn(
+                "VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD",
+                &v,
+                self.attention_alert_threshold,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS") {
-            self.attention_interrupt_cost_ms = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS", &v, self.attention_interrupt_cost_ms);
+            self.attention_interrupt_cost_ms = parse_or_warn(
+                "VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS",
+                &v,
+                self.attention_interrupt_cost_ms,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA") {
-            self.trust_ewma_alpha = parse_or_warn("VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA", &v, self.trust_ewma_alpha);
+            self.trust_ewma_alpha = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA",
+                &v,
+                self.trust_ewma_alpha,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD") {
-            self.trust_provisional_threshold = parse_or_warn("VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD", &v, self.trust_provisional_threshold);
+            self.trust_provisional_threshold = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD",
+                &v,
+                self.trust_provisional_threshold,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD") {
-            self.trust_trusted_threshold = parse_or_warn("VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD", &v, self.trust_trusted_threshold);
+            self.trust_trusted_threshold = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD",
+                &v,
+                self.trust_trusted_threshold,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN") {
-            self.trust_auto_approve_min = parse_or_warn("VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN", &v, self.trust_auto_approve_min);
+            self.trust_auto_approve_min = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN",
+                &v,
+                self.trust_auto_approve_min,
+            );
         }
         if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT") {
-            self.attention_trust_routing_weight = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT", &v, self.attention_trust_routing_weight);
+            self.attention_trust_routing_weight = parse_or_warn(
+                "VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT",
+                &v,
+                self.attention_trust_routing_weight,
+            );
         }
         // News syndication (see docs/architecture/news_syndication_security.md)
         if let Ok(v) = std::env::var("VOX_NEWS_PUBLISH_ARMED") {
-            self.news.publish_armed = parse_or_warn("VOX_NEWS_PUBLISH_ARMED", &v, self.news.publish_armed);
+            self.news.publish_armed =
+                parse_or_warn("VOX_NEWS_PUBLISH_ARMED", &v, self.news.publish_armed);
         }
         if let Ok(v) = std::env::var("VOX_NEWS_SITE_BASE_URL") {
             let t = v.trim();
@@ -910,7 +960,8 @@ impl OrchestratorConfig {
             }
         }
         if let Ok(v) = std::env::var("VOX_NEWS_SCAN_RECURSIVE") {
-            self.news.scan_recursive = parse_or_warn("VOX_NEWS_SCAN_RECURSIVE", &v, self.news.scan_recursive);
+            self.news.scan_recursive =
+                parse_or_warn("VOX_NEWS_SCAN_RECURSIVE", &v, self.news.scan_recursive);
         }
     }
 

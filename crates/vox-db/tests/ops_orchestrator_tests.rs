@@ -26,8 +26,11 @@ async fn test_locks_crud() {
     assert_eq!(err, "node1");
 
     // 4. Successful Release
-    store.release_distributed_lock("my_lock", "node1", repo_id).await.unwrap();
-    
+    store
+        .release_distributed_lock("my_lock", "node1", repo_id)
+        .await
+        .unwrap();
+
     // 5. Re-acquire by node 2
     let fence2 = store
         .acquire_distributed_lock("my_lock", "node2", "ag-2", ttl_secs, repo_id)
@@ -49,7 +52,10 @@ async fn test_heartbeats_crud() {
     let now_ms = 1_000_000;
 
     // 1. Upsert
-    store.upsert_mesh_heartbeat("node1", "ag-1", "idle", now_ms, repo_id).await.unwrap();
+    store
+        .upsert_mesh_heartbeat("node1", "ag-1", "idle", now_ms, repo_id)
+        .await
+        .unwrap();
 
     // 2. List Live Nodes (min_seen_ms)
     let live = store.list_live_nodes(900_000, repo_id).await.unwrap();

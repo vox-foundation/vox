@@ -66,8 +66,7 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     // ── Device ────────────────────────────────────────────────────────────────
-    let device_kind = vox_mens::normalize_device(&device)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let device_kind = vox_mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_mens::apply_backend_env(device_kind);
 
     // ── Validation ────────────────────────────────────────────────────────────
@@ -82,7 +81,8 @@ pub async fn run(args: Args) -> Result<()> {
 
     // ── Device / VRAM diagnostics ─────────────────────────────────────────────
     let gpu_info = vox_mens::probe_gpu();
-    let device_profile = vox_mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
+    let device_profile =
+        vox_mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
     let cli_overrides = vox_mens::CliOverrides {
         rank,
         alpha,
@@ -96,7 +96,9 @@ pub async fn run(args: Args) -> Result<()> {
 
     // ── Corpus preflight ──────────────────────────────────────────────────────
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
-    let mix_config = workspace_root.as_ref().map(|r| r.join("mens/config/mix.yaml"));
+    let mix_config = workspace_root
+        .as_ref()
+        .map(|r| r.join("mens/config/mix.yaml"));
     let mut contract_override: Option<PathBuf> = None;
     let skip_mix = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
@@ -145,22 +147,38 @@ pub async fn run(args: Args) -> Result<()> {
             let result = rt.block_on(vox_mens::hub::download_model(&repo_id));
             let _ = tx.send(result);
         });
-        match rx.recv().map_err(|_| anyhow::anyhow!("HF download thread exited"))? {
+        match rx
+            .recv()
+            .map_err(|_| anyhow::anyhow!("HF download thread exited"))?
+        {
             Ok(files) if files.is_safetensors() => {
                 eprintln!("  ✓ Cached at {}", files.cache_dir.display());
                 base_model_paths = Some((files.weights.clone(), files.config.clone()));
                 tokenizer_path = files.tokenizer.clone();
                 if let Ok(arch) = vox_mens::tensor::hf_load::detect_hf_architecture(&files.config) {
-                    let cfg = vox_mens::tensor::hf_load::config_dims_for_architecture(&files.config, arch)
-                        .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
+                    let cfg = vox_mens::tensor::hf_load::config_dims_for_architecture(
+                        &files.config,
+                        arch,
+                    )
+                    .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
                     let est_mb = vox_mens::estimate_training_vram_mb_qlora(
-                        cfg.n_embd, cfg.n_head, cfg.n_layer,
-                        cfg.vocab_size, profile.batch_size, profile.seq_len,
+                        cfg.n_embd,
+                        cfg.n_head,
+                        cfg.n_layer,
+                        cfg.vocab_size,
+                        profile.batch_size,
+                        profile.seq_len,
                     );
                     if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
-                        eprintln!("  ⚠ VRAM risk: est. {est_mb} MB > 85% of {} MB — try --preset safe", gpu_info.vram_mb);
+                        eprintln!(
+                            "  ⚠ VRAM risk: est. {est_mb} MB > 85% of {} MB — try --preset safe",
+                            gpu_info.vram_mb
+                        );
                     } else if gpu_info.vram_mb > 0 {
-                        eprintln!("  ✓ VRAM: est. ~{est_mb} MB / {} MB available", gpu_info.vram_mb);
+                        eprintln!(
+                            "  ✓ VRAM: est. ~{est_mb} MB / {} MB available",
+                            gpu_info.vram_mb
+                        );
                     }
                 }
             }
@@ -175,14 +193,24 @@ pub async fn run(args: Args) -> Result<()> {
     eprintln!("╔══════════════════════════════════════════╗");
     eprintln!("║   Vox Train — Candle QLoRA (NF4)        ║");
     eprintln!("╚══════════════════════════════════════════╝");
-    eprintln!("  Model:       {}", model.as_deref().unwrap_or("(none — scratch)"));
+    eprintln!(
+        "  Model:       {}",
+        model.as_deref().unwrap_or("(none — scratch)")
+    );
     eprintln!("  Device:      {device}");
     eprintln!("  Data:        {}", data_dir.display());
     eprintln!("  Output:      {}", output_dir.display());
     eprintln!("  Rank/Alpha:  {rank}/{alpha}");
-    eprintln!("  Batch/Accum: {}/{} (eff={})", profile.batch_size, profile.grad_accum, profile.batch_size * profile.grad_accum);
+    eprintln!(
+        "  Batch/Accum: {}/{} (eff={})",
+        profile.batch_size,
+        profile.grad_accum,
+        profile.batch_size * profile.grad_accum
+    );
     eprintln!("  Seq len:     {}", profile.seq_len);
-    if let Some(ref r) = resume { eprintln!("  Resume:      {}", r.display()); }
+    if let Some(ref r) = resume {
+        eprintln!("  Resume:      {}", r.display());
+    }
     eprintln!();
 
     // ── Assemble LoraTrainingConfig and dispatch ───────────────────────────────
@@ -275,10 +303,12 @@ fn spawn_background(log_dir: Option<PathBuf>) -> Result<()> {
     let exe = std::env::current_exe()?;
     use std::process::Stdio;
     let mut cmd = std::process::Command::new(&exe);
-    for a in &args { cmd.arg(a); }
+    for a in &args {
+        cmd.arg(a);
+    }
     cmd.stdin(Stdio::null())
-       .stdout(Stdio::from(log_file.try_clone()?))
-       .stderr(Stdio::from(log_file));
+        .stdout(Stdio::from(log_file.try_clone()?))
+        .stderr(Stdio::from(log_file));
 
     #[cfg(windows)]
     {
@@ -287,7 +317,11 @@ fn spawn_background(log_dir: Option<PathBuf>) -> Result<()> {
     }
 
     let child = cmd.spawn()?;
-    eprintln!("✓ Training started in background. PID: {}. Log: {}", child.id(), log_path.display());
+    eprintln!(
+        "✓ Training started in background. PID: {}. Log: {}",
+        child.id(),
+        log_path.display()
+    );
     eprintln!("  Tail with: Get-Content {} -Wait", log_path.display());
     Ok(())
 }

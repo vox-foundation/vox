@@ -131,7 +131,10 @@ pub fn validate_train_preflight(
 ) -> anyhow::Result<ResolvedTrainInput> {
     let resolved = if let Some(override_path) = contract_override {
         if !override_path.is_file() {
-            anyhow::bail!("Training contract override `{}` does not exist.", override_path.display());
+            anyhow::bail!(
+                "Training contract override `{}` does not exist.",
+                override_path.display()
+            );
         }
         let n = count_nonempty_lines(override_path).ok();
         ResolvedTrainInput {
@@ -142,7 +145,7 @@ pub fn validate_train_preflight(
     } else {
         resolve_train_input(data_dir, workspace_root)?
     };
-    
+
     let count = resolved.sample_count.unwrap_or(0);
     if count == 0 {
         anyhow::bail!(

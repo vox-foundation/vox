@@ -12,9 +12,9 @@
 //! source files. If any watched file changes, the corpus is considered stale.
 //! The fingerprint is stored in Arca V18 `corpus_snapshots` table.
 
-use xxhash_rust::xxh3::xxh3_64;
-use std::path::{Path, PathBuf};
 use anyhow::Result;
+use std::path::{Path, PathBuf};
+use xxhash_rust::xxh3::xxh3_64;
 
 // ── Watched file list ────────────────────────────────────────────────────────
 
@@ -112,7 +112,8 @@ pub fn compact_variant(prompt: &str, pretty_response: &str, category: &str) -> S
         "category": format!("{category}_compact"),
         "format": "vox_organic_compact",
         "schema_version": "vox_dogfood_v1",
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ── Multi-turn conversation generator ────────────────────────────────────────
@@ -128,64 +129,127 @@ pub struct Turn {
 
 /// Generate a 3-turn iterative refinement conversation for a given Vox construct type.
 /// Turn 1: create it, Turn 2: add error handling with real Result[T], Turn 3: production-ready.
-pub fn gen_multiturn_vox(construct: &str, name: &str, base_code: &str, template_idx: usize) -> Vec<Turn> {
+pub fn gen_multiturn_vox(
+    construct: &str,
+    name: &str,
+    base_code: &str,
+    template_idx: usize,
+) -> Vec<Turn> {
     match template_idx % 4 {
         0 => vec![
-            Turn { role: "user", content: format!("Write a Vox {construct} called `{name}`") },
-            Turn { role: "assistant", content: base_code.to_string() },
-            Turn { role: "user", content: format!("Add error handling and logging to `{name}`") },
-            Turn { role: "assistant", content: format!(
-                "// Error handling via Result[T] — null is banned\n\
+            Turn {
+                role: "user",
+                content: format!("Write a Vox {construct} called `{name}`"),
+            },
+            Turn {
+                role: "assistant",
+                content: base_code.to_string(),
+            },
+            Turn {
+                role: "user",
+                content: format!("Add error handling and logging to `{name}`"),
+            },
+            Turn {
+                role: "assistant",
+                content: format!(
+                    "// Error handling via Result[T] — null is banned\n\
                  @traced\n\
                  fn {name}(x: int) -> Result[str]:\n\
                      if x < 0:\n\
                          ret Err(\"invalid: x must be non-negative\")\n\
                      ret Ok(\"done\")"
-            )},
-            Turn { role: "user", content: format!("Add a @test for `{name}` covering the error case") },
-            Turn { role: "assistant", content: format!(
-                "@test\n\
+                ),
+            },
+            Turn {
+                role: "user",
+                content: format!("Add a @test for `{name}` covering the error case"),
+            },
+            Turn {
+                role: "assistant",
+                content: format!(
+                    "@test\n\
                  fn test_{name}_rejects_negative() -> Unit:\n\
                      let result = {name}(-1)\n\
                      match result:\n\
                          Err(msg) -> assert(msg.contains(\"invalid\"))\n\
                          Ok(_) -> fail(\"expected error\")"
-            )},
+                ),
+            },
         ],
         1 => vec![
-            Turn { role: "user", content: format!("I have this {construct} called `{name}`. Explain how it works:\n```vox\n{base_code}\n```") },
-            Turn { role: "assistant", content: format!("This Vox {construct} named `{name}` initializes and manages state. It uses strong typing and explicit error handling via Option[T]/Result[T] — null is never used.") },
-            Turn { role: "user", content: "Can you refactor it to be more performant?".to_string() },
-            Turn { role: "assistant", content: format!(
-                "// Refactored: inlined hot path, removed intermediate allocations\n\
+            Turn {
+                role: "user",
+                content: format!(
+                    "I have this {construct} called `{name}`. Explain how it works:\n```vox\n{base_code}\n```"
+                ),
+            },
+            Turn {
+                role: "assistant",
+                content: format!(
+                    "This Vox {construct} named `{name}` initializes and manages state. It uses strong typing and explicit error handling via Option[T]/Result[T] — null is never used."
+                ),
+            },
+            Turn {
+                role: "user",
+                content: "Can you refactor it to be more performant?".to_string(),
+            },
+            Turn {
+                role: "assistant",
+                content: format!(
+                    "// Refactored: inlined hot path, removed intermediate allocations\n\
                  @inline\n\
                  fn {name}(x: int) -> Result[str]:\n\
                      if x < 0: ret Err(\"invalid\")\n\
                      ret Ok(\"done\")"
-            )},
+                ),
+            },
         ],
         2 => vec![
-            Turn { role: "user", content: format!("Create a {construct} named `{name}`.") },
-            Turn { role: "assistant", content: base_code.to_string() },
-            Turn { role: "user", content: "Now make it return Option[T] for the absent case.".to_string() },
-            Turn { role: "assistant", content: format!(
-                "// Option[T] exhaustive match\n\
+            Turn {
+                role: "user",
+                content: format!("Create a {construct} named `{name}`."),
+            },
+            Turn {
+                role: "assistant",
+                content: base_code.to_string(),
+            },
+            Turn {
+                role: "user",
+                content: "Now make it return Option[T] for the absent case.".to_string(),
+            },
+            Turn {
+                role: "assistant",
+                content: format!(
+                    "// Option[T] exhaustive match\n\
                  fn {name}(id: int) -> Option[str]:\n\
                      if id == 0: ret None\n\
                      ret Some(\"found\")"
-            )},
+                ),
+            },
         ],
         _ => vec![
-            Turn { role: "user", content: format!("Write a {construct} for `{name}`") },
-            Turn { role: "assistant", content: base_code.to_string() },
-            Turn { role: "user", content: "Add call-count tracking to it.".to_string() },
-            Turn { role: "assistant", content: format!(
-                "// Call tracking via actor state\n\
+            Turn {
+                role: "user",
+                content: format!("Write a {construct} for `{name}`"),
+            },
+            Turn {
+                role: "assistant",
+                content: base_code.to_string(),
+            },
+            Turn {
+                role: "user",
+                content: "Add call-count tracking to it.".to_string(),
+            },
+            Turn {
+                role: "assistant",
+                content: format!(
+                    "// Call tracking via actor state\n\
                  actor {name}Tracker:\n\
                      state count: int = 0\n\
                      on increment() -> Unit:\n\
                          self.count = self.count + 1"
-            )},
+                ),
+            },
         ],
     }
 }
@@ -195,12 +259,21 @@ pub fn gen_multiturn_vox(construct: &str, name: &str, base_code: &str, template_
 /// Always includes top-level `prompt` (first user turn) and `response` (first assistant turn)
 /// so every row satisfies the uniform schema contract checked by corpus validation tools.
 pub fn multiturn_to_jsonl(turns: &[Turn], category: &str) -> String {
-    let messages: Vec<serde_json::Value> = turns.iter().map(|t| {
-        serde_json::json!({"role": t.role, "content": t.content})
-    }).collect();
+    let messages: Vec<serde_json::Value> = turns
+        .iter()
+        .map(|t| serde_json::json!({"role": t.role, "content": t.content}))
+        .collect();
     // Extract first user and first assistant turn for the required top-level prompt/response fields.
-    let prompt = turns.iter().find(|t| t.role == "user").map(|t| t.content.as_str()).unwrap_or("");
-    let response = turns.iter().find(|t| t.role == "assistant").map(|t| t.content.as_str()).unwrap_or("");
+    let prompt = turns
+        .iter()
+        .find(|t| t.role == "user")
+        .map(|t| t.content.as_str())
+        .unwrap_or("");
+    let response = turns
+        .iter()
+        .find(|t| t.role == "assistant")
+        .map(|t| t.content.as_str())
+        .unwrap_or("");
     serde_json::json!({
         "prompt": prompt,
         "response": response,
@@ -208,7 +281,8 @@ pub fn multiturn_to_jsonl(turns: &[Turn], category: &str) -> String {
         "category": category,
         "format": "multiturn_chat",
         "schema_version": "vox_dogfood_v1",
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ── Error → Fix pair generator ────────────────────────────────────────────────
@@ -242,30 +316,35 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
         BrokenKind::MissingReturnArrow => {
             let broken = src.replace("-> ", "");
             let explanation = "Missing `->` return type arrow in function signature. \
-                               Vox requires explicit return type annotations.".to_string();
+                               Vox requires explicit return type annotations."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::UnclosedBrace => {
             let broken = if src.contains('{') {
                 let mut s = src.to_string();
-                if let Some(pos) = s.rfind('}') { s.remove(pos); }
+                if let Some(pos) = s.rfind('}') {
+                    s.remove(pos);
+                }
                 s
-            } else { src.to_string() };
+            } else {
+                src.to_string()
+            };
             let explanation = "Unclosed brace `{`. Every `{` must have a matching `}`.".to_string();
             (broken, explanation)
         }
         BrokenKind::KeywordTypo => {
-            let broken = src
-                .replace("fn ", "fun ")
-                .replace("actor ", "actr ");
+            let broken = src.replace("fn ", "fun ").replace("actor ", "actr ");
             let explanation = "Keyword typo: `fun` → `fn`, `actr` → `actor`. \
-                               Vox keywords are exact.".to_string();
+                               Vox keywords are exact."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::MissingRet => {
             let broken = src.replace("    ret ", "    ");
             let explanation = "Missing `ret` keyword. Vox uses explicit `ret` for returns, \
-                               not bare expressions.".to_string();
+                               not bare expressions."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::WrongType => {
@@ -273,13 +352,15 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
                 .replace(": int", ": integer")
                 .replace(": str", ": string");
             let explanation = "Wrong type names: `integer` → `int`, `string` → `str`. \
-                               Vox primitive types are: `int`, `str`, `bool`, `float`.".to_string();
+                               Vox primitive types are: `int`, `str`, `bool`, `float`."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::MissingToUnit => {
             let broken = src.replace(" -> Unit", "");
             let explanation = "Missing `-> Unit` return type. Functions that perform side-effects \
-                               but return no value must explicitly declare `-> Unit`.".to_string();
+                               but return no value must explicitly declare `-> Unit`."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::TypeMismatch => {
@@ -289,36 +370,41 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
         }
         BrokenKind::OptionUnwrapMissing => {
             let broken = src.replace("Some(", "").replace(")", "");
-            let explanation = "Attempting to use `Option[T]` as `T` directly without unwrap or matching.".to_string();
+            let explanation =
+                "Attempting to use `Option[T]` as `T` directly without unwrap or matching."
+                    .to_string();
             (broken, explanation)
         }
         BrokenKind::BadReturnType => {
             let broken = src.replace("-> ", "returns ");
-            let explanation = "Invalid return type syntax: use `->` instead of `returns`.".to_string();
+            let explanation =
+                "Invalid return type syntax: use `->` instead of `returns`.".to_string();
             (broken, explanation)
         }
         BrokenKind::UnresolvedGenericArity => {
             // Replace `List[int]` with `List[]` — missing type argument
-            let broken = src.replace("List[int]", "List[]").replace("Option[str]", "Option[]");
+            let broken = src
+                .replace("List[int]", "List[]")
+                .replace("Option[str]", "Option[]");
             let explanation = "Generic type `List` requires exactly one type argument. \
-                               `List[]` is invalid — use `List[int]`, `List[str]`, etc.".to_string();
+                               `List[]` is invalid — use `List[int]`, `List[str]`, etc."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::InferenceAmbiguity => {
             // Create a branch where types differ — int vs str
             let broken = src.replace("ret 0", "ret if true { 0 } else { \"zero\" }");
             let explanation = "Inference ambiguity: `if` branches return `int` and `str`. \
-                               Both arms of an `if` expression must return the same type.".to_string();
+                               Both arms of an `if` expression must return the same type."
+                .to_string();
             (broken, explanation)
         }
         BrokenKind::UnreachableMatchArm => {
             // Add an arm after a wildcard
-            let broken = src.replace(
-                "_ => false",
-                "_ => false\n        true => false",
-            );
+            let broken = src.replace("_ => false", "_ => false\n        true => false");
             let explanation = "`true => false` is unreachable — the `_` wildcard arm above it \
-                               captures all remaining cases. Remove the dead arm or reorder.".to_string();
+                               captures all remaining cases. Remove the dead arm or reorder."
+                .to_string();
             (broken, explanation)
         }
     }
@@ -332,7 +418,8 @@ pub fn error_fix_to_jsonl(broken: &str, explanation: &str, fixed: &str, category
         "category": format!("{category}_error_fix"),
         "format": "error_fix",
         "schema_version": "vox_dogfood_v1",
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ── Architectural Q&A generator ───────────────────────────────────────────────
@@ -347,87 +434,87 @@ pub const ARCHITECTURAL_PAIRS: &[(&str, &str)] = &[
          (e.g., a session, connection pool, or real-time feed). \
          Use `workflow` for durable, retryable multi-step processes \
          (e.g., order fulfillment, document processing, scheduled jobs). \
-         Key difference: workflows checkpoint state, actors hold it in memory."
+         Key difference: workflows checkpoint state, actors hold it in memory.",
     ),
     (
         "What is the difference between `@query` and `@mutation` in Vox?",
         "`@query` marks read-only database operations — they are safe to cache and retry. \
          `@mutation` marks write operations — they invalidate caches and are idempotent-safe. \
-         Use `@query` for SELECT-equivalent operations, `@mutation` for INSERT/UPDATE/DELETE."
+         Use `@query` for SELECT-equivalent operations, `@mutation` for INSERT/UPDATE/DELETE.",
     ),
     (
         "When should I use an `island` vs a regular `component` in Vox?",
         "`component` renders server-side by default — zero client JavaScript. \
          `island` renders client-side with interactivity (hooks, event handlers). \
          Use `component` for static content; use `island` only when you need \
-         client-side state or DOM events."
+         client-side state or DOM events.",
     ),
     (
         "What is the difference between `@mcp.tool` and `@skill` in Vox?",
         "`@mcp.tool` exposes a function as an MCP tool callable by any agent or LLM via the protocol. \
          `@skill` marks a function as a learnable capability for the Mens model to acquire. \
-         Tools are protocol-level; skills are training-level."
+         Tools are protocol-level; skills are training-level.",
     ),
     (
         "Should I use `Option[T]` or `Result[T]` for fallible operations in Vox?",
         "Use `Option[T]` when absence is expected and normal (e.g., looking up a user by ID). \
          Use `Result[T]` when failure is exceptional and needs an error message \
          (e.g., network calls, parsing). \
-         Both lower to `undefined` on the TypeScript side, but `Result` carries an error variant."
+         Both lower to `undefined` on the TypeScript side, but `Result` carries an error variant.",
     ),
     (
         "When should I use `message` vs a direct function call between agents?",
         "Use `message` for durable, async, at-least-once delivery between agents — \
          when the receiver may be offline or when you need audit trails. \
          Use direct function calls for synchronous, co-located operations \
-         where latency matters and durability isn't needed."
+         where latency matters and durability isn't needed.",
     ),
     (
         "What is the right Vox construct for a recurring background job?",
         "Use `@scheduled(\"interval\")` on a function — e.g., `@scheduled(\"1h\")`. \
          The scheduler is built into the Vox runtime and requires no external cron. \
-         For complex multi-step scheduled work, wrap in a `workflow` for durability."
+         For complex multi-step scheduled work, wrap in a `workflow` for durability.",
     ),
     (
         "What is the difference between `@server` and `@action` in Vox?",
         "`@server` marks a function that always runs on the server side, invisible to client bundles. \
          `@action` is a server function triggered by client-side events — it's the Vox equivalent \
-         of Next.js Server Actions. Use `@server` for data access; `@action` for form/button handlers."
+         of Next.js Server Actions. Use `@server` for data access; `@action` for form/button handlers.",
     ),
     (
         "How do I model a state machine in Vox?",
         "Define a union type for your states: \
          `type OrderState = Pending | Processing(item: str) | Shipped(tracking: str) | Cancelled`. \
          Then use an `actor` with state of that type, and match on it in handlers. \
-         This gives you a compile-safe, exhaustive state machine."
+         This gives you a compile-safe, exhaustive state machine.",
     ),
     (
         "What is the compact (serialized) form of Vox code and when is it used?",
         "Vox code is fully serializable — all whitespace and newlines are optional. \
          Compact form: `fn add(a:int,b:int)->int{ret a+b}`. \
          Use compact form for: network transport, embedding in JSON payloads, \
-         LLM token efficiency. The parser handles both forms identically."
+         LLM token efficiency. The parser handles both forms identically.",
     ),
     (
         "How do I deploy a Vox application to production?",
         "Run `vox build --release` to compile to optimized native code. \
          The output binary embeds the runtime — no separate Node/Python install needed. \
          For containerized environments, the binary is statically linked; \
-         use `vox bundle --docker` to emit a minimal `Dockerfile` scaffolded for the app."
+         use `vox bundle --docker` to emit a minimal `Dockerfile` scaffolded for the app.",
     ),
     (
         "How do I monitor a running Vox actor in production?",
         "Actors expose built-in telemetry via `@traced` — add it to any `actor` or `fn`. \
          Connect your observability stack (Prometheus, OTEL) via `vox.config` \
          `[telemetry]` section. Use `vox populi status` to see live actor health, \
-         mailbox depth, and error rates across the distributed mens."
+         mailbox depth, and error rates across the distributed mens.",
     ),
     (
         "How does Vox handle TypeScript interop for frontend code?",
         "Vox generates typed TypeScript automatically from your `.vox` files. \
          Run `vox codegen ts --out ./src/vox.d.ts` to emit a `.d.ts` type file. \
          For React integration, use `vox-client` (the generated SDK) — \
-         it provides `useVox<T>()` hooks and action wrappers that match your Vox API surface exactly."
+         it provides `useVox<T>()` hooks and action wrappers that match your Vox API surface exactly.",
     ),
 ];
 
@@ -455,7 +542,11 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> Result<usize>
 /// Samples every `stride`-th entry to avoid overwhelming the JSONL with
 /// explanation pairs relative to generative pairs. Returns JSONL strings.
 pub fn gen_explain_pairs(
-    organic_code_samples: &[(/* prompt */ String, /* response / code */ String, /* category */ String)],
+    organic_code_samples: &[(
+        /* prompt */ String,
+        /* response / code */ String,
+        /* category */ String,
+    )],
     stride: usize,
 ) -> Vec<String> {
     let stride = stride.max(1);
@@ -476,7 +567,8 @@ pub fn gen_explain_pairs(
                 "category": format!("{category}_explain"),
                 "format": "explain_pair",
                 "schema_version": "vox_dogfood_v1",
-            }).to_string()
+            })
+            .to_string()
         })
         .collect()
 }
@@ -487,10 +579,7 @@ pub fn gen_explain_pairs(
 ///
 /// Each pair teaches the model to read a runtime panic or logic error and
 /// identify what went wrong, then suggest a fix.
-pub fn gen_debug_pairs(
-    organic_samples: &[(String, String, String)],
-    stride: usize,
-) -> Vec<String> {
+pub fn gen_debug_pairs(organic_samples: &[(String, String, String)], stride: usize) -> Vec<String> {
     let stride = stride.max(1);
     let runtime_errors = [
         (
@@ -534,7 +623,8 @@ pub fn gen_debug_pairs(
                 "category": format!("{category}_debug"),
                 "format": "debug_pair",
                 "schema_version": "vox_dogfood_v1",
-            }).to_string()
+            })
+            .to_string()
         })
         .collect()
 }
@@ -589,7 +679,8 @@ pub fn gen_refactor_pairs(
                 "category": format!("{category}_refactor"),
                 "format": "refactor_pair",
                 "schema_version": "vox_dogfood_v1",
-            }).to_string()
+            })
+            .to_string()
         })
         .collect()
 }

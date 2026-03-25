@@ -448,12 +448,12 @@ impl MemoryManager {
                 // 2. Upsert a knowledge_node for this fact
                 let _ = db
                     .upsert_knowledge_node(
-                        &k, 
-                        "fact", 
-                        &k, 
-                        Some(&format!("{{\"value\":\"{v}\"}}")), 
-                        m_url.as_deref(), 
-                        m_type.as_deref()
+                        &k,
+                        "fact",
+                        &k,
+                        Some(&format!("{{\"value\":\"{v}\"}}")),
+                        m_url.as_deref(),
+                        m_type.as_deref(),
                     )
                     .await;
 
@@ -661,10 +661,17 @@ impl MemoryManager {
         }
 
         let mut out = String::new();
-        
+
         // Temporal preamble
-        let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-        out.push_str(&format!("Current date: {}.\nCurrent timestamp: {}s.\n\n", today_str(), secs));
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        out.push_str(&format!(
+            "Current date: {}.\nCurrent timestamp: {}s.\n\n",
+            today_str(),
+            secs
+        ));
 
         // MEMORY.md
         if let Ok(mem) = self.long_term.read_all() {
@@ -913,8 +920,15 @@ mod tests {
         })
         .expect("create");
         mgr.log("fixed the parser bug").expect("log");
-        mgr.persist_fact(AgentId(1), "active_branch", "feat/parser-fix", &[], None, None)
-            .expect("persist");
+        mgr.persist_fact(
+            AgentId(1),
+            "active_branch",
+            "feat/parser-fix",
+            &[],
+            None,
+            None,
+        )
+        .expect("persist");
         let hits = mgr.search("parser").expect("search");
         assert!(!hits.is_empty(), "should find 'parser' in memory");
     }

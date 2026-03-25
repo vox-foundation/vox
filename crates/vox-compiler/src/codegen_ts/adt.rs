@@ -61,7 +61,11 @@ fn generate_adt(typedef: &HirTypeDef) -> String {
                 .iter()
                 .map(|(fname, ftype)| format!("{}: {}", fname, map_type_to_ts(ftype)))
                 .collect();
-            let fields: Vec<String> = variant.fields.iter().map(|(fname, _)| fname.clone()).collect();
+            let fields: Vec<String> = variant
+                .fields
+                .iter()
+                .map(|(fname, _)| fname.clone())
+                .collect();
             out.push_str(&format!(
                 "export const {} = ({}): {name} => ({{ _tag: \"{}\", {} }});\n",
                 variant.name,

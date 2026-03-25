@@ -53,9 +53,9 @@ pub fn layer_mlp_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> 
 pub fn layer_rope_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> {
     match arch {
         HfArchitecture::Gpt2 => vec![],
-        HfArchitecture::Qwen2 => vec![
-            format!("model.layers.{layer}.self_attn.rotary_emb.inv_freq"),
-        ],
+        HfArchitecture::Qwen2 => vec![format!(
+            "model.layers.{layer}.self_attn.rotary_emb.inv_freq"
+        )],
     }
 }
 

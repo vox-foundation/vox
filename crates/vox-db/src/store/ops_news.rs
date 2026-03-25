@@ -41,7 +41,11 @@ impl VoxDb {
     }
 
     /// Record a single approver for a news item id (idempotent per `(news_id, approver)`).
-    pub async fn record_news_approval(&self, news_id: &str, approver: &str) -> Result<(), StoreError> {
+    pub async fn record_news_approval(
+        &self,
+        news_id: &str,
+        approver: &str,
+    ) -> Result<(), StoreError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -66,9 +70,7 @@ impl VoxDb {
         let row = rows
             .first()
             .ok_or_else(|| StoreError::Db("approval count: no row".into()))?;
-        let v: i64 = row
-            .get(0)
-            .map_err(|e| StoreError::Db(e.to_string()))?;
+        let v: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
         Ok(v)
     }
 

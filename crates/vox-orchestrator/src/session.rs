@@ -239,7 +239,8 @@ impl Session {
 
     /// Seconds since the last expensive operation in this session, if any.
     pub fn expensive_op_age_secs(&self) -> Option<u64> {
-        self.last_expensive_op_at.map(|t| now_secs().saturating_sub(t))
+        self.last_expensive_op_at
+            .map(|t| now_secs().saturating_sub(t))
     }
 
     /// Produces a summary string summarizing temporal freshness of the session.
@@ -249,7 +250,10 @@ impl Session {
             .expensive_op_age_secs()
             .map(|s| format!("{}s ago", s))
             .unwrap_or_else(|| "never".to_string());
-        format!("Session active. Last user interaction: {}s ago. Last expensive operation (compile/index): {}.", idle, exp)
+        format!(
+            "Session active. Last user interaction: {}s ago. Last expensive operation (compile/index): {}.",
+            idle, exp
+        )
     }
 }
 
@@ -719,10 +723,19 @@ impl SessionManager {
     pub async fn load(&mut self, session_id: &str) -> Result<(), SessionError> {
         if let Some(db) = &self.db {
             let db = db.clone();
-            let session_rows = db.list_active_sessions().await
-                .map_err(|e: vox_db::StoreError| SessionError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-            
-            if let Some((_, agent_id_str, _)) = session_rows.iter().find(|(sid, _, _)| sid == session_id) {
+            let session_rows =
+                db.list_active_sessions()
+                    .await
+                    .map_err(|e: vox_db::StoreError| {
+                        SessionError::Io(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            e.to_string(),
+                        ))
+                    })?;
+
+            if let Some((_, agent_id_str, _)) =
+                session_rows.iter().find(|(sid, _, _)| sid == session_id)
+            {
                 let aid = agent_id_str.parse::<AgentId>().unwrap_or(AgentId(0));
                 let mut session = Session {
                     id: session_id.to_string(),
@@ -738,11 +751,19 @@ impl SessionManager {
                     total_tokens: 0,
                 };
 
-                let events = db.load_session_events(session_id).await
-                    .map_err(|e: vox_db::StoreError| SessionError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-                
+                let events =
+                    db.load_session_events(session_id)
+                        .await
+                        .map_err(|e: vox_db::StoreError| {
+                            SessionError::Io(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                e.to_string(),
+                            ))
+                        })?;
+
                 for (_etype, payload_json) in events {
-                    let event: SessionEvent = serde_json::from_str(&payload_json).map_err(SessionError::Serialize)?;
+                    let event: SessionEvent =
+                        serde_json::from_str(&payload_json).map_err(SessionError::Serialize)?;
                     self.apply_event_to_session(&mut session, event);
                 }
 
@@ -758,12 +779,26 @@ impl SessionManager {
     /// Helper to apply an event to a session object.
     fn apply_event_to_session(&self, s: &mut Session, event: SessionEvent) {
         match event {
-            SessionEvent::Created { created_at, agent_id, .. } => {
+            SessionEvent::Created {
+                created_at,
+                agent_id,
+                ..
+            } => {
                 s.created_at = created_at;
                 s.agent_id = AgentId(agent_id);
             }
-            SessionEvent::TurnAdded { role, content, tokens, at } => {
-                s.turns.push(SessionTurn { role, content, tokens, at });
+            SessionEvent::TurnAdded {
+                role,
+                content,
+                tokens,
+                at,
+            } => {
+                s.turns.push(SessionTurn {
+                    role,
+                    content,
+                    tokens,
+                    at,
+                });
                 s.turn_count += 1;
                 s.total_tokens += tokens;
                 s.last_active = at;
@@ -776,7 +811,11 @@ impl SessionManager {
                 s.meta.insert(key, value);
                 s.last_active = at;
             }
-            SessionEvent::PluginStateUpdated { plugin_id, state, at } => {
+            SessionEvent::PluginStateUpdated {
+                plugin_id,
+                state,
+                at,
+            } => {
                 s.plugin_state.insert(plugin_id, state);
                 s.last_active = at;
             }

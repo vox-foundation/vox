@@ -22,17 +22,23 @@ impl crate::orchestrator::Orchestrator {
         let desc = description.into();
         // Fast path: no paths to snapshot (zero-cost in tests and read-only routes).
         if paths.is_empty() {
-            return crate::sync_lock::rw_write(&*self.snapshot_store)
-                .take_snapshot(agent_id, &[], &desc);
+            return crate::sync_lock::rw_write(&*self.snapshot_store).take_snapshot(
+                agent_id,
+                &[],
+                &desc,
+            );
         }
-        let snap_id = crate::sync_lock::rw_write(&*self.snapshot_store).take_snapshot(agent_id, paths, &desc);
+        let snap_id =
+            crate::sync_lock::rw_write(&*self.snapshot_store).take_snapshot(agent_id, paths, &desc);
 
         // Only attempt CAS upload if a DB is attached (never in tests).
         let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
         if let Some(db) = db_opt {
             for p in paths {
                 // Skip non-existent files (relative paths in tests, missing artifacts).
-                if !p.exists() { continue; }
+                if !p.exists() {
+                    continue;
+                }
                 if let Ok(data) = std::fs::read(p) {
                     let _ = db.store("file", &data).await;
                 }
@@ -108,11 +114,9 @@ impl crate::orchestrator::Orchestrator {
         if let Some(db_id) = db_snap {
             let db_opt = crate::sync_lock::rw_read(&self.db).clone();
             if let Some(db) = db_opt {
-                db.restore_db_snapshot(db_id)
-                    .await
-                    .map_err(|e| {
-                        OrchestratorError::DatabaseError(format!("Undo: DB restore failed: {}", e))
-                    })?;
+                db.restore_db_snapshot(db_id).await.map_err(|e| {
+                    OrchestratorError::DatabaseError(format!("Undo: DB restore failed: {}", e))
+                })?;
             }
         }
 
@@ -138,11 +142,9 @@ impl crate::orchestrator::Orchestrator {
         if let Some(db_id) = db_snap {
             let db_opt = crate::sync_lock::rw_read(&self.db).clone();
             if let Some(db) = db_opt {
-                db.restore_db_snapshot(db_id)
-                    .await
-                    .map_err(|e| {
-                        OrchestratorError::DatabaseError(format!("Redo: DB restore failed: {}", e))
-                    })?;
+                db.restore_db_snapshot(db_id).await.map_err(|e| {
+                    OrchestratorError::DatabaseError(format!("Redo: DB restore failed: {}", e))
+                })?;
             }
         }
 

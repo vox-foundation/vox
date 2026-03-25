@@ -184,7 +184,10 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
 
 /// Mark a task as completed, releasing its file locks (async).
 pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> String {
-    let res = state.orchestrator.complete_task(TaskId(params.task_id)).await;
+    let res = state
+        .orchestrator
+        .complete_task(TaskId(params.task_id))
+        .await;
 
     match res {
         Ok(()) => {
@@ -212,7 +215,10 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
 
 /// Mark a task as failed with a reason (async).
 pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
-    let res = state.orchestrator.fail_task(TaskId(params.task_id), params.reason).await;
+    let res = state
+        .orchestrator
+        .fail_task(TaskId(params.task_id), params.reason)
+        .await;
 
     match res {
         Ok(()) => {

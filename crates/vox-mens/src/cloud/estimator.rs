@@ -13,7 +13,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-
 use super::{CONSERVATIVE_MS_PER_STEP, normalize_gpu_name};
 
 // Re-exporting from preset_schema for back-compat/organization
@@ -73,7 +72,8 @@ impl TimeEstimator {
             .map_err(|e| anyhow::anyhow!("gpu-specs.yaml parse error: {e}"))?;
 
         // Normalize all YAML keys to canonical form
-        let specs: HashMap<String, GpuSpec> = parsed.gpus
+        let specs: HashMap<String, GpuSpec> = parsed
+            .gpus
             .into_iter()
             .map(|(k, v): (String, GpuSpec)| (normalize_gpu_name(&k), v))
             .collect();
@@ -85,7 +85,11 @@ impl TimeEstimator {
             })
             .collect();
 
-        Ok(Self { specs, profiles: profile_map, presets: parsed.presets })
+        Ok(Self {
+            specs,
+            profiles: profile_map,
+            presets: parsed.presets,
+        })
     }
 
     /// Estimate training time in seconds plus provenance.
@@ -119,26 +123,39 @@ impl TimeEstimator {
         let target_tflops = self.specs.get(&norm).map(|s| s.fp16_tflops).unwrap_or(0.0);
         if target_tflops > 0.0 {
             // Prefer exact seq+batch match
-            if let Some(((base_gpu, _, _), &base_ms)) = self.profiles.iter()
+            if let Some(((base_gpu, _, _), &base_ms)) = self
+                .profiles
+                .iter()
                 .find(|((_, s, b), _)| *s == seq_len && *b == batch_size)
             {
-                let base_tflops = self.specs.get(base_gpu).map(|s| s.fp16_tflops).unwrap_or(0.0);
+                let base_tflops = self
+                    .specs
+                    .get(base_gpu)
+                    .map(|s| s.fp16_tflops)
+                    .unwrap_or(0.0);
                 if base_tflops > 0.0 {
                     let ratio = base_tflops / target_tflops;
                     return (
                         total_steps as f64 * base_ms * ratio / 1000.0,
-                        EstimateSource::TflopsScaled { from_gpu: base_gpu.clone(), ratio },
+                        EstimateSource::TflopsScaled {
+                            from_gpu: base_gpu.clone(),
+                            ratio,
+                        },
                     );
                 }
             }
 
             // Fuzzy fallback: closest by edit distance + param distance
-            if let Some(((base_gpu, _, _), &base_ms)) = self.profiles.iter()
-                .min_by_key(|((g, s, b), _)| {
+            if let Some(((base_gpu, _, _), &base_ms)) =
+                self.profiles.iter().min_by_key(|((g, s, b), _)| {
                     edit_distance(g, &norm) * 1000 + s.abs_diff(seq_len) + b.abs_diff(batch_size)
                 })
             {
-                let base_tflops = self.specs.get(base_gpu).map(|s| s.fp16_tflops).unwrap_or(0.0);
+                let base_tflops = self
+                    .specs
+                    .get(base_gpu)
+                    .map(|s| s.fp16_tflops)
+                    .unwrap_or(0.0);
                 if base_tflops > 0.0 {
                     let ratio = base_tflops / target_tflops;
                     return (
@@ -182,12 +199,19 @@ fn edit_distance(a: &str, b: &str) -> usize {
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
     let mut dp = vec![vec![0usize; b.len() + 1]; a.len() + 1];
-    for i in 0..=a.len() { dp[i][0] = i; }
-    for j in 0..=b.len() { dp[0][j] = j; }
+    for i in 0..=a.len() {
+        dp[i][0] = i;
+    }
+    for j in 0..=b.len() {
+        dp[0][j] = j;
+    }
     for i in 1..=a.len() {
         for j in 1..=b.len() {
-            dp[i][j] = if a[i - 1] == b[j - 1] { dp[i - 1][j - 1] }
-            else { 1 + dp[i - 1][j - 1].min(dp[i - 1][j]).min(dp[i][j - 1]) };
+            dp[i][j] = if a[i - 1] == b[j - 1] {
+                dp[i - 1][j - 1]
+            } else {
+                1 + dp[i - 1][j - 1].min(dp[i - 1][j]).min(dp[i][j - 1])
+            };
         }
     }
     dp[a.len()][b.len()]
@@ -198,10 +222,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn edit_distance_same() { assert_eq!(edit_distance("abc", "abc"), 0); }
+    fn edit_distance_same() {
+        assert_eq!(edit_distance("abc", "abc"), 0);
+    }
 
     #[test]
-    fn edit_distance_one_insert() { assert_eq!(edit_distance("abc", "abcd"), 1); }
+    fn edit_distance_one_insert() {
+        assert_eq!(edit_distance("abc", "abcd"), 1);
+    }
 
     #[test]
     fn estimator_conservative_with_no_data() {
@@ -220,7 +248,11 @@ mod tests {
     fn estimator_exact_profile() {
         let mut profiles = HashMap::new();
         profiles.insert(("rtx 4080 super".to_string(), 512, 1), 50.0); // 50 ms/step
-        let est = TimeEstimator { specs: HashMap::new(), profiles, presets: HashMap::new() };
+        let est = TimeEstimator {
+            specs: HashMap::new(),
+            profiles,
+            presets: HashMap::new(),
+        };
         let (secs, source) = est.estimate("NVIDIA GeForce RTX 4080 SUPER", 512, 1, 100, 1);
         // 100 steps × 50ms = 5s
         assert!((secs - 5.0).abs() < 0.1, "{secs}");

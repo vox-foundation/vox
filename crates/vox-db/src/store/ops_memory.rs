@@ -8,7 +8,6 @@
 
 use turso::params;
 
-
 use crate::store::types::{EmbeddingEntry, MemoryEntry, SaveMemoryParams, StoreError};
 
 impl crate::VoxDb {
@@ -297,9 +296,7 @@ impl crate::VoxDb {
                 sim,
             ));
         }
-        scored.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(lim as usize);
         Ok(scored)
     }

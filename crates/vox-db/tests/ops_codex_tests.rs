@@ -1,5 +1,5 @@
-use vox_db::VoxDb;
 use tempfile::tempdir;
+use vox_db::VoxDb;
 
 #[tokio::test]
 async fn test_skill_manifest_lifecycle() {
@@ -12,9 +12,16 @@ async fn test_skill_manifest_lifecycle() {
     let manifest = r#"{"name": "test"}"#;
     let md = "# Test Skill";
 
-    store.publish_skill(skill_id, version, manifest, md).await.unwrap();
-    
-    let retrieved = store.get_skill_manifest(skill_id).await.unwrap().expect("Manifest should exist");
+    store
+        .publish_skill(skill_id, version, manifest, md)
+        .await
+        .unwrap();
+
+    let retrieved = store
+        .get_skill_manifest(skill_id)
+        .await
+        .unwrap()
+        .expect("Manifest should exist");
     assert_eq!(retrieved.version, version);
 
     let list = store.list_skill_manifests().await.unwrap();
@@ -30,8 +37,14 @@ async fn test_codex_change_log_playback() {
     let db_path = dir.path().join("test.db");
     let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
 
-    store.append_codex_change("docs", Some("file"), Some("README.md"), "update", None).await.unwrap();
-    store.append_codex_change("docs", Some("file"), Some("TODO.md"), "create", None).await.unwrap();
+    store
+        .append_codex_change("docs", Some("file"), Some("README.md"), "update", None)
+        .await
+        .unwrap();
+    store
+        .append_codex_change("docs", Some("file"), Some("TODO.md"), "create", None)
+        .await
+        .unwrap();
 
     let changes = store.list_codex_changes_since(None, 0, 10).await.unwrap();
     assert_eq!(changes.len(), 2);
@@ -45,9 +58,15 @@ async fn test_research_metrics_telemetry() {
     let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
 
     let session_id = "research_1";
-    store.append_research_metric(session_id, "socrates_trust", Some(0.95), None).await.unwrap();
+    store
+        .append_research_metric(session_id, "socrates_trust", Some(0.95), None)
+        .await
+        .unwrap();
 
-    let metrics = store.list_research_metrics_by_type("socrates_trust", "research", 10).await.unwrap();
+    let metrics = store
+        .list_research_metrics_by_type("socrates_trust", "research", 10)
+        .await
+        .unwrap();
     assert_eq!(metrics.len(), 1);
     assert_eq!(metrics[0].0, session_id);
     assert_eq!(metrics[0].1, 0.95);
@@ -63,10 +82,16 @@ async fn test_endpoint_reliability_ewma() {
     let model = "gpt-4";
 
     // First observation
-    store.record_endpoint_observation(url, model, 0.0, 0.0, 0.0, false, false).await.unwrap();
-    
+    store
+        .record_endpoint_observation(url, model, 0.0, 0.0, 0.0, false, false)
+        .await
+        .unwrap();
+
     // An error observation (infra failure)
-    store.record_endpoint_observation(url, model, 0.0, 0.0, 1.0, true, false).await.unwrap();
+    store
+        .record_endpoint_observation(url, model, 0.0, 0.0, 1.0, true, false)
+        .await
+        .unwrap();
 
     let list = store.list_endpoint_reliability(10).await.unwrap();
     assert_eq!(list.len(), 1);

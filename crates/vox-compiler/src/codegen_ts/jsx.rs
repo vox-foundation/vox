@@ -147,7 +147,7 @@ fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
     }
 }
 
-/// Helper to unwrap a single expression block created by { }. 
+/// Helper to unwrap a single expression block created by { }.
 fn unwrap_block(expr: &Expr) -> &Expr {
     if let Expr::Block { stmts, .. } = expr {
         if stmts.len() == 1 {

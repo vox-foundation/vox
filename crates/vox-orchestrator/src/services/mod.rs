@@ -25,10 +25,10 @@
 //!   Call before enqueueing to fail fast and emit scope violation events.
 
 pub mod gateway;
+pub mod news;
 pub mod policy;
 pub mod routing;
 pub mod scaling;
-pub mod news;
 
 pub mod embeddings;
 

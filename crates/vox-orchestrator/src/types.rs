@@ -510,7 +510,8 @@ impl AgentTask {
 
     /// Milliseconds since the last expensive operation in this task, if any.
     pub fn elapsed_since_last_expensive_op_ms(&self) -> Option<u64> {
-        self.last_expensive_op_ms.map(|t| now_unix_ms().saturating_sub(t))
+        self.last_expensive_op_ms
+            .map(|t| now_unix_ms().saturating_sub(t))
     }
 }
 
@@ -1002,14 +1003,20 @@ mod tests {
         let mut task = AgentTask::new(TaskId(1), "test", TaskPriority::Normal, vec![]);
         assert!(task.started_at_ms.is_none(), "should not be started yet");
         task.start();
-        assert!(task.started_at_ms.is_some(), "start() must populate started_at_ms");
+        assert!(
+            task.started_at_ms.is_some(),
+            "start() must populate started_at_ms"
+        );
         let ts = task.started_at_ms.unwrap();
         // Timestamp should be within 5 seconds of now.
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
-        assert!(now.saturating_sub(ts) < 5_000, "started_at_ms should be recent");
+        assert!(
+            now.saturating_sub(ts) < 5_000,
+            "started_at_ms should be recent"
+        );
     }
 
     #[test]
@@ -1034,7 +1041,10 @@ mod tests {
         );
         let elapsed = msg.elapsed_ms();
         // In tests this should be ~0ms; tolerance of 1 second is generous.
-        assert!(elapsed < 1_000, "freshly created message should have elapsed < 1000ms, got {elapsed}");
+        assert!(
+            elapsed < 1_000,
+            "freshly created message should have elapsed < 1000ms, got {elapsed}"
+        );
     }
 
     #[test]
@@ -1046,6 +1056,9 @@ mod tests {
         task.start();
         let second = task.started_at_ms.unwrap();
         // Should be >= first (monotone clock).
-        assert!(second >= first, "second start should not go backward in time");
+        assert!(
+            second >= first,
+            "second start should not go backward in time"
+        );
     }
 }

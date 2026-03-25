@@ -7,8 +7,6 @@
 //! - [`super::ops_learning`]: behavioral learning, patterns, training data
 //! - [`super::ops_codex`]: codex reactivity, research graph, reliability, eval, corpus
 
-
-
 impl crate::VoxDb {
     /// Borrow the underlying libSQL connection.
     ///

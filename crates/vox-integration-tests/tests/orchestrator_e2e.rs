@@ -96,7 +96,13 @@ async fn e2e_context_sharing_across_agents() {
         "secret_value",
         10,
     );
-    let val = orch.context_store().read().unwrap().get("shared_var").expect("should exist").clone();
+    let val = orch
+        .context_store()
+        .read()
+        .unwrap()
+        .get("shared_var")
+        .expect("should exist")
+        .clone();
     assert_eq!(val, "secret_value");
 }
 

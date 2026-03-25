@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use std::collections::HashMap;
 
-
 use crate::sync_lock;
 use crate::types::AgentId;
 

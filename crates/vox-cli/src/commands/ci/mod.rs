@@ -4,6 +4,7 @@ mod command_compliance;
 mod line_endings;
 pub mod build_timings;
 mod check_links;
+mod release_build;
 
 use anyhow::{Context, Result, anyhow};
 use clap::{Subcommand, ValueEnum};
@@ -158,6 +159,19 @@ pub enum CiCmd {
     /// Fail if internal Markdown links are broken in `docs/src` or root-level guides.
     #[command(name = "check-links")]
     CheckLinks,
+    /// Build and package release artifacts for a target triple (binary + checksum manifest).
+    #[command(name = "release-build")]
+    ReleaseBuild {
+        /// Rust target triple (for example `x86_64-unknown-linux-gnu`).
+        #[arg(long)]
+        target: String,
+        /// Version tag used in artifact names (defaults to package version).
+        #[arg(long)]
+        version: Option<String>,
+        /// Output directory for packaged artifacts.
+        #[arg(long, default_value = "dist")]
+        out_dir: PathBuf,
+    },
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].
@@ -340,6 +354,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
         CiCmd::CheckLinks => check_links::run(&root),
+        CiCmd::ReleaseBuild {
+            target,
+            version,
+            out_dir,
+        } => release_build::run(&root, &target, version.as_deref(), &out_dir),
     }
 }
 

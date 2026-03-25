@@ -91,14 +91,29 @@ impl Qwen2Attention {
         let device = x.device();
 
         // Linear projections → [batch, seq, heads * head_dim]
-        let q = self.q_proj.forward(x).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
-        let k = self.k_proj.forward(x).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
-        let v = self.v_proj.forward(x).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+        let q = self
+            .q_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+        let k = self
+            .k_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+        let v = self
+            .v_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
 
         // Reshape to [batch, heads, seq, head_dim] for attention
-        let q = q.reshape((b, seq_len, self.n_heads, self.head_dim))?.transpose(1, 2)?;
-        let k = k.reshape((b, seq_len, self.n_kv_heads, self.head_dim))?.transpose(1, 2)?;
-        let v = v.reshape((b, seq_len, self.n_kv_heads, self.head_dim))?.transpose(1, 2)?;
+        let q = q
+            .reshape((b, seq_len, self.n_heads, self.head_dim))?
+            .transpose(1, 2)?;
+        let k = k
+            .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
+            .transpose(1, 2)?;
+        let v = v
+            .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
+            .transpose(1, 2)?;
 
         // Apply RoPE if frequency table provided
         let (q, k) = if let Some(inv_freq) = inv_freq {
@@ -133,14 +148,26 @@ impl Qwen2Attention {
             let att = att.broadcast_add(&mask)?;
             let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
             let y = att.matmul(&v.contiguous()?)?;
-            let y = y.transpose(1, 2)?.contiguous()?.reshape((b, seq_len, self.n_heads * self.head_dim))?;
-            self.o_proj.forward(&y).map_err(|e| candle_core::Error::Msg(e.to_string()))
+            let y = y.transpose(1, 2)?.contiguous()?.reshape((
+                b,
+                seq_len,
+                self.n_heads * self.head_dim,
+            ))?;
+            self.o_proj
+                .forward(&y)
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))
         } else {
             // Inference (single token): no mask needed
             let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
             let y = att.matmul(&v.contiguous()?)?;
-            let y = y.transpose(1, 2)?.contiguous()?.reshape((b, seq_len, self.n_heads * self.head_dim))?;
-            self.o_proj.forward(&y).map_err(|e| candle_core::Error::Msg(e.to_string()))
+            let y = y.transpose(1, 2)?.contiguous()?.reshape((
+                b,
+                seq_len,
+                self.n_heads * self.head_dim,
+            ))?;
+            self.o_proj
+                .forward(&y)
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))
         }
     }
 
@@ -182,9 +209,15 @@ impl Qwen2MLP {
     /// SwiGLU forward.
     pub fn forward(&self, x: &Tensor) -> Result<Tensor> {
         let lhs = candle_nn::ops::silu(
-            &self.gate_proj.forward(x).map_err(|e| candle_core::Error::Msg(e.to_string()))?,
+            &self
+                .gate_proj
+                .forward(x)
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))?,
         )?;
-        let rhs = self.up_proj.forward(x).map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+        let rhs = self
+            .up_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
         self.down_proj
             .forward(&(lhs * rhs)?)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))
@@ -218,7 +251,9 @@ impl Qwen2Layer {
         // Attention sub-layer with residual
         let residual = x;
         let h = self.input_layernorm.forward(x)?;
-        let h = self.self_attn.forward(&h, pos, self.inv_freq.as_ref(), kv_cache)?;
+        let h = self
+            .self_attn
+            .forward(&h, pos, self.inv_freq.as_ref(), kv_cache)?;
         let x = (residual + h)?;
 
         // MLP sub-layer with residual
@@ -253,7 +288,10 @@ impl Qwen2Model {
 
         // Token embeddings
         let ids = input_ids.flatten_all()?;
-        let mut x = self.embed_tokens.index_select(&ids, 0)?.reshape((b, seq_len, d_model))?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
 
         // Decoder layers (full-sequence training: pos=0)
         for layer in &self.layers {
@@ -262,7 +300,9 @@ impl Qwen2Model {
 
         // Final norm → LM head
         let x = self.norm.forward(&x)?;
-        self.lm_head.forward(&x).map_err(|e| candle_core::Error::Msg(e.to_string()))
+        self.lm_head
+            .forward(&x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))
     }
 
     /// Full causal language model forward with KV cache (inference).
@@ -277,7 +317,10 @@ impl Qwen2Model {
 
         // Token embeddings
         let ids = input_ids.flatten_all()?;
-        let mut x = self.embed_tokens.index_select(&ids, 0)?.reshape((b, seq_len, d_model))?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
 
         // Decoder layers
         for (i, layer) in self.layers.iter().enumerate() {
@@ -286,7 +329,9 @@ impl Qwen2Model {
 
         // Final norm → LM head
         let x = self.norm.forward(&x)?;
-        self.lm_head.forward(&x).map_err(|e| candle_core::Error::Msg(e.to_string()))
+        self.lm_head
+            .forward(&x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))
     }
 }
 
@@ -299,7 +344,9 @@ pub struct ForwardCache {
 impl ForwardCache {
     /// Initialize an empty cache for N layers.
     pub fn new(n_layers: usize) -> Self {
-        Self { kv: Vec::with_capacity(n_layers) }
+        Self {
+            kv: Vec::with_capacity(n_layers),
+        }
     }
 }
 
@@ -322,7 +369,10 @@ mod tests {
                 if col <= row {
                     assert_eq!(val, 0.0, "row={row} col={col} expected 0");
                 } else {
-                    assert!(val.is_infinite() && val < 0.0, "row={row} col={col} expected -inf got {val}");
+                    assert!(
+                        val.is_infinite() && val < 0.0,
+                        "row={row} col={col} expected -inf got {val}"
+                    );
                 }
             }
         }

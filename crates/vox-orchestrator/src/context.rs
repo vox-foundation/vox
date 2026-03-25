@@ -89,9 +89,8 @@ impl ContextStore {
             set_at: now,
             vcs_context,
         };
- 
-        crate::sync_lock::rw_write(&self.inner)
-            .insert(key.into(), entry);
+
+        crate::sync_lock::rw_write(&self.inner).insert(key.into(), entry);
     }
 
     /// Get a context value by key.
@@ -123,7 +122,8 @@ impl ContextStore {
 
     /// Age in seconds of a given context entry.
     pub fn age_secs(&self, key: &str) -> Option<u64> {
-        self.get_entry(key).map(|e| current_timestamp().saturating_sub(e.set_at))
+        self.get_entry(key)
+            .map(|e| current_timestamp().saturating_sub(e.set_at))
     }
 
     /// Check if the context entry is fresh (age <= max_age_secs).
@@ -170,7 +170,7 @@ mod tests {
         // Set with 2 seconds TTL to avoid immediate expiry due to rapid execution,
         // but simulate expiration via modifying the entry.
         store.set(AgentId(1), "exp", "val", 1);
- 
+
         {
             let mut map = sync_lock::rw_write(&*store.inner);
             map.get_mut("exp").unwrap().expires_at = current_timestamp() - 10;

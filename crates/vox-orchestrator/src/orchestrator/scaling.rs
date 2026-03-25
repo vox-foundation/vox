@@ -90,7 +90,8 @@ impl crate::orchestrator::Orchestrator {
                         if let Some(target_lock) = agents.get(under_id) {
                             let task_id = task.id;
                             crate::sync_lock::rw_write(&**target_lock).enqueue(task);
-                            crate::sync_lock::rw_write(&*self.task_assignments).insert(task_id, *under_id);
+                            crate::sync_lock::rw_write(&*self.task_assignments)
+                                .insert(task_id, *under_id);
                             moved += 1;
                         }
                     }
@@ -175,9 +176,10 @@ impl crate::orchestrator::Orchestrator {
         let now_ms = crate::types::now_unix_ms();
         let global_idle_ms = now_ms.saturating_sub(self.last_activity_ms());
         if global_idle_ms >= idle_timeout_ms {
-            self.event_bus.emit(crate::events::AgentEventKind::OrchestratorIdle {
-                idle_ms: global_idle_ms,
-            });
+            self.event_bus
+                .emit(crate::events::AgentEventKind::OrchestratorIdle {
+                    idle_ms: global_idle_ms,
+                });
             // We only log once at the threshold to avoid spamming every tick
             if global_idle_ms < idle_timeout_ms + 10_000 {
                 tracing::info!("Orchestrator has been idle for {}ms", global_idle_ms);
@@ -193,17 +195,24 @@ impl crate::orchestrator::Orchestrator {
                 let expired = queue.drain_timed_out(task_timeout);
                 for task in expired {
                     let age = now_ms.saturating_sub(task.created_at_ms);
-                    self.event_bus.emit(crate::events::AgentEventKind::TaskExpired {
-                        task_id: task.id,
+                    self.event_bus
+                        .emit(crate::events::AgentEventKind::TaskExpired {
+                            task_id: task.id,
+                            agent_id,
+                            age_ms: age,
+                        });
+                    tracing::warn!(
+                        "Task {} on agent {} expired (age: {}ms)",
+                        task.id,
                         agent_id,
-                        age_ms: age,
-                    });
-                    tracing::warn!("Task {} on agent {} expired (age: {}ms)", task.id, agent_id, age);
+                        age
+                    );
                 }
             }
         }
 
-        let stale_ids = crate::sync_lock::rw_write(&*self.heartbeat_monitor).check_stale(&self.event_bus);
+        let stale_ids =
+            crate::sync_lock::rw_write(&*self.heartbeat_monitor).check_stale(&self.event_bus);
         for (id, level) in stale_ids {
             let is_dynamic = crate::sync_lock::rw_read(&*self.dynamic_agents).contains(&id);
             if is_dynamic {
@@ -236,7 +245,10 @@ impl crate::orchestrator::Orchestrator {
             for (agent_id, prompt) in intents {
                 let agent_name = {
                     let agents = crate::sync_lock::rw_read(&*self.agents);
-                    agents.get(&agent_id).map(|q| crate::sync_lock::rw_read(&**q).name.clone()).unwrap_or_default()
+                    agents
+                        .get(&agent_id)
+                        .map(|q| crate::sync_lock::rw_read(&**q).name.clone())
+                        .unwrap_or_default()
                 };
                 let _ = self
                     .submit_task_with_agent(
@@ -266,7 +278,11 @@ impl crate::orchestrator::Orchestrator {
                         agents
                             .iter()
                             .map(|(id, q_lock)| {
-                                (*id, crate::sync_lock::rw_read(&**q_lock).depth_by_priority(crate::types::TaskPriority::Urgent))
+                                (
+                                    *id,
+                                    crate::sync_lock::rw_read(&**q_lock)
+                                        .depth_by_priority(crate::types::TaskPriority::Urgent),
+                                )
                             })
                             .filter(|(_, depth)| *depth > urgent_threshold)
                             .collect()

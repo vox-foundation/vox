@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
 //! Integration tests for vox-pm skill manifest and execution telemetry storage.
 
-use vox_db::VoxDb;
 use vox_db::SkillExecutionParams;
+use vox_db::VoxDb;
 
 async fn db() -> VoxDb {
     VoxDb::open_memory().await.expect("open_memory")
@@ -36,17 +36,29 @@ async fn publish_and_get_skill_manifest() {
 #[tokio::test]
 async fn publish_skill_is_idempotent_on_upsert() {
     let cs: VoxDb = db().await;
-    cs.publish_skill("vox.idem", "1.0.0", r#"{}"#, "# v1").await.expect("first");
-    cs.publish_skill("vox.idem", "1.0.0", r#"{}"#, "# v1 again").await.expect("second");
-    let e = cs.get_skill_manifest("vox.idem").await.expect("get").expect("present");
+    cs.publish_skill("vox.idem", "1.0.0", r#"{}"#, "# v1")
+        .await
+        .expect("first");
+    cs.publish_skill("vox.idem", "1.0.0", r#"{}"#, "# v1 again")
+        .await
+        .expect("second");
+    let e = cs
+        .get_skill_manifest("vox.idem")
+        .await
+        .expect("get")
+        .expect("present");
     assert_eq!(e.id, "vox.idem"); // no error on duplicate
 }
 
 #[tokio::test]
 async fn list_skill_manifests_returns_all_rows() {
     let cs: VoxDb = db().await;
-    cs.publish_skill("a", "1.0", r#"{}"#, "# A").await.expect("A");
-    cs.publish_skill("b", "2.0", r#"{}"#, "# B").await.expect("B");
+    cs.publish_skill("a", "1.0", r#"{}"#, "# A")
+        .await
+        .expect("A");
+    cs.publish_skill("b", "2.0", r#"{}"#, "# B")
+        .await
+        .expect("B");
     let all = cs.list_skill_manifests().await.expect("list");
     assert!(all.len() >= 2);
     assert!(all.iter().any(|e| e.id == "a"));
@@ -56,7 +68,9 @@ async fn list_skill_manifests_returns_all_rows() {
 #[tokio::test]
 async fn unpublish_skill_removes_row() {
     let cs: VoxDb = db().await;
-    cs.publish_skill("del.me", "0.1.0", r#"{}"#, "# Del").await.expect("publish");
+    cs.publish_skill("del.me", "0.1.0", r#"{}"#, "# Del")
+        .await
+        .expect("publish");
     cs.unpublish_skill("del.me").await.expect("unpublish");
     let r = cs.get_skill_manifest("del.me").await.expect("query");
     assert!(r.is_none());
@@ -83,7 +97,10 @@ fn exec_params<'a>(skill_id: &'a str) -> SkillExecutionParams<'a> {
 #[tokio::test]
 async fn record_skill_execution_returns_rowid() {
     let cs: VoxDb = db().await;
-    let id = cs.record_skill_execution(exec_params("vox.test")).await.expect("record");
+    let id = cs
+        .record_skill_execution(exec_params("vox.test"))
+        .await
+        .expect("record");
     assert!(id > 0);
 }
 
@@ -100,8 +117,12 @@ async fn record_skill_execution_error_status() {
 #[tokio::test]
 async fn list_skill_executions_returns_newest_first() {
     let cs: VoxDb = db().await;
-    cs.record_skill_execution(exec_params("vox.ordered")).await.expect("1");
-    cs.record_skill_execution(exec_params("vox.ordered")).await.expect("2");
+    cs.record_skill_execution(exec_params("vox.ordered"))
+        .await
+        .expect("1");
+    cs.record_skill_execution(exec_params("vox.ordered"))
+        .await
+        .expect("2");
     let rows = cs
         .list_skill_executions_by_skill("vox.ordered", 10)
         .await
@@ -115,7 +136,9 @@ async fn list_skill_executions_returns_newest_first() {
 async fn list_skill_executions_limit_is_honoured() {
     let cs: VoxDb = db().await;
     for _ in 0..5 {
-        cs.record_skill_execution(exec_params("vox.limited")).await.expect("rec");
+        cs.record_skill_execution(exec_params("vox.limited"))
+            .await
+            .expect("rec");
     }
     let rows = cs
         .list_skill_executions_by_skill("vox.limited", 3)

@@ -106,11 +106,12 @@ fn unix_now() -> i64 {
 impl VoxDb {
     /// Ensure the `populi_training_run` table exists.
     async fn ensure_training_run_table(&self) -> Result<(), StoreError> {
-        self
-            .conn
+        self.conn
             .execute_batch(CREATE_TABLE)
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("ensure training_run table: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("ensure training_run table: {e}"))
+            })?;
         Ok(())
     }
 
@@ -124,8 +125,7 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self
-            .conn
+        self.conn
             .execute(
                 "INSERT OR REPLACE INTO populi_training_run
                  (run_id, adapter_tag, model_name, output_dir, data_dir,
@@ -143,7 +143,9 @@ impl VoxDb {
                 ],
             )
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("record_training_run_start: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("record_training_run_start: {e}"))
+            })?;
         Ok(())
     }
 
@@ -164,12 +166,16 @@ impl VoxDb {
                 turso::params![run_id],
             )
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("get_training_run query: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("get_training_run query: {e}"))
+            })?;
 
         let mut rows = rows;
-        if let Some(row) = rows.next().await.map_err(|e: turso::Error| {
-            StoreError::NotFound(format!("get_training_run row: {e}"))
-        })? {
+        if let Some(row) = rows
+            .next()
+            .await
+            .map_err(|e: turso::Error| StoreError::NotFound(format!("get_training_run row: {e}")))?
+        {
             Ok(Some(row_to_record(&row)?))
         } else {
             Ok(None)
@@ -187,8 +193,7 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self
-            .conn
+        self.conn
             .execute(
                 "UPDATE populi_training_run
                  SET epoch = ?2, global_step = ?3, last_loss = ?4,
@@ -204,7 +209,9 @@ impl VoxDb {
                 ],
             )
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("update_training_checkpoint: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("update_training_checkpoint: {e}"))
+            })?;
         Ok(())
     }
 
@@ -217,23 +224,19 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self
-            .conn
+        self.conn
             .execute(
                 "UPDATE populi_training_run
                  SET status = 'complete', global_step = ?2,
                      last_checkpoint_path = COALESCE(?3, last_checkpoint_path),
                      updated_at = ?4
                  WHERE run_id = ?1",
-                turso::params![
-                    run_id,
-                    global_step as i64,
-                    final_adapter_path,
-                    now,
-                ],
+                turso::params![run_id, global_step as i64, final_adapter_path, now,],
             )
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("mark_training_complete: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("mark_training_complete: {e}"))
+            })?;
         Ok(())
     }
 
@@ -245,8 +248,7 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self
-            .conn
+        self.conn
             .execute(
                 "UPDATE populi_training_run
                  SET status = 'failed', global_step = ?2, updated_at = ?3
@@ -254,7 +256,9 @@ impl VoxDb {
                 turso::params![run_id, global_step as i64, now],
             )
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("mark_training_failed: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("mark_training_failed: {e}"))
+            })?;
         Ok(())
     }
 
@@ -276,7 +280,9 @@ impl VoxDb {
                 turso::params![limit as i64],
             )
             .await
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("list_training_runs query: {e}")))?;
+            .map_err(|e: turso::Error| {
+                StoreError::NotFound(format!("list_training_runs query: {e}"))
+            })?;
 
         let mut out = Vec::new();
         let mut rows = rows;
@@ -311,10 +317,12 @@ fn row_to_record(row: &turso::Row) -> Result<TrainingRunRecord, StoreError> {
             .map_err(|e: turso::Error| StoreError::NotFound(format!("row status: {e}")))?,
         epoch: row
             .get::<i64>(6)
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("row epoch: {e}")))? as u32,
+            .map_err(|e: turso::Error| StoreError::NotFound(format!("row epoch: {e}")))?
+            as u32,
         global_step: row
             .get::<i64>(7)
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("row global_step: {e}")))? as u32,
+            .map_err(|e: turso::Error| StoreError::NotFound(format!("row global_step: {e}")))?
+            as u32,
         planned_steps: row
             .get::<Option<i64>>(8)
             .map_err(|e: turso::Error| StoreError::NotFound(format!("row planned_steps: {e}")))?
@@ -323,9 +331,9 @@ fn row_to_record(row: &turso::Row) -> Result<TrainingRunRecord, StoreError> {
             .get::<Option<f64>>(9)
             .map_err(|e: turso::Error| StoreError::NotFound(format!("row last_loss: {e}")))?
             .map(|v| v as f32),
-        last_checkpoint_path: row
-            .get::<Option<String>>(10)
-            .map_err(|e: turso::Error| StoreError::NotFound(format!("row last_checkpoint_path: {e}")))?,
+        last_checkpoint_path: row.get::<Option<String>>(10).map_err(|e: turso::Error| {
+            StoreError::NotFound(format!("row last_checkpoint_path: {e}"))
+        })?,
         created_at: row
             .get::<i64>(11)
             .map_err(|e: turso::Error| StoreError::NotFound(format!("row created_at: {e}")))?,

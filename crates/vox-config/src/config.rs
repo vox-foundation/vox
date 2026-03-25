@@ -266,7 +266,9 @@ impl VoxConfig {
             "gamify_enabled" | "gamify.enabled" => Some(self.gamify_enabled.to_string()),
             "gamify_mode" | "gamify.mode" => Some(self.gamify_mode.as_config_str().to_string()),
             "web_run_mode" | "web.run_mode" => Some(self.web_run_mode.as_config_str().to_string()),
-            "web_tanstack_start" | "web.tanstack_start" => Some(self.web_tanstack_start.to_string()),
+            "web_tanstack_start" | "web.tanstack_start" => {
+                Some(self.web_tanstack_start.to_string())
+            }
             _ => None,
         }
     }

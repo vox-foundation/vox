@@ -78,5 +78,3 @@ pub enum SkillError {
     #[error("Hook error: {0}")]
     Hook(String),
 }
-
-

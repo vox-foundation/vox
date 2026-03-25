@@ -34,7 +34,11 @@ activity send_email(recipient: str, subject: str) to Result[str] {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Valid activity should pass check, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Valid activity should pass check, got: {:?}",
+        errs
+    );
 }
 
 #[test]
@@ -62,7 +66,11 @@ workflow main_flow() to Result[str] {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Activity call with options should pass type check, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Activity call with options should pass type check, got: {:?}",
+        errs
+    );
 }
 
 #[test]
@@ -74,7 +82,11 @@ fn f() to int {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "With syntax on int literal should be valid structurally, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "With syntax on int literal should be valid structurally, got: {:?}",
+        errs
+    );
 }
 
 #[test]
@@ -85,8 +97,15 @@ activity fire_and_forget(msg: str) {
 }
 "#;
     let warns = warnings(src);
-    assert!(!warns.is_empty(), "Activity without return type should produce warning");
-    assert!(warns[0].message.contains("should have an explicit return type"));
+    assert!(
+        !warns.is_empty(),
+        "Activity without return type should produce warning"
+    );
+    assert!(
+        warns[0]
+            .message
+            .contains("should have an explicit return type")
+    );
 }
 
 #[test]
@@ -98,7 +117,10 @@ fn f() to int {
 }
 "#;
     let errs = errors(src);
-    assert!(!errs.is_empty(), "Using 'with' with a non-record should produce error");
+    assert!(
+        !errs.is_empty(),
+        "Using 'with' with a non-record should produce error"
+    );
     assert!(errs[0].message.contains("'with' options must be a record"));
 }
 
@@ -115,7 +137,11 @@ fn main() to Result[str] {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Activity should be callable like a function, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Activity should be callable like a function, got: {:?}",
+        errs
+    );
 }
 
 #[test]
@@ -149,8 +175,15 @@ fn f() to int {
 }
 "#;
     let warns = warnings(src);
-    assert!(!warns.is_empty(), "Unknown 'with' option key should produce warning");
-    assert!(warns[0].message.contains("Unknown 'with' option"), "Got: {}", warns[0].message);
+    assert!(
+        !warns.is_empty(),
+        "Unknown 'with' option key should produce warning"
+    );
+    assert!(
+        warns[0].message.contains("Unknown 'with' option"),
+        "Got: {}",
+        warns[0].message
+    );
 }
 
 #[test]
@@ -162,9 +195,19 @@ fn f() to int {
 }
 "#;
     let warns = warnings(src);
-    assert!(!warns.is_empty(), "Wrong type for 'retries' should produce warning");
-    assert!(warns[0].message.contains("retries"), "Got: {}", warns[0].message);
-    assert!(warns[0].message.contains("Int"), "Should mention expected type Int");
+    assert!(
+        !warns.is_empty(),
+        "Wrong type for 'retries' should produce warning"
+    );
+    assert!(
+        warns[0].message.contains("retries"),
+        "Got: {}",
+        warns[0].message
+    );
+    assert!(
+        warns[0].message.contains("Int"),
+        "Should mention expected type Int"
+    );
 }
 
 #[test]
@@ -180,10 +223,21 @@ workflow run() to Result[str] {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Valid 'with' options should have no errors, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Valid 'with' options should have no errors, got: {:?}",
+        errs
+    );
     let warns = warnings(src);
-    let type_warns: Vec<_> = warns.iter().filter(|w| w.message.contains("'with' option")).collect();
-    assert!(type_warns.is_empty(), "Valid options should have no type warnings, got: {:?}", type_warns);
+    let type_warns: Vec<_> = warns
+        .iter()
+        .filter(|w| w.message.contains("'with' option"))
+        .collect();
+    assert!(
+        type_warns.is_empty(),
+        "Valid options should have no type warnings, got: {:?}",
+        type_warns
+    );
 }
 
 #[test]
@@ -215,26 +269,63 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
     let module = vox_compiler::parser::parser::parse(tokens).expect("Example should parse");
 
     let diags = vox_compiler::typeck::typecheck_module(&module, src);
-    let type_errors: Vec<_> = diags.iter().filter(|d| d.severity == Severity::Error).collect();
-    assert!(type_errors.is_empty(), "Example should have no type errors: {:?}", type_errors);
+    let type_errors: Vec<_> = diags
+        .iter()
+        .filter(|d| d.severity == Severity::Error)
+        .collect();
+    assert!(
+        type_errors.is_empty(),
+        "Example should have no type errors: {:?}",
+        type_errors
+    );
 
     let hir = vox_compiler::hir::lower_module(&module);
     assert_eq!(hir.activities.len(), 3, "Should have 3 activities");
     assert_eq!(hir.workflows.len(), 1, "Should have 1 workflow");
 
     let rust_output = vox_compiler::codegen_rust::emit::emit_lib(&hir);
-    assert!(rust_output.contains("pub async fn validate_order("), "Rust: validate_order");
-    assert!(rust_output.contains("pub async fn charge_payment("), "Rust: charge_payment");
-    assert!(rust_output.contains("pub async fn send_confirmation("), "Rust: send_confirmation");
-    assert!(rust_output.contains("pub async fn process_order("), "Rust: process_order workflow");
-    assert!(rust_output.contains("execute_activity"), "Rust: should use execute_activity");
+    assert!(
+        rust_output.contains("pub async fn validate_order("),
+        "Rust: validate_order"
+    );
+    assert!(
+        rust_output.contains("pub async fn charge_payment("),
+        "Rust: charge_payment"
+    );
+    assert!(
+        rust_output.contains("pub async fn send_confirmation("),
+        "Rust: send_confirmation"
+    );
+    assert!(
+        rust_output.contains("pub async fn process_order("),
+        "Rust: process_order workflow"
+    );
+    assert!(
+        rust_output.contains("execute_activity"),
+        "Rust: should use execute_activity"
+    );
 
     let ts_output = vox_compiler::codegen_ts::generate(&hir).expect("TS codegen should succeed");
     let ts_filenames: Vec<&str> = ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(ts_filenames.contains(&"activities.ts"), "TS: should produce activities.ts");
-    let activities_ts = ts_output.files.iter().find(|(n, _)| n == "activities.ts").unwrap();
-    assert!(activities_ts.1.contains("export async function validate_order("), "TS: validate_order");
-    assert!(activities_ts.1.contains("executeActivity"), "TS: executeActivity helper");
+    assert!(
+        ts_filenames.contains(&"activities.ts"),
+        "TS: should produce activities.ts"
+    );
+    let activities_ts = ts_output
+        .files
+        .iter()
+        .find(|(n, _)| n == "activities.ts")
+        .unwrap();
+    assert!(
+        activities_ts
+            .1
+            .contains("export async function validate_order("),
+        "TS: validate_order"
+    );
+    assert!(
+        activities_ts.1.contains("executeActivity"),
+        "TS: executeActivity helper"
+    );
 }
 
 // --- Table / Index type checking ---
@@ -249,7 +340,11 @@ fn test_table_registration_no_errors() {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Valid table should have no errors, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Valid table should have no errors, got: {:?}",
+        errs
+    );
 }
 
 #[test]
@@ -263,7 +358,11 @@ fn test_index_on_known_table_no_errors() {
 @index Task.by_done on (done)
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Index on known table should have no errors, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Index on known table should have no errors, got: {:?}",
+        errs
+    );
 }
 
 #[test]
@@ -272,8 +371,15 @@ fn test_index_on_unknown_table_error() {
 @index Missing.by_name on (name)
 "#;
     let errs = errors(src);
-    assert!(!errs.is_empty(), "Index on unknown table should produce an error");
-    assert!(errs[0].message.contains("unknown table 'Missing'"), "Error message: {}", errs[0].message);
+    assert!(
+        !errs.is_empty(),
+        "Index on unknown table should produce an error"
+    );
+    assert!(
+        errs[0].message.contains("unknown table 'Missing'"),
+        "Error message: {}",
+        errs[0].message
+    );
 }
 
 #[test]
@@ -288,8 +394,15 @@ fn main() to int {
 }
 "#;
     let errs = errors(src);
-    assert!(!errs.is_empty(), "Type mismatch in args should produce error");
-    assert!(errs[0].message.contains("Argument type mismatch"), "Got: {}", errs[0].message);
+    assert!(
+        !errs.is_empty(),
+        "Type mismatch in args should produce error"
+    );
+    assert!(
+        errs[0].message.contains("Argument type mismatch"),
+        "Got: {}",
+        errs[0].message
+    );
 }
 
 #[test]
@@ -305,7 +418,11 @@ fn main() to int {
 "#;
     let errs = errors(src);
     assert!(!errs.is_empty(), "Arg count mismatch should produce error");
-    assert!(errs[0].message.contains("Argument count mismatch"), "Got: {}", errs[0].message);
+    assert!(
+        errs[0].message.contains("Argument count mismatch"),
+        "Got: {}",
+        errs[0].message
+    );
 }
 
 #[test]
@@ -321,9 +438,16 @@ fn main() to int {
 }
 "#;
     let errs = errors(src);
-    assert!(!errs.is_empty(), "Generic type mismatch should produce error");
+    assert!(
+        !errs.is_empty(),
+        "Generic type mismatch should produce error"
+    );
     let msg = &errs[0].message;
-    assert!(msg.contains("mismatch") || msg.contains("Incompatible"), "Got: {}", msg);
+    assert!(
+        msg.contains("mismatch") || msg.contains("Incompatible"),
+        "Got: {}",
+        msg
+    );
 }
 
 #[test]
@@ -339,5 +463,9 @@ fn main() to int {
 }
 "#;
     let errs = errors(src);
-    assert!(errs.is_empty(), "Valid generic identity call should pass type check, got: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Valid generic identity call should pass type check, got: {:?}",
+        errs
+    );
 }

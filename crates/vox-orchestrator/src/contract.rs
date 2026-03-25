@@ -79,5 +79,4 @@ mod tests {
         assert!(plan_tool_daemon_alignment_valid());
         assert_eq!(MCP_PLAN_TOOL_NAMES.len(), 3);
     }
-
 }

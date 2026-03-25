@@ -1,23 +1,50 @@
 use crate::server::ServerState;
+use serde_json::{Value, json};
+use std::path::PathBuf;
+use vox_compiler::lexer::cursor::lex;
 use vox_compiler::lexer::token::Token;
 use vox_compiler::parser::parser::parse;
-use vox_compiler::lexer::cursor::lex;
-use serde_json::{json, Value};
-use std::path::PathBuf;
 
 /// `vox_language_surface` — returns all primary keywords, decorators, and builtins.
 pub fn language_surface() -> Value {
     let keywords = vec![
-        "fn", "let", "mut", "if", "else", "for", "while", "match", "ret", "type",
-        "import", "actor", "workflow", "activity", "spawn", "http", "pub", "with", "on",
-        "struct", "enum", "trait", "impl", "const", "message", "state", "routes", "to", "from", "use"
+        "fn", "let", "mut", "if", "else", "for", "while", "match", "ret", "type", "import",
+        "actor", "workflow", "activity", "spawn", "http", "pub", "with", "on", "struct", "enum",
+        "trait", "impl", "const", "message", "state", "routes", "to", "from", "use",
     ];
-    
+
     let decorators = vec![
-        "@table", "@query", "@mutation", "@action", "@collection", "@index", "@vector_index", "@search_index",
-        "@layout", "@loading", "@not_found", "@error_boundary", "@test", "@fixture", "@mock",
-        "@trace", "@health", "@metric", "@scheduled", "@mcp.tool", "@mcp.resource",
-        "@agent_def", "@skill", "@v0", "@py_import", "@deprecated", "@pure", "@require", "@theme", "@keyframes", "@server"
+        "@table",
+        "@query",
+        "@mutation",
+        "@action",
+        "@collection",
+        "@index",
+        "@vector_index",
+        "@search_index",
+        "@layout",
+        "@loading",
+        "@not_found",
+        "@error_boundary",
+        "@test",
+        "@fixture",
+        "@mock",
+        "@trace",
+        "@health",
+        "@metric",
+        "@scheduled",
+        "@mcp.tool",
+        "@mcp.resource",
+        "@agent_def",
+        "@skill",
+        "@v0",
+        "@py_import",
+        "@deprecated",
+        "@pure",
+        "@require",
+        "@theme",
+        "@keyframes",
+        "@server",
     ];
 
     json!({
@@ -40,7 +67,9 @@ pub async fn ast_inspect(state: &ServerState, path: &str) -> Result<Value, anyho
     let tokens = lex(&content);
     match parse(tokens) {
         Ok(module) => Ok(json!(module)),
-        Err(e) => Ok(json!({ "error": "Parse errors", "details": e.iter().map(|err| err.to_string()).collect::<Vec<_>>() }))
+        Err(e) => Ok(
+            json!({ "error": "Parse errors", "details": e.iter().map(|err| err.to_string()).collect::<Vec<_>>() }),
+        ),
     }
 }
 
@@ -99,11 +128,21 @@ pub async fn workspace_modules(state: &ServerState) -> Result<Value, anyhow::Err
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
-            !name.starts_with('.') && name != "target" && name != "node_modules" && name != "dist" && name != "out"
+            !name.starts_with('.')
+                && name != "target"
+                && name != "node_modules"
+                && name != "dist"
+                && name != "out"
         })
         .flatten()
     {
-        if entry.file_type().is_file() && entry.path().extension().map(|e| e == "vox").unwrap_or(false) {
+        if entry.file_type().is_file()
+            && entry
+                .path()
+                .extension()
+                .map(|e| e == "vox")
+                .unwrap_or(false)
+        {
             if let Ok(rel) = entry.path().strip_prefix(root) {
                 modules.push(rel.to_string_lossy().to_string());
             }
@@ -118,36 +157,42 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
     let orch = &state.orchestrator;
     let tasks = orch.all_tasks();
     let assignments = orch.task_assignments_copy();
-    
-    let ui_tasks: Vec<Value> = tasks.into_iter().map(|t| {
-        let status_str = match &t.status {
-            vox_orchestrator::types::TaskStatus::Queued => "Queued".to_string(),
-            vox_orchestrator::types::TaskStatus::InProgress => "InProgress".to_string(),
-            vox_orchestrator::types::TaskStatus::Completed => "Completed".to_string(),
-            vox_orchestrator::types::TaskStatus::Failed(e) => format!("Failed: {}", e),
-            vox_orchestrator::types::TaskStatus::Blocked(id) => format!("Blocked by {}", id),
-            vox_orchestrator::types::TaskStatus::Cancelled => "Cancelled".to_string(),
-            _other => "Other".to_string(),
-        };
 
-        let priority_str = match t.priority {
-            vox_orchestrator::types::TaskPriority::Background => "Background",
-            vox_orchestrator::types::TaskPriority::Normal => "Normal",
-            vox_orchestrator::types::TaskPriority::Urgent => "Urgent",
-            _ => "Unknown",
-        };
+    let ui_tasks: Vec<Value> = tasks
+        .into_iter()
+        .map(|t| {
+            let status_str = match &t.status {
+                vox_orchestrator::types::TaskStatus::Queued => "Queued".to_string(),
+                vox_orchestrator::types::TaskStatus::InProgress => "InProgress".to_string(),
+                vox_orchestrator::types::TaskStatus::Completed => "Completed".to_string(),
+                vox_orchestrator::types::TaskStatus::Failed(e) => format!("Failed: {}", e),
+                vox_orchestrator::types::TaskStatus::Blocked(id) => format!("Blocked by {}", id),
+                vox_orchestrator::types::TaskStatus::Cancelled => "Cancelled".to_string(),
+                _other => "Other".to_string(),
+            };
 
-        let agent_id = assignments.get(&t.id).map(|id| id.0.to_string()).unwrap_or_else(|| "unassigned".to_string());
+            let priority_str = match t.priority {
+                vox_orchestrator::types::TaskPriority::Background => "Background",
+                vox_orchestrator::types::TaskPriority::Normal => "Normal",
+                vox_orchestrator::types::TaskPriority::Urgent => "Urgent",
+                _ => "Unknown",
+            };
 
-        json!({
-            "id": t.id.to_string(),
-            "description": t.description,
-            "status": status_str,
-            "priority": priority_str,
-            "agent_id": agent_id,
-            "depends_on": t.depends_on.iter().map(|id| id.to_string()).collect::<Vec<_>>()
+            let agent_id = assignments
+                .get(&t.id)
+                .map(|id| id.0.to_string())
+                .unwrap_or_else(|| "unassigned".to_string());
+
+            json!({
+                "id": t.id.to_string(),
+                "description": t.description,
+                "status": status_str,
+                "priority": priority_str,
+                "agent_id": agent_id,
+                "depends_on": t.depends_on.iter().map(|id| id.to_string()).collect::<Vec<_>>()
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(json!(ui_tasks))
 }

@@ -107,7 +107,9 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        Ok(Some(CompletionResponse::List(vox_lsp::completions::CompletionEngine::completions(params))))
+        Ok(Some(CompletionResponse::List(
+            vox_lsp::completions::CompletionEngine::completions(params),
+        )))
     }
 
     async fn document_symbol(

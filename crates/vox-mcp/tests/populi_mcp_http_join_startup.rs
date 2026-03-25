@@ -8,9 +8,9 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Mutex;
 
 use vox_mcp::ServerState;
+use vox_orchestrator::OrchestratorConfig;
 use vox_populi::http_client::MeshHttpClient;
 use vox_populi::transport::{MeshHttpAuth, MeshTransportState, mesh_http_app_with_auth};
-use vox_orchestrator::OrchestratorConfig;
 
 static MESH_ENV_MUTEX: Mutex<()> = Mutex::new(());
 

@@ -131,8 +131,14 @@ mod tests {
     fn pick_agent_shortest_queue() {
         let lb = LoadBalancer::new(RebalanceStrategy::ShortestQueue);
         let mut queues = HashMap::new();
-        queues.insert(AgentId(1), std::sync::Arc::new(std::sync::RwLock::new(AgentQueue::new(AgentId(1), "a"))));
-        queues.insert(AgentId(2), std::sync::Arc::new(std::sync::RwLock::new(AgentQueue::new(AgentId(2), "b"))));
+        queues.insert(
+            AgentId(1),
+            std::sync::Arc::new(std::sync::RwLock::new(AgentQueue::new(AgentId(1), "a"))),
+        );
+        queues.insert(
+            AgentId(2),
+            std::sync::Arc::new(std::sync::RwLock::new(AgentQueue::new(AgentId(2), "b"))),
+        );
 
         // Add task to agent 1
         let mut q1 = AgentQueue::new(AgentId(1), "a");

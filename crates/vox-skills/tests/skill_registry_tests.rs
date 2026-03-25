@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 //! External integration tests for `vox_skills::SkillRegistry`.
 
+use vox_skills::bundle::VoxSkillBundle;
 use vox_skills::manifest::{SkillCategory, SkillManifest};
 use vox_skills::registry::SkillRegistry;
-use vox_skills::bundle::VoxSkillBundle;
 
 fn bundle(id: &str, cat: SkillCategory) -> VoxSkillBundle {
     let m = SkillManifest::new(id, id, "1.0.0", "vox", "desc", cat);
@@ -13,7 +13,10 @@ fn bundle(id: &str, cat: SkillCategory) -> VoxSkillBundle {
 #[tokio::test]
 async fn install_returns_id_and_version() {
     let reg = SkillRegistry::new();
-    let res = reg.install(&bundle("vox.compiler", SkillCategory::Compiler)).await.expect("install");
+    let res = reg
+        .install(&bundle("vox.compiler", SkillCategory::Compiler))
+        .await
+        .expect("install");
     assert_eq!(res.id, "vox.compiler");
     assert_eq!(res.version, "1.0.0");
     assert!(!res.already_installed);
@@ -32,7 +35,9 @@ async fn install_same_version_twice_is_already_installed() {
 #[tokio::test]
 async fn get_returns_manifest_after_install() {
     let reg = SkillRegistry::new();
-    reg.install(&bundle("vox.fs", SkillCategory::Analysis)).await.expect("install");
+    reg.install(&bundle("vox.fs", SkillCategory::Analysis))
+        .await
+        .expect("install");
     let m = reg.get("vox.fs").expect("should exist");
     assert_eq!(m.id, "vox.fs");
 }
@@ -46,8 +51,12 @@ async fn get_returns_none_for_missing_skill() {
 #[tokio::test]
 async fn list_returns_all_installed() {
     let reg = SkillRegistry::new();
-    reg.install(&bundle("a", SkillCategory::Compiler)).await.expect("a");
-    reg.install(&bundle("b", SkillCategory::Testing)).await.expect("b");
+    reg.install(&bundle("a", SkillCategory::Compiler))
+        .await
+        .expect("a");
+    reg.install(&bundle("b", SkillCategory::Testing))
+        .await
+        .expect("b");
     let all = reg.list(None);
     assert_eq!(all.len(), 2);
 }
@@ -55,8 +64,12 @@ async fn list_returns_all_installed() {
 #[tokio::test]
 async fn list_filters_by_category() {
     let reg = SkillRegistry::new();
-    reg.install(&bundle("vox.c", SkillCategory::Compiler)).await.expect("c");
-    reg.install(&bundle("vox.t", SkillCategory::Testing)).await.expect("t");
+    reg.install(&bundle("vox.c", SkillCategory::Compiler))
+        .await
+        .expect("c");
+    reg.install(&bundle("vox.t", SkillCategory::Testing))
+        .await
+        .expect("t");
     let compilers = reg.list(Some(&SkillCategory::Compiler));
     assert_eq!(compilers.len(), 1);
     assert_eq!(compilers[0].id, "vox.c");
@@ -65,7 +78,9 @@ async fn list_filters_by_category() {
 #[tokio::test]
 async fn search_finds_by_id_substring() {
     let reg = SkillRegistry::new();
-    reg.install(&bundle("vox.git-helper", SkillCategory::Git)).await.expect("install");
+    reg.install(&bundle("vox.git-helper", SkillCategory::Git))
+        .await
+        .expect("install");
     let hits = reg.search("git");
     assert!(!hits.is_empty());
     assert_eq!(hits[0].id, "vox.git-helper");
@@ -74,14 +89,18 @@ async fn search_finds_by_id_substring() {
 #[tokio::test]
 async fn search_returns_empty_for_no_match() {
     let reg = SkillRegistry::new();
-    reg.install(&bundle("vox.foo", SkillCategory::Compiler)).await.expect("install");
+    reg.install(&bundle("vox.foo", SkillCategory::Compiler))
+        .await
+        .expect("install");
     assert!(reg.search("zzz_no_match").is_empty());
 }
 
 #[tokio::test]
 async fn uninstall_removes_from_registry() {
     let reg = SkillRegistry::new();
-    reg.install(&bundle("vox.docs", SkillCategory::Documentation)).await.expect("install");
+    reg.install(&bundle("vox.docs", SkillCategory::Documentation))
+        .await
+        .expect("install");
     let r = reg.uninstall("vox.docs").await.expect("uninstall");
     assert!(r.was_installed);
     assert!(reg.get("vox.docs").is_none());

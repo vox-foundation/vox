@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use axum::{routing::post, Json, Router};
+use axum::{Json, Router, routing::post};
 use chrono::Utc;
 use serde_json::json;
 use tokio::net::TcpListener;

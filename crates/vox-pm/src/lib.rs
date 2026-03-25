@@ -26,7 +26,6 @@ pub use deploy_coolify::{
     CoolifyDeployConfig, CoolifyEnvReconciliationMode, CoolifyEnvVarDetail, CoolifyEnvVarSpec,
 };
 
-pub use vox_db::hash::content_hash;
 pub use lockfile::Lockfile;
 pub use manifest::{DependencySpec, DeploySection, DetailedDependency, ManifestError, VoxManifest};
 pub use registry::{
@@ -34,4 +33,5 @@ pub use registry::{
     SearchResult,
 };
 pub use resolver::{SemVer, VersionReq};
+pub use vox_db::hash::content_hash;
 pub use workspace::VoxWorkspace;

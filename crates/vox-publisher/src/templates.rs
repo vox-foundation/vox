@@ -1,8 +1,6 @@
 //! Standard news templates (placeholders `{{key}}`).
 
-use crate::contract::{
-    DEFAULT_GITHUB_REPO, DEFAULT_OPENCOLLECTIVE_SLUG, DEFAULT_SITE_BASE_URL,
-};
+use crate::contract::{DEFAULT_GITHUB_REPO, DEFAULT_OPENCOLLECTIVE_SLUG, DEFAULT_SITE_BASE_URL};
 
 /// Known template ids for agents and MCP tools.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,16 +37,28 @@ pub fn render_placeholders(template: &str, vars: &[(&str, &str)]) -> String {
 pub fn template_source(id: NewsTemplateId) -> &'static str {
     match id {
         NewsTemplateId::ResearchUpdate => {
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/news-templates/research_update.md"))
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/news-templates/research_update.md"
+            ))
         }
         NewsTemplateId::Release => {
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/news-templates/release.md"))
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/news-templates/release.md"
+            ))
         }
         NewsTemplateId::SecurityAdvisory => {
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/news-templates/security_advisory.md"))
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/news-templates/security_advisory.md"
+            ))
         }
         NewsTemplateId::CommunityUpdate => {
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/news-templates/community_update.md"))
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/news-templates/community_update.md"
+            ))
         }
     }
 }
@@ -83,13 +93,7 @@ mod tests {
 
     #[test]
     fn research_template_renders_keys() {
-        let s = render_research_update(
-            "r1",
-            "T",
-            "A",
-            "2026-01-01T00:00:00Z",
-            "Abstract here",
-        );
+        let s = render_research_update("r1", "T", "A", "2026-01-01T00:00:00Z", "Abstract here");
         assert!(s.contains("id: \"r1\""));
         assert!(s.contains("# T"));
         assert!(s.contains("Abstract here"));

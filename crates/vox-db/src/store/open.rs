@@ -26,7 +26,7 @@ impl crate::VoxDb {
     /// Apply the manifest **baseline** DDL and advance `schema_version` to [`BASELINE_VERSION`].
     ///
     /// DDL in each fragment is run through Turso `execute_batch`. Existing databases with
-    /// version ≤ [`BASELINE_VERSION`] are automatically advanced (DDL is idempotent). 
+    /// version ≤ [`BASELINE_VERSION`] are automatically advanced (DDL is idempotent).
     pub(crate) async fn migrate(conn: &turso::Connection) -> Result<(), StoreError> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS schema_version (
@@ -192,5 +192,4 @@ mod tests {
             .expect("v");
         assert_eq!(v, crate::schema::BASELINE_VERSION);
     }
-
 }

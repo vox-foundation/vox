@@ -128,5 +128,8 @@ fn hover_in_line_transcribe_without_speech_receiver_returns_none() {
 fn hover_in_line_non_transcribe_word_ignores_line_context() {
     // For non-transcribe words, line context is not checked.
     let doc = builtin_hover_markdown_in_line("foo.HTTP.get()", "HTTP");
-    assert!(doc.is_some(), "HTTP hover should not require Speech context");
+    assert!(
+        doc.is_some(),
+        "HTTP hover should not require Speech context"
+    );
 }

@@ -9,10 +9,9 @@
 
 use turso::params;
 
-
 use crate::store::types::{
-    BehaviorEventEntry, CommandFrequencyEntry, LearnedPatternEntry, SaveSnippetParams, SnippetEntry,
-    StoreError, TrainingPair,
+    BehaviorEventEntry, CommandFrequencyEntry, LearnedPatternEntry, SaveSnippetParams,
+    SnippetEntry, StoreError, TrainingPair,
 };
 
 impl crate::VoxDb {
@@ -179,7 +178,11 @@ impl crate::VoxDb {
     }
 
     /// Update the `confidence` column for a single `learned_patterns` row by `id`.
-    pub async fn update_pattern_confidence(&self, id: i64, confidence: f64) -> Result<(), StoreError> {
+    pub async fn update_pattern_confidence(
+        &self,
+        id: i64,
+        confidence: f64,
+    ) -> Result<(), StoreError> {
         self.conn
             .execute(
                 "UPDATE learned_patterns SET confidence = ?2 WHERE id = ?1",
@@ -314,8 +317,6 @@ impl crate::VoxDb {
         Ok(out)
     }
 
-
-
     /// Join `llm_interactions` with `llm_feedback` to produce RLHF training pairs.
     ///
     /// Called from `vox-db/src/learning.rs` and `vox-pm/src/feedback.rs`.
@@ -430,7 +431,6 @@ impl crate::VoxDb {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
-
 
     async fn collect_pattern_rows(
         rows: &mut turso::Rows,

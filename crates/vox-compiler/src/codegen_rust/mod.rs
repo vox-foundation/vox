@@ -11,10 +11,10 @@ pub use emit::emit_api_client;
 /// Rust `edition` written into generated `Cargo.toml` files (keep aligned with root workspace).
 pub const GENERATED_CARGO_EDITION: &str = "2024";
 
+use crate::hir::hir::HirModule;
 /// Re-export facade used by integration tests: `vox_codegen_rust::emit::*`.
 use std::collections::HashMap;
 use std::path::Path;
-use crate::hir::hir::HirModule;
 
 /// `path` value for a generated Cargo.toml `[dependencies]` entry.
 ///
@@ -311,9 +311,11 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use emit::emit_table_struct;
     use crate::ast::span::Span;
-    use crate::hir::hir::{DefId, HirActor, HirModule, HirTable, HirTableField, HirType, HirWorkflow};
+    use crate::hir::hir::{
+        DefId, HirActor, HirModule, HirTable, HirTableField, HirType, HirWorkflow,
+    };
+    use emit::emit_table_struct;
 
     fn empty_module() -> HirModule {
         HirModule::default()

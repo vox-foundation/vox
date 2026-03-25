@@ -95,7 +95,9 @@ impl CloudResolver {
     ) -> anyhow::Result<Self> {
         let estimator = TimeEstimator::new(&gpu_specs_path, profiles)?;
         let vast = VastClient::from_env(Arc::clone(&config)).ok().map(Arc::new);
-        let runpod = RunPodClient::from_env(Arc::clone(&config)).ok().map(Arc::new);
+        let runpod = RunPodClient::from_env(Arc::clone(&config))
+            .ok()
+            .map(Arc::new);
         if vast.is_none() && runpod.is_none() {
             anyhow::bail!(
                 "No cloud providers available. Set at least one of:\n\
@@ -103,7 +105,13 @@ impl CloudResolver {
                  - VOX_RUNPOD_API_KEY (RunPod)"
             );
         }
-        Ok(Self { vast, runpod, estimator, budget, config })
+        Ok(Self {
+            vast,
+            runpod,
+            estimator,
+            budget,
+            config,
+        })
     }
 
     /// Convenience: build a resolver from environment and any attached Arca store.
@@ -113,10 +121,10 @@ impl CloudResolver {
         })?;
         let specs_path = root.join("mens/config/gpu-specs.yaml");
         let config = Arc::new(CloudProviderConfig::default());
-        
+
         let db = vox_db::VoxDb::connect_default().await.ok().map(Arc::new);
         let budget = Arc::new(BudgetLedger::new(db.clone(), &config));
-        
+
         let profiles = if let Some(ref voxdb) = db {
             voxdb.cloud_load_throughput_profiles().await?
         } else {
@@ -132,19 +140,33 @@ impl CloudResolver {
     pub async fn resolve(&self, req: &ResolveRequest) -> anyhow::Result<Vec<ResolvedOffer>> {
         self.budget.check_capacity(req.max_acceptable_cost).await?;
 
-        let use_vast = matches!(req.target, CloudTarget::Auto | CloudTarget::Vast)
-            && self.vast.is_some();
-        let use_runpod = matches!(req.target, CloudTarget::Auto | CloudTarget::RunPod)
-            && self.runpod.is_some();
+        let use_vast =
+            matches!(req.target, CloudTarget::Auto | CloudTarget::Vast) && self.vast.is_some();
+        let use_runpod =
+            matches!(req.target, CloudTarget::Auto | CloudTarget::RunPod) && self.runpod.is_some();
 
         let (vast_r, runpod_r) = tokio::join!(
             async {
-                if use_vast { self.vast.as_ref().unwrap().list_offers(req.min_vram_mb).await }
-                else { Ok(vec![]) }
+                if use_vast {
+                    self.vast
+                        .as_ref()
+                        .unwrap()
+                        .list_offers(req.min_vram_mb)
+                        .await
+                } else {
+                    Ok(vec![])
+                }
             },
             async {
-                if use_runpod { self.runpod.as_ref().unwrap().list_offers(req.min_vram_mb).await }
-                else { Ok(vec![]) }
+                if use_runpod {
+                    self.runpod
+                        .as_ref()
+                        .unwrap()
+                        .list_offers(req.min_vram_mb)
+                        .await
+                } else {
+                    Ok(vec![])
+                }
             },
         );
 
@@ -206,7 +228,8 @@ impl CloudResolver {
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then(b.offer.auto_terminate.cmp(&a.offer.auto_terminate))
                 .then(
-                    b.offer.reliability_pct
+                    b.offer
+                        .reliability_pct
                         .partial_cmp(&a.offer.reliability_pct)
                         .unwrap_or(std::cmp::Ordering::Equal),
                 )
@@ -219,11 +242,7 @@ impl CloudResolver {
     ///
     /// Reuses the resolver's owned provider clients — no config discarding.
     /// Resolve and dispatch the top offer in one call.
-    pub async fn dispatch(
-        &self,
-        spec: CloudJobSpec,
-        target_str: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn dispatch(&self, spec: CloudJobSpec, target_str: &str) -> anyhow::Result<()> {
         use std::str::FromStr;
         let target = CloudTarget::from_str(target_str)?;
         let req = ResolveRequest {
@@ -237,12 +256,13 @@ impl CloudResolver {
         };
         let ranked = self.resolve(&req).await?;
         let (_handle, join) = self.dispatch_top(&ranked, &spec).await?;
-        
+
         // Wait for the watchdog if requested or just return handle
         // For the CLI, we usually want to wait until completion or detach.
         // run_train in mod.rs seems to expect a Result<()> and might background it itself.
-        
-        join.await.map_err(|e| anyhow::anyhow!("Watchdog task failed: {e}"))
+
+        join.await
+            .map_err(|e| anyhow::anyhow!("Watchdog task failed: {e}"))
     }
 
     /// Resolve and dispatch the top offer in one call.
@@ -251,9 +271,9 @@ impl CloudResolver {
         ranked: &[ResolvedOffer],
         spec: &CloudJobSpec,
     ) -> anyhow::Result<(JobHandle, tokio::task::JoinHandle<()>)> {
-        let top = ranked
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("No offers to dispatch — resolve returned empty list"))?;
+        let top = ranked.first().ok_or_else(|| {
+            anyhow::anyhow!("No offers to dispatch — resolve returned empty list")
+        })?;
 
         // Validate runtime for serve/agent jobs
         if spec.job_kind.requires_explicit_runtime() && spec.max_runtime_secs.is_none() {
@@ -265,16 +285,16 @@ impl CloudResolver {
 
         // Reuse the owned client — does NOT create new clients or discard config
         let provider: Arc<dyn CloudProvider> = match top.offer.provider {
-            ProviderKind::Vast => {
-                self.vast.as_ref()
-                    .map(|c| Arc::clone(c) as Arc<dyn CloudProvider>)
-                    .ok_or_else(|| anyhow::anyhow!("Vast.ai client not available"))?
-            }
-            ProviderKind::RunPod => {
-                self.runpod.as_ref()
-                    .map(|c| Arc::clone(c) as Arc<dyn CloudProvider>)
-                    .ok_or_else(|| anyhow::anyhow!("RunPod client not available"))?
-            }
+            ProviderKind::Vast => self
+                .vast
+                .as_ref()
+                .map(|c| Arc::clone(c) as Arc<dyn CloudProvider>)
+                .ok_or_else(|| anyhow::anyhow!("Vast.ai client not available"))?,
+            ProviderKind::RunPod => self
+                .runpod
+                .as_ref()
+                .map(|c| Arc::clone(c) as Arc<dyn CloudProvider>)
+                .ok_or_else(|| anyhow::anyhow!("RunPod client not available"))?,
             ProviderKind::Local => {
                 anyhow::bail!("Cannot cloud-dispatch a Local offer")
             }
@@ -284,14 +304,16 @@ impl CloudResolver {
         handle.estimated_seconds = top.estimated_secs;
 
         // Record in Arca
-        self.budget.open_job(
-            &handle,
-            &top.offer.offer_id,
-            &top.offer.gpu_name,
-            top.offer.vram_mb,
-            top.estimated_cost_usd,
-            spec.job_kind.as_str(),
-        ).await?;
+        self.budget
+            .open_job(
+                &handle,
+                &top.offer.offer_id,
+                &top.offer.gpu_name,
+                top.offer.vram_mb,
+                top.estimated_cost_usd,
+                spec.job_kind.as_str(),
+            )
+            .await?;
 
         // Spawn watchdog with THE SAME config (not a new default)
         let watchdog = CloudWatchdog {

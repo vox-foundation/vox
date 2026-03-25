@@ -226,5 +226,3 @@ pub fn format_markdown(result: &ReviewResult) -> String {
 
     out
 }
-
-

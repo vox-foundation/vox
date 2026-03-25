@@ -305,8 +305,8 @@ impl LocalRegistry {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent).map_err(PopuliRegistryError::Io)?;
         }
-        let json =
-            serde_json::to_string_pretty(reg).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+        let json = serde_json::to_string_pretty(reg)
+            .map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
         let tmp = self.path.with_extension("json.tmp");
         std::fs::write(&tmp, json.as_bytes()).map_err(PopuliRegistryError::Io)?;
         std::fs::rename(&tmp, &self.path).map_err(PopuliRegistryError::Io)?;

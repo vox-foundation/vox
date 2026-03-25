@@ -20,8 +20,8 @@ use serde::Deserialize;
 use tokio::sync::RwLock;
 
 use super::{
-    CloudJobSpec, CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobKind,
-    JobStatus, ProviderKind, normalize_gpu_name,
+    CloudJobSpec, CloudProvider, CloudProviderConfig, GpuOffer, JobHandle, JobKind, JobStatus,
+    ProviderKind, normalize_gpu_name,
 };
 
 const BASE_URL: &str = "https://cloud.vast.ai/api/v0";
@@ -70,9 +70,9 @@ pub struct VastClient {
 impl VastClient {
     /// Construct using `VOX_VAST_API_KEY` environment variable.
     pub fn from_env(config: Arc<CloudProviderConfig>) -> anyhow::Result<Self> {
-        let api_key = std::env::var("VOX_VAST_API_KEY").map_err(|_| anyhow::anyhow!(
-            "VOX_VAST_API_KEY not set. Get it at: https://cloud.vast.ai/cli/"
-        ))?;
+        let api_key = std::env::var("VOX_VAST_API_KEY").map_err(|_| {
+            anyhow::anyhow!("VOX_VAST_API_KEY not set. Get it at: https://cloud.vast.ai/cli/")
+        })?;
         Ok(Self::new(api_key, config))
     }
 
@@ -86,7 +86,10 @@ impl VastClient {
             http,
             api_key,
             config,
-            cache: RwLock::new(VastCache { fetched_at: None, offers: vec![] }),
+            cache: RwLock::new(VastCache {
+                fetched_at: None,
+                offers: vec![],
+            }),
         }
     }
 
@@ -124,7 +127,8 @@ impl VastClient {
 
     /// Compute bid price: median of top-N same-GPU offers × markup.
     fn compute_bid_price(&self, offer: &GpuOffer, all_offers: &[GpuOffer]) -> f64 {
-        let mut prices: Vec<f64> = all_offers.iter()
+        let mut prices: Vec<f64> = all_offers
+            .iter()
             .filter(|o| o.gpu_name == offer.gpu_name)
             .take(10)
             .map(|o| o.price_per_hour_usd)
@@ -139,18 +143,26 @@ impl VastClient {
 
 #[async_trait::async_trait]
 impl CloudProvider for VastClient {
-    fn kind(&self) -> ProviderKind { ProviderKind::Vast }
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::Vast
+    }
 
     async fn list_offers(&self, min_vram_mb: u64) -> anyhow::Result<Vec<GpuOffer>> {
         let ttl = Duration::from_secs(self.config.price_cache_ttl_secs);
         {
             let cache = self.cache.read().await;
             if cache.fetched_at.map_or(false, |t| t.elapsed() < ttl) {
-                return Ok(cache.offers.iter().filter(|o| o.vram_mb >= min_vram_mb).cloned().collect());
+                return Ok(cache
+                    .offers
+                    .iter()
+                    .filter(|o| o.vram_mb >= min_vram_mb)
+                    .cloned()
+                    .collect());
             }
         }
 
-        let raw = self.http
+        let raw = self
+            .http
             .get(format!("{BASE_URL}/bundles/"))
             .query(&[
                 ("gpu_ram__gte", min_vram_mb.to_string()),
@@ -170,7 +182,8 @@ impl CloudProvider for VastClient {
             .context("Vast.ai /bundles/ parse")?;
 
         let now = Instant::now();
-        let offers: Vec<GpuOffer> = resp.offers
+        let offers: Vec<GpuOffer> = resp
+            .offers
             .into_iter()
             .filter(|o| {
                 o.reliability2.unwrap_or(0.0) >= self.config.min_reliability as f64
@@ -197,7 +210,10 @@ impl CloudProvider for VastClient {
             c.fetched_at = Some(now);
             c.offers = offers.clone();
         }
-        Ok(offers.into_iter().filter(|o| o.vram_mb >= min_vram_mb).collect())
+        Ok(offers
+            .into_iter()
+            .filter(|o| o.vram_mb >= min_vram_mb)
+            .collect())
     }
 
     async fn dispatch(&self, offer: &GpuOffer, spec: &CloudJobSpec) -> anyhow::Result<JobHandle> {
@@ -207,7 +223,8 @@ impl CloudProvider for VastClient {
         }
 
         // Confirm offer still available
-        let check = self.http
+        let check = self
+            .http
             .get(format!("{BASE_URL}/bundles/"))
             .query(&[("id", &offer.offer_id)])
             .bearer_auth(&self.api_key)
@@ -241,7 +258,8 @@ impl CloudProvider for VastClient {
             "env": self.build_env_map(spec),
         });
 
-        let raw = self.http
+        let raw = self
+            .http
             .put(format!("{BASE_URL}/asks/{}/", offer.offer_id))
             .bearer_auth(&self.api_key)
             .json(&body)
@@ -255,14 +273,15 @@ impl CloudProvider for VastClient {
             .await
             .context("Vast.ai PUT /asks/ parse")?;
 
-        let instance_id = resp["new_contract"].as_u64()
-            .ok_or_else(|| anyhow::anyhow!(
-                "Vast.ai: no 'new_contract' in response: {resp}"
-            ))?;
+        let instance_id = resp["new_contract"]
+            .as_u64()
+            .ok_or_else(|| anyhow::anyhow!("Vast.ai: no 'new_contract' in response: {resp}"))?;
 
         tracing::info!(
             "Vast.ai instance {} created (bid ${bid:.3}/hr, {}, job={:?})",
-            instance_id, offer.gpu_name, spec.job_kind
+            instance_id,
+            offer.gpu_name,
+            spec.job_kind
         );
         Ok(JobHandle {
             provider: ProviderKind::Vast,
@@ -274,7 +293,8 @@ impl CloudProvider for VastClient {
     }
 
     async fn poll_status(&self, handle: &JobHandle) -> anyhow::Result<JobStatus> {
-        let raw = self.http
+        let raw = self
+            .http
             .get(format!("{BASE_URL}/instances/{}/", handle.job_id))
             .bearer_auth(&self.api_key)
             .send()
@@ -282,29 +302,40 @@ impl CloudProvider for VastClient {
             .context("Vast.ai GET /instances/ poll")?;
         let resp: serde_json::Value = raw.error_for_status()?.json().await?;
 
-        let status_str = resp.get("actual_status")
+        let status_str = resp
+            .get("actual_status")
             .or_else(|| resp.pointer("/instances/0/actual_status"))
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
 
         // Vast.ai returns gpu_utilization as a percentage [0, 100], not a fraction.
         // Do NOT multiply by 100 here.
-        let gpu_util = resp.get("gpu_utilization")
+        let gpu_util = resp
+            .get("gpu_utilization")
             .or_else(|| resp.pointer("/instances/0/gpu_utilization"))
             .and_then(|v| v.as_f64())
             .map(|u| u as f32);
 
         Ok(match status_str {
-            "running" => JobStatus::Running { progress_pct: None, gpu_util_pct: gpu_util },
+            "running" => JobStatus::Running {
+                progress_pct: None,
+                gpu_util_pct: gpu_util,
+            },
             "loading" | "scheduling" => JobStatus::Pending,
-            "stopped" | "exited" | "destroyed" => JobStatus::Completed { adapter_uploaded: false },
+            "stopped" | "exited" | "destroyed" => JobStatus::Completed {
+                adapter_uploaded: false,
+            },
             "failed" => JobStatus::Failed(format!("Instance {} failed", handle.job_id)),
-            _ => JobStatus::Running { progress_pct: None, gpu_util_pct: gpu_util },
+            _ => JobStatus::Running {
+                progress_pct: None,
+                gpu_util_pct: gpu_util,
+            },
         })
     }
 
     async fn terminate(&self, handle: &JobHandle) -> anyhow::Result<()> {
-        let raw = self.http
+        let raw = self
+            .http
             .delete(format!("{BASE_URL}/instances/{}/", handle.job_id))
             .bearer_auth(&self.api_key)
             .send()

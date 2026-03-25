@@ -65,7 +65,10 @@ pub struct BudgetGate<'a> {
 impl<'a> BudgetGate<'a> {
     /// Wires budget caps together with persisted usage counters from Codex.
     pub fn new(budget_manager: &'a BudgetManager, usage_tracker: &'a UsageTracker<'a>) -> Self {
-        Self { budget_manager, usage_tracker }
+        Self {
+            budget_manager,
+            usage_tracker,
+        }
     }
 
     /// Static check for in-memory token/cost budget. Stateless; no DB access.
@@ -80,7 +83,11 @@ impl<'a> BudgetGate<'a> {
                     message: format!(
                         "Cost budget exceeded: ${:.4} used (cap: ${:.4})",
                         budget.cost_usd,
-                        budget.allocation.as_ref().map(|a| a.max_cost_usd).unwrap_or(0.0)
+                        budget
+                            .allocation
+                            .as_ref()
+                            .map(|a| a.max_cost_usd)
+                            .unwrap_or(0.0)
                     ),
                 };
             }

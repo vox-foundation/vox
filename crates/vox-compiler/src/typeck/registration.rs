@@ -1,8 +1,10 @@
-use crate::typeck::env::{ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig};
-use crate::typeck::ty::Ty;
 use crate::hir::hir::{
     HirActivity, HirActor, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
 };
+use crate::typeck::env::{
+    ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
+};
+use crate::typeck::ty::Ty;
 
 /// Register all top-level declarations from an HIR module into the type environment.
 ///

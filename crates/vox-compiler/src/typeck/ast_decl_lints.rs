@@ -1,10 +1,10 @@
 //! AST-only declaration checks not represented in HIR (`@search_index`, `@index`).
 
+use crate::ast::decl::{Decl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::types::TypeExpr;
 use crate::typeck::diagnostics::{Diagnostic, Severity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
-use crate::ast::decl::{Decl, Module, SearchIndexDecl, TableDecl};
-use crate::ast::types::TypeExpr;
 
 fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
     match te {

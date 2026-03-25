@@ -1,14 +1,18 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::types::{AccessKind, AgentId, AgentTask, FileAffinity, TaskId, TaskPriority, TaskStatus};
-use crate::oplog::OperationKind;
-use crate::scope::ScopeEnforcement;
-use crate::services::{MessageGateway, PolicyCheckResult, PolicyEngine, RouteResult, RoutingService};
 use crate::locks::LockKind;
-use crate::planning::{PlanningMode, PlanningTaskMeta, PlanningStrategy};
+use crate::oplog::OperationKind;
+use crate::planning::{PlanningMode, PlanningStrategy, PlanningTaskMeta};
+use crate::scope::ScopeEnforcement;
+use crate::services::{
+    MessageGateway, PolicyCheckResult, PolicyEngine, RouteResult, RoutingService,
+};
+use crate::types::{
+    AccessKind, AgentId, AgentTask, FileAffinity, TaskId, TaskPriority, TaskStatus,
+};
 
-use super::{Orchestrator, OrchestratorError, TaskTraceStep, MAX_TASK_TRACES};
+use super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, TaskTraceStep};
 
 impl Orchestrator {
     /// Submit a higher-level goal that may be routed through planning.
@@ -38,12 +42,13 @@ impl Orchestrator {
             }
         }
         let eval = crate::planning::intake_router::evaluate_goal(&cfg, &goal, planning_mode);
-        self.event_bus.emit(crate::events::AgentEventKind::PlanningRouted {
-            strategy: format!("{:?}", eval.strategy),
-            complexity: eval.complexity,
-            confidence: eval.confidence,
-            rationale: eval.rationale.clone(),
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::PlanningRouted {
+                strategy: format!("{:?}", eval.strategy),
+                complexity: eval.complexity,
+                confidence: eval.confidence,
+                rationale: eval.rationale.clone(),
+            });
 
         if cfg.planning_shadow_mode || eval.strategy == PlanningStrategy::ImmediateAct {
             return self
@@ -51,7 +56,9 @@ impl Orchestrator {
                 .await;
         }
 
-        if eval.strategy == PlanningStrategy::WorkflowHandoff && cfg.planning_workflow_handoff_enabled {
+        if eval.strategy == PlanningStrategy::WorkflowHandoff
+            && cfg.planning_workflow_handoff_enabled
+        {
             return self
                 .submit_workflow_handoff_goal(goal, file_manifest, priority, session_id)
                 .await;
@@ -63,19 +70,16 @@ impl Orchestrator {
         if let Some(db) = self.db() {
             let strategy = format!("{:?}", eval.strategy);
             let _ = db
-                .create_plan_session(
-                    &plan_session_id,
-                    session_id.as_deref(),
-                    &goal,
-                    &strategy,
-                )
+                .create_plan_session(&plan_session_id, session_id.as_deref(), &goal, &strategy)
                 .await;
             let _ = db
                 .append_plan_version(&plan_session_id, plan_version as i64, None, None, None)
                 .await;
             for n in &nodes {
-                let deps_json = serde_json::to_string(&n.depends_on).unwrap_or_else(|_| "[]".to_string());
-                let pol_json = serde_json::to_string(&n.execution_policy).unwrap_or_else(|_| "{}".to_string());
+                let deps_json =
+                    serde_json::to_string(&n.depends_on).unwrap_or_else(|_| "[]".to_string());
+                let pol_json =
+                    serde_json::to_string(&n.execution_policy).unwrap_or_else(|_| "{}".to_string());
                 let _ = db
                     .upsert_plan_node(
                         &plan_session_id,
@@ -90,20 +94,24 @@ impl Orchestrator {
                     .await;
             }
         }
-        self.event_bus.emit(crate::events::AgentEventKind::PlanSessionCreated {
-            plan_session_id: plan_session_id.clone(),
-            strategy: format!("{:?}", eval.strategy),
-            version: plan_version as i64,
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::PlanSessionCreated {
+                plan_session_id: plan_session_id.clone(),
+                strategy: format!("{:?}", eval.strategy),
+                version: plan_version as i64,
+            });
 
-        let first = nodes.first().cloned().unwrap_or_else(|| crate::planning::PlanNode {
-            node_id: "n1".to_string(),
-            description: goal.clone(),
-            depends_on: vec![],
-            status: crate::planning::PlanStatus::Pending,
-            execution_policy: crate::planning::ExecutionPolicy::default(),
-            workflow_invocation: None,
-        });
+        let first = nodes
+            .first()
+            .cloned()
+            .unwrap_or_else(|| crate::planning::PlanNode {
+                node_id: "n1".to_string(),
+                description: goal.clone(),
+                depends_on: vec![],
+                status: crate::planning::PlanStatus::Pending,
+                execution_policy: crate::planning::ExecutionPolicy::default(),
+                workflow_invocation: None,
+            });
         crate::planning::executor_bridge::enqueue_plan_node(
             self,
             &first,
@@ -136,15 +144,8 @@ impl Orchestrator {
         priority: Option<TaskPriority>,
         session_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
-        self.submit_task_with_agent(
-            description,
-            file_manifest,
-            priority,
-            None,
-            None,
-            session_id,
-        )
-        .await
+        self.submit_task_with_agent(description, file_manifest, priority, None, None, session_id)
+            .await
     }
 
     /// Submit a new task to the orchestrator, potentially targeting a specific agent name (async).
@@ -162,7 +163,10 @@ impl Orchestrator {
             if !config_guard.enabled {
                 return Err(OrchestratorError::Disabled);
             }
-            (config_guard.default_priority, config_guard.scope_enforcement)
+            (
+                config_guard.default_priority,
+                config_guard.scope_enforcement,
+            )
         };
 
         let task_id = self.task_id_gen.next();
@@ -195,8 +199,12 @@ impl Orchestrator {
                 agent_id,
             ) {
                 PolicyCheckResult::Allowed => {}
-                PolicyCheckResult::LockConflict(e) => return Err(OrchestratorError::LockConflict(e)),
-                PolicyCheckResult::ScopeDenied(msg) => return Err(OrchestratorError::ScopeDenied(msg)),
+                PolicyCheckResult::LockConflict(e) => {
+                    return Err(OrchestratorError::LockConflict(e));
+                }
+                PolicyCheckResult::ScopeDenied(msg) => {
+                    return Err(OrchestratorError::ScopeDenied(msg));
+                }
             }
 
             // Try to acquire locks for write files
@@ -212,7 +220,8 @@ impl Orchestrator {
             for fa in &file_manifest {
                 if fa.access == AccessKind::Write {
                     self.affinity_map.assign(&fa.path, agent_id);
-                    crate::sync_lock::rw_write(&*self.scope_guard).assign_file(agent_id, fa.path.clone());
+                    crate::sync_lock::rw_write(&*self.scope_guard)
+                        .assign_file(agent_id, fa.path.clone());
                 }
             }
         }
@@ -253,12 +262,13 @@ impl Orchestrator {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             if let Some(queue_lock) = agents.get(&agent_id) {
                 let mut queue = crate::sync_lock::rw_write(&**queue_lock);
-                self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
-                    task_id,
-                    agent_id,
-                    description: task.description.clone(),
-                    session_id: task.session_id.clone(),
-                });
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::TaskSubmitted {
+                        task_id,
+                        agent_id,
+                        description: task.description.clone(),
+                        session_id: task.session_id.clone(),
+                    });
                 let q_len = queue.len();
                 queue.enqueue(task);
                 crate::sync_lock::rw_write(&*self.task_assignments).insert(task_id, agent_id);
@@ -271,7 +281,9 @@ impl Orchestrator {
                 );
             }
             // Capture handle while we have the lock, to use it outside
-            crate::sync_lock::rw_read(&*self.agent_handles).get(&agent_id).cloned()
+            crate::sync_lock::rw_read(&*self.agent_handles)
+                .get(&agent_id)
+                .cloned()
         };
 
         // Notify the agent process to wake up and process (outside the locks)
@@ -341,7 +353,9 @@ impl Orchestrator {
             )
             .await?;
         if let Some(meta) = planning_meta
-            && let Some(agent_id) = crate::sync_lock::rw_read(&*self.task_assignments).get(&task_id).copied()
+            && let Some(agent_id) = crate::sync_lock::rw_read(&*self.task_assignments)
+                .get(&task_id)
+                .copied()
             && let Some(q_lock) = crate::sync_lock::rw_read(&*self.agents).get(&agent_id)
         {
             let _ = crate::sync_lock::rw_write(&**q_lock).attach_planning_meta(task_id, &meta);
@@ -356,7 +370,11 @@ impl Orchestrator {
     ) -> Result<Vec<TaskId>, OrchestratorError> {
         let (enabled, default_priority, scope_enforcement) = {
             let config = crate::sync_lock::rw_read(&*self.config);
-            (config.enabled, config.default_priority, config.scope_enforcement)
+            (
+                config.enabled,
+                config.default_priority,
+                config.scope_enforcement,
+            )
         };
         if !enabled {
             return Err(OrchestratorError::Disabled);
@@ -436,11 +454,12 @@ impl Orchestrator {
                 // Acquire locks and assign scope
                 for fa in &desc.file_manifest {
                     if fa.access == AccessKind::Write {
-                        let _ = self
-                            .lock_manager
-                            .try_acquire(&fa.path, agent_id, LockKind::Exclusive);
+                        let _ =
+                            self.lock_manager
+                                .try_acquire(&fa.path, agent_id, LockKind::Exclusive);
                         self.affinity_map.assign(&fa.path, agent_id);
-                        crate::sync_lock::rw_write(&*self.scope_guard).assign_file(agent_id, fa.path.clone());
+                        crate::sync_lock::rw_write(&*self.scope_guard)
+                            .assign_file(agent_id, fa.path.clone());
                     }
                 }
             }
@@ -474,17 +493,20 @@ impl Orchestrator {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 if let Some(queue_lock) = agents.get(&agent_id) {
                     let mut queue = crate::sync_lock::rw_write(&**queue_lock);
-                    self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
-                        task_id: my_id,
-                        agent_id,
-                        description: task.description.clone(),
-                        session_id: task.session_id.clone(),
-                    });
+                    self.event_bus
+                        .emit(crate::events::AgentEventKind::TaskSubmitted {
+                            task_id: my_id,
+                            agent_id,
+                            description: task.description.clone(),
+                            session_id: task.session_id.clone(),
+                        });
                     queue.enqueue(task);
                     crate::sync_lock::rw_write(&*self.task_assignments).insert(my_id, agent_id);
 
                     // Grab the handle for notification outside the agents lock
-                    crate::sync_lock::rw_read(&*self.agent_handles).get(&agent_id).cloned()
+                    crate::sync_lock::rw_read(&*self.agent_handles)
+                        .get(&agent_id)
+                        .cloned()
                 } else {
                     None
                 }
@@ -497,11 +519,10 @@ impl Orchestrator {
                         tracing::warn!("serialize ProcessQueue: {e}");
                         "{}".to_string()
                     });
-                let env =
-                    vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
-                        from: vox_runtime::Pid::new(),
-                        payload: vox_runtime::mailbox::MessagePayload::Json(json),
-                    });
+                let env = vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
+                    from: vox_runtime::Pid::new(),
+                    payload: vox_runtime::mailbox::MessagePayload::Json(json),
+                });
                 let _ = handle.send(env).await;
             }
 
@@ -560,22 +581,22 @@ impl Orchestrator {
             return self.spawn_agent(agent_name);
         }
 
-        let reputation_routing = crate::sync_lock::rw_read(&*self.config).socrates_reputation_routing;
-        let reliability_map: Option<HashMap<AgentId, f64>> =
-            if reputation_routing {
-                self.db().map(|db| {
-                    db.block_on(async { db.list_agent_reliability().await })
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(|(id, r): (String, f64)| {
-                            let numeric_id = id.parse::<u64>().unwrap_or(0);
-                            (AgentId(numeric_id), r)
-                        })
-                        .collect()
-                })
-            } else {
-                None
-            };
+        let reputation_routing =
+            crate::sync_lock::rw_read(&*self.config).socrates_reputation_routing;
+        let reliability_map: Option<HashMap<AgentId, f64>> = if reputation_routing {
+            self.db().map(|db| {
+                db.block_on(async { db.list_agent_reliability().await })
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(id, r): (String, f64)| {
+                        let numeric_id = id.parse::<u64>().unwrap_or(0);
+                        (AgentId(numeric_id), r)
+                    })
+                    .collect()
+            })
+        } else {
+            None
+        };
 
         let remote_hints = crate::sync_lock::rw_read(&*self.remote_mesh_routing_hints);
         let remote = if remote_hints.is_empty() {
@@ -588,7 +609,7 @@ impl Orchestrator {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let groups = crate::sync_lock::rw_read(&*self.groups);
             let config = crate::sync_lock::rw_read(&*self.config);
-            
+
             RoutingService::route(
                 manifest,
                 &self.affinity_map,
@@ -633,7 +654,8 @@ impl Orchestrator {
             let session_id = queue.current_task().and_then(|t| t.session_id.clone());
 
             let mut auto_debug_requeue = None;
-            let max_debug_iterations = crate::sync_lock::rw_read(&*self.config).max_debug_iterations;
+            let max_debug_iterations =
+                crate::sync_lock::rw_read(&*self.config).max_debug_iterations;
 
             #[cfg(feature = "toestub-gate")]
             {
@@ -724,7 +746,8 @@ impl Orchestrator {
         };
 
         // Find pre-task snapshots from the oplog to link this completion
-        let (snap_before, db_snap_before) = crate::sync_lock::rw_read(&*self.oplog).find_task_snapshots(task_id.0);
+        let (snap_before, db_snap_before) =
+            crate::sync_lock::rw_read(&*self.oplog).find_task_snapshots(task_id.0);
 
         // Capture post-task snapshot and record in oplog (persisted to VoxDb)
         let snap_desc = format!("post-task complete: {:.50}", desc);
@@ -760,19 +783,22 @@ impl Orchestrator {
         let other_agents: Vec<AgentId> = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let wm = crate::sync_lock::rw_read(&*self.workspace_manager);
-            agents.keys()
+            agents
+                .keys()
                 .filter(|&&id| id != agent_id && wm.has_workspace(id))
                 .copied()
                 .collect()
         };
         for other_id in other_agents {
-            let overlaps = crate::sync_lock::rw_read(&*self.workspace_manager).overlapping_paths(agent_id, other_id);
+            let overlaps = crate::sync_lock::rw_read(&*self.workspace_manager)
+                .overlapping_paths(agent_id, other_id);
             for overlap_path in overlaps {
-                let conflict_id = crate::sync_lock::rw_write(&*self.conflict_manager).record_conflict(
-                    overlap_path.clone(),
-                    Some(snapshot_after),
-                    vec![(agent_id, snapshot_after), (other_id, snapshot_after)],
-                );
+                let conflict_id = crate::sync_lock::rw_write(&*self.conflict_manager)
+                    .record_conflict(
+                        overlap_path.clone(),
+                        Some(snapshot_after),
+                        vec![(agent_id, snapshot_after), (other_id, snapshot_after)],
+                    );
                 self.event_bus
                     .emit(crate::events::AgentEventKind::ConflictDetected {
                         path: overlap_path.clone(),
@@ -824,25 +850,28 @@ impl Orchestrator {
         }
 
         if let Some(db) = self.db() {
-            let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
+            let _ =
+                db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
             // Best-effort planning attempt persistence for plan-linked tasks.
             if let Some(queue_lock) = crate::sync_lock::rw_read(&*self.agents).get(&agent_id) {
                 let queue = crate::sync_lock::rw_read(&**queue_lock);
                 if let Some(task) = queue.current_task()
-                    && let (Some(ps), Some(node), Some(ver)) =
-                        (task.plan_session_id.as_deref(), task.plan_node_id.as_deref(), task.plan_version)
+                    && let (Some(ps), Some(node), Some(ver)) = (
+                        task.plan_session_id.as_deref(),
+                        task.plan_node_id.as_deref(),
+                        task.plan_version,
+                    )
                 {
-                    let _ = db
-                        .block_on(db.record_plan_node_attempt(
-                            ps,
-                            i64::from(ver),
-                            node,
-                            1,
-                            Some(&task_id.0.to_string()),
-                            "completed",
-                            None,
-                            None,
-                        ));
+                    let _ = db.block_on(db.record_plan_node_attempt(
+                        ps,
+                        i64::from(ver),
+                        node,
+                        1,
+                        Some(&task_id.0.to_string()),
+                        "completed",
+                        None,
+                        None,
+                    ));
                 }
             }
         }
@@ -871,9 +900,11 @@ impl Orchestrator {
 
             let session_id = queue.current_task().and_then(|t| t.session_id.clone());
             let planning_meta = queue.current_task().and_then(|t| {
-                if let (Some(plan_session_id), Some(plan_node_id), Some(plan_version)) =
-                    (t.plan_session_id.clone(), t.plan_node_id.clone(), t.plan_version)
-                {
+                if let (Some(plan_session_id), Some(plan_node_id), Some(plan_version)) = (
+                    t.plan_session_id.clone(),
+                    t.plan_node_id.clone(),
+                    t.plan_version,
+                ) {
                     Some(PlanningTaskMeta {
                         plan_session_id,
                         plan_node_id,
@@ -893,7 +924,8 @@ impl Orchestrator {
         };
 
         if let Some(db) = self.db() {
-            let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
+            let _ =
+                db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
         }
 
         let now_ms = std::time::SystemTime::now()
@@ -912,7 +944,8 @@ impl Orchestrator {
         self.lock_manager.release_all(agent_id);
 
         // Find pre-task snapshots to link this failure
-        let (snap_before, db_snap_before) = crate::sync_lock::rw_read(&*self.oplog).find_task_snapshots(task_id.0);
+        let (snap_before, db_snap_before) =
+            crate::sync_lock::rw_read(&*self.oplog).find_task_snapshots(task_id.0);
 
         // Record failure in oplog (async to support DB snapshot)
         self.record_operation(
@@ -942,7 +975,10 @@ impl Orchestrator {
         if planning_cfg.planning_enabled
             && planning_cfg.planning_replan_enabled
             && let Some(meta) = planning_meta
-            && crate::planning::replan::trigger_matches(&reason, meta.execution_policy_json.as_deref())
+            && crate::planning::replan::trigger_matches(
+                &reason,
+                meta.execution_policy_json.as_deref(),
+            )
         {
             if let Some(db) = self.db() {
                 let _ = db
@@ -973,17 +1009,19 @@ impl Orchestrator {
                         ),
                     )
                     .await;
-                self.event_bus.emit(crate::events::AgentEventKind::PlanVersionCreated {
-                    plan_session_id: meta.plan_session_id.clone(),
-                    version: next_version,
-                    parent_version: Some(i64::from(meta.plan_version)),
-                });
-                self.event_bus.emit(crate::events::AgentEventKind::ReplanTriggered {
-                    plan_session_id: meta.plan_session_id.clone(),
-                    node_id: meta.plan_node_id.clone(),
-                    reason: reason.clone(),
-                    next_version,
-                });
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::PlanVersionCreated {
+                        plan_session_id: meta.plan_session_id.clone(),
+                        version: next_version,
+                        parent_version: Some(i64::from(meta.plan_version)),
+                    });
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::ReplanTriggered {
+                        plan_session_id: meta.plan_session_id.clone(),
+                        node_id: meta.plan_node_id.clone(),
+                        reason: reason.clone(),
+                        next_version,
+                    });
             }
             let _ = crate::planning::replan::enqueue_recovery_first_node(
                 self,
@@ -999,4 +1037,3 @@ impl Orchestrator {
         Ok(())
     }
 }
-

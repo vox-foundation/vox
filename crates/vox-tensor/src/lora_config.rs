@@ -77,7 +77,11 @@ mod tests {
 
     #[test]
     fn lora_scale_calculation() {
-        let cfg = LoraConfig { rank: 8, alpha: 16.0, dropout: 0.0 };
+        let cfg = LoraConfig {
+            rank: 8,
+            alpha: 16.0,
+            dropout: 0.0,
+        };
         let expected_scale = cfg.alpha / cfg.rank as f32;
         assert!((expected_scale - 2.0).abs() < 1e-6);
     }
@@ -87,6 +91,9 @@ mod tests {
         let (lora, full, saving_pct) = lora_memory_estimate(512, 512, 8);
         assert_eq!(full, 512 * 512);
         assert_eq!(lora, 512 * 8 + 8 * 512);
-        assert!(saving_pct > 90.0, "Expected >90% saving, got {saving_pct:.1}%");
+        assert!(
+            saving_pct > 90.0,
+            "Expected >90% saving, got {saving_pct:.1}%"
+        );
     }
 }

@@ -14,7 +14,8 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 |----------|--------|--------|
 | `docs-deploy.yml` | `ubuntu-latest` | GitHub Pages deploy + mdBook; portable Pages API. |
 | `link_checker.yml` | `ubuntu-latest` | External link checks; no secrets to self-hosted pool. |
+| `release-binaries.yml` | `windows-latest`, `macos-latest` | Publish tagged Windows/macOS binaries; Linux lane remains self-hosted. |
 
-Any new workflow using `ubuntu-latest` must add a row here or switch to the self-hosted tuple.
+Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) must add a row here or switch to the self-hosted tuple.
 
 **Not GitHub-hosted (self-hosted only):** [`ci.yml`](../../../.github/workflows/ci.yml) and [`ml_data_extraction.yml`](../../../.github/workflows/ml_data_extraction.yml) use **`[self-hosted, linux, x64]`** (plus **`docker`** / CUDA lanes per [runner contract](runner-contract.md)). They are listed here so agents do not mistake them for missing exceptions — see [workflow enumeration](workflow-enumeration.md) for step-level detail.

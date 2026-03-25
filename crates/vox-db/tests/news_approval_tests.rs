@@ -8,32 +8,30 @@ async fn news_publish_approvals_require_two_distinct_approvers() {
         .await
         .unwrap();
     assert_eq!(
-        db.count_news_approvers("2026-03-25-example")
-            .await
-            .unwrap(),
+        db.count_news_approvers("2026-03-25-example").await.unwrap(),
         1
     );
-    assert!(!db
-        .has_dual_news_approval("2026-03-25-example")
-        .await
-        .unwrap());
+    assert!(
+        !db.has_dual_news_approval("2026-03-25-example")
+            .await
+            .unwrap()
+    );
 
     db.record_news_approval("2026-03-25-example", "bob")
         .await
         .unwrap();
-    assert!(db
-        .has_dual_news_approval("2026-03-25-example")
-        .await
-        .unwrap());
+    assert!(
+        db.has_dual_news_approval("2026-03-25-example")
+            .await
+            .unwrap()
+    );
 
     // Same approver again does not increase distinct count
     db.record_news_approval("2026-03-25-example", "alice")
         .await
         .unwrap();
     assert_eq!(
-        db.count_news_approvers("2026-03-25-example")
-            .await
-            .unwrap(),
+        db.count_news_approvers("2026-03-25-example").await.unwrap(),
         2
     );
 }

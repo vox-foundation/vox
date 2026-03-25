@@ -4,8 +4,8 @@
 //! prefix `invocable.`.
 
 use crate::VoxDb;
-use std::path::Path;
 use crate::store::StoreError;
+use std::path::Path;
 
 /// Thin wrapper around [`crate::VoxDb`] for batch invocable import.
 pub struct InvocableSyncEngine<'a> {

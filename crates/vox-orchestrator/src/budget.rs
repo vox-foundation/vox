@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use std::collections::HashMap;
 
-use crate::attention::{AgentTrustScore, AttentionBudget, AttentionEvent, ApprovalOutcome};
+use crate::attention::{AgentTrustScore, ApprovalOutcome, AttentionBudget, AttentionEvent};
 use crate::sync_lock;
 use crate::types::AgentId;
 
@@ -152,15 +152,27 @@ pub enum BudgetSignal {
     /// Usage within normal operating range.
     Normal { usage_ratio: f64 },
     /// Token usage is high; consider summarization.
-    HighLoad { usage_ratio: f64, tokens_remaining: usize },
+    HighLoad {
+        usage_ratio: f64,
+        tokens_remaining: usize,
+    },
     /// Token usage is critical; block new work.
-    Critical { usage_ratio: f64, tokens_remaining: usize },
+    Critical {
+        usage_ratio: f64,
+        tokens_remaining: usize,
+    },
     /// USD cost cap exceeded.
     CostExceeded { cost_usd: f64, limit_usd: f64 },
     /// Attention budget high (> alert threshold).
-    AttentionHigh { spent_ratio: f64, attention_remaining_ms: u64 },
+    AttentionHigh {
+        spent_ratio: f64,
+        attention_remaining_ms: u64,
+    },
     /// Attention budget fully exhausted.
-    AttentionCritical { spent_ratio: f64, attention_remaining_ms: u64 },
+    AttentionCritical {
+        spent_ratio: f64,
+        attention_remaining_ms: u64,
+    },
 }
 
 /// Tracks agent context budgets globally.
@@ -172,7 +184,7 @@ pub struct BudgetManager {
     /// Phase 15: per-agent EWMA trust scores.
     trust_scores: Arc<std::sync::RwLock<HashMap<AgentId, AgentTrustScore>>>,
 }
- 
+
 impl BudgetManager {
     /// Creates an empty manager; call [`Self::reset`] before tracking an agent.
     pub fn new() -> Self {
@@ -264,7 +276,7 @@ impl BudgetManager {
         let map = sync_lock::rw_read(&*self.inner);
         map.values().map(|b| b.cost_usd).sum()
     }
- 
+
     /// Cumulative cost in USD for a specific agent.
     pub fn cost_usd(&self, agent_id: AgentId) -> f64 {
         let map = sync_lock::rw_read(&*self.inner);
@@ -280,8 +292,8 @@ impl BudgetManager {
         att.spent_ms = att.spent_ms.saturating_add(event.cost_ms);
         match event.outcome {
             ApprovalOutcome::AutoApproved => att.auto_approved += 1,
-            ApprovalOutcome::Rejected     => att.rejected += 1,
-            _                             => {}
+            ApprovalOutcome::Rejected => att.rejected += 1,
+            _ => {}
         }
         // EWMA interrupt frequency: freq_t = 0.2 × (1/gap_hr) + 0.8 × freq_{t-1}
         if att.last_interrupt_ms > 0 && event.outcome != ApprovalOutcome::AutoApproved {
@@ -303,9 +315,15 @@ impl BudgetManager {
         let ratio = att.spent_ratio();
         let remaining = att.max_attention_ms.saturating_sub(att.spent_ms);
         if ratio >= 1.0 {
-            BudgetSignal::AttentionCritical { spent_ratio: ratio, attention_remaining_ms: 0 }
+            BudgetSignal::AttentionCritical {
+                spent_ratio: ratio,
+                attention_remaining_ms: 0,
+            }
         } else if ratio > alert_threshold {
-            BudgetSignal::AttentionHigh { spent_ratio: ratio, attention_remaining_ms: remaining }
+            BudgetSignal::AttentionHigh {
+                spent_ratio: ratio,
+                attention_remaining_ms: remaining,
+            }
         } else {
             BudgetSignal::Normal { usage_ratio: ratio }
         }
@@ -426,7 +444,7 @@ mod tests {
 
     #[test]
     fn attention_signal_escalates_to_high() {
-        use crate::attention::{AttentionEventType, ApprovalTier};
+        use crate::attention::{ApprovalTier, AttentionEventType};
         let mgr = BudgetManager::new();
         // Fill 75% of the default 1-hour budget (alert threshold 0.7)
         let cost_ms = (crate::attention::DEFAULT_ATTENTION_BUDGET_MS as f64 * 0.75) as u64;
@@ -467,6 +485,9 @@ mod tests {
         }
         let snap = mgr.trust_snapshot();
         let score = snap[&agent].trust_score;
-        assert!(score > 0.3, "trust score should increase after successes, got {score:.3}");
+        assert!(
+            score > 0.3,
+            "trust score should increase after successes, got {score:.3}"
+        );
     }
 }

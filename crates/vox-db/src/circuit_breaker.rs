@@ -93,8 +93,7 @@ impl DbCircuitBreaker {
             if let Some(t) = *last {
                 if t.elapsed() >= self.reset_timeout {
                     drop(last);
-                    *self.state.write().unwrap_or_else(|p| p.into_inner()) =
-                        CircuitState::HalfOpen;
+                    *self.state.write().unwrap_or_else(|p| p.into_inner()) = CircuitState::HalfOpen;
                     return CircuitState::HalfOpen;
                 }
             }
@@ -164,7 +163,9 @@ mod tests {
         let cb = DbCircuitBreaker::new(3, Duration::from_secs(60), true);
         for _ in 0..3 {
             let _: Result<(), String> = cb
-                .call(|| async { Err::<(), _>(String::from(CircuitBreakerError::Open.to_string())) })
+                .call(|| async {
+                    Err::<(), _>(String::from(CircuitBreakerError::Open.to_string()))
+                })
                 .await;
         }
         assert_eq!(cb.state(), CircuitState::Open);
@@ -174,9 +175,7 @@ mod tests {
     async fn open_returns_error_without_calling() {
         let cb = DbCircuitBreaker::new(1, Duration::from_secs(60), true);
         // Trip it
-        let _: Result<(), String> = cb
-            .call(|| async { Err::<(), _>("fail".to_string()) })
-            .await;
+        let _: Result<(), String> = cb.call(|| async { Err::<(), _>("fail".to_string()) }).await;
         // Now should be open and not call action
         let mut called = false;
         let result: Result<(), String> = cb

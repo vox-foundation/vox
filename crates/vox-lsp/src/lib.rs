@@ -12,8 +12,8 @@ use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_ast_module;
 
 pub mod completions;
-pub mod symbols;
 pub mod grammar;
+pub mod symbols;
 
 /// Convert UTF-8 byte index to LSP line / column (character count per line, not UTF-16 code units).
 pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32) {
@@ -92,7 +92,10 @@ fn vox_populi_enabled_from_env() -> bool {
 }
 
 /// When `VOX_MESH_ENABLED` is unset/false, warn on `mesh_*` activity calls inside `workflow` bodies.
-fn mesh_workflow_env_warnings(text: &str, module: &vox_compiler::ast::decl::Module) -> Vec<Diagnostic> {
+fn mesh_workflow_env_warnings(
+    text: &str,
+    module: &vox_compiler::ast::decl::Module,
+) -> Vec<Diagnostic> {
     if vox_populi_enabled_from_env() {
         return Vec::new();
     }
@@ -362,27 +365,43 @@ mod tests {
     #[test]
     fn mesh_activity_warning_test() {
         let doc = "workflow w() { mesh_snapshot() }";
-        let _lock = MESH_WARNING_ENV_LOCK.lock().expect("mens env mutex poisoned");
-        
+        let _lock = MESH_WARNING_ENV_LOCK
+            .lock()
+            .expect("mens env mutex poisoned");
+
         // When mens is DISABLED, we expect a WARNING diagnostic.
         // SAFETY: single-threaded under the mutex guard above.
-        unsafe { std::env::set_var("VOX_MESH_ENABLED", "0"); }
+        unsafe {
+            std::env::set_var("VOX_MESH_ENABLED", "0");
+        }
         let diags = validate_document(doc);
         assert!(
-            diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")),
-            "Expected mens call warning when VOX_MESH_ENABLED=0, got: {:?}", diags
+            diags
+                .iter()
+                .any(|d| d.severity == Some(DiagnosticSeverity::WARNING)
+                    && d.message.contains("Mens activity call")),
+            "Expected mens call warning when VOX_MESH_ENABLED=0, got: {:?}",
+            diags
         );
 
         // When mens is ENABLED, no mens WARNING should fire.
         // SAFETY: single-threaded under the mutex guard above.
-        unsafe { std::env::set_var("VOX_MESH_ENABLED", "1"); }
+        unsafe {
+            std::env::set_var("VOX_MESH_ENABLED", "1");
+        }
         let diags = validate_document(doc);
         assert!(
-            !diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")),
-            "Expected no mens call warning when VOX_MESH_ENABLED=1, got: {:?}", diags
+            !diags
+                .iter()
+                .any(|d| d.severity == Some(DiagnosticSeverity::WARNING)
+                    && d.message.contains("Mens activity call")),
+            "Expected no mens call warning when VOX_MESH_ENABLED=1, got: {:?}",
+            diags
         );
 
         // SAFETY: restore to neutral state.
-        unsafe { std::env::remove_var("VOX_MESH_ENABLED"); }
+        unsafe {
+            std::env::remove_var("VOX_MESH_ENABLED");
+        }
     }
 }

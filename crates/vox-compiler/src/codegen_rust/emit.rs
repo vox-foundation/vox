@@ -162,9 +162,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("    }\n");
     out.push_str("}\n\n");
 
-    out.push_str(
-        "async fn serve_dispatch(req: axum::http::Request<Body>) -> Response {\n",
-    );
+    out.push_str("async fn serve_dispatch(req: axum::http::Request<Body>) -> Response {\n");
     out.push_str("    let uri = req.uri().clone();\n");
     out.push_str("    if *req.method() == axum::http::Method::GET {\n");
     out.push_str("        if let Ok(base) = std::env::var(\"VOX_SSR_DEV_URL\") {\n");
@@ -182,16 +180,26 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("                        if let Ok(resp) = client.get(target).send().await {\n");
     out.push_str("                            let status = resp.status();\n");
     out.push_str("                            let ct = resp.headers().get(reqwest::header::CONTENT_TYPE).cloned();\n");
-    out.push_str("                            let bytes = resp.bytes().await.unwrap_or_default();\n");
+    out.push_str(
+        "                            let bytes = resp.bytes().await.unwrap_or_default();\n",
+    );
     out.push_str("                            let code = axum::http::StatusCode::from_u16(status.as_u16())\n");
-    out.push_str("                                .unwrap_or(axum::http::StatusCode::BAD_GATEWAY);\n");
-    out.push_str("                            let mut builder = Response::builder().status(code);\n");
+    out.push_str(
+        "                                .unwrap_or(axum::http::StatusCode::BAD_GATEWAY);\n",
+    );
+    out.push_str(
+        "                            let mut builder = Response::builder().status(code);\n",
+    );
     out.push_str("                            if let Some(ct) = ct {\n");
     out.push_str("                                if let Ok(v) = ct.to_str() {\n");
-    out.push_str("                                    builder = builder.header(header::CONTENT_TYPE, v);\n");
+    out.push_str(
+        "                                    builder = builder.header(header::CONTENT_TYPE, v);\n",
+    );
     out.push_str("                                }\n");
     out.push_str("                            }\n");
-    out.push_str("                            if let Ok(out) = builder.body(Body::from(bytes)) {\n");
+    out.push_str(
+        "                            if let Ok(out) = builder.body(Body::from(bytes)) {\n",
+    );
     out.push_str("                                return out;\n");
     out.push_str("                            }\n");
     out.push_str("                        }\n");
@@ -1046,11 +1054,19 @@ pub fn emit_expr(expr: &HirExpr) -> String {
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::ListLit(elements, _) => format!(
             "vec![{}]",
-            elements.iter().map(emit_expr).collect::<Vec<_>>().join(", ")
+            elements
+                .iter()
+                .map(emit_expr)
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
         HirExpr::TupleLit(elements, _) => format!(
             "({})",
-            elements.iter().map(emit_expr).collect::<Vec<_>>().join(", ")
+            elements
+                .iter()
+                .map(emit_expr)
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
 
         HirExpr::Ident(n, _) => {

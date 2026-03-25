@@ -80,9 +80,9 @@ impl<'a> AttentionTracker<'a> {
             total_cost += doc["cost_ms"].as_u64().unwrap_or(0);
             // Deserialize outcome via serde to avoid magic string comparison.
             // If deserialization fails the record is malformed; skip it gracefully.
-            if let Ok(outcome) = serde_json::from_value::<crate::attention::ApprovalOutcome>(
-                doc["outcome"].clone()
-            ) {
+            if let Ok(outcome) =
+                serde_json::from_value::<crate::attention::ApprovalOutcome>(doc["outcome"].clone())
+            {
                 match outcome {
                     crate::attention::ApprovalOutcome::AutoApproved => auto += 1,
                     crate::attention::ApprovalOutcome::Rejected => rejected += 1,
@@ -157,8 +157,7 @@ impl<'a> AttentionTracker<'a> {
             Ok(Some(AgentTrustScore {
                 agent_id,
                 trust_score: doc["trust_score"].as_f64().unwrap_or(0.3),
-                tier: serde_json::from_value(doc["tier"].clone())
-                    .unwrap_or(TrustTier::Untrusted),
+                tier: serde_json::from_value(doc["tier"].clone()).unwrap_or(TrustTier::Untrusted),
                 total_outcomes: doc["total_outcomes"].as_u64().unwrap_or(0) as u32,
                 successful_outcomes: doc["successful_outcomes"].as_u64().unwrap_or(0) as u32,
                 below_tier_streak: doc["below_tier_streak"].as_u64().unwrap_or(0) as u32,
@@ -188,8 +187,7 @@ impl<'a> AttentionTracker<'a> {
             let ts = AgentTrustScore {
                 agent_id: aid,
                 trust_score: doc["trust_score"].as_f64().unwrap_or(0.3),
-                tier: serde_json::from_value(doc["tier"].clone())
-                    .unwrap_or(TrustTier::Untrusted),
+                tier: serde_json::from_value(doc["tier"].clone()).unwrap_or(TrustTier::Untrusted),
                 total_outcomes: doc["total_outcomes"].as_u64().unwrap_or(0) as u32,
                 successful_outcomes: doc["successful_outcomes"].as_u64().unwrap_or(0) as u32,
                 below_tier_streak: doc["below_tier_streak"].as_u64().unwrap_or(0) as u32,

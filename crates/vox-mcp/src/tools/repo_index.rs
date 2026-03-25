@@ -73,17 +73,18 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
                 .and_then(|e| e.to_str())
                 .unwrap_or("")
                 .to_string();
-                
+
             let name_str = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if name_str == "SKILL.md" {
                 skills_discovered += 1;
             } else if p.components().any(|c| {
                 let s = c.as_os_str().to_str().unwrap_or("");
                 s == "workflows" || s == "_workflows" || s == ".agents" || s == "_agents"
-            }) && (ext == "md" || ext == "yaml" || ext == "yml") {
+            }) && (ext == "md" || ext == "yaml" || ext == "yml")
+            {
                 workflows_discovered += 1;
             }
-                
+
             let key = if ext.is_empty() {
                 "(no ext)".to_string()
             } else {
@@ -129,12 +130,12 @@ pub async fn repo_index_status(state: &ServerState) -> String {
         Ok(s) => ToolResult::ok(s).to_json(),
         Err(e) => ToolResult::<RepoIndexSummary>::err(e).to_json(),
     };
-    
+
     state.orchestrator.context_handle().write().unwrap().set(
         vox_orchestrator::AgentId(0),
         "workspace_index_status",
         summary.clone(),
-        30
+        30,
     );
     summary
 }
@@ -174,13 +175,13 @@ pub async fn repo_index_refresh(state: &ServerState) -> String {
         Ok(()) => ToolResult::ok(format!("wrote {}", path.display())).to_json(),
         Err(e) => ToolResult::<String>::err(format!("write {}: {e}", path.display())).to_json(),
     };
-    
+
     let ctx_handle = state.orchestrator.context_handle();
     crate::sync_lock::rw_write(&*ctx_handle).set(
         vox_orchestrator::AgentId(0),
         "workspace_index_refresh",
         res.clone(),
-        30
+        30,
     );
     res
 }

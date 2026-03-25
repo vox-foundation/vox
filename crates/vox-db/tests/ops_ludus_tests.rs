@@ -2,7 +2,6 @@ use turso;
 /// Integration tests for `CodeStore` gamification CRUD (`ops_ludus`).
 
 #[allow(missing_docs)]
-
 use vox_db::VoxDb;
 
 /// Gamification DDL not included in the vox-pm baseline or coordination schema.
@@ -121,16 +120,34 @@ CREATE TABLE IF NOT EXISTS agent_heartbeats (
 
 async fn open() -> VoxDb {
     let store: VoxDb = VoxDb::open_memory().await.expect("in-memory CodeStore");
-    for tbl in &["gamify_profiles", "gamify_achievements", "gamify_level_history",
-                 "gamify_companions", "gamify_quests", "gamify_battles", "agent_events",
-                 "cost_records", "agent_sessions", "agent_metrics", "gamify_counters",
-                 "gamify_daily_counters", "gamify_event_config", "gamify_collegium",
-                 "gamify_collegium_members", "gamify_policy_snapshots", "agent_locks", "agent_heartbeats"] {
-        store.connection().execute(&format!("DROP TABLE IF EXISTS {}", tbl), ()).await.expect("drop tbl");
+    for tbl in &[
+        "gamify_profiles",
+        "gamify_achievements",
+        "gamify_level_history",
+        "gamify_companions",
+        "gamify_quests",
+        "gamify_battles",
+        "agent_events",
+        "cost_records",
+        "agent_sessions",
+        "agent_metrics",
+        "gamify_counters",
+        "gamify_daily_counters",
+        "gamify_event_config",
+        "gamify_collegium",
+        "gamify_collegium_members",
+        "gamify_policy_snapshots",
+        "agent_locks",
+        "agent_heartbeats",
+    ] {
+        store
+            .connection()
+            .execute(&format!("DROP TABLE IF EXISTS {}", tbl), ())
+            .await
+            .expect("drop tbl");
     }
 
     for stmt in GAMIFY_DDL.split(';') {
-
         let s = stmt.trim();
         if !s.is_empty() {
             store.connection().execute(s, ()).await.expect("gamify DDL");
@@ -142,11 +159,16 @@ async fn open() -> VoxDb {
 #[tokio::test]
 async fn profile_upsert_and_load() {
     let store: VoxDb = open().await;
-    store.upsert_gamify_profile(
-        "user-1", 3, 250, 10, 100, 100, 0, 0,
-        5, 5, 0, 2, 0, 250, 0, 50, 0, 0,
-    ).await.expect("upsert profile");
-    let row = store.get_gamify_profile_raw("user-1").await.expect("get profile");
+    store
+        .upsert_gamify_profile(
+            "user-1", 3, 250, 10, 100, 100, 0, 0, 5, 5, 0, 2, 0, 250, 0, 50, 0, 0,
+        )
+        .await
+        .expect("upsert profile");
+    let row = store
+        .get_gamify_profile_raw("user-1")
+        .await
+        .expect("get profile");
     let vals = row.expect("profile exists");
     assert_eq!(vals[0], 3, "level");
     assert_eq!(vals[1], 250, "xp");
@@ -156,9 +178,15 @@ async fn profile_upsert_and_load() {
 #[tokio::test]
 async fn achievement_unlock_idempotent() {
     let store: VoxDb = open().await;
-    let inserted = store.unlock_gamify_achievement("u1", "ach1", 1000, 50, 10).await.unwrap();
+    let inserted = store
+        .unlock_gamify_achievement("u1", "ach1", 1000, 50, 10)
+        .await
+        .unwrap();
     assert!(inserted, "first unlock should be true");
-    let again = store.unlock_gamify_achievement("u1", "ach1", 1010, 50, 10).await.unwrap();
+    let again = store
+        .unlock_gamify_achievement("u1", "ach1", 1010, 50, 10)
+        .await
+        .unwrap();
     assert!(!again, "second unlock should be false (idempotent)");
     let list = store.list_gamify_achievements("u1").await.unwrap();
     assert_eq!(list.len(), 1);
@@ -167,46 +195,78 @@ async fn achievement_unlock_idempotent() {
 #[tokio::test]
 async fn quest_lifecycle() {
     let store: VoxDb = open().await;
-    store.upsert_gamify_quest(
-        "q1", "u1", "create", "Do something",
-        100, 5, 3, 0, "active", 0, false,
-    ).await.unwrap();
+    store
+        .upsert_gamify_quest(
+            "q1",
+            "u1",
+            "create",
+            "Do something",
+            100,
+            5,
+            3,
+            0,
+            "active",
+            0,
+            false,
+        )
+        .await
+        .unwrap();
     let quests = store.list_gamify_quests("u1").await.unwrap();
     assert_eq!(quests.len(), 1);
-    store.update_gamify_quest_status("q1", "u1", "completed", true).await.unwrap();
+    store
+        .update_gamify_quest_status("q1", "u1", "completed", true)
+        .await
+        .unwrap();
     let list_after = store.list_gamify_quests("u1").await.unwrap();
-    // In our current list implementation, we don't have the status filter. 
+    // In our current list implementation, we don't have the status filter.
     // Just verify it still exists or has correct data if needed.
     assert_eq!(list_after.len(), 1);
-    
+
     store.delete_gamify_quest("q1").await.unwrap();
     let all = store.list_gamify_quests("u1").await.unwrap();
     assert!(all.is_empty(), "quest deleted");
 }
 
-
 #[tokio::test]
 async fn battle_crud() {
     let store: VoxDb = open().await;
-    store.insert_gamify_battle(
-        "b1", "u1", "comp-1", "type-a", "desc",
-        None, None, false, 0, 0, 30, 1000,
-    ).await.unwrap();
+    store
+        .insert_gamify_battle(
+            "b1", "u1", "comp-1", "type-a", "desc", None, None, false, 0, 0, 30, 1000,
+        )
+        .await
+        .unwrap();
     let battles = store.list_gamify_battles("u1", 10).await.unwrap();
     assert_eq!(battles.len(), 1);
-    store.update_gamify_battle("b1", Some("fixed_code"), true, 5, 50, 25).await.unwrap();
-    let b = store.get_gamify_battle("b1").await.unwrap().expect("battle exists");
+    store
+        .update_gamify_battle("b1", Some("fixed_code"), true, 5, 50, 25)
+        .await
+        .unwrap();
+    let b = store
+        .get_gamify_battle("b1")
+        .await
+        .unwrap()
+        .expect("battle exists");
     assert_eq!(b[7].as_deref(), Some("1"), "success=true→1");
 }
 
 #[tokio::test]
 async fn counters_increment() {
     let store: VoxDb = open().await;
-    let v1 = store.increment_gamify_counter("u1", "xp_calls").await.unwrap();
+    let v1 = store
+        .increment_gamify_counter("u1", "xp_calls")
+        .await
+        .unwrap();
     assert_eq!(v1, 1);
-    let v2 = store.increment_gamify_counter("u1", "xp_calls").await.unwrap();
+    let v2 = store
+        .increment_gamify_counter("u1", "xp_calls")
+        .await
+        .unwrap();
     assert_eq!(v2, 2);
-    store.set_gamify_counter("u1", "xp_calls", 100).await.unwrap();
+    store
+        .set_gamify_counter("u1", "xp_calls", 100)
+        .await
+        .unwrap();
     let v3 = store.get_gamify_counter("u1", "xp_calls").await.unwrap();
     assert_eq!(v3, 100);
 }
@@ -215,16 +275,33 @@ async fn counters_increment() {
 async fn daily_counter_increment() {
     let store: VoxDb = open().await;
     let day = 20260323i64;
-    let v1 = store.increment_gamify_daily_counter("u1", "build_success", day).await.unwrap();
+    let v1 = store
+        .increment_gamify_daily_counter("u1", "build_success", day)
+        .await
+        .unwrap();
     assert_eq!(v1, 1);
-    let v2 = store.get_gamify_daily_counter("u1", "build_success", day).await.unwrap();
+    let v2 = store
+        .get_gamify_daily_counter("u1", "build_success", day)
+        .await
+        .unwrap();
     assert_eq!(v2, 1);
 }
 
 #[tokio::test]
 async fn cost_records() {
     let store: VoxDb = open().await;
-    store.insert_gamify_cost_record("agent-1", Some("sess-1"), "google", Some("gemini-flash"), 100, 50, 0.001).await.unwrap();
+    store
+        .insert_gamify_cost_record(
+            "agent-1",
+            Some("sess-1"),
+            "google",
+            Some("gemini-flash"),
+            100,
+            50,
+            0.001,
+        )
+        .await
+        .unwrap();
     let total = store.get_gamify_agent_cost_usd("agent-1").await.unwrap();
     assert!(total > 0.0, "cost > 0");
     let records = store.list_gamify_cost_records("agent-1", 10).await.unwrap();
@@ -235,22 +312,38 @@ async fn cost_records() {
 #[ignore]
 async fn a2a_send_poll_acknowledge() {
     let store: VoxDb = open().await;
-    store.send_a2a_message(
-        "uuid-1", "agent-1", "agent-2", "progress", "50% done",
-        1, None, "repo-abc",
-    ).await.unwrap();
+    store
+        .send_a2a_message(
+            "uuid-1", "agent-1", "agent-2", "progress", "50% done", 1, None, "repo-abc",
+        )
+        .await
+        .unwrap();
     let inbox = store.poll_a2a_inbox("agent-2", "repo-abc").await.unwrap();
     assert_eq!(inbox.len(), 1, "one message in inbox");
-    store.acknowledge_a2a_message_by_uuid("uuid-1").await.unwrap();
+    store
+        .acknowledge_a2a_message_by_uuid("uuid-1")
+        .await
+        .unwrap();
     let inbox2 = store.poll_a2a_inbox("agent-2", "repo-abc").await.unwrap();
     assert!(inbox2.is_empty(), "acknowledged message not returned");
-    
+
     // Artificially age the message to the year 2020 to ensure it is much older than 0 days
-    store.connection().execute("UPDATE a2a_messages SET created_at = '2020-01-01 00:00:00'", ()).await.unwrap();
-    
+    store
+        .connection()
+        .execute(
+            "UPDATE a2a_messages SET created_at = '2020-01-01 00:00:00'",
+            (),
+        )
+        .await
+        .unwrap();
+
     let _pruned = store.prune_a2a_messages(0).await.unwrap();
     // Verify by querying instead of relying on `execute()` affected row count which can be flaky in libsql memory DB
-    let mut rows: turso::Rows = store.connection().query("SELECT COUNT(*) FROM a2a_messages WHERE acknowledged=1", ()).await.unwrap();
+    let mut rows: turso::Rows = store
+        .connection()
+        .query("SELECT COUNT(*) FROM a2a_messages WHERE acknowledged=1", ())
+        .await
+        .unwrap();
     let count = rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap();
     assert_eq!(count, 0, "acknowledged message pruned");
 }
@@ -258,21 +351,40 @@ async fn a2a_send_poll_acknowledge() {
 #[tokio::test]
 async fn oplog_append_and_list() {
     let store: VoxDb = open().await;
-    store.append_oplog_entry(
-        "agent-1", "OP-000001", "{\"FileEdit\":{\"paths\":[\"a.rs\"]}}", "edit a.rs",
-        None, None, None, 1000, "repo-abc",
-    ).await.unwrap();
-    let entries = store.list_oplog_entries(Some("agent-1"), "repo-abc", 10).await.unwrap();
+    store
+        .append_oplog_entry(
+            "agent-1",
+            "OP-000001",
+            "{\"FileEdit\":{\"paths\":[\"a.rs\"]}}",
+            "edit a.rs",
+            None,
+            None,
+            None,
+            1000,
+            "repo-abc",
+        )
+        .await
+        .unwrap();
+    let entries = store
+        .list_oplog_entries(Some("agent-1"), "repo-abc", 10)
+        .await
+        .unwrap();
     assert_eq!(entries.len(), 1);
     store.set_oplog_undone("OP-000001", true).await.unwrap();
-    let entries2 = store.list_oplog_entries(None, "repo-abc", 10).await.unwrap();
+    let entries2 = store
+        .list_oplog_entries(None, "repo-abc", 10)
+        .await
+        .unwrap();
     assert_eq!(entries2[0][8].as_deref(), Some("1"), "undone=1");
 }
 
 #[tokio::test]
 async fn actor_state_crud() {
     let store: VoxDb = open().await;
-    store.save_actor_state("my_key", "{\"x\":42}").await.unwrap();
+    store
+        .save_actor_state("my_key", "{\"x\":42}")
+        .await
+        .unwrap();
     let loaded = store.load_actor_state("my_key").await.unwrap();
     assert_eq!(loaded.as_deref(), Some("{\"x\":42}"));
     store.delete_actor_state("my_key").await.unwrap();
@@ -283,8 +395,17 @@ async fn actor_state_crud() {
 #[tokio::test]
 async fn agent_metrics_upsert() {
     let store: VoxDb = open().await;
-    store.upsert_gamify_agent_metric("agent-1", "tokens_in", 1500.0, "daily").await.unwrap();
-    store.upsert_gamify_agent_metric("agent-1", "tokens_out", 700.0, "daily").await.unwrap();
-    let metrics = store.get_gamify_agent_metrics("agent-1", "daily").await.unwrap();
+    store
+        .upsert_gamify_agent_metric("agent-1", "tokens_in", 1500.0, "daily")
+        .await
+        .unwrap();
+    store
+        .upsert_gamify_agent_metric("agent-1", "tokens_out", 700.0, "daily")
+        .await
+        .unwrap();
+    let metrics = store
+        .get_gamify_agent_metrics("agent-1", "daily")
+        .await
+        .unwrap();
     assert_eq!(metrics.len(), 2);
 }

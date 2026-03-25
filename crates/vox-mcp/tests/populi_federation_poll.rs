@@ -6,9 +6,9 @@ use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::time::Duration;
 
 use vox_mcp::ServerState;
+use vox_orchestrator::OrchestratorConfig;
 use vox_populi::http_client::MeshHttpClient;
 use vox_populi::transport::{MeshHttpAuth, MeshTransportState, mesh_http_app_with_auth};
-use vox_orchestrator::OrchestratorConfig;
 
 /// Poll TCP connectivity until the server accepts connections, bounded to avoid infinite loops.
 async fn wait_for_tcp(addr: SocketAddr) {

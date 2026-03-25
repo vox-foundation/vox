@@ -13,9 +13,7 @@ pub async fn persist_heartbeat_with_breaker(
     repository_id: &str,
 ) -> Result<(), String> {
     db.breaker()
-        .call(|| async {
-            persist_heartbeat(&db, node_id, agent_id, activity, repository_id).await
-        })
+        .call(|| async { persist_heartbeat(&db, node_id, agent_id, activity, repository_id).await })
         .await
 }
 
@@ -32,15 +30,16 @@ pub async fn persist_heartbeat(
         .unwrap_or_default()
         .as_millis() as i64;
 
-    store.upsert_mesh_heartbeat(
-        node_id,
-        &agent_id.0.to_string(),
-        &activity.to_string(),
-        now_ms,
-        repository_id,
-    )
-    .await
-    .map_err(|e| e.to_string())
+    store
+        .upsert_mesh_heartbeat(
+            node_id,
+            &agent_id.0.to_string(),
+            &activity.to_string(),
+            now_ms,
+            repository_id,
+        )
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Retrieve all heartbeats from the database that are NOT dead (last seen within threshold).
@@ -76,17 +75,15 @@ pub async fn live_nodes_from_db(
 }
 
 /// Remove heartbeats older than max_age_ms (dead nodes).
-pub async fn evict_dead_heartbeats(
-    store: &vox_db::VoxDb,
-    max_age_ms: u64,
-) -> Result<u64, String> {
+pub async fn evict_dead_heartbeats(store: &vox_db::VoxDb, max_age_ms: u64) -> Result<u64, String> {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
     let min_seen = now_ms.saturating_sub(max_age_ms) as i64;
 
-    store.evict_dead_heartbeats(min_seen)
+    store
+        .evict_dead_heartbeats(min_seen)
         .await
         .map_err(|e| e.to_string())
 }
@@ -284,7 +281,8 @@ impl HeartbeatMonitor {
 
     /// Checks if a recheck is warranted based on the gap since the last heartbeat.
     pub fn should_recheck_workspace(&self, agent_id: AgentId, min_gap_secs: u64) -> bool {
-        self.seconds_since_last_seen(agent_id).map_or(true, |secs| secs > min_gap_secs)
+        self.seconds_since_last_seen(agent_id)
+            .map_or(true, |secs| secs > min_gap_secs)
     }
 
     /// True if the agent has exceeded the stale interval right now.

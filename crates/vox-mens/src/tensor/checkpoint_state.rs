@@ -74,8 +74,7 @@ impl CheckpointState {
     pub fn save(&self, output_dir: &Path) -> anyhow::Result<()> {
         let final_path = Self::path_in(output_dir);
         let tmp_path = output_dir.join("checkpoint_state.json.tmp");
-        let json = serde_json::to_string_pretty(self)
-            .context("serialize CheckpointState")?;
+        let json = serde_json::to_string_pretty(self).context("serialize CheckpointState")?;
         std::fs::write(&tmp_path, &json)
             .with_context(|| format!("write checkpoint tmp {}", tmp_path.display()))?;
         std::fs::rename(&tmp_path, &final_path)

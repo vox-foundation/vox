@@ -6,7 +6,6 @@
 //!
 //! See `crate` (lib.rs) for the scope table — what constructs are in/out of scope.
 
-use crate::parser::error::ParseError;
 use crate::ast::decl::*;
 use crate::ast::expr::*;
 use crate::ast::pattern::Pattern;
@@ -15,6 +14,7 @@ use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
 use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
+use crate::parser::error::ParseError;
 
 /// Strict parse: returns [`Module`] or **all** accumulated [`ParseError`] values.
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
@@ -376,14 +376,38 @@ impl Parser {
                 self.advance();
                 Ok(n)
             }
-            Token::On => { self.advance(); Ok("on".to_string()) }
-            Token::State => { self.advance(); Ok("state".to_string()) }
-            Token::Derived => { self.advance(); Ok("derived".to_string()) }
-            Token::Effect => { self.advance(); Ok("effect".to_string()) }
-            Token::Mount => { self.advance(); Ok("mount".to_string()) }
-            Token::Cleanup => { self.advance(); Ok("cleanup".to_string()) }
-            Token::View => { self.advance(); Ok("view".to_string()) }
-            Token::Component => { self.advance(); Ok("component".to_string()) }
+            Token::On => {
+                self.advance();
+                Ok("on".to_string())
+            }
+            Token::State => {
+                self.advance();
+                Ok("state".to_string())
+            }
+            Token::Derived => {
+                self.advance();
+                Ok("derived".to_string())
+            }
+            Token::Effect => {
+                self.advance();
+                Ok("effect".to_string())
+            }
+            Token::Mount => {
+                self.advance();
+                Ok("mount".to_string())
+            }
+            Token::Cleanup => {
+                self.advance();
+                Ok("cleanup".to_string())
+            }
+            Token::View => {
+                self.advance();
+                Ok("view".to_string())
+            }
+            Token::Component => {
+                self.advance();
+                Ok("component".to_string())
+            }
             _ => {
                 self.errors.push(ParseError::new(
                     self.span(),
@@ -881,13 +905,13 @@ impl Parser {
 
     fn parse_brace_expr(&mut self) -> Result<Expr, ()> {
         let start = self.span();
-        
+
         // Peek past { and newlines
         let mut i = self.pos + 1;
         while i < self.tokens.len() && matches!(self.tokens[i].token, Token::Newline) {
             i += 1;
         }
-        
+
         if matches!(self.tokens.get(i).map(|t| &t.token), Some(Token::RBrace)) {
             self.advance(); // {
             self.skip_newlines();
@@ -898,7 +922,9 @@ impl Parser {
             });
         }
 
-        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_)) = self.tokens.get(i).map(|t| &t.token) {
+        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_)) =
+            self.tokens.get(i).map(|t| &t.token)
+        {
             let mut j = i + 1;
             while j < self.tokens.len() && matches!(self.tokens[j].token, Token::Newline) {
                 j += 1;
@@ -1088,7 +1114,7 @@ impl Parser {
             if matches!(self.peek(), Token::JsxCloseStart | Token::Eof) {
                 break;
             }
-            
+
             match self.peek().clone() {
                 Token::Lt => {
                     children.push(self.parse_jsx()?);
@@ -1109,9 +1135,9 @@ impl Parser {
                 }
             }
         }
-        
+
         if self.eat(&Token::JsxCloseStart) {
-            let _ = self.parse_ident_name()?; 
+            let _ = self.parse_ident_name()?;
             self.expect(&Token::Gt)?;
         }
 
@@ -1489,7 +1515,9 @@ impl Parser {
             match self.peek().clone() {
                 Token::RBrace | Token::Eof => break,
                 Token::State => members.push(ReactiveMemberDecl::State(self.parse_state_decl()?)),
-                Token::Derived => members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?)),
+                Token::Derived => {
+                    members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
+                }
                 Token::Effect => {
                     let start = self.span();
                     let body = self.parse_reactive_block()?;
@@ -1580,13 +1608,11 @@ impl Parser {
         })
     }
 
-
-
     fn parse_reactive_block(&mut self) -> Result<Expr, ()> {
         let _start = self.span();
         self.advance(); // keyword
         self.expect(&Token::Colon)?;
-        
+
         if matches!(self.peek(), Token::LBrace) {
             let b_start = self.span();
             self.advance(); // {
@@ -1923,9 +1949,7 @@ mod tests {
 
     #[test]
     fn test_parse_jsx_with_children() {
-        let m = parse_str(
-            "@component fn A() to Element { <div><span>hello</span></div> }",
-        );
+        let m = parse_str("@component fn A() to Element { <div><span>hello</span></div> }");
         if let Decl::Component(c) = &m.declarations[0] {
             if let Stmt::Expr {
                 expr: Expr::Jsx(el),

@@ -47,7 +47,6 @@ pub use device::{
 pub use lora::{LoraAttentionKvCache, LoraLinear, LoraTransformerKvCache, LoraVoxTransformer};
 pub use lora::{LoraConfig, lora_memory_estimate};
 
-
 #[cfg(feature = "gpu")]
 pub use burn_stack::{IGNORE_INDEX, Sequential, VoxTransformer, cross_entropy_loss};
 #[cfg(feature = "gpu")]
@@ -59,7 +58,6 @@ pub mod adapter_schema_v3;
 pub mod artifact_bridge;
 #[cfg(feature = "train")]
 pub mod backend;
-
 
 #[cfg(feature = "train")]
 mod backend_candle_qlora;
@@ -102,6 +100,8 @@ pub use execution_planner::{ExecutionPlan, ExecutionPlanner};
 #[cfg(feature = "train")]
 pub use finetune_contract::FineTuneContract;
 #[cfg(feature = "train")]
+pub use lora_train::run_mens_training;
+#[cfg(feature = "train")]
 pub use preflight_train::preflight_for_contract;
 #[cfg(feature = "train")]
 pub use preset_schema::{
@@ -112,5 +112,3 @@ pub use preset_schema::{
 pub use train_backend::{ExecutionKernel, PopuliTrainBackend};
 #[cfg(feature = "train")]
 pub use training_config::{LoraTrainingConfig, MensTokenizerMode, TrainingDeploymentTarget};
-#[cfg(feature = "train")]
-pub use lora_train::run_mens_training;

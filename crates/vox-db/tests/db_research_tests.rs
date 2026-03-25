@@ -1,10 +1,10 @@
-use vox_db::{VoxDb, DbConfig, ResearchIngestRequest, ExternalResearchPacket, CapabilityMapRecord};
 use serde_json::json;
+use vox_db::{CapabilityMapRecord, DbConfig, ExternalResearchPacket, ResearchIngestRequest, VoxDb};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_research_ingestion_and_listing() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    
+
     let packet = ExternalResearchPacket {
         topic: "rust_concurrency".to_string(),
         vendor: "rust_lang".to_string(),
@@ -21,19 +21,21 @@ async fn test_research_ingestion_and_listing() {
         content_hash: "".to_string(),
         metadata: json!({}),
     };
-    
+
     let mut req = ResearchIngestRequest {
         packet,
         body: "Rust provides safe concurrency via ownership...".to_string(),
         kb_id: None,
         embeddings: vec![],
     };
-    
+
     let result = db.ingest_research_document_async(&mut req).await.unwrap();
     assert!(result.packet_id > 0);
     assert_eq!(result.chunk_ids.len(), 1);
-    
-    let packets = db.list_research_packets(Some("rust_lang"), None, 10).unwrap();
+
+    let packets = db
+        .list_research_packets(Some("rust_lang"), None, 10)
+        .unwrap();
     assert_eq!(packets.len(), 1);
     assert_eq!(packets[0].topic, "rust_concurrency");
 }
@@ -41,7 +43,7 @@ async fn test_research_ingestion_and_listing() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_capability_map_crud() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    
+
     let record = CapabilityMapRecord {
         topic: "agent_orchestration".to_string(),
         vendor: "competitor_x".to_string(),
@@ -54,11 +56,13 @@ async fn test_capability_map_crud() {
         linked_paths: vec!["crates/vox-orchestrator".to_string()],
         metadata: json!({}),
     };
-    
+
     let id = db.store_capability_map_record(&record).unwrap();
     assert!(id > 0);
-    
-    let records = db.list_capability_map_records(Some("competitor_x"), None, 10).unwrap();
+
+    let records = db
+        .list_capability_map_records(Some("competitor_x"), None, 10)
+        .unwrap();
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].topic, "agent_orchestration");
 }
@@ -66,11 +70,11 @@ async fn test_capability_map_crud() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_retrieval_diagnostics() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    
+
     let diag = vox_db::retrieval_diagnostics(&db).unwrap();
     // Fresh DB should have 0/0/0
     assert_eq!(diag.knowledge_nodes_count, 0);
-    
+
     // Ingest something
     let packet = ExternalResearchPacket {
         topic: "test".to_string(),
@@ -95,7 +99,7 @@ async fn test_retrieval_diagnostics() {
         embeddings: vec![],
     };
     db.ingest_research_document_async(&mut req).await.unwrap();
-    
+
     let diag2 = vox_db::retrieval_diagnostics(&db).unwrap();
     assert_eq!(diag2.knowledge_nodes_count, 1);
 }

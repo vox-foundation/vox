@@ -46,7 +46,7 @@ pub struct HirModule {
     pub indexes: Vec<HirIndex>,
     /// MCP tool handlers.
     pub mcp_tools: Vec<HirMcpTool>,
-    
+
     // UI & TanStack specific structures (AST-retained for TS codegen migration)
     /// UI Components.
     pub components: Vec<HirComponent>,
@@ -120,7 +120,6 @@ pub struct HirLoading(pub crate::ast::decl::LoadingDecl);
 /// Not Found view lowered to HIR.
 #[derive(Debug, Clone)]
 pub struct HirNotFound(pub crate::ast::decl::NotFoundDecl);
-
 
 /// A resolved import.
 #[derive(Debug, Clone)]

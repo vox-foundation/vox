@@ -119,8 +119,10 @@ impl Printer {
                 }
                 self.out.push_str("@table type ");
                 self.out.push_str(&t.name);
-                self.out.push_str(" {
-");
+                self.out.push_str(
+                    " {
+",
+                );
                 self.indent();
                 for field in &t.fields {
                     self.write_indent();
@@ -159,8 +161,10 @@ impl Printer {
             }
             Decl::Routes(r) => {
                 self.write_indent();
-                self.out.push_str("routes {
-");
+                self.out.push_str(
+                    "routes {
+",
+                );
                 self.indent();
                 for entry in &r.entries {
                     self.write_indent();
@@ -204,8 +208,10 @@ impl Printer {
                 self.write_indent();
                 self.out.push_str("actor ");
                 self.out.push_str(&a.name);
-                self.out.push_str(" {
-");
+                self.out.push_str(
+                    " {
+",
+                );
                 self.indent();
                 for handler in &a.handlers {
                     self.write_indent();
@@ -223,8 +229,10 @@ impl Printer {
                 self.write_indent();
                 self.out.push_str("@island ");
                 self.out.push_str(&isle.name);
-                self.out.push_str(" {
-");
+                self.out.push_str(
+                    " {
+",
+                );
                 if !isle.props.is_empty() {
                     self.indent();
                     for p in &isle.props {
@@ -340,8 +348,10 @@ impl Printer {
         }
 
         if body.is_empty() {
-            self.out.push_str(" {
-");
+            self.out.push_str(
+                " {
+",
+            );
             self.indent();
             self.write_indent();
             self.out.push_str("pass\n");
@@ -349,8 +359,10 @@ impl Printer {
             self.write_indent();
             self.out.push('}');
         } else {
-            self.out.push_str(" {
-");
+            self.out.push_str(
+                " {
+",
+            );
             self.indent();
             for s in body {
                 self.print_stmt(s);
@@ -445,8 +457,10 @@ impl Printer {
             } => {
                 self.out.push_str("if ");
                 self.print_expr(condition);
-                self.out.push_str(" {
-");
+                self.out.push_str(
+                    " {
+",
+                );
                 self.indent();
                 for s in then_body {
                     self.print_stmt(s);
@@ -455,8 +469,10 @@ impl Printer {
                 self.write_indent();
                 self.out.push('}');
                 if let Some(else_stmts) = else_body {
-                    self.out.push_str(" else {
-");
+                    self.out.push_str(
+                        " else {
+",
+                    );
                     self.indent();
                     for s in else_stmts {
                         self.print_stmt(s);
@@ -469,8 +485,10 @@ impl Printer {
             Expr::Match { subject, arms, .. } => {
                 self.out.push_str("match ");
                 self.print_expr(subject);
-                self.out.push_str(" {
-");
+                self.out.push_str(
+                    " {
+",
+                );
                 self.indent();
                 for arm in arms {
                     self.write_indent();
@@ -529,8 +547,10 @@ impl Printer {
         self.write_indent();
         self.out.push_str("@environment ");
         self.out.push_str(&env.name);
-        self.out.push_str(" {
-");
+        self.out.push_str(
+            " {
+",
+        );
         self.indent();
 
         if let Some(ref base) = env.base_image {
@@ -684,9 +704,11 @@ mod tests {
 
     #[test]
     fn idempotent_simple_fn() {
-        assert_idempotent("fn add(x: int, y: int) to int {
+        assert_idempotent(
+            "fn add(x: int, y: int) to int {
     ret x + y
-}\n");
+}\n",
+        );
     }
 
     #[test]
@@ -702,23 +724,29 @@ mod tests {
 
     #[test]
     fn idempotent_server_fn() {
-        assert_idempotent("@server fn greet(name: str) to str {
+        assert_idempotent(
+            "@server fn greet(name: str) to str {
     ret \"hello\"
-}\n");
+}\n",
+        );
     }
 
     #[test]
     fn idempotent_query_fn() {
-        assert_idempotent("@query fn list_items() to list[Item] {
+        assert_idempotent(
+            "@query fn list_items() to list[Item] {
     ret []
-}\n");
+}\n",
+        );
     }
 
     #[test]
     fn idempotent_mutation_fn() {
-        assert_idempotent("@mutation fn add_item(name: str) to Result[str] {
+        assert_idempotent(
+            "@mutation fn add_item(name: str) to Result[str] {
     ret Ok(name)
-}\n");
+}\n",
+        );
     }
 
     #[test]
@@ -745,34 +773,42 @@ mod tests {
 
     #[test]
     fn idempotent_workflow() {
-        assert_idempotent("workflow my_flow(input: str) to Result[str] {
+        assert_idempotent(
+            "workflow my_flow(input: str) to Result[str] {
     ret Ok(input)
-}\n");
+}\n",
+        );
     }
 
     #[test]
     fn idempotent_actor() {
-        assert_idempotent("actor Counter {
+        assert_idempotent(
+            "actor Counter {
     on increment(n: int) to int {
         ret n
     }
-}\n");
+}\n",
+        );
     }
 
     #[test]
     fn idempotent_routes() {
-        assert_idempotent("routes {
+        assert_idempotent(
+            "routes {
     \"/\" to Home
     \"/about\" to About
-}\n");
+}\n",
+        );
     }
 
     #[test]
     fn table_uses_brace_syntax() {
-        let out = format("@table type User {
+        let out = format(
+            "@table type User {
     name: str
     age: int
-}\n");
+}\n",
+        );
         assert!(
             out.contains("@table type User {"),
             "expected brace block, got: {out}"

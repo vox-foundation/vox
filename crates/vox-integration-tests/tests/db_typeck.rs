@@ -37,7 +37,11 @@ http post "/api/msg" to int {
 "#;
 
     let errs = errors(src);
-    assert!(errs.is_empty(), "DB operations should typecheck. Errors: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "DB operations should typecheck. Errors: {:?}",
+        errs
+    );
 }
 
 #[test]

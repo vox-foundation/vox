@@ -3,6 +3,8 @@
 # Examples:
 #   .\scripts\install.ps1
 #   .\scripts\install.ps1 -Dev -InstallClang -Apply
+#   .\scripts\install.ps1 -Install
+#   .\scripts\install.ps1 -Install -Version v1.2.3
 #   .\scripts\install.ps1 plan
 #   .\scripts\install.ps1 -Dev plan --human
 #Requires -Version 5.1
@@ -12,6 +14,8 @@ param(
     [switch] $InstallClang,
     [switch] $Apply,
     [switch] $Install,
+    [switch] $SourceOnly,
+    [string] $Version,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $Remaining
 )
@@ -25,6 +29,11 @@ if ($Dev) { $pass.Add('--dev') }
 if ($InstallClang) { $pass.Add('--install-clang') }
 if ($Apply) { $pass.Add('--apply') }
 if ($Install) { $pass.Add('--install') }
+if ($SourceOnly) { $pass.Add('--source-only') }
+if ($Version) {
+    $pass.Add('--version')
+    $pass.Add($Version)
+}
 foreach ($r in $Remaining) { $pass.Add($r) }
 
 function Ensure-Cargo {
