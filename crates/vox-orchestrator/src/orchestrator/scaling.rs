@@ -291,10 +291,5 @@ impl crate::orchestrator::Orchestrator {
                 }
             }
         }
-
-        // 7. News Syndication check
-        if let Err(e) = crate::services::news::NewsService::tick(self).await {
-            tracing::error!("NewsService tick failed: {}", e);
-        }
     }
 }

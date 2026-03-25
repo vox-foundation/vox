@@ -17,11 +17,6 @@ pub fn now_unix_ms() -> u64 {
         .as_millis() as u64
 }
 
-/// Returns true when `v == 0.0`; used as `skip_serializing_if` for `attention_weight`.
-pub fn is_zero_f64(v: &f64) -> bool {
-    *v == 0.0
-}
-
 // ---------------------------------------------------------------------------
 // Identity types
 // ---------------------------------------------------------------------------
@@ -401,12 +396,6 @@ pub struct AgentTask {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
-    /// Effective attention weight computed at gate time (Phase 15). 0.0 = not yet computed.
-    #[serde(default, skip_serializing_if = "is_zero_f64")]
-    pub attention_weight: f64,
-    /// Approval tier assigned by the attention gate (Phase 15).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub approval_tier: Option<crate::attention::ApprovalTier>,
 }
 
 impl AgentTask {
@@ -437,8 +426,6 @@ impl AgentTask {
             socrates: None,
             capability_requirements: None,
             session_id: None,
-            attention_weight: 0.0,
-            approval_tier: None,
         }
     }
 
@@ -646,8 +633,6 @@ pub enum A2AMessageType {
     CancelRequest,
     /// Snapshot ID exchange for before/after context sharing.
     SnapshotShare,
-    /// Broadcast a unified news item to all publishers.
-    BroadcastNews,
 }
 
 impl A2AMessageType {
@@ -667,7 +652,6 @@ impl A2AMessageType {
             Self::VcsEvent => "vcs_event",
             Self::CancelRequest => "cancel_request",
             Self::SnapshotShare => "snapshot_share",
-            Self::BroadcastNews => "broadcast_news",
         }
     }
 }
@@ -758,11 +742,7 @@ pub struct MessageEnvelope {
     /// Sender role (e.g. "system", "user", "agent").
     pub sender_role: Option<String>,
     /// Trust level for provenance (e.g. "trusted", "untrusted").
-    /// Deprecated: use `trust_tier`. Kept for Arca backward-compat.
     pub trust_level: Option<String>,
-    /// Typed trust tier from Phase 15 attention system.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub trust_tier: Option<crate::attention::TrustTier>,
     /// Expiry timestamp in unix milliseconds (None = no expiry).
     pub expiry_ms: Option<u64>,
 }

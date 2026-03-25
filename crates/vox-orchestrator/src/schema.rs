@@ -163,30 +163,13 @@ pub fn orchestrator_schema() -> SchemaDigest {
                 sample_data: vec![],
             },
         ],
-        collections: vec![
-            CollectionInfo {
-                name: "handoff_payloads".to_string(),
-                fields: vec![],
-                description: Some("Schemaless storage for agent handoff documents".to_string()),
-                is_public: false,
-                sample_data: vec![],
-            },
-            // Phase 15: Attention budget collections (schemaless JSON; no SQL migration needed)
-            CollectionInfo {
-                name: "attention_events".to_string(),
-                fields: vec![],
-                description: Some("Append-only pilot attention event log (Phase 15)".to_string()),
-                is_public: false,
-                sample_data: vec![],
-            },
-            CollectionInfo {
-                name: "agent_trust_scores".to_string(),
-                fields: vec![],
-                description: Some("Per-agent EWMA trust scores for attention-aware routing (Phase 15)".to_string()),
-                is_public: false,
-                sample_data: vec![],
-            },
-        ],
+        collections: vec![CollectionInfo {
+            name: "handoff_payloads".to_string(),
+            fields: vec![],
+            description: Some("Schemaless storage for agent handoff documents".to_string()),
+            is_public: false,
+            sample_data: vec![],
+        }],
         relationships: vec![],
         indexes: vec![],
         queries: vec![],
