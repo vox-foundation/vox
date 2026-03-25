@@ -10,6 +10,4 @@ mod tracker;
 mod types;
 
 pub use tracker::AchievementTracker;
-pub use types::{
-    Achievement, AchievementCategory, AchievementId, UnlockedAchievement,
-};
+pub use types::{Achievement, AchievementCategory, AchievementId, UnlockedAchievement};

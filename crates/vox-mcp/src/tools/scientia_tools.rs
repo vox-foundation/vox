@@ -61,14 +61,12 @@ pub async fn vox_scientia_publication_prepare(
             }
         },
     };
-    let profile: PreflightProfile = params
-        .preflight_profile
-        .unwrap_or_default()
-        .into();
+    let profile: PreflightProfile = params.preflight_profile.unwrap_or_default().into();
     let metadata_json = match vox_publisher::scientific_metadata::build_scientia_metadata_json(
         "vox_scientia_publication_prepare",
         Some(state.repository.repository_id.as_str()),
         scientific.as_ref(),
+        None,
     ) {
         Ok(s) => s,
         Err(e) => return ToolResult::<String>::err(format!("metadata_json: {e}")).to_json(),
@@ -303,6 +301,9 @@ pub struct VoxScientiaPublicationPreflightParams {
     pub publication_id: String,
     #[serde(default)]
     pub profile: Option<PreflightProfileParam>,
+    /// When true, attach [`vox_publisher::publication_worthiness::WorthinessEvaluation`] (`contracts/scientia/publication-worthiness.default.yaml` from repo root).
+    #[serde(default)]
+    pub with_worthiness: bool,
 }
 
 pub async fn vox_scientia_publication_preflight(
@@ -319,7 +320,7 @@ pub async fn vox_scientia_publication_preflight(
     let Some(row) = row else {
         return ToolResult::<String>::err("publication not found".to_string()).to_json();
     };
-    let manifest = PublicationManifest {
+    let mut manifest = PublicationManifest {
         publication_id: row.publication_id,
         content_type: row.content_type,
         source_ref: row.source_ref,
@@ -331,6 +332,109 @@ pub async fn vox_scientia_publication_preflight(
         metadata_json: row.metadata_json,
     };
     let profile: PreflightProfile = params.profile.unwrap_or_default().into();
-    let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    let report = if params.with_worthiness {
+        let rid = manifest
+            .metadata_json
+            .as_deref()
+            .and_then(|raw| {
+                let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+                v.get("repository_id")
+                    .and_then(|x| x.as_str())
+                    .map(std::string::ToString::to_string)
+            })
+            .unwrap_or_else(|| state.repository.repository_id.clone());
+        match db
+            .merge_scientia_live_socrates_into_metadata_json(
+                manifest.metadata_json.as_deref(),
+                rid.as_str(),
+            )
+            .await
+        {
+            Ok(s) => manifest.metadata_json = Some(s),
+            Err(e) => {
+                return ToolResult::<String>::err(format!("socrates telemetry merge: {e}"))
+                    .to_json();
+            }
+        }
+        let path = state
+            .repository
+            .root
+            .join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
+        let yaml = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                return ToolResult::<String>::err(format!(
+                    "read worthiness contract {}: {e}",
+                    path.display()
+                ))
+                .to_json();
+            }
+        };
+        let contract = match vox_publisher::publication_worthiness::load_contract_from_str(&yaml) {
+            Ok(c) => c,
+            Err(e) => {
+                return ToolResult::<String>::err(format!("parse worthiness contract: {e}"))
+                    .to_json();
+            }
+        };
+        if let Err(e) =
+            vox_publisher::publication_worthiness::validate_contract_invariants(&contract)
+        {
+            return ToolResult::<String>::err(format!("worthiness contract invariants: {e}"))
+                .to_json();
+        }
+        vox_publisher::publication_preflight::run_preflight_with_worthiness(
+            &manifest, profile, &contract,
+        )
+    } else {
+        vox_publisher::publication_preflight::run_preflight(&manifest, profile)
+    };
     ToolResult::ok(report).to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaWorthinessEvaluateParams {
+    /// Repo-relative contract YAML (defaults to `contracts/scientia/publication-worthiness.default.yaml`).
+    #[serde(default)]
+    pub contract_yaml_relative: Option<String>,
+    /// [`vox_publisher::publication_worthiness::WorthinessInputs`] as a JSON object.
+    pub metrics: serde_json::Value,
+}
+
+/// Local-only worthiness gate: load contract from the discovered repository root; no DB writes.
+pub async fn vox_scientia_worthiness_evaluate(
+    state: &ServerState,
+    params: VoxScientiaWorthinessEvaluateParams,
+) -> String {
+    let root = &state.repository.root;
+    let contract_path = match params.contract_yaml_relative {
+        Some(rel) if !rel.trim().is_empty() => root.join(rel.trim()),
+        _ => root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
+    };
+    let yaml = match std::fs::read_to_string(&contract_path) {
+        Ok(s) => s,
+        Err(e) => {
+            return ToolResult::<String>::err(format!(
+                "read contract {}: {e}",
+                contract_path.display()
+            ))
+            .to_json();
+        }
+    };
+    let contract = match vox_publisher::publication_worthiness::load_contract_from_str(&yaml) {
+        Ok(c) => c,
+        Err(e) => {
+            return ToolResult::<String>::err(format!("parse contract YAML: {e}")).to_json();
+        }
+    };
+    if let Err(e) = vox_publisher::publication_worthiness::validate_contract_invariants(&contract) {
+        return ToolResult::<String>::err(format!("contract invariants: {e}")).to_json();
+    }
+    let inputs: vox_publisher::publication_worthiness::WorthinessInputs =
+        match serde_json::from_value(params.metrics) {
+            Ok(i) => i,
+            Err(e) => return ToolResult::<String>::err(format!("metrics: {e}")).to_json(),
+        };
+    let out = vox_publisher::publication_worthiness::evaluate_worthiness(&contract, &inputs);
+    ToolResult::ok(out).to_json()
 }

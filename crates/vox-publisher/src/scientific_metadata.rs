@@ -57,6 +57,7 @@ pub fn build_scientia_metadata_json(
     prepared_by: &str,
     repository_id: Option<&str>,
     scientific: Option<&ScientificPublicationMetadata>,
+    scientia_evidence: Option<&crate::scientia_evidence::ScientiaEvidenceContext>,
 ) -> serde_json::Result<String> {
     let mut root = serde_json::Map::new();
     root.insert(
@@ -75,6 +76,12 @@ pub fn build_scientia_metadata_json(
                 serde_json::to_value(s)?,
             );
         }
+    }
+    if let Some(e) = scientia_evidence {
+        root.insert(
+            crate::scientia_evidence::METADATA_KEY_SCIENTIA_EVIDENCE.to_string(),
+            serde_json::to_value(e)?,
+        );
     }
     Ok(serde_json::Value::Object(root).to_string())
 }
@@ -97,7 +104,7 @@ mod tests {
             reproducibility: None,
             ethics_and_impact: None,
         };
-        let s = build_scientia_metadata_json("test", None, Some(&sci)).unwrap();
+        let s = build_scientia_metadata_json("test", None, Some(&sci), None).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["prepared_by"], "test");
         assert!(v[METADATA_KEY_SCIENTIFIC]["authors"][0]["name"] == "Ada Lovelace");
@@ -107,7 +114,7 @@ mod tests {
     fn digest_changes_when_scientific_block_changes() {
         use crate::publication::PublicationManifest;
 
-        let base = build_scientia_metadata_json("prep", None, None).unwrap();
+        let base = build_scientia_metadata_json("prep", None, None, None).unwrap();
         let mut m1 = PublicationManifest {
             publication_id: "p1".to_string(),
             content_type: "scientia".to_string(),
@@ -126,7 +133,7 @@ mod tests {
             ..Default::default()
         };
         m1.metadata_json =
-            Some(build_scientia_metadata_json("prep", None, Some(&sci)).unwrap());
+            Some(build_scientia_metadata_json("prep", None, Some(&sci), None).unwrap());
         let d2 = m1.content_sha3_256();
         assert_ne!(d1, d2);
     }

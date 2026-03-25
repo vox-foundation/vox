@@ -1,5 +1,5 @@
-use crate::migration::{validate_migrations, Migration};
-use crate::{store, StoreError};
+use crate::migration::{Migration, validate_migrations};
+use crate::{StoreError, store};
 
 impl crate::VoxDb {
     /// Apply ordered migrations that have not yet been executed (same `schema_version` table as Arca).

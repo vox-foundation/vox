@@ -8,7 +8,7 @@ pub async fn run(all: bool) -> Result<()> {
     let target_dir = std::path::PathBuf::from("target");
     if target_dir.exists() {
         println!("Cleaning target/...");
-        std::fs::remove_dir_all(&target_dir)?;
+        tokio::fs::remove_dir_all(&target_dir).await?;
         cleaned += 1;
     }
 
@@ -16,7 +16,7 @@ pub async fn run(all: bool) -> Result<()> {
     let dist_dir = std::path::PathBuf::from("dist");
     if dist_dir.exists() {
         println!("Cleaning dist/...");
-        std::fs::remove_dir_all(&dist_dir)?;
+        tokio::fs::remove_dir_all(&dist_dir).await?;
         cleaned += 1;
     }
 
@@ -24,7 +24,7 @@ pub async fn run(all: bool) -> Result<()> {
     let cache_dir = std::path::PathBuf::from(".vox-cache");
     if cache_dir.exists() {
         println!("Cleaning .vox-cache/...");
-        std::fs::remove_dir_all(&cache_dir)?;
+        tokio::fs::remove_dir_all(&cache_dir).await?;
         cleaned += 1;
     }
 
@@ -33,14 +33,14 @@ pub async fn run(all: bool) -> Result<()> {
         let modules_dir = std::path::PathBuf::from(".vox_modules");
         if modules_dir.exists() {
             println!("Cleaning .vox_modules/...");
-            std::fs::remove_dir_all(&modules_dir)?;
+            tokio::fs::remove_dir_all(&modules_dir).await?;
             cleaned += 1;
         }
 
         let lock_path = std::path::PathBuf::from("vox.lock");
         if lock_path.exists() {
             println!("Removing vox.lock...");
-            std::fs::remove_file(&lock_path)?;
+            tokio::fs::remove_file(&lock_path).await?;
             cleaned += 1;
         }
 
@@ -51,7 +51,7 @@ pub async fn run(all: bool) -> Result<()> {
         let global_cache = std::path::PathBuf::from(home).join(".vox").join("cache");
         if global_cache.exists() {
             println!("Cleaning global cache (~/.vox/cache/)...");
-            std::fs::remove_dir_all(&global_cache)?;
+            tokio::fs::remove_dir_all(&global_cache).await?;
             cleaned += 1;
         }
     }

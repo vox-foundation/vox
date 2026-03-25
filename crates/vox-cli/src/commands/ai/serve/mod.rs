@@ -90,7 +90,9 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
     if let Err(e) = vox_populi::mens::tensor::manifest::validate_checkpoint_manifest(
         &config.model_path,
         run_dir,
-        arch.to_validate_params(Some(vox_populi::mens::tensor::manifest::CheckpointKind::Lora)),
+        arch.to_validate_params(Some(
+            vox_populi::mens::tensor::manifest::CheckpointKind::Lora,
+        )),
     ) {
         anyhow::bail!("{e}");
     }

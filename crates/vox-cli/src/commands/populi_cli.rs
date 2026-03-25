@@ -3,11 +3,11 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use anyhow::Context;
-use clap::Subcommand;
 use crate::commands::populi_lifecycle::{
     OverlayProviderArg, PopuliConnectivityMode, PopuliLifecycleCmd,
 };
+use anyhow::Context;
+use clap::Subcommand;
 
 /// Populi mesh subcommands.
 #[derive(Subcommand)]

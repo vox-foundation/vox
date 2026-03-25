@@ -2,12 +2,12 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::super::limits;
+use super::super::path_policy;
 use super::groups::{
     DEFAULT_MAX_FILES_PER_PR, IGNORED_DIRS, IGNORED_EXTENSIONS, IGNORED_ROOT_EXACT,
     IGNORED_ROOT_PATTERNS, SEMANTIC_GROUPS,
 };
-use super::super::limits;
-use super::super::path_policy;
 
 /// A single named semantic group of files (≤ max_files_per_pr).
 #[derive(Debug, Clone, Serialize, Deserialize)]

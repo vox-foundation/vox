@@ -36,7 +36,10 @@ pub async fn context_assemble_bundle(
         } else {
             let per_type = (limit / CONTEXT_MEMORY_TYPES.len() as i64).max(1);
             for memory_type in CONTEXT_MEMORY_TYPES {
-                if let Ok(entries) = db.recall_memory("", Some(memory_type), per_type, None).await {
+                if let Ok(entries) = db
+                    .recall_memory("", Some(memory_type), per_type, None)
+                    .await
+                {
                     for e in entries {
                         if let Ok(v) = serde_json::to_value(&e) {
                             sources.push(v);
@@ -58,7 +61,10 @@ pub async fn context_assemble_bundle(
         } else {
             let per_type = (limit / CONTEXT_MEMORY_TYPES.len() as i64).max(1);
             for memory_type in CONTEXT_MEMORY_TYPES {
-                if let Ok(entries) = db.recall_memory("", Some(memory_type), per_type, None).await {
+                if let Ok(entries) = db
+                    .recall_memory("", Some(memory_type), per_type, None)
+                    .await
+                {
                     for e in entries {
                         if let Ok(v) = serde_json::to_value(&e) {
                             sources.push(v);

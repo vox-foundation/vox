@@ -11,11 +11,11 @@ mod budget;
 mod routing;
 
 pub use budget::{
-    compute_attention_cost_ms, decision_entropy_bits, ActionDescriptor, ApprovalOutcome,
-    ApprovalTier, AttentionBudget, AttentionEvent, AttentionEventType, DEFAULT_ATTENTION_BUDGET_MS,
-    DEFAULT_INTERRUPT_COST_MS, FocusDepth, NasaTlxWeights, TierGateConfig, TrustTier,
+    ActionDescriptor, ApprovalOutcome, ApprovalTier, AttentionBudget, AttentionEvent,
+    AttentionEventType, DEFAULT_ATTENTION_BUDGET_MS, DEFAULT_INTERRUPT_COST_MS, FocusDepth,
+    NasaTlxWeights, TierGateConfig, TrustTier, compute_attention_cost_ms, decision_entropy_bits,
 };
-pub use routing::{classify_tier, AgentTrustScore};
+pub use routing::{AgentTrustScore, classify_tier};
 
 #[cfg(test)]
 mod tests {

@@ -4,12 +4,13 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::LazyLock;
 
+use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
 use crate::commands::ci::contracts_index;
-use crate::commands::ci::cargo_bin;
+use crate::commands::ci::scientia_worthiness_contract;
 
 pub(crate) fn run_manifest(root: &Path) -> Result<()> {
     let status = Command::new(cargo_bin())
@@ -252,6 +253,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     check_codex_ssot(root)?;
     command_compliance::run(root)?;
     contracts_index::run(root)?;
+    scientia_worthiness_contract::run(root)?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

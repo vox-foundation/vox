@@ -23,8 +23,8 @@ pub(crate) fn is_ignored(path: &str) -> bool {
     // Separately: generated mdBook HTML (in .gitignore but sometimes still tracked)
     let ignored_prefixes = ["docs/book/"];
     let ignored_exts = [
-        ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so", ".dylib", ".bin",
-        ".lock", ".svg", ".db", ".db-wal", ".db-shm",
+        ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so", ".dylib", ".bin", ".lock",
+        ".svg", ".db", ".db-wal", ".db-shm",
     ];
     let ignored_files = [
         "Cargo.lock",

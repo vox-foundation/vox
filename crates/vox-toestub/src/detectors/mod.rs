@@ -14,6 +14,8 @@ pub mod god_object;
 pub mod line_endings;
 /// Suspicious literals (large ints, long strings) that should be named constants.
 pub mod magic_value;
+/// Scaling risks: blocking I/O in async, unbounded reads, SQL/HTTP heuristics.
+pub mod scaling;
 /// Optional JSON-schema cross-check when a schema path is configured.
 pub mod schema_compliance;
 /// High-entropy strings and common secret patterns (keys, tokens).
@@ -24,8 +26,6 @@ pub mod sprawl;
 pub mod stringly_typed_enum;
 /// `TODO` / `unimplemented!` / obvious stub markers left in shipped code.
 pub mod stub;
-/// Scaling risks: blocking I/O in async, unbounded reads, SQL/HTTP heuristics.
-pub mod scaling;
 /// References to symbols that are not defined or imported in the current compilation unit.
 pub mod unresolved_ref;
 /// Modules declared but never imported or wired into the build graph.

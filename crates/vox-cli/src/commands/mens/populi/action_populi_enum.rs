@@ -443,6 +443,12 @@ pub enum PopuliAction {
         /// Sampling temperature (0.0 = greedy)
         #[arg(long, default_value = "0.0")]
         temperature: f32,
+        /// Number of samples per benchmark item for pass@k (k)
+        #[arg(long, default_value = "1")]
+        samples: usize,
+        /// Base RNG seed for sampled generations (used when temperature > 0)
+        #[arg(long, default_value = "1337")]
+        seed_base: u64,
         /// Output JSON results to this path
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,

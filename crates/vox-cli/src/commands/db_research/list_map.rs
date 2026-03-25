@@ -8,17 +8,18 @@ pub async fn research_list(
 ) -> anyhow::Result<()> {
     let vendor = vendor.map(ToString::to_string);
     let topic = topic.map(ToString::to_string);
-    let rows =
-        tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<vox_db::ExternalResearchPacket>> {
+    let rows = tokio::task::spawn_blocking(
+        move || -> anyhow::Result<Vec<vox_db::ExternalResearchPacket>> {
             let db = vox_db::VoxDb::connect_default_sync().map_err(|e| anyhow::anyhow!("{e}"))?;
             let rows = db
                 .list_research_packets(vendor.as_deref(), topic.as_deref(), limit)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             db.shutdown_for_drop();
             Ok(rows)
-        })
-        .await
-        .map_err(|e| anyhow::anyhow!("research list task failed: {e}"))??;
+        },
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("research list task failed: {e}"))??;
     if rows.is_empty() {
         println!("(no research packets)");
         return Ok(());
@@ -82,17 +83,18 @@ pub async fn research_map_list(
 ) -> anyhow::Result<()> {
     let vendor = vendor.map(ToString::to_string);
     let topic = topic.map(ToString::to_string);
-    let rows =
-        tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<vox_db::CapabilityMapRecord>> {
+    let rows = tokio::task::spawn_blocking(
+        move || -> anyhow::Result<Vec<vox_db::CapabilityMapRecord>> {
             let db = vox_db::VoxDb::connect_default_sync().map_err(|e| anyhow::anyhow!("{e}"))?;
             let rows = db
                 .list_capability_map_records(vendor.as_deref(), topic.as_deref(), limit)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             db.shutdown_for_drop();
             Ok(rows)
-        })
-        .await
-        .map_err(|e| anyhow::anyhow!("research map list task failed: {e}"))??;
+        },
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("research map list task failed: {e}"))??;
     if rows.is_empty() {
         println!("(no capability-map rows)");
         return Ok(());

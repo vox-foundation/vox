@@ -178,6 +178,13 @@ Canonical contract artifacts for this rubric:
 - `contracts/scientia/publication-worthiness.schema.json`
 - `contracts/scientia/publication-worthiness.default.yaml`
 
+CI and runtime surfaces:
+
+- `vox ci scientia-worthiness-contract` — schema + invariant check (also nested in `vox ci ssot-drift`).
+- `vox scientia publication-worthiness-evaluate --metrics-json <path>` (and `vox db publication-worthiness-evaluate`) — print evaluation JSON from contract + metrics file.
+- MCP `vox_scientia_worthiness_evaluate` — same evaluation using repo root + JSON `metrics` (no DB).
+- `vox scientia publication-preflight --with-worthiness` / MCP `vox_scientia_publication_preflight` with `with_worthiness: true` — attaches a `worthiness` block. When VoxDb has `socrates_surface` rows for `metadata_json.repository_id` (or MCP server repo id), a live rollup is merged into `metadata_json.scientia_evidence.socrates_aggregate` before scoring. Embed optional `scientia_evidence` (eval-gate, benchmark pair, human attestations) under `metadata_json` for decisions closer to human review (see `crates/vox-publisher/src/scientia_evidence.rs`).
+
 ## External policy URL appendix
 
 - COPE AI authorship and tooling position: [https://publicationethics.org/cope-position-statements/ai-author](https://publicationethics.org/cope-position-statements/ai-author)

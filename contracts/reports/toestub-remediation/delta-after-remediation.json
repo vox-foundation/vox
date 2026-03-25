@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-03-25T20:18:06.073961Z",
+  "baseline_total": 6091,
+  "current_total": 4437,
+  "delta_total": -1654,
+  "current_by_severity": {
+    "critical": 1,
+    "error": 221,
+    "warning": 951,
+    "info": 3264
+  },
+  "current_by_rule_family": {
+    "unresolved-ref": 2075,
+    "scaling": 637,
+    "rust": 552,
+    "unwired": 496,
+    "arch": 409,
+    "stub": 210,
+    "dry-violation": 26,
+    "victory-claim": 13,
+    "magic-value": 9,
+    "stringly-typed-enum": 7,
+    "empty-body": 2,
+    "security": 1
+  }
+}

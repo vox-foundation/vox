@@ -37,7 +37,8 @@ impl LoadedPopuliEvalModel {
             seq_len = m.seq_len;
         }
 
-        let device = <EvalBackend as vox_populi::mens::burn::tensor::backend::Backend>::Device::default();
+        let device =
+            <EvalBackend as vox_populi::mens::burn::tensor::backend::Backend>::Device::default();
         let spec = vox_populi::mens::tensor::BurnInferenceLoadSpec {
             vocab_size: arch.vocab_size,
             d_model: arch.d_model,
@@ -46,9 +47,10 @@ impl LoadedPopuliEvalModel {
             rank,
             alpha,
         };
-        let model =
-            vox_populi::mens::tensor::load_burn_inference_model::<EvalBackend>(&device, model_path, spec)
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let model = vox_populi::mens::tensor::load_burn_inference_model::<EvalBackend>(
+            &device, model_path, spec,
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         Ok(Self {
             model,
@@ -87,15 +89,17 @@ impl LoadedPopuliEvalModel {
                 temperature,
                 tokens,
             ),
-            vox_populi::mens::tensor::BurnInferenceModel::Merged(model) => generate_merged_full_forward(
-                model,
-                &self.device,
-                self.arch.vocab_size,
-                self.seq_len,
-                max_tokens,
-                temperature,
-                tokens,
-            ),
+            vox_populi::mens::tensor::BurnInferenceModel::Merged(model) => {
+                generate_merged_full_forward(
+                    model,
+                    &self.device,
+                    self.arch.vocab_size,
+                    self.seq_len,
+                    max_tokens,
+                    temperature,
+                    tokens,
+                )
+            }
         }
     }
 

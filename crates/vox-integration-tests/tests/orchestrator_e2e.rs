@@ -69,7 +69,13 @@ impl E2eForensic {
         let pid = std::process::id();
         let safe: String = test_name
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         let log_path = dir.join(format!("orchestrator_e2e_{safe}_{pid}.log"));
         let file = OpenOptions::new()
@@ -103,7 +109,10 @@ impl E2eForensic {
         let mut f = self.file.lock().expect("forensic log mutex");
         let _ = f.write_all(line.as_bytes());
         let _ = f.flush();
-        eprintln!("[orchestrator_e2e:{}] {:?} {}", self.test_name, tid, message);
+        eprintln!(
+            "[orchestrator_e2e:{}] {:?} {}",
+            self.test_name, tid, message
+        );
     }
 
     fn log_status_dump(&self, orch: &Orchestrator, tag: &str) {
@@ -230,12 +239,7 @@ where
         })
 }
 
-async fn await_phase<F, T>(
-    forensic: &E2eForensic,
-    orch: &Orchestrator,
-    label: &str,
-    fut: F,
-) -> T
+async fn await_phase<F, T>(forensic: &E2eForensic, orch: &Orchestrator, label: &str, fut: F) -> T
 where
     F: Future<Output = T>,
 {

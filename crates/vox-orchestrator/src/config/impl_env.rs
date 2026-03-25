@@ -33,6 +33,20 @@ impl OrchestratorConfig {
                 self.max_debug_iterations,
             );
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS") {
+            self.max_toestub_debug_iterations = parse_or_warn(
+                "VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS",
+                &val,
+                self.max_toestub_debug_iterations,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS") {
+            self.max_socrates_debug_iterations = parse_or_warn(
+                "VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS",
+                &val,
+                self.max_socrates_debug_iterations,
+            );
+        }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW") {
             self.socrates_gate_shadow = parse_or_warn(
                 "VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW",

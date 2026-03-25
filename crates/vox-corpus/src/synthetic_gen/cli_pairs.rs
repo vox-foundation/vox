@@ -4,6 +4,6 @@ use std::io::Write;
 
 use serde_json::json;
 
-use super::{emit_line, SyntheticGenConfig, CLI_COMMANDS};
+use super::{CLI_COMMANDS, SyntheticGenConfig, emit_line};
 
 include!("_cli_pairs.inc");

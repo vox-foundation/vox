@@ -75,35 +75,33 @@ pub async fn llm_stream(
 
     let byte_stream = res.bytes_stream();
 
-    let string_stream = byte_stream.map(|chunk_res| {
-        match chunk_res {
-            Ok(bytes) => {
-                let text = String::from_utf8_lossy(&bytes);
-                let mut token_text = String::new();
-                for line in text.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            continue;
-                        }
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(choices) = parsed.get("choices") {
-                                if let Some(choice) = choices.get(0) {
-                                    if let Some(delta) = choice.get("delta") {
-                                        if let Some(content) =
-                                            delta.get("content").and_then(|c| c.as_str())
-                                        {
-                                            token_text.push_str(content);
-                                        }
+    let string_stream = byte_stream.map(|chunk_res| match chunk_res {
+        Ok(bytes) => {
+            let text = String::from_utf8_lossy(&bytes);
+            let mut token_text = String::new();
+            for line in text.lines() {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if data == "[DONE]" {
+                        continue;
+                    }
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
+                        if let Some(choices) = parsed.get("choices") {
+                            if let Some(choice) = choices.get(0) {
+                                if let Some(delta) = choice.get("delta") {
+                                    if let Some(content) =
+                                        delta.get("content").and_then(|c| c.as_str())
+                                    {
+                                        token_text.push_str(content);
                                     }
                                 }
                             }
                         }
                     }
                 }
-                Ok(token_text)
             }
-            Err(e) => Err(format!("Stream read error: {}", e)),
+            Ok(token_text)
         }
+        Err(e) => Err(format!("Stream read error: {}", e)),
     });
 
     Ok(Box::pin(string_stream))

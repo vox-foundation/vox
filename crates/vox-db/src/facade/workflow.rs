@@ -1,5 +1,5 @@
-use crate::paths::local_user_id;
 use crate::StoreError;
+use crate::paths::local_user_id;
 
 impl crate::VoxDb {
     /// Register the current machine directory as a known Vox project (`components` + path key).

@@ -75,6 +75,13 @@ pub(super) enum TrainingDbEvent {
     },
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct TrainingLoopStats {
+    pub skip_no_supervised_positions: u64,
+    pub skip_short_seq: u64,
+    pub skip_curriculum: u64,
+}
+
 /// Load LoRA adapter weights (safetensors) into a trainer's varmap (warm-start).
 fn load_adapter_into_trainer(trainer: &mut QLoraTrainer, path: &Path) -> Result<()> {
     if !path.exists() {
@@ -218,9 +225,11 @@ pub fn run_candle_qlora_train(
     let qlora_cfg = QLoraConfig::preset_qv_bf16(rank, alpha_u);
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
+    let grad_accum = config.grad_accum.max(1) as u32;
+    let total_optimizer_steps_planned = total_steps_planned.div_ceil(grad_accum);
     let warmup_steps = config
         .warmup_steps
-        .min((total_steps_planned / 10).max(1) as usize);
+        .min((total_optimizer_steps_planned / 10).max(1) as usize);
 
     let train_cfg = QLoraTrainingConfig {
         adapter_config: AdapterTrainingConfig {
@@ -471,6 +480,7 @@ pub fn run_candle_qlora_train(
         &adapter_layer_order,
         &base_key_map,
         total_steps_planned,
+        total_optimizer_steps_planned,
         warmup_steps,
     );
 
@@ -484,11 +494,10 @@ pub fn run_candle_qlora_train(
     result
 }
 
-
 mod checkpoint_mid;
 mod db_thread;
-mod epoch_boundary;
 mod device_select;
+mod epoch_boundary;
 mod finalize;
 mod training_loop;
 mod validation;

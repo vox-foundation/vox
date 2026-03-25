@@ -1,9 +1,9 @@
 use crate::util::now_unix;
 
+use super::DAILY_QUEST_COUNT;
 use super::instance::Quest;
 use super::kind::QuestType;
-use super::templates::{QuestTemplate, QUEST_TEMPLATES};
-use super::DAILY_QUEST_COUNT;
+use super::templates::{QUEST_TEMPLATES, QuestTemplate};
 
 /// Returns the number of complete days since Unix epoch (UTC).
 pub fn current_day_number() -> u64 {

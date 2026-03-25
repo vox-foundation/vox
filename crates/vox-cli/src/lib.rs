@@ -12,8 +12,8 @@ mod build_lock;
 mod build_service;
 mod cli_actions;
 mod cli_args;
-mod command_catalog;
 mod cli_dispatch;
+mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
@@ -397,7 +397,6 @@ pub enum CodexCmd {
         limit: i64,
     },
 }
-
 
 /// Apply [`GlobalOpts`] (color, JSON hint, quiet) before dispatching a subcommand.
 #[allow(unsafe_code)]

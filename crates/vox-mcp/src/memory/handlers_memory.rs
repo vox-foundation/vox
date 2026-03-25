@@ -2,7 +2,8 @@ use crate::{ServerState, ToolResult};
 
 use super::config::memory_config_for_state;
 use super::params::{
-    KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams, MemoryStoreParams,
+    KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
+    MemoryStoreParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
 

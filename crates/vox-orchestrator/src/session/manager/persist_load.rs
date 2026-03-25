@@ -5,11 +5,9 @@ use std::path::PathBuf;
 
 use crate::types::AgentId;
 
-use super::SessionManager;
 use super::super::errors::SessionError;
-use super::super::state::{
-    Session, SessionEvent, SessionState, SessionTurn, now_secs,
-};
+use super::super::state::{Session, SessionEvent, SessionState, SessionTurn, now_secs};
+use super::SessionManager;
 
 impl SessionManager {
     /// Load a session by replaying events from JSONL.
@@ -268,7 +266,11 @@ impl SessionManager {
     }
 
     /// Append a JSONL event to the session's file.
-    pub(super) fn append_event(&self, session_id: &str, event: &SessionEvent) -> Result<(), SessionError> {
+    pub(super) fn append_event(
+        &self,
+        session_id: &str,
+        event: &SessionEvent,
+    ) -> Result<(), SessionError> {
         let path = self.session_path(session_id);
         let json = serde_json::to_string(event).map_err(SessionError::Serialize)?;
         let mut f = OpenOptions::new().create(true).append(true).open(&path)?;

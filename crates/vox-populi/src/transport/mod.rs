@@ -12,7 +12,7 @@ mod handlers;
 mod router;
 mod store;
 
-pub use router::{populi_http_app, populi_http_app_with_auth, router, serve, PopuliHttpAuth};
+pub use router::{PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve};
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -214,8 +214,8 @@ impl PopuliTransportState {
             bootstrap_token: None,
             bootstrap_expires_unix_ms: None,
             bootstrap_used: Arc::new(AtomicBool::new(false)),
-            required_scope: crate::populi_scope_id_from_env().map(|s| Arc::from(s.into_boxed_str())),
+            required_scope: crate::populi_scope_id_from_env()
+                .map(|s| Arc::from(s.into_boxed_str())),
         })
     }
 }
-

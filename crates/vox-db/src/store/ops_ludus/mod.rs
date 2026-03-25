@@ -2,6 +2,6 @@
 //!
 //! Split across `gamify_*` modules so each file stays under the workspace line budget.
 
-mod gamify_world;
 mod gamify_activity;
 mod gamify_extended;
+mod gamify_world;

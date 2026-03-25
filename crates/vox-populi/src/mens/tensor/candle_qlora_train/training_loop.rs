@@ -12,10 +12,14 @@ use vox_tensor::data::TrainingPair;
 
 use qlora_rs::training::QLoraTrainer;
 
-use super::{compute_cosine_lr, load_adapter_into_trainer, TrainingDbEvent, PAUSE_FLAG, QLORA_ETA_EMA_ALPHA};
+use super::{
+    PAUSE_FLAG, QLORA_ETA_EMA_ALPHA, TrainingDbEvent, TrainingLoopStats, compute_cosine_lr,
+    load_adapter_into_trainer,
+};
 use crate::mens::tensor::{
-    backend, checkpoint_state::CheckpointState, manifest, qlora_preflight::QloraEmbedBundle, telemetry,
-    telemetry_schema, train_log, training_config::LoraTrainingConfig, training_text::plain_system_prompt_response,
+    backend, checkpoint_state::CheckpointState, manifest, qlora_preflight::QloraEmbedBundle,
+    telemetry, telemetry_schema, train_log, training_config::LoraTrainingConfig,
+    training_text::plain_system_prompt_response,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -37,6 +41,7 @@ pub(super) fn run_training_loop(
     adapter_layer_order: &[String],
     base_key_map: &HashMap<String, String>,
     total_steps_planned: u32,
+    total_optimizer_steps_planned: u32,
     warmup_steps: usize,
 ) -> Result<backend::TrainingSummary> {
     if !config.qlora_double_quant {
@@ -91,7 +96,15 @@ pub(super) fn run_training_loop(
         start_epoch = ckpt.epoch as usize;
         global_step = ckpt.global_step;
         resume_pair_offset = ckpt.pair_offset;
-        resume_shuffled_indices = Some(ckpt.shuffled_indices);
+        if ckpt.shuffled_indices.is_empty() {
+            train_log::warn(
+                "Resume checkpoint did not include shuffled_indices (epoch-boundary checkpoint); reshuffling for resume epoch.",
+            );
+            resume_shuffled_indices = None;
+            resume_pair_offset = 0;
+        } else {
+            resume_shuffled_indices = Some(ckpt.shuffled_indices);
+        }
     }
 
     // ── Training manifest ─────────────────────────────────────────────────────
@@ -110,7 +123,7 @@ pub(super) fn run_training_loop(
             manifest::InitialTrainingKernel::CandleQlora {
                 proxy_stack_complete: true,
                 middle_layers_active: bundle.layout.num_hidden_layers,
-                ce_last_k: config.qlora_ce_last_k.max(1),
+                ce_last_k: config.qlora_ce_last_k,
             },
         ),
     )?;
@@ -125,6 +138,7 @@ pub(super) fn run_training_loop(
             telemetry_schema::keys::GRAD_ACCUM: config.grad_accum.max(1),
             telemetry_schema::keys::EPOCHS: config.epochs,
             telemetry_schema::keys::PLANNED_STEPS_TOTAL: total_steps_planned,
+            "planned_optimizer_steps_total": total_optimizer_steps_planned,
             "compute_device": device_label,
             "warmup_steps": warmup_steps,
             "n_heads": bundle.layout.num_attention_heads,
@@ -138,30 +152,29 @@ pub(super) fn run_training_loop(
     let mut last_progress = Instant::now();
     let progress_every = Duration::from_secs(5);
     let mut ema_steps_per_sec: Option<f64> = None;
-    let mut progress_anchor_step = global_step;
+    let mut optimizer_step_count: u32 = global_step / config.grad_accum.max(1) as u32;
+    let mut progress_anchor_step = optimizer_step_count;
     let mut progress_anchor_time = Instant::now();
     let mut last_loss_val: f32 = 0.0;
     let mut ema_loss_val: Option<f64> = None;
     let mut total_loss_sum = 0.0f64;
     let mut total_step_count: u32 = 0;
     let mut total_tokens: usize = 0;
+    let grad_accum = config.grad_accum.max(1) as u32;
+    let mut skip_no_supervised_positions: u64 = 0;
+    let mut skip_short_seq: u64 = 0;
+    let mut skip_curriculum: u64 = 0;
 
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
         // ── Epoch shuffle (or restore from checkpoint on resume epoch) ────────
-        let shuffled_indices: Vec<usize> = if epoch == start_epoch {
-            if let Some(ref idx) = resume_shuffled_indices {
-                idx.clone()
-            } else {
-                let mut idx: Vec<usize> = (0..pairs.len()).collect();
-                idx.shuffle(&mut rng);
-                idx
-            }
-        } else {
-            let mut idx: Vec<usize> = (0..pairs.len()).collect();
-            idx.shuffle(&mut rng);
-            idx
-        };
+        let shuffled_indices: Vec<usize> = build_epoch_shuffled_indices(
+            epoch,
+            start_epoch,
+            pairs.len(),
+            &resume_shuffled_indices,
+            &mut rng,
+        );
 
         trainer.start_epoch();
 
@@ -206,6 +219,7 @@ pub(super) fn run_training_loop(
 
             // Curriculum filter
             if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
+                skip_curriculum += 1;
                 continue;
             }
 
@@ -226,6 +240,7 @@ pub(super) fn run_training_loop(
                 ids = ids[trunc_offset..].to_vec();
             }
             if ids.len() < 2 {
+                skip_short_seq += 1;
                 continue; // skip sequences too short to form an input/target pair
             }
 
@@ -247,7 +262,11 @@ pub(super) fn run_training_loop(
                 // for left-truncation.
                 let prompt_len = prefix_len.saturating_sub(trunc_offset);
                 let ids_len = ids.len();
-                let ce_last_k = config.qlora_ce_last_k.max(1);
+                let ce_last_k = if config.qlora_ce_last_k == 0 {
+                    ids_len
+                } else {
+                    config.qlora_ce_last_k
+                };
                 let last_k_start = ids_len.saturating_sub(ce_last_k);
 
                 // Mask tokens that belong to the prompt (system + human)
@@ -268,6 +287,7 @@ pub(super) fn run_training_loop(
 
                 let mask_sum = mask.sum_all()?.to_scalar::<f32>()?;
                 if mask_sum <= 0.0 || !mask_sum.is_finite() {
+                    skip_no_supervised_positions += 1;
                     // No overlap between last-K CE window and assistant tokens (e.g. truncated
                     // away or empty response) — avoid 0/0 NaN and do not call backward.
                     train_log::debug(&format!(
@@ -305,13 +325,17 @@ pub(super) fn run_training_loop(
 
                 // ── Cosine LR schedule for the *next* step ────────────────────
                 let lr_next = compute_cosine_lr(
-                    global_step,
+                    optimizer_step_count,
                     warmup_steps,
-                    total_steps_planned,
+                    total_optimizer_steps_planned,
                     config.learning_rate,
                 );
-                trainer.config.adapter_config.learning_rate = lr_next;
-                trainer.update_lr();
+                let micro_step_after_backward = global_step + 1;
+                if micro_step_after_backward % grad_accum == 0 {
+                    optimizer_step_count += 1;
+                    trainer.config.adapter_config.learning_rate = lr_next;
+                    trainer.update_lr();
+                }
 
                 Ok(Some(loss_scalar))
             })()?;
@@ -340,20 +364,21 @@ pub(super) fn run_training_loop(
                     .duration_since(progress_anchor_time)
                     .as_secs_f64()
                     .max(1e-3);
-                let ds = (global_step - progress_anchor_step) as f64;
+                let ds = (optimizer_step_count - progress_anchor_step) as f64;
                 let sps = ds / dt;
                 ema_steps_per_sec = Some(match ema_steps_per_sec {
                     None => sps,
                     Some(prev) => QLORA_ETA_EMA_ALPHA * sps + (1.0 - QLORA_ETA_EMA_ALPHA) * prev,
                 });
-                let pct = if total_steps_planned > 0 {
-                    100.0 * global_step as f64 / total_steps_planned as f64
+                let pct = if total_optimizer_steps_planned > 0 {
+                    100.0 * optimizer_step_count as f64 / total_optimizer_steps_planned as f64
                 } else {
                     0.0
                 };
                 let eta_s = ema_steps_per_sec.map(|s| {
                     if s > 0.0 {
-                        (total_steps_planned.saturating_sub(global_step) as f64 / s) as u64
+                        (total_optimizer_steps_planned.saturating_sub(optimizer_step_count) as f64
+                            / s) as u64
                     } else {
                         0
                     }
@@ -370,16 +395,20 @@ pub(super) fn run_training_loop(
                     .map(|v| format!("{:.4}", v))
                     .unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
-                    "E{:02}/{} step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {}",
+                    "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={})",
                     epoch,
                     config.epochs,
                     global_step,
+                    optimizer_step_count,
                     loss_val,
                     ema_str,
                     lr_applied_this_step,
                     eff_batch,
                     pct,
-                    eta_str
+                    eta_str,
+                    skip_no_supervised_positions,
+                    skip_short_seq,
+                    skip_curriculum
                 ));
                 telemetry::append(
                     out,
@@ -387,14 +416,18 @@ pub(super) fn run_training_loop(
                     serde_json::json!({
                         telemetry_schema::keys::EPOCH: epoch,
                         telemetry_schema::keys::STEP: global_step,
+                        "optimizer_step": optimizer_step_count,
                         telemetry_schema::keys::LOSS: loss_val,
                         telemetry_schema::keys::LR: lr_applied_this_step,
                         telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_s,
-                        telemetry_schema::keys::PROGRESS_FRACTION: global_step as f64 / total_steps_planned.max(1) as f64,
+                        telemetry_schema::keys::PROGRESS_FRACTION: optimizer_step_count as f64 / total_optimizer_steps_planned.max(1) as f64,
                         telemetry_schema::keys::STEPS_PER_SEC_EMA: ema_steps_per_sec,
+                        "skip_no_supervised_positions": skip_no_supervised_positions,
+                        "skip_short_seq": skip_short_seq,
+                        "skip_curriculum": skip_curriculum,
                     }),
                 )?;
-                progress_anchor_step = global_step;
+                progress_anchor_step = optimizer_step_count;
                 progress_anchor_time = now;
                 last_progress = now;
             }
@@ -492,9 +525,57 @@ pub(super) fn run_training_loop(
         adapter_layer_order,
         base_key_map,
         global_step,
+        optimizer_step_count,
         total_tokens,
         total_step_count,
         total_loss_sum,
+        TrainingLoopStats {
+            skip_no_supervised_positions,
+            skip_short_seq,
+            skip_curriculum,
+        },
         run_start_inst,
     )
+}
+
+fn build_epoch_shuffled_indices(
+    epoch: usize,
+    start_epoch: usize,
+    pair_count: usize,
+    resume_shuffled_indices: &Option<Vec<usize>>,
+    rng: &mut rand::rngs::StdRng,
+) -> Vec<usize> {
+    if epoch == start_epoch {
+        if let Some(idx) = resume_shuffled_indices
+            && !idx.is_empty()
+        {
+            return idx.clone();
+        }
+    }
+    let mut idx: Vec<usize> = (0..pair_count).collect();
+    idx.shuffle(rng);
+    idx
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_epoch_shuffled_indices;
+    use rand::SeedableRng;
+
+    #[test]
+    fn uses_resume_indices_when_present_and_nonempty() {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let got = build_epoch_shuffled_indices(3, 3, 5, &Some(vec![4, 2, 1, 3, 0]), &mut rng);
+        assert_eq!(got, vec![4, 2, 1, 3, 0]);
+    }
+
+    #[test]
+    fn reshuffles_when_resume_indices_are_empty() {
+        let mut rng_a = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng_b = rand::rngs::StdRng::seed_from_u64(42);
+        let got = build_epoch_shuffled_indices(2, 2, 6, &Some(vec![]), &mut rng_a);
+        let expect = build_epoch_shuffled_indices(2, 1, 6, &None, &mut rng_b);
+        assert_eq!(got, expect);
+        assert!(!got.is_empty());
+    }
 }

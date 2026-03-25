@@ -1,6 +1,6 @@
 use super::metadata::HttpCallMetadata;
 use super::types::{
-    GeminiCandidate, GeminiContent, GeminiGenerateBody, GeminiGenCfg, GeminiPart, GeminiPartOut,
+    GeminiCandidate, GeminiContent, GeminiGenCfg, GeminiGenerateBody, GeminiPart, GeminiPartOut,
     GeminiResponse, GeminiSys, GeminiTurn,
 };
 use crate::llm_bridge::error::HttpInferError;

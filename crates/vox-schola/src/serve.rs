@@ -289,7 +289,8 @@ fn generate_response(
     top_p: Option<f64>,
 ) -> Result<String> {
     // Resolve device
-    let device_kind = vox_populi::mens::normalize_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let device_kind =
+        vox_populi::mens::normalize_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_populi::mens::apply_backend_env(device_kind);
 
     let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
@@ -305,8 +306,10 @@ fn generate_response(
         anyhow::bail!("tokenizer.json not found at {}.", tokenizer_path.display());
     }
 
-    let mut engine =
-        vox_populi::mens::tensor::candle_inference_serve::InferenceEngine::load(model_dir, &device_kind)?;
+    let mut engine = vox_populi::mens::tensor::candle_inference_serve::InferenceEngine::load(
+        model_dir,
+        &device_kind,
+    )?;
     engine.generate(prompt, max_new_tokens, temperature, top_p)
 }
 

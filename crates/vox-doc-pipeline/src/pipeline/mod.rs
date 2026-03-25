@@ -11,7 +11,7 @@ use std::path::Path;
 
 use feed::generate_feed;
 use lint::collect_lint_errors;
-use summary::{walk_dir, SECTION_ORDER};
+use summary::{SECTION_ORDER, walk_dir};
 use types::{LintError, LintKind, Page};
 
 /// Run the full doc pipeline (lint, optional SUMMARY + feed).

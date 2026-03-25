@@ -6,7 +6,7 @@ use crate::server::ServerState;
 use super::{
     benchmark_tools, chat_tools, codex_tools, compiler_tools, db_tools, git_tools,
     introspection_tools, news_tools, oratio_tools, populi_tools, repo_index, scientia_tools,
-    task_tools, toestub_tools, training_tools, vcs_tools, tool_aliases,
+    task_tools, toestub_tools, tool_aliases, training_tools, vcs_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
@@ -246,7 +246,14 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )
         .await),
-        "vox_scientia_publication_preflight" => Ok(scientia_tools::vox_scientia_publication_preflight(
+        "vox_scientia_publication_preflight" => {
+            Ok(scientia_tools::vox_scientia_publication_preflight(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_worthiness_evaluate" => Ok(scientia_tools::vox_scientia_worthiness_evaluate(
             state,
             serde_json::from_value(args)?,
         )

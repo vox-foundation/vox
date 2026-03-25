@@ -173,7 +173,6 @@ pub struct VoxDb {
 
 mod facade;
 
-
 #[cfg(test)]
 mod codex_contract {
     use super::{Codex, VoxDb};

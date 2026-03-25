@@ -1,7 +1,7 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_db::VoxDb;
-use vox_ludus::{db, FreeAiClient, LudusProfile};
+use vox_ludus::{FreeAiClient, LudusProfile, db};
 
 pub(crate) async fn get_db() -> Result<VoxDb> {
     VoxDb::connect_default()

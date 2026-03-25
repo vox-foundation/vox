@@ -1,4 +1,4 @@
-use super::{parse_cargo_error, RunBackend, ScriptOpts};
+use super::{RunBackend, ScriptOpts, parse_cargo_error};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
@@ -145,4 +145,3 @@ impl RunBackend for NativeBackend {
         Ok(cmd.status()?)
     }
 }
-

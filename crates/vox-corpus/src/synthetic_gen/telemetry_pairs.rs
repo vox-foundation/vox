@@ -4,6 +4,6 @@ use std::io::Write;
 
 use serde_json::json;
 
-use super::{emit_line, SyntheticGenConfig};
+use super::{SyntheticGenConfig, emit_line};
 
 include!("_telemetry_pairs.inc");

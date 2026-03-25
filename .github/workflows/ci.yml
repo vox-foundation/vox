@@ -55,6 +55,7 @@ jobs:
       - name: Contracts index + scaling policy SSOT
         run: |
           cargo run -p vox-cli --quiet -- ci contracts-index
+          cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
 
       - name: Doc inventory matches generator (Rust)
@@ -75,9 +76,9 @@ jobs:
       - name: Lint Check (Clippy)
         run: cargo clippy --workspace -- -D warnings
 
-      # Scoped TOESTUB: default crate is clean; override arg only for local/debug scans.
+      # Scoped TOESTUB: enforce-warn (critical-only) after false-positive burn-down; override `--mode` locally if needed.
       - name: TOESTUB (scoped)
-        run: cargo run -p vox-cli --quiet -- ci toestub-scoped
+        run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode enforce-warn
 
       - name: Repository SSOT + MCP smoke
         run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git

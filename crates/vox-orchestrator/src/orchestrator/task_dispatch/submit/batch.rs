@@ -136,6 +136,7 @@ impl Orchestrator {
             .await;
 
             self.record_activity();
+            crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
             let session_id_for_retrieval = task.session_id.clone();
             // Enqueue
             let handle_to_notify = {
@@ -221,6 +222,72 @@ impl Orchestrator {
 
         tracing::info!("Submitted batch of {} tasks", results.len());
         Ok(results)
+    }
+
+    /// Submit a standard 4-phase coding DAG:
+    /// plan -> draft -> critique -> repair.
+    ///
+    /// This uses existing dependency primitives (`temp_deps`) so each phase is only
+    /// eligible once the previous phase has completed.
+    pub async fn submit_codegen_phase_dag(
+        &self,
+        objective: impl Into<String>,
+        file_manifest: Vec<FileAffinity>,
+        priority: Option<crate::types::TaskPriority>,
+        session_id: Option<String>,
+    ) -> Result<Vec<TaskId>, OrchestratorError> {
+        let objective = objective.into();
+        let descriptors = vec![
+            crate::types::TaskDescriptor {
+                description: format!(
+                    "[PHASE:PLAN]\nCreate a concise implementation plan for:\n{}",
+                    objective
+                ),
+                priority,
+                file_manifest: file_manifest.clone(),
+                depends_on: vec![],
+                temp_deps: vec![],
+                capability_requirements: None,
+                session_id: session_id.clone(),
+            },
+            crate::types::TaskDescriptor {
+                description: format!(
+                    "[PHASE:DRAFT]\nProduce an implementation draft for:\n{}",
+                    objective
+                ),
+                priority,
+                file_manifest: file_manifest.clone(),
+                depends_on: vec![],
+                temp_deps: vec![0],
+                capability_requirements: None,
+                session_id: session_id.clone(),
+            },
+            crate::types::TaskDescriptor {
+                description: format!(
+                    "[PHASE:CRITIQUE]\nReview the draft for defects, regressions, and missing tests:\n{}",
+                    objective
+                ),
+                priority,
+                file_manifest: file_manifest.clone(),
+                depends_on: vec![],
+                temp_deps: vec![1],
+                capability_requirements: None,
+                session_id: session_id.clone(),
+            },
+            crate::types::TaskDescriptor {
+                description: format!(
+                    "[PHASE:REPAIR]\nApply fixes from critique and verify the result:\n{}",
+                    objective
+                ),
+                priority,
+                file_manifest,
+                depends_on: vec![],
+                temp_deps: vec![2],
+                capability_requirements: None,
+                session_id,
+            },
+        ];
+        self.submit_batch(descriptors).await
     }
 
     /// Resolve route via RoutingService and spawn if needed.

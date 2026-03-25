@@ -30,6 +30,9 @@ pub struct EvalGatePolicy {
     /// MCP `call_tool` JSON Schema KPI (`tool_arg_schema_kpi` snapshot written next to run artifacts).
     #[serde(default)]
     pub mcp_tool_schema: McpToolSchemaGate,
+    /// pass@k gate from `benchmark_passatk.json`.
+    #[serde(default)]
+    pub pass_at_k: PassAtKGate,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).
@@ -43,6 +46,48 @@ pub struct McpToolSchemaGate {
     /// Basename only (path segments with `..` are ignored; falls back to default file).
     #[serde(default = "default_mcp_tool_schema_metrics_file")]
     pub metrics_file: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PassAtKGate {
+    /// Minimum pass@1 required (0.0–1.0).
+    #[serde(default)]
+    pub min_pass_rate_at_1: f64,
+    /// Minimum pass@k required (0.0–1.0).
+    #[serde(default)]
+    pub min_pass_rate_at_k: f64,
+    /// Maximum tolerated regression vs baseline file.
+    #[serde(default = "default_passatk_max_drop")]
+    pub max_regression_drop: f64,
+    #[serde(default)]
+    pub block: bool,
+    /// Basename only, default `benchmark_passatk.json`.
+    #[serde(default = "default_passatk_metrics_file")]
+    pub metrics_file: String,
+    /// Optional baseline file in run dir for regression checks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_file: Option<String>,
+}
+
+impl Default for PassAtKGate {
+    fn default() -> Self {
+        Self {
+            min_pass_rate_at_1: 0.0,
+            min_pass_rate_at_k: 0.0,
+            max_regression_drop: default_passatk_max_drop(),
+            block: false,
+            metrics_file: default_passatk_metrics_file(),
+            baseline_file: None,
+        }
+    }
+}
+
+fn default_passatk_metrics_file() -> String {
+    "benchmark_passatk.json".to_string()
+}
+
+fn default_passatk_max_drop() -> f64 {
+    0.03
 }
 
 fn default_mcp_tool_schema_metrics_file() -> String {

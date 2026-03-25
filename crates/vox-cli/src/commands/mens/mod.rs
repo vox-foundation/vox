@@ -37,9 +37,9 @@ mod system_prompt_template;
 
 mod populi;
 
-pub use populi::{PipelineProgress, PipelineStage, PopuliAction, run};
 #[cfg(feature = "gpu")]
 pub use populi::{MensTokenizerCli, PopuliTrainBackendCli, TrainingDeploymentTargetCli};
+pub use populi::{PipelineProgress, PipelineStage, PopuliAction, run};
 
 #[cfg(all(test, feature = "gpu"))]
 mod tests {

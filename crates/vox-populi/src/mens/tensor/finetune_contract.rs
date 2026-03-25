@@ -191,7 +191,7 @@ impl FineTuneContract {
                 qlora_max_skip_rate: config.qlora_max_skip_rate,
                 qlora_lm_head_only: config.qlora_lm_head_only,
                 qlora_proxy_max_layers: config.qlora_proxy_max_layers,
-                qlora_ce_last_k: config.qlora_ce_last_k.max(1),
+                qlora_ce_last_k: config.qlora_ce_last_k,
             },
             artifact: ArtifactSpec {
                 deployment_target: config.deployment_target,

@@ -22,6 +22,8 @@ impl Default for OrchestratorConfig {
             fallback_to_single_agent: true,
             toestub_gate: true,
             max_debug_iterations: 3,
+            max_toestub_debug_iterations: default_max_toestub_debug_iterations(),
+            max_socrates_debug_iterations: default_max_socrates_debug_iterations(),
             socrates_gate_shadow: default_false(),
             socrates_gate_enforce: default_false(),
             socrates_reputation_routing: default_false(),

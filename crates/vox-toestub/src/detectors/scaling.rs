@@ -44,10 +44,7 @@ impl ScalingSurfacesDetector {
             .collect();
         fragments.extend(policy.path_literals.extra_flag_literals.clone());
 
-        let mut alt: Vec<String> = fragments
-            .iter()
-            .map(|s| regex::escape(s))
-            .collect();
+        let mut alt: Vec<String> = fragments.iter().map(|s| regex::escape(s)).collect();
         alt.sort_by_key(|s| std::cmp::Reverse(s.len()));
         let path_literal_re = Regex::new(&format!(r#""({})""#, alt.join("|"))).expect("valid");
 
@@ -56,8 +53,7 @@ impl ScalingSurfacesDetector {
             .iter()
             .map(|n| regex::escape(&n.to_string()))
             .collect();
-        let magic_num_re =
-            Regex::new(&format!(r"\b({})\b", hints.join("|"))).expect("valid");
+        let magic_num_re = Regex::new(&format!(r"\b({})\b", hints.join("|"))).expect("valid");
 
         Self {
             policy,
@@ -67,7 +63,8 @@ impl ScalingSurfacesDetector {
             sql_from_re: Regex::new(r"(?i)\bFROM\b").expect("valid"),
             sql_limit_re: Regex::new(r"(?i)\bLIMIT\b").expect("valid"),
             client_new_re: Regex::new(r"Client::new\s*\(\s*\)").expect("valid"),
-            vec_capacity_re: Regex::new(r"Vec::with_capacity\s*\(\s*(\d[\d_]*)\s*\)").expect("valid"),
+            vec_capacity_re: Regex::new(r"Vec::with_capacity\s*\(\s*(\d[\d_]*)\s*\)")
+                .expect("valid"),
             env_unwrap_or_re: Regex::new(r#"unwrap_or\s*\(\s*"([^"]*)"\s*\)"#).expect("valid"),
         }
     }
@@ -290,7 +287,8 @@ impl ScalingSurfacesDetector {
 
             if line.contains("serde_json::from_str")
                 && line.contains("for ")
-                && (line.contains(" lines") || file.lines.get(i + 1).is_some_and(|l| l.contains("for ")))
+                && (line.contains(" lines")
+                    || file.lines.get(i + 1).is_some_and(|l| l.contains("for ")))
             {
                 findings.push(Finding {
                     rule_id: "scaling/repeated-json-parse".to_string(),
@@ -327,7 +325,9 @@ impl ScalingSurfacesDetector {
                 });
             }
 
-            if self.client_new_re.is_match(line) && !self.line_suppressed(line, "scaling/http-client-no-timeout") {
+            if self.client_new_re.is_match(line)
+                && !self.line_suppressed(line, "scaling/http-client-no-timeout")
+            {
                 findings.push(Finding {
                     rule_id: "scaling/http-client-no-timeout".to_string(),
                     rule_name: "Scaling — HTTP client default".to_string(),
@@ -352,8 +352,9 @@ impl ScalingSurfacesDetector {
                             file: file.path.clone(),
                             line: line_num,
                             column: 0,
-                            message: "Nested loop with `(i+1)..` — ensure collection size stays bounded"
-                                .to_string(),
+                            message:
+                                "Nested loop with `(i+1)..` — ensure collection size stays bounded"
+                                    .to_string(),
                             suggestion: None,
                             context: file.context_around(line_num, 2),
                         });

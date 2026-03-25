@@ -96,8 +96,9 @@ mod tests {
             license_spdx: Some("MIT".to_string()),
             ..Default::default()
         };
-        let meta = crate::scientific_metadata::build_scientia_metadata_json("x", None, Some(&sci))
-            .unwrap();
+        let meta =
+            crate::scientific_metadata::build_scientia_metadata_json("x", None, Some(&sci), None)
+                .unwrap();
         let m = PublicationManifest {
             publication_id: "p".to_string(),
             content_type: "scientia".to_string(),
@@ -112,9 +113,11 @@ mod tests {
         let v = zenodo_deposition_metadata(&m);
         assert_eq!(v["metadata"]["title"], "T");
         assert_eq!(v["metadata"]["license"], "mit");
-        assert!(v["metadata"]["creators"][0]["orcid"]
-            .as_str()
-            .unwrap()
-            .contains("orcid.org"));
+        assert!(
+            v["metadata"]["creators"][0]["orcid"]
+                .as_str()
+                .unwrap()
+                .contains("orcid.org")
+        );
     }
 }

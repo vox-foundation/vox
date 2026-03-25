@@ -7,8 +7,8 @@ mod reviews;
 pub(crate) use api::{github_token, parse_github_owner_repo};
 pub use comments::{trigger_coderabbit, wait_for_review};
 pub use reviews::{
-    create_chunk_pr_via_worktree, create_orphan_baseline, create_stack_chunk_pr, git_worktree_remove,
-    push_baseline_from_origin, submit, worktree_dir,
+    create_chunk_pr_via_worktree, create_orphan_baseline, create_stack_chunk_pr,
+    git_worktree_remove, push_baseline_from_origin, submit, worktree_dir,
 };
 
 #[cfg(test)]

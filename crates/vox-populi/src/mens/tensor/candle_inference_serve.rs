@@ -68,8 +68,8 @@ impl InferenceEngine {
                 shards
             } else {
                 // Try to download/lookup via hub
-                let files =
-                    tokio::runtime::Runtime::new()?.block_on(crate::mens::hub::download_model(base))?;
+                let files = tokio::runtime::Runtime::new()?
+                    .block_on(crate::mens::hub::download_model(base))?;
                 files.weights
             }
         } else {
@@ -237,7 +237,9 @@ impl InferenceEngine {
             model,
             tokenizer: _tokenizer,
             device: _device,
-            kv_cache: crate::mens::tensor::candle_model_qwen::ForwardCache::new(layout.num_hidden_layers),
+            kv_cache: crate::mens::tensor::candle_model_qwen::ForwardCache::new(
+                layout.num_hidden_layers,
+            ),
         })
     }
 

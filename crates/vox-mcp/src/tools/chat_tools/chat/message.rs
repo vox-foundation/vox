@@ -1,21 +1,15 @@
 use serde_json::Value;
 use turso::params;
 
-use super::mentions::{chat_grounding_score, resolve_mentions};
-use super::super::params::{
-    ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry,
-};
+use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
-use crate::llm_bridge::{
-    McpChatModelResolution, McpInferRouting, call_llm, mcp_infer_completion,
-};
+use super::mentions::{chat_grounding_score, resolve_mentions};
+use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, mcp_infer_completion};
 use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
-use crate::tools::chat_socrates_meta::{
-    socrates_tool_meta, spawn_socrates_telemetry_with_meta,
-};
+use crate::tools::chat_socrates_meta::{socrates_tool_meta, spawn_socrates_telemetry_with_meta};
 use vox_orchestrator::session_retrieval_envelope_key;
 use vox_runtime::prompt_canonical;
 

@@ -4,6 +4,6 @@ use std::io::Write;
 
 use serde_json::json;
 
-use super::{emit_line, name_hash, rng::Rng, templates::TEMPLATES, SyntheticGenConfig};
+use super::{SyntheticGenConfig, emit_line, name_hash, rng::Rng, templates::TEMPLATES};
 
 include!("_workflow_body.rs");

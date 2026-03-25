@@ -57,6 +57,12 @@ pub(super) fn default_scaling_cooldown_ms() -> u64 {
 pub(super) fn default_urgent_rebalance_threshold() -> usize {
     3
 }
+pub(super) fn default_max_toestub_debug_iterations() -> u8 {
+    3
+}
+pub(super) fn default_max_socrates_debug_iterations() -> u8 {
+    3
+}
 
 pub(super) fn default_populi_poll_interval_secs() -> u64 {
     30

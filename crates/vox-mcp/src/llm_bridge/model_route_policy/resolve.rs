@@ -5,10 +5,10 @@ use vox_orchestrator::models::{ModelSpec, ProviderType};
 use vox_orchestrator::types::TaskCategory;
 use vox_orchestrator::usage::{RemainingBudget, UsageTracker};
 
+use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_ollama_model_allowed};
 use super::scoring::auto_score_model;
 use super::types::McpChatModelResolution;
-use super::super::MCP_GLOBAL_LLM_AGENT;
 use crate::server::ServerState;
 
 /// Token fill ratio for the global MCP LLM budget agent (`AgentId(0)`), if tracked.

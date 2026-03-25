@@ -1,8 +1,6 @@
 use std::sync::Mutex;
 
-use super::{
-    ConfigValidationError, CostPreference, OrchestratorConfig, OverflowStrategy,
-};
+use super::{ConfigValidationError, CostPreference, OrchestratorConfig, OverflowStrategy};
 use crate::contract::OrchestrationMigrationFlags;
 use crate::types::TaskPriority;
 
@@ -79,10 +77,9 @@ fn orchestration_migration_defaults_match_contract() {
 
 #[test]
 fn orchestration_migration_deserializes_from_toml_fragment() {
-    let flags: OrchestrationMigrationFlags = toml::from_str(
-        "orchestration_v2_enabled = true\nlegacy_orchestration_fallback = false\n",
-    )
-    .expect("parse nested [orchestrator.orchestration_migration]-shaped keys");
+    let flags: OrchestrationMigrationFlags =
+        toml::from_str("orchestration_v2_enabled = true\nlegacy_orchestration_fallback = false\n")
+            .expect("parse nested [orchestrator.orchestration_migration]-shaped keys");
     assert!(flags.orchestration_v2_enabled);
     assert!(!flags.legacy_orchestration_fallback);
 }

@@ -16,14 +16,14 @@ mod quest_battle;
 mod teaching;
 
 pub use agent_telemetry::{
-    acknowledge_message, end_agent_session, get_agent_cost_usd, get_agent_metrics, get_events,
-    insert_agent_session, insert_cost_record, insert_event, list_active_sessions,
-    list_cost_records, update_agent_session, upsert_agent_metric, AgentEventRecord,
-    AgentSessionRecord, CostRecord,
+    AgentEventRecord, AgentSessionRecord, CostRecord, acknowledge_message, end_agent_session,
+    get_agent_cost_usd, get_agent_metrics, get_events, insert_agent_session, insert_cost_record,
+    insert_event, list_active_sessions, list_cost_records, update_agent_session,
+    upsert_agent_metric,
 };
 pub use arena::{
-    arena_event_leaderboard, get_active_arena_event, get_arena_contribution, join_arena_event,
-    ArenaEvent,
+    ArenaEvent, arena_event_leaderboard, get_active_arena_event, get_arena_contribution,
+    join_arena_event,
 };
 pub use collegium::{
     create_collegium, get_collegium, get_user_collegium, join_collegium, list_collegiums,
@@ -33,7 +33,7 @@ pub use companion::{delete_companion, get_companion, list_companions, upsert_com
 pub use counters::{get_counter, increment_counter, set_counter};
 pub use feedback::insert_feedback;
 pub use helpers::canonical_user_id;
-pub use leaderboards::{get_profile_stats, leaderboard, lumens_leaderboard, PlayerRankEntry};
+pub use leaderboards::{PlayerRankEntry, get_profile_stats, leaderboard, lumens_leaderboard};
 pub use notifications::{
     cleanup_expired_notifications, insert_notification, list_unread_notifications,
     mark_all_notifications_read, mark_notification_read,

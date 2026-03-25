@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Print current VoxDB schema version and connection path.
 pub async fn status() -> Result<()> {
@@ -335,7 +335,10 @@ pub async fn publication_prepare(
     };
     let scientific = if let Some(p) = scholarly_metadata_json_path {
         let raw = fs::read_to_string(p).with_context(|| {
-            format!("failed to read scholarly metadata JSON from {}", p.display())
+            format!(
+                "failed to read scholarly metadata JSON from {}",
+                p.display()
+            )
         })?;
         Some(
             serde_json::from_str::<vox_publisher::scientific_metadata::ScientificPublicationMetadata>(
@@ -355,6 +358,7 @@ pub async fn publication_prepare(
         "vox db publication-prepare",
         None,
         scientific.as_ref(),
+        None,
     )
     .context("build publication metadata_json")?;
     let manifest = vox_publisher::publication::PublicationManifest {
@@ -369,7 +373,8 @@ pub async fn publication_prepare(
         metadata_json: Some(metadata_json),
     };
     if preflight {
-        let report = vox_publisher::publication_preflight::run_preflight(&manifest, preflight_profile);
+        let report =
+            vox_publisher::publication_preflight::run_preflight(&manifest, preflight_profile);
         if !report.ok {
             anyhow::bail!(
                 "publication preflight failed (readiness {}):\n{}",
@@ -405,12 +410,13 @@ pub async fn publication_prepare(
 pub async fn publication_preflight(
     publication_id: &str,
     profile: vox_publisher::publication_preflight::PreflightProfile,
+    with_worthiness: bool,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let Some(row) = db.get_publication_manifest(publication_id).await? else {
         anyhow::bail!("publication not found: {publication_id}");
     };
-    let manifest = vox_publisher::publication::PublicationManifest {
+    let mut manifest = vox_publisher::publication::PublicationManifest {
         publication_id: row.publication_id.clone(),
         content_type: row.content_type.clone(),
         source_ref: row.source_ref.clone(),
@@ -421,12 +427,64 @@ pub async fn publication_preflight(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    let report = if with_worthiness {
+        manifest =
+            super::scientia_worthiness_enrich::merge_live_socrates_aggregate(manifest, &db, None)
+                .await?;
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let contract_path =
+            root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
+        let yaml = fs::read_to_string(&contract_path).with_context(|| {
+            format!(
+                "read worthiness contract {} (repo root discovery required)",
+                contract_path.display()
+            )
+        })?;
+        let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
+        vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+        vox_publisher::publication_preflight::run_preflight_with_worthiness(
+            &manifest, profile, &contract,
+        )
+    } else {
+        vox_publisher::publication_preflight::run_preflight(&manifest, profile)
+    };
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
 }
 
 /// Print Zenodo-oriented deposition metadata JSON (no network).
+fn resolve_under_repo(root: &Path, p: &Path) -> PathBuf {
+    if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        root.join(p)
+    }
+}
+
+/// Print worthiness evaluation JSON using the repo contract + metrics inputs (no DB writes).
+pub async fn publication_worthiness_evaluate(
+    contract_yaml: Option<&PathBuf>,
+    metrics_json: PathBuf,
+) -> Result<()> {
+    let root = vox_repository::resolve_repo_root_for_ci();
+    let contract_path = match contract_yaml {
+        Some(p) => resolve_under_repo(&root, p),
+        None => root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
+    };
+    let yaml = fs::read_to_string(&contract_path)
+        .with_context(|| format!("read contract {}", contract_path.display()))?;
+    let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
+    vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+    let metrics_path = resolve_under_repo(&root, &metrics_json);
+    let m_src = fs::read_to_string(&metrics_path)
+        .with_context(|| format!("read metrics {}", metrics_path.display()))?;
+    let inputs: vox_publisher::publication_worthiness::WorthinessInputs =
+        serde_json::from_str(&m_src).context("parse metrics JSON")?;
+    let out = vox_publisher::publication_worthiness::evaluate_worthiness(&contract, &inputs);
+    println!("{}", serde_json::to_string_pretty(&out)?);
+    Ok(())
+}
+
 pub async fn publication_zenodo_metadata(publication_id: &str) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let Some(row) = db.get_publication_manifest(publication_id).await? else {

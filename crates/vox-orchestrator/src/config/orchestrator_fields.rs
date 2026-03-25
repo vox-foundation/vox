@@ -33,6 +33,12 @@ pub struct OrchestratorConfig {
     pub toestub_gate: bool,
     /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
     pub max_debug_iterations: u8,
+    /// TOESTUB-specific max auto-debug retries (default: 3).
+    #[serde(default = "default_max_toestub_debug_iterations")]
+    pub max_toestub_debug_iterations: u8,
+    /// Socrates-specific max requeue retries (default: 3).
+    #[serde(default = "default_max_socrates_debug_iterations")]
+    pub max_socrates_debug_iterations: u8,
     /// Emit Socrates gate decisions to logs without blocking completion (default: false).
     #[serde(default = "default_false")]
     pub socrates_gate_shadow: bool,

@@ -1,0 +1,6 @@
+# TOESTUB remediation SSOT (human + tooling)
+# See `docs/src/architecture/scaling-toestub-rules.md` for rule families and CI modes.
+
+baseline_freeze: baseline-freeze.json
+# Totals vs baseline-freeze.json after `vox ci scaling-audit emit-reports`
+delta_after_remediation: delta-after-remediation.json

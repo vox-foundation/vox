@@ -1,6 +1,4 @@
-use crate::types::{
-    AgentId, A2AMessage, A2AMessageType, MessagePriority, ThreadId, VcsContext,
-};
+use crate::types::{A2AMessage, A2AMessageType, AgentId, MessagePriority, ThreadId, VcsContext};
 
 use super::MessageBus;
 

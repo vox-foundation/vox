@@ -254,5 +254,4 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
             },
         });
     }
-
 }

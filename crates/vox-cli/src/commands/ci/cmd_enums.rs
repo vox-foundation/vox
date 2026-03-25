@@ -19,6 +19,9 @@ pub enum CiCmd {
     /// Validate `contracts/index.yaml` against JSON Schema and listed file paths.
     #[command(name = "contracts-index")]
     ContractsIndex,
+    /// Validate `publication-worthiness.default.yaml` against its JSON Schema + numeric invariants.
+    #[command(name = "scientia-worthiness-contract")]
+    ScientiaWorthinessContract,
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,

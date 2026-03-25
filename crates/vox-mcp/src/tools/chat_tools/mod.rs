@@ -98,9 +98,7 @@ pub(crate) async fn build_system_prompt(state: &ServerState) -> String {
 #[cfg(test)]
 mod routing_tests {
     use super::super::chat_socrates_meta::{SocratesJsonMeta, socrates_tool_meta};
-    use super::chat::{
-        chat_grounding_score, safe_truncate_for_prompt,
-    };
+    use super::chat::{chat_grounding_score, safe_truncate_for_prompt};
     use super::ghost_text::ghost_grounding_score;
     use super::params::{ChatMessageParams, GhostTextParams, PlanTask};
     use crate::llm_bridge::clamp_http_max_output_tokens;

@@ -183,8 +183,7 @@ pub async fn run_train(
                     .await;
             } else {
                 let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
-                let _ =
-                    vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
             }
         }
     }

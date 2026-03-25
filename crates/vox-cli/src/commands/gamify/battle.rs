@@ -1,7 +1,7 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use turso::params;
-use vox_ludus::{battle::Battle, db, quest, LudusProfile};
+use vox_ludus::{LudusProfile, battle::Battle, db, quest};
 
 use super::activity::get_db;
 

@@ -7,6 +7,9 @@ use serde::Deserialize;
 
 const EMBEDDED_YAML: &str = include_str!("../../../contracts/scaling/policy.yaml");
 
+/// Repo-root-relative path to the scaling policy YAML SSOT (for docs, CLI messages, and tooling).
+pub const SCALING_POLICY_YAML_REPO_PATH: &str = "contracts/scaling/policy.yaml";
+
 /// Full policy document from SSOT YAML.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ScalingPolicy {

@@ -12,6 +12,6 @@ pub use dispatch::{
     relay_to_mesh, send_to_db, send_to_db_with_breaker,
 };
 pub use envelope::{
-    A2ARoute, DbA2AMessage, RemoteTaskAck, RemoteTaskEnvelope, RemoteTaskResult,
-    REMOTE_TASK_ACK_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE,
+    A2ARoute, DbA2AMessage, REMOTE_TASK_ACK_TYPE, REMOTE_TASK_ENVELOPE_TYPE,
+    REMOTE_TASK_RESULT_TYPE, RemoteTaskAck, RemoteTaskEnvelope, RemoteTaskResult,
 };

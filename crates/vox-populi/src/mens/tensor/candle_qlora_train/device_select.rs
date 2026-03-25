@@ -10,7 +10,10 @@ use crate::mens::tensor::train_log;
 
 use super::ENV_CANDLE_DEVICE;
 
-pub(super) fn select_candle_device(kind: DeviceKind, allow_cpu_fallback: bool) -> Result<(Device, String)> {
+pub(super) fn select_candle_device(
+    kind: DeviceKind,
+    allow_cpu_fallback: bool,
+) -> Result<(Device, String)> {
     if std::env::var(ENV_CANDLE_DEVICE)
         .map(|v| v.trim().to_lowercase() == "cpu")
         .unwrap_or(false)
@@ -50,9 +53,7 @@ pub(super) fn select_candle_device(kind: DeviceKind, allow_cpu_fallback: bool) -
                         Ok(device) => (device, "cuda:0".into()),
                         Err(err) => {
                             if !allow_cpu_fallback {
-                                anyhow::bail!(
-                                    "CUDA unavailable and CPU fallback disabled: {err}"
-                                );
+                                anyhow::bail!("CUDA unavailable and CPU fallback disabled: {err}");
                             }
                             train_log::warn(&format!(
                                 "CUDA unavailable ({err}) — falling back to CPU (GPU vendor probe='{}')",

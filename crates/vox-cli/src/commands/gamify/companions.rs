@@ -1,13 +1,9 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_ludus::{
+    Companion, FreeAiClient, LudusProfile,
     companion::{Interaction, Mood},
-    db,
-    quest,
-    sprite,
-    Companion,
-    FreeAiClient,
-    LudusProfile,
+    db, quest, sprite,
 };
 
 use super::activity::get_db;

@@ -33,27 +33,40 @@ impl AiMonitor {
     pub fn record_activity(&mut self, agent_id: AgentId) {
         self.last_activity
             .insert(agent_id, std::time::SystemTime::now());
+    }
+
+    /// Explicitly reset continuation cooldown when real forward progress is observed.
+    pub fn record_progress(&mut self, agent_id: AgentId) {
+        self.last_activity
+            .insert(agent_id, std::time::SystemTime::now());
         self.engine.reset_cooldown(agent_id);
     }
 
     /// Check for idle agents and return continuation prompts if any.
     pub fn check_idle_agents(
         &mut self,
-        active_agents: &[(AgentId, usize)], // (id, pending_task_count)
+        active_agents: &[(AgentId, usize, bool, u64)], // (id, pending_task_count, has_in_progress, stalled_in_progress_ms)
         event_bus: &EventBus,
     ) -> Vec<(AgentId, String)> {
         let now = std::time::SystemTime::now();
         let mut intents = Vec::new();
 
-        for &(agent_id, pending_tasks) in active_agents {
+        for &(agent_id, pending_tasks, has_in_progress, stalled_in_progress_ms) in active_agents {
             if pending_tasks == 0 {
                 continue;
             }
 
             if let Some(last) = self.last_activity.get(&agent_id) {
                 if let Ok(elapsed) = now.duration_since(*last) {
-                    if elapsed >= self.idle_threshold {
-                        let strategy = if self.engine.continuation_count(agent_id) > 2 {
+                    let observed_elapsed = if has_in_progress && stalled_in_progress_ms > 0 {
+                        elapsed.max(Duration::from_millis(stalled_in_progress_ms))
+                    } else {
+                        elapsed
+                    };
+                    if observed_elapsed >= self.idle_threshold {
+                        let strategy = if has_in_progress && stalled_in_progress_ms > 0 {
+                            ContinuationStrategy::AssessRemaining
+                        } else if self.engine.continuation_count(agent_id) > 2 {
                             ContinuationStrategy::AssessRemaining
                         } else {
                             ContinuationStrategy::Continue
@@ -63,7 +76,7 @@ impl AiMonitor {
                             agent_id,
                             strategy,
                             pending_tasks,
-                            elapsed.as_secs(),
+                            observed_elapsed.as_secs(),
                             event_bus,
                         ) {
                             intents.push((agent_id, prompt.prompt_text));

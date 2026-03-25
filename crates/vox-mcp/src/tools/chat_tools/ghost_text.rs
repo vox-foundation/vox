@@ -3,7 +3,9 @@ use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_compl
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
-use crate::tools::chat_socrates_meta::{socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry};
+use crate::tools::chat_socrates_meta::{
+    socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
+};
 
 pub(crate) fn ghost_grounding_score(params: &GhostTextParams) -> f64 {
     let mut n = 0u32;

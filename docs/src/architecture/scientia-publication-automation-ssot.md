@@ -126,6 +126,7 @@ postPublishAudit --> codexLedger[CodexLedgerAndMetrics]
 - Zenodo deposition metadata JSON generation.
 - MCP/CLI parity for core prepare/approve/submit/status and preflight.
 - Socrates anti-hallucination telemetry and gate concepts.
+- `metadata_json.scientia_evidence` (see `vox_publisher::scientia_evidence`): optional Socrates rollup (merged from VoxDb when using preflight `--with-worthiness`), eval-gate snapshot, benchmark baseline/candidate pair, and human attestations; folded into `publication_worthiness` scoring with manifest preflight heuristics.
 
 ### Reusable orchestration/mesh assets
 

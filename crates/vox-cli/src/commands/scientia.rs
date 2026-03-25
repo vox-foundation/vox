@@ -76,11 +76,21 @@ pub enum ScientiaCmd {
         publication_id: String,
         #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
         profile: DbPreflightProfileCli,
+        #[arg(long, default_value_t = false)]
+        with_worthiness: bool,
     },
     #[command(name = "publication-zenodo-metadata")]
     PublicationZenodoMetadata {
         #[arg(long)]
         publication_id: String,
+    },
+    /// Worthiness rubric evaluation JSON (`vox db publication-worthiness-evaluate`).
+    #[command(name = "publication-worthiness-evaluate")]
+    PublicationWorthinessEvaluate {
+        #[arg(long)]
+        contract_yaml: Option<std::path::PathBuf>,
+        #[arg(long)]
+        metrics_json: std::path::PathBuf,
     },
     /// Record digest-bound approval for a prepared publication.
     #[command(name = "publication-approve")]
@@ -156,12 +166,21 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         ScientiaCmd::PublicationPreflight {
             publication_id,
             profile,
+            with_worthiness,
         } => DbCli::PublicationPreflight {
             publication_id,
             profile,
+            with_worthiness,
         },
         ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
             DbCli::PublicationZenodoMetadata { publication_id }
+        }
+        ScientiaCmd::PublicationWorthinessEvaluate {
+            contract_yaml,
+            metrics_json,
+        } => DbCli::PublicationWorthinessEvaluate {
+            contract_yaml,
+            metrics_json,
         },
         ScientiaCmd::PublicationApprove {
             publication_id,

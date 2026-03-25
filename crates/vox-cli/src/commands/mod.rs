@@ -21,6 +21,9 @@ pub mod codex;
 pub mod corpus;
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
+// `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.
+#[allow(unused_imports)]
+use self::db_research as _;
 /// Local VoxDB / Codex diagnostics (`vox db`).
 pub mod db;
 /// Clap entrypoints for `vox db`.
@@ -36,6 +39,8 @@ pub mod diagnostics;
 pub mod doc;
 /// Supplemental subcommands (snippet, share, ars).
 pub mod extras;
+/// Socrates / evidence fusion for scientia worthiness (`metadata_json.scientia_evidence`).
+pub mod scientia_worthiness_enrich;
 /// ARS `vox skill` implementation (`extras::ars`); re-exported for internal call sites and any out-of-tree dispatch shims.
 #[cfg(feature = "ars")]
 pub use extras::ars;

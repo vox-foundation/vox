@@ -7,10 +7,7 @@ use toml::map::Map;
 
 use super::vox_config::VoxConfig;
 
-pub(super) fn take_toml_subtable(
-    root: &mut Map<String, Value>,
-    key: &str,
-) -> Map<String, Value> {
+pub(super) fn take_toml_subtable(root: &mut Map<String, Value>, key: &str) -> Map<String, Value> {
     match root.remove(key) {
         Some(Value::Table(t)) => t,
         _ => Map::new(),

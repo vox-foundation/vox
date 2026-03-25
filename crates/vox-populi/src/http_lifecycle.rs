@@ -119,8 +119,8 @@ pub async fn populi_http_join_best_effort(
     };
     let node_id = record.id.clone();
     let timeout_ms = populi_http_timeout_ms_from_env();
-    let client =
-        PopuliHttpClient::new_with_timeout(&base, Duration::from_millis(timeout_ms)).with_env_token();
+    let client = PopuliHttpClient::new_with_timeout(&base, Duration::from_millis(timeout_ms))
+        .with_env_token();
     match client.join(&record).await {
         Ok(updated) => {
             tracing::info!(

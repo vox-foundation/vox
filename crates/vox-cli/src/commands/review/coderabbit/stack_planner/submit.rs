@@ -75,8 +75,7 @@ async fn run_stack_submit_core(
         .unwrap_or(limits::CodeRabbitTier::Pro);
 
     let manifest_path = path.join(".coderabbit-stack-manifest.json");
-    let json =
-        serde_json::to_string_pretty(&stack_manifest).context("Serialize stack manifest")?;
+    let json = serde_json::to_string_pretty(&stack_manifest).context("Serialize stack manifest")?;
     std::fs::write(&manifest_path, &json).context("Write stack manifest generated JSON")?;
 
     eprintln!("============ STACKED PR PLANNER ============");

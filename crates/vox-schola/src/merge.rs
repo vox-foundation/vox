@@ -36,8 +36,9 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         anyhow::bail!("meta JSON not found: {}", meta.display());
     }
     let raw = std::fs::read_to_string(&meta).with_context(|| format!("read {}", meta.display()))?;
-    let meta_v2 = if let Ok(m) =
-        serde_json::from_str::<vox_populi::mens::tensor::candle_qlora_merge::QloraAdapterMetaV2>(&raw)
+    let meta_v2 = if let Ok(m) = serde_json::from_str::<
+        vox_populi::mens::tensor::candle_qlora_merge::QloraAdapterMetaV2,
+    >(&raw)
     {
         m
     } else {

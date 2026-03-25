@@ -5,7 +5,9 @@ use crate::llm_bridge::{
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
-use crate::tools::chat_socrates_meta::{socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry};
+use crate::tools::chat_socrates_meta::{
+    socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
+};
 
 /// Perform an inline edit on a range in a file.
 /// The editor sends the current text; Rust queries the LLM and returns the replacement.

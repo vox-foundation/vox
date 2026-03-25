@@ -1,7 +1,7 @@
 //! RMCP tool descriptors built from the static MCP registry.
 
-use super::input_schemas;
 use super::TOOL_REGISTRY;
+use super::input_schemas;
 
 /// Convert the static [`TOOL_REGISTRY`] table into RMCP [`rmcp::model::Tool`] descriptors.
 pub fn tool_registry() -> Vec<rmcp::model::Tool> {

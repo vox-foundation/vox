@@ -232,11 +232,24 @@ impl crate::orchestrator::Orchestrator {
         }
 
         if auto_continue {
-            let active_agents: Vec<(AgentId, usize)> = {
+            let stall_threshold_ms = (task_timeout_ms / 2).max(60_000);
+            let active_agents: Vec<(AgentId, usize, bool, u64)> = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 agents
                     .iter()
-                    .map(|(id, queue_lock)| (*id, crate::sync_lock::rw_read(&**queue_lock).len()))
+                    .map(|(id, queue_lock)| {
+                        let queue = crate::sync_lock::rw_read(&**queue_lock);
+                        let queued = queue.len();
+                        let has_in_progress = queue.has_in_progress();
+                        let pending_total = queued + queue.in_progress_count();
+                        let stalled_in_progress_ms = queue
+                            .current_task()
+                            .and_then(|t| t.started_at_ms)
+                            .map(|started| now_ms.saturating_sub(started))
+                            .filter(|elapsed| has_in_progress && *elapsed >= stall_threshold_ms)
+                            .unwrap_or(0);
+                        (*id, pending_total, has_in_progress, stalled_in_progress_ms)
+                    })
                     .collect()
             };
             let intents = crate::sync_lock::rw_write(&*self.monitor)

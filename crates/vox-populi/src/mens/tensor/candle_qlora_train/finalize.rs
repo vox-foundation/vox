@@ -6,10 +6,11 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use qlora_rs::training::QLoraTrainer;
 
-use super::{QloraAdapterMetaV2, TrainingDbEvent};
+use super::{QloraAdapterMetaV2, TrainingDbEvent, TrainingLoopStats};
 use crate::mens::tensor::{
-    backend::TrainingSummary, checkpoint_state::CheckpointState, qlora_preflight::QloraEmbedBundle,
-    telemetry, telemetry_schema, train_log, training_config::LoraTrainingConfig,
+    backend::TrainingSummary, checkpoint_state::CheckpointState, manifest,
+    qlora_preflight::QloraEmbedBundle, telemetry, telemetry_schema, train_log,
+    training_config::LoraTrainingConfig,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -24,9 +25,11 @@ pub(super) fn finalize_training_run(
     adapter_layer_order: &[String],
     base_key_map: &std::collections::HashMap<String, String>,
     global_step: u32,
+    optimizer_step_count: u32,
     total_tokens: usize,
     total_step_count: u32,
     total_loss_sum: f64,
+    stats: TrainingLoopStats,
     run_start_inst: Instant,
 ) -> Result<TrainingSummary> {
     let final_path = out.join("candle_qlora_adapter.safetensors");
@@ -103,14 +106,49 @@ pub(super) fn finalize_training_run(
         telemetry_schema::events::TRAIN_COMPLETE,
         serde_json::json!({
             "global_step": global_step,
+            "optimizer_step": optimizer_step_count,
+            "skip_no_supervised_positions": stats.skip_no_supervised_positions,
+            "skip_short_seq": stats.skip_short_seq,
+            "skip_curriculum": stats.skip_curriculum,
             "final_adapter": final_path.display().to_string(),
             "run_id": run_id,
         }),
     )?;
 
+    let total_seen =
+        stats.skip_no_supervised_positions + stats.skip_short_seq + total_step_count as u64;
+    let no_supervised_skip_rate = if total_seen > 0 {
+        stats.skip_no_supervised_positions as f64 / total_seen as f64
+    } else {
+        0.0
+    };
+    std::fs::write(
+        out.join("training_skip_stats.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "vox_mens_training_skip_stats_v1",
+            "optimizer_steps_executed": optimizer_step_count,
+            "micro_steps_executed": total_step_count,
+            "skip_no_supervised_positions": stats.skip_no_supervised_positions,
+            "skip_short_seq": stats.skip_short_seq,
+            "skip_curriculum": stats.skip_curriculum,
+            "no_supervised_skip_rate": no_supervised_skip_rate
+        }))?,
+    )?;
+    manifest::finalize_candle_qlora_training_manifest(
+        out,
+        optimizer_step_count as u64,
+        0,
+        0,
+        stats.skip_short_seq,
+        true,
+    )?;
+
     train_log::info(&format!(
-        "Training complete — {global_step} steps — adapter: {}",
-        final_path.display()
+        "Training complete — micro_steps={} optimizer_steps={} no_supervised_skip_rate={:.2}% — adapter: {}",
+        global_step,
+        optimizer_step_count,
+        no_supervised_skip_rate * 100.0,
+        final_path.display(),
     ));
 
     let wall_secs = run_start_inst.elapsed().as_secs_f64();

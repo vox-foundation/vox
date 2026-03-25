@@ -3,7 +3,7 @@ use sha3::Digest;
 use crate::types::AgentId;
 use crate::workspace::ChangeId;
 
-use super::{OperationEntry, OperationId, OperationKind, OpLog};
+use super::{OpLog, OperationEntry, OperationId, OperationKind};
 
 /// List operations from the database for a repository/agent.
 pub async fn list_from_db(
@@ -108,7 +108,10 @@ impl OpLog {
     }
 
     /// Find the snapshots associated with a task's submission.
-    pub fn find_task_snapshots(&self, task_id: u64) -> (Option<crate::snapshot::SnapshotId>, Option<u64>) {
+    pub fn find_task_snapshots(
+        &self,
+        task_id: u64,
+    ) -> (Option<crate::snapshot::SnapshotId>, Option<u64>) {
         for entry in self.entries.iter().rev() {
             if let OperationKind::TaskSubmit { task_id: id } = entry.kind {
                 if id == task_id {

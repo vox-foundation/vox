@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use anyhow::Context;
 use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
 use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
-use vox_populi::mens::tensor::candle_qlora_merge::{QloraAdapterMetaV2, merge_qlora_v2_into_base_subset};
+use vox_populi::mens::tensor::candle_qlora_merge::{
+    QloraAdapterMetaV2, merge_qlora_v2_into_base_subset,
+};
 
 pub fn run_merge_qlora(
     base_shards: Vec<PathBuf>,

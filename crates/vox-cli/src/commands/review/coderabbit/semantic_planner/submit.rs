@@ -8,10 +8,10 @@ use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
 use vox_git::GitBridge;
 
+use super::super::run_state as cr_run_state;
+use super::super::{config, github, path_policy};
 use super::collector::{collect_all_files, collect_changed_files};
 use super::manifest::write_semantic_manifest;
-use super::super::{config, github, path_policy};
-use super::super::run_state as cr_run_state;
 use super::types::{SemanticPlanner, SemanticSubmitConfig};
 
 /// Entry point: collect files, plan groups, optionally push baseline + isolated worktree PRs.
@@ -166,8 +166,8 @@ async fn run_semantic_submit_core(
     // ── 4. Resolve default branch + publish baseline at origin tip ───────────
     let bridge = GitBridge::open(repo).context("open git repo")?;
     let remote_url = bridge.remote_url().context("get remote URL")?;
-    let (owner, repo_name) = github::parse_github_owner_repo(&remote_url)
-        .context("parse owner/repo from remote URL")?;
+    let (owner, repo_name) =
+        github::parse_github_owner_repo(&remote_url).context("parse owner/repo from remote URL")?;
     let token = github::github_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
     let repo_info = provider
@@ -180,13 +180,9 @@ async fn run_semantic_submit_core(
         "\n[phase-1] Publishing baseline `{}` at origin/{default_branch} tip",
         baseline_branch
     );
-    let _baseline_sha = github::push_baseline_from_origin(
-        repo,
-        &baseline_branch,
-        &default_branch,
-        cfg.full_repo,
-    )
-    .context("push baseline from origin")?;
+    let _baseline_sha =
+        github::push_baseline_from_origin(repo, &baseline_branch, &default_branch, cfg.full_repo)
+            .context("push baseline from origin")?;
 
     // Optional legacy: commit everything to default branch (broad `git add -u`).
     if cfg.commit_main {

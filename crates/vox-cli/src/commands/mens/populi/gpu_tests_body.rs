@@ -35,7 +35,7 @@ fn status_missing_dir_reports_gracefully() {
 
 #[test]
 fn status_json_missing_dir() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new().expect("tokio runtime for status test");
     let result = rt.block_on(status::run_status(
         Some(PathBuf::from("/nonexistent/run/dir")),
         true,
@@ -316,6 +316,8 @@ fn eval_local_missing_model_errors() {
         PathBuf::from("mens/data/heldout_bench"),
         32,
         0.0,
+        1,
+        1337,
         None,
     );
     assert!(result.is_err());

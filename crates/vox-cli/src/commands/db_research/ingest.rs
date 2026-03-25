@@ -55,22 +55,23 @@ pub async fn research_ingest_url(
     let kb_id = kb_id
         .map(ToString::to_string)
         .or_else(|| Some(format!("ecosystem/{vendor}")));
-    let result = tokio::task::spawn_blocking(move || -> anyhow::Result<vox_db::ResearchIngestResult> {
-        let mut req = vox_db::ResearchIngestRequest {
-            packet,
-            body: plain_text,
-            kb_id,
-            embeddings: vec![],
-        };
-        let db = vox_db::VoxDb::connect_default_sync().map_err(|e| anyhow::anyhow!("{e}"))?;
-        let result = db
-            .ingest_research_document(&mut req)
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        db.shutdown_for_drop();
-        Ok(result)
-    })
-    .await
-    .map_err(|e| anyhow::anyhow!("research ingest task failed: {e}"))??;
+    let result =
+        tokio::task::spawn_blocking(move || -> anyhow::Result<vox_db::ResearchIngestResult> {
+            let mut req = vox_db::ResearchIngestRequest {
+                packet,
+                body: plain_text,
+                kb_id,
+                embeddings: vec![],
+            };
+            let db = vox_db::VoxDb::connect_default_sync().map_err(|e| anyhow::anyhow!("{e}"))?;
+            let result = db
+                .ingest_research_document(&mut req)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            db.shutdown_for_drop();
+            Ok(result)
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("research ingest task failed: {e}"))??;
 
     println!("Research source persisted");
     let doc_id = result
@@ -80,7 +81,10 @@ pub async fn research_ingest_url(
     println!("  Packet ID   : {}", result.packet_id);
     println!("  Document ID : {doc_id}");
     println!("  Chunks      : {}", result.chunk_ids.len());
-    println!("  KB ID       : {}", result.kb_id.clone().unwrap_or_default());
+    println!(
+        "  KB ID       : {}",
+        result.kb_id.clone().unwrap_or_default()
+    );
     println!("  Hash        : {}", result.content_hash);
     Ok(())
 }
@@ -128,22 +132,23 @@ pub async fn research_ingest_file(
     let kb_id = kb_id
         .map(ToString::to_string)
         .or_else(|| Some(format!("ecosystem/{vendor}")));
-    let result = tokio::task::spawn_blocking(move || -> anyhow::Result<vox_db::ResearchIngestResult> {
-        let mut req = vox_db::ResearchIngestRequest {
-            packet,
-            body,
-            kb_id,
-            embeddings: vec![],
-        };
-        let db = vox_db::VoxDb::connect_default_sync().map_err(|e| anyhow::anyhow!("{e}"))?;
-        let result = db
-            .ingest_research_document(&mut req)
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-        db.shutdown_for_drop();
-        Ok(result)
-    })
-    .await
-    .map_err(|e| anyhow::anyhow!("research ingest file task failed: {e}"))??;
+    let result =
+        tokio::task::spawn_blocking(move || -> anyhow::Result<vox_db::ResearchIngestResult> {
+            let mut req = vox_db::ResearchIngestRequest {
+                packet,
+                body,
+                kb_id,
+                embeddings: vec![],
+            };
+            let db = vox_db::VoxDb::connect_default_sync().map_err(|e| anyhow::anyhow!("{e}"))?;
+            let result = db
+                .ingest_research_document(&mut req)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            db.shutdown_for_drop();
+            Ok(result)
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("research ingest file task failed: {e}"))??;
 
     println!("Research document persisted");
     let doc_id = result
@@ -153,7 +158,10 @@ pub async fn research_ingest_file(
     println!("  Packet ID   : {}", result.packet_id);
     println!("  Document ID : {doc_id}");
     println!("  Chunks      : {}", result.chunk_ids.len());
-    println!("  KB ID       : {}", result.kb_id.clone().unwrap_or_default());
+    println!(
+        "  KB ID       : {}",
+        result.kb_id.clone().unwrap_or_default()
+    );
     println!("  Hash        : {}", result.content_hash);
     Ok(())
 }

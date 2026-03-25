@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use vox_forge::github::GitHubProvider;
 use vox_forge::GitForgeProvider;
+use vox_forge::github::GitHubProvider;
 
 use super::api::{github_token, owner_repo_from_path};
 

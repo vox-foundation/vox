@@ -48,7 +48,8 @@ pub async fn run_train(
 
     super::super::process_priority::apply(&process_priority);
 
-    let device_kind = vox_populi::mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let device_kind =
+        vox_populi::mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_populi::mens::apply_backend_env(device_kind);
 
     if matches!(
@@ -59,8 +60,10 @@ pub async fn run_train(
         anyhow::bail!(vox_populi::mens::operator_messages::MOBILE_EDGE_REQUIRES_CPU_DEVICE);
     }
 
-    if matches!(train_backend, vox_populi::mens::PopuliTrainBackend::CandleQlora)
-        && tokenizer_mode != vox_populi::mens::MensTokenizerMode::Hf
+    if matches!(
+        train_backend,
+        vox_populi::mens::PopuliTrainBackend::CandleQlora
+    ) && tokenizer_mode != vox_populi::mens::MensTokenizerMode::Hf
     {
         anyhow::bail!(vox_populi::mens::operator_messages::QLORA_REQUIRES_HF_TOKENIZER);
     }
@@ -80,7 +83,10 @@ pub async fn run_train(
         );
     }
 
-    if matches!(train_backend, vox_populi::mens::PopuliTrainBackend::CandleQlora) {
+    if matches!(
+        train_backend,
+        vox_populi::mens::PopuliTrainBackend::CandleQlora
+    ) {
         if matches!(device_kind, vox_populi::mens::DeviceKind::Cuda) {
             #[cfg(not(feature = "mens-candle-cuda"))]
             anyhow::bail!(

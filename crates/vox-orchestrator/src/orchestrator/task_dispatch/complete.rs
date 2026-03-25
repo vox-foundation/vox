@@ -15,8 +15,9 @@ impl Orchestrator {
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
         self.record_activity();
+        crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
 
-        let (write_files, session_id, desc) = {
+        let (write_files, session_id, desc, phase_label, debug_iterations) = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let queue_lock = agents
                 .get(&agent_id)
@@ -31,8 +32,14 @@ impl Orchestrator {
             let session_id = queue.current_task().and_then(|t| t.session_id.clone());
 
             let mut auto_debug_requeue = None;
-            let max_debug_iterations =
-                crate::sync_lock::rw_read(&*self.config).max_debug_iterations;
+            let (max_debug_iterations, max_toestub_debug_iterations, max_socrates_debug_iterations) = {
+                let cfg = crate::sync_lock::rw_read(&*self.config);
+                (
+                    cfg.max_debug_iterations,
+                    cfg.max_toestub_debug_iterations,
+                    cfg.max_socrates_debug_iterations,
+                )
+            };
 
             #[cfg(feature = "toestub-gate")]
             {
@@ -40,7 +47,7 @@ impl Orchestrator {
                     if let Some(mut task_clone) = queue.current_task().cloned() {
                         let vr = crate::validation::post_task_validate(&task_clone);
                         if !crate::validation::quality_gate(&vr)
-                            && task_clone.debug_iterations < max_debug_iterations
+                            && task_clone.debug_iterations < max_toestub_debug_iterations
                         {
                             task_clone.debug_iterations += 1;
                             task_clone.description.push_str(&format!("\n\n[AUTO-DEBUG ITERATION {}]\nValidation failed with diagnostic issues. Please fix the following:\n{}", task_clone.debug_iterations, vr.report));
@@ -62,6 +69,12 @@ impl Orchestrator {
                 queue.mark_failed(
                     task_id,
                     format!("Auto-debug validation failure:\n{}", err_report),
+                );
+                self.record_task_loop_metric(
+                    task_id,
+                    &Self::extract_phase_label(&requeue_task.description),
+                    "toestub_requeue",
+                    requeue_task.debug_iterations,
                 );
 
                 // Requeue the modified task back to the *same* queue
@@ -89,7 +102,7 @@ impl Orchestrator {
                         }
                         if config.socrates_gate_enforce
                             && outcome.decision != vox_socrates_policy::RiskDecision::Answer
-                            && task.debug_iterations < config.max_debug_iterations
+                            && task.debug_iterations < max_socrates_debug_iterations
                         {
                             let mut t = task.clone();
                             if let Some(ref sid) = t.session_id {
@@ -123,16 +136,25 @@ impl Orchestrator {
                     "Socrates gate blocked completion; requeueing"
                 );
                 queue.mark_failed(task_id, "Socrates risk gate blocked completion".to_string());
+                self.record_task_loop_metric(
+                    task_id,
+                    &Self::extract_phase_label(&requeue_task.description),
+                    "socrates_requeue",
+                    requeue_task.debug_iterations,
+                );
                 queue.enqueue(requeue_task);
                 return Ok(());
             }
 
-            let desc = queue
-                .current_task()
+            let current = queue.current_task().cloned();
+            let desc = current
+                .as_ref()
                 .map(|t| t.description.clone())
                 .unwrap_or_default();
+            let phase_label = Self::extract_phase_label(&desc);
+            let debug_iterations = current.map(|t| t.debug_iterations).unwrap_or(0);
             queue.mark_complete(task_id);
-            (write_files, session_id, desc)
+            (write_files, session_id, desc, phase_label, debug_iterations)
         };
 
         // Find pre-task snapshots from the oplog to link this completion
@@ -267,6 +289,7 @@ impl Orchestrator {
         }
 
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
+        self.record_task_loop_metric(task_id, &phase_label, "completed", debug_iterations);
         Ok(())
     }
 
@@ -424,6 +447,38 @@ impl Orchestrator {
         }
 
         tracing::warn!("Task {} failed: {}", task_id, reason);
+        self.record_task_loop_metric(task_id, "unknown", "failed", 0);
         Ok(())
+    }
+
+    fn extract_phase_label(desc: &str) -> String {
+        const PREFIX: &str = "[PHASE:";
+        if let Some(start) = desc.find(PREFIX) {
+            let suffix = &desc[start + PREFIX.len()..];
+            if let Some(end) = suffix.find(']') {
+                return suffix[..end].trim().to_ascii_lowercase();
+            }
+        }
+        "single_shot".to_string()
+    }
+
+    fn record_task_loop_metric(
+        &self,
+        task_id: TaskId,
+        phase: &str,
+        outcome: &str,
+        debug_iterations: u8,
+    ) {
+        let key = format!("task_loop_metrics/{}", task_id.0);
+        let event = serde_json::json!({
+            "task_id": task_id.0,
+            "phase": phase,
+            "outcome": outcome,
+            "debug_iterations": debug_iterations,
+            "ts_unix_ms": crate::types::now_unix_ms()
+        });
+        if let Ok(raw) = serde_json::to_string(&event) {
+            crate::sync_lock::rw_read(&*self.context_store).set(AgentId(0), key, raw, 0);
+        }
     }
 }

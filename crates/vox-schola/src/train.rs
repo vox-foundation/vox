@@ -67,7 +67,8 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     // ── Device ────────────────────────────────────────────────────────────────
-    let device_kind = vox_populi::mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let device_kind =
+        vox_populi::mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_populi::mens::apply_backend_env(device_kind);
 
     // ── Validation ────────────────────────────────────────────────────────────
@@ -162,7 +163,9 @@ pub async fn run(args: Args) -> Result<()> {
                 eprintln!("  ✓ Cached at {}", files.cache_dir.display());
                 base_model_paths = Some((files.weights.clone(), files.config.clone()));
                 tokenizer_path = files.tokenizer.clone();
-                if let Ok(arch) = vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config) {
+                if let Ok(arch) =
+                    vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config)
+                {
                     let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
                         &files.config,
                         arch,

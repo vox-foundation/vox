@@ -206,6 +206,3 @@ pub fn tsconfig_json() -> &'static str {
 }
 "#
 }
-
-
-

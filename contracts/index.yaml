@@ -88,14 +88,18 @@ contracts:
     owner: scientia
     kind: json-schema
     description: JSON Schema for scientia publication worthiness policy contracts.
-    enforced_by: []
+    enforced_by:
+      - vox ci scientia-worthiness-contract
+      - vox ci ssot-drift
 
   - id: scientia-publication-worthiness-default
     path: contracts/scientia/publication-worthiness.default.yaml
     owner: scientia
     kind: yaml
     description: Default publication worthiness thresholds, red lines, and venue profile checks.
-    enforced_by: []
+    enforced_by:
+      - vox ci scientia-worthiness-contract
+      - vox ci ssot-drift
 
   - id: scaling-policy
     path: contracts/scaling/policy.yaml

@@ -5,9 +5,7 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-use super::docs_sync::{
-    markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section,
-};
+use super::docs_sync::{markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::registry::RegistryFile;
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.

@@ -230,3 +230,62 @@ mcp_tool_schema:
         "inactive gate should not emit a row"
     );
 }
+
+#[test]
+fn pass_at_k_gate_passes_when_above_thresholds() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"pass_rate_at_1":0.71,"pass_rate_at_k":0.88,"k":4}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+pass_at_k:
+  min_pass_rate_at_1: 0.70
+  min_pass_rate_at_k: 0.85
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "pass_at_k")
+        .expect("gate");
+    assert!(g.passed, "{}", g.message);
+}
+
+#[test]
+fn pass_at_k_gate_fails_on_regression_drop() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"pass_rate_at_1":0.50,"pass_rate_at_k":0.70}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("baseline_passatk.json"),
+        r#"{"pass_rate_at_1":0.62,"pass_rate_at_k":0.82}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+pass_at_k:
+  max_regression_drop: 0.05
+  baseline_file: baseline_passatk.json
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "pass_at_k")
+        .expect("gate");
+    assert!(!g.passed, "{}", g.message);
+}

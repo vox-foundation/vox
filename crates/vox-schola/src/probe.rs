@@ -10,9 +10,11 @@ pub fn run() -> Result<()> {
     println!();
 
     // Resolve recommended preset from current GPU
-    let device_profile = vox_populi::mens::DeviceProfile::from_gpu_info(&info.model_name, info.vram_mb);
+    let device_profile =
+        vox_populi::mens::DeviceProfile::from_gpu_info(&info.model_name, info.vram_mb);
     let overrides = vox_populi::mens::CliOverrides::default();
-    let profile = vox_populi::mens::resolve_effective_profile(None, device_profile, None, overrides);
+    let profile =
+        vox_populi::mens::resolve_effective_profile(None, device_profile, None, overrides);
 
     println!("Recommended profile:");
     println!("  rank:       {}", profile.rank);

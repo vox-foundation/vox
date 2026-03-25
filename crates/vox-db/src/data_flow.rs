@@ -7,7 +7,7 @@
 use crate::schema_digest::SchemaDigest;
 use serde::{Deserialize, Serialize};
 
-/// Complete data flow map for a Vox module.
+/// Aggregated data flow map for a Vox module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataFlowMap {
     /// Query → tables it reads from.

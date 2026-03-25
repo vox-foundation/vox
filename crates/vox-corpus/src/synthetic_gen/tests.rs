@@ -1,12 +1,12 @@
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 use super::{
+    A2A_MESSAGE_TYPES, ORCHESTRATOR_TOOLS, SKILL_TOOLS, SyntheticGenConfig, TOOL_REGISTRY_SLIM,
     a2a_pairs::generate_a2a_pairs,
     agent_pairs::generate_agent_pairs,
     orchestrator_pairs::{generate_orchestrator_pairs, generate_skill_pairs},
     tool_pairs::generate_tool_pairs,
     workflow_pairs::generate_workflow_pairs,
-    SyntheticGenConfig, A2A_MESSAGE_TYPES, ORCHESTRATOR_TOOLS, SKILL_TOOLS, TOOL_REGISTRY_SLIM,
 };
 
 fn run_all_to_string(cfg: &SyntheticGenConfig) -> String {

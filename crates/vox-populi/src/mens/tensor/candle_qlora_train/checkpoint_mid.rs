@@ -6,9 +6,7 @@ use anyhow::{Context, Result};
 use qlora_rs::training::QLoraTrainer;
 
 use super::TrainingDbEvent;
-use crate::mens::tensor::{
-    checkpoint_state::CheckpointState, training_config::LoraTrainingConfig,
-};
+use crate::mens::tensor::{checkpoint_state::CheckpointState, training_config::LoraTrainingConfig};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn maybe_save_mid_epoch_checkpoint(

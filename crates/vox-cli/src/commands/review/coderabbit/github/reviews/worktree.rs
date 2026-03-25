@@ -7,9 +7,9 @@ use anyhow::{Context, Result};
 use vox_forge::github::GitHubProvider;
 use vox_forge::{GitForgeProvider, NewChangeRequest};
 
+use super::super::super::path_policy;
 use super::super::api::{github_token, owner_repo_from_path};
 use super::super::comments::trigger_coderabbit;
-use super::super::super::path_policy;
 
 pub fn worktree_dir(repo: &Path, review_branch: &str) -> PathBuf {
     let safe = review_branch.replace(['/', '\\'], "__");

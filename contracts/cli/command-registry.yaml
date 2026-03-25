@@ -28,6 +28,7 @@ operations:
   - { surface: vox-cli, path: [scientia, publication-prepare-validated], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-preflight], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-zenodo-metadata], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [scientia, publication-worthiness-evaluate], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-approve], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-submit-local], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-status], status: active, latin_ns: codex, ref_cli_required: true }
@@ -55,6 +56,7 @@ operations:
   - { surface: vox-cli, path: [ci, repo-guards], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, contracts-index], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, scientia-worthiness-contract], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, ssot-drift], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, release-build], status: active, reachability_required: false }
   - { surface: vox-cli, path: [completions], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }

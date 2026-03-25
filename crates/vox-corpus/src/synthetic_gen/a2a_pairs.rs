@@ -5,8 +5,8 @@ use std::io::Write;
 use serde_json::json;
 
 use super::{
-    emit_line, name_hash, rng::Rng, templates::TEMPLATES, A2A_MESSAGE_TYPES, EXAMPLE_AGENT_PAIRS,
-    SyntheticGenConfig,
+    A2A_MESSAGE_TYPES, EXAMPLE_AGENT_PAIRS, SyntheticGenConfig, emit_line, name_hash, rng::Rng,
+    templates::TEMPLATES,
 };
 
 include!("_a2a_pairs_body.rs");

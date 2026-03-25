@@ -55,12 +55,7 @@ pub(super) async fn run_generate(
     if !current_fp.is_empty() {
         if let Ok(db) = vox_db::VoxDb::connect_default().await {
             let _ = db
-                .record_corpus_snapshot(
-                    &current_fp,
-                    env!("CARGO_PKG_VERSION"),
-                    count as i64,
-                    None,
-                )
+                .record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), count as i64, None)
                 .await;
         }
         if let Some(ref root) = workspace_root {
@@ -84,8 +79,13 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
     }
 
     // ── 8.2: Incremental — load existing hashes to skip unchanged files ──
-    let existing_hashes: std::collections::HashSet<String> = if output.exists() {
-        let content = std::fs::read_to_string(output).unwrap_or_default();
+    let output_owned = output.to_path_buf();
+    let existing_hashes: std::collections::HashSet<String> = if output_owned.exists() {
+        let p = output_owned.clone();
+        let content = match tokio::task::spawn_blocking(move || std::fs::read_to_string(&p)).await {
+            Ok(Ok(s)) => s,
+            Ok(Err(_)) | Err(_) => String::new(),
+        };
         content
             .lines()
             .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
@@ -107,20 +107,28 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
         );
     }
 
-    // Ensure output dir exists; open in append mode for incremental
-    if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)?;
+    // Ensure output dir exists; open in append mode for incremental (blocking I/O off async runtime)
+    if let Some(parent) = output_owned.parent() {
+        let p = parent.to_path_buf();
+        tokio::task::spawn_blocking(move || std::fs::create_dir_all(&p))
+            .await
+            .map_err(|e| anyhow::anyhow!("join create_dir_all: {e}"))?
+            .map_err(|e| anyhow::anyhow!(e))?;
     }
     // For a clean run (no file yet) create it; otherwise append
-    if !output.exists() {
-        std::fs::File::create(output)?;
+    if !output_owned.exists() {
+        let p = output_owned.clone();
+        tokio::task::spawn_blocking(move || std::fs::File::create(&p))
+            .await
+            .map_err(|e| anyhow::anyhow!("join File::create: {e}"))?
+            .map_err(|e| anyhow::anyhow!(e))?;
     }
 
     let total = entries.len();
 
     // ── 8.1: Parallel extraction using tokio::spawn ──────────────────────
     use std::sync::{Arc, Mutex};
-    let output_arc = Arc::new(Mutex::new(output.to_path_buf()));
+    let output_arc = Arc::new(Mutex::new(output_owned.clone()));
     let existing_arc = Arc::new(existing_hashes);
 
     let mut handles = Vec::with_capacity(entries.len());
@@ -142,16 +150,24 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
                             if !hash.is_empty() && known.contains(&hash) {
                                 return (path, true, true); // (path, ok, skipped)
                             }
-                            // Append to file under lock
-                            let out = output_path.lock().unwrap();
+                            // Append to file (blocking I/O in worker thread)
+                            let out_pb = {
+                                let g = output_path.lock().unwrap();
+                                g.clone()
+                            };
                             if let Ok(line) = serde_json::to_string(&record) {
-                                use std::io::Write;
-                                if let Ok(mut f) = std::fs::OpenOptions::new()
-                                    .create(true)
-                                    .append(true)
-                                    .open(&*out)
-                                {
-                                    let _ = writeln!(f, "{}", line);
+                                let wrote = tokio::task::spawn_blocking(move || {
+                                    use std::io::Write;
+                                    std::fs::OpenOptions::new()
+                                        .create(true)
+                                        .append(true)
+                                        .open(&out_pb)
+                                        .and_then(|mut f| writeln!(f, "{line}"))
+                                        .is_ok()
+                                })
+                                .await
+                                .unwrap_or(false);
+                                if wrote {
                                     return (path, true, false);
                                 }
                             }

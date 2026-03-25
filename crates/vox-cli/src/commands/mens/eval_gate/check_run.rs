@@ -383,5 +383,90 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
     }
     // -------------------------------------------------------------------------
 
+    let passk_cfg = &policy.pass_at_k;
+    let passk_active = passk_cfg.block
+        || passk_cfg.min_pass_rate_at_1 > 0.0
+        || passk_cfg.min_pass_rate_at_k > 0.0
+        || passk_cfg.baseline_file.is_some();
+    if passk_active {
+        let metrics_name = std::path::Path::new(&passk_cfg.metrics_file)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let metrics_path = run_dir.join(if metrics_name.is_empty() {
+            "benchmark_passatk.json"
+        } else {
+            &metrics_name
+        });
+        if !metrics_path.exists() {
+            results.push(GateResult {
+                name: "pass_at_k".to_string(),
+                passed: false,
+                message: format!(
+                    "metrics file missing: {} — run `vox mens eval-local --samples <k> -o <run>/eval_local_report.json` first",
+                    metrics_path.display()
+                ),
+                block: passk_cfg.block,
+            });
+        } else {
+            let content = std::fs::read_to_string(&metrics_path)?;
+            let v: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("{}: invalid JSON ({})", metrics_path.display(), e))?;
+            let p1 = v
+                .get("pass_rate_at_1")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
+            let pk = v
+                .get("pass_rate_at_k")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
+            let mut pass = p1 >= passk_cfg.min_pass_rate_at_1 && pk >= passk_cfg.min_pass_rate_at_k;
+            let mut msg = format!(
+                "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3})",
+                p1, passk_cfg.min_pass_rate_at_1, pk, passk_cfg.min_pass_rate_at_k
+            );
+            if let Some(baseline_name) = passk_cfg.baseline_file.as_deref() {
+                let baseline_path = run_dir.join(
+                    std::path::Path::new(baseline_name)
+                        .file_name()
+                        .unwrap_or_default(),
+                );
+                if baseline_path.exists() {
+                    let bcontent = std::fs::read_to_string(&baseline_path)?;
+                    if let Ok(bv) = serde_json::from_str::<serde_json::Value>(&bcontent) {
+                        let b1 = bv
+                            .get("pass_rate_at_1")
+                            .and_then(|x| x.as_f64())
+                            .unwrap_or(0.0);
+                        let bk = bv
+                            .get("pass_rate_at_k")
+                            .and_then(|x| x.as_f64())
+                            .unwrap_or(0.0);
+                        let drop1 = b1 - p1;
+                        let dropk = bk - pk;
+                        if drop1 > passk_cfg.max_regression_drop
+                            || dropk > passk_cfg.max_regression_drop
+                        {
+                            pass = false;
+                        }
+                        msg.push_str(&format!(
+                            " baseline(pass@1={:.3},pass@k={:.3}) max_drop={:.3}",
+                            b1, bk, passk_cfg.max_regression_drop
+                        ));
+                    }
+                } else {
+                    msg.push_str(" baseline file missing (skipped regression check)");
+                }
+            }
+            results.push(GateResult {
+                name: "pass_at_k".to_string(),
+                passed: pass,
+                message: msg,
+                block: passk_cfg.block,
+            });
+        }
+    }
+
     Ok(results)
 }

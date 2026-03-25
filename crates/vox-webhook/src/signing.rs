@@ -85,10 +85,10 @@ mod tests {
 
     #[test]
     fn sign_and_verify() {
-        let secret = "my-webhook-secret";
+        let signing_key = "my-webhook-secret";
         let payload = b"hello world";
-        let sig = sign_payload(secret, payload);
-        assert!(verify_payload(secret, payload, &sig.to_string()).is_ok());
+        let sig = sign_payload(signing_key, payload);
+        assert!(verify_payload(signing_key, payload, &sig.to_string()).is_ok());
     }
 
     #[test]

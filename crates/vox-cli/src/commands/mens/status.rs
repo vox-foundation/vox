@@ -36,7 +36,8 @@ pub async fn run_status(
         }
     }
 
-    let base = run_dir.unwrap_or_else(|| PathBuf::from(vox_scaling_policy::DEFAULT_MENS_RUNS_LATEST));
+    let base =
+        run_dir.unwrap_or_else(|| PathBuf::from(vox_scaling_policy::DEFAULT_MENS_RUNS_LATEST));
     let telemetry_path = if base.join("metrics.jsonl").exists() {
         base.join("metrics.jsonl")
     } else {

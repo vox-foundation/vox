@@ -8,8 +8,7 @@ use super::check_run::check_run;
 
 /// Run eval-gate and return exit code (0 = pass, 1 = fail).
 pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i32> {
-    let policy_path =
-        policy_path.unwrap_or_else(|| PathBuf::from("mens/config/eval-gates.yaml"));
+    let policy_path = policy_path.unwrap_or_else(|| PathBuf::from("mens/config/eval-gates.yaml"));
     if !policy_path.exists() {
         eprintln!(
             "  {} Policy not found: {}",

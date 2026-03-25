@@ -240,6 +240,69 @@ impl VoxDb {
         )
         .await
     }
+
+    /// Inject a [`SocratesSurfaceAggregate`]-compatible JSON object into `metadata_json.scientia_evidence.socrates_aggregate`
+    /// when missing or `sample_size == 0`, using the latest `socrates_surface` rows for `repository_id`.
+    pub async fn merge_scientia_live_socrates_into_metadata_json(
+        &self,
+        metadata_json: Option<&str>,
+        repository_id: &str,
+    ) -> Result<String, StoreError> {
+        const KEY: &str = "scientia_evidence";
+        let mut root: Value = match metadata_json {
+            Some(s) if !s.trim().is_empty() => {
+                serde_json::from_str(s).map_err(|e| StoreError::Serialization(e.to_string()))?
+            }
+            _ => serde_json::json!({}),
+        };
+        let skip = root
+            .get(KEY)
+            .and_then(|ev| ev.get("socrates_aggregate"))
+            .and_then(|a| a.get("sample_size"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0)
+            > 0;
+        if skip {
+            return serde_json::to_string(&root)
+                .map_err(|e| StoreError::Serialization(e.to_string()));
+        }
+
+        let agg = self
+            .aggregate_socrates_surface_metrics(Some(repository_id), 200)
+            .await?;
+        if agg.sample_size == 0 {
+            return serde_json::to_string(&root)
+                .map_err(|e| StoreError::Serialization(e.to_string()));
+        }
+
+        let snap = serde_json::json!({
+            "sample_size": agg.sample_size,
+            "parsed_metadata_rows": agg.parsed_metadata_rows,
+            "mean_hallucination_risk_proxy": agg.mean_hallucination_risk_proxy,
+            "mean_confidence_estimate": agg.mean_confidence_estimate,
+            "mean_contradiction_ratio": agg.mean_contradiction_ratio,
+            "answer_count": agg.answer_count,
+            "ask_count": agg.ask_count,
+            "abstain_count": agg.abstain_count,
+        });
+
+        let mut ev = root
+            .get(KEY)
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
+        match ev {
+            Value::Object(ref mut m) => {
+                m.insert("socrates_aggregate".to_string(), snap);
+            }
+            _ => {
+                ev = serde_json::json!({
+                    "socrates_aggregate": snap,
+                });
+            }
+        }
+        root[KEY] = ev;
+        serde_json::to_string(&root).map_err(|e| StoreError::Serialization(e.to_string()))
+    }
 }
 
 #[cfg(all(test, feature = "local"))]
@@ -338,6 +401,38 @@ mod db_tests {
         let meta = rows[0].2.clone().expect("metadata json");
         assert!(meta.contains("\"retrieval_tier\":\"hybrid\""));
         assert!(meta.contains("\"used_vector\":true"));
+    }
+
+    #[tokio::test]
+    async fn merge_scientia_injects_aggregate_into_metadata() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("memory vox-db");
+        let rid = "merge-scientia-repo";
+        db.record_socrates_surface_event(
+            rid,
+            "vox_chat_message",
+            RiskDecision::Answer,
+            0.88,
+            0.04,
+            Some("m"),
+            None,
+        )
+        .await
+        .expect("record");
+        let base = serde_json::json!({ "repository_id": rid, "prepared_by": "t" });
+        let base_str = base.to_string();
+        let out = db
+            .merge_scientia_live_socrates_into_metadata_json(Some(&base_str), rid)
+            .await
+            .expect("merge");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("parse out");
+        assert!(
+            v["scientia_evidence"]["socrates_aggregate"]["sample_size"]
+                .as_u64()
+                .unwrap_or(0)
+                > 0
+        );
     }
 }
 

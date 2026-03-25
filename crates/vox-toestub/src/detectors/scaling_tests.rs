@@ -33,7 +33,11 @@ mod tests {
 "#;
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
     let findings = d.detect(&f);
-    assert!(!findings.iter().any(|x| x.rule_id == "scaling/blocking-in-async"));
+    assert!(
+        !findings
+            .iter()
+            .any(|x| x.rule_id == "scaling/blocking-in-async")
+    );
 }
 
 #[test]

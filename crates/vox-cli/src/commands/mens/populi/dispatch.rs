@@ -446,8 +446,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             bench,
             max_tokens,
             temperature,
+            samples,
+            seed_base,
             output,
-        } => eval_local::run_eval_local(model, bench, max_tokens, temperature, output),
+        } => eval_local::run_eval_local(
+            model,
+            bench,
+            max_tokens,
+            temperature,
+            samples,
+            seed_base,
+            output,
+        ),
 
         PopuliAction::EvalGate { run_dir, policy } => {
             let code = eval_gate::run_eval_gate(run_dir, policy)?;

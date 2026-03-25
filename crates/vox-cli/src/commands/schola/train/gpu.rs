@@ -111,7 +111,10 @@ pub(super) async fn run_gpu_training(
     let rank = profile.rank;
     let alpha = profile.alpha;
     let seq_len = profile.seq_len;
-    if matches!(train_backend, vox_populi::mens::PopuliTrainBackend::CandleQlora) {
+    if matches!(
+        train_backend,
+        vox_populi::mens::PopuliTrainBackend::CandleQlora
+    ) {
         let k = qlora_ce_last_k.max(1);
         if k > 64 {
             anyhow::bail!("--qlora-ce-last-k must be at most 64 (got {k})");
@@ -166,26 +169,28 @@ pub(super) async fn run_gpu_training(
                         .map(|p| p.display().to_string())
                         .unwrap_or_else(|| "Vox (built-in)".to_string());
                     eprintln!("  {} Tokenizer: {}", "🔤".cyan(), tokenizer_src);
-                    let est_mb =
-                        if matches!(train_backend, vox_populi::mens::PopuliTrainBackend::CandleQlora) {
-                            vox_populi::mens::estimate_training_vram_mb_qlora(
-                                cfg.n_embd,
-                                cfg.n_head,
-                                cfg.n_layer,
-                                cfg.vocab_size,
-                                profile.batch_size,
-                                profile.seq_len,
-                            )
-                        } else {
-                            vox_populi::mens::estimate_training_vram_mb(
-                                cfg.n_embd,
-                                cfg.n_head,
-                                cfg.n_layer,
-                                cfg.vocab_size,
-                                profile.batch_size,
-                                profile.seq_len,
-                            )
-                        };
+                    let est_mb = if matches!(
+                        train_backend,
+                        vox_populi::mens::PopuliTrainBackend::CandleQlora
+                    ) {
+                        vox_populi::mens::estimate_training_vram_mb_qlora(
+                            cfg.n_embd,
+                            cfg.n_head,
+                            cfg.n_layer,
+                            cfg.vocab_size,
+                            profile.batch_size,
+                            profile.seq_len,
+                        )
+                    } else {
+                        vox_populi::mens::estimate_training_vram_mb(
+                            cfg.n_embd,
+                            cfg.n_head,
+                            cfg.n_layer,
+                            cfg.vocab_size,
+                            profile.batch_size,
+                            profile.seq_len,
+                        )
+                    };
                     if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
                         eprintln!(
                             "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",

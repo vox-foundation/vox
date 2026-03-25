@@ -1,22 +1,22 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Router;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 
+use super::PopuliTransportState;
 use super::auth::{bearer_token_eq, populi_control_token_from_env};
 use super::handlers::{
     a2a_ack, a2a_inbox, bootstrap_exchange, deliver_a2a, health, heartbeat, join_node, leave_node,
     list_nodes,
 };
-use super::PopuliTransportState;
 
 /// Bearer authentication mode for [`populi_http_app_with_auth`].
 #[derive(Clone, Debug)]

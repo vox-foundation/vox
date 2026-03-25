@@ -1,4 +1,6 @@
-use crate::{auto_migrate, collection, paths, schema_digest::SchemaDigest, AutoMigrator, StoreError};
+use crate::{
+    AutoMigrator, StoreError, auto_migrate, collection, paths, schema_digest::SchemaDigest,
+};
 
 impl crate::VoxDb {
     /// Apply a [`SchemaDigest`]-driven plan: create missing tables/columns/indexes, never drop.

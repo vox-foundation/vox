@@ -4,8 +4,8 @@ use std::process::Command;
 
 use crate::report::{BootstrapItem, BootstrapReport};
 
-use super::cmd::{platform_str, run_cmd};
 use super::BootstrapOptions;
+use super::cmd::{platform_str, run_cmd};
 
 /// Evaluate all probes. Mutates the system only when `opts.apply` runs component installs.
 #[must_use]

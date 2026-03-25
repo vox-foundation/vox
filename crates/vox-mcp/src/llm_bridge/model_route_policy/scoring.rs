@@ -13,7 +13,10 @@ pub(super) fn budget_match(limit_model: &str, model: &str) -> bool {
 }
 
 #[must_use]
-pub(super) fn model_budget_hint(model: &ModelSpec, hints: Option<&[RemainingBudget]>) -> (u32, bool) {
+pub(super) fn model_budget_hint(
+    model: &ModelSpec,
+    hints: Option<&[RemainingBudget]>,
+) -> (u32, bool) {
     let usage = model.llm_usage_key();
     let mut remaining_max = 0u32;
     let mut any_rate_limited = false;

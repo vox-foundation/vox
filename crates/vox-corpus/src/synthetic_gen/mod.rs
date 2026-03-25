@@ -158,20 +158,20 @@ pub(crate) fn emit_tool_pair(
 
 mod rng;
 pub(crate) use rng::name_hash;
-mod templates;
-mod tool_pairs;
 mod a2a_pairs;
-mod workflow_pairs;
-mod orchestrator_pairs;
-mod web_pairs;
-mod negative_pairs;
 mod agent_pairs;
 mod cli_pairs;
-mod script_pairs;
-mod routing_pairs;
 mod error_recovery_pairs;
 mod multi_agent_pairs;
+mod negative_pairs;
+mod orchestrator_pairs;
+mod routing_pairs;
+mod script_pairs;
 mod telemetry_pairs;
+mod templates;
+mod tool_pairs;
+mod web_pairs;
+mod workflow_pairs;
 
 pub use agent_pairs::generate_agent_lifecycle_pairs;
 pub use error_recovery_pairs::generate_error_recovery_pairs;

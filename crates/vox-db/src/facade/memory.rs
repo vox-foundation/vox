@@ -1,4 +1,4 @@
-use crate::{learning, memory::MemoryParams, EmbeddingEntry, StoreError};
+use crate::{EmbeddingEntry, StoreError, learning, memory::MemoryParams};
 
 impl crate::VoxDb {
     // ── Memory Convenience Methods ──────────────────────

@@ -160,10 +160,15 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         DbCli::PublicationPreflight {
             publication_id,
             profile,
-        } => db::publication_preflight(&publication_id, profile.into()).await,
+            with_worthiness,
+        } => db::publication_preflight(&publication_id, profile.into(), with_worthiness).await,
         DbCli::PublicationZenodoMetadata { publication_id } => {
             db::publication_zenodo_metadata(&publication_id).await
         }
+        DbCli::PublicationWorthinessEvaluate {
+            contract_yaml,
+            metrics_json,
+        } => db::publication_worthiness_evaluate(contract_yaml.as_ref(), metrics_json).await,
         DbCli::PublicationApprove {
             publication_id,
             approver,

@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::constants::*;
 
-
 /// Which AI backend to attempt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "provider", rename_all = "lowercase")]

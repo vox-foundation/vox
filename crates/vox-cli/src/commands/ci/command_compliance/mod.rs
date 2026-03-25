@@ -7,21 +7,17 @@ use std::path::Path;
 mod docs_sync;
 mod mcp_wiring;
 mod registry;
-mod validators;
 #[cfg(test)]
 mod tests;
+mod validators;
 
-use docs_sync::{
-    read_cli_reference_for_compliance, read_env_vars_ssot_doc, read_reachability_doc,
-};
+use docs_sync::{read_cli_reference_for_compliance, read_env_vars_ssot_doc, read_reachability_doc};
 use mcp_wiring::check_mcp_tool_wiring;
-use registry::{
-    REGISTRY_REL, SCHEMA_REL, RegistryFile, validate_registry_against_json_schema,
-};
+use registry::{REGISTRY_REL, RegistryFile, SCHEMA_REL, validate_registry_against_json_schema};
 use validators::{
     check_catalog_generation_smoke, check_compilerd, check_dei, check_env_var_ssot_index,
-    check_reachability, check_ref_cli, check_registry_latin_and_handlers, check_root_readme_cli_drift,
-    check_script_duals, check_vox_cli_lib,
+    check_reachability, check_ref_cli, check_registry_latin_and_handlers,
+    check_root_readme_cli_drift, check_script_duals, check_vox_cli_lib,
 };
 
 /// Run all command-compliance checks from a repository root (directory containing `AGENTS.md`).

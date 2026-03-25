@@ -13,14 +13,14 @@ mod run_gate;
 #[cfg(test)]
 mod tests;
 
+pub use check_run::{GateResult, check_run};
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) use legacy::{
     LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_COVERAGE, LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_PARSE_RATE,
     run_legacy_train_post_eval_gate,
 };
-pub use check_run::{GateResult, check_run};
 pub use policy::{
-    ContextGateEntry, EvalGatePolicy, EvalLocalGate, McpToolSchemaGate, ModalMixGate,
+    ContextGateEntry, EvalGatePolicy, EvalLocalGate, McpToolSchemaGate, ModalMixGate, PassAtKGate,
     PerplexityGate, SupervisedRatioGate, ThroughputGate, TruncationGate, load_policy,
 };
 pub use run_gate::run_eval_gate;

@@ -5,9 +5,10 @@ mod check_links;
 mod command_compliance;
 mod contracts_index;
 mod eval_matrix;
-mod scaling_audit;
 mod line_endings;
 mod release_build;
+mod scaling_audit;
+mod scientia_worthiness_contract;
 
 mod cmd_enums;
 mod constants;

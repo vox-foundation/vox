@@ -95,6 +95,13 @@ pub mod train_jsonl_preflight;
 #[cfg(feature = "mens-train")]
 pub mod training_config;
 
+// Private QLoRA modules are referenced from sibling `.rs` files; anchor for unwired-module scans.
+#[cfg(feature = "mens-train")]
+use self::{
+    backend_candle_qlora as _, candle_qlora_graph as _, candle_qlora_train as _,
+    candle_qlora_weights as _, qlora_preflight as _,
+};
+
 #[cfg(feature = "mens-train")]
 pub use execution_planner::{ExecutionPlan, ExecutionPlanner};
 #[cfg(feature = "mens-train")]

@@ -118,7 +118,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
 | `contracts-index` | Validates `contracts/index.yaml` against `contracts/index.schema.json` and checks every listed contract path exists |
-| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `command-compliance`, and `contracts-index` in one pass |
+| `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
+| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `command-compliance`, `contracts-index`, and `scientia-worthiness-contract` in one pass |
 
 **Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.
 
@@ -211,8 +212,9 @@ Common subcommands: `status`, `schema`, `sample`, `migrate`, `export` / `import`
 - Scientific publication lifecycle:
   - `vox scientia publication-prepare --publication-id <id> --author <name> --title <title> [--scholarly-metadata-json <file>] [--preflight] [--preflight-profile default|double-blind] <path.md>`
   - `vox scientia publication-prepare-validated` (same flags as prepare except preflight is always on)
-  - `vox scientia publication-preflight --publication-id <id> [--profile default|double-blind]`
+  - `vox scientia publication-preflight --publication-id <id> [--profile default|double-blind] [--with-worthiness]`
   - `vox scientia publication-zenodo-metadata --publication-id <id>` (stdout JSON for Zenodo deposit metadata; no HTTP)
+  - `vox scientia publication-worthiness-evaluate [--contract-yaml <path>] --metrics-json <path>` (stdout worthiness decision JSON from repo contract + metrics file; no DB)
   - `vox scientia publication-approve --publication-id <id> --approver <identity>`
   - `vox scientia publication-submit-local --publication-id <id>`
   - `vox scientia publication-status --publication-id <id>`

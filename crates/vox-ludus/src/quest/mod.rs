@@ -27,7 +27,7 @@ pub use instance::Quest;
 pub use kind::QuestType;
 pub use modifier::QuestModifier;
 pub use slots::slot_fill;
-pub use templates::{QuestTemplate, QUEST_TEMPLATES};
+pub use templates::{QUEST_TEMPLATES, QuestTemplate};
 
 #[cfg(test)]
 mod tests {

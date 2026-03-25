@@ -28,6 +28,56 @@ impl UnresolvedRefDetector {
         }
     }
 
+    /// `pub const SCHEMA_* : &str = "…"` modules are almost always embedded SQL; the fn-call
+    /// heuristic matches SQL like `datetime('now')` and produces thousands of false positives.
+    fn is_embedded_schema_only_module(content: &str) -> bool {
+        if !content.contains("CREATE TABLE") {
+            return false;
+        }
+        if !content.contains("pub const ") {
+            return false;
+        }
+        if !(content.contains("SCHEMA_") || content.contains("SCHEMA ")) {
+            return false;
+        }
+        !content.lines().any(|l| {
+            let t = l.trim_start();
+            t.starts_with("fn ")
+                || t.starts_with("pub fn ")
+                || t.starts_with("pub(crate) fn ")
+                || t.starts_with("async fn ")
+                || t.starts_with("pub async fn ")
+        })
+    }
+
+    /// Lines that are clearly SQL/DDL, still inside a Rust source file (e.g. string literals).
+    /// `use …::defaults::*` brings in `default_*` fns without naming them on a `use` line.
+    fn file_imports_defaults_glob(file: &SourceFile) -> bool {
+        file.lines.iter().any(|l| {
+            let t = l.trim();
+            t.starts_with("use ") && t.contains("defaults") && t.contains("::*")
+        })
+    }
+
+    fn line_looks_like_sql(line: &str) -> bool {
+        let u = line.to_uppercase();
+        u.contains("CREATE TABLE")
+            || u.contains("CREATE INDEX")
+            || u.contains("CREATE UNIQUE INDEX")
+            || u.contains("DROP TABLE")
+            || u.contains("ALTER TABLE")
+            || u.contains("INSERT INTO")
+            || u.contains("DELETE FROM")
+            || u.contains("UPDATE ")
+            || u.contains(" NOT NULL")
+            || u.contains("PRIMARY KEY")
+            || u.contains("FOREIGN KEY")
+            || u.contains("REFERENCES ")
+            || u.contains("DEFAULT (")
+            || u.contains("AUTOINCREMENT")
+            || u.contains("WITHOUT ROWID")
+    }
+
     /// Well-known Rust standard library and common crate functions to exclude
     /// from false-positive detection.
     fn is_well_known_fn(name: &str) -> bool {
@@ -115,10 +165,36 @@ impl UnresolvedRefDetector {
                 | "sort"
                 | "sort_by"
                 | "with_capacity"
+                // SQLite / SQL builtins often appear inside embedded schema strings.
+                | "datetime"
+                | "strftime"
+                | "ifnull"
+                | "coalesce"
+                | "nullif"
+                | "random"
+                | "randomblob"
+                | "zeroblob"
+                | "typeof"
+                | "unicode"
+                | "quote"
+                | "unhex"
+                | "iif"
+                | "instr"
+                | "substr"
+                | "lower"
+                | "upper"
+                | "abs"
+                | "round"
+                | "like"
+                | "glob"
         )
     }
 
     fn detect_rust(&self, file: &SourceFile) -> Vec<Finding> {
+        if Self::is_embedded_schema_only_module(&file.content) {
+            return Vec::new();
+        }
+
         // 1. Collect all local `fn` definitions
         let mut defined_fns: Vec<String> = Vec::new();
         for line in &file.lines {
@@ -150,6 +226,10 @@ impl UnresolvedRefDetector {
                 continue;
             }
 
+            if Self::line_looks_like_sql(line) {
+                continue;
+            }
+
             // This detector is deliberately conservative — only flag standalone
             // function calls (not method calls like `x.foo()` or qualified
             // paths like `module::foo()`). This avoids a flood of false positives.
@@ -177,6 +257,10 @@ impl UnresolvedRefDetector {
 
                     // Skip short names (likely closures or variables)
                     if name.len() < 3 {
+                        continue;
+                    }
+
+                    if Self::file_imports_defaults_glob(file) && name.starts_with("default_") {
                         continue;
                     }
 
@@ -264,5 +348,32 @@ mod tests {
         let f = source("rs", "fn main() {\n    println!(\"hello\");\n}");
         let findings = d.detect(&f);
         assert!(findings.is_empty(), "std fns should be excluded");
+    }
+
+    #[test]
+    fn no_findings_for_embedded_sql_schema_const() {
+        let d = UnresolvedRefDetector::new();
+        let f = source(
+            "rs",
+            "pub const SCHEMA_X: &str = \"\n\
+CREATE TABLE t (id INTEGER PRIMARY KEY);\n\
+SELECT datetime('now');\n\
+\";\n",
+        );
+        let findings = d.detect(&f);
+        assert!(
+            findings.is_empty(),
+            "embedded SCHEMA_* SQL should not trigger fn-call heuristic"
+        );
+    }
+
+    #[test]
+    fn no_findings_for_default_fns_under_defaults_glob() {
+        let d = UnresolvedRefDetector::new();
+        let f = source(
+            "rs",
+            "use super::defaults::*;\n\nfn demo() -> u64 {\n    default_heartbeat_interval()\n}\n",
+        );
+        assert!(d.detect(&f).is_empty());
     }
 }

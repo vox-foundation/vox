@@ -9,9 +9,10 @@ use super::cmd_enums::{CiCmd, DocInventoryCmd, EvalMatrixCmd};
 use super::command_compliance;
 use super::contracts_index;
 use super::eval_matrix;
-use super::scaling_audit;
 use super::line_endings;
 use super::release_build;
+use super::scaling_audit;
+use super::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
@@ -19,9 +20,9 @@ use super::{cargo_bin, repo_root};
 mod run_body_helpers;
 
 use run_body_helpers::{
-    check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
-    run_build_timings, run_cuda_features, run_feature_matrix, run_grammar_drift, run_manifest,
-    run_mens_gate, run_repo_guards, run_ssot_drift, run_toestub_scoped,
+    check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts, run_build_timings,
+    run_cuda_features, run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate,
+    run_repo_guards, run_ssot_drift, run_toestub_scoped,
 };
 
 /// Run `vox ci` subcommand.
@@ -32,6 +33,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
+        CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoVoxDeiImport => check_no_vox_dei(&root),
@@ -94,9 +96,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
         CiCmd::PopuliGate { profile } => run_mens_gate(&root, &profile),
-        CiCmd::ToestubScoped { root: scan_root, mode } => {
-            run_toestub_scoped(&root, &scan_root, mode)
-        }
+        CiCmd::ToestubScoped {
+            root: scan_root,
+            mode,
+        } => run_toestub_scoped(&root, &scan_root, mode),
         CiCmd::ScalingAudit { cmd } => scaling_audit::run(&root, cmd),
         CiCmd::CudaFeatures => run_cuda_features(),
         CiCmd::BuildTimings {

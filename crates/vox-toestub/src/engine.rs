@@ -192,12 +192,14 @@ impl AnalysisResult {
         match mode {
             ToestubRunMode::Legacy => self.has_errors(),
             ToestubRunMode::Audit => false,
-            ToestubRunMode::EnforceWarn => {
-                self.findings.iter().any(|f| f.severity >= Severity::Critical)
-            }
-            ToestubRunMode::EnforceStrict => {
-                self.findings.iter().any(|f| f.severity >= Severity::Warning)
-            }
+            ToestubRunMode::EnforceWarn => self
+                .findings
+                .iter()
+                .any(|f| f.severity >= Severity::Critical),
+            ToestubRunMode::EnforceStrict => self
+                .findings
+                .iter()
+                .any(|f| f.severity >= Severity::Warning),
         }
     }
 

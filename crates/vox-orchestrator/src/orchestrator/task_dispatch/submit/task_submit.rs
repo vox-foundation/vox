@@ -147,6 +147,7 @@ impl Orchestrator {
         .await;
 
         self.record_activity();
+        crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
         // Enqueue the task
         let handle = {
             let agents = crate::sync_lock::rw_read(&*self.agents);

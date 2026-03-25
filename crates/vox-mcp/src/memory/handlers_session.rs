@@ -1,8 +1,6 @@
 use crate::{ServerState, ToolResult};
 
-use super::params::{
-    SessionCompactParams, SessionCreateParams, SessionIdParams, SessionInfo,
-};
+use super::params::{SessionCompactParams, SessionCreateParams, SessionIdParams, SessionInfo};
 
 /// Create a new session for an agent (async).
 pub async fn session_create(state: &ServerState, params: SessionCreateParams) -> String {

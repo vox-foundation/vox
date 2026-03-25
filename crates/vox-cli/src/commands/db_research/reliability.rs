@@ -32,25 +32,35 @@ pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
     let (query, headers, fields) = match domain {
         "endpoints" => (
             "SELECT endpoint_url, model_id, total_requests, hallucination_proxy_ewma, contradiction_ratio_ewma, infra_failure_ewma FROM endpoint_reliability ORDER BY hallucination_proxy_ewma DESC, infra_failure_ewma DESC LIMIT ?1",
-            vec!["Endpoint", "Model", "Reqs", "Hallucina", "Contradic", "InfraFail"],
-            6
+            vec![
+                "Endpoint",
+                "Model",
+                "Reqs",
+                "Hallucina",
+                "Contradic",
+                "InfraFail",
+            ],
+            6,
         ),
         "skills" => (
             "SELECT skill_id, reliability, success_count, failure_count FROM skill_reliability ORDER BY reliability ASC LIMIT ?1",
             vec!["Skill ID", "Reliability", "Success", "Failure"],
-            4
+            4,
         ),
         "workflows" => (
             "SELECT workflow_name, reliability, success_count, failure_count FROM workflow_reliability ORDER BY reliability ASC LIMIT ?1",
             vec!["Workflow", "Reliability", "Success", "Failure"],
-            4
+            4,
         ),
         "repositories" => (
             "SELECT repository_id, reliability, success_count, failure_count FROM repository_reliability ORDER BY reliability ASC LIMIT ?1",
             vec!["Repository ID", "Reliability", "Success", "Failure"],
-            4
+            4,
         ),
-        _ => anyhow::bail!("Unknown reliability domain '{}'. Use endpoints, skills, workflows, or repositories.", domain),
+        _ => anyhow::bail!(
+            "Unknown reliability domain '{}'. Use endpoints, skills, workflows, or repositories.",
+            domain
+        ),
     };
 
     let mut rows = conn.query(query, turso::params![limit]).await?;

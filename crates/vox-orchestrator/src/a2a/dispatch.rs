@@ -1,10 +1,8 @@
 //! HTTP relay and database persistence for A2A messages.
 
-use crate::types::{AgentId, A2AMessageType, MessagePriority, ThreadId};
+use crate::types::{A2AMessageType, AgentId, MessagePriority, ThreadId};
 
-use super::envelope::{
-    DbA2AMessage, RemoteTaskEnvelope, REMOTE_TASK_ENVELOPE_TYPE,
-};
+use super::envelope::{DbA2AMessage, REMOTE_TASK_ENVELOPE_TYPE, RemoteTaskEnvelope};
 
 /// Relay a message to another mens node via HTTP.
 pub async fn relay_to_mesh(

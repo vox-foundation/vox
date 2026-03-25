@@ -23,9 +23,9 @@ pub mod db_tracker;
 pub mod workflow;
 
 pub use db_tracker::VoxDbTracker;
+#[cfg(feature = "mens")]
+pub use workflow::execute_populi_step;
 pub use workflow::{
     DefaultTracker, PlannedActivity, PopuliActivity, PopuliHttpOp, WorkflowTracker,
     interpret_workflow, interpret_workflow_durable, plan_workflow_activities,
 };
-#[cfg(feature = "mens")]
-pub use workflow::execute_populi_step;

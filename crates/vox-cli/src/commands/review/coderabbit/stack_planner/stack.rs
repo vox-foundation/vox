@@ -1,7 +1,7 @@
 //! [`StackPlanner::plan`] — partition files into stack chunks.
 
 use super::heuristics;
-use super::types::{StackChunk, StackManifest, StackPlanner, StackPlanConfig};
+use super::types::{StackChunk, StackManifest, StackPlanConfig, StackPlanner};
 
 impl StackPlanner {
     /// Create a new planner from the given configuration.

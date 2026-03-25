@@ -1,8 +1,6 @@
 use crate::types::AgentId;
 
-use super::budget::{
-    ActionDescriptor, ApprovalTier, TierGateConfig, TrustTier,
-};
+use super::budget::{ActionDescriptor, ApprovalTier, TierGateConfig, TrustTier};
 
 /// Per-agent trust score with EWMA smoothing and hysteresis demotion.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

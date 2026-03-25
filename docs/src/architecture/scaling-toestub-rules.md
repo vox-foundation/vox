@@ -31,3 +31,11 @@ Thresholds and literals: [`contracts/scaling/policy.yaml`](../../../contracts/sc
 Rust accessors: `vox-scaling-policy` crate.
 
 **Severity note:** Scaling findings default to **Info** so `toestub --mode enforce-strict --rules scaling` can pass while audits still surface issues. Raise individual rules to `Warning` when tightening CI.
+
+## CI enforcement promotion (family-by-family)
+
+1. **P0 — audit signal:** Full-repo JSON snapshots via `vox ci scaling-audit emit-reports` (`toestub --mode audit --format json`). Baseline cut: [`contracts/reports/toestub-remediation/baseline-freeze.json`](../../../contracts/reports/toestub-remediation/baseline-freeze.json).
+2. **P1 — scoped gate:** `vox ci toestub-scoped` defaults to `legacy` (errors fail). After burn-down on `crates/vox-repository`, promote to `--mode enforce-warn` (critical-only exit) in [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml), then toward `enforce-strict` only if the scoped tree is clean at Warning+.
+3. **P2 — scaling strictness:** Use `toestub --rules scaling` with rising `--min-severity` once per-crate overrides and false positives are stable.
+
+Remediation rollup index: [`contracts/reports/scaling-audit/rollup/INDEX.yaml`](../../../contracts/reports/scaling-audit/rollup/INDEX.yaml).

@@ -1,9 +1,9 @@
 use std::fs;
 
-use super::db_io::run_session_db_io;
-use super::SessionManager;
 use super::super::errors::SessionError;
 use super::super::state::{Session, SessionState};
+use super::SessionManager;
+use super::db_io::run_session_db_io;
 
 impl SessionManager {
     /// List all session IDs currently in memory.

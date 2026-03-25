@@ -34,8 +34,9 @@ pub fn run_models(_verbose: bool) -> Result<()> {
         }
 
         if let Ok(manifest_raw) = std::fs::read_to_string(&manifest_path) {
-            if let Ok(manifest) =
-                serde_json::from_str::<vox_populi::mens::tensor::manifest::TrainingManifest>(&manifest_raw)
+            if let Ok(manifest) = serde_json::from_str::<
+                vox_populi::mens::tensor::manifest::TrainingManifest,
+            >(&manifest_raw)
             {
                 found += 1;
 

@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-/// Placeholder hook registry (extensible without breaking callers).
+/// Lightweight hook registry (extensible without breaking callers).
 #[derive(Debug, Default)]
 pub struct HookRegistry {
     _lock: Mutex<()>,

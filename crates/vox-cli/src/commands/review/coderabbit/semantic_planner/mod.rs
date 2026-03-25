@@ -28,9 +28,7 @@ mod types;
 pub use collector::{collect_all_files, collect_changed_files};
 pub use groups::SemanticMatcher;
 pub use submit::run_semantic_submit;
-pub use types::{
-    SemanticChunk, SemanticManifest, SemanticPlanner, SemanticSubmitConfig,
-};
+pub use types::{SemanticChunk, SemanticManifest, SemanticPlanner, SemanticSubmitConfig};
 
 #[cfg(test)]
 mod tests {

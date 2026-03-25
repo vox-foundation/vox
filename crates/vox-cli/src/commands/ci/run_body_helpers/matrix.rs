@@ -130,11 +130,7 @@ pub(crate) fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn run_toestub_scoped(
-    repo: &Path,
-    scan_root: &Path,
-    mode: ToestubCiMode,
-) -> Result<()> {
+pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiMode) -> Result<()> {
     let root: PathBuf = if scan_root.is_absolute() {
         scan_root.to_path_buf()
     } else {

@@ -297,12 +297,25 @@ pub enum DbCli {
         publication_id: String,
         #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
         profile: DbPreflightProfileCli,
+        /// Attach conservative [`vox_publisher::publication_worthiness`] estimate (loads default contract from repo root).
+        #[arg(long, default_value_t = false)]
+        with_worthiness: bool,
     },
     /// Print Zenodo deposit `metadata` JSON for an existing manifest (stdout only; no HTTP).
     #[command(name = "publication-zenodo-metadata")]
     PublicationZenodoMetadata {
         #[arg(long)]
         publication_id: String,
+    },
+    /// Evaluate [`vox_publisher::publication_worthiness`] against a metrics JSON file (stdout only).
+    #[command(name = "publication-worthiness-evaluate")]
+    PublicationWorthinessEvaluate {
+        /// Repo-relative YAML policy (defaults to `contracts/scientia/publication-worthiness.default.yaml`).
+        #[arg(long)]
+        contract_yaml: Option<PathBuf>,
+        /// JSON file with [`vox_publisher::publication_worthiness::WorthinessInputs`].
+        #[arg(long)]
+        metrics_json: PathBuf,
     },
     /// Record digest-bound approval for a prepared publication.
     #[command(name = "publication-approve")]

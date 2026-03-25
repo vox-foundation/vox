@@ -14,9 +14,9 @@ mod error;
 mod long_term;
 mod manager;
 mod search_hit;
-mod time;
 #[cfg(test)]
 mod tests;
+mod time;
 
 pub use config::MemoryConfig;
 pub use daily_log::DailyLog;

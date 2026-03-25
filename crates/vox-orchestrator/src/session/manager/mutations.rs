@@ -2,10 +2,10 @@ use std::fs;
 
 use crate::types::AgentId;
 
-use super::db_io::run_session_db_io;
-use super::SessionManager;
 use super::super::errors::SessionError;
 use super::super::state::{Session, SessionEvent, now_secs};
+use super::SessionManager;
+use super::db_io::run_session_db_io;
 
 impl SessionManager {
     /// Create a new `SessionManager` (file-only mode).

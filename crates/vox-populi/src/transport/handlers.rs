@@ -1,20 +1,20 @@
 use std::sync::atomic::Ordering;
 
+use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use tracing::{info, warn};
 
 use crate::NodeRecord;
 
 use super::auth::populi_control_token_from_env;
+use super::store::{persist_a2a_store, scope_ok};
 use super::{
     A2AAckRequest, A2ADeliverRequest, A2ADeliverResponse, A2AInboxRequest, A2AInboxResponse,
     A2AStoredMessage, BootstrapExchangeRequest, BootstrapExchangeResponse, LeaveRequest,
     PopuliRegistryFile, PopuliTransportState,
 };
-use super::store::{persist_a2a_store, scope_ok};
 
 pub(super) async fn health() -> impl IntoResponse {
     (StatusCode::OK, "ok\n")

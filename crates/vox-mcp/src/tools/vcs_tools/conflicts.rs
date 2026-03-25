@@ -1,6 +1,4 @@
-use vox_orchestrator::{
-    AgentId, ConflictId, ConflictResolution, SnapshotId,
-};
+use vox_orchestrator::{AgentId, ConflictId, ConflictResolution, SnapshotId};
 
 use super::parse::parse_conflict_id_value;
 use crate::params::ToolResult;

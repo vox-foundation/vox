@@ -1,9 +1,9 @@
 //! Semantic versions and dependency resolution helpers.
 
 mod error;
+mod resolve;
 mod semver;
 mod version_req;
-mod resolve;
 
 pub use error::ResolverError;
 pub use resolve::{AvailablePackage, ResolvedDep, Resolver};

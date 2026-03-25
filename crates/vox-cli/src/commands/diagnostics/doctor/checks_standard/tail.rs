@@ -326,5 +326,4 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         pass: reg_pass,
         detail: reg_detail,
     });
-
 }

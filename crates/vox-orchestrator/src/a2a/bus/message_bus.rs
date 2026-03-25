@@ -1,7 +1,9 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::types::{AgentId, A2AMessage, A2AMessageType, MessageId, MessagePriority, ThreadId, VcsContext};
+use crate::types::{
+    A2AMessage, A2AMessageType, AgentId, MessageId, MessagePriority, ThreadId, VcsContext,
+};
 
 /// Message bus for A2A communication.
 ///

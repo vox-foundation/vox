@@ -30,13 +30,17 @@ pub fn initial_training_manifest(
             middle_layers_active,
             ce_last_k,
         } => {
-            let k = ce_last_k.max(1);
+            let k = ce_last_k;
             let graph_id = if middle_layers_active > 0 && proxy_stack_complete {
                 "proxy_stack_v1_residual"
             } else {
                 "lm_head_only"
             };
-            let obj = format!("candle_qlora_proxy_v1_k{k}");
+            let obj = if k == 0 {
+                "candle_qlora_proxy_v1_full_assistant_ce".to_string()
+            } else {
+                format!("candle_qlora_proxy_v1_k{k}")
+            };
             (
                 Some("candle_qlora".into()),
                 Some(proxy_stack_complete),

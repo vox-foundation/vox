@@ -17,9 +17,9 @@ pub mod db_tools;
 mod dispatch;
 /// Thin `git` CLI wrappers scoped to the discovered git root.
 pub mod git_tools;
+mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
-mod input_schemas;
 /// Unified News Publishing System tools
 pub mod news_tools;
 /// Oratio speech-to-text (Candle Whisper).
@@ -33,9 +33,11 @@ pub mod repo_index;
 pub mod scientia_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
-mod tool_aliases;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
 pub mod toestub_tools;
+mod tool_aliases;
+// Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
+use self::{input_schemas as _, tool_aliases as _};
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
 pub mod training_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.

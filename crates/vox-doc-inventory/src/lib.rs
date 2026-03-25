@@ -5,8 +5,8 @@
 mod constants;
 mod counts;
 mod file_entry;
-mod inventory_gen;
 mod hints;
+mod inventory_gen;
 mod relevance;
 mod types;
 mod verify_normalize;

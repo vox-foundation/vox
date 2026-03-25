@@ -140,4 +140,3 @@ fn write_island_fingerprint(root: &Path) -> Result<()> {
     std::fs::write(cache_dir.join("islands.fingerprint"), ts.to_string())?;
     Ok(())
 }
-

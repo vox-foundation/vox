@@ -78,13 +78,7 @@ pub(crate) fn walk_dir(
 fn parse_frontmatter(
     content: &str,
     path: &Path,
-) -> (
-    String,
-    Option<String>,
-    i32,
-    Option<String>,
-    Option<String>,
-) {
+) -> (String, Option<String>, i32, Option<String>, Option<String>) {
     let mut title = path
         .file_stem()
         .unwrap()

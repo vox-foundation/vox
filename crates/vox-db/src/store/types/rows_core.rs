@@ -322,4 +322,3 @@ pub struct CodexChangeLogEntry {
     /// Insertion timestamp.
     pub created_at: String,
 }
-

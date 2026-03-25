@@ -198,7 +198,9 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
 }
 
 fn is_test_fn(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|a| a.path().is_ident("test") || attr_is_cfg_test(a))
+    attrs
+        .iter()
+        .any(|a| a.path().is_ident("test") || attr_is_cfg_test(a))
 }
 
 fn call_looks_like_std_fs_blocking(func: &Expr) -> bool {

@@ -1,13 +1,10 @@
 use super::parse_cargo_error;
 
-
 // ── helpers ────────────────────────────────────────────────────────────────
 
 /// Build a minimal rustc "error[Exxxx]" block as cargo emits it.
 fn ec(code: &str, msg: &str, detail: &str) -> String {
-    format!(
-        "error[{code}]: {msg}\n  --> src/main.rs:3:5\n   |\n3  |     {detail}\n   |     ^^^^\n"
-    )
+    format!("error[{code}]: {msg}\n  --> src/main.rs:3:5\n   |\n3  |     {detail}\n   |     ^^^^\n")
 }
 
 fn cargo_build_failed_plain(msg: &str) -> String {
@@ -237,5 +234,4 @@ error: could not compile `vox-script` due to 1 previous error
         suggestion.contains("dependency or crate name"),
         "suggestion: {suggestion}"
     );
-}
 }

@@ -7,7 +7,7 @@ use crate::snapshot::SnapshotId;
 use crate::types::AgentId;
 use crate::workspace::ChangeId;
 
-use super::{OperationEntry, OperationId, OperationKind, OpLog};
+use super::{OpLog, OperationEntry, OperationId, OperationKind};
 
 /// Append an operation entry to the database with circuit breaker protection.
 pub async fn append_to_db_with_breaker(

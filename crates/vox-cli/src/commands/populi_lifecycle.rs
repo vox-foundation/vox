@@ -123,7 +123,9 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
             );
             env_map.insert("VOX_MESH_NODE_ID".to_string(), default_node_id());
             if gpus.trim().eq_ignore_ascii_case("auto") {
-                env_map.entry("VOX_MESH_ADVERTISE_GPU".to_string()).or_insert("1".to_string());
+                env_map
+                    .entry("VOX_MESH_ADVERTISE_GPU".to_string())
+                    .or_insert("1".to_string());
             }
 
             let scope_id = scope
@@ -212,7 +214,7 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 println!("  token: generated and stored in {}", env_file.display());
             }
             println!("  pid: {}", pid);
-                println!("  next: vox populi status");
+            println!("  next: vox populi status");
             Ok(())
         }
         PopuliLifecycleCmd::Down => {

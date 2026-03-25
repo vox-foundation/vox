@@ -49,7 +49,10 @@ mod tests {
 
     #[test]
     fn provider_names() {
-        assert_eq!(FreeAiProvider::Pollinations.name(), "Pollinations.ai (free)");
+        assert_eq!(
+            FreeAiProvider::Pollinations.name(),
+            "Pollinations.ai (free)"
+        );
     }
 
     #[test]

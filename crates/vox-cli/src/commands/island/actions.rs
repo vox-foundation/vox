@@ -39,13 +39,14 @@ pub(super) async fn generate(
     let tsx_path = v0::generate_island_tsx(prompt, name, root, image, force).await?;
 
     // 2. Emit @island stub from inferred prop types
-    let tsx = std::fs::read_to_string(&tsx_path)
+    let tsx = tokio::fs::read_to_string(&tsx_path)
+        .await
         .with_context(|| format!("Cannot read generated TSX: {}", tsx_path.display()))?;
     let stub = v0::emit_island_stub(&tsx, name, target);
 
     // 3. Write stub to target .vox file or print for manual integration
     if let Some(vox_file) = target {
-        inject_or_update_island_stub(vox_file, name, &stub)?;
+        inject_or_update_island_stub(vox_file, name, &stub).await?;
         println!("📝 Updated {}", vox_file.display());
     } else {
         println!("\n── @island stub ─────────────────────────────────────────");
