@@ -28,6 +28,7 @@ pub mod gateway;
 pub mod policy;
 pub mod routing;
 pub mod scaling;
+pub mod news;
 
 pub mod embeddings;
 

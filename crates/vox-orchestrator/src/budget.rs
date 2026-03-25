@@ -2,10 +2,12 @@
 //!
 //! [`BudgetManager`] tracks usage, rollover, and alert thresholds so the
 //! orchestrator can trigger summarization or block work before limits are exceeded.
+//! Phase 15: also tracks developer attention budget and per-agent trust scores.
 use std::sync::Arc;
 
 use std::collections::HashMap;
 
+use crate::attention::{AgentTrustScore, AttentionBudget, AttentionEvent, ApprovalOutcome};
 use crate::sync_lock;
 use crate::types::AgentId;
 
@@ -144,10 +146,31 @@ impl ContextBudget {
     }
 }
 
+/// Unified budget signal for behavioral gating (tokens, cost, and attention).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum BudgetSignal {
+    /// Usage within normal operating range.
+    Normal { usage_ratio: f64 },
+    /// Token usage is high; consider summarization.
+    HighLoad { usage_ratio: f64, tokens_remaining: usize },
+    /// Token usage is critical; block new work.
+    Critical { usage_ratio: f64, tokens_remaining: usize },
+    /// USD cost cap exceeded.
+    CostExceeded { cost_usd: f64, limit_usd: f64 },
+    /// Attention budget high (> alert threshold).
+    AttentionHigh { spent_ratio: f64, attention_remaining_ms: u64 },
+    /// Attention budget fully exhausted.
+    AttentionCritical { spent_ratio: f64, attention_remaining_ms: u64 },
+}
+
 /// Tracks agent context budgets globally.
 #[derive(Debug, Clone, Default)]
 pub struct BudgetManager {
     inner: Arc<std::sync::RwLock<HashMap<AgentId, ContextBudget>>>,
+    /// Phase 15: session-level attention budget.
+    attention: Arc<std::sync::RwLock<AttentionBudget>>,
+    /// Phase 15: per-agent EWMA trust scores.
+    trust_scores: Arc<std::sync::RwLock<HashMap<AgentId, AgentTrustScore>>>,
 }
  
 impl BudgetManager {
@@ -155,7 +178,14 @@ impl BudgetManager {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            attention: Arc::new(std::sync::RwLock::new(AttentionBudget::default())),
+            trust_scores: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
+    }
+
+    /// Initialise the attention budget with a custom ceiling (call once at startup).
+    pub fn init_attention(&self, max_attention_ms: u64) {
+        sync_lock::rw_write(&*self.attention).max_attention_ms = max_attention_ms;
     }
 
     /// Register or reset an agent's budget.
@@ -239,6 +269,73 @@ impl BudgetManager {
     pub fn cost_usd(&self, agent_id: AgentId) -> f64 {
         let map = sync_lock::rw_read(&*self.inner);
         map.get(&agent_id).map(|b| b.cost_usd).unwrap_or(0.0)
+    }
+
+    // ── Phase 15: Attention budget ────────────────────────────────────────────
+
+    /// Record one attention event. Updates EWMA interrupt frequency and budget counters.
+    pub fn record_attention(&self, event: &AttentionEvent) {
+        let mut att = sync_lock::rw_write(&*self.attention);
+        att.total_requests += 1;
+        att.spent_ms = att.spent_ms.saturating_add(event.cost_ms);
+        match event.outcome {
+            ApprovalOutcome::AutoApproved => att.auto_approved += 1,
+            ApprovalOutcome::Rejected     => att.rejected += 1,
+            _                             => {}
+        }
+        // EWMA interrupt frequency: freq_t = 0.2 × (1/gap_hr) + 0.8 × freq_{t-1}
+        if att.last_interrupt_ms > 0 && event.outcome != ApprovalOutcome::AutoApproved {
+            let gap_ms = event.timestamp_ms.saturating_sub(att.last_interrupt_ms);
+            let gap_hours = gap_ms as f64 / 3_600_000.0;
+            if gap_hours > 0.0 {
+                let inst = 1.0 / gap_hours;
+                att.interrupt_freq_per_hour = 0.2 * inst + 0.8 * att.interrupt_freq_per_hour;
+            }
+        }
+        if event.outcome != ApprovalOutcome::AutoApproved {
+            att.last_interrupt_ms = event.timestamp_ms;
+        }
+    }
+
+    /// Current budget signal including the attention dimension.
+    pub fn attention_signal(&self, alert_threshold: f64) -> BudgetSignal {
+        let att = sync_lock::rw_read(&*self.attention);
+        let ratio = att.spent_ratio();
+        let remaining = att.max_attention_ms.saturating_sub(att.spent_ms);
+        if ratio >= 1.0 {
+            BudgetSignal::AttentionCritical { spent_ratio: ratio, attention_remaining_ms: 0 }
+        } else if ratio > alert_threshold {
+            BudgetSignal::AttentionHigh { spent_ratio: ratio, attention_remaining_ms: remaining }
+        } else {
+            BudgetSignal::Normal { usage_ratio: ratio }
+        }
+    }
+
+    /// Snapshot of the current attention budget (for MCP / serialization).
+    pub fn attention_snapshot(&self) -> AttentionBudget {
+        sync_lock::rw_read(&*self.attention).clone()
+    }
+
+    /// Update EWMA trust score for an agent. Returns the new trust score.
+    /// `provisional_min` and `trusted_min` are read from `OrchestratorConfig`.
+    pub fn record_trust_outcome(
+        &self,
+        agent_id: AgentId,
+        success: bool,
+        alpha: f64,
+        provisional_min: u32,
+        trusted_min: u32,
+    ) -> f64 {
+        let mut scores = sync_lock::rw_write(&*self.trust_scores);
+        let entry = scores
+            .entry(agent_id)
+            .or_insert_with(|| AgentTrustScore::new(agent_id));
+        entry.record_outcome(success, alpha, provisional_min, trusted_min)
+    }
+
+    /// Snapshot of all agent trust scores (for routing injection).
+    pub fn trust_snapshot(&self) -> HashMap<AgentId, AgentTrustScore> {
+        sync_lock::rw_read(&*self.trust_scores).clone()
     }
 }
 
@@ -325,5 +422,51 @@ mod tests {
         mgr.record_cost(AgentId(3), 0.25);
         let total = mgr.total_cost_usd();
         assert!((total - 1.50).abs() < 1e-9);
+    }
+
+    #[test]
+    fn attention_signal_escalates_to_high() {
+        use crate::attention::{AttentionEventType, ApprovalTier};
+        let mgr = BudgetManager::new();
+        // Fill 75% of the default 1-hour budget (alert threshold 0.7)
+        let cost_ms = (crate::attention::DEFAULT_ATTENTION_BUDGET_MS as f64 * 0.75) as u64;
+        let event = AttentionEvent {
+            agent_id: AgentId(1),
+            task_id: None,
+            event_type: AttentionEventType::CodeReview,
+            tier: ApprovalTier::Review,
+            cost_ms,
+            outcome: ApprovalOutcome::Approved,
+            trust_score_at_time: 0.5,
+            effective_complexity: 5.0,
+            decision_entropy_bits: 0.5,
+            timestamp_ms: 1_000_000,
+        };
+        mgr.record_attention(&event);
+        let signal = mgr.attention_signal(0.7);
+        assert!(
+            matches!(signal, BudgetSignal::AttentionHigh { .. }),
+            "expected AttentionHigh, got {:?}",
+            signal
+        );
+    }
+
+    #[test]
+    fn attention_signal_normal_below_threshold() {
+        let mgr = BudgetManager::new();
+        let signal = mgr.attention_signal(0.7);
+        assert!(matches!(signal, BudgetSignal::Normal { .. }));
+    }
+
+    #[test]
+    fn record_trust_outcome_updates_score() {
+        let mgr = BudgetManager::new();
+        let agent = AgentId(42);
+        for _ in 0..10 {
+            mgr.record_trust_outcome(agent, true, 0.2, 5, 20);
+        }
+        let snap = mgr.trust_snapshot();
+        let score = snap[&agent].trust_score;
+        assert!(score > 0.3, "trust score should increase after successes, got {score:.3}");
     }
 }

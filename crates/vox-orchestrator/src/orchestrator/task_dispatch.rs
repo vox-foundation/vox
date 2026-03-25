@@ -429,7 +429,7 @@ impl Orchestrator {
         let reputation_routing = crate::sync_lock::rw_read(&*self.config).socrates_reputation_routing;
         let reliability_map: Option<HashMap<AgentId, f64>> =
             if reputation_routing {
-                crate::sync_lock::rw_read(&*self.db).as_ref().map(|db| {
+                self.db().map(|db| {
                     db.block_on(async { db.list_agent_reliability().await })
                         .unwrap_or_default()
                         .into_iter()
@@ -464,6 +464,7 @@ impl Orchestrator {
                 reliability_map.as_ref(),
                 task_capability_requirements,
                 remote,
+                None, // Phase 15: attention_trust_scores (pass BudgetManager::trust_snapshot() when enabled)
             )
         };
         drop(remote_hints);
@@ -682,13 +683,13 @@ impl Orchestrator {
         // Unblock dependent tasks across ALL agents
         {
             let agents = crate::sync_lock::rw_read(&*self.agents);
-            let _db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+            let _db_opt = self.db();
             for queue_lock in agents.values() {
                 crate::sync_lock::rw_write(&**queue_lock).unblock(task_id);
             }
         }
 
-        if let Some(db) = crate::sync_lock::rw_read(&*self.db).as_ref() {
+        if let Some(db) = self.db() {
             let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
         }
 
@@ -719,7 +720,7 @@ impl Orchestrator {
             session_id
         };
 
-        if let Some(db) = crate::sync_lock::rw_read(&*self.db).as_ref() {
+        if let Some(db) = self.db() {
             let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
         }
 

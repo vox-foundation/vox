@@ -43,6 +43,10 @@ pub mod sync_lock;
 pub mod a2a;
 /// File and task affinity groups for routing work to the right agent.
 pub mod affinity;
+/// Developer attention budget tracking — treats pilot attention as a first-class resource (Phase 15).
+pub mod attention;
+/// VoxDB persistence layer for attention events and agent trust scores (Phase 15).
+pub mod attention_tracker;
 /// Token and cost budgets per agent and orchestrator-wide tracking.
 pub mod budget;
 /// Shared bulletin board for cross-agent notices.
@@ -141,7 +145,14 @@ pub use a2a::{
     send_to_db, poll_inbox_from_db, acknowledge_db_message,
     prune_old_a2a_messages, DbA2AMessage, A2ARoute,
 };
-pub use budget::{AgentBudgetAllocation, BudgetManager, ContextBudget};
+pub use attention::{
+    ApprovalTier, TrustTier, FocusDepth, ActionDescriptor, AttentionBudget,
+    AgentTrustScore, AttentionEvent, AttentionEventType, ApprovalOutcome,
+    NasaTlxWeights, TierGateConfig,
+    compute_attention_cost_ms, decision_entropy_bits, classify_tier,
+    DEFAULT_INTERRUPT_COST_MS, DEFAULT_ATTENTION_BUDGET_MS,
+};
+pub use budget::{AgentBudgetAllocation, BudgetManager, BudgetSignal, ContextBudget};
 pub use compaction::{
     CompactionConfig, CompactionEngine, CompactionResult, CompactionStrategy, Turn,
 };

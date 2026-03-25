@@ -31,7 +31,7 @@ pub trait Gate: Send + Sync {
 }
 
 /// Result of a gate check.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum GateResult {
     /// Request allowed.
     Allowed,
@@ -45,6 +45,15 @@ pub enum GateResult {
         /// Hint for when to retry; `None` if the backend did not specify.
         retry_after_secs: Option<u64>,
     },
+    /// Request denied because the pilot's attention budget is exhausted (Phase 15).
+    AttentionExhausted {
+        /// Human-readable explanation.
+        message: String,
+        /// Milliseconds of attention consumed this session.
+        spent_ms: u64,
+        /// Configured maximum for this session.
+        max_ms: u64,
+    },
 }
 
 /// A gate that enforces budgets via the `BudgetManager`.
@@ -56,9 +65,60 @@ pub struct BudgetGate<'a> {
 impl<'a> BudgetGate<'a> {
     /// Wires budget caps together with persisted usage counters from Codex.
     pub fn new(budget_manager: &'a BudgetManager, usage_tracker: &'a UsageTracker<'a>) -> Self {
-        Self {
-            budget_manager,
-            usage_tracker,
+        Self { budget_manager, usage_tracker }
+    }
+
+    /// Static check for in-memory token/cost budget. Stateless; no DB access.
+    pub fn check(
+        manager: &BudgetManager,
+        agent_id: AgentId,
+        _config: &crate::config::OrchestratorConfig,
+    ) -> GateResult {
+        if let Some(budget) = manager.check_budget(agent_id) {
+            if budget.cost_exceeded() {
+                return GateResult::BudgetExceeded {
+                    message: format!(
+                        "Cost budget exceeded: ${:.4} used (cap: ${:.4})",
+                        budget.cost_usd,
+                        budget.allocation.as_ref().map(|a| a.max_cost_usd).unwrap_or(0.0)
+                    ),
+                };
+            }
+            if budget.tokens_available() == 0 {
+                let cap = budget.effective_max_tokens();
+                return GateResult::BudgetExceeded {
+                    message: format!(
+                        "Token budget exceeded: {} of {} tokens used",
+                        budget.tokens_used, cap
+                    ),
+                };
+            }
+        }
+        GateResult::Allowed
+    }
+
+    /// Check whether the pilot's attention budget allows a new interrupt.
+    /// Returns `GateResult::Allowed` when `attention_enabled = false` (shadow mode).
+    pub fn check_attention(
+        manager: &BudgetManager,
+        config: &crate::config::OrchestratorConfig,
+    ) -> GateResult {
+        if !config.attention_enabled {
+            return GateResult::Allowed;
+        }
+        let snap = manager.attention_snapshot();
+        if snap.exhausted() {
+            GateResult::AttentionExhausted {
+                message: format!(
+                    "Attention budget exhausted: {}ms of {}ms used this session. \
+                     Consider a break before continuing.",
+                    snap.spent_ms, snap.max_attention_ms
+                ),
+                spent_ms: snap.spent_ms,
+                max_ms: snap.max_attention_ms,
+            }
+        } else {
+            GateResult::Allowed
         }
     }
 }
@@ -71,20 +131,17 @@ impl<'a> Gate for BudgetGate<'a> {
         usage: &LlmUsageKey,
         _estimated_tokens: u64,
     ) -> GateResult {
-        // 1. Check in-memory budget
-        if let Some(budget) = self.budget_manager.check_budget(agent_id) {
-            if budget.cost_exceeded() {
-                return GateResult::BudgetExceeded {
-                    message: format!(
-                        "Agent {} has exceeded its cost budget of ${:.2}",
-                        agent_id,
-                        budget.allocation.map(|a| a.max_cost_usd).unwrap_or(0.0)
-                    ),
-                };
-            }
+        // 1. In-memory token/cost budget check
+        let result = BudgetGate::check(
+            self.budget_manager,
+            agent_id,
+            &crate::config::OrchestratorConfig::default(),
+        );
+        if result != GateResult::Allowed {
+            return result;
         }
 
-        // 2. Check persisted usage tracker for rate limits
+        // 2. Persisted usage tracker for rate limits
         let budgets = match self.usage_tracker.remaining_all().await {
             Ok(b) => b,
             Err(_) => return GateResult::Allowed, // Fail open if DB is down

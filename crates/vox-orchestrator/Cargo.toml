@@ -44,6 +44,7 @@ vox-config = { path = "../vox-config" }
 vox-socrates-policy = { workspace = true }
 vox-repository = { workspace = true }
 vox-populi = { path = "../vox-populi", features = ["transport"] }
+vox-publisher = { path = "../vox-publisher" }
 async-trait = "0.1.89"
 anyhow.workspace = true
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
