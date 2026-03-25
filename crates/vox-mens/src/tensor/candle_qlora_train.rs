@@ -82,7 +82,7 @@ enum TrainingDbEvent {
 
 // ── Device selection ──────────────────────────────────────────────────────────
 
-fn select_candle_device(kind: DeviceKind) -> Result<(Device, String)> {
+fn select_candle_device(kind: DeviceKind, allow_cpu_fallback: bool) -> Result<(Device, String)> {
     if std::env::var(ENV_CANDLE_DEVICE)
         .map(|v| v.trim().to_lowercase() == "cpu")
         .unwrap_or(false)
@@ -98,10 +98,16 @@ fn select_candle_device(kind: DeviceKind) -> Result<(Device, String)> {
             let g = probe_gpu();
             match g.vendor.as_str() {
                 "nvidia" => {
-                    let d = Device::new_cuda(0).unwrap_or_else(|_| {
-                        train_log::warn("CUDA unavailable — falling back to CPU");
-                        Device::Cpu
-                    });
+                    let d = match Device::new_cuda(0) {
+                        Ok(device) => device,
+                        Err(err) => {
+                            if !allow_cpu_fallback {
+                                anyhow::bail!("CUDA unavailable and CPU fallback disabled: {err}");
+                            }
+                            train_log::warn("CUDA unavailable — falling back to CPU");
+                            Device::Cpu
+                        }
+                    };
                     let lbl = if matches!(d, Device::Cpu) {
                         "cpu(fallback)"
                     } else {
@@ -110,10 +116,16 @@ fn select_candle_device(kind: DeviceKind) -> Result<(Device, String)> {
                     (d, lbl.into())
                 }
                 "apple" => {
-                    let d = Device::new_metal(0).unwrap_or_else(|_| {
-                        train_log::warn("Metal unavailable — falling back to CPU");
-                        Device::Cpu
-                    });
+                    let d = match Device::new_metal(0) {
+                        Ok(device) => device,
+                        Err(err) => {
+                            if !allow_cpu_fallback {
+                                anyhow::bail!("Metal unavailable and CPU fallback disabled: {err}");
+                            }
+                            train_log::warn("Metal unavailable — falling back to CPU");
+                            Device::Cpu
+                        }
+                    };
                     let lbl = if matches!(d, Device::Cpu) {
                         "cpu(fallback)"
                     } else {
@@ -173,7 +185,14 @@ pub fn run_candle_qlora_train(
     std::fs::create_dir_all(&out_buf).context("create output dir")?;
     let out: &Path = out_buf.as_path();
 
-    let (device, device_label) = select_candle_device(device_kind)?;
+    let (device, device_label) = select_candle_device(device_kind, config.allow_cpu_fallback)?;
+    if config.require_gpu && matches!(device, Device::Cpu) {
+        anyhow::bail!(
+            "GPU execution was required, but Candle selected CPU device '{}'. \
+             Re-run with --device cuda (or metal on macOS) after fixing local accelerator setup.",
+            device_label
+        );
+    }
 
     // ── Graceful pause (Ctrl+C) ──────────────────────────────────────────────
     PAUSE_FLAG.store(false, Ordering::SeqCst);

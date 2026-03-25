@@ -1,32 +1,82 @@
-use crate::ast::decl::{Decl, HttpMethod, HttpRouteDecl, ServerFnDecl};
-use crate::codegen_ts::jsx::emit_expr;
-use crate::hir::HirModule;
+use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
+use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirStmt};
+use std::collections::HashSet;
 
-/// Generate Express.js route handlers from Vox http route and @server fn declarations.
+fn emit_hir_route_expr(expr: &HirExpr) -> String {
+    let empty = HashSet::new();
+    match expr {
+        HirExpr::MethodCall(object, method, args, _) => {
+            let obj = emit_hir_route_expr(object);
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| emit_expr_from_hir_arg(&a.value))
+                .collect();
+            if method == "send" {
+                format!("await {obj}.send({})", args_str.join(", "))
+            } else {
+                format!("{obj}.{method}({})", args_str.join(", "))
+            }
+        }
+        HirExpr::Spawn(target, _) => {
+            format!("new {}Actor()", emit_hir_expr(target, &empty))
+        }
+        HirExpr::FieldAccess(object, field, _) => {
+            let obj = emit_hir_route_expr(object);
+            format!("{obj}.{field}")
+        }
+        HirExpr::Call(callee, args, _, _) => {
+            let callee_str = emit_hir_route_expr(callee);
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| emit_expr_from_hir_arg(&a.value))
+                .collect();
+            format!("{callee_str}({})", args_str.join(", "))
+        }
+        _ => emit_hir_expr(expr, &empty),
+    }
+}
+
+fn emit_expr_from_hir_arg(expr: &HirExpr) -> String {
+    emit_hir_expr(expr, &HashSet::new())
+}
+
+fn emit_hir_route_stmt(stmt: &HirStmt) -> String {
+    match stmt {
+        HirStmt::Let {
+            pattern,
+            value,
+            mutable,
+            ..
+        } => {
+            let keyword = if *mutable { "let" } else { "const" };
+            let pat = emit_hir_pattern(pattern);
+            let val = emit_hir_route_expr(value);
+            format!("{keyword} {pat} = {val};\n")
+        }
+        HirStmt::Return {
+            value: Some(expr), ..
+        } => {
+            let result = emit_hir_route_expr(expr);
+            format!("const result = {result};\n    res.json({{ text: result }});\n")
+        }
+        HirStmt::Return { value: None, .. } => "res.sendStatus(204);\n".to_string(),
+        HirStmt::Assign { target, value, .. } => {
+            format!(
+                "{} = {};\n",
+                emit_hir_route_expr(target),
+                emit_hir_route_expr(value)
+            )
+        }
+        HirStmt::Expr { expr, .. } => {
+            format!("{};\n", emit_hir_route_expr(expr))
+        }
+    }
+}
+
+/// Generate Express.js route handlers from Vox HTTP routes and server functions (HIR-first).
 pub fn generate_routes(hir: &HirModule) -> String {
-    let routes: Vec<&HttpRouteDecl> = hir
-        .legacy_ast_nodes
-        .iter()
-        .filter_map(|d| {
-            if let Decl::HttpRoute(r) = d {
-                Some(r)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let server_fns: Vec<&ServerFnDecl> = hir
-        .legacy_ast_nodes
-        .iter()
-        .filter_map(|d| {
-            if let Decl::ServerFn(sf) = d {
-                Some(sf)
-            } else {
-                None
-            }
-        })
-        .collect();
+    let routes = &hir.routes;
+    let server_fns = &hir.server_fns;
 
     if routes.is_empty() && server_fns.is_empty() {
         return String::new();
@@ -70,12 +120,12 @@ pub fn generate_routes(hir: &HirModule) -> String {
         out.push_str("}\n\n");
     }
 
-    for route in &routes {
+    for route in routes {
         let method = match route.method {
-            HttpMethod::Get => "get",
-            HttpMethod::Post => "post",
-            HttpMethod::Put => "put",
-            HttpMethod::Delete => "delete",
+            HirHttpMethod::Get => "get",
+            HirHttpMethod::Post => "post",
+            HirHttpMethod::Put => "put",
+            HirHttpMethod::Delete => "delete",
         };
         let path = &route.path;
 
@@ -86,7 +136,7 @@ pub fn generate_routes(hir: &HirModule) -> String {
         out.push_str("    const request = req;\n");
 
         for stmt in &route.body {
-            out.push_str(&format!("    {}", emit_route_stmt(stmt)));
+            out.push_str(&format!("    {}", emit_hir_route_stmt(stmt)));
         }
 
         out.push_str("  } catch (err) {\n");
@@ -95,24 +145,20 @@ pub fn generate_routes(hir: &HirModule) -> String {
         out.push_str("});\n\n");
     }
 
-    // Generate @server fn endpoints as POST /api/{name}
-    for sf in &server_fns {
-        let name = &sf.func.name;
-        let route_path = format!("/api/{}", name);
+    for sf in server_fns {
+        let route_path = &sf.route_path;
         out.push_str(&format!(
             "app.post(\"{route_path}\", async (req: Request, res: Response) => {{\n"
         ));
         out.push_str("  try {\n");
-        // Destructure params from request body
-        for param in &sf.func.params {
+        for param in &sf.params {
             out.push_str(&format!(
                 "    const {} = req.body.{};\n",
                 param.name, param.name
             ));
         }
-        // Emit function body
-        for stmt in &sf.func.body {
-            out.push_str(&format!("    {}", emit_route_stmt(stmt)));
+        for stmt in &sf.body {
+            out.push_str(&format!("    {}", emit_hir_route_stmt(stmt)));
         }
         out.push_str("  } catch (err) {\n");
         out.push_str("    res.status(500).json({ error: String(err) });\n");
@@ -126,73 +172,4 @@ pub fn generate_routes(hir: &HirModule) -> String {
     out.push_str("});\n");
 
     out
-}
-
-/// Emit a statement in the context of a route handler.
-/// Uses emit_route_expr to add `await` on actor method calls.
-fn emit_route_stmt(stmt: &crate::ast::stmt::Stmt) -> String {
-    match stmt {
-        crate::ast::stmt::Stmt::Let {
-            pattern,
-            value,
-            mutable,
-            ..
-        } => {
-            let keyword = if *mutable { "let" } else { "const" };
-            let pat = crate::codegen_ts::jsx::emit_pattern_public(pattern);
-            let val = emit_route_expr(value);
-            format!("{keyword} {pat} = {val};\n")
-        }
-        crate::ast::stmt::Stmt::Return {
-            value: Some(expr), ..
-        } => {
-            let result = emit_route_expr(expr);
-            format!("const result = {result};\n    res.json({{ text: result }});\n")
-        }
-        crate::ast::stmt::Stmt::Return { value: None, .. } => "res.sendStatus(204);\n".to_string(),
-        crate::ast::stmt::Stmt::Assign { target, value, .. } => {
-            format!(
-                "{} = {};\n",
-                emit_route_expr(target),
-                emit_route_expr(value)
-            )
-        }
-        crate::ast::stmt::Stmt::Expr { expr, .. } => {
-            format!("{};\n", emit_route_expr(expr))
-        }
-    }
-}
-
-/// Emit an expression in the context of a route handler.
-fn emit_route_expr(expr: &crate::ast::expr::Expr) -> String {
-    match expr {
-        crate::ast::expr::Expr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        } => {
-            let obj = emit_route_expr(object);
-            let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
-            if method == "send" {
-                // spawn(Claude).send(msg) -> await new ClaudeActor().send(msg)
-                format!("await {obj}.send({})", args_str.join(", "))
-            } else {
-                format!("{obj}.{method}({})", args_str.join(", "))
-            }
-        }
-        crate::ast::expr::Expr::Spawn { target, .. } => {
-            format!("new {}Actor()", emit_expr(target))
-        }
-        crate::ast::expr::Expr::FieldAccess { object, field, .. } => {
-            let obj = emit_route_expr(object);
-            format!("{obj}.{field}")
-        }
-        crate::ast::expr::Expr::Call { callee, args, .. } => {
-            let callee_str = emit_route_expr(callee);
-            let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
-            format!("{callee_str}({})", args_str.join(", "))
-        }
-        _ => emit_expr(expr),
-    }
 }

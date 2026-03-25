@@ -51,8 +51,8 @@ pub mod island;
 pub mod live;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
-/// Mens proxy diagnostic commands (`vox populi status`).
-#[cfg(feature = "mens")]
+/// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
+#[cfg(feature = "populi")]
 pub mod populi_cli;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
@@ -75,6 +75,10 @@ pub mod scientia;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
 
+
+/// Speech-to-text and transcript refinement (`vox oratio`).
+#[cfg(feature = "oratio")]
+pub mod oratio_cmd;
 
 /// ML tooling specific commands (`vox mens`).
 #[cfg(any(feature = "mens-base", feature = "gpu"))]

@@ -5,6 +5,7 @@ use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
 use crate::hir::def_map::DefMap;
 use crate::hir::*;
+use crate::web_prefixes::SERVER_FN_API_PREFIX;
 
 /// Lower an AST Module to a HirModule.
 pub fn lower_module(module: &Module) -> HirModule {
@@ -82,7 +83,6 @@ impl LowerCtx {
                 }
                 Decl::HttpRoute(r) => {
                     hir.routes.push(self.lower_route(r));
-                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::Actor(a) => {
                     hir.actors.push(self.lower_actor(a));
@@ -92,7 +92,6 @@ impl LowerCtx {
                 }
                 Decl::Activity(a) => {
                     hir.activities.push(self.lower_activity(a));
-                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func, false);
@@ -106,7 +105,7 @@ impl LowerCtx {
                 }
                 Decl::ServerFn(s) => {
                     let lowered = self.lower_fn(&s.func, false);
-                    let route_path = format!("/api/{}", lowered.name);
+                    let route_path = format!("{SERVER_FN_API_PREFIX}{}", lowered.name);
                     hir.server_fns.push(HirServerFn {
                         id: lowered.id,
                         name: lowered.name.clone(),
@@ -116,11 +115,9 @@ impl LowerCtx {
                         route_path,
                         span: lowered.span,
                     });
-                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::Table(t) => {
                     hir.tables.push(self.lower_table(t));
-                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::Index(idx) => {
                     hir.indexes.push(HirIndex {
@@ -749,5 +746,52 @@ fn has_async_expr(e: &HirExpr) -> bool {
         HirExpr::Pipe(l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::With(l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::Block(stmts, _) => has_async_stmts(stmts),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::cursor::lex;
+    use crate::parser::parser::parse;
+    use crate::web_prefixes::SERVER_FN_API_PREFIX;
+
+    fn lower_str(source: &str) -> HirModule {
+        let tokens = lex(source);
+        let module = parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
+        lower_module(&module)
+    }
+
+    /// Fully lowered web constructs must not pile into `legacy_ast_nodes` (Path C / HIR bridge).
+    #[test]
+    fn hir_lowering_leaves_no_legacy_nodes_for_core_web_decls() {
+        let src = r#"
+import react.use_state
+
+@table type Task { title: str done: bool }
+
+http post "/chat" to Result { ret Ok(0) }
+
+@server fn doThing(x: int) to int { ret x }
+
+@component TaskView() {
+  state done: bool = false
+  view: <span>{done}</span>
+}
+"#;
+        let hir = lower_str(src);
+        assert!(
+            hir.legacy_ast_nodes.is_empty(),
+            "expected no legacy AST decls, got {:?}",
+            hir.legacy_ast_nodes
+        );
+        assert_eq!(hir.tables.len(), 1);
+        assert_eq!(hir.routes.len(), 1);
+        assert_eq!(hir.server_fns.len(), 1);
+        assert_eq!(hir.reactive_components.len(), 1);
+        assert_eq!(
+            hir.server_fns[0].route_path,
+            format!("{SERVER_FN_API_PREFIX}{}", "doThing")
+        );
     }
 }

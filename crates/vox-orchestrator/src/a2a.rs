@@ -512,6 +512,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn message_ids_strictly_increasing_for_correlation() {
+        let bus = MessageBus::new(10);
+        let a1 = AgentId(1);
+        let a2 = AgentId(2);
+        bus.register_agent(a1);
+        bus.register_agent(a2);
+        let id1 = bus.send(a1, a2, A2AMessageType::FreeForm, "a");
+        let id2 = bus.send(a1, a2, A2AMessageType::FreeForm, "b");
+        assert!(
+            id2.0 > id1.0,
+            "monotonic ids support delivery correlation / dedup policies"
+        );
+    }
+
+    #[test]
     fn send_and_receive() {
         let bus = MessageBus::new(100);
         let a1 = AgentId(1);

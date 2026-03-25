@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/dei/rpc-methods.schema.json",
+  "title": "Vox Dei JSON-line dispatch request",
+  "description": "One JSON object per line on stdin/stdout (`id`, `method`, `params`), matching `vox_cli::dispatch_protocol::DispatchRequest` and `vox_mcp::dei_ipc` wire shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "method",
+    "params"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Correlation id for the request/response pair."
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "ai.check",
+        "ai.fix",
+        "ai.review",
+        "ai.generate",
+        "config.get",
+        "ai.plan.new",
+        "ai.plan.replan",
+        "ai.plan.status",
+        "ai.plan.execute"
+      ]
+    },
+    "params": {
+      "type": "object",
+      "description": "Method-specific params payload. Strong per-method schemas are defined in downstream daemon contracts."
+    }
+  }
+}

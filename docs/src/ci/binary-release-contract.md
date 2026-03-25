@@ -31,8 +31,10 @@ These triples are built and published for each release **tag** `v*`:
 
 For a Git tag `<tag>` (for example `v1.2.3`), each artifact **basename** is:
 
-- **Unix** (Linux + macOS): `vox-<tag>-<target>.tar.gz`
-- **Windows**: `vox-<tag>-<target>.zip`
+- **CLI (Unix)**: `vox-<tag>-<target>.tar.gz`
+- **CLI (Windows)**: `vox-<tag>-<target>.zip`
+- **Bootstrap (Unix)**: `vox-bootstrap-<tag>-<target>.tar.gz`
+- **Bootstrap (Windows)**: `vox-bootstrap-<tag>-<target>.zip`
 
 Example: `vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz`
 
@@ -42,6 +44,8 @@ Example: `vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz`
 |----------|-------------------|
 | Unix archives | `vox` (executable) |
 | Windows zip | `vox.exe` |
+| Unix bootstrap archives | `vox-bootstrap` (executable) |
+| Windows bootstrap zip | `vox-bootstrap.exe` |
 
 No nested directory prefix inside the archive for the executable entry.
 
@@ -64,7 +68,21 @@ The **basename** for `latest` must match the **actual** filename on the latest r
 
 ## Smoke checks
 
-Before artifacts are uploaded from a matrix build, each platform job extracts the produced archive and runs **`vox` / `vox.exe --version`** on that OS. If any job fails smoke, **do not** consider the release green.
+Before artifacts are uploaded from a matrix build, each platform job extracts the produced archives and runs:
+
+- `vox --version` / `vox.exe --version`
+- `vox-bootstrap --help` / `vox-bootstrap.exe --help`
+
+If any job fails smoke, **do not** consider the release green.
+
+## Source fallback contract
+
+`vox-bootstrap --install` is binary-first. If binary download/verify/extract fails, source fallback uses:
+
+- `cargo install --path crates/vox-cli`
+- repo root discovery (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`)
+
+Therefore source fallback requires a local repo checkout and Cargo. Users running only a downloaded standalone `vox-bootstrap` binary should treat fallback failure as expected unless they provide a repo + Cargo environment.
 
 ## Rollback
 

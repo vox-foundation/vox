@@ -18,7 +18,7 @@ Aggressive **like-with-like** map for every workspace member under `crates/*` (e
 | **Data plane** | `vox-db`, `vox-pm`, `vox-codex` (compat re-export over `vox-db`) | Canonical API: **`vox_db::VoxDb`**. `vox-codex` is legacy import path only. |
 | **Repository / workspace** | `vox-repository`, `vox-config` | Repo root, `repository_id`, `Vox.toml` — do not reimplement layout detection in random CLI modules. |
 | **Runtime / HTTP** | `vox-runtime`, `vox-codex-api` | Axum/Tokio surfaces; optional `database` feature on runtime. |
-| **ML / training** | `vox-mens`, `vox-tensor`, `vox-corpus`, `vox-oratio` | Heavy deps; gate behind **`vox-cli`** features `gpu`, `mens-oratio`, `mens-candle-cuda`. |
+| **ML / training** | `vox-mens`, `vox-tensor`, `vox-corpus`, `vox-oratio` | Heavy deps; gate behind **`vox-cli`** features `gpu`, `oratio`, `mens-candle-cuda`. |
 | **Agent / MCP / orchestration** | `vox-mcp`, `vox-orchestrator`, `vox-ars`, `vox-tools`, `vox-capability-registry` | Tooling and routing; optional in default CLI. |
 | **Quality / policy** | `vox-toestub`, `vox-socrates-policy`, `vox-eval`, `vox-doc-inventory` | CI, lint policy, doc SSOT generation. |
 | **Integration / harness** | `vox-integration-tests`, `vox-test-harness` | Not part of default `vox-cli` graph. |

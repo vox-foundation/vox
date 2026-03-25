@@ -58,16 +58,27 @@ vox-ci-guards:
   stage: check
   script:
     - cargo build -p vox-cli
+    - cargo run -p vox-cli --quiet -- ci line-endings
     - cargo run -p vox-cli --quiet -- ci manifest
     - cargo run -p vox-cli --quiet -- ci check-codex-ssot
     - cargo run -p vox-cli --quiet -- ci check-docs-ssot
+    - cargo run -p vox-cli --quiet -- ci command-compliance
     - cargo run -p vox-cli --quiet -- ci doc-inventory verify
+    - cargo run -p vox-cli --quiet -- ci eval-matrix verify
+    - cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
+    - cargo check -p vox-cli --features gpu
     - cargo run -p vox-cli --quiet -- ci workflow-scripts
+    # GitHub `ci.yml` “Repository SSOT + MCP smoke” + mesh / workflow-runtime + `build-timings --crates`
+    - cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
+    - cargo test -p vox-mesh --features transport
+    - cargo test -p vox-workflow-runtime
+    - cargo check -p vox-cli --features mesh,workflow-runtime
+    - cargo run -p vox-cli --quiet -- ci build-timings --crates
     - cargo run -p vox-cli --quiet -- ci feature-matrix
     - cargo run -p vox-cli --quiet -- ci no-vox-dei-import
     - cargo run -p vox-cli --quiet -- ci toestub-scoped
     - cargo run -p vox-cli --quiet -- ci cuda-features
-    - cargo run -p vox-cli --quiet -- ci populi-gate --profile ci_full
+    - cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
 
 # ── build ─────────────────────────────────────────────────────────────────
 build:

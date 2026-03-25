@@ -144,6 +144,23 @@ pub fn resolve_mcp_chat_model_sync(
     )
 }
 
+/// Telemetry `(provider_family, route_choice)` aligned with [`vox_runtime::model_resolution::route_telemetry_labels`]
+/// wherever MCP [`ProviderType`] maps to the same HTTP lane (local Ollama/Mens vs OpenRouter).
+#[must_use]
+pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, &'static str) {
+    match provider {
+        ProviderType::GoogleDirect => ("google", "direct"),
+        ProviderType::OpenRouter => ("openrouter", "openrouter"),
+        ProviderType::Ollama => ("mens", "populi_local"),
+        ProviderType::Groq => ("groq", "groq"),
+        ProviderType::Cerebras => ("cerebras", "cerebras"),
+        ProviderType::Mistral => ("mistral", "mistral"),
+        ProviderType::DeepSeek => ("deepseek", "deepseek"),
+        ProviderType::SambaNova => ("sambanova", "sambanova"),
+        ProviderType::Custom(_) => ("custom", "custom"),
+    }
+}
+
 #[cfg(test)]
 #[allow(unsafe_code)] // `set_var` / `remove_var` are `unsafe` in Rust 2024; serialized via `INFERENCE_PROFILE_TEST_LOCK`.
 mod tests {
@@ -287,6 +304,31 @@ mod tests {
         unsafe {
             std::env::remove_var("VOX_INFERENCE_PROFILE");
         }
+    }
+
+    #[test]
+    fn mcp_openrouter_label_matches_runtime_route_telemetry() {
+        use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+        let route = ChatProviderRouteKind::OpenRouter {
+            model: "openai/gpt-4o".into(),
+        };
+        assert_eq!(
+            route_telemetry_labels(&route),
+            super::mcp_provider_telemetry_labels(&ProviderType::OpenRouter)
+        );
+    }
+
+    #[test]
+    fn mcp_ollama_label_matches_runtime_populi_local_telemetry() {
+        use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+        let route = ChatProviderRouteKind::PopuliLocal {
+            base_url: "http://127.0.0.1:11434".into(),
+            model: "llama3.2".into(),
+        };
+        assert_eq!(
+            route_telemetry_labels(&route),
+            super::mcp_provider_telemetry_labels(&ProviderType::Ollama)
+        );
     }
 
     #[test]

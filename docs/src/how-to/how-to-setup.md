@@ -11,6 +11,22 @@ This guide covers everything you need to get Vox running on any platform.
 
 ## Quick Install (30 seconds)
 
+### Cargo-free quick install (recommended for end users)
+
+```bash
+# Linux / macOS / WSL
+curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash -s -- --install
+
+# Windows (PowerShell)
+$tmp = Join-Path $env:TEMP "vox-install.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps1" -OutFile $tmp
+powershell -NoProfile -ExecutionPolicy Bypass -File $tmp -Install
+```
+
+The scripts download a standalone `vox-bootstrap` release binary, verify it against release `checksums.txt`, and run it.
+
+### Repository install (contributors / local development)
+
 ```bash
 git clone https://github.com/vox-foundation/vox && cd vox
 
@@ -21,7 +37,7 @@ git clone https://github.com/vox-foundation/vox && cd vox
 .\scripts\install.ps1
 ```
 
-Both scripts ensure **rustup/cargo**, then run **`vox-bootstrap`** (`cargo run --locked -p vox-bootstrap`): same logic on every OS. When `--install` is used, bootstrap attempts a **binary-first** install from GitHub Releases (SHA-256 via `checksums.txt`; latest tag from the GitHub API so asset names match `vox-<tag>-<triple>.*`), then falls back to **`cargo install --path crates/vox-cli`** from the resolved repo root (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`). Artifact layout and targets: [binary release contract](../ci/binary-release-contract.md). See `crates/vox-bootstrap/README.md`.
+Scripts prefer local `cargo run --locked -p vox-bootstrap` when run inside a repo checkout with Cargo available (best for debugging and contribution flows). Outside that path, scripts fetch and run a standalone `vox-bootstrap` release binary. When `--install` is used, bootstrap attempts a **binary-first** install from GitHub Releases (SHA-256 via `checksums.txt`; latest tag from the GitHub API so asset names match `vox-<tag>-<triple>.*`), then falls back to **`cargo install --path crates/vox-cli`** from the resolved repo root (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`). Source fallback therefore requires a repo checkout plus Cargo. Artifact layout and targets: [binary release contract](../ci/binary-release-contract.md). See `crates/vox-bootstrap/README.md`.
 
 | Flag / args | Effect |
 |-------------|--------|

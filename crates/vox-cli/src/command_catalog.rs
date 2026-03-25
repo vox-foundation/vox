@@ -132,6 +132,9 @@ fn source_group_for_path(path: &[String]) -> String {
     if matches!(top, "review") {
         return "recensio".to_string();
     }
+    if matches!(top, "oratio" | "speech") {
+        return "oratio".to_string();
+    }
     "core".to_string()
 }
 
@@ -149,10 +152,10 @@ fn feature_gate_for_path(path: &[String]) -> Option<String> {
         "dei" => Some("dei"),
         "train" => Some("gpu+mens-dei"),
         "populi" => Some("populi"),
+        "oratio" => Some("oratio"),
+        "speech" => Some("oratio"),
         "mens" => {
-            if path.get(1).is_some_and(|s| s == "oratio") {
-                Some("mens-oratio")
-            } else if path.get(1).is_some_and(|s| s == "serve") {
+            if path.get(1).is_some_and(|s| s == "serve") {
                 Some("execution-api|populi")
             } else {
                 Some("mens-base|gpu")

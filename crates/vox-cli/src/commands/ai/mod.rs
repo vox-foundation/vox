@@ -9,8 +9,8 @@ pub mod inference_defaults;
 #[cfg(feature = "mens-dei")]
 /// Natural language code generation.
 pub mod generate;
-#[cfg(feature = "mens-oratio")]
-/// Speech-to-text (Oratio); primary UX is `vox mens oratio`.
+#[cfg(feature = "oratio")]
+/// Speech-to-text (Oratio); primary UX is **`vox oratio`** → [`crate::commands::oratio_cmd`].
 pub mod oratio;
 #[cfg(feature = "gpu")]
 /// Model inference server (Axum).

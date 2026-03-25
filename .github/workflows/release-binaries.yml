@@ -36,7 +36,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build and package release artifact
-        run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist
+        run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package both
 
       - name: Smoke test packaged binary (Unix)
         if: runner.os != 'Windows'
@@ -50,6 +50,11 @@ jobs:
             tar -xzf "$f"
             ./vox --version
           done
+          for f in vox-bootstrap-*.tar.gz; do
+            rm -f vox-bootstrap
+            tar -xzf "$f"
+            ./vox-bootstrap --help >/dev/null
+          done
 
       - name: Smoke test packaged binary (Windows)
         if: runner.os == 'Windows'
@@ -61,6 +66,11 @@ jobs:
             Expand-Archive -Path $_.FullName -DestinationPath _smoke -Force
             & ".\_smoke\vox.exe" --version
           }
+          Get-ChildItem -Filter 'vox-bootstrap-*.zip' | ForEach-Object {
+            if (Test-Path _smoke_boot) { Remove-Item -Recurse -Force _smoke_boot }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke_boot -Force
+            & ".\_smoke_boot\vox-bootstrap.exe" --help | Out-Null
+          }
 
       - name: Upload packaged binary
         uses: actions/upload-artifact@v4
@@ -68,6 +78,7 @@ jobs:
           name: release-${{ matrix.target }}
           path: |
             dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/vox-bootstrap-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
 
   publish:

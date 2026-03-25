@@ -105,7 +105,7 @@ pub fn run_eval_local(
             #[cfg(feature = "gpu")]
             {
                 if let Some(ref mut eng) = engine {
-                    match eng.generate(&prompt, max_tokens) {
+                    match eng.generate(&prompt, max_tokens, temperature as f64, None) {
                         Ok(output) => {
                             let valid = true; // Simplified for now
                             (valid, output)

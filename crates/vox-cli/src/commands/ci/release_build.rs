@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, anyhow};
+use clap::ValueEnum;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
@@ -19,6 +20,13 @@ pub const SUPPORTED_RELEASE_TARGETS: &[&str] = &[
     "aarch64-apple-darwin",
 ];
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ReleasePackage {
+    Vox,
+    Bootstrap,
+    Both,
+}
+
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
         Ok(())
@@ -30,61 +38,53 @@ pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     }
 }
 
-pub fn run(repo_root: &Path, target: &str, version: Option<&str>, out_dir: &Path) -> Result<()> {
+pub fn run(
+    repo_root: &Path,
+    target: &str,
+    version: Option<&str>,
+    out_dir: &Path,
+    package: ReleasePackage,
+) -> Result<()> {
     validate_release_target(target).context("release-build target")?;
     let artifact_version = version.unwrap_or(env!("CARGO_PKG_VERSION"));
     let out_dir_abs = resolve_out_dir(repo_root, out_dir);
     fs::create_dir_all(&out_dir_abs)
         .with_context(|| format!("create out dir {}", out_dir_abs.display()))?;
 
-    let status = Command::new(super::cargo_bin())
-        .current_dir(repo_root)
-        .args([
-            "build",
-            "-p",
-            "vox-cli",
-            "--release",
-            "--locked",
-            "--target",
+    let mut checksum_lines = Vec::new();
+    if matches!(package, ReleasePackage::Vox | ReleasePackage::Both) {
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
             target,
-        ])
-        .status()
-        .context("spawn cargo build for release artifact")?;
-    if !status.success() {
-        return Err(anyhow!(
-            "cargo build failed for target {target} with status {status}"
-        ));
+            artifact_version,
+            "vox-cli",
+            executable_name(target),
+            "vox",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
     }
-
-    let bin_name = executable_name(target);
-    let built_binary = repo_root
-        .join("target")
-        .join(target)
-        .join("release")
-        .join(bin_name);
-    if !built_binary.is_file() {
-        return Err(anyhow!(
-            "built binary not found at {}",
-            built_binary.display()
-        ));
+    if matches!(package, ReleasePackage::Bootstrap | ReleasePackage::Both) {
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "vox-bootstrap",
+            bootstrap_executable_name(target),
+            "vox-bootstrap",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
     }
-
-    let artifact_name = artifact_filename(artifact_version, target);
-    let artifact_path = out_dir_abs.join(&artifact_name);
-    if is_windows_target(target) {
-        package_zip(&built_binary, &artifact_path, bin_name)?;
-    } else {
-        package_tar_gz(&built_binary, &artifact_path, bin_name)?;
-    }
-
-    let digest = sha256_file(&artifact_path)?;
     let checksums = out_dir_abs.join("checksums.txt");
-    fs::write(&checksums, checksum_line(&digest, &artifact_name))
+    fs::write(&checksums, checksum_lines.join(""))
         .with_context(|| format!("write checksum manifest {}", checksums.display()))?;
 
     println!("release-build complete");
     println!("  target: {target}");
-    println!("  artifact: {}", artifact_path.display());
+    println!("  package: {:?}", package);
     println!("  checksums: {}", checksums.display());
     Ok(())
 }
@@ -109,6 +109,14 @@ fn executable_name(target: &str) -> &'static str {
     }
 }
 
+fn bootstrap_executable_name(target: &str) -> &'static str {
+    if is_windows_target(target) {
+        "vox-bootstrap.exe"
+    } else {
+        "vox-bootstrap"
+    }
+}
+
 fn artifact_extension(target: &str) -> &'static str {
     if is_windows_target(target) {
         "zip"
@@ -117,8 +125,59 @@ fn artifact_extension(target: &str) -> &'static str {
     }
 }
 
-fn artifact_filename(version: &str, target: &str) -> String {
-    format!("vox-{version}-{target}.{}", artifact_extension(target))
+fn artifact_filename(name: &str, version: &str, target: &str) -> String {
+    format!("{name}-{version}-{target}.{}", artifact_extension(target))
+}
+
+fn build_and_package_binary(
+    repo_root: &Path,
+    out_dir_abs: &Path,
+    target: &str,
+    artifact_version: &str,
+    package_name: &str,
+    built_bin_name: &str,
+    archive_name: &str,
+) -> Result<String> {
+    let status = Command::new(super::cargo_bin())
+        .current_dir(repo_root)
+        .args([
+            "build",
+            "-p",
+            package_name,
+            "--release",
+            "--locked",
+            "--target",
+            target,
+        ])
+        .status()
+        .with_context(|| format!("spawn cargo build for {package_name} release artifact"))?;
+    if !status.success() {
+        return Err(anyhow!(
+            "cargo build failed for crate {package_name} target {target} with status {status}"
+        ));
+    }
+
+    let built_binary = repo_root
+        .join("target")
+        .join(target)
+        .join("release")
+        .join(built_bin_name);
+    if !built_binary.is_file() {
+        return Err(anyhow!(
+            "built binary not found at {}",
+            built_binary.display()
+        ));
+    }
+
+    let artifact_name = artifact_filename(archive_name, artifact_version, target);
+    let artifact_path = out_dir_abs.join(&artifact_name);
+    if is_windows_target(target) {
+        package_zip(&built_binary, &artifact_path, built_bin_name)?;
+    } else {
+        package_tar_gz(&built_binary, &artifact_path, built_bin_name)?;
+    }
+    println!("  artifact: {}", artifact_path.display());
+    Ok(artifact_name)
 }
 
 /// Deterministic archive layout for CI: a single member at the archive root named `vox` or `vox.exe`.
@@ -173,7 +232,10 @@ fn checksum_line(sha256_hex: &str, filename: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{artifact_filename, checksum_line, executable_name, validate_release_target};
+    use super::{
+        artifact_filename, bootstrap_executable_name, checksum_line, executable_name,
+        validate_release_target,
+    };
 
     #[test]
     fn unsupported_target_errors() {
@@ -189,21 +251,33 @@ mod tests {
         assert_eq!(executable_name("x86_64-pc-windows-msvc"), "vox.exe");
         assert_eq!(executable_name("x86_64-unknown-linux-gnu"), "vox");
         assert_eq!(executable_name("aarch64-apple-darwin"), "vox");
+        assert_eq!(
+            bootstrap_executable_name("x86_64-pc-windows-msvc"),
+            "vox-bootstrap.exe"
+        );
+        assert_eq!(
+            bootstrap_executable_name("x86_64-unknown-linux-gnu"),
+            "vox-bootstrap"
+        );
     }
 
     #[test]
     fn artifact_filename_contract_is_stable() {
         assert_eq!(
-            artifact_filename("v1.2.3", "x86_64-pc-windows-msvc"),
+            artifact_filename("vox", "v1.2.3", "x86_64-pc-windows-msvc"),
             "vox-v1.2.3-x86_64-pc-windows-msvc.zip"
         );
         assert_eq!(
-            artifact_filename("v1.2.3", "x86_64-unknown-linux-gnu"),
+            artifact_filename("vox", "v1.2.3", "x86_64-unknown-linux-gnu"),
             "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
         );
         assert_eq!(
-            artifact_filename("v1.2.3", "aarch64-apple-darwin"),
+            artifact_filename("vox", "v1.2.3", "aarch64-apple-darwin"),
             "vox-v1.2.3-aarch64-apple-darwin.tar.gz"
+        );
+        assert_eq!(
+            artifact_filename("vox-bootstrap", "v1.2.3", "x86_64-unknown-linux-gnu"),
+            "vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
         );
     }
 
@@ -213,6 +287,77 @@ mod tests {
         assert_eq!(
             line,
             "deadbeef  vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n"
+        );
+    }
+
+    #[test]
+    fn checksum_manifest_supports_multiple_entries() {
+        let all = [
+            checksum_line("aaa", "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
+            checksum_line(
+                "bbb",
+                "vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz",
+            ),
+        ]
+        .join("");
+        assert_eq!(
+            all,
+            "aaa  vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\nbbb  vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n"
+        );
+    }
+
+    /// `scripts/install.*` must name every triple users can download; keep aligned with CI matrix.
+    #[test]
+    fn install_scripts_cover_release_targets() {
+        use std::path::PathBuf;
+
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let sh = std::fs::read_to_string(repo_root.join("scripts/install.sh"))
+            .expect("read scripts/install.sh");
+        let ps1 = std::fs::read_to_string(repo_root.join("scripts/install.ps1"))
+            .expect("read scripts/install.ps1");
+
+        for triple in super::SUPPORTED_RELEASE_TARGETS {
+            assert!(
+                sh.contains(triple),
+                "scripts/install.sh must mention `{triple}` so standalone download resolves the correct asset"
+            );
+            if triple.ends_with("-pc-windows-msvc") {
+                assert!(
+                    ps1.contains(triple),
+                    "scripts/install.ps1 must mention `{triple}` for Windows prebuilt bootstrap"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn release_binaries_workflow_matrix_matches_ssot() {
+        use std::collections::BTreeSet;
+        use std::path::PathBuf;
+
+        let wf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.github/workflows/release-binaries.yml");
+        let yml = std::fs::read_to_string(&wf).expect("read release-binaries.yml");
+
+        let mut from_workflow = BTreeSet::new();
+        for line in yml.lines() {
+            let trimmed = line.trim_start();
+            let Some(rest) = trimmed.strip_prefix("- target:") else {
+                continue;
+            };
+            from_workflow.insert(rest.trim().to_string());
+        }
+
+        let mut from_ssot = BTreeSet::new();
+        for triple in super::SUPPORTED_RELEASE_TARGETS {
+            from_ssot.insert((*triple).to_string());
+        }
+
+        assert_eq!(
+            from_workflow, from_ssot,
+            "release-binaries.yml matrix targets must match `SUPPORTED_RELEASE_TARGETS` in release_build.rs (workflow files: {})",
+            wf.display()
         );
     }
 }

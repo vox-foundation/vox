@@ -31,11 +31,11 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
     }
 }
 
-/// When **`VOX_MESH_ENABLED`** is set and this binary was built with **`mens`**, publish this
-/// process to the local mens registry once (covers app and script `vox run` paths, including
-/// `vox-compilerd` `run`).
+/// When **`VOX_MESH_ENABLED`** is set and this binary was built with **`populi`** (`vox-populi`),
+/// publish this process to the local mens registry once (covers app and script `vox run` paths,
+/// including `vox-compilerd` `run`).
 async fn mesh_publish_best_effort_for_run() {
-    #[cfg(feature = "mens")]
+    #[cfg(feature = "populi")]
     {
         if vox_populi::mesh_enabled_from_env() {
             let node_id = vox_populi::mesh_env().node_id.clone();
@@ -48,7 +48,7 @@ async fn mesh_publish_best_effort_for_run() {
                         node_id = node_id.as_deref().unwrap_or("(generated)"),
                         "mens registry publish (vox run)"
                     );
-                    crate::mesh_codex_telemetry::record_local_registry_publish_opt(
+                    crate::populi_codex_telemetry::record_local_registry_publish_opt(
                         &path,
                         node_id.as_deref(),
                     )

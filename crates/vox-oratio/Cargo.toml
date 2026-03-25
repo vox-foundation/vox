@@ -21,14 +21,15 @@ stt-candle = [
     "dep:rubato",
     "dep:rand",
     "dep:byteorder",
-    "dep:serde_json",
 ]
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 
 [dependencies]
 anyhow = { workspace = true }
 tracing = { workspace = true }
-serde_json = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
 candle-core = { version = "0.9.1", optional = true }
 candle-nn = { version = "0.9.1", optional = true }
 candle-transformers = { version = "0.9.1", optional = true }

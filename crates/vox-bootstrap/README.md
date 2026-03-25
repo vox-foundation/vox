@@ -10,6 +10,8 @@
   - Use `--source-only` to skip binary install.
   - Use `--version <tag>` to pin a specific release.
   - SSOT: [`docs/src/ci/binary-release-contract.md`](../../docs/src/ci/binary-release-contract.md).
+
+`scripts/install.sh` / `scripts/install.ps1` now support a standalone launcher path: if not running from a repo checkout with Cargo, they download `vox-bootstrap-<tag>-<triple>.*`, verify checksums, and execute this same binary.
 - **`plan --json`**: stable machine-readable manifest for CI/docs tooling.
 
 Full project setup (API keys, wasm target, Codex) remains **`vox setup`** in the main CLI when that binary is built.

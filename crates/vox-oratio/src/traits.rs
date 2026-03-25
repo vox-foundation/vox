@@ -3,6 +3,9 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+
+use crate::refine::{CorrectionContext, CorrectionTrace};
 
 /// File- or segment-level transcription result.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +24,27 @@ impl Transcript {
     }
 }
 
+/// Deterministic transcription output including refinement metadata (for MCP / contracts).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscribeDetail {
+    /// Raw model or file output before refinement.
+    pub raw_text: String,
+    /// Text after deterministic refinement.
+    pub refined_text: String,
+    /// Confidence estimate from the refinement stage.
+    pub confidence: f32,
+    /// Trace of applied refinement rules.
+    pub correction_trace: Vec<CorrectionTrace>,
+}
+
+impl TranscribeDetail {
+    #[must_use]
+    /// Display text (refined).
+    pub fn text(&self) -> &str {
+        &self.refined_text
+    }
+}
+
 /// Human-readable description of which Oratio capabilities are active.
 #[must_use]
 pub fn transcript_status() -> &'static str {
@@ -36,14 +60,14 @@ pub fn transcript_status() -> &'static str {
     }
 }
 
-/// Transcribe `path` through the default Oratio pipeline.
+/// Transcribe `path` with explicit refinement context and optional Whisper language override.
 ///
-/// # Supported inputs
-///
-/// - **`.txt` / `.md`**: UTF-8 content is read as the raw transcript; `refine::rules::light_trim`
-///   produces [`Transcript::refined_text`].
-/// - **Audio** (with `stt-candle`): common formats (e.g. wav, mp3, flac, ogg) via symphonia.
-pub fn transcribe_path(path: &Path) -> Result<Transcript> {
+/// For `.txt` / `.md`, `language_hint` is ignored. For audio, it is forwarded to the Candle backend.
+pub fn transcribe_path_detailed(
+    path: &Path,
+    ctx: &CorrectionContext,
+    language_hint: Option<&str>,
+) -> Result<TranscribeDetail> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -53,10 +77,12 @@ pub fn transcribe_path(path: &Path) -> Result<Transcript> {
     if matches!(ext.as_str(), "txt" | "md") {
         let raw_text = std::fs::read_to_string(path)
             .with_context(|| format!("read transcript fixture {}", path.display()))?;
-        let refined = crate::refine::rules::light_trim(&raw_text);
-        return Ok(Transcript {
+        let refined = crate::refine::refine_transcript(&raw_text, ctx);
+        return Ok(TranscribeDetail {
             raw_text,
-            refined_text: Some(refined),
+            refined_text: refined.text.clone(),
+            confidence: refined.confidence,
+            correction_trace: refined.trace,
         });
     }
 
@@ -66,11 +92,15 @@ pub fn transcribe_path(path: &Path) -> Result<Transcript> {
             ext.as_str(),
             "wav" | "mp3" | "flac" | "ogg" | "oga" | "aac" | "m4a" | "mp4" | "opus"
         ) {
-            let raw_text = crate::transcribe_audio_file(path)?;
-            let refined = crate::refine::rules::light_trim(&raw_text);
-            return Ok(Transcript {
+            let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
+            let raw_text =
+                crate::transcribe_audio_file_with_language(path, whisper_lang.as_deref())?;
+            let refined = crate::refine::refine_transcript(&raw_text, ctx);
+            return Ok(TranscribeDetail {
                 raw_text,
-                refined_text: Some(refined),
+                refined_text: refined.text.clone(),
+                confidence: refined.confidence,
+                correction_trace: refined.trace,
             });
         }
     }
@@ -91,6 +121,21 @@ pub fn transcribe_path(path: &Path) -> Result<Transcript> {
             }
         }
     );
+}
+
+/// Transcribe `path` through the default Oratio pipeline.
+///
+/// # Supported inputs
+///
+/// - **`.txt` / `.md`**: UTF-8 content is read as the raw transcript; `refine::rules::light_trim`
+///   produces [`Transcript::refined_text`].
+/// - **Audio** (with `stt-candle`): common formats (e.g. wav, mp3, flac, ogg) via symphonia.
+pub fn transcribe_path(path: &Path) -> Result<Transcript> {
+    let d = transcribe_path_detailed(path, &CorrectionContext::default(), None)?;
+    Ok(Transcript {
+        raw_text: d.raw_text,
+        refined_text: Some(d.refined_text),
+    })
 }
 
 #[cfg(test)]

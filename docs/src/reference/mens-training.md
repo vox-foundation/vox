@@ -33,7 +33,7 @@ training_eligible: true
 
 ## Who / when
 
-- **Implementers**: `vox-mens` (tensor/train), `vox-cli` (`commands/mens/train.rs`, `mod.rs`), corpus preflight (`vox-corpus::training`).
+- **Implementers**: `vox-mens` (tensor/train), `vox-cli` (`commands/schola/train.rs`, `commands/mens/mod.rs`), `vox-schola` (`src/train.rs`), corpus preflight (`vox-corpus::training`).
 - **When to touch**: training knobs, telemetry keys, CLI flags, qlora-rs / Candle versions, or merge/export behavior.
 
 ## Where (files)
@@ -59,7 +59,8 @@ training_eligible: true
 - `crates/vox-mens/src/tensor/burn_inference_load.rs` — load LoRA vs merged Burn checkpoints for serve/eval
 - `crates/vox-mens/src/tensor/lora_train.rs` — `run_mens_training` / `run_lora_training`
 - `crates/vox-cli/src/commands/mens/mod.rs` — `--backend` CLI mapping
-- `crates/vox-cli/src/commands/mens/train.rs` — `run_train` → `run_mens_training`
+- `crates/vox-cli/src/commands/schola/train.rs` — `run_train` → `run_mens_training`
+- `crates/vox-schola/src/train.rs` — standalone `vox-schola train` QLoRA path
 - `crates/vox-cli/src/commands/mens/mod.rs` — `train-uv` **retired** (inline bail; use `vox schola train --backend qlora`)
 - `AGENTS.md` § 2.2.3, `docs/src/ref-cli.md` (Mens), `docs/src/expl-ml-pipeline.md` (train matrix)
 - Plans: `.cursor/plans/native_qlora_ssot_dea968e4.plan.md`, `.cursor/plans/qlora_ssot_grounded_plan_cc5501f2.plan.md`
@@ -144,6 +145,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 - **Train (Qwen2.5-Coder-3B example)**:
   `vox schola train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir target/dogfood --output-dir mens/runs/qwen25_qlora --device cuda --qlora-require-full-proxy-stack`
 - **`--device cuda`** without **`mens-candle-cuda`** fails fast at CLI with rebuild instructions.
+- **Local-first safety knobs**: `--require-gpu` fails if runtime resolves to CPU; `--allow-cpu-fallback=false` disables automatic fallback for `--device best`.
 - **CPU smoke**: `VOX_CANDLE_DEVICE=cpu` forces Candle on CPU for debugging.
 - **IDE / Cursor timeouts (long builds + train)**: Agent tools often cap wall time. Prefer **logging + background** instead of blocking:
   - **Train**: `vox schola train … --log-dir mens/runs/logs` — parent spawns a detached child and exits immediately; monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`). Combine with `--background` for low priority + VRAM cap (see `vox schola train --help`).
@@ -198,5 +200,5 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 
 - **LLM / agent PR hygiene:** [`mens-llm-pr-checklist.md`](../architecture/mens-llm-pr-checklist.md) — LoRA duplication, layouts, merge, CI test names, parity tiers.
 - **LoRA ownership boundary:** [`mens-lora-ownership.md`](mens-lora-ownership.md)
-- **Speech / ASR** (Oratio): [`oratio-speech.md`](oratio-speech.md) — orthogonal to training; shares `vox mens` CLI namespace only. CLI STT commands need **`vox-cli`** feature **`mens-oratio`** (not default **`mens-base`**).
+- **Speech / ASR** (Oratio): [`oratio-speech.md`](oratio-speech.md) — orthogonal to training; use top-level **`vox oratio`** / **`vox speech`**. CLI STT commands need **`vox-cli`** feature **`oratio`** (not default **`mens-base`**).
 

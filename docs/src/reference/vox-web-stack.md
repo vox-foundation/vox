@@ -9,7 +9,7 @@ training_eligible: true
 # Vox full-stack web UI — single source of truth
 
 > [!NOTE]
-> This document describes the classic `@component` model. For the modern signal-based **Reactive Components (Path C)**, see the [Web Architecture Analysis 2026](../architecture/web-architecture-analysis-2026.md).
+> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }` or **`@component Name(...) { ... }`** (same body as bare `component`). Classic **`@component fn Name() ...`** remains for backward compatibility; the compiler warns on direct **`use_*`** hook calls in those bodies — prefer reactive members or **`@island`** TS for React-only logic. Suppress warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)). See [Web Architecture Analysis 2026](../architecture/web-architecture-analysis-2026.md).
 
 ## Language boundary
 
@@ -20,8 +20,8 @@ training_eligible: true
 
 | Layer | Role |
 | ----- | ---- |
-| `vox-codegen-ts` | `@component`, `@island` (meta), `routes:`, tables, activities → `.tsx` / `.ts` |
-| `vox-codegen-rust` | `http`, server fns, actors → Axum + `rust_embed` of `public/` |
+| `vox-compiler` / `codegen_ts` | `@component` (fn + reactive), `component`, `@island` (meta), `routes:`, tables, activities → `.tsx` / `.ts` |
+| `vox-compiler` / `codegen_rust` | `http`, server fns, actors → Axum + `rust_embed` of `public/` |
 | Vite + React 19 | Main app under `dist/app` (scaffolded by `vox run` / `vox bundle`) |
 | `@tanstack/react-router` | Client routing for `routes:` (see [ADR 010](../adr/010-tanstack-web-spine.md)) |
 | Optional **`islands/`** | Second Vite bundle; copied to `target/generated/public/islands/` when present |
@@ -49,7 +49,7 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 - Templates: `crates/vox-cli/src/templates.rs` (`package.json`, Vite config, islands bootstrap).
 - Frontend build: `crates/vox-cli/src/frontend.rs` (`build_islands_if_present`).
 - v0: `crates/vox-cli/src/v0.rs`, `crates/vox-cli/src/v0_tsx_normalize.rs`.
-- Hooks import scan: `crates/vox-codegen-ts/src/component.rs`.
+- React hook mapping / `@component fn` emission: `crates/vox-compiler/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-compiler/src/codegen_ts/reactive.rs`, `hir_emit.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). TanStack Start literals: `codegen_ts/tanstack_start.rs`. Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
 - **`vox run` auto mode**: `crates/vox-cli/src/commands/run.rs` + `commands/runtime/run/run.rs` — default is an `@page` scan in the first 8 KiB; override with **`[web] run_mode`** in `Vox.toml` (`auto` \| `app` \| `script`) or env **`VOX_WEB_RUN_MODE`** (same values; parsed in `vox-config`).
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
 - **`@island`**: lexer/parser → `Decl::Island` (`vox-ast`); `vox build` writes **`target/generated/public/ssg-shells/`** HTML shells via **`vox-ssg`** (from `routes:` / `@page`).
@@ -68,7 +68,7 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 ## Related docs
 
 - [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md) — build outputs, Express `server.ts` opt-in, containers.
-- [`docs/src/ref-cli.md`](cli.md) — CLI including `vox island` (feature `island`).
+- [`cli.md`](cli.md) — CLI including `vox island` (feature `island`) and `vox populi` (feature `populi`).
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — dev topology during SSR adoption.
 - [Mens SSOT](mens.md) — worker/runtime mens registry and HTTP control plane; not emitted by `vox-codegen-*` (operator env only).
 - [`AGENTS.md`](../../../AGENTS.md) — architecture index.

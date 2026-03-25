@@ -10156,10 +10156,12 @@ dependencies = [
  "hf-hub",
  "rand 0.9.2",
  "rubato",
+ "serde",
  "serde_json",
  "symphonia",
  "tempfile",
  "tokenizers",
+ "toml 0.8.23",
  "tracing",
 ]
 

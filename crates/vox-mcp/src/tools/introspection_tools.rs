@@ -196,3 +196,17 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
 
     Ok(json!(ui_tasks))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::language_surface;
+
+    #[test]
+    fn language_surface_json_stable_shape() {
+        let v = language_surface();
+        let kw = v["keywords"].as_array().expect("keywords array");
+        assert!(kw.iter().any(|x| x.as_str() == Some("fn")));
+        let dec = v["decorators"].as_array().expect("decorators array");
+        assert!(dec.iter().any(|x| x.as_str() == Some("@mcp.tool")));
+    }
+}

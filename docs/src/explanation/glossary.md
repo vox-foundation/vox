@@ -9,6 +9,17 @@ training_eligible: true
 
 A centralized registry of technical terms and concepts used within the Vox project.
 
+## Named surfaces (language product terms)
+
+These names are **canonical in documentation** (code paths and env vars may still use historical identifiers such as `vox-mens`, `VOX_MESH_*`, or `/v1/mens/*` URLs):
+
+| Name | Meaning | Typical CLI / crate touchpoints |
+|------|---------|--------------------------------|
+| **Populi** | The **mesh**: multi-node coordination, local registry file, HTTP control plane, join/heartbeat. | `vox populi`, crate **`vox-populi`**, Cargo feature **`populi`**, `VOX_MESH_*` |
+| **Mens** | The **model**: native ML stack, checkpoints, LoRA/QLoRA weights, inference/training targets for the language model. | `vox mens` (when feature-gated), crate **`vox-mens`**, paths under **`mens/`** for data |
+| **Oratio** | **Speech** (speech-to-text and related audio UX), not general “ML.” | `vox oratio` / `vox speech`, crate **`vox-oratio`** |
+| **Schola** | **Training**: the fine-tuning / curriculum surface (`vox schola …`), distinct from the **Mens** model artifacts. | `vox schola train`, merge/eval helpers under **`schola`** |
+
 ## A
 ### Actor
 A stateful unit of concurrency that communicates via asynchronous message passing. Every Actor has a mailbox and an address.
@@ -27,7 +38,7 @@ The Rust web framework Vox compiles HTTP endpoints and SSR components into.
 
 ## B
 ### Bincode
-The binary serialization format Vox uses to pass messages and workflow state efficiently over the Mens.
+The binary serialization format Vox uses to pass messages and workflow state efficiently between processes (including over the **Populi** mesh when enabled).
 ### Budget Manager
 The system that imposes token and time-based limits on A2A (Agent-to-Agent) orchestrator loops to prevent runaway execution.
 ### Burn
@@ -115,7 +126,9 @@ The gamification and reward subsystem for AI agents within the Vox DEI orchestra
 ### MCP (Model Context Protocol)
 An open protocol that enables AI models to interact with local tools and data. Vox generates MCP tool schemas via `@mcp.tool`.
 ### Mens
-The distributed compute layer in Vox, allowing multiple nodes to coordinate and execute tasks across the network.
+The **model** stack: native ML artifacts and runtime in **`vox-mens`** (weights, QLoRA, probes). Distinct from **Populi** (mesh), **Schola** (training CLI), and **Oratio** (speech).
+### Populi
+The **mesh** layer: optional multi-node coordination (local registry JSON, HTTP control plane, join/heartbeat). See **`vox populi`** and **`vox-populi`**. Not the same as the **Mens** model stack.
 
 ## N
 ### Name Resolution
@@ -129,15 +142,13 @@ The underlying specification standard for AI agent skills and dependency resolut
 ### Option[T]
 The safe alternative to null in Vox. A container that either holds a value (`Some(T)`) or nothing (`None`).
 ### Oratio
-The voice and speech synthesis subsystem in Vox.
+The **speech** subsystem: speech-to-text (e.g. Candle Whisper) and related CLI/session flows (`vox oratio`). Not general LLM chat; see **Mens** for the language-model stack.
 ### Orchestrator
 The `vox-dei` sub-engine that routes tasks between human inputs, automated agents, and durable workflows.
 
 ## P
 ### Pattern Matching
 The `match` keyword allows exhaustive checking across union types and ADT variants, guaranteeing all states are handled.
-### Mens
-The native machine learning and training subsystem in Vox, optimized for QLoRA fine-tuning of LLMs.
 ### Prestige
 A Ludus mechanic for agents completing extreme workflow chains, granting permanent capability boosts.
 
@@ -154,6 +165,8 @@ The reactive primitive in the Vox frontend inspired by Svelte 5 logic tracking.
 ## S
 ### Schema.org
 The JSON-LD standard embedded into Vox MdBook headers to structure technical documentation SEO.
+### Schola
+The **training** product surface: **`vox schola`** commands (e.g. native QLoRA / Burn training paths), distinct from **Oratio** (speech) and from **Populi** (mesh). Pair with **Mens** when referring to model binaries and checkpoints.
 ### Socrates
 The anti-hallucination and confidence-scoring protocol used by the Vox orchestrator to validate agent outputs.
 ### Spawn

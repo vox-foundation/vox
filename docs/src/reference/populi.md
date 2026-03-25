@@ -8,7 +8,7 @@ training_eligible: true
 
 # Mens SSOT (CPU-first)
 
-Vox **mens** is **opt-in at runtime**: default single-node behaviour is unchanged until operators set the variables below or use `vox populi` (requires `vox-cli` feature **`mens`**).
+Vox **mens** is **opt-in at runtime**: default single-node behaviour is unchanged until operators set the variables below or use `vox populi` (requires `vox-cli` Cargo feature **`populi`**; enables `vox-populi` in the CLI binary).
 
 ## Environment variables
 
@@ -71,7 +71,7 @@ For **multi-node** pools, align **`VOX_MESH_LABELS`**, **`[mens].labels`**, and 
 
 ## CLI / MCP
 
-- **`vox populi status` / `vox populi serve`** — `ref-cli.md`, feature **`mens`**.
+- **`vox populi status` / `vox populi serve`** — [`cli.md`](cli.md), feature **`populi`**.
 - **`vox_populi_local_status`** (MCP) — returns env + registry JSON.
 - **`vox-mcp` process** — when **`VOX_MESH_ENABLED`**, publishes to the local registry once at startup (`crates/vox-mcp/src/populi_startup.rs`), mirroring **`vox run`**. With a **client-suitable** control URL (**`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** first, else **`VOX_MESH_CONTROL_ADDR`**; bind-all hosts like `0.0.0.0` are skipped via [`normalize_http_control_base`](../../../crates/vox-populi/src/lib.rs)), it also **`POST /v1/mens/join`** and periodically **`POST /v1/mens/heartbeat`** unless disabled (**`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`**). Optional Codex rows: **`mesh_http_join_ok` / `mesh_http_join_err`** when **`VOX_MESH_CODEX_TELEMETRY`**. Use the same env as workers so the node id matches **`vox run`** / compose peers.
 - **Docker** — `Dockerfile` + `docker/vox-entrypoint.sh`: optional **`VOX_MESH_MESH_SIDECAR=1`** starts **`vox populi serve`** in the background before **`vox mcp`**; set **`VOX_MESH_CONTROL_ADDR`** to the sidecar URL from other containers. Compose profiles and env SSOT: [deployment compose SSOT](deployment-compose.md).

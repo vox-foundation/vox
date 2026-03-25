@@ -11,8 +11,10 @@ pub mod fmt;
 pub mod hir;
 pub mod lexer;
 pub mod parser;
+pub mod react_bridge;
 pub mod ssg;
 pub mod typeck;
+pub mod web_prefixes;
 
 /// Re-export of common types if needed.
 pub use ast::decl::Module;

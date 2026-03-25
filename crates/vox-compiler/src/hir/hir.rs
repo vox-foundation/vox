@@ -73,7 +73,9 @@ pub struct HirModule {
     /// Reactive components (Path C).
     pub reactive_components: Vec<HirReactiveComponent>,
 
-    /// TEMPORARY: Unmigrated AST declarations used specifically to bridge the codegen_ts schism without rewriting all of jsx.rs today.
+    /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
+    /// HTTP routes, tables, activities, and `@server` fns are lowered to [`HirRoute`], [`HirTable`],
+    /// [`HirActivity`], and [`HirServerFn`]; TS codegen reads those directly (Path C).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
 

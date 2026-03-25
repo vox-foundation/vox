@@ -23,12 +23,12 @@ required-features = ["mens-base"]
 [features]
 default = ["mens-base"]
 # Corpus paths, `train-uv`, plan (daemon), status, eval-gate, bench-completion, system-prompt-template.
-# Does **not** include Oratio (Candle Whisper stack) — use `mens-oratio` for `vox mens oratio`.
+# Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 mens-base = []
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
-# Speech-to-text (`vox mens oratio`); pulls heavy `vox-oratio` / Candle deps.
-mens-oratio = ["mens-base", "dep:vox-oratio"]
+# Speech-to-text (`vox oratio`, `vox speech`); pulls heavy `vox-oratio` / Candle deps.
+oratio = ["mens-base", "dep:vox-oratio"]
 # Native Burn LoRA training + HF metadata (`vox schola train`, probe, merge-weights, eval-local).
 gpu = [
     "mens-base",

@@ -46,6 +46,17 @@ async fn test_mcp_tool_dispatch_skill_list() {
 }
 
 #[tokio::test]
+async fn oratio_status_includes_runtime_diagnostic_object() {
+    let state = ServerState::new_test().await;
+    let result = tools::handle_tool_call(&state, "vox_oratio_status", json!({}))
+        .await
+        .expect("oratio status");
+    let val: serde_json::Value = serde_json::from_str(&result).expect("Valid JSON");
+    assert!(val.get("runtime").is_some(), "status should embed runtime config snapshot");
+    assert!(val.get("candle").is_some());
+}
+
+#[tokio::test]
 async fn test_news_gate_simulation_returns_structured_reason_codes() {
     let state = ServerState::new_test().await;
     let result = tools::handle_tool_call(

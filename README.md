@@ -208,21 +208,32 @@ Canonical command reference: [`docs/src/reference/cli.md`](docs/src/reference/cl
 
 ## Installation
 
-Vox installation is managed via a unified bootstrap script that configures required C-toolchains (e.g. Clang for Turso/Aegis when needed) and Rust. With **`--install`**, the bootstrap tries **`vox` release binaries** from GitHub Releases first (checksum-verified), then falls back to building **`vox-cli` from source** if the binary path fails. Supported binaries and naming are documented in [`docs/src/ci/binary-release-contract.md`](docs/src/ci/binary-release-contract.md).
+Vox installation is managed via a unified bootstrap path that keeps logic in Rust (`vox-bootstrap`) while allowing cargo-free user installs.
+
+- **End users (cargo-free):** `scripts/install.*` downloads a standalone `vox-bootstrap` release binary, verifies SHA-256 via release `checksums.txt`, and runs it.
+- **Contributors (repo checkout):** the same scripts prefer `cargo run --locked -p vox-bootstrap` when run from the repo with Cargo available.
+- With **`--install`**, bootstrap tries prebuilt **`vox`** release binaries first, then falls back to building from source when a repo checkout + Cargo are present.
+
+Supported artifact names and targets are documented in [`docs/src/ci/binary-release-contract.md`](docs/src/ci/binary-release-contract.md).
 
 ### 1. Unified Install (Mac/Linux)
 ```bash
-git clone https://github.com/vox-foundation/vox.git
-cd vox
-./scripts/install.sh --apply --install
+curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash -s -- --install
 ```
 
 ### 2. Unified Install (Windows)
-From PowerShell:
+From PowerShell (repo path):
 ```powershell
 git clone https://github.com/vox-foundation/vox.git
 cd vox
 .\scripts\install.ps1 -InstallClang -Apply -Install
+```
+
+From PowerShell (cargo-free path):
+```powershell
+$tmp = Join-Path $env:TEMP "vox-install.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps1" -OutFile $tmp
+powershell -NoProfile -ExecutionPolicy Bypass -File $tmp -Install
 ```
 
 ### 3. NVIDIA GPU Install (Mens QLoRA Training)

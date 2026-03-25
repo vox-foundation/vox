@@ -15,6 +15,8 @@ use super::audio_io::pcm_decode_to_16k_mono;
 use super::candle_engine::{DecodeTask, Decoder, WhisperModel, token_id};
 use super::multilingual;
 
+use crate::runtime_config::resolved_runtime_config;
+
 /// Environment variable: Hugging Face model id (default `openai/whisper-tiny.en`).
 pub const ENV_MODEL: &str = "VOX_ORATIO_MODEL";
 /// Environment variable: HF revision (see `default_revision_for_model` in this module).
@@ -94,18 +96,45 @@ fn download_artifacts(
     model_id: &str,
     revision: &str,
 ) -> Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> {
-    let api = Api::new().context("hf-hub Api::new")?;
-    let repo = api.repo(Repo::with_revision(
-        model_id.to_string(),
-        RepoType::Model,
-        revision.to_string(),
-    ));
-    let config = repo.get("config.json").context("fetch config.json")?;
-    let tokenizer = repo.get("tokenizer.json").context("fetch tokenizer.json")?;
-    let weights = repo
-        .get("model.safetensors")
-        .context("fetch model.safetensors")?;
-    Ok((config, tokenizer, weights))
+    let hf_cfg = resolved_runtime_config().hf;
+    let hf_retry_attempts = hf_cfg.retry_attempts.max(1);
+    let hf_retry_delay_ms = hf_cfg.retry_delay_ms;
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 1..=hf_retry_attempts {
+        let outcome: Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> = (|| {
+            let api = Api::new().context("hf-hub Api::new")?;
+            let repo = api.repo(Repo::with_revision(
+                model_id.to_string(),
+                RepoType::Model,
+                revision.to_string(),
+            ));
+            let config = repo.get("config.json").context("fetch config.json")?;
+            let tokenizer = repo.get("tokenizer.json").context("fetch tokenizer.json")?;
+            let weights = repo
+                .get("model.safetensors")
+                .context("fetch model.safetensors")?;
+            Ok((config, tokenizer, weights))
+        })();
+        match outcome {
+            Ok(paths) => return Ok(paths),
+            Err(e) => {
+                tracing::warn!(
+                    target: "vox_oratio_whisper",
+                    attempt,
+                    max_attempts = hf_retry_attempts,
+                    model_id,
+                    revision,
+                    error = %e,
+                    "HF artifact fetch failed"
+                );
+                last_err = Some(e);
+                if attempt < hf_retry_attempts {
+                    std::thread::sleep(std::time::Duration::from_millis(hf_retry_delay_ms));
+                }
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("unknown HF artifact error")))
 }
 
 fn load_session(model_id: &str, revision: &str) -> Result<Session> {
@@ -198,6 +227,51 @@ pub fn candle_backend_status_json() -> serde_json::Value {
     })
 }
 
+/// Temporarily overrides `VOX_ORATIO_LANGUAGE` for one inference call and restores the prior env.
+pub struct LanguageEnvOverride {
+    previous: Option<String>,
+}
+
+impl LanguageEnvOverride {
+    /// Set Whisper language env to `language` (e.g. `en`). `None` clears the override.
+    ///
+    /// # Safety contract
+    ///
+    /// Oratio Candle decode is not re-entrant with conflicting language env: only one guarded
+    /// transcription should run per process at a time, or callers must serialize access.
+    #[must_use]
+    pub fn set(language: Option<&str>) -> Self {
+        let previous = std::env::var("VOX_ORATIO_LANGUAGE").ok();
+        // SAFETY: single-threaded Whisper session lock is held for the duration of
+        // `transcribe_audio_file`; no concurrent readers of `VOX_ORATIO_LANGUAGE` in that window.
+        #[allow(unsafe_code)]
+        unsafe {
+            match language {
+                Some(l) if !l.trim().is_empty() => {
+                    std::env::set_var("VOX_ORATIO_LANGUAGE", l.trim());
+                }
+                _ => {
+                    std::env::remove_var("VOX_ORATIO_LANGUAGE");
+                }
+            }
+        }
+        Self { previous }
+    }
+}
+
+impl Drop for LanguageEnvOverride {
+    fn drop(&mut self) {
+        // SAFETY: paired restore after `set` above; same serialization as inference.
+        #[allow(unsafe_code)]
+        unsafe {
+            match &self.previous {
+                Some(p) => std::env::set_var("VOX_ORATIO_LANGUAGE", p),
+                None => std::env::remove_var("VOX_ORATIO_LANGUAGE"),
+            }
+        }
+    }
+}
+
 /// Transcribe an audio file using Candle Whisper (downloads weights on first use).
 pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     let model_id =
@@ -206,6 +280,12 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         .unwrap_or_else(|_| default_revision_for_model(&model_id).to_string());
 
     let pcm = pcm_decode_to_16k_mono(path)?;
+    tracing::debug!(
+        target: "vox_oratio_whisper",
+        path = %path.display(),
+        samples = pcm.len(),
+        "Decoded audio payload"
+    );
     if pcm.is_empty() {
         anyhow::bail!("no audio samples decoded from {}", path.display());
     }
@@ -307,4 +387,12 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     };
     sess.whisper = Some(decoder.into_whisper_model());
     Ok(text)
+}
+
+/// Like [`transcribe_audio_file`], but honors an per-call language hint (Whisper token id / ISO code).
+///
+/// This does **not** mutate process-wide env after return: `VOX_ORATIO_LANGUAGE` is restored on drop.
+pub fn transcribe_audio_file_with_language(path: &Path, language_override: Option<&str>) -> Result<String> {
+    let _lang = LanguageEnvOverride::set(language_override);
+    transcribe_audio_file(path)
 }

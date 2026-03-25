@@ -1,7 +1,7 @@
 //! `vox mens models` — Local Model Registry.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use owo_colors::OwoColorize;
 
 /// Prints all trained Mens models found in the run directories.

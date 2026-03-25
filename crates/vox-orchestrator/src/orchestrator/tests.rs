@@ -401,8 +401,17 @@ mod tests {
         orch.fail_task(TaskId(777), "test failure in suite".to_string())
             .await
             .expect("fail");
-        let queue_lock = orch.agent_queue(agent_id).expect("queue");
-        let queue = queue_lock.read().unwrap();
-        assert!(queue.len() >= 1, "replan should enqueue recovery work");
+        // Recovery is enqueued via `enqueue_plan_node` (manifest `Cargo.toml`), which routes to
+        // whichever agent owns that affinity — not necessarily the agent that failed.
+        let st = orch.status();
+        assert!(
+            st.total_queued >= 1,
+            "replan should enqueue recovery work on some agent (total_queued={}, per_agent={:?})",
+            st.total_queued,
+            st.agents
+                .iter()
+                .map(|a| (a.id, a.queued))
+                .collect::<Vec<_>>()
+        );
     }
 }

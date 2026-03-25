@@ -486,11 +486,15 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
     ),
     (
         "vox_oratio_transcribe",
-        "Transcribe audio to text via Vox Oratio (Candle Whisper). Arg: path (workspace-relative or absolute).",
+        "Thin STT: transcribe one file to text (deterministic refine only). Args: path, optional language_hint, profile, debug_parser_payload.",
     ),
     (
         "vox_oratio_status",
         "Oratio / Candle Whisper backend status and default model env (JSON).",
+    ),
+    (
+        "vox_oratio_listen",
+        "Sessionized Oratio transcription with timeout/profile controls. Arg: path plus optional session fields.",
     ),
     // ── Chat & Inline AI ──────────────────────────────────────────────────────
     (
@@ -999,6 +1003,7 @@ async fn handle_tool_call_inner(
         }
 
         "vox_oratio_transcribe" => Ok(oratio_tools::transcribe(state, args)?),
+        "vox_oratio_listen" => Ok(oratio_tools::listen(state, args).await?),
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
         "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),

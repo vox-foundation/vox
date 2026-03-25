@@ -1,7 +1,7 @@
 //! `vox-mens` — same as `vox mens …` without typing the `mens` subcommand.
 //!
 //! Build: `cargo build -p vox-cli --features mens-base` (default features include `mens-base`).
-//! Oratio STT (`oratio` subcommand): add **`mens-oratio`** on the same build.
+//! Speech (Oratio) is only **`vox oratio`** / **`vox speech`** — build `vox-cli` with **`--features oratio`** (not via `vox-mens`).
 //! Native training (`train`, QLoRA, etc.) still requires `--features gpu` on the same build.
 
 #[tokio::main]

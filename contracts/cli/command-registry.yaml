@@ -36,6 +36,9 @@ operations:
   - { surface: vox-cli, path: [ci, feature-matrix], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, no-vox-dei-import], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, doc-inventory], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, eval-matrix], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, eval-matrix, verify], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, eval-matrix, run], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, workflow-scripts], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, line-endings], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, mens-gate], status: active, reachability_required: false }
@@ -70,7 +73,7 @@ operations:
   - { surface: vox-cli, path: [mens, eval-gate], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, bench-completion], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, system-prompt-template], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, oratio], status: active, latin_ns: mens, feature_gate: mens-oratio, ref_cli_required: true }
+  - { surface: vox-cli, path: [oratio], status: active, latin_ns: fabrica, feature_gate: oratio, handler_rust: commands::oratio_cmd, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, serve], status: active, latin_ns: mens, feature_gate: "gpu+execution-api", ref_cli_required: true }
   - { surface: vox-cli, path: [mens, probe], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, merge-weights], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
@@ -79,9 +82,9 @@ operations:
   - { surface: vox-cli, path: [review], status: active, latin_ns: recensio, feature_gate: coderabbit, handler_rust: commands::review }
   - { surface: vox-cli, path: [island], status: active, feature_gate: island, handler_rust: commands::island }
   - { surface: vox-cli, path: [train], status: deprecated, latin_ns: mens, feature_gate: "gpu+mens-dei", handler_rust: commands::ai::train, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens], status: active, latin_ns: fabrica, feature_gate: mens, handler_rust: commands::populi_cli }
-  - { surface: vox-cli, path: [mens, status], status: active, latin_ns: fabrica, feature_gate: mens, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, serve], status: active, latin_ns: fabrica, feature_gate: mens, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi], status: active, feature_gate: populi, handler_rust: commands::populi_cli, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, status], status: active, feature_gate: populi, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, serve], status: active, feature_gate: populi, ref_cli_required: true }
 
   # --- vox-compilerd RPC methods ---
   - { surface: compilerd, path: [build], status: active, handler_rust: compilerd::handle_build }

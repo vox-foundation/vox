@@ -1,7 +1,8 @@
 //! AST-only declaration checks not represented in HIR (`@search_index`, `@index`).
 
-use crate::ast::decl::{Decl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::decl::{ComponentDecl, Decl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::types::TypeExpr;
+use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppressed};
 use crate::typeck::diagnostics::{Diagnostic, Severity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
@@ -136,6 +137,33 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
     }
 }
 
+fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
+    if legacy_hook_lint_suppressed() {
+        return Vec::new();
+    }
+    let mut diags = Vec::new();
+    let f = &comp.func;
+    for stmt in &f.body {
+        for_each_vox_hook_call_in_stmt(stmt, &mut |name, span| {
+            diags.push(Diagnostic {
+                severity: Severity::Warning,
+                message: format!(
+                    "React-style hook `{name}` in @component — prefer Path C `component` / `@component Name(...) {{ state ... }}` for lower K-complexity"
+                ),
+                span,
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec![
+                    "Use `state x = ...`, `derived`, `effect`, `mount`, `cleanup`, and `view:` instead of hooks where possible.".into(),
+                    "Keep advanced React-only logic in `@island` TypeScript under islands/.".into(),
+                ],
+            });
+        });
+    }
+    diags
+}
+
 /// Run `@table` / `@index` / `@search_index` validation that stays on the AST surface.
 #[must_use]
 pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
@@ -145,6 +173,12 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
     for decl in &module.declarations {
         if let Decl::Table(t) = decl {
             register_table(&mut env, t);
+        }
+    }
+
+    for decl in &module.declarations {
+        if let Decl::Component(c) = decl {
+            diags.extend(lint_component_react_hooks(c));
         }
     }
 

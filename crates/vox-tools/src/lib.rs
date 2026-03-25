@@ -35,7 +35,7 @@ impl DirectToolExecutor {
     /// Tool names this executor implements (keep in sync with `vox-mcp` + capability registry).
     #[must_use]
     pub fn supported_tools() -> &'static [&'static str] {
-        &["vox_oratio_transcribe", "vox_oratio_status"]
+        &["vox_oratio_transcribe", "vox_oratio_status", "vox_oratio_listen"]
     }
 
     /// Whether `name` is implemented here.
@@ -62,18 +62,141 @@ impl DirectToolExecutor {
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("missing string field `path`"))?;
                 let full = self.resolve_path(path);
-                let t = vox_oratio::transcribe_path(&full)?;
-                Ok(serde_json::to_string(&serde_json::json!({
+                let language_hint = args
+                    .get("language_hint")
+                    .and_then(|v| v.as_str())
+                    .map(ToOwned::to_owned);
+                let debug_parser_payload = args
+                    .get("debug_parser_payload")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let profile = match args
+                    .get("profile")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("balanced")
+                {
+                    "conservative" => vox_oratio::refine::OratioCorrectionProfile::Conservative,
+                    "aggressive" => vox_oratio::refine::OratioCorrectionProfile::Aggressive,
+                    _ => vox_oratio::refine::OratioCorrectionProfile::Balanced,
+                };
+                let rtc = vox_oratio::OratioRuntimeConfig::resolve();
+                let ctx = vox_oratio::refine::CorrectionContext::from_runtime(
+                    &rtc,
+                    profile,
+                    debug_parser_payload,
+                );
+                let detail =
+                    vox_oratio::transcribe_path_detailed(&full, &ctx, language_hint.as_deref())?;
+                let mut out = serde_json::json!({
                     "path": full,
-                    "raw_text": t.raw_text,
-                    "refined_text": t.refined_text,
-                    "text": t.display_text(),
-                }))?)
+                    "raw_text": detail.raw_text,
+                    "refined_text": detail.refined_text,
+                    "text": detail.refined_text,
+                    "confidence": detail.confidence,
+                });
+                if debug_parser_payload {
+                    out["correction_trace"] = serde_json::json!(detail.correction_trace);
+                    out["runtime_config"] = vox_oratio::runtime_config_diagnostic_json(&rtc);
+                }
+                Ok(serde_json::to_string(&out)?)
             }
             "vox_oratio_status" => Ok(serde_json::to_string(&serde_json::json!({
                 "summary": vox_oratio::transcript_status(),
                 "candle": vox_oratio::candle_backend_status_json(),
+                "runtime": vox_oratio::runtime_config_diagnostic_json(&vox_oratio::OratioRuntimeConfig::resolve()),
             }))?),
+            "vox_oratio_listen" => {
+                let path = args
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("missing string field `path`"))?;
+                let full = self.resolve_path(path);
+                let rtc = vox_oratio::OratioRuntimeConfig::resolve();
+                let timeout_ms = args
+                    .get("timeout_ms")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(rtc.session_timing.capture_timeout_ms);
+                let max_duration_ms = args
+                    .get("max_duration_ms")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(rtc.session_timing.max_duration_ms);
+                let inference_deadline_ms = args.get("inference_deadline_ms").and_then(|v| v.as_u64());
+                let heartbeat_ms = args
+                    .get("heartbeat_ms")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(rtc.session_timing.heartbeat_ms);
+                let language_hint = args
+                    .get("language_hint")
+                    .and_then(|v| v.as_str())
+                    .map(ToOwned::to_owned);
+                let debug_parser_payload = args
+                    .get("debug_parser_payload")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let profile = match args
+                    .get("profile")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("balanced")
+                {
+                    "conservative" => vox_oratio::refine::OratioCorrectionProfile::Conservative,
+                    "aggressive" => vox_oratio::refine::OratioCorrectionProfile::Aggressive,
+                    _ => vox_oratio::refine::OratioCorrectionProfile::Balanced,
+                };
+                let route_mode = match args
+                    .get("route_mode")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("none")
+                {
+                    "tool" => vox_oratio::RouteMode::Tool,
+                    "chat" => vox_oratio::RouteMode::Chat,
+                    "orchestrator" => vox_oratio::RouteMode::Orchestrator,
+                    _ => vox_oratio::RouteMode::None,
+                };
+                let session = vox_oratio::transcribe_path_session_with_runtime(
+                    &full,
+                    &vox_oratio::OratioSessionConfig {
+                        timeout_ms,
+                        max_duration_ms,
+                        inference_deadline_ms,
+                        language_hint,
+                        correction_profile: profile,
+                        debug_parser_payload,
+                        heartbeat_ms,
+                        session_id: None,
+                    },
+                    &rtc,
+                )?;
+                let route = vox_oratio::route_transcript_with_options(
+                    route_mode,
+                    &session.session_id,
+                    &session.text,
+                    session.confidence,
+                    &rtc,
+                );
+                if let Some(out_path) = args.get("emit_asr_refine_path").and_then(|v| v.as_str()) {
+                    let out = self.resolve_path(out_path);
+                    if let Some(parent) = out.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    use std::io::Write;
+                    let mut f = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&out)?;
+                    writeln!(
+                        f,
+                        "{}",
+                        serde_json::to_string(&serde_json::json!({
+                            "noisy_text": session.raw_text,
+                            "corrected_text": session.refined_text,
+                        }))?
+                    )?;
+                }
+                Ok(serde_json::to_string(&serde_json::json!({
+                    "session": session,
+                    "route": route,
+                }))?)
+            }
             other => anyhow::bail!("unsupported tool: {other}"),
         }
     }
@@ -92,6 +215,28 @@ mod tests {
             .execute("vox_oratio_status", serde_json::json!({}))
             .expect("status");
         assert!(s.contains("summary"));
+    }
+
+    #[test]
+    fn oratio_transcribe_matches_thin_contract() {
+        let ex = DirectToolExecutor::default();
+        let path = std::env::temp_dir().join(format!(
+            "vox_oratio_transcribe_test_{}.txt",
+            std::process::id()
+        ));
+        std::fs::write(&path, "vox check\n").expect("write");
+        let j: serde_json::Value = serde_json::from_str(
+            &ex.execute(
+                "vox_oratio_transcribe",
+                serde_json::json!({ "path": path.to_string_lossy() }),
+            )
+            .expect("transcribe"),
+        )
+        .expect("json");
+        let _ = std::fs::remove_file(&path);
+        for key in ["path", "raw_text", "refined_text", "text", "confidence"] {
+            assert!(j.get(key).is_some(), "missing `{key}` in {j:?}");
+        }
     }
 
     #[test]

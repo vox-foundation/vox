@@ -22,6 +22,7 @@ use regex::Regex;
 use std::sync::LazyLock;
 use turso::params;
 use vox_orchestrator::types::AgentId;
+use vox_runtime::prompt_canonical;
 use vox_socrates_policy::ConfidencePolicy;
 
 static MENTION_RE: LazyLock<Regex> =
@@ -430,7 +431,32 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let (expanded_prompt, mention_files) =
         resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
+    let (expanded_prompt, canonical_meta) = match prompt_canonical::canonicalize_prompt(
+        &expanded_prompt,
+        true, // order_invariant
+        true, // run_safety_pass
+    ) {
+        Ok(c) => {
+            let hash = c.original_hash;
+            let conflict_count = c.conflict_warnings.len();
+            let objective_count = c.objectives.len();
+            (c.text, Some((hash, conflict_count, objective_count)))
+        }
+        Err(e) => {
+            return ToolResult::<String>::err(format!("Prompt rejected by safety canonicalizer: {e}"))
+                .to_json();
+        }
+    };
     let mention_count = mention_files.len();
+    if let Some((original_hash, conflict_count, objective_count)) = canonical_meta {
+        tracing::debug!(
+            target: "vox_mcp::prompt_canonical",
+            original_hash = %original_hash,
+            conflict_warning_count = conflict_count,
+            objective_count = objective_count,
+            "chat prompt canonicalized"
+        );
+    }
 
     // 2a. Build context preamble from editor state
     let mut context_parts = Vec::new();

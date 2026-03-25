@@ -104,4 +104,64 @@ mod tests {
             other => panic!("expected Done payload, got {other:?}"),
         }
     }
+
+    #[test]
+    fn dispatch_request_validates_against_dei_rpc_schema() {
+        use std::path::PathBuf;
+
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let schema_path = manifest.join("../../contracts/dei/rpc-methods.schema.json");
+        let schema_src = std::fs::read_to_string(&schema_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", schema_path.display()));
+        let schema_val: serde_json::Value =
+            serde_json::from_str(&schema_src).expect("parse DeI RPC schema");
+        let validator =
+            jsonschema::validator_for(&schema_val).expect("compile DeI RPC schema");
+
+        let req = DispatchRequest {
+            id: "req-1".into(),
+            method: crate::dei_daemon::method::AI_GENERATE.into(),
+            params: serde_json::json!({ "prompt": "hello" }),
+        };
+        let instance = serde_json::to_value(&req).expect("serialize DispatchRequest");
+        validator
+            .validate(&instance)
+            .expect("DispatchRequest must match contracts/dei/rpc-methods.schema.json");
+    }
+
+    #[test]
+    fn dei_schema_method_enum_matches_daemon_constants() {
+        use std::collections::HashSet;
+        use std::path::PathBuf;
+
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let schema_path = manifest.join("../../contracts/dei/rpc-methods.schema.json");
+        let schema_val: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&schema_path).expect("read DeI RPC schema"),
+        )
+        .expect("parse DeI RPC schema");
+        let methods = schema_val["properties"]["method"]["enum"]
+            .as_array()
+            .expect("schema properties.method.enum");
+        let as_set: HashSet<&str> = methods
+            .iter()
+            .map(|v| v.as_str().expect("enum string"))
+            .collect();
+
+        use crate::dei_daemon::method;
+        for m in [
+            method::AI_CHECK,
+            method::AI_FIX,
+            method::AI_REVIEW,
+            method::AI_GENERATE,
+            method::CONFIG_GET,
+            method::AI_PLAN_NEW,
+            method::AI_PLAN_REPLAN,
+            method::AI_PLAN_STATUS,
+            method::AI_PLAN_EXECUTE,
+        ] {
+            assert!(as_set.contains(m), "schema missing method {m}");
+        }
+        assert_eq!(as_set.len(), 9, "schema vs daemon method count drift");
+    }
 }

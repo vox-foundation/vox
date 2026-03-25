@@ -116,6 +116,8 @@ pub async fn run_train(
     checkpoint_every: Option<usize>,
     force_restart: bool,
     curriculum: bool,
+    require_gpu: bool,
+    allow_cpu_fallback: bool,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -178,6 +180,32 @@ pub async fn run_train(
         ?tokenizer_mode,
         model = ?model.as_deref(),
         "vox schola train entry (backend + tokenizer SSOT)"
+    );
+    tracing::debug!(
+        model = ?model.as_deref(),
+        device = %device,
+        ?preset,
+        ?rank,
+        ?alpha,
+        ?seq_len,
+        ?batch_size,
+        ?grad_accum,
+        ?epochs,
+        ?warmup,
+        ?lr,
+        seed,
+        qlora_no_double_quant,
+        qlora_require_full_proxy_stack,
+        qlora_lm_head_only,
+        ?qlora_max_skip_rate,
+        ?qlora_proxy_max_layers,
+        qlora_ce_last_k,
+        checkpoint_every,
+        force_restart,
+        curriculum,
+        require_gpu,
+        allow_cpu_fallback,
+        "Training parser payload"
     );
 
     unsafe {
@@ -302,7 +330,15 @@ pub async fn run_train(
         // VRAM Auto-Detect: Select 16g preset if CUDA is active and no preset is provided.
         let mut final_preset = preset.clone();
         if final_preset.is_none() && device.to_lowercase() == "cuda" {
-            let auto_preset = crate::tensor::vram_autodetect::auto_preset(true, crate::tensor::vram_autodetect::get_system_vram_gb());
+            eprintln!(
+                "  {} {}",
+                "⚙".cyan(),
+                vox_mens::tensor::vram_autodetect::vram_summary(true)
+            );
+            let auto_preset = vox_mens::tensor::vram_autodetect::auto_preset(
+                true,
+                vox_mens::tensor::vram_autodetect::get_system_vram_gb(),
+            );
             if let Some(ap) = auto_preset {
                 eprintln!("  {} Auto-detected 16 GB VRAM → using preset '{}'", "⚙".cyan(), ap);
                 final_preset = Some(ap.to_string());
@@ -344,10 +380,11 @@ pub async fn run_train(
             );
             // Run download in a dedicated thread with its own runtime so we don't block_on inside the CLI's tokio runtime.
             let repo_id = repo_id.clone();
+            let repo_id_for_download = repo_id.clone();
             let (tx, rx) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
-                let result = rt.block_on(vox_mens::hub::download_model(&repo_id));
+                let result = rt.block_on(vox_mens::hub::download_model(&repo_id_for_download));
                 let _ = tx.send(result);
             });
             let download_result = rx
@@ -412,17 +449,13 @@ pub async fn run_train(
                         }
                     }
                 }
-                Ok(_) => {
-                    eprintln!(
-                        "  {} Model has no safetensors; training from scratch",
-                        "⚠".yellow()
-                    );
-                }
+                Ok(_) => anyhow::bail!(
+                    "HF model `{repo_id}` has no safetensors; QLoRA requires safetensors base weights."
+                ),
                 Err(e) => {
-                    eprintln!(
-                        "  {} HF download failed ({}); training from scratch",
-                        "⚠".yellow(),
-                        e
+                    anyhow::bail!(
+                        "HF download failed for `{repo_id}` ({e}). \
+                         Set HF token env vars if this is a gated repo and retry."
                     );
                 }
             }
@@ -470,6 +503,8 @@ pub async fn run_train(
             force_restart,
             deployment_target,
             curriculum,
+            require_gpu,
+            allow_cpu_fallback,
         };
         let model_name_for_stats = config.base_model.clone().unwrap_or_else(|| "scratch".to_string());
         let preset_for_stats = preset.clone().unwrap_or_else(|| "unknown".to_string());

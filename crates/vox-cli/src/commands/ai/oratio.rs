@@ -1,1 +1,1 @@
-//! Oratio (speech-to-text). Primary UX: **`vox mens oratio`** → [`crate::commands::mens::oratio_cmd`].
+//! Oratio (speech-to-text). Primary UX: **`vox oratio`** → [`crate::commands::oratio_cmd`].

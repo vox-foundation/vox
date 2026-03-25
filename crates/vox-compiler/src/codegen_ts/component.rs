@@ -3,29 +3,8 @@ use crate::ast::expr::Expr;
 use crate::ast::scalar_mapping::VoxScalar;
 use crate::ast::stmt::Stmt;
 use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing, emit_stmt};
+use crate::react_bridge::{for_each_vox_hook_call_in_stmt, react_hook_export_for_vox_ident};
 use std::collections::BTreeSet;
-
-/// Mapping from Vox `use_*` snake_case names to React camelCase hook names.
-/// This covers all stable React 18/19 built-in hooks.
-const REACT_HOOK_REGISTRY: &[(&str, &str)] = &[
-    ("use_state", "useState"),
-    ("use_effect", "useEffect"),
-    ("use_memo", "useMemo"),
-    ("use_ref", "useRef"),
-    ("use_callback", "useCallback"),
-    ("use_context", "useContext"),
-    ("use_reducer", "useReducer"),
-    ("use_id", "useId"),
-    ("use_deferred_value", "useDeferredValue"),
-    ("use_transition", "useTransition"),
-    ("use_sync_external_store", "useSyncExternalStore"),
-    ("use_layout_effect", "useLayoutEffect"),
-    ("use_imperative_handle", "useImperativeHandle"),
-    ("use_debug_value", "useDebugValue"),
-    ("use_action_state", "useActionState"),
-    ("use_optimistic", "useOptimistic"),
-    ("use_form_status", "useFormStatus"),
-];
 
 /// Generate a React component from a Vox @component function declaration.
 /// Returns (filename, content) tuple.
@@ -37,16 +16,15 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     // Collect hook names referenced in the component body.
     let mut vox_hooks_used: BTreeSet<String> = BTreeSet::new();
     for stmt in &func.body {
-        collect_hooks_in_stmt(stmt, &mut vox_hooks_used);
+        for_each_vox_hook_call_in_stmt(stmt, &mut |name, _span| {
+            vox_hooks_used.insert(name.to_string());
+        });
     }
 
     // Map Vox snake_case hook names → React camelCase imports.
     let mut react_hooks: BTreeSet<&str> = BTreeSet::new();
     for vox_name in &vox_hooks_used {
-        if let Some((_, react_name)) = REACT_HOOK_REGISTRY
-            .iter()
-            .find(|(vox, _)| *vox == vox_name.as_str())
-        {
+        if let Some(react_name) = react_hook_export_for_vox_ident(vox_name.as_str()) {
             react_hooks.insert(react_name);
         }
         // Custom use_* hooks (not in registry) are not React built-ins;
@@ -147,132 +125,6 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     out.push_str("}\n");
 
     (filename, out)
-}
-
-/// Collect every Vox `use_*` call name referenced in a statement tree.
-fn collect_hooks_in_stmt(stmt: &Stmt, out: &mut BTreeSet<String>) {
-    match stmt {
-        Stmt::Let { value, .. } => collect_hooks_in_expr(value, out),
-        Stmt::Assign { target, value, .. } => {
-            collect_hooks_in_expr(target, out);
-            collect_hooks_in_expr(value, out);
-        }
-        Stmt::Return { value, .. } => {
-            if let Some(v) = value {
-                collect_hooks_in_expr(v, out);
-            }
-        }
-        Stmt::Expr { expr, .. } => collect_hooks_in_expr(expr, out),
-    }
-}
-
-/// Collect every Vox `use_*` call name referenced in an expression tree.
-fn collect_hooks_in_expr(expr: &Expr, out: &mut BTreeSet<String>) {
-    match expr {
-        Expr::Call { callee, args, .. } => {
-            if let Expr::Ident { name, .. } = callee.as_ref() {
-                if name.starts_with("use_") {
-                    out.insert(name.clone());
-                }
-            } else {
-                collect_hooks_in_expr(callee, out);
-            }
-            for a in args {
-                collect_hooks_in_expr(&a.value, out);
-            }
-        }
-        Expr::MethodCall { object, args, .. } => {
-            collect_hooks_in_expr(object, out);
-            for a in args {
-                collect_hooks_in_expr(&a.value, out);
-            }
-        }
-        Expr::Binary { left, right, .. } => {
-            collect_hooks_in_expr(left, out);
-            collect_hooks_in_expr(right, out);
-        }
-        Expr::Unary { operand, .. } => collect_hooks_in_expr(operand, out),
-        Expr::FieldAccess { object, .. } => collect_hooks_in_expr(object, out),
-        Expr::Lambda { body, .. } => collect_hooks_in_expr(body, out),
-        Expr::Pipe { left, right, .. } => {
-            collect_hooks_in_expr(left, out);
-            collect_hooks_in_expr(right, out);
-        }
-        Expr::Spawn { target, .. } => collect_hooks_in_expr(target, out),
-        Expr::With {
-            operand, options, ..
-        } => {
-            collect_hooks_in_expr(operand, out);
-            collect_hooks_in_expr(options, out);
-        }
-        Expr::If {
-            condition,
-            then_body,
-            else_body,
-            ..
-        } => {
-            collect_hooks_in_expr(condition, out);
-            for s in then_body {
-                collect_hooks_in_stmt(s, out);
-            }
-            if let Some(eb) = else_body {
-                for s in eb {
-                    collect_hooks_in_stmt(s, out);
-                }
-            }
-        }
-        Expr::For { iterable, body, .. } => {
-            collect_hooks_in_expr(iterable, out);
-            collect_hooks_in_expr(body, out);
-        }
-        Expr::Match { subject, arms, .. } => {
-            collect_hooks_in_expr(subject, out);
-            for arm in arms {
-                collect_hooks_in_expr(&arm.body, out);
-            }
-        }
-        Expr::Block { stmts, .. } => {
-            for s in stmts {
-                collect_hooks_in_stmt(s, out);
-            }
-        }
-        Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {
-            for e in elements {
-                collect_hooks_in_expr(e, out);
-            }
-        }
-        Expr::ObjectLit { fields, .. } => {
-            for (_, v) in fields {
-                collect_hooks_in_expr(v, out);
-            }
-        }
-        Expr::StringInterp { parts, .. } => {
-            for p in parts {
-                if let crate::ast::expr::StringPart::Interpolation(e) = p {
-                    collect_hooks_in_expr(e, out);
-                }
-            }
-        }
-        Expr::Jsx(el) => {
-            for ch in &el.children {
-                collect_hooks_in_expr(ch, out);
-            }
-            for attr in &el.attributes {
-                collect_hooks_in_expr(&attr.value, out);
-            }
-        }
-        Expr::JsxSelfClosing(el) => {
-            for attr in &el.attributes {
-                collect_hooks_in_expr(&attr.value, out);
-            }
-        }
-        // Leaf expressions
-        Expr::IntLit { .. }
-        | Expr::FloatLit { .. }
-        | Expr::BoolLit { .. }
-        | Expr::StringLit { .. }
-        | Expr::Ident { .. } => {}
-    }
 }
 
 /// Emit a statement inside a React component body.

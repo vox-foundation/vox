@@ -133,6 +133,12 @@ pub async fn run(args: Args) -> Result<()> {
         resolved.sample_count,
         cli_overrides,
     );
+    if device.eq_ignore_ascii_case("cuda") {
+        eprintln!(
+            "  ⚙ {}",
+            vox_mens::tensor::vram_autodetect::vram_summary(true)
+        );
+    }
 
     // ── HF model download ─────────────────────────────────────────────────────
     let mut base_model_paths = None::<(Vec<std::path::PathBuf>, std::path::PathBuf)>;
@@ -141,10 +147,11 @@ pub async fn run(args: Args) -> Result<()> {
     if let Some(ref repo_id) = model {
         eprintln!("  📥 Downloading from HuggingFace: {}", repo_id);
         let repo_id = repo_id.clone();
+        let repo_id_for_download = repo_id.clone();
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let result = rt.block_on(vox_mens::hub::download_model(&repo_id));
+            let result = rt.block_on(vox_mens::hub::download_model(&repo_id_for_download));
             let _ = tx.send(result);
         });
         match rx
@@ -182,8 +189,12 @@ pub async fn run(args: Args) -> Result<()> {
                     }
                 }
             }
-            Ok(_) => eprintln!("  ⚠ Model has no safetensors; continuing from scratch"),
-            Err(e) => eprintln!("  ⚠ HF download failed ({e}); continuing from scratch"),
+            Ok(_) => anyhow::bail!(
+                "HF model `{repo_id}` has no safetensors; QLoRA requires safetensors base weights."
+            ),
+            Err(e) => anyhow::bail!(
+                "HF download failed for `{repo_id}` ({e}). Set HF token env vars and retry."
+            ),
         }
     }
 
@@ -257,6 +268,8 @@ pub async fn run(args: Args) -> Result<()> {
         deployment_target: vox_mens::TrainingDeploymentTarget::Workstation,
         validation_split_ratio: Some(0.05),
         curriculum: false,
+        require_gpu: false,
+        allow_cpu_fallback: true,
     };
 
     let system_prompt = vox_corpus::training::generate_training_system_prompt();

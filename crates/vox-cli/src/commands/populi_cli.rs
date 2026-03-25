@@ -1,4 +1,4 @@
-//! `vox populi …` — local registry and HTTP control plane (requires `--features mens`).
+//! `vox populi …` — local registry and HTTP control plane (requires `--features populi`).
 
 use std::net::SocketAddr;
 use std::path::PathBuf;

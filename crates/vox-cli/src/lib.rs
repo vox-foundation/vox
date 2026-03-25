@@ -32,8 +32,8 @@ mod latin_cmd;
 /// Lock-wait JSONL metrics (`vox lock-report`, recursive script guard).
 #[cfg(any(feature = "codex", feature = "stub-check", feature = "script-execution"))]
 mod lock_telemetry;
-#[cfg(feature = "mens")]
-mod mesh_codex_telemetry;
+#[cfg(feature = "populi")]
+mod populi_codex_telemetry;
 pub mod pipeline;
 #[cfg(feature = "island")]
 mod table;
@@ -313,6 +313,14 @@ pub enum Cli {
         #[command(subcommand)]
         action: commands::mens::PopuliAction,
     },
+    /// Oratio: speech-to-text / transcripts (`--features oratio`).
+    #[cfg(feature = "oratio")]
+    #[command(visible_alias = "speech")]
+    Oratio {
+        /// Action.
+        #[command(subcommand)]
+        action: commands::oratio_cmd::OratioAction,
+    },
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
     Review {
@@ -485,7 +493,7 @@ pub async fn run_vox_cli_populi_prefixed() -> anyhow::Result<()> {
     let mut args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
         anyhow::bail!(
-            "usage: vox-mens <subcommand> …\n  Equivalent to: vox mens <subcommand> …\n  Native training needs: cargo build -p vox-cli --features gpu"
+            "usage: vox-mens <subcommand> …\n  Equivalent to: vox mens <subcommand> …\n  Speech / STT: use vox oratio (or vox speech), not vox-mens.\n  Native training needs: cargo build -p vox-cli --features gpu"
         );
     }
     args.insert(1, "mens".into());
@@ -756,6 +764,10 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         Cli::Mens { action } => {
             commands::mens::run(action, global.json, global.verbose).await?;
+        }
+        #[cfg(feature = "oratio")]
+        Cli::Oratio { action } => {
+            commands::oratio_cmd::run(action, global.json)?;
         }
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {

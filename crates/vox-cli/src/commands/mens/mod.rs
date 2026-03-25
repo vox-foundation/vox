@@ -13,7 +13,7 @@
 //! vox mens probe      — Detect GPU capabilities and print recommended LoRA training config
 //! vox mens status     — Show training run status from the latest telemetry log
 //! vox mens eval-local — Evaluate a trained model against the heldout benchmark set
-//! vox mens oratio   — Speech-to-text (Oratio) and transcript fixtures
+//! Oratio speech-to-text lives at **`vox oratio`** (top-level), not under `mens`.
 //! ```
 
 /// Latency and throughput benchmarking for completions.
@@ -21,23 +21,17 @@ pub mod bench_completion;
 pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
-mod eval_local_prompt;
 #[cfg(feature = "gpu")]
-mod merge_qlora;
-#[cfg(feature = "mens-oratio")]
-pub mod oratio_cmd;
+mod merge_weights;
+mod eval_local_prompt;
 #[cfg(feature = "mens-base")]
 mod pipeline;
 /// AI-agent planning sessions and task decomposition.
 pub mod plan;
 #[cfg(feature = "gpu")]
 mod probe;
-#[cfg(feature = "gpu")]
-mod process_priority;
 mod status;
 mod system_prompt_template;
-#[cfg(feature = "gpu")]
-mod train;
 #[cfg(feature = "gpu")]
 pub mod models;
 
@@ -46,6 +40,9 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 use crate::commands::corpus::CorpusAction;
+
+#[cfg(feature = "gpu")]
+use crate::commands::schola::{merge_qlora, train};
 
 /// CLI mapping for `vox schola train --backend` → [`vox_mens::PopuliTrainBackend`].
 #[cfg(feature = "gpu")]
@@ -329,6 +326,12 @@ pub enum PopuliAction {
         /// Ignore existing resume state and force a fresh run from step 0.
         #[arg(long)]
         force_restart: bool,
+        /// Require accelerator execution. Fails if selected runtime resolves to CPU.
+        #[arg(long, default_value_t = false)]
+        require_gpu: bool,
+        /// Allow CPU fallback when `--device best` cannot initialize CUDA/Metal.
+        #[arg(long, default_value_t = true)]
+        allow_cpu_fallback: bool,
         /// Enable curriculum learning: epoch-gated difficulty sampling (Candle QLoRA).
         #[arg(long, default_value_t = false)]
         curriculum: bool,
@@ -473,6 +476,17 @@ pub enum PopuliAction {
         /// Output safetensors path (subset of merged keys).
         #[arg(long, required = true)]
         output: PathBuf,
+    },
+
+    /// Merge a **Burn** LoRA checkpoint (`*.bin`) into dense `model_merged.bin` (needs `training_manifest.json` in the run directory).
+    #[cfg(feature = "gpu")]
+    #[command(name = "merge-weights")]
+    MergeWeights {
+        /// Burn LoRA checkpoint path (`Checkpoint` / `*.bin` from `--backend lora`).
+        checkpoint: PathBuf,
+        /// Output path (default: `<checkpoint_dir>/model_merged.bin`).
+        #[arg(long, short = 'o')]
+        output: Option<PathBuf>,
     },
 
     /// AI-powered code generation from a natural language prompt
@@ -644,10 +658,6 @@ pub enum PopuliAction {
         format: String,
     },
 
-    /// Speech-to-text and transcript pipeline (Oratio)
-    #[cfg(feature = "mens-oratio")]
-    #[command(subcommand, name = "oratio", alias = "speech")]
-    Oratio(oratio_cmd::OratioAction),
 }
 
 /// Dispatch `vox mens` subcommands to their feature-gated implementations.
@@ -703,7 +713,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         } => {
             let data_dir = PathBuf::from(vox_corpus::training::CANONICAL_TRAIN_DATA_DIR);
             
-            crate::commands::mens::train::run_train(
+            crate::commands::schola::train::run_train(
                 PopuliTrainBackendCli::Qlora.into(),
                 Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
                 "cuda".into(),
@@ -737,6 +747,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Some(checkpoint_every),
                 force_restart,
                 false, // curriculum (dogfood default: off)
+                true, // require_gpu
+                false, // allow_cpu_fallback
             ).await?;
             Ok(())
         }
@@ -775,12 +787,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             qlora_ce_last_k,
             checkpoint_every,
             force_restart,
+            require_gpu,
+            allow_cpu_fallback,
             cloud,
             max_budget: _max_budget,
             train_data_hf: _train_data_hf,
             adapter_upload_hf: _adapter_upload_hf,
             max_runtime_secs: _max_runtime_secs,
             validation_split_ratio,
+            curriculum,
         } => {
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
@@ -853,6 +868,12 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                         true, // skip_train
                         false, // strict_gate
                         None, // device
+                        None, // model
+                        None, // epochs
+                        None, // preset
+                        None, // stages
+                        false, // dry_run
+                        false, // curriculum
                     ).await {
                         eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
                     } else {
@@ -896,7 +917,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             // so --adapter-tag target automatically filters to target records.
             let context_filter = context_filter.or_else(|| adapter_tag.clone());
             if let Some(ref log_dir) = log_dir {
-                return crate::commands::mens::train::spawn_train_with_log(log_dir.clone());
+                return crate::commands::schola::train::spawn_train_with_log(log_dir.clone());
             }
             let deployment_target = if preset.as_deref() == Some("mobile_edge") {
                 vox_mens::TrainingDeploymentTarget::MobileEdge
@@ -937,6 +958,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 checkpoint_every,
                 force_restart,
                 curriculum,
+                require_gpu,
+                allow_cpu_fallback,
             ).await
         }
 
@@ -1040,6 +1063,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             meta,
             output,
         } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output),
+
+        #[cfg(feature = "gpu")]
+        PopuliAction::MergeWeights { checkpoint, output } => {
+            merge_weights::run_merge_weights(checkpoint, output, 0, 0.0)
+        }
 
         #[cfg(feature = "mens-dei")]
         PopuliAction::Generate {
@@ -1181,14 +1209,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             crate::commands::mens::system_prompt_template::run(output, &format).await
         }
 
-        #[cfg(feature = "mens-oratio")]
-        PopuliAction::Oratio(action) => oratio_cmd::run(action, _global_json),
     }
 }
 
 #[cfg(all(test, feature = "gpu"))]
 mod tests {
+    use super::merge_weights;
     use super::*;
+    use crate::commands::schola::merge_qlora;
     use std::path::PathBuf;
 
     #[test]

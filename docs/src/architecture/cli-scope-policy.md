@@ -21,7 +21,7 @@ Some variants exist only when Cargo features are enabled (see `crates/vox-cli/Ca
 - **`ars`** — `vox openclaw` / `oc` (OpenClaw gateway client; `vox-ars`) and `vox skill` (ARS registry / promote / context). Build with `cargo build -p vox-cli --features ars`.
 - **`extras-ludus`** — `vox ludus` (gamification; `vox-ludus`). Build with `cargo build -p vox-cli --features extras-ludus`.
 - **`live`** — `vox live` (orchestrator demo bus).
-- **`mens`** — `vox populi status` / `vox populi serve` (`vox-populi` registry + HTTP control plane). Build with `cargo build -p vox-cli --features mens`.
+- **`populi`** — `vox populi status` / `vox populi serve` (`vox-populi` registry + HTTP control plane). Build with `cargo build -p vox-cli --features populi`.
 - **`workflow-runtime`** — interpreted `vox mens workflow run` + `commands::workflow` when enabled; implies **`mens-dei`**. Build with `cargo build -p vox-cli --features workflow-runtime`.
 
 ## Documentation

@@ -17,8 +17,8 @@ training_eligible: true
 | Piece | Role |
 |--------|------|
 | **`vox-oratio`** | Candle Whisper, symphonia decode, `transcribe_path`, `eval` (WER/CER), env `VOX_ORATIO_*`. |
-| **`vox-cli`** `vox mens oratio` | CLI transcription + status. |
-| **`vox-mcp`** | `vox_oratio_transcribe`, `vox_oratio_status` (+ JSON schemas in tool registry). |
+| **`vox-cli`** `vox oratio` | CLI transcription + status + sessionized `listen` flow (Enter-or-timeout, correction profile, route mode). |
+| **`vox-mcp`** | `vox_oratio_transcribe` (thin STT + refine), `vox_oratio_listen` (session + route + optional LLM polish), `vox_oratio_status` (+ JSON schemas in tool registry). |
 | **`vox-codex-api`** | `GET /api/audio/status`, `POST /api/audio/transcribe`; binary **`vox-codex-dashboard`**. |
 | **Typeck / codegen** | Builtin **`Speech`**, **`Speech.transcribe(path) → Result[str]`** → `vox_oratio::transcribe_path` + refined text. |
 | **Corpus mix** | `record_format: asr_refine` + schema **`mens/schemas/asr_refine_pairs.schema.json`**. |
@@ -34,7 +34,7 @@ training_eligible: true
 ## Where (files)
 
 - `crates/vox-oratio/` — STT + `eval`, `traits`, `refine`, `backends/*`
-- `crates/vox-cli/src/commands/mens/oratio_cmd.rs`
+- `crates/vox-cli/src/commands/oratio_cmd.rs`
 - `crates/vox-mcp/src/tools/oratio_tools.rs`, `mod.rs` (registry + schemas)
 - `crates/vox-capability-registry/`, `crates/vox-tools/` (`mens_chat` + `DirectToolExecutor`; Mens chat ∩ executor)
 - `crates/vox-codex-api/src/lib.rs`, `src/bin/codex_dashboard.rs`, `Cargo.toml` (`[[bin]]`)
@@ -49,8 +49,9 @@ training_eligible: true
 
 ## How (contracts)
 
-- **Build check:** `cargo check -p vox-oratio --features stt-candle`; for the **`vox`** CLI Oratio commands, `cargo check -p vox-cli --features mens-oratio` (Oratio is **not** in default **`mens-base`**).
-- **Env**: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, `VOX_ORATIO_CUDA` (feature-gated), `VOX_ORATIO_WORKSPACE` (HTTP path resolution), `VOX_DASH_HOST` / `VOX_DASH_PORT` (dashboard bind). With the **`cuda`** feature, default inference is **CPU** until **`VOX_ORATIO_CUDA=1`**; status JSON includes **`cuda_feature_enabled`**, **`cuda_requested_via_env`**, **`inference_note`**. **`RUST_LOG=vox_oratio_gpu=info`** emits **`oratio_inference_cpu_default`** vs **`oratio_inference_gpu`** on first session load.
+- **Build check:** `cargo check -p vox-oratio --features stt-candle`; for the **`vox`** CLI Oratio commands, `cargo check -p vox-cli --features oratio` (Oratio is **not** in default **`mens-base`**).
+- **Env**: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, `VOX_ORATIO_CUDA` (feature-gated), `VOX_ORATIO_WORKSPACE` (HTTP path resolution), `VOX_DASH_HOST` / `VOX_DASH_PORT` (dashboard bind). Optional **runtime TOML**: set **`VOX_ORATIO_CONFIG`** to a file with flat keys (`capture_timeout_ms`, `max_duration_ms`, `inference_deadline_ms`, `heartbeat_ms`, refine/routing/HF/LLM tunables — see `crates/vox-oratio/src/runtime_config.rs`). Env overrides file (**precedence: CLI args → env → file → defaults** for programmatic surfaces; CLI flags win on `vox oratio listen`). With the **`cuda`** feature, default inference is **CPU** until **`VOX_ORATIO_CUDA=1`**; status JSON includes **`cuda_feature_enabled`**, **`cuda_requested_via_env`**, **`inference_note`**. **`RUST_LOG=vox_oratio_gpu=info`** emits **`oratio_inference_cpu_default`** vs **`oratio_inference_gpu`** on first session load.
+- **Session payloads** (CLI `listen`, MCP `vox_oratio_transcribe` / `vox_oratio_listen`, `vox-tools` direct executor) support: `timeout_ms` (UX / capture contract), `max_duration_ms` (session wall cap), optional `inference_deadline_ms` (transcribe+refine post-hoc cap), `heartbeat_ms`, `language_hint`, `profile` (`conservative|balanced|aggressive`), `route_mode` (`none|tool|chat|orchestrator`), `debug_parser_payload`. Responses may include **`language_diagnostics`**, **`deadline_diagnostics`**, and MCP **`runtime_config`** when debugging.
 - **HTTP transcribe body**: `{"path":"relative-or-absolute"}`.
 - **Mix YAML**: optional per-source `record_format: asr_refine`.
 

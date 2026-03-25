@@ -1,6 +1,7 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
 mod command_compliance;
+mod eval_matrix;
 mod line_endings;
 pub mod build_timings;
 mod check_links;
@@ -21,7 +22,7 @@ pub fn repo_root() -> PathBuf {
     vox_repository::resolve_repo_root_for_ci()
 }
 
-fn cargo_bin() -> PathBuf {
+pub(super) fn cargo_bin() -> PathBuf {
     if let Ok(h) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
         let win = PathBuf::from(&h).join(".cargo/bin/cargo.exe");
         if win.is_file() {
@@ -86,6 +87,13 @@ pub enum CiCmd {
         /// Subcommand execution variant.
         #[command(subcommand)]
         cmd: DocInventoryCmd,
+    },
+    /// Milestone benchmark matrix (`contracts/eval/benchmark-matrix.json`).
+    #[command(name = "eval-matrix")]
+    EvalMatrix {
+        /// Subcommand execution variant.
+        #[command(subcommand)]
+        cmd: EvalMatrixCmd,
     },
     /// Fail if workflow YAML references `scripts/` paths not in the allowlist file.
     #[command(name = "workflow-scripts")]
@@ -171,6 +179,9 @@ pub enum CiCmd {
         /// Output directory for packaged artifacts.
         #[arg(long, default_value = "dist")]
         out_dir: PathBuf,
+        /// Which binary packages to produce.
+        #[arg(long, value_enum, default_value = "vox")]
+        package: release_build::ReleasePackage,
     },
 }
 
@@ -194,6 +205,19 @@ pub enum DocInventoryCmd {
     },
     /// Fail if committed inventory differs from a fresh generation (ignores `generated_at`).
     Verify,
+}
+
+/// Subcommands for [`CiCmd::EvalMatrix`].
+#[derive(Subcommand)]
+pub enum EvalMatrixCmd {
+    /// Validate committed JSON against `contracts/eval/benchmark-matrix.schema.json`.
+    Verify,
+    /// Run `cargo` checks/tests mapped from `benchmark_classes` (deduped across milestones).
+    Run {
+        /// Restrict to one milestone `id` from the matrix (e.g. `m3-dei-contracts`).
+        #[arg(long)]
+        milestone: Option<String>,
+    },
 }
 
 const DOCS_SSOT_FILES: &[&str] = &[
@@ -267,7 +291,7 @@ const FEATURE_SETS: &[&str] = &[
     "codex,stub-check",
     "live",
     "mens-dei",
-    "mens-oratio",
+    "oratio",
     "dashboard",
     "ars",
     "extras-ludus",
@@ -338,6 +362,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Ok(())
             }
         },
+        CiCmd::EvalMatrix { cmd: sub } => match sub {
+            EvalMatrixCmd::Verify => eval_matrix::run_verify(&root),
+            EvalMatrixCmd::Run { milestone } => {
+                eval_matrix::run_executions(&root, milestone.as_deref())
+            }
+        },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
         CiCmd::PopuliGate { profile } => run_mens_gate(&root, &profile),
@@ -359,7 +389,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             target,
             version,
             out_dir,
-        } => release_build::run(&root, &target, version.as_deref(), &out_dir),
+            package,
+        } => release_build::run(&root, &target, version.as_deref(), &out_dir, package),
     }
 }
 
@@ -1029,7 +1060,7 @@ fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result<()> {
             ),
             (
                 "check_vox_cli_populi_oratio",
-                &["check", "-p", "vox-cli", "--features", "mens-oratio"],
+                &["check", "-p", "vox-cli", "--features", "oratio"],
             ),
         ];
         for (lane, args) in crate_lanes {
@@ -1196,8 +1227,8 @@ mod feature_matrix_contract_tests {
     #[test]
     fn feature_sets_include_populi_oratio_lane() {
         assert!(
-            FEATURE_SETS.contains(&"mens-oratio"),
-            "CI feature matrix must compile the mens-oratio (Oratio STT) lane"
+            FEATURE_SETS.contains(&"oratio"),
+            "CI feature matrix must compile the oratio (Oratio STT) lane"
         );
     }
 }

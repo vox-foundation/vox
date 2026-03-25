@@ -16,7 +16,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 |---------|---------|-------------------------------|
 | *(none)* | when using `--no-default-features` | Compiler pipeline + `vox-db` + **`vox-corpus`** + **`vox-runtime`** (always linked for training JSONL / grammar paths); **no** `vox mens …` surface (`mens-base` off) and **no** Oratio / native train |
 | `mens-base` | **yes** | Marker: enables `vox mens …` CLI (corpus commands, etc.) without `vox-mens` / Oratio — **`vox-corpus` / `vox-runtime` are not feature-gated** |
-| `mens-oratio` | **no** (opt-in) | Implies `mens-base` + `vox-oratio` (Candle Whisper STT) — heavy; enables `vox mens oratio` |
+| `oratio` | **no** (opt-in) | `mens-base` + `vox-oratio` (Candle Whisper STT) — heavy; enables **`vox oratio`** / **`vox speech`** |
 | `gpu` | **no** (opt-in) | Adds `vox-mens` + `vox-tensor` with `train` / HF / Candle QLoRA stack — **largest** incremental cost |
 
 ## Optional features (alphabetical by concern)
@@ -31,12 +31,11 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 | `extras-ludus` | `vox-ludus`, `vox-toestub` |
 | `island` | `comfy-table`, `dirs`, `walkdir`, `which` |
 | `live` | `vox-orchestrator` |
-| `mens` | `vox-populi` + `transport` (axum / reqwest / tokio) — `vox populi …` |
-| `workflow-runtime` | `mens-dei` + `vox-workflow-runtime` (implies `mens` via that crate) — interpreted workflow run |
+| `populi` | `vox-populi` + `transport` (axum / reqwest / tokio) — **`vox populi status` / `serve`** |
+| `workflow-runtime` | `mens-dei` + `vox-workflow-runtime` — interpreted **`vox mens workflow run`** (separate from **`populi`**; add **`populi`** if you need the HTTP registry / control-plane CLI) |
 | `mens-candle-cuda` | `gpu` + `vox-mens/candle-qlora-cuda` (nvcc / CUDA toolkit at build time) |
 | `mens-candle-metal` | `gpu` + Metal Candle stack (macOS) |
 | `mens-dei` | `vox-tensor/train` without full Mens (legacy `vox train` path) |
-| `mens-oratio` | `mens-base` + `vox-oratio` — STT CLI (`vox mens oratio`, `vox ai oratio`) |
 | `mens-qlora` | Alias for **`gpu`** (QLoRA is in the `train` feature chain) |
 | `script-execution` | `wasmtime`, `wasmtime-wasi`, `landlock` / `win32job`, … |
 | `stub-check` | `vox-toestub`, `vox-ludus`, … — DB via **`vox-db`** |
@@ -47,7 +46,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 |--------|---------------------|---------|
 | `vox` | *(none)* | Main CLI |
 | `vox-compilerd` | *(none)* | Watch / compile daemon |
-| `vox-mens` | `mens-base` | Same CLI surface as `vox mens …` without typing the `mens` subcommand (argv injection) |
+| `vox-mens` | `mens-base` | Prepends **`mens`** only; speech remains **`vox oratio`** / **`vox speech`** |
 
 ## Crate categories (where “like lives with like”)
 

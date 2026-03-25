@@ -109,6 +109,7 @@ Full table: [mens SSOT](mens.md). Common entries:
 | `VOX_SSR_DEV_URL` | Origin (e.g. `http://127.0.0.1:3001`) for generated Axum to proxy non-`/api` **GET** document requests before `rust_embed`. Often injected when **`VOX_ORCHESTRATE_VITE=1`**. |
 | `VOX_WEB_VITE_SMOKE` | Opt-in: set to **`1`** when running **`cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored`** (full **`pnpm install`** + **`vite build`** on a golden `.vox` fixture). |
 | `VOX_EXAMPLES_STRICT_PARSE` | When **`1`**, **`cargo test -p vox-parser --test parity_test`** fails if any `examples/**/*.vox` fails to parse (default CI only requires the **`MUST_PARSE`** golden set). See [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). |
+| `VOX_SUPPRESS_LEGACY_HOOK_LINTS` | When **`1`** / **`true`**, suppresses compiler **warnings** for direct Vox `use_*` hook calls inside classic **`@component fn …`** bodies (Path C reactive syntax is still preferred). Implemented in [`react_bridge::legacy_hook_lint_suppressed`](../../../crates/vox-compiler/src/react_bridge.rs) + [`lint_ast_declarations`](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs). |
 
 ## Related
 

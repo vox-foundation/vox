@@ -8,15 +8,27 @@ pub async fn run(
     data_dir: PathBuf,
     output_dir: PathBuf,
     skip_train: bool,
-    _strict_gate: bool,
-    _device: Option<String>,
-    _model: Option<String>,
-    _epochs: Option<usize>,
-    _preset: Option<String>,
+    strict_gate: bool,
+    device: Option<String>,
+    model: Option<String>,
+    epochs: Option<usize>,
+    preset: Option<String>,
     stages: Option<String>,
     dry_run: bool,
-    _curriculum: bool,
+    curriculum: bool,
 ) -> Result<()> {
+    #[cfg(not(feature = "gpu"))]
+    {
+        let _ = (
+            strict_gate,
+            device.as_ref(),
+            model.as_ref(),
+            epochs,
+            preset.as_ref(),
+            curriculum,
+        );
+    }
+
     let run_id = vox_corpus::training::timestamp_string();
     
     let all_possible_stages = [
@@ -213,7 +225,7 @@ pub async fn run(
                             }
                         }
 
-                        crate::commands::mens::train::run_train(
+                        crate::commands::schola::train::run_train(
                             crate::commands::mens::PopuliTrainBackendCli::Qlora.into(),
                             Some(target_model),
                             device,
@@ -247,6 +259,8 @@ pub async fn run(
                             None,  // checkpoint_every
                             false, // force_restart
                             curriculum,
+                            false, // require_gpu
+                            true,  // allow_cpu_fallback
                         ).await?;
                     }
 

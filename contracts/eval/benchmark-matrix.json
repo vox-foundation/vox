@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "description": "Milestone-oriented benchmark classes (plan M1–M5). CI validates this file against benchmark-matrix.schema.json; suites wire these ids to cargo/nextest filters over time.",
+  "milestones": [
+    {
+      "id": "m1-local-loop",
+      "name": "Local-first training and CLI GPU lane",
+      "benchmark_classes": [
+        "vox_cli_gpu_check",
+        "vox_cli_mens_gpu_tests",
+        "vox_schola_train_compile"
+      ],
+      "min_pass_rate": 1.0,
+      "ci_timeout_budget_secs": 3600
+    },
+    {
+      "id": "m2-hf-parity",
+      "name": "Hugging Face hub and route telemetry parity",
+      "benchmark_classes": [
+        "vox_mens_hub_token_resolution",
+        "vox_mcp_route_telemetry_parity",
+        "vox_runtime_model_resolution_tests"
+      ],
+      "min_pass_rate": 1.0,
+      "ci_timeout_budget_secs": 2400
+    },
+    {
+      "id": "m3-dei-contracts",
+      "name": "Vox Dei wire contracts and orchestration invariants",
+      "benchmark_classes": [
+        "vox_cli_dispatch_dei_schema",
+        "vox_orchestrator_a2a_message_ids"
+      ],
+      "min_pass_rate": 1.0,
+      "ci_timeout_budget_secs": 1800
+    },
+    {
+      "id": "m4-intelligence",
+      "name": "Tool surface, prompts, language introspection",
+      "benchmark_classes": [
+        "vox_mcp_introspection_language_surface",
+        "vox_mcp_tool_dispatch_smoke"
+      ],
+      "min_pass_rate": 1.0,
+      "ci_timeout_budget_secs": 2400
+    },
+    {
+      "id": "m5-quality-release",
+      "name": "Docs inventory ranking, eval matrix contract, release gates",
+      "benchmark_classes": [
+        "vox_doc_inventory_relevance_score",
+        "contracts_eval_benchmark_matrix_schema",
+        "vox_ci_command_compliance"
+      ],
+      "min_pass_rate": 1.0,
+      "ci_timeout_budget_secs": 3600
+    }
+  ]
+}

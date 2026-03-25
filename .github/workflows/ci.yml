@@ -55,6 +55,12 @@ jobs:
       - name: Doc inventory matches generator (Rust)
         run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
 
+      - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
+        run: |
+          cargo run -p vox-cli --quiet -- ci eval-matrix verify
+          cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
+          cargo check -p vox-cli --features gpu
+
       - name: Workflow scripts allowlist
         run: cargo run -p vox-cli --quiet -- ci workflow-scripts
 
@@ -86,11 +92,19 @@ jobs:
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
         run: cargo run -p vox-cli --quiet -- ci cuda-features
 
-      - name: Run Tests
-        run: cargo test --workspace
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Run Tests (nextest, bounded timeouts)
+        run: cargo nextest run --workspace --profile ci
+
+      - name: Doc tests (not run by nextest)
+        run: cargo test --workspace --doc
 
       - name: Populi CI gate matrix (single manifest)
-        run: cargo run -p vox-cli --quiet -- ci populi-gate --profile ci_full
+        run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
 
   # GitHub-hosted exception: needs stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   web-vite-build-smoke:

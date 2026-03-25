@@ -85,6 +85,10 @@ pub struct LoraTrainingConfig {
     pub deployment_target: TrainingDeploymentTarget,
     /// Whether to use curriculum learning (epoch-gated difficulty sampling).
     pub curriculum: bool,
+    /// Require a real GPU execution path; fail if device selection falls back to CPU.
+    pub require_gpu: bool,
+    /// Allow automatic CPU fallback when `--device best` cannot initialize an accelerator.
+    pub allow_cpu_fallback: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -124,6 +128,8 @@ impl Default for LoraTrainingConfig {
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),
             curriculum: false,
+            require_gpu: false,
+            allow_cpu_fallback: true,
         }
     }
 }

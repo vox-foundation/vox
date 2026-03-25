@@ -70,7 +70,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
     match name {
         // ── Oratio (already strict) ─────────────────────────────────────────
         "vox_oratio_transcribe" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative or absolute path to an audio file"}},"required":["path"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative or absolute path to an audio or transcript file"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"}},"required":["path"],"additionalProperties":false}"#,
+        ),
+        "vox_oratio_listen" => parse_obj(
+            r#"{"type":"object","properties":{"path":{"type":"string"},"session_id":{"type":"string"},"timeout_ms":{"type":"integer","minimum":1},"max_duration_ms":{"type":"integer","minimum":1},"inference_deadline_ms":{"type":"integer","minimum":1},"heartbeat_ms":{"type":"integer","minimum":1},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"debug_parser_payload":{"type":"boolean"},"emit_asr_refine_path":{"type":"string"},"llm_refinement":{"type":"boolean"},"llm_min_det_confidence":{"type":"number"},"llm_max_output_tokens":{"type":"integer","minimum":1}},"required":["path"],"additionalProperties":false}"#,
         ),
         "vox_oratio_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 

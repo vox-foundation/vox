@@ -249,11 +249,104 @@ impl Parser {
     }
 
     fn parse_component(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
         self.advance(); // eat @component
-        let f = self.parse_fn_decl(false)?;
-        // Check for optional style: block after the function body
-        let styles = self.parse_style_blocks();
-        Ok(Decl::Component(ComponentDecl { func: f, styles }))
+        self.skip_newlines();
+        match self.peek().clone() {
+            Token::Fn => {
+                let f = self.parse_fn_decl(false)?;
+                let styles = self.parse_style_blocks();
+                Ok(Decl::Component(ComponentDecl { func: f, styles }))
+            }
+            Token::Ident(_) | Token::TypeIdent(_) => {
+                let name = self.parse_ident_name()?;
+                let inner = self.finish_reactive_component_after_name(start, name)?;
+                Ok(Decl::ReactiveComponent(inner))
+            }
+            _ => {
+                self.errors.push(ParseError::new(
+                    self.span(),
+                    "After @component, expected `fn` or a reactive component name (Path C)",
+                    vec!["fn".into(), "ComponentName".into()],
+                    Some(self.peek().to_string()),
+                ));
+                Err(())
+            }
+        }
+    }
+
+    /// `Name(params) { state ... }` — shared by `component` and `@component` reactive forms.
+    fn finish_reactive_component_after_name(
+        &mut self,
+        start: Span,
+        name: String,
+    ) -> Result<ReactiveComponentDecl, ()> {
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+
+        self.expect(&Token::LBrace)?;
+        let mut members = Vec::new();
+        let mut view = None;
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::RBrace | Token::Eof => break,
+                Token::State => members.push(ReactiveMemberDecl::State(self.parse_state_decl()?)),
+                Token::Derived => {
+                    members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
+                }
+                Token::Effect => {
+                    let eff_start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::Effect(EffectDecl {
+                        body,
+                        span: eff_start.merge(self.span()),
+                    }));
+                }
+                Token::Mount => {
+                    let m_start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
+                        body,
+                        span: m_start.merge(self.span()),
+                    }));
+                }
+                Token::Cleanup => {
+                    let c_start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
+                        body,
+                        span: c_start.merge(self.span()),
+                    }));
+                }
+                Token::View => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    view = Some(self.parse_expr()?);
+                }
+                _ => {
+                    self.errors.push(ParseError::new(
+                        self.span(),
+                        format!("Unexpected token in component block: {}", self.peek()),
+                        vec![],
+                        Some(self.peek().to_string()),
+                    ));
+                    return Err(());
+                }
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+
+        Ok(ReactiveComponentDecl {
+            name,
+            params,
+            members,
+            view,
+            span: start.merge(self.span()),
+        })
     }
 
     /// `@island Name { prop: Type, prop?: Type }` — brace-delimited prop block.
@@ -1501,73 +1594,8 @@ impl Parser {
         let start = self.span();
         self.advance(); // component
         let name = self.parse_ident_name()?;
-
-        self.expect(&Token::LParen)?;
-        let params = self.parse_params()?;
-        self.expect(&Token::RParen)?;
-
-        self.expect(&Token::LBrace)?;
-        let mut members = Vec::new();
-        let mut view = None;
-
-        loop {
-            self.skip_newlines();
-            match self.peek().clone() {
-                Token::RBrace | Token::Eof => break,
-                Token::State => members.push(ReactiveMemberDecl::State(self.parse_state_decl()?)),
-                Token::Derived => {
-                    members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
-                }
-                Token::Effect => {
-                    let start = self.span();
-                    let body = self.parse_reactive_block()?;
-                    members.push(ReactiveMemberDecl::Effect(EffectDecl {
-                        body,
-                        span: start.merge(self.span()),
-                    }));
-                }
-                Token::Mount => {
-                    let start = self.span();
-                    let body = self.parse_reactive_block()?;
-                    members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
-                        body,
-                        span: start.merge(self.span()),
-                    }));
-                }
-                Token::Cleanup => {
-                    let start = self.span();
-                    let body = self.parse_reactive_block()?;
-                    members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
-                        body,
-                        span: start.merge(self.span()),
-                    }));
-                }
-                Token::View => {
-                    self.advance();
-                    self.expect(&Token::Colon)?;
-                    view = Some(self.parse_expr()?);
-                }
-                _ => {
-                    self.errors.push(ParseError::new(
-                        self.span(),
-                        format!("Unexpected token in component block: {}", self.peek()),
-                        vec![],
-                        Some(self.peek().to_string()),
-                    ));
-                    return Err(());
-                }
-            }
-            self.skip_newlines();
-        }
-        self.expect(&Token::RBrace)?;
-
-        Ok(Decl::ReactiveComponent(ReactiveComponentDecl {
-            name,
-            params,
-            members,
-            view,
-            span: start.merge(self.span()),
-        }))
+        let inner = self.finish_reactive_component_after_name(start, name)?;
+        Ok(Decl::ReactiveComponent(inner))
     }
 
     fn parse_state_decl(&mut self) -> Result<StateDecl, ()> {
@@ -1774,6 +1802,21 @@ mod tests {
     fn test_parse_component() {
         let m = parse_str("@component fn Chat() to Element { ret 0 }");
         assert!(matches!(&m.declarations[0], Decl::Component(_)));
+    }
+
+    #[test]
+    fn test_parse_at_component_reactive_path_c() {
+        let m = parse_str(
+            "@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}",
+        );
+        if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+            assert_eq!(r.name, "Widget");
+            assert_eq!(r.params.len(), 1);
+            assert_eq!(r.members.len(), 1);
+            assert!(r.view.is_some());
+        } else {
+            panic!("Expected Decl::ReactiveComponent for @component Path C form");
+        }
     }
 
     #[test]

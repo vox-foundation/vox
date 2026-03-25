@@ -11,6 +11,8 @@ pub mod adt;
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
+/// Shared HIR → TS emission (reactive, routes, activities).
+pub mod hir_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
 /// Reactive components codegen (Path C).
@@ -19,6 +21,8 @@ pub mod reactive;
 pub mod routes;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).
 pub mod schema;
+/// TanStack Start server-fn emission constants.
+pub mod tanstack_start;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::generate_voxdb_schema;
