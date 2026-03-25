@@ -11,9 +11,9 @@ pub fn mesh_local_status(args: Value) -> anyhow::Result<String> {
         .unwrap_or_else(vox_populi::local_registry_path);
     let reg = vox_populi::LocalRegistry::new(path.clone());
     let file = reg.load()?;
-    let env = vox_populi::mesh_env();
+    let env = vox_populi::populi_env();
     let out = json!({
-        "mesh_env": env,
+        "populi_env": env,
         "registry_path": reg.path().display().to_string(),
         "registry": file,
     });

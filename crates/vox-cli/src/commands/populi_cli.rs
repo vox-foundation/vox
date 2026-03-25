@@ -5,12 +5,45 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Subcommand;
+use crate::commands::populi_lifecycle::{
+    OverlayProviderArg, PopuliConnectivityMode, PopuliLifecycleCmd,
+};
 
-/// Mens subcommands.
+/// Populi mesh subcommands.
 #[derive(Subcommand)]
-pub enum MeshCli {
-    /// Print mens environment, on-disk registry contents, and this process node record.
+pub enum PopuliCli {
+    /// Start a private populi network with secure defaults.
+    Up {
+        /// Connectivity strategy.
+        #[arg(long, value_enum, default_value_t = PopuliConnectivityMode::Lan)]
+        mode: PopuliConnectivityMode,
+        /// Populi scope id (auto-generated when omitted).
+        #[arg(long)]
+        scope: Option<String>,
+        /// GPU advertisement policy (`auto` uses probe defaults).
+        #[arg(long, default_value = "auto")]
+        gpus: String,
+        /// Control-plane bind address.
+        #[arg(long, default_value = "127.0.0.1:9847")]
+        bind: String,
+        /// Overlay provider selection (`auto` probes available providers).
+        #[arg(long, value_enum, default_value_t = OverlayProviderArg::Auto)]
+        overlay_provider: OverlayProviderArg,
+        /// Allow local insecure mode (disables required mesh token).
+        #[arg(long, default_value_t = false)]
+        insecure_local: bool,
+    },
+    /// Stop the populi process started by `vox populi up`.
+    Down,
+    /// Show populi network status, health, and overlay diagnostics.
     Status {
+        /// Emit JSON (also implied by global `--json`).
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Print local env and on-disk registry snapshot.
+    #[command(name = "local-status")]
+    LocalStatus {
         /// Override registry file (default: `VOX_MESH_REGISTRY_PATH` or `~/.vox/cache/mens/local-registry.json`).
         #[arg(long)]
         registry: Option<PathBuf>,
@@ -18,7 +51,7 @@ pub enum MeshCli {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
-    /// Run the HTTP mens control plane (`GET /v1/mens/nodes`, `POST` join/heartbeat).
+    /// Run the HTTP populi control plane (`GET /v1/populi/nodes`, `POST` join/heartbeat).
     Serve {
         /// Listen address (e.g. `127.0.0.1:9847` or `0.0.0.0:9847`).
         #[arg(long, default_value = "127.0.0.1:9847")]
@@ -30,13 +63,41 @@ pub enum MeshCli {
 }
 
 /// Run a `vox populi` subcommand.
-pub async fn run(cmd: MeshCli, global_json: bool) -> anyhow::Result<()> {
+pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
     match cmd {
-        MeshCli::Status { registry, json } => {
+        PopuliCli::Up {
+            mode,
+            scope,
+            gpus,
+            bind,
+            overlay_provider,
+            insecure_local,
+        } => {
+            crate::commands::populi_lifecycle::run(
+                PopuliLifecycleCmd::Up {
+                    mode,
+                    scope,
+                    gpus,
+                    bind,
+                    overlay_provider,
+                    insecure_local,
+                },
+                global_json,
+            )
+            .await
+        }
+        PopuliCli::Down => {
+            crate::commands::populi_lifecycle::run(PopuliLifecycleCmd::Down, global_json).await
+        }
+        PopuliCli::Status { json } => {
+            crate::commands::populi_lifecycle::run(PopuliLifecycleCmd::Status { json }, global_json)
+                .await
+        }
+        PopuliCli::LocalStatus { registry, json } => {
             let path = registry.unwrap_or_else(vox_populi::local_registry_path);
             let reg = vox_populi::LocalRegistry::new(path.clone());
             let file = reg.load()?;
-            let env = vox_populi::mesh_env();
+            let env = vox_populi::populi_env();
             let self_id = env
                 .node_id
                 .clone()
@@ -46,7 +107,7 @@ pub async fn run(cmd: MeshCli, global_json: bool) -> anyhow::Result<()> {
             let as_json = json || global_json;
             if as_json {
                 let v = serde_json::json!({
-                    "mesh_env": env,
+                    "populi_env": env,
                     "registry_path": reg.path().display().to_string(),
                     "registry": file,
                     "self_record": self_record,
@@ -84,20 +145,20 @@ pub async fn run(cmd: MeshCli, global_json: bool) -> anyhow::Result<()> {
             }
             Ok(())
         }
-        MeshCli::Serve { bind, registry } => {
+        PopuliCli::Serve { bind, registry } => {
             let addr: SocketAddr = bind
                 .parse()
                 .with_context(|| format!("invalid --bind address: {bind}"))?;
             let state = if let Some(p) = registry {
-                vox_populi::transport::MeshTransportState::load_from_path(&p)
+                vox_populi::transport::PopuliTransportState::load_from_path(&p)
                     .await
                     .with_context(|| format!("load registry {}", p.display()))?
             } else {
-                vox_populi::transport::MeshTransportState::new_for_serve()
+                vox_populi::transport::PopuliTransportState::new_for_serve()
             };
             vox_populi::transport::serve(addr, state)
                 .await
-                .with_context(|| format!("mens HTTP serve on {addr}"))?;
+                .with_context(|| format!("populi HTTP serve on {addr}"))?;
             Ok(())
         }
     }

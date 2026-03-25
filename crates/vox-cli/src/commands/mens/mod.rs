@@ -44,7 +44,7 @@ use crate::commands::corpus::CorpusAction;
 #[cfg(feature = "gpu")]
 use crate::commands::schola::{merge_qlora, train};
 
-/// CLI mapping for `vox schola train --backend` → [`vox_mens::PopuliTrainBackend`].
+/// CLI mapping for `vox schola train --backend` → [`vox_populi::mens::PopuliTrainBackend`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum PopuliTrainBackendCli {
@@ -56,7 +56,7 @@ pub enum PopuliTrainBackendCli {
 }
 
 #[cfg(feature = "gpu")]
-impl From<PopuliTrainBackendCli> for vox_mens::PopuliTrainBackend {
+impl From<PopuliTrainBackendCli> for vox_populi::mens::PopuliTrainBackend {
     fn from(value: PopuliTrainBackendCli) -> Self {
         match value {
             PopuliTrainBackendCli::Lora => Self::BurnLora,
@@ -65,7 +65,7 @@ impl From<PopuliTrainBackendCli> for vox_mens::PopuliTrainBackend {
     }
 }
 
-/// CLI mapping for `vox schola train --tokenizer` → [`vox_mens::MensTokenizerMode`].
+/// CLI mapping for `vox schola train --tokenizer` → [`vox_populi::mens::MensTokenizerMode`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum MensTokenizerCli {
@@ -77,7 +77,7 @@ pub enum MensTokenizerCli {
 }
 
 #[cfg(feature = "gpu")]
-impl From<MensTokenizerCli> for vox_mens::MensTokenizerMode {
+impl From<MensTokenizerCli> for vox_populi::mens::MensTokenizerMode {
     fn from(value: MensTokenizerCli) -> Self {
         match value {
             MensTokenizerCli::Vox => Self::Vox,
@@ -86,7 +86,7 @@ impl From<MensTokenizerCli> for vox_mens::MensTokenizerMode {
     }
 }
 
-/// CLI mapping for `vox schola train --deployment-target` → [`vox_mens::TrainingDeploymentTarget`].
+/// CLI mapping for `vox schola train --deployment-target` → [`vox_populi::mens::TrainingDeploymentTarget`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum TrainingDeploymentTargetCli {
@@ -98,7 +98,7 @@ pub enum TrainingDeploymentTargetCli {
 }
 
 #[cfg(feature = "gpu")]
-impl From<TrainingDeploymentTargetCli> for vox_mens::TrainingDeploymentTarget {
+impl From<TrainingDeploymentTargetCli> for vox_populi::mens::TrainingDeploymentTarget {
     fn from(value: TrainingDeploymentTargetCli) -> Self {
         match value {
             TrainingDeploymentTargetCli::Workstation => Self::Workstation,
@@ -800,10 +800,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
                 {
-                    use vox_mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
-                    let config = vox_mens::cloud::CloudProviderConfig::default();
+                    use vox_populi::mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
+                    let config = vox_populi::mens::cloud::CloudProviderConfig::default();
                     let mut spec = CloudJobSpec::new_train(&config);
-                    spec.model_id = model.unwrap_or_else(|| vox_mens::DEFAULT_MODEL_ID.to_string());
+                    spec.model_id = model.unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
                     spec.train_data_hf = _train_data_hf;
                     spec.adapter_upload_hf = _adapter_upload_hf;
                     spec.max_budget_usd = _max_budget;
@@ -816,7 +816,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     // but we can pass a hint if we want.
                     spec.num_samples = 5000;
 
-                    let resolver = vox_mens::cloud::CloudResolver::new_from_env().await?;
+                    let resolver = vox_populi::mens::cloud::CloudResolver::new_from_env().await?;
                     return resolver.dispatch(spec, &cloud).await;
                 }
                 #[cfg(not(feature = "cloud"))]
@@ -952,7 +952,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 return crate::commands::schola::train::spawn_train_with_log(log_dir.clone());
             }
             let deployment_target = if preset.as_deref() == Some("mobile_edge") {
-                vox_mens::TrainingDeploymentTarget::MobileEdge
+                vox_populi::mens::TrainingDeploymentTarget::MobileEdge
             } else {
                 deployment_target.into()
             };
@@ -1011,18 +1011,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
                 {
-                    use vox_mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
-                    let config = vox_mens::cloud::CloudProviderConfig::default();
+                    use vox_populi::mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
+                    let config = vox_populi::mens::cloud::CloudProviderConfig::default();
                     let rt = _max_runtime_secs.ok_or_else(|| {
                         anyhow::anyhow!("--max-runtime-secs is REQUIRED for cloud serve")
                     })?;
                     let mut spec = CloudJobSpec::new_serve(&config, rt);
                     spec.model_id =
-                        _model_hf.unwrap_or_else(|| vox_mens::DEFAULT_MODEL_ID.to_string());
+                        _model_hf.unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
                     spec.max_budget_usd = _max_budget;
                     spec.serve_port = port;
 
-                    let resolver = vox_mens::cloud::CloudResolver::new_from_env().await?;
+                    let resolver = vox_populi::mens::cloud::CloudResolver::new_from_env().await?;
                     return resolver.dispatch(spec, &cloud).await;
                 }
                 #[cfg(not(feature = "cloud"))]
@@ -1468,8 +1468,8 @@ mod tests {
 
         use safetensors::SafeTensors;
         use safetensors::tensor::{Dtype, TensorView};
-        use vox_mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
-        use vox_mens::tensor::finetune_contract::{AdapterMethod, BaseQuantMode};
+        use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
+        use vox_populi::mens::tensor::finetune_contract::{AdapterMethod, BaseQuantMode};
 
         let dir = tempfile::tempdir().expect("tempdir");
         let d = 3usize;

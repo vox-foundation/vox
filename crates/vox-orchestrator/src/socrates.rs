@@ -3,6 +3,74 @@
 use serde::{Deserialize, Serialize};
 use vox_socrates_policy::{ConfidencePolicy, RiskBand, RiskDecision};
 
+/// Context-store key prefix shared with MCP (`vox_chat_message` stores JSON here per session).
+#[must_use]
+pub fn session_retrieval_envelope_key(session_id: &str) -> String {
+    format!("retrieval_envelope:{session_id}")
+}
+
+/// Retrieval telemetry shape persisted by MCP (extra fields ignored on deserialize).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionRetrievalEnvelope {
+    #[serde(default)]
+    pub retrieval_tier: String,
+    #[serde(default)]
+    pub memory_hit_count: usize,
+    #[serde(default)]
+    pub knowledge_hit_count: usize,
+    #[serde(default)]
+    pub used_vector: bool,
+    #[serde(default)]
+    pub used_bm25: bool,
+    #[serde(default)]
+    pub used_lexical_fallback: bool,
+    #[serde(default)]
+    pub contradiction_count: usize,
+}
+
+impl SessionRetrievalEnvelope {
+    /// Refreshes evidence fields from a new retrieval pass while preserving budget hints
+    /// (`risk_budget`, `factual_mode`) from a prior task context.
+    #[must_use]
+    pub fn merge_into(self, prev: Option<SocratesTaskContext>) -> SocratesTaskContext {
+        let fresh = self.to_task_context();
+        let Some(mut base) = prev else {
+            return fresh;
+        };
+        base.retrieval_tier = fresh.retrieval_tier;
+        base.retrieval_used_vector = fresh.retrieval_used_vector;
+        base.retrieval_used_lexical_fallback = fresh.retrieval_used_lexical_fallback;
+        base.required_citations = fresh.required_citations;
+        base.evidence_count = fresh.evidence_count;
+        base.contradiction_hints = fresh.contradiction_hints;
+        base
+    }
+
+    /// Maps envelope fields into task-level Socrates evidence (same contract as MCP bridging).
+    #[must_use]
+    pub fn to_task_context(&self) -> SocratesTaskContext {
+        let required_citations = if self.memory_hit_count == 0 && self.knowledge_hit_count == 0 {
+            1_u8
+        } else {
+            0_u8
+        };
+        let evidence_total = self
+            .memory_hit_count
+            .saturating_add(self.knowledge_hit_count)
+            .min(u8::MAX as usize) as u8;
+        SocratesTaskContext {
+            risk_budget: "normal".to_string(),
+            factual_mode: true,
+            required_citations,
+            evidence_count: evidence_total,
+            contradiction_hints: self.contradiction_count.min(u8::MAX as usize) as u8,
+            retrieval_tier: Some(self.retrieval_tier.clone()),
+            retrieval_used_vector: self.used_vector,
+            retrieval_used_lexical_fallback: self.used_lexical_fallback,
+        }
+    }
+}
+
 /// Structured evidence / risk hints attached to an [`crate::types::AgentTask`].
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SocratesTaskContext {
@@ -21,6 +89,15 @@ pub struct SocratesTaskContext {
     /// Unresolved contradictions the agent is aware of.
     #[serde(default)]
     pub contradiction_hints: u8,
+    /// Retrieval tier label (`hybrid`, `bm25`, `lexical_fallback`, ...), when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retrieval_tier: Option<String>,
+    /// True when vector evidence contributed to the retrieval context.
+    #[serde(default)]
+    pub retrieval_used_vector: bool,
+    /// True when retrieval had to fall back to lexical substring matching.
+    #[serde(default)]
+    pub retrieval_used_lexical_fallback: bool,
 }
 
 /// Result of applying the completion gate.
@@ -56,6 +133,12 @@ pub fn evaluate_socrates_gate(
     };
 
     let mut confidence = coverage;
+    if matches!(ctx.retrieval_tier.as_deref(), Some("hybrid") | Some("bm25")) {
+        confidence = (confidence + 0.05).clamp(0.0, 1.0);
+    }
+    if ctx.retrieval_used_lexical_fallback {
+        confidence = (confidence - 0.08).clamp(0.0, 1.0);
+    }
     if ctx.factual_mode && ctx.required_citations > 0 && ctx.evidence_count < ctx.required_citations
     {
         confidence *= policy.abstain_threshold;

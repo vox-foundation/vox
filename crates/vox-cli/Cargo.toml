@@ -32,20 +32,21 @@ oratio = ["mens-base", "dep:vox-oratio"]
 # Native Burn LoRA training + HF metadata (`vox schola train`, probe, merge-weights, eval-local).
 gpu = [
     "mens-base",
-    "dep:vox-mens",
+    "dep:vox-populi",
+    "vox-populi/mens",
+    "vox-populi/mens-train",
+    "vox-populi/mens-hf-hub",
     "dep:vox-tensor",
-    "vox-mens/train",
-    "vox-mens/hf-hub",
     "vox-tensor/train",
 ]
-# Back-compat alias: `gpu` already enables `vox-mens/candle-qlora` (native `--backend qlora`).
+# Back-compat alias: `gpu` already enables Candle QLoRA (native `--backend qlora`).
 mens-qlora = ["gpu"]
 # Candle qlora on NVIDIA CUDA (requires CUDA toolkit when compiling `candle-core`).
-mens-candle-cuda = ["gpu", "vox-mens/candle-qlora-cuda"]
+mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
 # Candle qlora on Apple Metal (macOS only).
 
 # Cloud GPU training/serving dispatch (Vast.ai, RunPod).
-cloud = ["gpu", "vox-mens/cloud"]
+cloud = ["gpu", "vox-populi/mens-cloud"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
@@ -140,7 +141,6 @@ chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
 vox-corpus = { workspace = true }
-vox-mens = { workspace = true, optional = true, default-features = false }
 vox-tensor = { workspace = true, optional = true }
 vox-runtime = { workspace = true }
 vox-protocol = { workspace = true }

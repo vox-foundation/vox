@@ -5,9 +5,10 @@ vox-cuda-release    = "build -p vox-cli --release --features gpu,mens-candle-cud
 vox-mens-dev      = "run -p vox-cli --features gpu --"
 # Optimized non-CUDA GPU build (Vulkan/Metal/CPU) — good for checking release perf before CUDA build.
 vox-mens-release  = "run -p vox-cli --release --features gpu --"
-# Dedicated vox-schola binary (GPU always-on, no compiler stack) — fastest incremental (~15 s).
+# Dedicated vox-schola binary (Candle QLoRA + CUDA by default) — fastest incremental (~15 s).
 vox-schola-dev       = "run -p vox-schola --"
-vox-schola-cuda      = "build -p vox-schola --release --features cuda"
+# Same as default release (cuda is default); kept for muscle memory.
+vox-schola-cuda      = "build -p vox-schola --release"
 
 [build]
 # Use all available CPU cores for rustc parallelism

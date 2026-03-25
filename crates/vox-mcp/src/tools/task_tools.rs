@@ -12,11 +12,30 @@ use crate::params::{
 };
 use crate::server::ServerState;
 
+fn socrates_context_from_retrieval(
+    retrieval: &crate::memory::RetrievalEvidenceEnvelope,
+) -> vox_orchestrator::SocratesTaskContext {
+    vox_orchestrator::SessionRetrievalEnvelope {
+        retrieval_tier: retrieval.retrieval_tier.clone(),
+        memory_hit_count: retrieval.memory_hit_count,
+        knowledge_hit_count: retrieval.knowledge_hit_count,
+        used_vector: retrieval.used_vector,
+        used_bm25: retrieval.used_bm25,
+        used_lexical_fallback: retrieval.used_lexical_fallback,
+        contradiction_count: retrieval.contradiction_count,
+    }
+    .to_task_context()
+}
+
 /// Submit a new task to the orchestrator (async).
 ///
 /// Routes the task to the best agent based on file affinity, acquires locks,
 /// and enqueues it for processing.
 pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> String {
+    // Session-scoped envelopes are attached inside `submit_task_with_agent`. MCP only overrides
+    // when the client passes an explicit `retrieval` payload (may differ from the store).
+    let explicit_retrieval = params.retrieval.as_ref();
+
     // Phase 7.3: Scope enforcement
     if let Some(agent_name) = &params.agent_name {
         if let Some(scopes) = load_agent_scopes(&state.repository.root, agent_name) {
@@ -120,6 +139,16 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     };
     match submit_result {
         Ok(task_id) => {
+            if let Some(retrieval) = explicit_retrieval {
+                let soc = socrates_context_from_retrieval(retrieval);
+                if let Err(e) = orch.attach_socrates_context(task_id, soc) {
+                    tracing::warn!(
+                        task_id = task_id.0,
+                        error = %e,
+                        "failed to attach Socrates retrieval context to submitted task"
+                    );
+                }
+            }
             if let Some((_, Some(ref w), _)) = canonical_info {
                 if !w.is_empty() {
                     orch.event_bus()

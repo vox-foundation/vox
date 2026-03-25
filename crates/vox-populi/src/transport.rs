@@ -10,7 +10,7 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use axum::body::Body;
 use axum::extract::State;
@@ -24,7 +24,7 @@ use subtle::ConstantTimeEq;
 use tokio::sync::RwLock;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::TraceLayer;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
@@ -99,18 +99,37 @@ pub struct A2AAckRequest {
     pub message_id: u64,
 }
 
+/// Request a one-time bootstrap exchange for mesh join.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BootstrapExchangeRequest {
+    /// Ephemeral bootstrap token provisioned by `vox populi up`.
+    pub bootstrap_token: String,
+}
+
+/// Response payload for bootstrap exchange.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BootstrapExchangeResponse {
+    /// Long-lived mesh bearer token (same as `VOX_MESH_TOKEN`).
+    pub mesh_token: String,
+    /// Optional scope id to join.
+    pub scope_id: Option<String>,
+}
+
 /// Shared registry state for the HTTP server (in-memory; optionally persisted by callers).
 #[derive(Clone)]
-pub struct MeshTransportState {
+pub struct PopuliTransportState {
     inner: Arc<RwLock<PopuliRegistryFile>>,
     a2a_messages: Arc<RwLock<Vec<A2AStoredMessage>>>,
     a2a_id_gen: Arc<AtomicU64>,
     a2a_store_path: Option<PathBuf>,
+    bootstrap_token: Option<Arc<str>>,
+    bootstrap_expires_unix_ms: Option<u64>,
+    bootstrap_used: Arc<AtomicBool>,
     /// When set, join/heartbeat must send the same [`NodeRecord::scope_id`].
     pub required_scope: Option<Arc<str>>,
 }
 
-impl MeshTransportState {
+impl PopuliTransportState {
     /// New empty in-memory registry; does **not** read `VOX_MESH_SCOPE_ID` (for tests).
     #[must_use]
     pub fn new() -> Self {
@@ -132,6 +151,9 @@ impl MeshTransportState {
             a2a_messages: Arc::new(RwLock::new(Vec::new())),
             a2a_id_gen: Arc::new(AtomicU64::new(1)),
             a2a_store_path: None,
+            bootstrap_token: None,
+            bootstrap_expires_unix_ms: None,
+            bootstrap_used: Arc::new(AtomicBool::new(false)),
             required_scope,
         }
     }
@@ -139,7 +161,7 @@ impl MeshTransportState {
     /// Same as [`Self::new`] but sets [`Self::required_scope`] from **`VOX_MESH_SCOPE_ID`** when set.
     #[must_use]
     pub fn new_for_serve() -> Self {
-        let mut s = Self::with_required_scope(crate::mesh_scope_id_from_env());
+        let mut s = Self::with_required_scope(crate::populi_scope_id_from_env());
         let store_path = a2a_store_path_from_env();
         if let Some(path) = &store_path
             && let Ok(existing) = load_a2a_store(path)
@@ -154,6 +176,15 @@ impl MeshTransportState {
             s.a2a_id_gen = Arc::new(AtomicU64::new(next_id));
         }
         s.a2a_store_path = store_path;
+        s.bootstrap_token = std::env::var("VOX_MESH_BOOTSTRAP_TOKEN")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .map(Arc::from);
+        s.bootstrap_expires_unix_ms = std::env::var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS")
+            .ok()
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .filter(|ms| *ms > crate::now_ms());
         s
     }
 
@@ -185,7 +216,10 @@ impl MeshTransportState {
             a2a_messages: Arc::new(RwLock::new(rows)),
             a2a_id_gen: Arc::new(AtomicU64::new(next_id)),
             a2a_store_path: store_path,
-            required_scope: crate::mesh_scope_id_from_env().map(|s| Arc::from(s.into_boxed_str())),
+            bootstrap_token: None,
+            bootstrap_expires_unix_ms: None,
+            bootstrap_used: Arc::new(AtomicBool::new(false)),
+            required_scope: crate::populi_scope_id_from_env().map(|s| Arc::from(s.into_boxed_str())),
         })
     }
 }
@@ -225,13 +259,13 @@ fn persist_a2a_store(
     Ok(())
 }
 
-impl Default for MeshTransportState {
+impl Default for PopuliTransportState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-fn scope_ok(state: &MeshTransportState, node: &NodeRecord) -> bool {
+fn scope_ok(state: &PopuliTransportState, node: &NodeRecord) -> bool {
     match &state.required_scope {
         None => true,
         Some(req) => node.scope_id.as_deref().is_some_and(|s| s == req.as_ref()),
@@ -242,16 +276,17 @@ async fn health() -> impl IntoResponse {
     (StatusCode::OK, "ok\n")
 }
 
-async fn list_nodes(State(st): State<MeshTransportState>) -> Json<PopuliRegistryFile> {
+async fn list_nodes(State(st): State<PopuliTransportState>) -> Json<PopuliRegistryFile> {
     let g = st.inner.read().await;
     Json(g.clone())
 }
 
 async fn join_node(
-    State(st): State<MeshTransportState>,
+    State(st): State<PopuliTransportState>,
     Json(mut node): Json<NodeRecord>,
 ) -> Result<Json<NodeRecord>, ResponseErr> {
     if !scope_ok(&st, &node) {
+        warn!(node_id = %node.id, "join rejected: populi scope mismatch");
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi scope mismatch: set VOX_MESH_SCOPE_ID to match server",
@@ -268,10 +303,11 @@ async fn join_node(
 }
 
 async fn heartbeat(
-    State(st): State<MeshTransportState>,
+    State(st): State<PopuliTransportState>,
     Json(mut node): Json<NodeRecord>,
 ) -> Result<Json<NodeRecord>, ResponseErr> {
     if !scope_ok(&st, &node) {
+        warn!(node_id = %node.id, "heartbeat rejected: populi scope mismatch");
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi scope mismatch: set VOX_MESH_SCOPE_ID to match server",
@@ -303,7 +339,7 @@ impl IntoResponse for ResponseErr {
 }
 
 async fn leave_node(
-    State(st): State<MeshTransportState>,
+    State(st): State<PopuliTransportState>,
     Json(req): Json<LeaveRequest>,
 ) -> StatusCode {
     let mut g = st.inner.write().await;
@@ -312,12 +348,54 @@ async fn leave_node(
     if g.nodes.len() < before {
         StatusCode::NO_CONTENT
     } else {
+        warn!(node_id = %req.id, "leave requested for unknown node");
         StatusCode::NOT_FOUND
     }
 }
 
+async fn bootstrap_exchange(
+    State(st): State<PopuliTransportState>,
+    Json(req): Json<BootstrapExchangeRequest>,
+) -> Result<Json<BootstrapExchangeResponse>, ResponseErr> {
+    let Some(expected) = st.bootstrap_token.as_ref() else {
+        return Err(ResponseErr(
+            StatusCode::NOT_FOUND,
+            "bootstrap exchange is not enabled",
+        ));
+    };
+    if st.bootstrap_used.swap(true, Ordering::SeqCst) {
+        warn!("bootstrap exchange rejected: token already used");
+        return Err(ResponseErr(
+            StatusCode::GONE,
+            "bootstrap token already consumed",
+        ));
+    }
+    if let Some(expires) = st.bootstrap_expires_unix_ms
+        && crate::now_ms() > expires
+    {
+        warn!("bootstrap exchange rejected: token expired");
+        return Err(ResponseErr(StatusCode::GONE, "bootstrap token expired"));
+    }
+    if !bearer_token_eq(expected.as_ref(), req.bootstrap_token.trim()) {
+        warn!("bootstrap exchange rejected: invalid token");
+        return Err(ResponseErr(
+            StatusCode::UNAUTHORIZED,
+            "invalid bootstrap token",
+        ));
+    }
+    let mesh_token = populi_control_token_from_env().ok_or(ResponseErr(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "server missing VOX_MESH_TOKEN",
+    ))?;
+    info!("bootstrap exchange granted");
+    Ok(Json(BootstrapExchangeResponse {
+        mesh_token,
+        scope_id: crate::populi_scope_id_from_env(),
+    }))
+}
+
 async fn deliver_a2a(
-    State(st): State<MeshTransportState>,
+    State(st): State<PopuliTransportState>,
     Json(req): Json<A2ADeliverRequest>,
 ) -> Json<A2ADeliverResponse> {
     let id = st.a2a_id_gen.fetch_add(1, Ordering::Relaxed);
@@ -342,7 +420,7 @@ async fn deliver_a2a(
 }
 
 async fn a2a_inbox(
-    State(st): State<MeshTransportState>,
+    State(st): State<PopuliTransportState>,
     Json(req): Json<A2AInboxRequest>,
 ) -> Json<A2AInboxResponse> {
     let g = st.a2a_messages.read().await;
@@ -355,7 +433,7 @@ async fn a2a_inbox(
 }
 
 async fn a2a_ack(
-    State(st): State<MeshTransportState>,
+    State(st): State<PopuliTransportState>,
     Json(req): Json<A2AAckRequest>,
 ) -> StatusCode {
     let mut g = st.a2a_messages.write().await;
@@ -390,10 +468,10 @@ fn bearer_token_eq(expected: &str, presented: &str) -> bool {
     a.ct_eq(b).into()
 }
 
-/// Bearer authentication mode for [`mesh_http_app_with_auth`].
+/// Bearer authentication mode for [`populi_http_app_with_auth`].
 #[derive(Clone, Debug)]
-pub enum MeshHttpAuth {
-    /// Read `VOX_MESH_TOKEN` once when building the router (used by [`mesh_http_app`] / [`serve`]).
+pub enum PopuliHttpAuth {
+    /// Read `VOX_MESH_TOKEN` once when building the router (used by [`populi_http_app`] / [`serve`]).
     FromEnv,
     /// No bearer check (e.g. integration tests; explicit open control plane).
     Open,
@@ -401,29 +479,30 @@ pub enum MeshHttpAuth {
     Bearer(String),
 }
 
-/// Inner control-plane router (no auth layer). Prefer [`mesh_http_app`] for serving.
-pub fn router(state: MeshTransportState) -> Router {
+/// Inner control-plane router (no auth layer). Prefer [`populi_http_app`] for serving.
+pub fn router(state: PopuliTransportState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/v1/populi/nodes", get(list_nodes))
         .route("/v1/populi/join", post(join_node))
         .route("/v1/populi/heartbeat", post(heartbeat))
         .route("/v1/populi/leave", post(leave_node))
+        .route("/v1/populi/bootstrap/exchange", post(bootstrap_exchange))
         .route("/v1/populi/a2a/deliver", post(deliver_a2a))
         .route("/v1/populi/a2a/inbox", post(a2a_inbox))
         .route("/v1/populi/a2a/ack", post(a2a_ack))
         .with_state(state)
 }
 
-/// Same as [`mesh_http_app`] but with an explicit auth mode (avoids process-global env in tests).
+/// Same as [`populi_http_app`] but with an explicit auth mode (avoids process-global env in tests).
 ///
 /// The expected bearer value is **captured at build time** (not re-read on every request).
-pub fn mesh_http_app_with_auth(state: MeshTransportState, auth: MeshHttpAuth) -> Router {
+pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAuth) -> Router {
     let r = router(state);
     let expected: Option<Arc<str>> = match auth {
-        MeshHttpAuth::FromEnv => populi_control_token_from_env().map(Arc::from),
-        MeshHttpAuth::Open => None,
-        MeshHttpAuth::Bearer(t) => {
+        PopuliHttpAuth::FromEnv => populi_control_token_from_env().map(Arc::from),
+        PopuliHttpAuth::Open => None,
+        PopuliHttpAuth::Bearer(t) => {
             let t = t.trim().to_string();
             if t.is_empty() {
                 None
@@ -447,6 +526,7 @@ pub fn mesh_http_app_with_auth(state: MeshTransportState, auth: MeshHttpAuth) ->
                         .and_then(|s| s.strip_prefix("Bearer "))
                         .is_some_and(|t| bearer_token_eq(expected.as_ref(), t));
                     if !ok {
+                        warn!(path = %req.uri().path(), "populi bearer auth rejected request");
                         return (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
                     }
                     next.run(req).await
@@ -463,14 +543,48 @@ pub fn mesh_http_app_with_auth(state: MeshTransportState, auth: MeshHttpAuth) ->
 }
 
 /// Full app: same routes as [`router`], plus optional `VOX_MESH_TOKEN` bearer check (except `/health`).
-pub fn mesh_http_app(state: MeshTransportState) -> Router {
-    mesh_http_app_with_auth(state, MeshHttpAuth::FromEnv)
+pub fn populi_http_app(state: PopuliTransportState) -> Router {
+    populi_http_app_with_auth(state, PopuliHttpAuth::FromEnv)
 }
 
 /// Bind and serve until error (Ctrl+C stops the process).
-pub async fn serve(addr: SocketAddr, state: MeshTransportState) -> Result<(), std::io::Error> {
+pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!(%addr, "vox-populi HTTP control plane listening");
-    let app = mesh_http_app(state);
+    let app = populi_http_app(state);
     axum::serve(listener, app).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn populi_routes_exist_and_legacy_mens_routes_are_absent() {
+        let app = router(PopuliTransportState::new());
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.expect("serve");
+        });
+
+        let client = reqwest::Client::new();
+        let ok = client
+            .get(format!("http://{addr}/v1/populi/nodes"))
+            .send()
+            .await
+            .expect("GET populi nodes");
+        assert_eq!(ok.status(), StatusCode::OK);
+
+        let missing = client
+            .get(format!("http://{addr}/v1/mens/nodes"))
+            .send()
+            .await
+            .expect("GET legacy mens nodes");
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+        server.abort();
+    }
 }

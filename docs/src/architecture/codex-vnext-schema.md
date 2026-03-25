@@ -8,7 +8,7 @@ training_eligible: true
 
 # Codex vNext — schema domains
 
-This document is the **design SSOT** for how relational tables are grouped after the greenfield cut. Implementation lives in [`crates/vox-pm/src/schema/`](../../../crates/vox-db/src/schema/mod.rs) as ordered **manifest fragments** (`v1`…`v17` sources) concatenated into one baseline DDL; the database records a single `schema_version` row (**1**). Notable slices: **v11–v15** (chat, tool calls, usage, topics, search ingest), **v16** (processing runs + audit), **v17** (research sessions, conversation versions/edges, topic evolution).
+This document is the **design SSOT** for how relational tables are grouped after the greenfield cut. Implementation lives in [`crates/vox-db/src/schema/`](../../../crates/vox-db/src/schema/mod.rs) as ordered **domain fragments** concatenated into one baseline DDL; the database records a `schema_version` row equal to [`BASELINE_VERSION`](../../../crates/vox-db/src/schema/manifest.rs) (see [`contracts/db/baseline-version-policy.yaml`](../../../contracts/db/baseline-version-policy.yaml)). Historical docs referred to fragment labels `v1`…`v17`; the active layout is domain-scoped under `schema/domains/`. Notable areas: chat and search ingest, processing/audit, research sessions / conversation graph.
 
 **Naming:** **Codex** = public platform DB. **Arca** = internal schema/CAS owner (`CodeStore`). Engine = **Turso** only.
 
@@ -43,10 +43,10 @@ This document is the **design SSOT** for how relational tables are grouped after
 | **Import from legacy** | Rows mapped by explicit Rust importers in `vox_db::codex_legacy` (see crate docs) |
 | **Defer / drop from default baseline** | Gamification (`gamify_*`) if no release owner; experimental builder-only tables without callers — re-add via migration when owned |
 
-## Adding schema slices (baseline V1)
+## Adding schema slices (baseline DDL)
 
-- New DDL belongs in a **new fragment file** under `crates/vox-pm/src/schema/` and a matching entry in [`SCHEMA_FRAGMENTS`](../../../crates/vox-db/src/schema/manifest.rs) (append-only order). Do **not** introduce new `schema_version` integers for Arca — the live DB stays at baseline **1**.
-- **Digest:** `vox_pm::schema::schema_baseline_digest_hex` hashes the concatenated baseline SQL; HTTP `/ready` and operators can compare **required tables** + digest (see `vox_db::codex_schema`, `vox-codex-api`).
+- New DDL belongs in a **domain module** under `crates/vox-db/src/schema/domains/` and a matching entry in [`SCHEMA_FRAGMENTS`](../../../crates/vox-db/src/schema/manifest.rs) (append-only order). Bump **`BASELINE_VERSION`** only with a coordinated migration story (policy: `contracts/db/baseline-version-policy.yaml`).
+- **Digest:** `vox_db::schema::schema_baseline_digest_hex` hashes the concatenated baseline SQL; HTTP `/ready` and operators compare **required tables** + digest (see `vox_db::codex_schema`, `vox-codex-api`).
 - **v1–v7:** Historical slice layout; **v7** remains an empty fragment (no-op).
 - **v8:** Codex reactivity + schema lineage (append-only).
 - **v9+:** Domain-scoped changes; prefer small fragment files over monolithic SQL.

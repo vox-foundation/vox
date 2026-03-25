@@ -3,6 +3,7 @@
 pub mod build_timings;
 mod check_links;
 mod command_compliance;
+mod contracts_index;
 mod eval_matrix;
 mod line_endings;
 mod release_build;
@@ -72,6 +73,12 @@ pub enum CiCmd {
     /// Codex / Arca SSOT file and OpenAPI substring guard.
     #[command(name = "check-codex-ssot")]
     CheckCodexSsot,
+    /// Validate `contracts/index.yaml` against JSON Schema and listed file paths.
+    #[command(name = "contracts-index")]
+    ContractsIndex,
+    /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
+    #[command(name = "ssot-drift")]
+    SsotDrift,
     /// `cargo check -p vox-cli` for each supported feature set.
     #[command(name = "feature-matrix")]
     FeatureMatrix,
@@ -236,7 +243,7 @@ const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/architecture/crate-topology-buckets.md",
     "docs/src/architecture/deployment-compose-ssot.md",
     "docs/src/architecture/mens-training-ssot.md",
-    "docs/src/how-to-train-mens-4080.md",
+    "docs/src/how-to/how-to-train-mens-4080.md",
     "docs/src/architecture/phase0-migration-signoff.md",
     "docs/src/architecture/migration-script-dashboard.md",
     "docs/src/architecture/vox-automation-primitives.md",
@@ -254,6 +261,10 @@ const DOCS_SSOT_FILES: &[&str] = &[
 ];
 
 const CODEX_SSOT_FILES: &[&str] = &[
+    "contracts/index.yaml",
+    "contracts/index.schema.json",
+    "contracts/db/baseline-version-policy.yaml",
+    "contracts/reports/evidence-snapshot-rev-c.json",
     "contracts/codex-api.openapi.yaml",
     "docs/src/adr/004-codex-arca-turso-ssot.md",
     "docs/src/architecture/codex-vnext-schema.md",
@@ -280,7 +291,6 @@ const MANIFEST_SNIPPETS: &[&str] = &[
     "BASELINE_VERSION",
     "SCHEMA_FRAGMENTS",
     "schema_baseline_digest_hex",
-    "pub const BASELINE_VERSION: i64 = 1",
 ];
 
 const FEATURE_SETS: &[&str] = &[
@@ -311,6 +321,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
+        CiCmd::ContractsIndex => contracts_index::run(&root),
+        CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoVoxDeiImport => check_no_vox_dei(&root),
         CiCmd::CheckSummaryDrift => {
@@ -735,6 +747,58 @@ fn read_package_name(toml_path: &Path) -> Result<String> {
     ))
 }
 
+fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
+    let policy_path = root.join("contracts/db/baseline-version-policy.yaml");
+    let raw = fs::read_to_string(&policy_path)
+        .with_context(|| format!("read {}", policy_path.display()))?;
+    let v: serde_yaml::Value =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", policy_path.display()))?;
+    let expected = v
+        .get("policy")
+        .and_then(|p| p.get("repository_baseline_integer"))
+        .and_then(|x| x.as_i64())
+        .ok_or_else(|| {
+            anyhow!(
+                "{}: missing policy.repository_baseline_integer",
+                policy_path.display()
+            )
+        })?;
+    let manifest_path = root.join("crates/vox-db/src/schema/manifest.rs");
+    let man = fs::read_to_string(&manifest_path)
+        .with_context(|| format!("read {}", manifest_path.display()))?;
+    let re = regex::Regex::new(r"pub const BASELINE_VERSION:\s*i64\s*=\s*(\d+)")
+        .expect("BASELINE_VERSION parse regex");
+    let got = man
+        .lines()
+        .find_map(|line| {
+            re.captures(line)
+                .and_then(|c| c.get(1)?.as_str().parse::<i64>().ok())
+        })
+        .ok_or_else(|| {
+            anyhow!(
+                "could not parse BASELINE_VERSION from {}",
+                manifest_path.display()
+            )
+        })?;
+    if got != expected {
+        return Err(anyhow!(
+            "baseline mismatch: {} has repository_baseline_integer={expected}, {} has BASELINE_VERSION={got}",
+            policy_path.display(),
+            manifest_path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn run_ssot_drift(root: &Path) -> Result<()> {
+    check_docs_ssot(root)?;
+    check_codex_ssot(root)?;
+    command_compliance::run(root)?;
+    contracts_index::run(root)?;
+    println!("ssot-drift: nested SSOT guards OK");
+    Ok(())
+}
+
 fn check_codex_ssot(root: &Path) -> Result<()> {
     for rel in CODEX_SSOT_FILES {
         let p = root.join(rel);
@@ -742,13 +806,14 @@ fn check_codex_ssot(root: &Path) -> Result<()> {
             return Err(anyhow!("missing: {}", p.display()));
         }
     }
-    let m = root.join("crates/vox-pm/src/schema/manifest.rs");
-    let manifest = fs::read_to_string(&m)?;
+    let m = root.join("crates/vox-db/src/schema/manifest.rs");
+    let manifest = fs::read_to_string(&m).with_context(|| format!("read {}", m.display()))?;
     for needle in MANIFEST_SNIPPETS {
         if !manifest.contains(needle) {
-            return Err(anyhow!("manifest.rs must contain or match: {needle}"));
+            return Err(anyhow!("{} must contain substring: {needle}", m.display()));
         }
     }
+    verify_baseline_policy_alignment(root)?;
     let o = root.join("contracts/codex-api.openapi.yaml");
     let o_text = fs::read_to_string(&o)?;
     for needle in OPENAPI_SUBSTRINGS {
@@ -1065,7 +1130,13 @@ fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result<()> {
             ("check_vox_oratio", &["check", "-p", "vox-oratio"]),
             (
                 "check_vox_mens_train",
-                &["check", "-p", "vox-mens", "--features", "train"],
+                &[
+                    "check",
+                    "-p",
+                    "vox-populi",
+                    "--features",
+                    "mens,mens-train",
+                ],
             ),
             (
                 "check_vox_cli_populi_oratio",

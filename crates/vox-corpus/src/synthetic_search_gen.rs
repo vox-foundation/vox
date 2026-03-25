@@ -141,7 +141,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         (
             "How does QLoRA training work with Vox Mens?",
             "QLoRA candle training pipeline",
-            "crates/vox-mens/src/tensor/candle_qlora_train.rs",
+            "crates/vox-populi/src/mens/tensor/candle_qlora_train.rs",
             "QLoRA training uses Candle + qlora-rs: NF4 frozen projection/LM-head linears + trainable LoRA adapters. Training data is loaded from JSONL, tokenized with ChatML format, and trained with causal language modeling loss.",
         ),
         (

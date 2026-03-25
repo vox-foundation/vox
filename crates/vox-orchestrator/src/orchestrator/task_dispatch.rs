@@ -15,6 +15,32 @@ use crate::types::{
 use super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, TaskTraceStep};
 
 impl Orchestrator {
+    /// If the context store holds a session-scoped retrieval envelope, attach it to the task.
+    fn attach_session_retrieval_envelope_if_present(
+        &self,
+        task_id: TaskId,
+        session_id: &Option<String>,
+    ) {
+        let Some(sid) = session_id.as_ref() else {
+            return;
+        };
+        let key = crate::socrates::session_retrieval_envelope_key(sid);
+        let raw_opt = crate::sync_lock::rw_read(&*self.context_store).get(&key);
+        if let Some(raw) = raw_opt {
+            if let Ok(env) =
+                serde_json::from_str::<crate::socrates::SessionRetrievalEnvelope>(&raw)
+            {
+                if let Err(e) = self.attach_socrates_context(task_id, env.to_task_context()) {
+                    tracing::debug!(
+                        task_id = task_id.0,
+                        error = %e,
+                        "session retrieval envelope parse OK but Socrates attach failed"
+                    );
+                }
+            }
+        }
+    }
+
     /// Submit a higher-level goal that may be routed through planning.
     pub async fn submit_goal(
         &self,
@@ -327,6 +353,8 @@ impl Orchestrator {
             );
         }
 
+        self.attach_session_retrieval_envelope_if_present(task_id, &session_id);
+
         Ok(task_id)
     }
 
@@ -360,6 +388,29 @@ impl Orchestrator {
             let _ = crate::sync_lock::rw_write(&**q_lock).attach_planning_meta(task_id, &meta);
         }
         Ok(task_id)
+    }
+
+    /// Attach Socrates evidence context to an already submitted task.
+    pub fn attach_socrates_context(
+        &self,
+        task_id: TaskId,
+        ctx: crate::socrates::SocratesTaskContext,
+    ) -> Result<(), OrchestratorError> {
+        let agent_id = crate::sync_lock::rw_read(&*self.task_assignments)
+            .get(&task_id)
+            .copied()
+            .ok_or(OrchestratorError::TaskNotFound(task_id))?;
+        let agents = crate::sync_lock::rw_read(&*self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
+            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let attached =
+            crate::sync_lock::rw_write(&**queue_lock).attach_socrates_context(task_id, ctx);
+        if attached {
+            Ok(())
+        } else {
+            Err(OrchestratorError::TaskNotFound(task_id))
+        }
     }
 
     /// Submit a batch of interdependent tasks (async).
@@ -487,6 +538,7 @@ impl Orchestrator {
             .await;
 
             self.record_activity();
+            let session_id_for_retrieval = task.session_id.clone();
             // Enqueue
             let handle_to_notify = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
@@ -553,6 +605,8 @@ impl Orchestrator {
                 );
             }
 
+            self.attach_session_retrieval_envelope_if_present(my_id, &session_id_for_retrieval);
+
             results.push(my_id);
         }
 
@@ -597,7 +651,7 @@ impl Orchestrator {
             None
         };
 
-        let remote_hints = crate::sync_lock::rw_read(&*self.remote_mesh_routing_hints);
+        let remote_hints = crate::sync_lock::rw_read(&*self.remote_populi_routing_hints);
         let remote = if remote_hints.is_empty() {
             None
         } else {
@@ -714,6 +768,19 @@ impl Orchestrator {
                             && task.debug_iterations < config.max_debug_iterations
                         {
                             let mut t = task.clone();
+                            if let Some(ref sid) = t.session_id {
+                                let key = crate::socrates::session_retrieval_envelope_key(sid);
+                                let raw_opt =
+                                    crate::sync_lock::rw_read(&*self.context_store).get(&key);
+                                if let Some(raw) = raw_opt {
+                                    if let Ok(env) = serde_json::from_str::<
+                                        crate::socrates::SessionRetrievalEnvelope,
+                                    >(&raw)
+                                    {
+                                        t.socrates = Some(env.merge_into(t.socrates.clone()));
+                                    }
+                                }
+                            }
                             t.debug_iterations += 1;
                             t.description.push_str(&format!(
                                 "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.\n",

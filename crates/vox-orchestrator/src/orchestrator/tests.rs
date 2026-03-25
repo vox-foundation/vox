@@ -51,6 +51,50 @@ mod orch_smoke {
     }
 
     #[tokio::test]
+    async fn submit_seeds_socrates_from_session_retrieval_envelope_key() {
+        let orch = test_orchestrator();
+        let sid = "orch-test-session";
+        let key = crate::socrates::session_retrieval_envelope_key(sid);
+        let env = crate::socrates::SessionRetrievalEnvelope {
+            retrieval_tier: "hybrid".to_string(),
+            memory_hit_count: 2,
+            knowledge_hit_count: 1,
+            used_vector: true,
+            used_bm25: true,
+            used_lexical_fallback: false,
+            contradiction_count: 0,
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        orch.context_store
+            .write()
+            .unwrap()
+            .set(crate::types::AgentId(0), key, json, 0);
+
+        let tid = orch
+            .submit_task(
+                "task with session",
+                vec![FileAffinity::read("README.md")],
+                None,
+                Some(sid.to_string()),
+            )
+            .await
+            .expect("submit");
+
+        let aid = *orch.task_assignments.read().unwrap().get(&tid).unwrap();
+        let q_lock = orch.agent_queue(aid).unwrap();
+        let q = q_lock.read().unwrap();
+        let t = q
+            .tasks()
+            .iter()
+            .find(|t| t.id == tid)
+            .expect("queued task");
+        let soc = t.socrates.as_ref().expect("socrates from context store");
+        assert_eq!(soc.retrieval_tier.as_deref(), Some("hybrid"));
+        assert_eq!(soc.evidence_count, 3);
+        assert!(soc.retrieval_used_vector);
+    }
+
+    #[tokio::test]
     async fn same_file_routes_to_same_agent() {
         let orch = test_orchestrator();
         let t1 = orch
@@ -297,6 +341,9 @@ mod orch_smoke {
             evidence_count: 0,
             contradiction_hints: 0,
             risk_budget: "high".to_string(),
+            retrieval_tier: None,
+            retrieval_used_vector: false,
+            retrieval_used_lexical_fallback: false,
         });
         {
             let queue_lock = orch.agent_queue(agent_id).expect("queue");

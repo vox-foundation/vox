@@ -291,7 +291,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         vcs_active_workspaces,
         vcs_active_changes,
         populi_control_url,
-        mesh_http_timeout_ms,
+        populi_http_timeout_ms,
     ) = {
         let orch = &state.orchestrator;
         let handle = orch.config_handle();
@@ -318,12 +318,12 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
                 .list_changes(None, usize::MAX)
                 .len(),
             cfg.populi_control_url.clone(),
-            cfg.mesh_http_timeout_ms,
+            cfg.populi_http_timeout_ms,
         )
     };
 
     let populi_federation_cache =
-        serde_json::to_value(state.mesh_remote_snapshot.read().unwrap().clone()).ok();
+        serde_json::to_value(state.populi_remote_snapshot.read().unwrap().clone()).ok();
 
     let max_stale_ms: Option<u64> = std::env::var("VOX_MESH_MAX_STALE_MS")
         .ok()
@@ -334,8 +334,8 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         .as_ref()
         .filter(|s: &&String| !s.trim().is_empty())
     {
-        let timeout = std::time::Duration::from_millis(mesh_http_timeout_ms.max(500_u64));
-        let client = vox_populi::http_client::MeshHttpClient::new_with_timeout(url, timeout)
+        let timeout = std::time::Duration::from_millis(populi_http_timeout_ms.max(500_u64));
+        let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(url, timeout)
             .with_env_token();
         match client.list_nodes().await {
             Ok(f) => {

@@ -202,21 +202,24 @@ pub struct OrchestratorConfig {
     /// Configuration for the session lifecycle manager.
     #[serde(default)]
     pub session: SessionConfig,
-    /// Optional mens HTTP control plane base URL (`GET /v1/mens/nodes`) for read-only status federation.
+    /// Optional mens HTTP control plane base URL (`GET /v1/populi/nodes`) for read-only status federation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub populi_control_url: Option<String>,
     /// Optional mens cluster / tenancy id from `Vox.toml` `[mens].scope_id` or `VOX_MESH_SCOPE_ID` (env wins).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mesh_scope_id: Option<String>,
-    /// Background poll interval (seconds) for MCP mens federation cache; `0` disables the poller.
-    #[serde(default = "default_mesh_poll_interval_secs")]
-    pub mesh_poll_interval_secs: u64,
-    /// HTTP client timeout (milliseconds) for mens control plane `GET /v1/mens/nodes`.
-    #[serde(default = "default_mesh_http_timeout_ms")]
-    pub mesh_http_timeout_ms: u64,
-    /// Experimental: use remote mens node labels when scoring routes (no remote task execution).
-    #[serde(default = "default_false")]
-    pub mesh_routing_experimental: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mesh_scope_id")]
+    pub populi_scope_id: Option<String>,
+    /// Background poll interval (seconds) for MCP populi federation cache; `0` disables the poller.
+    #[serde(default = "default_populi_poll_interval_secs", alias = "mesh_poll_interval_secs")]
+    pub populi_poll_interval_secs: u64,
+    /// HTTP client timeout (milliseconds) for populi control plane `GET /v1/populi/nodes`.
+    #[serde(default = "default_populi_http_timeout_ms", alias = "mesh_http_timeout_ms")]
+    pub populi_http_timeout_ms: u64,
+    /// Experimental: use remote populi node labels when scoring routes (no remote task execution).
+    #[serde(default = "default_false", alias = "mesh_routing_experimental")]
+    pub populi_routing_experimental: bool,
+    /// Experimental: allow remote task-envelope dispatch over populi A2A relay with local fallback.
+    #[serde(default = "default_false", alias = "mesh_remote_execute_experimental")]
+    pub populi_remote_execute_experimental: bool,
     /// When true, MCP tool LLM calls collapse system/user turns into a single string
     /// formatted with `<|im_start|>` markers instead of JSON message arrays.
     #[serde(default = "default_false")]
@@ -408,11 +411,11 @@ fn default_urgent_rebalance_threshold() -> usize {
     3
 }
 
-fn default_mesh_poll_interval_secs() -> u64 {
+fn default_populi_poll_interval_secs() -> u64 {
     30
 }
 
-fn default_mesh_http_timeout_ms() -> u64 {
+fn default_populi_http_timeout_ms() -> u64 {
     10_000
 }
 
@@ -469,7 +472,7 @@ fn apply_vox_populi_toml(config: &mut OrchestratorConfig, mens: &vox_repository:
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        config.mesh_scope_id = Some(sid.to_string());
+        config.populi_scope_id = Some(sid.to_string());
     }
     if let Some(labels) = mens.labels.as_ref() {
         for lab in labels {
@@ -535,10 +538,11 @@ impl Default for OrchestratorConfig {
             socrates_policy: None,
             socrates_reputation_weight: default_socrates_reputation_weight(),
             populi_control_url: None,
-            mesh_scope_id: None,
-            mesh_poll_interval_secs: default_mesh_poll_interval_secs(),
-            mesh_http_timeout_ms: default_mesh_http_timeout_ms(),
-            mesh_routing_experimental: default_false(),
+            populi_scope_id: None,
+            populi_poll_interval_secs: default_populi_poll_interval_secs(),
+            populi_http_timeout_ms: default_populi_http_timeout_ms(),
+            populi_routing_experimental: default_false(),
+            populi_remote_execute_experimental: default_false(),
             chatml_strict: default_false(),
             planning_enabled: default_false(),
             planning_router_enabled: default_false(),
@@ -803,30 +807,37 @@ impl OrchestratorConfig {
         if let Ok(val) = std::env::var("VOX_MESH_SCOPE_ID") {
             let v = val.trim();
             if v.is_empty() {
-                self.mesh_scope_id = None;
+                self.populi_scope_id = None;
             } else {
-                self.mesh_scope_id = Some(v.to_string());
+                self.populi_scope_id = Some(v.to_string());
             }
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS") {
-            self.mesh_poll_interval_secs = parse_or_warn(
+            self.populi_poll_interval_secs = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS",
                 &val,
-                self.mesh_poll_interval_secs,
+                self.populi_poll_interval_secs,
             );
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS") {
-            self.mesh_http_timeout_ms = parse_or_warn(
+            self.populi_http_timeout_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS",
                 &val,
-                self.mesh_http_timeout_ms,
+                self.populi_http_timeout_ms,
             );
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL") {
-            self.mesh_routing_experimental = parse_or_warn(
+            self.populi_routing_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL",
                 &val,
-                self.mesh_routing_experimental,
+                self.populi_routing_experimental,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL") {
+            self.populi_remote_execute_experimental = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL",
+                &val,
+                self.populi_remote_execute_experimental,
             );
         }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CHATML_STRICT") {
@@ -1203,7 +1214,7 @@ labels = ["from=toml"]
             cfg.populi_control_url.as_deref(),
             Some("http://mens.example:9847")
         );
-        assert_eq!(cfg.mesh_scope_id.as_deref(), Some("unit-scope"));
+        assert_eq!(cfg.populi_scope_id.as_deref(), Some("unit-scope"));
         assert!(cfg.default_agent_capabilities.gpu_cuda);
         assert!(
             cfg.default_agent_capabilities
@@ -1214,7 +1225,7 @@ labels = ["from=toml"]
 
     #[test]
     #[allow(unsafe_code)] // Rust 2024 requires `unsafe` for process-global env mutation; serialized via `ENV_MUTEX`.
-    fn mesh_env_overrides_toml_control_url() {
+    fn populi_env_overrides_toml_control_url() {
         let _guard = ENV_MUTEX.lock().expect("env test lock");
         const KEY: &str = "VOX_ORCHESTRATOR_MESH_CONTROL_URL";
         let prev = std::env::var(KEY).ok();

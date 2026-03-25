@@ -17,6 +17,7 @@ vox-compiler = { workspace = true, optional = true }
 anyhow = { workspace = true }
 vox-repository = { path = "../vox-repository" }
 vox-mcp-meta = { path = "../vox-mcp-meta" }
+vox-mcp-registry = { path = "../vox-mcp-registry" }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

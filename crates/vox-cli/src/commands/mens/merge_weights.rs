@@ -3,10 +3,10 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
-use vox_mens::burn::backend::NdArray;
-use vox_mens::burn::tensor::backend::Backend;
-use vox_mens::tensor::LoraVoxTransformer;
-use vox_mens::tensor::manifest;
+use vox_populi::mens::burn::backend::NdArray;
+use vox_populi::mens::burn::tensor::backend::Backend;
+use vox_populi::mens::tensor::LoraVoxTransformer;
+use vox_populi::mens::tensor::manifest;
 use vox_tensor::train::Checkpoint;
 
 /// Merge Burn [`LoraVoxTransformer`] weights into a plain [`VoxTransformer`] and save as `model_merged.bin`.

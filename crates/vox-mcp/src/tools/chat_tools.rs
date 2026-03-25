@@ -10,17 +10,20 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::chat_model_resolve::resolve_chat_llm_model;
 use super::chat_socrates_meta::{
     socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
+    spawn_socrates_telemetry_with_meta,
 };
 use crate::llm_bridge::{
     McpChatModelResolution, McpInferRouting, call_llm, clamp_http_max_output_tokens,
     mcp_infer_completion,
 };
+use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use chrono;
 use regex::Regex;
 use std::sync::LazyLock;
 use turso::params;
+use vox_orchestrator::session_retrieval_envelope_key;
 use vox_orchestrator::types::AgentId;
 use vox_runtime::prompt_canonical;
 use vox_socrates_policy::ConfidencePolicy;
@@ -267,12 +270,20 @@ fn chat_grounding_score(params: &ChatMessageParams, mention_count: usize) -> f64
 
 fn rebuild_mention_basename_index(
     workspace_root: &std::path::Path,
-) -> std::collections::HashMap<String, std::path::PathBuf> {
-    let mut map = std::collections::HashMap::new();
+) -> std::collections::HashMap<String, Vec<std::path::PathBuf>> {
+    let mut map: std::collections::HashMap<String, Vec<std::path::PathBuf>> =
+        std::collections::HashMap::new();
     for entry in walkdir::WalkDir::new(workspace_root)
         .follow_links(false)
-        .max_depth(10)
+        .max_depth(16)
         .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !matches!(
+                name.as_ref(),
+                ".git" | "target" | "node_modules" | "dist" | "build" | ".venv" | ".vox"
+            )
+        })
         .filter_map(std::result::Result::ok)
     {
         if !entry.file_type().is_file() {
@@ -286,9 +297,47 @@ fn rebuild_mention_basename_index(
         else {
             continue;
         };
-        map.entry(name).or_insert(entry_path);
+        map.entry(name).or_default().push(entry_path);
     }
     map
+}
+
+fn safe_truncate_for_prompt(content: &str, max_bytes: usize) -> String {
+    if content.len() <= max_bytes {
+        return content.to_string();
+    }
+    let boundary = content.floor_char_boundary(max_bytes);
+    format!("{}\n...[truncated]...", &content[..boundary])
+}
+
+fn pick_mention_path(
+    candidates: &[std::path::PathBuf],
+    filename: &str,
+    workspace_root: &std::path::Path,
+) -> Option<std::path::PathBuf> {
+    let mut exact: Option<(usize, std::path::PathBuf)> = None;
+    let mut suffix: Option<(usize, std::path::PathBuf)> = None;
+    for path in candidates {
+        let rel = path
+            .strip_prefix(workspace_root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if rel == filename {
+            let score = rel.len();
+            if exact.as_ref().map(|(s, _)| score < *s).unwrap_or(true) {
+                exact = Some((score, path.clone()));
+            }
+            continue;
+        }
+        if rel.ends_with(filename) {
+            let score = rel.len();
+            if suffix.as_ref().map(|(s, _)| score < *s).unwrap_or(true) {
+                suffix = Some((score, path.clone()));
+            }
+        }
+    }
+    exact.or(suffix).map(|(_, p)| p)
 }
 
 /// Resolve @filename mentions using a cached basename → path index (refreshed when workspace changes).
@@ -299,7 +348,7 @@ fn resolve_mentions(
         std::sync::Mutex<
             Option<(
                 std::path::PathBuf,
-                std::sync::Arc<std::collections::HashMap<String, std::path::PathBuf>>,
+                std::sync::Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>>,
             )>,
         >,
     >,
@@ -307,7 +356,7 @@ fn resolve_mentions(
     let mut expanded = prompt.to_string();
     let mut resolved_files = Vec::new();
 
-    let index: std::sync::Arc<std::collections::HashMap<String, std::path::PathBuf>> = {
+    let index: std::sync::Arc<std::collections::HashMap<String, Vec<std::path::PathBuf>>> = {
         let mut guard = match cache.lock() {
             Ok(g) => g,
             Err(_) => {
@@ -330,20 +379,16 @@ fn resolve_mentions(
 
     for cap in MENTION_RE.captures_iter(prompt) {
         let filename = &cap[1];
-        let found = index.get(filename).cloned().or_else(|| {
-            index.iter().find_map(|(_base, path)| {
-                let rel = path
-                    .strip_prefix(workspace_root)
-                    .unwrap_or(path)
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                if rel == filename || rel.ends_with(filename) {
-                    Some(path.clone())
-                } else {
-                    None
-                }
-            })
-        });
+        let found = index
+            .get(filename)
+            .and_then(|paths| pick_mention_path(paths, filename, workspace_root))
+            .or_else(|| {
+                let all_candidates: Vec<std::path::PathBuf> = index
+                    .values()
+                    .flat_map(|paths| paths.iter().cloned())
+                    .collect();
+                pick_mention_path(&all_candidates, filename, workspace_root)
+            });
         if let Some(path) = found
             && let Ok(content) = std::fs::read_to_string(&path)
         {
@@ -352,11 +397,7 @@ fn resolve_mentions(
                 .unwrap_or(&path)
                 .to_string_lossy()
                 .replace('\\', "/");
-            let truncated = if content.len() > 8000 {
-                format!("{}\n...[truncated]...", &content[..8000])
-            } else {
-                content.clone()
-            };
+            let truncated = safe_truncate_for_prompt(&content, 8000);
             let replacement = format!("\n\n--- @{filename} ({rel}) ---\n{truncated}\n---\n");
             expanded = expanded.replace(&cap[0], &replacement);
             resolved_files.push(rel);
@@ -506,56 +547,50 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         context_parts.push(format!("[OPEN FILES]: {}", params.open_files.join(", ")));
     }
 
-    // 2b. Autonomous Research Injection:
-    // Silently query MemoryManager (MEMORY.md + daily logs) for facts related to the
-    // expanded prompt. Inject top-3 hits as a labelled preamble block so the LLM has
-    // project-local evidence without the user needing to call `vox_memory_search`.
-    let mem_config = state.orchestrator_config.memory.clone();
-    if let Ok(mgr) = vox_orchestrator::MemoryManager::new(mem_config) {
-        if let Ok(hits) = mgr.search(&expanded_prompt) {
-            let relevant: Vec<_> = hits.into_iter().take(3).collect();
-            if !relevant.is_empty() {
-                let snippets = relevant
+    // 2b/2c. Unified autonomous retrieval injection:
+    // Use the same retrieval pipeline as `vox_memory_search` with deterministic fallback
+    // (hybrid -> BM25 -> lexical fallback), then append memory + knowledge snippets.
+    let mut retrieval_evidence = None;
+    match run_retrieval_bundle(
+        state,
+        &expanded_prompt,
+        RetrievalTriggerMode::AutoChatPreamble,
+        3,
+    )
+    .await
+    {
+        Ok(bundle) => {
+            if !bundle.memory_lines.is_empty() {
+                let snippets = bundle
+                    .memory_lines
                     .iter()
-                    .map(|h| format!("- [{}:{}] {}", h.source, h.line, h.content))
+                    .map(|h| format!("- {h}"))
                     .collect::<Vec<_>>()
                     .join("\n");
-                context_parts.push(format!("[AUTONOMOUS RESEARCH — MEMORY.md]:\n{snippets}"));
-                tracing::debug!(
-                    target: "vox_mcp::autonomous_research",
-                    hits = relevant.len(),
-                    "memory search injected into chat context"
-                );
+                context_parts.push(format!(
+                    "[AUTONOMOUS RESEARCH — MEMORY (tier: {})]:\n{snippets}",
+                    bundle.evidence.retrieval_tier
+                ));
             }
-        }
-    }
-
-    // 2c. Autonomous Knowledge Graph Search:
-    // When Codex/VoxDb is attached, also probe the knowledge graph for related concepts.
-    if let Some(ref db) = state.db {
-        match db.query_knowledge_nodes(&expanded_prompt, 3).await {
-            Ok(nodes) if !nodes.is_empty() => {
-                let formatted = nodes
-                    .into_iter()
-                    .map(|(id, ntype, label)| format!("- [node:{id}] {label} ({ntype})"))
+            if !bundle.knowledge_lines.is_empty() {
+                let formatted = bundle
+                    .knowledge_lines
+                    .iter()
+                    .map(|n| format!("- {n}"))
                     .collect::<Vec<_>>()
                     .join("\n");
                 context_parts.push(format!(
                     "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
                 ));
-                tracing::debug!(
-                    target: "vox_mcp::autonomous_research",
-                    "knowledge graph nodes injected into chat context"
-                );
             }
-            Ok(_) => {}
-            Err(e) => {
-                tracing::debug!(
-                    target: "vox_mcp::autonomous_research",
-                    error = %e,
-                    "knowledge graph query failed — skipping injection"
-                );
-            }
+            retrieval_evidence = Some(bundle.evidence);
+        }
+        Err(e) => {
+            tracing::debug!(
+                target: "vox_mcp::autonomous_research",
+                error = %e,
+                "autonomous retrieval injection failed — continuing without injected context"
+            );
         }
     }
 
@@ -686,6 +721,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // across concurrent VS Code windows, agent threads, or other logical sessions.
     let session_id = params.session_id.as_deref().unwrap_or("default");
     let history_key = format!("chat_history:{session_id}");
+    let retrieval_key = session_retrieval_envelope_key(session_id);
 
     let user_msg = ChatTranscriptEntry {
         id: format!("usr-{}", now_ts()),
@@ -726,12 +762,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     match serde_json::to_string(&history) {
         Ok(history_json) => {
             let ctx_handle = state.orchestrator.context_handle();
-            ctx_handle.write().unwrap().set(
-                vox_orchestrator::AgentId(0),
-                &history_key,
-                &history_json,
-                0,
-            );
+            let mut ctx = ctx_handle.write().unwrap();
+            ctx.set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
+            if let Some(ev) = &retrieval_evidence
+                && let Ok(ev_json) = serde_json::to_string(ev)
+            {
+                // Keep recent retrieval envelope available for task submission->gate bridging.
+                ctx.set(vox_orchestrator::AgentId(0), &retrieval_key, &ev_json, 3600);
+            }
         }
         Err(e) => {
             tracing::warn!(
@@ -807,6 +845,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 "session_age_secs": session_age_secs,
             }
         });
+        if let Some(ev) = &retrieval_evidence {
+            payload["retrieval"] = serde_json::to_value(ev).unwrap_or(Value::Null);
+        }
         let _ = vox_ludus::db::insert_event(
             db,
             "0", // Global AI/Orchestrator surface agent_id
@@ -818,14 +859,31 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
     // 5. Return updated history + the new assistant message
 
-    let grounding = chat_grounding_score(&params, mention_count);
+    let retrieval_contradiction = retrieval_evidence
+        .as_ref()
+        .map(|e| e.contradiction_count > 0)
+        .unwrap_or(false);
+    let retrieval_boost = retrieval_evidence
+        .as_ref()
+        .map(|e| match e.retrieval_tier.as_str() {
+            "hybrid" => 0.08_f64,
+            "bm25" => 0.04_f64,
+            _ => 0.0_f64,
+        })
+        .unwrap_or(0.0_f64);
+    let grounding =
+        (chat_grounding_score(&params, mention_count) + retrieval_boost).clamp(0.0, 1.0);
     let pol = state.orchestrator_config.effective_socrates_policy();
-    let soc = socrates_tool_meta(&pol, grounding, false);
-    spawn_socrates_telemetry(
+    let soc = socrates_tool_meta(&pol, grounding, retrieval_contradiction);
+    let retrieval_meta = retrieval_evidence
+        .as_ref()
+        .and_then(|ev| serde_json::to_value(ev).ok());
+    spawn_socrates_telemetry_with_meta(
         state,
         "vox_chat_message",
         soc.clone(),
         Some(model_used.clone()),
+        retrieval_meta,
     );
     let result = serde_json::json!({
         "message": asst_msg,
@@ -834,6 +892,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "tokens": tokens,
         "session_id": session_id,
         "socrates": soc,
+        "retrieval": retrieval_evidence,
     });
 
     ToolResult::ok(result).to_json()
@@ -1532,7 +1591,10 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
 #[cfg(test)]
 mod routing_tests {
     use super::super::chat_socrates_meta::{SocratesJsonMeta, socrates_tool_meta};
-    use super::{ChatMessageParams, GhostTextParams, chat_grounding_score, ghost_grounding_score};
+    use super::{
+        ChatMessageParams, GhostTextParams, chat_grounding_score, ghost_grounding_score,
+        safe_truncate_for_prompt,
+    };
     use crate::llm_bridge::clamp_http_max_output_tokens;
     use vox_socrates_policy::ConfidencePolicy;
 
@@ -1660,5 +1722,15 @@ mod routing_tests {
         assert_eq!(tasks[0].description, "Do thing");
         assert_eq!(tasks[0].estimated_complexity, 1);
         assert!(tasks[0].depends_on.is_empty());
+    }
+
+    #[test]
+    fn truncate_for_prompt_keeps_utf8_boundaries() {
+        let s = "abc🙂def🙂ghi";
+        let t = safe_truncate_for_prompt(s, 7);
+        assert!(t.contains("...[truncated]..."));
+        let prefix = t.split("\n...[truncated]...").next().unwrap_or("");
+        assert!(s.starts_with(prefix));
+        assert!(!prefix.contains('\u{FFFD}'));
     }
 }

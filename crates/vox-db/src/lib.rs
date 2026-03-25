@@ -209,6 +209,32 @@ impl VoxDb {
         Self::connect(config).await
     }
 
+    /// Like [`Self::connect_default`], but if the primary DB reports [`StoreError::LegacySchemaChain`],
+    /// opens (or creates) [`paths::training_telemetry_db_path`] so training tools can persist runs
+    /// without migrating the main Codex database first.
+    #[cfg(feature = "local")]
+    pub async fn connect_default_with_training_fallback() -> Result<Self, StoreError> {
+        match Self::connect_default().await {
+            Ok(db) => Ok(db),
+            Err(StoreError::LegacySchemaChain { max_version }) => {
+                let Some(sidecar) = paths::training_telemetry_db_path() else {
+                    return Err(StoreError::LegacySchemaChain { max_version });
+                };
+                tracing::info!(
+                    sidecar = %sidecar.display(),
+                    primary_schema_max = max_version,
+                    "Primary VoxDB uses a legacy schema; using training telemetry sidecar. \
+                     Migrate the main DB with `vox codex export-legacy`, fresh init, and `vox codex import-legacy` when ready."
+                );
+                Self::connect(DbConfig::Local {
+                    path: sidecar.to_string_lossy().into_owned(),
+                })
+                .await
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     /// Blocking [`Self::connect_default`] for `std::thread` workers without a Tokio handle.
     #[cfg(feature = "local")]
     pub fn connect_default_sync() -> Result<Self, StoreError> {

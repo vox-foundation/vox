@@ -157,6 +157,56 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
         },
     });
 
+    let mesh_mode = std::env::var("VOX_MESH_MODE")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "lan".to_string());
+    let mesh_token_set = std::env::var("VOX_MESH_TOKEN")
+        .ok()
+        .is_some_and(|v| !v.trim().is_empty());
+    let mesh_scope_set = std::env::var("VOX_MESH_SCOPE_ID")
+        .ok()
+        .is_some_and(|v| !v.trim().is_empty());
+    checks.push(Check {
+        name: "Populi mesh security defaults".to_string(),
+        pass: mesh_token_set && mesh_scope_set,
+        detail: format!(
+            "mode={mesh_mode}, token_set={mesh_token_set}, scope_set={mesh_scope_set} (recommended: `vox populi up`)"
+        ),
+    });
+
+    let tailscale_ok = Command::new("tailscale")
+        .arg("version")
+        .output()
+        .await
+        .is_ok_and(|o| o.status.success());
+    let wireguard_ok = Command::new("wg")
+        .arg("show")
+        .output()
+        .await
+        .is_ok_and(|o| o.status.success());
+    let tunnel_ok = Command::new("cloudflared")
+        .arg("--version")
+        .output()
+        .await
+        .is_ok_and(|o| o.status.success())
+        || Command::new("ngrok")
+            .arg("version")
+            .output()
+            .await
+            .is_ok_and(|o| o.status.success());
+    checks.push(Check {
+        name: "Overlay networking (optional)".to_string(),
+        pass: true,
+        detail: format!(
+            "tailscale={}, wireguard={}, tunnel={} (use `vox populi status` for deeper diagnostics)",
+            if tailscale_ok { "ok" } else { "missing" },
+            if wireguard_ok { "ok" } else { "missing" },
+            if tunnel_ok { "ok" } else { "missing" }
+        ),
+    });
+
     let docker = Command::new("docker").arg("--version").output().await;
     checks.push(match docker {
         Ok(o) if o.status.success() => Check {

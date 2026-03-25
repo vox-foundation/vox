@@ -57,6 +57,9 @@ pub mod openclaw;
 /// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
 #[cfg(feature = "populi")]
 pub mod populi_cli;
+/// One-command populi lifecycle helpers (`vox populi up|down|status`; requires `populi`).
+#[cfg(feature = "populi")]
+pub mod populi_lifecycle;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;

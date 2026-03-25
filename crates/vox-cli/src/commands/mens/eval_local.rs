@@ -70,9 +70,9 @@ pub fn run_eval_local(
 
     #[cfg(feature = "gpu")]
     let mut engine = if model.exists() {
-        vox_mens::tensor::candle_inference_serve::InferenceEngine::load(
+        vox_populi::mens::tensor::candle_inference_serve::InferenceEngine::load(
             &model,
-            &vox_mens::DeviceKind::Cuda,
+            &vox_populi::mens::DeviceKind::Cuda,
         )
         .ok()
     } else {

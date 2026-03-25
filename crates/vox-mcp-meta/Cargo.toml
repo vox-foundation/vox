@@ -8,6 +8,7 @@ description = "Registries, taxonomy structs, and enums natively derived for Vox 
 
 [dependencies]
 strum = { workspace = true, optional = true }
+vox-mcp-registry = { path = "../vox-mcp-registry" }
 
 [lints]
 workspace = true

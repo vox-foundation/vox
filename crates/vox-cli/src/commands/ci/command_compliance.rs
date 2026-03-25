@@ -11,6 +11,7 @@ use std::sync::OnceLock;
 
 const REGISTRY_REL: &str = "contracts/cli/command-registry.yaml";
 const SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";
+const MCP_TOOL_REGISTRY_REL: &str = "contracts/mcp/tool-registry.canonical.yaml";
 
 #[derive(Debug, Deserialize)]
 struct RegistryFile {
@@ -143,7 +144,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     check_reachability(&reg, &reach)?;
     check_compilerd(&reg, &compilerd)?;
     check_dei(&reg, &dei)?;
-    check_mcp_tool_wiring(&mcp_mod, &mcp_tool_aliases)?;
+    check_mcp_tool_wiring(repo_root, &mcp_mod, &mcp_tool_aliases)?;
     check_script_duals(&reg, &duals_doc, &scripts_readme)?;
     check_catalog_generation_smoke()?;
     check_root_readme_cli_drift(&root_readme)?;
@@ -256,16 +257,11 @@ fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
 }
 
 fn read_reachability_doc(repo_root: &Path) -> Result<String> {
-    let preferred = repo_root.join("docs/src/architecture/cli-reachability-ssot.md");
-    if preferred.is_file() {
-        return fs::read_to_string(&preferred)
-            .with_context(|| format!("read {}", preferred.display()));
-    }
-    let fallback = repo_root.join("docs/src/reference/cli.md");
-    fs::read_to_string(&fallback).with_context(|| {
+    let p = repo_root.join("docs/src/reference/cli.md");
+    fs::read_to_string(&p).with_context(|| {
         format!(
-            "read {} (fallback when cli-reachability-ssot.md is absent)",
-            fallback.display()
+            "read {} (reachability matrix under 'CLI command reachability')",
+            p.display()
         )
     })
 }
@@ -393,7 +389,7 @@ fn check_reachability(reg: &RegistryFile, reach: &str) -> Result<()> {
         let needle = format!("| `{top}` |");
         if !reach.contains(&needle) {
             return Err(anyhow!(
-                "cli-reachability-ssot.md: add table row `{needle}` for `{top}`"
+                "docs/src/reference/cli.md (reachability table): add row `{needle}` for `{top}`"
             ));
         }
     }
@@ -433,31 +429,51 @@ fn check_dei(reg: &RegistryFile, dei: &str) -> Result<()> {
     Ok(())
 }
 
-/// Inner slice of `TOOL_REGISTRY` array literals — **anchor-based** end marker so `]` inside
-/// description strings does not break parsing (see unit test). Keep end marker aligned with
-/// `crates/vox-mcp/src/tools/mod.rs` before `pub fn tool_registry`.
-fn tool_registry_array_slice(src: &str) -> Result<&str> {
-    const START: &str = "pub const TOOL_REGISTRY: &[(&str, &str)] = &[";
-    const END_LF: &str = "\n];\n\n/// Convert the static [`TOOL_REGISTRY`]";
-    const END_CRLF: &str = "\r\n];\r\n\r\n/// Convert the static [`TOOL_REGISTRY`]";
-    let i = src
-        .find(START)
-        .ok_or_else(|| anyhow!("vox-mcp tools/mod.rs: missing `{START}`"))?;
-    let tail = &src[i + START.len()..];
-    let j = tail.find(END_LF).or_else(|| tail.find(END_CRLF)).ok_or_else(|| {
-        anyhow!(
-            "vox-mcp tools/mod.rs: missing TOOL_REGISTRY end anchor before `tool_registry()` (expected {END_LF:?})"
-        )
-    })?;
-    Ok(&tail[..j])
+#[derive(Debug, Deserialize)]
+struct McpCanonicalRegistry {
+    #[allow(dead_code)]
+    version: u32,
+    tools: Vec<McpCanonicalTool>,
 }
 
-/// MCP tools use the `vox_*` naming convention; nonconforming names would be skipped here.
-fn vox_mcp_tool_string_regex() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#""(vox_[a-z0-9_:]+)""#).expect("vox MCP quoted tool name pattern")
-    })
+#[derive(Debug, Deserialize)]
+struct McpCanonicalTool {
+    name: String,
+    #[allow(dead_code)]
+    description: String,
+}
+
+fn parse_mcp_registry_yaml(yaml: &str) -> Result<Vec<String>> {
+    let root: McpCanonicalRegistry =
+        serde_yaml::from_str(yaml).context("parse MCP tool-registry.canonical.yaml")?;
+    let out: Vec<String> = root.tools.into_iter().map(|t| t.name).collect();
+    if out.is_empty() {
+        return Err(anyhow!("MCP registry: `tools` must be non-empty"));
+    }
+    let mut seen = HashSet::<&str>::new();
+    for n in &out {
+        if !seen.insert(n.as_str()) {
+            return Err(anyhow!("MCP registry: duplicate tool name `{n}`"));
+        }
+    }
+    Ok(out)
+}
+
+/// Tool names from [`MCP_TOOL_REGISTRY_REL`] (SSOT); descriptions are enforced by `vox-mcp-registry` build.
+fn extract_mcp_registry_tool_names(repo_root: &Path) -> Result<Vec<String>> {
+    let p = repo_root.join(MCP_TOOL_REGISTRY_REL);
+    let raw = fs::read_to_string(&p).with_context(|| format!("read {}", p.display()))?;
+    parse_mcp_registry_yaml(&raw)
+}
+
+fn assert_mcp_mod_reexports_registry(mcp_mod: &str) -> Result<()> {
+    const NEEDLE: &str = "pub use vox_mcp_registry::TOOL_REGISTRY";
+    if !mcp_mod.contains(NEEDLE) {
+        return Err(anyhow!(
+            "vox-mcp tools/mod.rs: must `{NEEDLE}` (registry source: {MCP_TOOL_REGISTRY_REL})"
+        ));
+    }
+    Ok(())
 }
 
 /// Quoted identifiers before `=>` on a `handle_tool_call` match arm (supports `"a" | "b" =>`).
@@ -471,19 +487,6 @@ fn mcp_handler_arm_quoted_names(line: &str) -> Vec<String> {
     re.captures_iter(before_arrow)
         .map(|c| c[1].to_string())
         .collect()
-}
-
-fn extract_mcp_registry_tools(src: &str) -> Result<Vec<String>> {
-    let block = tool_registry_array_slice(src)?;
-    let re = vox_mcp_tool_string_regex();
-    let mut out = Vec::new();
-    for c in re.captures_iter(block) {
-        out.push(c[1].to_string());
-    }
-    if out.is_empty() {
-        return Err(anyhow!("vox-mcp: no tools parsed from TOOL_REGISTRY"));
-    }
-    Ok(out)
 }
 
 fn extract_mcp_handler_tools(src: &str) -> Result<HashSet<String>> {
@@ -595,8 +598,9 @@ fn extract_mcp_tool_aliases(alias_rs: &str) -> Result<Vec<(String, String)>> {
     Ok(out)
 }
 
-fn check_mcp_tool_wiring(mcp_mod: &str, tool_aliases_rs: &str) -> Result<()> {
-    let reg_tools = extract_mcp_registry_tools(mcp_mod)?;
+fn check_mcp_tool_wiring(repo_root: &Path, mcp_mod: &str, tool_aliases_rs: &str) -> Result<()> {
+    assert_mcp_mod_reexports_registry(mcp_mod)?;
+    let reg_tools = extract_mcp_registry_tool_names(repo_root)?;
     let reg_set: HashSet<String> = reg_tools.iter().cloned().collect();
     let alias_pairs = extract_mcp_tool_aliases(tool_aliases_rs)?;
     for (alias, canonical) in &alias_pairs {
@@ -671,20 +675,15 @@ mod tests {
     }
 
     #[test]
-    fn tool_registry_slice_tolerates_bracket_in_description() {
-        let src = r#"
-pub const TOOL_REGISTRY: &[(&str, &str)] = &[
-    (
-        "vox_bracket_test",
-        "Description with ] bracket inside string",
-    ),
-];
-
-/// Convert the static [`TOOL_REGISTRY`]
-pub fn tool_registry() {}
+    fn mcp_registry_yaml_tolerates_bracket_in_description() {
+        let yaml = r#"
+version: 1
+tools:
+  - name: "vox_bracket_test"
+    description: "Description with ] bracket inside string"
 "#;
-        let tools = extract_mcp_registry_tools(src).expect("parse");
-        assert!(tools.contains(&"vox_bracket_test".to_string()));
+        let tools = parse_mcp_registry_yaml(yaml).expect("parse");
+        assert_eq!(tools, vec!["vox_bracket_test".to_string()]);
     }
 
     #[test]
@@ -734,11 +733,15 @@ pub async fn handle_tool_call() {
     /// Guard against drift in `vox-mcp` layout: full wiring must stay parseable by the compliance gate.
     #[test]
     fn mcp_extract_matches_workspace_vox_mcp_mod_rs() {
-        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("../vox-mcp/src/tools");
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("vox-cli lives at crates/vox-cli");
+        let base = repo_root.join("crates/vox-mcp/src/tools");
         let src = fs::read_to_string(base.join("mod.rs")).expect("read vox-mcp tools/mod.rs");
         let aliases = fs::read_to_string(base.join("tool_aliases.rs"))
             .expect("read vox-mcp tools/tool_aliases.rs");
-        let reg = extract_mcp_registry_tools(&src).expect("registry tools");
+        let reg = extract_mcp_registry_tool_names(repo_root).expect("registry tools");
         let han = extract_mcp_handler_tools(&src).expect("handler tools");
         let missing: Vec<&String> = reg.iter().filter(|t| !han.contains(*t)).collect();
         assert!(
@@ -746,6 +749,6 @@ pub async fn handle_tool_call() {
             "registry tools missing from handle_tool_call parse: {:?}",
             missing
         );
-        check_mcp_tool_wiring(&src, &aliases).expect("mcp wiring + aliases");
+        check_mcp_tool_wiring(repo_root, &src, &aliases).expect("mcp wiring + aliases");
     }
 }

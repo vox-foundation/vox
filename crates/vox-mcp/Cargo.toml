@@ -26,6 +26,7 @@ vox-skills       = { path = "../vox-skills" }
 vox-lsp          = { path = "../vox-lsp" }
 tower-lsp        = "0.20"
 vox-db           = { path = "../vox-db", features = ["local"] }
+vox-mcp-registry  = { path = "../vox-mcp-registry" }
 vox-socrates-policy = { workspace = true }
 vox-compiler = { workspace = true }
 tokio            = { workspace = true }

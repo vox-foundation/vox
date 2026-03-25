@@ -32,13 +32,13 @@ const HOTSPOT_TIER1: &[&str] = &[
     "crates/vox-orchestrator/src/session.rs",
     "crates/vox-orchestrator/src/types.rs",
     "crates/vox-pm/src/store/types.rs",
-    "crates/vox-mens/src/tensor/qlora_preflight.rs",
+    "crates/vox-populi/src/mens/tensor/qlora_preflight.rs",
     "crates/vox-mcp/src/tools/input_schemas.rs",
     "docs/src/ci/rust-modernization-baseline.md",
 ];
 
 const HOTSPOT_TIER2_RUST: &[&str] = &[
-    "crates/vox-mens/src/tensor/lora.rs",
+    "crates/vox-populi/src/mens/tensor/lora.rs",
     "crates/vox-cli/src/commands/mens/mod.rs",
     "crates/vox-orchestrator/src/memory.rs",
     "crates/vox-db/src/lib.rs",
@@ -71,7 +71,7 @@ const SYMBOL_HINT_PATHS: &[&str] = &[
     "crates/vox-orchestrator/src/session.rs",
     "crates/vox-orchestrator/src/types.rs",
     "crates/vox-pm/src/store/types.rs",
-    "crates/vox-mens/src/tensor/qlora_preflight.rs",
+    "crates/vox-populi/src/mens/tensor/qlora_preflight.rs",
 ];
 
 const SKIP_DIR_NAMES: &[&str] = &[

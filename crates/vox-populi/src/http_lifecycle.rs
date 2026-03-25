@@ -4,12 +4,12 @@
 
 use std::time::Duration;
 
-use crate::http_client::MeshHttpClient;
+use crate::http_client::PopuliHttpClient;
 use crate::{NodeRecord, PopuliRegistryError};
 
-/// Result of [`mesh_http_join_best_effort`].
+/// Result of [`populi_http_join_best_effort`].
 #[derive(Debug)]
-pub enum MeshHttpJoinSpawnOutcome {
+pub enum PopuliHttpJoinSpawnOutcome {
     /// `VOX_MESH_HTTP_JOIN` disabled, or no suitable control URL in env.
     Skipped,
     /// `POST /v1/populi/join` succeeded; heartbeat loop spawned when the heartbeat interval is non-zero.
@@ -32,7 +32,7 @@ pub enum MeshHttpJoinSpawnOutcome {
 
 /// `VOX_MESH_HTTP_JOIN` `0` / `false` disables join and heartbeat.
 #[must_use]
-pub fn mesh_http_join_disabled_from_env() -> bool {
+pub fn populi_http_join_disabled_from_env() -> bool {
     std::env::var("VOX_MESH_HTTP_JOIN")
         .map(|v| {
             let v = v.trim();
@@ -43,7 +43,7 @@ pub fn mesh_http_join_disabled_from_env() -> bool {
 
 /// First non-empty URL from **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** then **`VOX_MESH_CONTROL_ADDR`**, normalized for clients.
 #[must_use]
-pub fn mesh_http_control_base_from_env() -> Option<String> {
+pub fn populi_http_control_base_from_env() -> Option<String> {
     for var in ["VOX_ORCHESTRATOR_MESH_CONTROL_URL", "VOX_MESH_CONTROL_ADDR"] {
         if let Ok(v) = std::env::var(var) {
             let t = v.trim();
@@ -59,7 +59,7 @@ pub fn mesh_http_control_base_from_env() -> Option<String> {
 
 /// Request timeout for populi HTTP client (**`VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS`**, min 500, default 15000).
 #[must_use]
-pub fn mesh_http_timeout_ms_from_env() -> u64 {
+pub fn populi_http_timeout_ms_from_env() -> u64 {
     std::env::var("VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS")
         .ok()
         .and_then(|s| s.trim().parse().ok())
@@ -69,14 +69,14 @@ pub fn mesh_http_timeout_ms_from_env() -> u64 {
 
 /// Heartbeat interval (**`VOX_MESH_HTTP_HEARTBEAT_SECS`**, default 30; `0` = join only).
 #[must_use]
-pub fn mesh_heartbeat_interval_secs_from_env() -> u64 {
+pub fn populi_heartbeat_interval_secs_from_env() -> u64 {
     std::env::var("VOX_MESH_HTTP_HEARTBEAT_SECS")
         .ok()
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(30)
 }
 
-async fn mesh_http_heartbeat_loop(
+async fn populi_http_heartbeat_loop(
     base: String,
     mut record: NodeRecord,
     timeout_ms: u64,
@@ -88,7 +88,7 @@ async fn mesh_http_heartbeat_loop(
     tick.tick().await;
     loop {
         tick.tick().await;
-        let client = MeshHttpClient::new_with_timeout(&base, Duration::from_millis(timeout_ms))
+        let client = PopuliHttpClient::new_with_timeout(&base, Duration::from_millis(timeout_ms))
             .with_env_token();
         match client.heartbeat(&record).await {
             Ok(u) => {
@@ -107,20 +107,20 @@ async fn mesh_http_heartbeat_loop(
 }
 
 /// `POST /v1/populi/join` and optionally spawn `POST /v1/populi/heartbeat` loop.
-pub async fn mesh_http_join_best_effort(
+pub async fn populi_http_join_best_effort(
     record: NodeRecord,
     component: &'static str,
-) -> MeshHttpJoinSpawnOutcome {
-    if mesh_http_join_disabled_from_env() {
-        return MeshHttpJoinSpawnOutcome::Skipped;
+) -> PopuliHttpJoinSpawnOutcome {
+    if populi_http_join_disabled_from_env() {
+        return PopuliHttpJoinSpawnOutcome::Skipped;
     }
-    let Some(base) = mesh_http_control_base_from_env() else {
-        return MeshHttpJoinSpawnOutcome::Skipped;
+    let Some(base) = populi_http_control_base_from_env() else {
+        return PopuliHttpJoinSpawnOutcome::Skipped;
     };
     let node_id = record.id.clone();
-    let timeout_ms = mesh_http_timeout_ms_from_env();
+    let timeout_ms = populi_http_timeout_ms_from_env();
     let client =
-        MeshHttpClient::new_with_timeout(&base, Duration::from_millis(timeout_ms)).with_env_token();
+        PopuliHttpClient::new_with_timeout(&base, Duration::from_millis(timeout_ms)).with_env_token();
     match client.join(&record).await {
         Ok(updated) => {
             tracing::info!(
@@ -130,10 +130,10 @@ pub async fn mesh_http_join_best_effort(
                 component,
                 "populi HTTP join"
             );
-            let secs = mesh_heartbeat_interval_secs_from_env();
+            let secs = populi_heartbeat_interval_secs_from_env();
             if secs > 0 {
                 let base_clone = base.clone();
-                tokio::spawn(mesh_http_heartbeat_loop(
+                tokio::spawn(populi_http_heartbeat_loop(
                     base_clone,
                     updated.clone(),
                     timeout_ms,
@@ -141,7 +141,7 @@ pub async fn mesh_http_join_best_effort(
                     component,
                 ));
             }
-            MeshHttpJoinSpawnOutcome::Joined {
+            PopuliHttpJoinSpawnOutcome::Joined {
                 base,
                 node_id: updated.id,
             }
@@ -154,7 +154,7 @@ pub async fn mesh_http_join_best_effort(
                 component,
                 "populi HTTP join failed (best-effort)"
             );
-            MeshHttpJoinSpawnOutcome::Failed {
+            PopuliHttpJoinSpawnOutcome::Failed {
                 base,
                 node_id,
                 err: e,

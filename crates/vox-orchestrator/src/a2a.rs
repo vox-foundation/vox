@@ -7,6 +7,52 @@ use crate::types::AgentId;
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 use crate::types::{MessagePriority, ThreadId, VcsContext};
 
+/// Stable A2A wire type for remote task execution envelopes.
+pub const REMOTE_TASK_ENVELOPE_TYPE: &str = "remote_task_envelope";
+/// Stable A2A wire type for remote task execution acknowledgements.
+pub const REMOTE_TASK_ACK_TYPE: &str = "remote_task_ack";
+/// Stable A2A wire type for remote task execution results.
+pub const REMOTE_TASK_RESULT_TYPE: &str = "remote_task_result";
+
+/// Envelope sent across mesh A2A relay to request remote execution.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteTaskEnvelope {
+    /// Idempotency key used by receivers to deduplicate requests.
+    pub idempotency_key: String,
+    /// Local task id from the originating orchestrator.
+    pub task_id: u64,
+    /// Originating repository id.
+    pub repository_id: String,
+    /// Requested capability hints encoded as JSON.
+    pub capability_requirements_json: String,
+    /// Opaque task payload contract for the receiver.
+    pub payload: String,
+}
+
+/// Ack payload for a remote task envelope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteTaskAck {
+    /// Idempotency key from the original envelope.
+    pub idempotency_key: String,
+    /// Whether receiver accepted the envelope.
+    pub accepted: bool,
+    /// Optional diagnostic detail.
+    pub detail: Option<String>,
+}
+
+/// Result payload for a remote task envelope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteTaskResult {
+    /// Idempotency key from the original envelope.
+    pub idempotency_key: String,
+    /// Whether remote execution succeeded.
+    pub success: bool,
+    /// Optional result payload.
+    pub result: Option<String>,
+    /// Optional error detail.
+    pub error: Option<String>,
+}
+
 /// Database-persisted A2A message row.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbA2AMessage {
@@ -25,7 +71,7 @@ pub struct DbA2AMessage {
 
 /// Relay a message to another mens node via HTTP.
 pub async fn relay_to_mesh(
-    client: &vox_populi::http_client::MeshHttpClient,
+    client: &vox_populi::http_client::PopuliHttpClient,
     sender: AgentId,
     receiver: AgentId,
     msg_type: A2AMessageType,
@@ -40,6 +86,26 @@ pub async fn relay_to_mesh(
         })
         .await
         .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
+}
+
+/// Relay a structured remote task envelope over the mesh A2A transport.
+pub async fn relay_remote_task_envelope(
+    client: &vox_populi::http_client::PopuliHttpClient,
+    sender: AgentId,
+    receiver: AgentId,
+    envelope: &RemoteTaskEnvelope,
+) -> Result<(), String> {
+    let payload = serde_json::to_string(envelope).map_err(|e| e.to_string())?;
+    client
+        .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: sender.0.to_string(),
+            receiver_agent_id: receiver.0.to_string(),
+            message_type: REMOTE_TASK_ENVELOPE_TYPE.to_string(),
+            payload,
+        })
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 /// Send a message to the database with circuit breaker protection.

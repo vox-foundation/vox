@@ -1,0 +1,16 @@
+[package]
+name = "vox-mcp-registry"
+description = "Compile-time MCP tool name/description registry from contracts YAML (SSOT)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[build-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = { workspace = true }
+
+[lints]
+workspace = true

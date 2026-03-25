@@ -86,11 +86,11 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .parent()
         .unwrap_or(std::path::Path::new("."));
 
-    let arch = vox_mens::tensor::manifest::ArchParams::from_manifest(run_dir)?;
-    if let Err(e) = vox_mens::tensor::manifest::validate_checkpoint_manifest(
+    let arch = vox_populi::mens::tensor::manifest::ArchParams::from_manifest(run_dir)?;
+    if let Err(e) = vox_populi::mens::tensor::manifest::validate_checkpoint_manifest(
         &config.model_path,
         run_dir,
-        arch.to_validate_params(Some(vox_mens::tensor::manifest::CheckpointKind::Lora)),
+        arch.to_validate_params(Some(vox_populi::mens::tensor::manifest::CheckpointKind::Lora)),
     ) {
         anyhow::bail!("{e}");
     }

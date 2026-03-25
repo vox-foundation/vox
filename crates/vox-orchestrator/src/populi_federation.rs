@@ -3,15 +3,18 @@
 //! Populated by embedders (e.g. `vox-mcp` background poll). Does **not** perform HTTP itself.
 
 use serde::{Deserialize, Serialize};
+use vox_repository::TaskCapabilityHints;
 
 /// Capability hints copied from a remote mens `NodeRecord` JSON for experimental routing logs.
 ///
 /// Routing remains **in-process only**; this struct informs `RoutingService` when
-/// `OrchestratorConfig::mesh_routing_experimental` is enabled.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RemoteMeshRoutingHint {
+/// `OrchestratorConfig::populi_routing_experimental` is enabled.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RemotePopuliRoutingHint {
     /// [`vox_populi::NodeRecord::id`].
     pub node_id: String,
+    /// Full remote capability snapshot copied from `NodeRecord.capabilities`.
+    pub capabilities: TaskCapabilityHints,
     /// Labels from the remote node's [`vox_orchestrator::TaskCapabilityHints::labels`].
     pub labels: Vec<String>,
     /// Remote node advertises CUDA.
@@ -29,9 +32,9 @@ pub struct PopuliNodeBrief {
     pub last_seen_unix_ms: u64,
 }
 
-/// Cached result of `GET /v1/mens/nodes` (read-only federation).
+/// Cached result of `GET /v1/populi/nodes` (read-only federation).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RemoteMeshSnapshot {
+pub struct RemotePopuliSnapshot {
     /// Wall clock when the snapshot was taken (Unix ms).
     pub fetched_at_unix_ms: u64,
     /// Whether the last fetch parsed successfully.
@@ -49,7 +52,7 @@ pub struct RemoteMeshSnapshot {
     pub nodes_brief: Vec<PopuliNodeBrief>,
 }
 
-impl RemoteMeshSnapshot {
+impl RemotePopuliSnapshot {
     /// Successful parse.
     #[must_use]
     pub fn success(

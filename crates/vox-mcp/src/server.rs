@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use vox_db::VoxDb;
 use vox_orchestrator::{
     AffinityGroupRegistry, AgentEvent, BudgetManager, Orchestrator, OrchestratorConfig,
-    PopuliNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot, SessionConfig, SessionManager,
+    PopuliNodeBrief, RemotePopuliRoutingHint, RemotePopuliSnapshot, SessionConfig, SessionManager,
     load_from_config,
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
@@ -61,14 +61,14 @@ pub struct ServerState {
     pub budget_manager: Arc<BudgetManager>,
     /// Shared HTTP client for OpenRouter/Gemini chat completions inside MCP tools.
     pub http_client: reqwest::Client,
-    /// Cached basename → path map for `@file` mention resolution.
-    pub mention_path_cache: Arc<SyncMutex<Option<(PathBuf, Arc<HashMap<String, PathBuf>>)>>>,
+    /// Cached basename → candidate paths map for `@file` mention resolution.
+    pub mention_path_cache: Arc<SyncMutex<Option<(PathBuf, Arc<HashMap<String, Vec<PathBuf>>>)>>>,
     /// Aborted and replaced when the orchestrator is re-rooted so stale event sinks do not leak.
     event_log_sink_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
-    /// Last background fetch of `GET /v1/mens/nodes` (read-only federation; see mens SSOT).
-    pub mesh_remote_snapshot: Arc<RwLock<RemoteMeshSnapshot>>,
+    /// Last background fetch of `GET /v1/populi/nodes` (read-only federation; see mens SSOT).
+    pub populi_remote_snapshot: Arc<RwLock<RemotePopuliSnapshot>>,
     /// Stops [`Self::spawn_populi_federation_poller`] when re-rooting.
-    mesh_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
+    populi_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl ServerState {
@@ -128,15 +128,15 @@ impl ServerState {
             http_client,
             mention_path_cache: Arc::new(SyncMutex::new(None)),
             event_log_sink_join: Arc::new(SyncMutex::new(None)),
-            mesh_remote_snapshot: Arc::new(RwLock::new(RemoteMeshSnapshot::default())),
-            mesh_poll_join: Arc::new(SyncMutex::new(None)),
+            populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
+            populi_poll_join: Arc::new(SyncMutex::new(None)),
         };
         state.spawn_orchestrator_event_log_sink();
         state.spawn_populi_federation_poller();
         state
     }
 
-    /// Background poll of mens control plane when `populi_control_url` is set and `mesh_poll_interval_secs` > 0.
+    /// Background poll of populi control plane when `populi_control_url` is set and `populi_poll_interval_secs` > 0.
     pub fn spawn_populi_federation_poller(&self) {
         let url = match self
             .orchestrator_config
@@ -148,15 +148,15 @@ impl ServerState {
             Some(u) => u.to_string(),
             None => return,
         };
-        if self.orchestrator_config.mesh_poll_interval_secs == 0 {
+        if self.orchestrator_config.populi_poll_interval_secs == 0 {
             return;
         }
-        let interval_secs = self.orchestrator_config.mesh_poll_interval_secs.max(1);
-        let timeout_ms = self.orchestrator_config.mesh_http_timeout_ms.max(500);
-        let snap = self.mesh_remote_snapshot.clone();
+        let interval_secs = self.orchestrator_config.populi_poll_interval_secs.max(1);
+        let timeout_ms = self.orchestrator_config.populi_http_timeout_ms.max(500);
+        let snap = self.populi_remote_snapshot.clone();
         let orch = self.orchestrator.clone();
         let mut guard = self
-            .mesh_poll_join
+            .populi_poll_join
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         if let Some(h) = guard.take() {
@@ -169,7 +169,7 @@ impl ServerState {
                 tick.tick().await;
                 let timeout = std::time::Duration::from_millis(timeout_ms);
                 let client =
-                    vox_populi::http_client::MeshHttpClient::new_with_timeout(&url, timeout)
+                    vox_populi::http_client::PopuliHttpClient::new_with_timeout(&url, timeout)
                         .with_env_token();
                 let now = vox_populi::wall_clock_unix_ms();
                 match client.list_nodes().await {
@@ -182,26 +182,27 @@ impl ServerState {
                                 last_seen_unix_ms: n.last_seen_unix_ms,
                             })
                             .collect();
-                        let routing_hints: Vec<RemoteMeshRoutingHint> = f
+                        let routing_hints: Vec<RemotePopuliRoutingHint> = f
                             .nodes
                             .iter()
-                            .map(|n| RemoteMeshRoutingHint {
+                            .map(|n| RemotePopuliRoutingHint {
                                 node_id: n.id.clone(),
+                                capabilities: n.capabilities.clone(),
                                 labels: n.capabilities.labels.clone(),
                                 gpu_cuda: n.capabilities.gpu_cuda,
                                 gpu_metal: n.capabilities.gpu_metal,
                             })
                             .collect();
 
-                        orch.set_remote_mesh_routing_hints(routing_hints);
+                        orch.set_remote_populi_routing_hints(routing_hints);
 
                         let mut w = snap.write().unwrap();
-                        *w = RemoteMeshSnapshot::success(now, f.schema_version, brief);
+                        *w = RemotePopuliSnapshot::success(now, f.schema_version, brief);
                     }
                     Err(e) => {
-                        orch.set_remote_mesh_routing_hints(Vec::new());
+                        orch.set_remote_populi_routing_hints(Vec::new());
                         let mut w = snap.write().unwrap();
-                        *w = RemoteMeshSnapshot::failure(now, e.to_string());
+                        *w = RemotePopuliSnapshot::failure(now, e.to_string());
                     }
                 }
             }
@@ -314,8 +315,8 @@ impl ServerState {
             http_client: reqwest::Client::new(),
             mention_path_cache: Arc::new(SyncMutex::new(None)),
             event_log_sink_join: Arc::new(SyncMutex::new(None)),
-            mesh_remote_snapshot: Arc::new(RwLock::new(RemoteMeshSnapshot::default())),
-            mesh_poll_join: Arc::new(SyncMutex::new(None)),
+            populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
+            populi_poll_join: Arc::new(SyncMutex::new(None)),
         }
     }
 

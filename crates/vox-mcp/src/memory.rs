@@ -8,11 +8,243 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use vox_orchestrator::MemorySearchEngine;
+use vox_orchestrator::services::embeddings::EmbeddingService;
+use vox_runtime::llm::LlmConfig;
 
 use crate::{ServerState, ToolResult};
 
 fn memory_config_for_state(state: &ServerState) -> vox_orchestrator::MemoryConfig {
     state.orchestrator_config.memory.clone()
+}
+
+/// Why retrieval is being invoked for this turn/tool path.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetrievalTriggerMode {
+    /// Silent preamble enrichment for chat turns.
+    AutoChatPreamble,
+    /// Explicit user call through a retrieval/search tool.
+    ExplicitToolQuery,
+    /// Additional retrieval pass used for contradiction/risk verification.
+    VerificationPass,
+}
+
+/// Structured retrieval metadata shared between MCP surfaces and Socrates telemetry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrievalEvidenceEnvelope {
+    /// Trigger mode that initiated this retrieval pass.
+    pub trigger: RetrievalTriggerMode,
+    /// Effective execution tier: `hybrid`, `bm25`, `lexical_fallback`, or `none`.
+    pub retrieval_tier: String,
+    /// Number of memory hits returned by the selected retrieval tier.
+    pub memory_hit_count: usize,
+    /// Number of knowledge graph rows returned from VoxDb.
+    pub knowledge_hit_count: usize,
+    /// Whether the vector leg contributed evidence.
+    pub used_vector: bool,
+    /// Whether BM25/keyword ranking contributed evidence.
+    pub used_bm25: bool,
+    /// Whether lexical fallback (substring scan) was used.
+    pub used_lexical_fallback: bool,
+    /// Contradiction hints detected in merged retrieval output.
+    pub contradiction_count: usize,
+    /// Highest fused score in returned memory hits.
+    pub top_score: Option<f64>,
+}
+
+/// Internal retrieval payload used by chat preamble and memory tools.
+#[derive(Debug, Clone)]
+pub struct RetrievalBundle {
+    pub memory_lines: Vec<String>,
+    pub knowledge_lines: Vec<String>,
+    pub evidence: RetrievalEvidenceEnvelope,
+}
+
+fn embedding_config_from_env() -> Option<LlmConfig> {
+    if let Some(token) = vox_config::inference::huggingface_hub_token() {
+        return Some(LlmConfig {
+            provider: "hf_router".to_string(),
+            model: std::env::var("VOX_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "sentence-transformers/all-MiniLM-L6-v2".to_string()),
+            base_url: Some("https://router.huggingface.co/v1/embeddings".to_string()),
+            api_key: Some(token),
+            temperature: None,
+            max_tokens: None,
+            response_format: None,
+            timeout_ms: None,
+        });
+    }
+    if let Ok(key) = std::env::var("OPENAI_API_KEY")
+        && !key.trim().is_empty()
+    {
+        return Some(LlmConfig {
+            provider: "openai".to_string(),
+            model: std::env::var("VOX_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "text-embedding-3-small".to_string()),
+            base_url: Some("https://api.openai.com/v1/embeddings".to_string()),
+            api_key: Some(key),
+            temperature: None,
+            max_tokens: None,
+            response_format: None,
+            timeout_ms: None,
+        });
+    }
+    if let Ok(key) = std::env::var("OPENROUTER_API_KEY")
+        && !key.trim().is_empty()
+    {
+        return Some(LlmConfig {
+            provider: "openrouter".to_string(),
+            model: std::env::var("VOX_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "text-embedding-3-small".to_string()),
+            base_url: Some("https://openrouter.ai/api/v1/embeddings".to_string()),
+            api_key: Some(key),
+            temperature: None,
+            max_tokens: None,
+            response_format: None,
+            timeout_ms: None,
+        });
+    }
+    None
+}
+
+fn detect_vector_or_bm25(memory_lines: &[String]) -> (bool, bool) {
+    let mut used_vector = false;
+    let mut used_bm25 = false;
+    for line in memory_lines {
+        let l = line.to_lowercase();
+        if l.contains("evidence:vector") || l.contains("evidence:hybrid") {
+            used_vector = true;
+        }
+        if l.contains("evidence:fulltext") || l.contains("evidence:hybrid") || l.contains("bm25:") {
+            used_bm25 = true;
+        }
+    }
+    (used_vector, used_bm25)
+}
+
+/// Unified retrieval trigger used by chat preamble + explicit search tools.
+pub async fn run_retrieval_bundle(
+    state: &ServerState,
+    query: &str,
+    trigger: RetrievalTriggerMode,
+    limit: usize,
+) -> Result<RetrievalBundle, String> {
+    let cfg = memory_config_for_state(state);
+    let mut engine = MemorySearchEngine::new();
+    engine.index_dir(&cfg.log_dir);
+    if !cfg.memory_md_path.starts_with(&cfg.log_dir) {
+        engine.index_file(&cfg.memory_md_path);
+    }
+
+    let mut lexical_fallback_used = false;
+    let memory_lines: Vec<String> = if let Some(db) = state.db.clone() {
+        let engine = engine.with_db(db.clone());
+        let embedder =
+            embedding_config_from_env().map(|llm_cfg| EmbeddingService::new(db, llm_cfg));
+        let hybrid_hits = engine.hybrid_search(query, limit, embedder.as_ref()).await;
+        if hybrid_hits.is_empty() {
+            lexical_fallback_used = true;
+            let mgr = vox_orchestrator::MemoryManager::new(cfg.clone())
+                .map_err(|e| format!("memory init failed: {e}"))?;
+            mgr.search(query)
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .take(limit)
+                .map(|h| format!("[{}:{}] {}", h.source, h.line, h.content))
+                .collect()
+        } else {
+            hybrid_hits
+                .into_iter()
+                .map(|h| {
+                    format!(
+                        "[{}] {} (score {:.3}; provenance: {}; contradiction: {})",
+                        h.path,
+                        h.content_snippet.replace('\n', " "),
+                        h.score,
+                        h.provenance.join(", "),
+                        h.potential_contradiction
+                    )
+                })
+                .collect()
+        }
+    } else {
+        let hybrid_hits = engine.hybrid_search(query, limit, None).await;
+        if hybrid_hits.is_empty() {
+            lexical_fallback_used = true;
+            let mgr = vox_orchestrator::MemoryManager::new(cfg.clone())
+                .map_err(|e| format!("memory init failed: {e}"))?;
+            mgr.search(query)
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .take(limit)
+                .map(|h| format!("[{}:{}] {}", h.source, h.line, h.content))
+                .collect()
+        } else {
+            hybrid_hits
+                .into_iter()
+                .map(|h| {
+                    format!(
+                        "[{}] {} (score {:.3}; provenance: {}; contradiction: {})",
+                        h.path,
+                        h.content_snippet.replace('\n', " "),
+                        h.score,
+                        h.provenance.join(", "),
+                        h.potential_contradiction
+                    )
+                })
+                .collect()
+        }
+    };
+
+    let knowledge_lines = if let Some(db) = state.db.as_ref() {
+        db.query_knowledge_nodes(query, limit as i64)
+            .await
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|(id, ntype, label)| format!("[node:{id}] {label} ({ntype})"))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    let (used_vector, used_bm25) = detect_vector_or_bm25(&memory_lines);
+    let contradiction_count = memory_lines
+        .iter()
+        .filter(|line| line.to_lowercase().contains("contradiction: true"))
+        .count();
+    let top_score = memory_lines.iter().find_map(|line| {
+        let marker = "score ";
+        let idx = line.find(marker)?;
+        let tail = &line[idx + marker.len()..];
+        let score_str = tail.split(';').next()?.trim();
+        score_str.parse::<f64>().ok()
+    });
+    let retrieval_tier = if used_vector && used_bm25 {
+        "hybrid"
+    } else if used_bm25 {
+        "bm25"
+    } else if lexical_fallback_used {
+        "lexical_fallback"
+    } else {
+        "none"
+    };
+
+    Ok(RetrievalBundle {
+        evidence: RetrievalEvidenceEnvelope {
+            trigger,
+            retrieval_tier: retrieval_tier.to_string(),
+            memory_hit_count: memory_lines.len(),
+            knowledge_hit_count: knowledge_lines.len(),
+            used_vector,
+            used_bm25,
+            used_lexical_fallback: lexical_fallback_used,
+            contradiction_count,
+            top_score,
+        },
+        memory_lines,
+        knowledge_lines,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -166,24 +398,40 @@ pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> S
 
 /// Search memory (daily logs + MEMORY.md) by keyword.
 pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> String {
-    let config = memory_config_for_state(state);
-    match vox_orchestrator::MemoryManager::new(config) {
-        Ok(mgr) => match mgr.search(&params.query) {
-            Ok(hits) => {
-                if hits.is_empty() {
-                    ToolResult::ok("No results found.".to_string()).to_json()
-                } else {
-                    let formatted = hits
-                        .iter()
-                        .map(|h| format!("[{}:{}] {}", h.source, h.line, h.content))
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    ToolResult::ok(formatted).to_json()
+    match run_retrieval_bundle(
+        state,
+        &params.query,
+        RetrievalTriggerMode::ExplicitToolQuery,
+        10,
+    )
+    .await
+    {
+        Ok(bundle) => {
+            if bundle.memory_lines.is_empty() && bundle.knowledge_lines.is_empty() {
+                ToolResult::ok("No results found.".to_string()).to_json()
+            } else {
+                let mut out = Vec::new();
+                out.push(format!(
+                    "retrieval_tier={} trigger={:?} used_vector={} used_bm25={} lexical_fallback={} contradictions={}",
+                    bundle.evidence.retrieval_tier,
+                    bundle.evidence.trigger,
+                    bundle.evidence.used_vector,
+                    bundle.evidence.used_bm25,
+                    bundle.evidence.used_lexical_fallback,
+                    bundle.evidence.contradiction_count
+                ));
+                if !bundle.memory_lines.is_empty() {
+                    out.push("[MEMORY]".to_string());
+                    out.extend(bundle.memory_lines);
                 }
+                if !bundle.knowledge_lines.is_empty() {
+                    out.push("[KNOWLEDGE_GRAPH]".to_string());
+                    out.extend(bundle.knowledge_lines);
+                }
+                ToolResult::ok(out.join("\n")).to_json()
             }
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
-        },
-        Err(e) => ToolResult::<String>::err(format!("memory init failed: {e}")).to_json(),
+        }
+        Err(e) => ToolResult::<String>::err(e).to_json(),
     }
 }
 
@@ -677,8 +925,9 @@ pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams)
 
 #[cfg(test)]
 mod memory_config_tests {
-    use super::memory_config_for_state;
+    use super::{RetrievalTriggerMode, memory_config_for_state, run_retrieval_bundle};
     use crate::server::ServerState;
+    use std::fs;
     use std::path::PathBuf;
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -729,5 +978,70 @@ mod memory_config_tests {
         let mc = memory_config_for_state(&state);
         assert_eq!(mc.log_dir, custom);
         assert_eq!(mc.memory_md_path, custom.join("MEMORY.md"));
+    }
+
+    #[tokio::test]
+    async fn retrieval_bundle_prefers_bm25_before_lexical_fallback() {
+        let unique = format!(
+            "vox_mcp_retrieval_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let custom = std::env::temp_dir().join(unique);
+        let mem_dir = custom.join("memory");
+        fs::create_dir_all(&mem_dir).expect("create memory dir");
+        fs::write(
+            mem_dir.join("notes.md"),
+            "hybrid retrieval should find this bm25 keyword token",
+        )
+        .expect("write notes");
+        let mut cfg = OrchestratorConfig::default();
+        cfg.memory.log_dir = mem_dir.clone();
+        cfg.memory.memory_md_path = mem_dir.join("MEMORY.md");
+        let orch_cfg = cfg.clone();
+        let groups = AffinityGroupRegistry::new(vec![]);
+        let session_cfg = SessionConfig {
+            persist: false,
+            sessions_dir: std::env::temp_dir().join("vox-mcp-test-sessions"),
+            ..SessionConfig::default()
+        };
+        let session_manager = SessionManager::new(session_cfg).expect("session manager");
+        let repository = RepositoryContext {
+            root: PathBuf::from("."),
+            git_root: None,
+            repository_id: "test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        let state = ServerState::test_stub(
+            cfg.clone(),
+            repository,
+            Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
+            Arc::new(Mutex::new(session_manager)),
+            new_registry_arc(),
+        );
+        let bundle = run_retrieval_bundle(
+            &state,
+            "bm25 keyword token",
+            RetrievalTriggerMode::ExplicitToolQuery,
+            5,
+        )
+        .await
+        .expect("retrieval bundle");
+        assert!(bundle.evidence.used_bm25);
+        assert!(!bundle.evidence.used_lexical_fallback);
+        assert_eq!(bundle.evidence.retrieval_tier, "bm25");
     }
 }

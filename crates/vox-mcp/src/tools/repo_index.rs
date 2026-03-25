@@ -48,13 +48,23 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
     let mut stopped = false;
     let mut skills_discovered = 0usize;
     let mut workflows_discovered = 0usize;
+    const SKIP_DIRS: &[&str] = &[
+        ".git",
+        "target",
+        "node_modules",
+        "dist",
+        "build",
+        ".venv",
+        ".vox",
+        ".next",
+    ];
 
     for ent in WalkDir::new(root)
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
-            let name = e.file_name().to_str().unwrap_or("");
-            name != ".git" && name != "target" && name != "node_modules"
+            let name = e.file_name().to_string_lossy();
+            !SKIP_DIRS.contains(&name.as_ref())
         })
         .filter_map(Result::ok)
     {

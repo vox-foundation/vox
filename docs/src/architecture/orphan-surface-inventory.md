@@ -53,6 +53,7 @@ vox-codegen-llvm
 vox-codegen-rust
 vox-codegen-ts
 vox-codegen-wasm
+vox-compiler
 vox-codex
 vox-codex-api
 vox-config
@@ -73,11 +74,15 @@ vox-lexer
 vox-lsp
 vox-ludus
 vox-mcp
+vox-mcp-meta
+vox-mcp-registry
 vox-populi
 vox-oratio
 vox-orchestrator
 vox-parser
 vox-pm
+vox-protocol
+vox-publisher
 vox-mens
 vox-repository
 vox-runtime

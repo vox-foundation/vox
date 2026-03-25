@@ -2,7 +2,7 @@
 //! control-plane **join** and **heartbeat** when a client-suitable base URL is configured.
 
 use crate::server::ServerState;
-use vox_populi::http_lifecycle::{MeshHttpJoinSpawnOutcome, mesh_http_join_best_effort};
+use vox_populi::http_lifecycle::{PopuliHttpJoinSpawnOutcome, populi_http_join_best_effort};
 
 /// If **`VOX_MESH_ENABLED`**, write this process into the local mens registry; optional Codex row when
 /// **`VOX_MESH_CODEX_TELEMETRY`** is set (uses [`vox_db::populi_registry_telemetry`]).
@@ -11,10 +11,10 @@ use vox_populi::http_lifecycle::{MeshHttpJoinSpawnOutcome, mesh_http_join_best_e
 /// or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base, also **`POST /v1/populi/join`**
 /// and (unless **`VOX_MESH_HTTP_HEARTBEAT_SECS=0`**) a background **`POST /v1/populi/heartbeat`** loop.
 pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
-    if !vox_populi::mesh_enabled_from_env() {
+    if !vox_populi::populi_enabled_from_env() {
         return;
     }
-    let node_id = vox_populi::mesh_env().node_id.clone();
+    let node_id = vox_populi::populi_env().node_id.clone();
     let path = vox_populi::local_registry_path();
     match vox_populi::publish_local_registry_best_effort() {
         Ok(()) => {
@@ -40,11 +40,11 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
         }
     }
 
-    let record = vox_populi::mesh_registration_record_for_process();
-    match mesh_http_join_best_effort(record, "vox-mcp").await {
-        MeshHttpJoinSpawnOutcome::Skipped => {}
-        MeshHttpJoinSpawnOutcome::Joined { base, node_id } => {
-            vox_db::populi_registry_telemetry::record_mesh_http_join_opt(
+    let record = vox_populi::populi_registration_record_for_process();
+    match populi_http_join_best_effort(record, "vox-mcp").await {
+        PopuliHttpJoinSpawnOutcome::Skipped => {}
+        PopuliHttpJoinSpawnOutcome::Joined { base, node_id } => {
+            vox_db::populi_registry_telemetry::record_populi_http_join_opt(
                 &state.repository.repository_id,
                 true,
                 &base,
@@ -53,8 +53,8 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
             )
             .await;
         }
-        MeshHttpJoinSpawnOutcome::Failed { base, node_id, err } => {
-            vox_db::populi_registry_telemetry::record_mesh_http_join_opt(
+        PopuliHttpJoinSpawnOutcome::Failed { base, node_id, err } => {
+            vox_db::populi_registry_telemetry::record_populi_http_join_opt(
                 &state.repository.repository_id,
                 false,
                 &base,

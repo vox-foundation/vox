@@ -18,14 +18,14 @@ const DATA_REL: &str = "contracts/eval/benchmark-matrix.json";
 
 // --- Crate / feature names (avoid scattered literals in cargo argv) ---
 const PKG_VOX_CLI: &str = "vox-cli";
-const PKG_VOX_MENS: &str = "vox-mens";
+const PKG_VOX_POPULI_MENS: &str = "vox-populi";
 const PKG_VOX_SCHOLA: &str = "vox-schola";
 const PKG_VOX_MCP: &str = "vox-mcp";
 const PKG_VOX_RUNTIME: &str = "vox-runtime";
 const PKG_VOX_ORCHESTRATOR: &str = "vox-orchestrator";
 const PKG_VOX_DOC_INVENTORY: &str = "vox-doc-inventory";
 const FEAT_GPU: &str = "gpu";
-const FEAT_HF_HUB: &str = "hf-hub";
+const FEAT_POPULI_MENS_HF_HUB: &str = "mens,mens-hf-hub";
 
 // --- Cargo test name filters (module paths or substring filters) ---
 const FILTER_MENS_GPU_TESTS: &str = "commands::mens::tests";
@@ -36,7 +36,7 @@ const FILTER_ORCH_A2A_MESSAGE_IDS: &str = "message_ids_strictly_increasing";
 const FILTER_MCP_LANGUAGE_SURFACE: &str = "introspection_tools::tests::language_surface";
 const FILTER_MCP_TOOL_DISPATCH: &str = "test_mcp_tool_dispatch";
 const FILTER_DOC_INVENTORY_RELEVANCE: &str = "relevance_score";
-const FILTER_MENS_HUB_TESTS: &str = "hub::tests";
+const FILTER_MENS_HUB_TESTS: &str = "mens::hub::tests";
 
 /// Every `benchmark_classes` id in the matrix + JSON Schema enum; sorted lexicographically.
 pub(crate) const BENCHMARK_CLASS_IDS: &[&str] = &[
@@ -184,10 +184,10 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
             &[
                 "test",
                 "-p",
-                PKG_VOX_MENS,
+                PKG_VOX_POPULI_MENS,
                 "--lib",
                 "--features",
-                FEAT_HF_HUB,
+                FEAT_POPULI_MENS_HF_HUB,
                 FILTER_MENS_HUB_TESTS,
             ],
         ),

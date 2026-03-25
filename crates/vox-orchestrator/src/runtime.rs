@@ -357,7 +357,7 @@ impl AgentFleet {
 
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.
     pub async fn check_scaling(&self) {
-        let (status, idle_dynamic, config, budget_manager) = {
+        let (status, idle_dynamic, config, budget_manager, remote_gpu_capacity) = {
             let orch = self.orchestrator.lock().await;
             let config_arc = orch.config_handle();
             let config = crate::sync_lock::rw_read(&config_arc).clone();
@@ -375,7 +375,17 @@ impl AgentFleet {
                 })
                 .collect();
             let budget_manager = orch.budget_manager_handle();
-            (status, idle_dynamic, config, budget_manager)
+            let remote_gpu_capacity = crate::sync_lock::rw_read(&*orch.remote_populi_routing_hints)
+                .iter()
+                .filter(|h| {
+                    h.capabilities.gpu_cuda
+                        || h.capabilities.gpu_metal
+                        || h.capabilities.gpu_vulkan
+                        || h.capabilities.gpu_webgpu
+                        || h.capabilities.npu
+                })
+                .count();
+            (status, idle_dynamic, config, budget_manager, remote_gpu_capacity)
         };
 
         let load_history: Vec<f64> = Vec::new();
@@ -383,6 +393,7 @@ impl AgentFleet {
             &status,
             &config,
             &load_history,
+            remote_gpu_capacity,
             &idle_dynamic,
             &crate::sync_lock::rw_read(&budget_manager),
         );

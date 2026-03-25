@@ -12,6 +12,9 @@ use vox_orchestrator::{TaskCapabilityHints, TaskPriority};
 pub struct TrainSubmitParams {
     /// Human-readable training goal (stored on the orchestrator task).
     pub description: String,
+    /// When set, seeds Socrates / session retrieval from the same context store key as chat.
+    #[serde(default)]
+    pub session_id: Option<String>,
     /// When true, route toward CUDA-capable agent queues when configured.
     #[serde(default)]
     pub require_cuda: bool,
@@ -46,7 +49,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
             Some(TaskPriority::Background),
             None,
             Some(caps),
-            None,
+            params.session_id.clone(),
         )
         .await
     {

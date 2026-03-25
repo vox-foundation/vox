@@ -9836,7 +9836,6 @@ dependencies = [
  "vox-forge",
  "vox-git",
  "vox-ludus",
- "vox-mens",
  "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
@@ -9914,6 +9913,7 @@ dependencies = [
  "vox-compiler",
  "vox-db",
  "vox-mcp-meta",
+ "vox-mcp-registry",
  "vox-repository",
  "xxhash-rust",
 ]
@@ -10092,6 +10092,7 @@ dependencies = [
  "vox-db",
  "vox-lsp",
  "vox-ludus",
+ "vox-mcp-registry",
  "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
@@ -10112,38 +10113,15 @@ name = "vox-mcp-meta"
 version = "0.1.0"
 dependencies = [
  "strum 0.26.3",
+ "vox-mcp-registry",
 ]
 
 [[package]]
-name = "vox-mens"
+name = "vox-mcp-registry"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "async-trait",
- "burn",
- "candle-core",
- "candle-nn",
- "chrono",
- "ctrlc",
- "dirs",
- "futures",
- "hf-hub",
- "peft-rs",
- "qlora-rs",
- "rand 0.8.5",
- "reqwest 0.12.28",
- "safetensors 0.4.5",
  "serde",
- "serde_json",
  "serde_yaml",
- "sysinfo 0.38.4",
- "tempfile",
- "tokenizers",
- "tokio",
- "tracing",
- "vox-corpus",
- "vox-db",
- "vox-tensor",
 ]
 
 [[package]]
@@ -10233,17 +10211,37 @@ dependencies = [
 name = "vox-populi"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "axum",
+ "burn",
+ "candle-core",
+ "candle-nn",
+ "chrono",
+ "ctrlc",
+ "dirs",
+ "futures",
+ "hf-hub",
+ "peft-rs",
+ "qlora-rs",
+ "rand 0.8.5",
  "reqwest 0.12.28",
+ "safetensors 0.4.5",
  "serde",
  "serde_json",
  "serde_yaml",
  "subtle",
+ "sysinfo 0.38.4",
+ "tempfile",
  "thiserror 1.0.69",
+ "tokenizers",
  "tokio",
  "tower-http 0.6.8",
  "tracing",
+ "vox-corpus",
+ "vox-db",
  "vox-repository",
+ "vox-tensor",
 ]
 
 [[package]]
@@ -10325,7 +10323,7 @@ dependencies = [
  "uuid",
  "vox-corpus",
  "vox-db",
- "vox-mens",
+ "vox-populi",
 ]
 
 [[package]]

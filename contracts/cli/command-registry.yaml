@@ -48,6 +48,8 @@ operations:
   - { surface: vox-cli, path: [ci, grammar-drift], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, repo-guards], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, contracts-index], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, ssot-drift], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, release-build], status: active, reachability_required: false }
   - { surface: vox-cli, path: [completions], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
   - { surface: vox-cli, path: [fabrica], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
@@ -84,7 +86,10 @@ operations:
   - { surface: vox-cli, path: [train], status: deprecated, latin_ns: mens, feature_gate: "gpu+mens-dei", handler_rust: commands::ai::train, ref_cli_required: true }
   - { surface: vox-cli, path: [populi], status: active, feature_gate: populi, handler_rust: commands::populi_cli, ref_cli_required: true }
   - { surface: vox-cli, path: [populi, status], status: active, feature_gate: populi, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, local-status], status: active, feature_gate: populi, ref_cli_required: true }
   - { surface: vox-cli, path: [populi, serve], status: active, feature_gate: populi, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, up], status: active, feature_gate: populi, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, down], status: active, feature_gate: populi, ref_cli_required: true }
 
   # --- vox-compilerd RPC methods ---
   - { surface: compilerd, path: [build], status: active, handler_rust: compilerd::handle_build }

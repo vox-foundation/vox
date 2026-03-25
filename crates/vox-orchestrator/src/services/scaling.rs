@@ -44,6 +44,7 @@ impl ScalingService {
         status: &OrchestratorStatus,
         config: &OrchestratorConfig,
         _load_history: &[f64],
+        remote_gpu_capacity: usize,
         idle_dynamic: &[IdleDynamicAgent],
         budgets: &crate::budget::BudgetManager,
     ) -> ScalingAction {
@@ -64,7 +65,14 @@ impl ScalingService {
             (config.idle_retirement_ms as f64 * profile.retirement_multiplier()) as u64
         };
 
-        let max_relevant_load = status.total_weighted_load.max(status.predicted_load);
+        let queue_pressure_boost = if status.total_queued > config.scaling_threshold {
+            0.5
+        } else {
+            0.0
+        };
+        let remote_gpu_relief = if remote_gpu_capacity > 0 { 0.75 } else { 1.0 };
+        let max_relevant_load =
+            status.total_weighted_load.max(status.predicted_load) + queue_pressure_boost;
 
         // Scale up: current or predicted load per agent exceeds effective threshold
         // Guard: don't scale up if we are already in cost alert
@@ -74,7 +82,7 @@ impl ScalingService {
             } else {
                 max_relevant_load
             };
-            if per_agent >= threshold {
+            if per_agent * remote_gpu_relief >= threshold {
                 let name = format!("transient-{}", agent_count + 1);
                 return ScalingAction::ScaleUp { name };
             }
@@ -120,5 +128,79 @@ impl ScalingService {
         } else {
             avg
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::budget::BudgetManager;
+    use crate::orchestrator::{AgentSummary, OrchestratorStatus};
+    use crate::types::AgentId;
+
+    fn status(total_queued: usize, total_weighted_load: f64) -> OrchestratorStatus {
+        OrchestratorStatus {
+            enabled: true,
+            agent_count: 1,
+            total_queued,
+            total_in_progress: 0,
+            total_completed: 0,
+            locked_files: 0,
+            total_contention: 0,
+            total_weighted_load,
+            predicted_load: total_weighted_load,
+            reserved_agents: 0,
+            dynamic_agents: 0,
+            context_entries: std::collections::HashMap::new(),
+            agents: vec![AgentSummary {
+                id: AgentId(1),
+                name: "a1".to_string(),
+                queued: total_queued,
+                urgent_count: 0,
+                normal_count: total_queued,
+                background_count: 0,
+                in_progress: false,
+                completed: 0,
+                paused: false,
+                owned_files: 0,
+                dynamic: false,
+                weighted_load: total_weighted_load,
+                agent_session_id: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn scales_up_when_local_pressure_is_high() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.scaling_enabled = true;
+        cfg.max_agents = 4;
+        cfg.scaling_threshold = 1;
+        let action = ScalingService::decide_scaling(
+            &status(5, 3.0),
+            &cfg,
+            &[],
+            0,
+            &[],
+            &BudgetManager::new(),
+        );
+        assert!(matches!(action, ScalingAction::ScaleUp { .. }));
+    }
+
+    #[test]
+    fn remote_gpu_capacity_reduces_scale_up_pressure() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.scaling_enabled = true;
+        cfg.max_agents = 4;
+        cfg.scaling_threshold = 3;
+        let action = ScalingService::decide_scaling(
+            &status(3, 3.0),
+            &cfg,
+            &[],
+            3,
+            &[],
+            &BudgetManager::new(),
+        );
+        assert!(matches!(action, ScalingAction::NoOp));
     }
 }

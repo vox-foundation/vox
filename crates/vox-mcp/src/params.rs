@@ -87,6 +87,9 @@ pub struct SubmitTaskParams {
     pub goal_scope: Option<String>,
     /// Optional cap on planner depth.
     pub max_plan_depth: Option<u32>,
+    /// Optional retrieval envelope to seed Socrates task context.
+    #[serde(default)]
+    pub retrieval: Option<crate::memory::RetrievalEvidenceEnvelope>,
 }
 
 /// Identifier payload returned after a successful [`SubmitTaskParams`] submission.

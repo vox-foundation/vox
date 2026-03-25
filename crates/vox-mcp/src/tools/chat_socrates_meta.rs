@@ -35,6 +35,16 @@ pub(crate) fn spawn_socrates_telemetry(
     socrates_value: Value,
     model_used: Option<String>,
 ) {
+    spawn_socrates_telemetry_with_meta(state, surface, socrates_value, model_used, None);
+}
+
+pub(crate) fn spawn_socrates_telemetry_with_meta(
+    state: &ServerState,
+    surface: &'static str,
+    socrates_value: Value,
+    model_used: Option<String>,
+    retrieval_meta: Option<Value>,
+) {
     let Some(db) = state.db.clone() else {
         return;
     };
@@ -63,6 +73,7 @@ pub(crate) fn spawn_socrates_telemetry(
                 meta.confidence_estimate,
                 meta.contradiction_ratio,
                 model_used.as_deref(),
+                retrieval_meta,
             )
             .await
         {

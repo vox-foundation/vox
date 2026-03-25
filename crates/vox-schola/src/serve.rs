@@ -13,7 +13,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use axum::extract::State;
 use axum::response::IntoResponse;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
@@ -36,6 +36,24 @@ struct ChatRequest {
     temperature: Option<f64>,
     /// Top-p nucleus sampling threshold.
     top_p: Option<f64>,
+}
+
+/// Ollama-compatible `POST /api/chat` request.
+#[derive(Debug, Deserialize)]
+struct OllamaChatRequest {
+    #[allow(dead_code)]
+    model: Option<String>,
+    messages: Vec<ChatMessage>,
+    #[allow(dead_code)]
+    stream: Option<bool>,
+    #[serde(default)]
+    options: OllamaOptions,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct OllamaOptions {
+    temperature: Option<f64>,
+    num_predict: Option<i32>,
 }
 
 /// Single conversation turn.
@@ -70,11 +88,32 @@ struct UsageSummary {
     total_tokens: usize,
 }
 
+#[derive(Serialize)]
+struct OllamaTagsResponse {
+    models: Vec<OllamaTagModel>,
+}
+
+#[derive(Serialize)]
+struct OllamaTagModel {
+    name: String,
+    model: String,
+}
+
+#[derive(Serialize)]
+struct OllamaChatResponse {
+    model: String,
+    message: ChatMessage,
+    done: bool,
+    prompt_eval_count: usize,
+    eval_count: usize,
+}
+
 // ── Engine ─────────────────────────────────────────────────────────────────────
 
 /// Inference configuration.
 struct ServeConfig {
     model_dir: PathBuf,
+    model_name: String,
     max_tokens: usize,
     temperature: f64,
     device: String,
@@ -149,6 +188,72 @@ async fn chat_completions(
     }
 }
 
+async fn ollama_tags(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Json(OllamaTagsResponse {
+        models: vec![OllamaTagModel {
+            name: state.config.model_name.clone(),
+            model: state.config.model_name.clone(),
+        }],
+    })
+}
+
+async fn ollama_chat(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<OllamaChatRequest>,
+) -> impl IntoResponse {
+    let max_tokens = req
+        .options
+        .num_predict
+        .map(|v| v.max(1) as usize)
+        .unwrap_or(state.config.max_tokens);
+    let temperature = req.options.temperature.unwrap_or(state.config.temperature);
+    let prompt = build_prompt(&req.messages);
+    let result = tokio::task::spawn_blocking({
+        let model_dir = state.config.model_dir.clone();
+        let device = state.config.device.clone();
+        let prompt_clone = prompt.clone();
+        move || {
+            generate_response(
+                &model_dir,
+                &prompt_clone,
+                &device,
+                max_tokens,
+                temperature,
+                None,
+            )
+        }
+    })
+    .await;
+
+    match result {
+        Ok(Ok(text)) => {
+            let prompt_tokens = prompt.split_whitespace().count();
+            let completion_tokens = text.split_whitespace().count();
+            Json(OllamaChatResponse {
+                model: state.config.model_name.clone(),
+                message: ChatMessage {
+                    role: "assistant".into(),
+                    content: text,
+                },
+                done: true,
+                prompt_eval_count: prompt_tokens,
+                eval_count: completion_tokens,
+            })
+            .into_response()
+        }
+        Ok(Err(e)) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("inference error: {e}"),
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task error: {e}"),
+        )
+            .into_response(),
+    }
+}
+
 /// Build a Qwen-style ChatML prompt string from conversation messages.
 fn build_prompt(messages: &[ChatMessage]) -> String {
     let mut s = String::new();
@@ -173,8 +278,8 @@ fn build_prompt(messages: &[ChatMessage]) -> String {
 /// 5. Run autoregressive generation with a KV cache.
 ///
 /// This function is the integration point. The actual Candle model graph is
-/// implemented in `vox_mens::tensor::candle_model_qwen` and the serving
-/// infrastructure in `vox_mens::tensor::candle_inference_serve`.
+/// implemented in `vox_populi::mens::tensor::candle_model_qwen` and the serving
+/// infrastructure in `vox_populi::mens::tensor::candle_inference_serve`.
 fn generate_response(
     model_dir: &std::path::Path,
     prompt: &str,
@@ -184,8 +289,8 @@ fn generate_response(
     top_p: Option<f64>,
 ) -> Result<String> {
     // Resolve device
-    let device_kind = vox_mens::normalize_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
-    vox_mens::apply_backend_env(device_kind);
+    let device_kind = vox_populi::mens::normalize_device(device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    vox_populi::mens::apply_backend_env(device_kind);
 
     let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
     let tokenizer_path = model_dir.join("tokenizer.json");
@@ -201,7 +306,7 @@ fn generate_response(
     }
 
     let mut engine =
-        vox_mens::tensor::candle_inference_serve::InferenceEngine::load(model_dir, &device_kind)?;
+        vox_populi::mens::tensor::candle_inference_serve::InferenceEngine::load(model_dir, &device_kind)?;
     engine.generate(prompt, max_new_tokens, temperature, top_p)
 }
 
@@ -230,6 +335,12 @@ pub async fn run(args: Args) -> Result<()> {
     let state = Arc::new(AppState {
         config: ServeConfig {
             model_dir: model.clone(),
+            model_name: model
+                .file_name()
+                .and_then(|n| n.to_str())
+                .filter(|n| !n.trim().is_empty())
+                .unwrap_or("vox-schola-local")
+                .to_string(),
             max_tokens,
             temperature,
             device,
@@ -237,6 +348,8 @@ pub async fn run(args: Args) -> Result<()> {
     });
 
     let router = Router::new()
+        .route("/api/tags", get(ollama_tags))
+        .route("/api/chat", post(ollama_chat))
         .route("/v1/chat/completions", post(chat_completions))
         .with_state(state);
 
@@ -246,6 +359,7 @@ pub async fn run(args: Args) -> Result<()> {
     eprintln!("╚══════════════════════════════════════════╝");
     eprintln!("  Model:    {}", model.display());
     eprintln!("  Endpoint: http://{addr}/v1/chat/completions");
+    eprintln!("  Ollama:   http://{addr}/api/chat  (+ /api/tags)");
     eprintln!("  Max tok:  {max_tokens}");
     eprintln!("  Temp:     {temperature}");
     eprintln!();

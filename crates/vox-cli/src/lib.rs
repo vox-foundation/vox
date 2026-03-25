@@ -351,7 +351,7 @@ pub enum Cli {
     Populi {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::populi_cli::MeshCli,
+        cmd: commands::populi_cli::PopuliCli,
     },
 }
 

@@ -70,7 +70,7 @@ async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result
              --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir {} --output-dir {} \\\n\
              --device cuda --qlora-require-full-proxy-stack\n\
          Build with `--features gpu,mens-candle-cuda` for NVIDIA CUDA.\n\
-         Docs: docs/src/architecture/mens-training-ssot.md and docs/src/how-to-train-mens-4080.md.",
+         Docs: docs/src/architecture/mens-training-ssot.md and docs/src/how-to/how-to-train-mens-4080.md.",
         data_dir.display(),
         out_hint
     );

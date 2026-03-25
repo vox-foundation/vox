@@ -33,21 +33,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create shared state and server
     let mut state = ServerState::new(config);
 
-    // Try to connect to database for gamification persistence
-    let db_config = vox_db::DbConfig::from_env().unwrap_or_else(|_| vox_db::DbConfig::Local {
-        path: "vox.db".to_string(),
-    });
-
-    info!(?db_config, "connecting to database...");
-    match vox_db::VoxDb::connect(db_config).await {
-        Ok(db) => {
-            state = state.with_db(db);
-            info!("database connected and linked to state");
+    // Same resolution policy as `vox-runtime` (`DbConfig::resolve_standalone`): canonical `VOX_DB_*`
+    // with compatibility fallbacks and project default paths — not a hardcoded `vox.db` only.
+    match vox_db::DbConfig::resolve_standalone() {
+        Ok(db_config) => {
+            info!(?db_config, "connecting to database...");
+            match vox_db::VoxDb::connect(db_config).await {
+                Ok(db) => {
+                    state = state.with_db(db);
+                    info!("database connected and linked to state");
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "failed to connect to database: {}. persistence disabled.",
+                        e
+                    );
+                }
+            }
         }
         Err(e) => {
             tracing::warn!(
-                "failed to connect to database: {}. persistence disabled.",
-                e
+                "database config resolution failed (resolve_standalone): {e}. persistence disabled."
             );
         }
     }

@@ -234,8 +234,17 @@ fn apply_synonym(prompt: &str, rng: &mut impl Rng) -> String {
     if replaceable.is_empty() {
         return prompt.to_string();
     }
-    // Pick a random eligible phrase
-    let (start, end, alts) = replaceable[rng.gen_range(0..replaceable.len())].clone();
+    // Pick among longest matches first to keep behavior predictable for overlaps.
+    let longest = replaceable
+        .iter()
+        .map(|(start, end, _)| end - start)
+        .max()
+        .unwrap_or(0);
+    let longest_matches: Vec<_> = replaceable
+        .into_iter()
+        .filter(|(start, end, _)| end - start == longest)
+        .collect();
+    let (start, end, alts) = longest_matches[rng.gen_range(0..longest_matches.len())].clone();
     let alt = alts[rng.gen_range(0..alts.len())];
     // Preserve original casing heuristic: if the original first char is uppercase, capitalise alt
     let orig_word = &prompt[start..end];

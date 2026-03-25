@@ -82,11 +82,14 @@ When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`
 
 ### `vox populi …` (feature `populi`)
 
-**Not in default builds.** Local mens registry introspection and a minimal HTTP control plane (join / list / heartbeat). Build: `cargo build -p vox-cli --features populi` (often pair with `mens-base` if you used `--no-default-features`).
+**Not in default builds.** One-command private mesh lifecycle helpers backed by the same Populi control plane. Build: `cargo build -p vox-cli --features populi`.
 
 | Subcommand | Role |
 |------------|------|
-| `vox populi status` | Print mens env, on-disk registry path + nodes, and probed capabilities for this process (`--registry` override; `--json`). |
+| `vox populi up` | Bootstraps a private populi config (`.vox/populi/mesh.env`), generates `VOX_MESH_TOKEN` + `VOX_MESH_SCOPE_ID` by default, and starts `vox populi serve` in the background. Supports `--mode lan|overlay`, `--bind`, and `--insecure-local` for dev-only LAN use. |
+| `vox populi down` | Stops the background control-plane process recorded in `.vox/populi/mesh-state.json`. |
+| `vox populi status` | Shows control-plane health (`/health`), token/scope posture, and overlay diagnostics (tailscale/wireguard/tunnel availability/connection hints). |
+| `vox populi local-status` | Print local env and on-disk registry path + nodes (`--registry` override; `--json`). |
 | `vox populi serve` | Bind HTTP (`--bind 127.0.0.1:9847`); optional `--registry` seeds in-memory state from a JSON file. |
 
 Interpreted **`vox workflow run`** / **`vox mens workflow run`** (journal + `mesh_*` activity hooks) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits **`ActivityStarted` / `ActivityCompleted`** rows with **`activity_id`** (from `with { activity_id: … }` or a generated id). Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls; see **`examples/mens/workflow_mesh_demo.vox`**. Codex append is opt-in via **`VOX_WORKFLOW_JOURNAL_CODEX`** ([orchestration SSOT](orchestration-unified.md)).
@@ -113,6 +116,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
+| `contracts-index` | Validates `contracts/index.yaml` against `contracts/index.schema.json` and checks every listed contract path exists |
+| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `command-compliance`, and `contracts-index` in one pass |
 
 **Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.
 

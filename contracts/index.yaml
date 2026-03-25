@@ -1,0 +1,91 @@
+# Machine-readable inventory of repo contract artifacts (see contracts/index.schema.json).
+schema_version: 1
+
+contracts:
+  - id: cli-command-registry
+    path: contracts/cli/command-registry.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Shipped CLI and surface registry for command-compliance.
+    enforced_by:
+      - vox ci command-compliance
+
+  - id: cli-command-registry-schema
+    path: contracts/cli/command-registry.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for command-registry.yaml.
+    enforced_by:
+      - vox ci command-compliance
+
+  - id: codex-api-openapi
+    path: contracts/codex-api.openapi.yaml
+    owner: codex-api
+    kind: openapi-yaml
+    description: Codex HTTP API surface for dashboard / run_dashboard.
+    enforced_by:
+      - vox ci check-codex-ssot
+
+  - id: dei-rpc-envelope-schema
+    path: contracts/dei/rpc-methods.schema.json
+    owner: dei
+    kind: json-schema
+    description: DeI daemon JSON-line RPC envelope (version, method, params).
+    enforced_by:
+      - vox ci command-compliance
+
+  - id: eval-benchmark-matrix
+    path: contracts/eval/benchmark-matrix.json
+    owner: mens
+    kind: json
+    description: Milestone benchmark matrix data.
+    enforced_by:
+      - vox ci eval-matrix
+
+  - id: eval-benchmark-matrix-schema
+    path: contracts/eval/benchmark-matrix.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for benchmark-matrix.json.
+    enforced_by:
+      - vox ci eval-matrix
+
+  - id: contracts-index
+    path: contracts/index.yaml
+    owner: platform-ci
+    kind: yaml
+    description: This file — canonical list of contract artifacts.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: baseline-version-policy
+    path: contracts/db/baseline-version-policy.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Canonical baseline integer vs digest policy for Arca/Codex.
+    enforced_by:
+      - vox ci check-codex-ssot
+
+  - id: ssot-evidence-snapshot
+    path: contracts/reports/evidence-snapshot-rev-c.json
+    owner: platform-ci
+    kind: json
+    description: Machine-readable SSOT drift findings snapshot.
+    enforced_by:
+      - vox ci check-codex-ssot
+
+  - id: mcp-tool-registry
+    path: contracts/mcp/tool-registry.canonical.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Canonical MCP tool names and descriptions; built into Rust via vox-mcp-registry.
+    enforced_by:
+      - vox ci command-compliance
+      - cargo build -p vox-mcp-registry
+
+  - id: sql-write-ownership-rev-c
+    path: contracts/reports/sql-write-ownership-rev-c.json
+    owner: platform-ci
+    kind: json
+    description: Incremental SQL write ownership audit placeholder (Rev C).
+    enforced_by: []

@@ -6,7 +6,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-type EvalBackend = vox_mens::burn::backend::wgpu::Wgpu;
+type EvalBackend = vox_populi::mens::burn::backend::wgpu::Wgpu;
 
 /// Holds a loaded Burn checkpoint for repeated `generate` calls (eval-local hot path).
 ///
@@ -16,9 +16,9 @@ type EvalBackend = vox_mens::burn::backend::wgpu::Wgpu;
 /// token (slower; same math as `vox mens serve` for merged weights).
 #[cfg(feature = "gpu")]
 pub struct LoadedPopuliEvalModel {
-    model: vox_mens::tensor::BurnInferenceModel<EvalBackend>,
-    device: <EvalBackend as vox_mens::burn::tensor::backend::Backend>::Device,
-    arch: vox_mens::tensor::manifest::ArchParams,
+    model: vox_populi::mens::tensor::BurnInferenceModel<EvalBackend>,
+    device: <EvalBackend as vox_populi::mens::burn::tensor::backend::Backend>::Device,
+    arch: vox_populi::mens::tensor::manifest::ArchParams,
     seq_len: usize,
 }
 
@@ -27,18 +27,18 @@ impl LoadedPopuliEvalModel {
     /// Load checkpoint from disk once (wgpu).
     pub fn load(model_path: &Path) -> Result<Self> {
         let run_dir = model_path.parent().unwrap_or(Path::new("."));
-        let arch = vox_mens::tensor::manifest::ArchParams::from_manifest(run_dir)?;
+        let arch = vox_populi::mens::tensor::manifest::ArchParams::from_manifest(run_dir)?;
         let mut rank = 16usize;
         let mut alpha = 32.0f32;
         let mut seq_len = 512usize;
-        if let Ok(Some(m)) = vox_mens::tensor::manifest::load_manifest(run_dir) {
+        if let Ok(Some(m)) = vox_populi::mens::tensor::manifest::load_manifest(run_dir) {
             rank = m.rank;
             alpha = m.alpha;
             seq_len = m.seq_len;
         }
 
-        let device = <EvalBackend as vox_mens::burn::tensor::backend::Backend>::Device::default();
-        let spec = vox_mens::tensor::BurnInferenceLoadSpec {
+        let device = <EvalBackend as vox_populi::mens::burn::tensor::backend::Backend>::Device::default();
+        let spec = vox_populi::mens::tensor::BurnInferenceLoadSpec {
             vocab_size: arch.vocab_size,
             d_model: arch.d_model,
             n_heads: arch.n_heads,
@@ -47,7 +47,7 @@ impl LoadedPopuliEvalModel {
             alpha,
         };
         let model =
-            vox_mens::tensor::load_burn_inference_model::<EvalBackend>(&device, model_path, spec)
+            vox_populi::mens::tensor::load_burn_inference_model::<EvalBackend>(&device, model_path, spec)
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         Ok(Self {
@@ -66,7 +66,7 @@ impl LoadedPopuliEvalModel {
         max_tokens: usize,
         temperature: f32,
     ) -> Result<String> {
-        use vox_mens::tensor::data::VoxTokenizer;
+        use vox_populi::mens::tensor::data::VoxTokenizer;
 
         let tokens: Vec<i32> =
             VoxTokenizer::encode_chatml_inference_prefix(system_prompt, user_prompt)
@@ -78,7 +78,7 @@ impl LoadedPopuliEvalModel {
         }
 
         match &mut self.model {
-            vox_mens::tensor::BurnInferenceModel::Lora(model) => Self::generate_lora_kv(
+            vox_populi::mens::tensor::BurnInferenceModel::Lora(model) => Self::generate_lora_kv(
                 model,
                 &self.device,
                 self.arch.vocab_size,
@@ -87,7 +87,7 @@ impl LoadedPopuliEvalModel {
                 temperature,
                 tokens,
             ),
-            vox_mens::tensor::BurnInferenceModel::Merged(model) => generate_merged_full_forward(
+            vox_populi::mens::tensor::BurnInferenceModel::Merged(model) => generate_merged_full_forward(
                 model,
                 &self.device,
                 self.arch.vocab_size,
@@ -100,17 +100,17 @@ impl LoadedPopuliEvalModel {
     }
 
     fn generate_lora_kv(
-        model: &mut vox_mens::tensor::lora::LoraVoxTransformer<EvalBackend>,
-        device: &<EvalBackend as vox_mens::burn::tensor::backend::Backend>::Device,
+        model: &mut vox_populi::mens::tensor::lora::LoraVoxTransformer<EvalBackend>,
+        device: &<EvalBackend as vox_populi::mens::burn::tensor::backend::Backend>::Device,
         vocab_size: usize,
         seq_len: usize,
         max_tokens: usize,
         temperature: f32,
         tokens: Vec<i32>,
     ) -> Result<String> {
-        use vox_mens::burn::prelude::Int;
-        use vox_mens::burn::tensor::{Tensor as BurnTensor, TensorData};
-        use vox_mens::tensor::data::VoxTokenizer;
+        use vox_populi::mens::burn::prelude::Int;
+        use vox_populi::mens::burn::tensor::{Tensor as BurnTensor, TensorData};
+        use vox_populi::mens::tensor::data::VoxTokenizer;
 
         let prompt_len = tokens.len();
         let max_gen = max_tokens.min(seq_len.saturating_sub(prompt_len));
@@ -160,17 +160,17 @@ impl LoadedPopuliEvalModel {
 
 #[cfg(feature = "gpu")]
 fn generate_merged_full_forward(
-    model: &vox_mens::tensor::burn_stack::VoxTransformer<EvalBackend>,
-    device: &<EvalBackend as vox_mens::burn::tensor::backend::Backend>::Device,
+    model: &vox_populi::mens::tensor::burn_stack::VoxTransformer<EvalBackend>,
+    device: &<EvalBackend as vox_populi::mens::burn::tensor::backend::Backend>::Device,
     vocab_size: usize,
     seq_len: usize,
     max_tokens: usize,
     temperature: f32,
     mut tokens: Vec<i32>,
 ) -> Result<String> {
-    use vox_mens::burn::prelude::Int;
-    use vox_mens::burn::tensor::{Tensor as BurnTensor, TensorData};
-    use vox_mens::tensor::data::VoxTokenizer;
+    use vox_populi::mens::burn::prelude::Int;
+    use vox_populi::mens::burn::tensor::{Tensor as BurnTensor, TensorData};
+    use vox_populi::mens::tensor::data::VoxTokenizer;
 
     let prompt_len = tokens.len();
     let max_gen = max_tokens.min(seq_len.saturating_sub(prompt_len));

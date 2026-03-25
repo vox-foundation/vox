@@ -9,7 +9,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct VoxMeshToml {
-    /// HTTP control plane base URL (`GET /v1/mens/nodes`); maps to `OrchestratorConfig::populi_control_url`.
+    /// HTTP control plane base URL (`GET /v1/populi/nodes`); maps to `OrchestratorConfig::populi_control_url`.
     #[serde(default)]
     pub control_url: Option<String>,
     /// Opaque cluster / tenancy id for join/heartbeat when the server enforces scope.

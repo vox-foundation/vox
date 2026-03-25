@@ -28,7 +28,7 @@ The Vox memory system provides persistent, searchable long-term storage for agen
 |------|-------------|
 | `vox_memory_store` | Persist a key-value fact to long-term memory (MEMORY.md) |
 | `vox_memory_recall` | Retrieve a fact from long-term memory by key |
-| `vox_memory_search` | Hybrid BM25+vector search over daily logs and MEMORY.md |
+| `vox_memory_search` | Unified retrieval pipeline: hybrid (BM25+vector) when available, with deterministic fallback to BM25-only and lexical substring scan |
 | `vox_memory_log` | Append an entry to today's daily memory log |
 | `vox_memory_list_keys` | List all section keys from MEMORY.md |
 | `vox_knowledge_query` | Query the knowledge graph for related concepts |

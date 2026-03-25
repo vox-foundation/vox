@@ -3,9 +3,9 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
-use vox_mens::MERGE_QLORA_REJECTS_BURN_BIN;
-use vox_mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
-use vox_mens::tensor::candle_qlora_merge::{QloraAdapterMetaV2, merge_qlora_v2_into_base_subset};
+use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
+use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
+use vox_populi::mens::tensor::candle_qlora_merge::{QloraAdapterMetaV2, merge_qlora_v2_into_base_subset};
 
 pub fn run_merge_qlora(
     base_shards: Vec<PathBuf>,
@@ -41,7 +41,7 @@ pub fn run_merge_qlora(
         } else {
             let v3: PopuliAdapterManifestV3 = serde_json::from_str(&raw)
                 .with_context(|| format!("parse meta as v2 or v3 {}", meta.display()))?;
-            vox_mens::tensor::adapter_schema_v3::to_qlora_meta_v2_for_merge(&v3)
+            vox_populi::mens::tensor::adapter_schema_v3::to_qlora_meta_v2_for_merge(&v3)
                 .with_context(|| "adapter manifest v3 → merge bridge")?
         };
     merge_qlora_v2_into_base_subset(&base_shards, &adapter, &meta_v2, &output)?;

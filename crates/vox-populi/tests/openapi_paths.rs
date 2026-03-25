@@ -16,6 +16,10 @@ fn openapi_paths_match_transport_router() {
     keys.sort();
     let expected = vec![
         "/health".to_string(),
+        "/v1/populi/a2a/ack".to_string(),
+        "/v1/populi/a2a/deliver".to_string(),
+        "/v1/populi/a2a/inbox".to_string(),
+        "/v1/populi/bootstrap/exchange".to_string(),
         "/v1/populi/heartbeat".to_string(),
         "/v1/populi/join".to_string(),
         "/v1/populi/leave".to_string(),

@@ -14,7 +14,7 @@ This page ties together **how Vox is meant to run** on servers, generated apps, 
 
 - **Entry:** `vox run --mode script` on a path to a `.vox` file with a `fn main()`-style script surface.
 - **Binary:** `vox-cli` must be built with feature **`script-execution`** (see [CLI scope policy](cli-scope-policy.md)).
-- **Mens registry (optional):** build with Cargo feature **`populi`** (links `vox-populi`). When **`VOX_MESH_ENABLED`** is set, `vox run` publishes to the local mens registry and may HTTP-join the control plane (same env as MCP). Implementation: [`mesh_publish_best_effort_for_run`](../../../crates/vox-cli/src/commands/run.rs) calls [`publish_local_registry_best_effort`](../../../crates/vox-populi/src/lib.rs) and [`mesh_http_join_best_effort`](../../../crates/vox-populi/src/http_lifecycle.rs).
+- **Mens registry (optional):** build with Cargo feature **`populi`** (links `vox-populi`). When **`VOX_MESH_ENABLED`** is set, `vox run` publishes to the local mens registry and may HTTP-join the control plane (same env as MCP). Implementation: [`mesh_publish_best_effort_for_run`](../../../crates/vox-cli/src/commands/run.rs) calls [`publish_local_registry_best_effort`](../../../crates/vox-populi/src/lib.rs) and [`populi_http_join_best_effort`](../../../crates/vox-populi/src/http_lifecycle.rs).
 - **Compose:** [examples/mens-compose.yml](../../../docker-compose.yml) uses `vox run --mode script` for the worker service with a shared volume and mens control plane.
 
 ## Lane A — App / generated server
@@ -25,7 +25,7 @@ This page ties together **how Vox is meant to run** on servers, generated apps, 
 ## Lane M — Mobile native
 
 - **No `vox` binary** on stock iOS/Android for full language stack or Ollama; see [mobile / edge AI SSOT](../reference/mobile-edge-ai.md).
-- **Mens:** native apps act as HTTP clients: register via **`POST /v1/mens/join`** with a [`NodeRecord`](../../../crates/vox-populi/src/lib.rs), using the same **`VOX_MESH_*`** / control URL conventions as servers.
+- **Mens:** native apps act as HTTP clients: register via **`POST /v1/populi/join`** with a [`NodeRecord`](../../../crates/vox-populi/src/lib.rs), using the same **`VOX_MESH_*`** / control URL conventions as servers.
 - **Inference:** set **`VOX_INFERENCE_PROFILE`** (e.g. `mobile_litert`, `cloud_openai_compatible`) so MCP-compatible tooling does not assume desktop Ollama on loopback.
 
 ## WASM clarification

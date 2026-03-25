@@ -4,7 +4,7 @@ use anyhow::Result;
 
 pub fn run_probe(verbose: bool) -> Result<()> {
     use owo_colors::OwoColorize;
-    use vox_mens::probe_gpu;
+    use vox_populi::mens::probe_gpu;
 
     let info = probe_gpu();
     println!("GPU: {} (~{} MB)", info.model_name, info.vram_mb);

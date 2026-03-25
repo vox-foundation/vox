@@ -3,6 +3,7 @@
 
 use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use vox_socrates_policy::RiskDecision;
 
 use crate::VoxDb;
@@ -38,6 +39,9 @@ pub struct SocratesSurfaceTelemetry {
     /// LLM id / label when available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_used: Option<String>,
+    /// Optional retrieval evidence envelope (tier, contradictions, modality flags).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retrieval: Option<Value>,
 }
 
 /// Rollup over recent `socrates_surface` rows (parsed from `metadata_json`).
@@ -74,6 +78,7 @@ impl VoxDb {
         confidence_estimate: f64,
         contradiction_ratio: f64,
         model_used: Option<&str>,
+        retrieval: Option<Value>,
     ) -> Result<i64, StoreError> {
         let proxy = hallucination_risk_proxy(decision, contradiction_ratio);
         let meta = SocratesSurfaceTelemetry {
@@ -84,6 +89,7 @@ impl VoxDb {
             contradiction_ratio,
             hallucination_risk_proxy: proxy,
             model_used: model_used.map(std::string::ToString::to_string),
+            retrieval,
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
@@ -240,6 +246,7 @@ impl VoxDb {
 mod db_tests {
     use crate::store::StoreError;
     use crate::{DbConfig, VoxDb};
+    use serde_json::json;
     use vox_socrates_policy::RiskDecision;
 
     #[tokio::test]
@@ -255,12 +262,21 @@ mod db_tests {
             0.9,
             0.0,
             Some("test-model"),
+            None,
         )
         .await
         .expect("record");
-        db.record_socrates_surface_event(rid, "vox_plan", RiskDecision::Abstain, 0.2, 0.5, None)
-            .await
-            .expect("record2");
+        db.record_socrates_surface_event(
+            rid,
+            "vox_plan",
+            RiskDecision::Abstain,
+            0.2,
+            0.5,
+            None,
+            None,
+        )
+        .await
+        .expect("record2");
         let agg = db
             .aggregate_socrates_surface_metrics(Some(rid), 10)
             .await
@@ -290,6 +306,38 @@ mod db_tests {
             }
             _ => panic!("expected StoreError::Db, got {err:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn socrates_surface_persists_optional_retrieval_metadata() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("memory vox-db");
+        let rid = "retrieval-meta-repo";
+        db.record_socrates_surface_event(
+            rid,
+            "vox_chat_message",
+            RiskDecision::Ask,
+            0.6,
+            0.2,
+            Some("test-model"),
+            Some(json!({
+                "retrieval_tier": "hybrid",
+                "used_vector": true,
+                "contradiction_count": 1
+            })),
+        )
+        .await
+        .expect("record retrieval metadata");
+
+        let rows = db
+            .list_socrates_surface_events(Some(rid), 5)
+            .await
+            .expect("list rows");
+        assert_eq!(rows.len(), 1);
+        let meta = rows[0].2.clone().expect("metadata json");
+        assert!(meta.contains("\"retrieval_tier\":\"hybrid\""));
+        assert!(meta.contains("\"used_vector\":true"));
     }
 }
 

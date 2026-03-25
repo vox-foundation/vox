@@ -94,7 +94,7 @@ pub struct Orchestrator {
     pub last_rebalance_at: std::sync::Arc<std::sync::RwLock<Option<std::time::Instant>>>,
     /// Last global activity timestamp (ms) for idle detection.
     pub last_activity_ms: std::sync::atomic::AtomicU64,
-    /// Last remote mens snapshot hints (from MCP federation poller); read-only placement signals.
-    pub remote_mesh_routing_hints:
-        std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemoteMeshRoutingHint>>>,
+    /// Last remote populi snapshot hints (from MCP federation poller); read-only placement signals.
+    pub remote_populi_routing_hints:
+        std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemotePopuliRoutingHint>>>,
 }

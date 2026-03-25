@@ -21,7 +21,7 @@ pub fn is_valid_json_prefix(s: &str) -> bool {
 #[cfg(feature = "execution-api")]
 #[allow(dead_code)]
 pub fn mask_logits_for_json(logits: &mut [f32], current_text: &str) {
-    use vox_mens::tensor::data::{VOCAB_SIZE, VoxTokenizer};
+    use vox_populi::mens::tensor::data::{VOCAB_SIZE, VoxTokenizer};
     for id in 0..VOCAB_SIZE.min(logits.len()) {
         let token_str = VoxTokenizer::decode(&[id as u32]);
         let extended = format!("{}{}", current_text, token_str);

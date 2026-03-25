@@ -37,8 +37,8 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
 async fn mesh_publish_best_effort_for_run() {
     #[cfg(feature = "populi")]
     {
-        if vox_populi::mesh_enabled_from_env() {
-            let node_id = vox_populi::mesh_env().node_id.clone();
+        if vox_populi::populi_enabled_from_env() {
+            let node_id = vox_populi::populi_env().node_id.clone();
             let path = vox_populi::local_registry_path();
             match vox_populi::publish_local_registry_best_effort() {
                 Ok(()) => {
@@ -62,8 +62,8 @@ async fn mesh_publish_best_effort_for_run() {
                     );
                 }
             }
-            let _ = vox_populi::http_lifecycle::mesh_http_join_best_effort(
-                vox_populi::mesh_registration_record_for_process(),
+            let _ = vox_populi::http_lifecycle::populi_http_join_best_effort(
+                vox_populi::populi_registration_record_for_process(),
                 "vox run",
             )
             .await;

@@ -369,7 +369,7 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
             (broken, explanation)
         }
         BrokenKind::OptionUnwrapMissing => {
-            let broken = src.replace("Some(", "").replace(")", "");
+            let broken = src.replacen("Some(", "", 1).replacen(')', "", 1);
             let explanation =
                 "Attempting to use `Option[T]` as `T` directly without unwrap or matching."
                     .to_string();

@@ -183,7 +183,7 @@ When Open: write callers buffer to `AgentQueue` for retry on recovery.
 
 ### Mens HTTP Client Retries
 
-`MeshHttpClient` applies the same exponential backoff formula for join, heartbeat,
+`PopuliHttpClient` applies the same exponential backoff formula for join, heartbeat,
 and A2A relay calls. Previously it had no retry logic at all.
 
 ---

@@ -1,9 +1,13 @@
-//! Vox **populi** — node registry and (optional) HTTP control plane.
+//! Vox **populi** — node registry, optional HTTP control plane, and (feature **`mens`**) native ML.
 //!
 //! CPU-first: each [`NodeRecord`] carries [`vox_orchestrator::TaskCapabilityHints`]. See
 //! `docs/src/architecture/populi-ssot.md` for environment variables.
+//! The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 
 #![deny(missing_docs)]
+#![cfg_attr(feature = "mens", allow(missing_docs))]
+// Burn/wgpu + absorbed Mens stack: default recursion limit can overflow on deep generic graphs.
+#![recursion_limit = "256"]
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -13,7 +17,7 @@ use vox_repository::TaskCapabilityHints;
 
 /// Whether populi hooks are enabled (`VOX_MESH_ENABLED=1` or `true`).
 #[must_use]
-pub fn mesh_enabled_from_env() -> bool {
+pub fn populi_enabled_from_env() -> bool {
     std::env::var("VOX_MESH_ENABLED")
         .map(|v| {
             let v = v.trim();
@@ -24,7 +28,7 @@ pub fn mesh_enabled_from_env() -> bool {
 
 /// Parsed populi-related environment (best-effort).
 #[derive(Debug, Clone, Default, serde::Serialize)]
-pub struct MeshEnv {
+pub struct PopuliEnv {
     /// `VOX_MESH_ENABLED`
     pub enabled: bool,
     /// `VOX_MESH_NODE_ID` — stable id for this process; generated if unset when registering.
@@ -44,8 +48,8 @@ pub struct MeshEnv {
 /// Merge `Vox.toml` `[populi]` into env-derived values when the corresponding env is unset.
 /// Precedence: **environment always wins** over TOML for each field.
 #[must_use]
-pub fn mesh_env_resolved(vox_toml_path: Option<&std::path::Path>) -> MeshEnv {
-    let mut env = mesh_env();
+pub fn populi_env_resolved(vox_toml_path: Option<&std::path::Path>) -> PopuliEnv {
+    let mut env = populi_env();
     let Some(path) = vox_toml_path else {
         return env;
     };
@@ -87,7 +91,7 @@ pub fn mesh_env_resolved(vox_toml_path: Option<&std::path::Path>) -> MeshEnv {
 
 /// Whether `VOX_MESH_ADVERTISE_GPU` is set, or `[populi].advertise_gpu = true` when env is unset.
 #[must_use]
-pub fn mesh_advertise_gpu_effective(vox_toml_path: Option<&std::path::Path>) -> bool {
+pub fn populi_advertise_gpu_effective(vox_toml_path: Option<&std::path::Path>) -> bool {
     if std::env::var("VOX_MESH_ADVERTISE_GPU")
         .map(|v| {
             let v = v.trim();
@@ -149,8 +153,8 @@ fn http_control_host_is_bind_all(url: &str) -> bool {
 
 /// Read populi env vars (does not mutate process state).
 #[must_use]
-pub fn mesh_env() -> MeshEnv {
-    let enabled = mesh_enabled_from_env();
+pub fn populi_env() -> PopuliEnv {
+    let enabled = populi_enabled_from_env();
     let node_id = std::env::var("VOX_MESH_NODE_ID")
         .ok()
         .filter(|s| !s.is_empty());
@@ -169,8 +173,8 @@ pub fn mesh_env() -> MeshEnv {
     let registry_path = std::env::var("VOX_MESH_REGISTRY_PATH")
         .ok()
         .filter(|s| !s.is_empty());
-    let scope_id = mesh_scope_id_from_env();
-    MeshEnv {
+    let scope_id = populi_scope_id_from_env();
+    PopuliEnv {
         enabled,
         node_id,
         labels,
@@ -182,7 +186,7 @@ pub fn mesh_env() -> MeshEnv {
 
 /// `VOX_MESH_SCOPE_ID` when set and non-empty after trim.
 #[must_use]
-pub fn mesh_scope_id_from_env() -> Option<String> {
+pub fn populi_scope_id_from_env() -> Option<String> {
     std::env::var("VOX_MESH_SCOPE_ID")
         .ok()
         .map(|s| s.trim().to_string())
@@ -216,7 +220,7 @@ pub struct NodeRecord {
     pub version: String,
     /// Wall-clock last update (epoch ms).
     pub last_seen_unix_ms: u64,
-    /// Populi tenancy / cluster id; must match server [`crate::transport::MeshTransportState::required_scope`] when the server enforces scope.
+    /// Populi tenancy / cluster id; must match server [`crate::transport::PopuliTransportState::required_scope`] when the server enforces scope.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope_id: Option<String>,
 }
@@ -342,9 +346,9 @@ pub fn resolve_vox_toml_best_effort() -> Option<PathBuf> {
 pub fn node_record_for_current_process(node_id: String, listen_addr: Option<String>) -> NodeRecord {
     let vox = resolve_vox_toml_best_effort();
     let vox_ref = vox.as_deref();
-    let env = mesh_env_resolved(vox_ref);
+    let env = populi_env_resolved(vox_ref);
     let mut caps = vox_repository::probe_host_capabilities();
-    if mesh_advertise_gpu_effective(vox_ref) {
+    if populi_advertise_gpu_effective(vox_ref) {
         caps.gpu_cuda = true;
     }
     for lab in env.labels {
@@ -364,10 +368,10 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
 
 /// Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off).
 pub fn publish_local_registry_best_effort() -> Result<(), PopuliRegistryError> {
-    if !mesh_enabled_from_env() {
+    if !populi_enabled_from_env() {
         return Ok(());
     }
-    let record = mesh_registration_record_for_process();
+    let record = populi_registration_record_for_process();
     let reg = LocalRegistry::new(LocalRegistry::resolved_default_path());
     reg.upsert_node(record)
 }
@@ -380,9 +384,9 @@ fn uuid_simple() -> String {
 
 /// [`NodeRecord`] for this process — same id and `listen_addr` as [`publish_local_registry_best_effort`].
 #[must_use]
-pub fn mesh_registration_record_for_process() -> NodeRecord {
+pub fn populi_registration_record_for_process() -> NodeRecord {
     let vox = resolve_vox_toml_best_effort();
-    let env = mesh_env_resolved(vox.as_deref());
+    let env = populi_env_resolved(vox.as_deref());
     let id = env
         .node_id
         .clone()
@@ -410,6 +414,9 @@ pub enum PopuliRegistryError {
 pub fn local_registry_path() -> PathBuf {
     LocalRegistry::resolved_default_path()
 }
+
+#[cfg(feature = "mens")]
+pub mod mens;
 
 #[cfg(feature = "transport")]
 pub mod http_client;

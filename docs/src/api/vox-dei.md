@@ -13,6 +13,8 @@ Multi-agent file-affinity queue system. Routes tasks to AI agents based on file 
 
 **Process model:** `Orchestrator` is a library type in this crate; the usual MCP-facing process is **`vox-mcp`** (stdio server) which embeds orchestrator state. See [`agents/orchestrator.md`](../../agents/orchestrator.md) and [`crates/vox-mcp/src/tools/mod.rs`](../../../crates/vox-mcp/src/tools/mod.rs) (`TOOL_REGISTRY`).
 
+**Runtime authority note:** active retrieval trigger policy (hybrid/BM25/lexical fallback) and Socrates surface telemetry integration are implemented in `vox-mcp` + `vox-orchestrator`. The workspace-excluded `crates/vox-dei` tree remains a staging area for reattachment.
+
 ## Architecture
 
 ```

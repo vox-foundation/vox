@@ -68,7 +68,7 @@ pub async fn record_local_registry_publish_opt(
 /// After HTTP mens control-plane join (or failure), append one `populi_control_event` when telemetry is on.
 ///
 /// Event names: `mesh_http_join_ok` / `mesh_http_join_err` (requires [`mesh_codex_telemetry_enabled`]).
-pub async fn record_mesh_http_join_opt(
+pub async fn record_populi_http_join_opt(
     repository_id: &str,
     ok: bool,
     control_base: &str,

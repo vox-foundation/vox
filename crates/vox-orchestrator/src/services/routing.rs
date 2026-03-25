@@ -11,7 +11,7 @@ use crate::affinity::FileAffinityMap;
 use crate::config::OrchestratorConfig;
 use crate::contract::TaskCapabilityHints;
 use crate::groups::AffinityGroupRegistry;
-use crate::populi_federation::RemoteMeshRoutingHint;
+use crate::populi_federation::RemotePopuliRoutingHint;
 use crate::queue::AgentQueue;
 use crate::types::{AgentId, FileAffinity};
 
@@ -40,7 +40,7 @@ impl RoutingService {
         config: &OrchestratorConfig,
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
-        remote_mesh_hints: Option<&[RemoteMeshRoutingHint]>,
+        remote_populi_hints: Option<&[RemotePopuliRoutingHint]>,
         // Phase 15: prefer agents with higher trust to reduce pilot interrupts.
         attention_trust_scores: Option<&HashMap<AgentId, crate::attention::AgentTrustScore>>,
     ) -> RouteResult {
@@ -88,12 +88,12 @@ impl RoutingService {
         }
 
         // 3c. Experimental mens visibility (read-only federation); never routes off-process.
-        if config.mesh_routing_experimental {
-            Self::apply_experimental_mesh_routing_signals(
+        if config.populi_routing_experimental {
+            Self::apply_experimental_populi_routing_signals(
                 &mut scores,
                 agents,
                 task_capability_requirements,
-                remote_mesh_hints,
+                remote_populi_hints,
             );
         }
 
@@ -269,7 +269,7 @@ impl RoutingService {
             .all(|n| have.iter().any(|h| h.as_str() == n.as_str()))
     }
 
-    fn remote_hint_matches_task(r: &RemoteMeshRoutingHint, req: &TaskCapabilityHints) -> bool {
+    fn remote_hint_matches_task(r: &RemotePopuliRoutingHint, req: &TaskCapabilityHints) -> bool {
         if req.labels.is_empty() {
             return false;
         }
@@ -279,17 +279,17 @@ impl RoutingService {
     }
 
     /// Soft score bump + tracing when cached remote mens nodes align with task labels (no remote execute).
-    fn apply_experimental_mesh_routing_signals(
+    fn apply_experimental_populi_routing_signals(
         scores: &mut HashMap<AgentId, f64>,
         agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
-        remote_mesh_hints: Option<&[RemoteMeshRoutingHint]>,
+        remote_populi_hints: Option<&[RemotePopuliRoutingHint]>,
     ) {
         const LABEL_BUMP: f64 = 0.25;
         let Some(req) = task_capability_requirements else {
             return;
         };
-        let Some(remote) = remote_mesh_hints.filter(|s| !s.is_empty()) else {
+        let Some(remote) = remote_populi_hints.filter(|s| !s.is_empty()) else {
             return;
         };
         if !req.labels.is_empty() {
@@ -308,14 +308,14 @@ impl RoutingService {
                     target: "vox.orchestrator.routing",
                     decision = "remote_label_match_only",
                     remote_candidates,
-                    "mesh_routing_experimental: no local agent matches task labels; mens lists remote candidates (no remote execute)"
+                    "populi_routing_experimental: no local agent matches task labels; mens lists remote candidates (no remote execute)"
                 );
             } else if local_matches && remote_candidates > 0 {
                 tracing::debug!(
                     target: "vox.orchestrator.routing",
                     decision = "local_and_remote_label_match",
                     remote_candidates,
-                    "mesh_routing_experimental: preferring local placement"
+                    "populi_routing_experimental: preferring local placement"
                 );
             }
             if local_matches {
@@ -372,7 +372,7 @@ impl RoutingService {
 mod tests {
     use super::*;
     use crate::groups::AffinityGroup;
-    use crate::populi_federation::RemoteMeshRoutingHint;
+    use crate::populi_federation::RemotePopuliRoutingHint;
     use crate::types::{TaskId, TaskPriority};
 
     #[test]
@@ -503,14 +503,18 @@ mod tests {
         agents.insert(a2, Arc::new(std::sync::RwLock::new(q2)));
 
         let mut config = OrchestratorConfig::for_testing();
-        config.mesh_routing_experimental = true;
+        config.populi_routing_experimental = true;
 
         let hints = TaskCapabilityHints {
             labels: vec!["pool=a".to_string()],
             ..Default::default()
         };
-        let remote = vec![RemoteMeshRoutingHint {
+        let remote = vec![RemotePopuliRoutingHint {
             node_id: "remote-1".into(),
+            capabilities: TaskCapabilityHints {
+                labels: vec!["pool=a".to_string()],
+                ..Default::default()
+            },
             labels: vec!["pool=a".to_string()],
             gpu_cuda: false,
             gpu_metal: false,

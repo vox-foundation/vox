@@ -551,10 +551,15 @@ impl QLoraTrainer {
         &self.state
     }
 
-    /// Get the current learning rate.
+    /// Current optimizer learning rate (matches [`Self::update_lr`] / the active `AdamW` / [`PagedAdamW`]).
+    ///
+    /// Reads [`QLoraTrainingConfig::adapter_config`]’s `learning_rate` field so callers can drive a
+    /// custom schedule by mutating `trainer.config.adapter_config.learning_rate` and calling
+    /// [`Self::update_lr`]. (The internal [`AdapterTrainingState`] holds a clone of the initial
+    /// config and does not track those mutations.)
     #[must_use]
     pub fn current_lr(&self) -> f64 {
-        self.state.current_lr()
+        self.config.adapter_config.learning_rate
     }
 
     /// Get the current step.
@@ -896,9 +901,9 @@ impl QLoraTrainer {
         self.state.epoch < self.config.num_epochs
     }
 
-    /// Update learning rate based on schedule.
+    /// Push [`QLoraTrainingConfig::adapter_config`].`learning_rate` into the optimizer(s).
     pub fn update_lr(&mut self) {
-        let lr = self.current_lr();
+        let lr = self.config.adapter_config.learning_rate;
         if let Some(ref mut optimizer) = self.optimizer {
             optimizer.set_learning_rate(lr);
         }

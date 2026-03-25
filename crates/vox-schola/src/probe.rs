@@ -3,16 +3,16 @@
 use anyhow::Result;
 
 pub fn run() -> Result<()> {
-    let info = vox_mens::probe_gpu();
+    let info = vox_populi::mens::probe_gpu();
     println!("GPU vendor:    {}", info.vendor);
     println!("GPU model:     {}", info.model_name);
     println!("VRAM:          {} MB", info.vram_mb);
     println!();
 
     // Resolve recommended preset from current GPU
-    let device_profile = vox_mens::DeviceProfile::from_gpu_info(&info.model_name, info.vram_mb);
-    let overrides = vox_mens::CliOverrides::default();
-    let profile = vox_mens::resolve_effective_profile(None, device_profile, None, overrides);
+    let device_profile = vox_populi::mens::DeviceProfile::from_gpu_info(&info.model_name, info.vram_mb);
+    let overrides = vox_populi::mens::CliOverrides::default();
+    let profile = vox_populi::mens::resolve_effective_profile(None, device_profile, None, overrides);
 
     println!("Recommended profile:");
     println!("  rank:       {}", profile.rank);

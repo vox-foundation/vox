@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "vox-schola — standalone ML training/serving binary. GPU always enabled; no compiler stack dep."
+description = "vox-schola — standalone ML training/serving binary. Mens QLoRA links Candle CUDA kernels when built; use --no-default-features for a CPU-only check without nvcc."
 default-run = "vox-schola"
 
 [[bin]]
@@ -12,15 +12,13 @@ name = "vox-schola"
 path = "src/main.rs"
 
 [features]
-default = []
-# NVIDIA CUDA kernels (requires CUDA toolkit; build from x64 Native Tools shell on Windows).
-cuda  = ["vox-mens/candle-qlora-cuda"]
-# Apple Metal (macOS only).
-
+default = ["cuda"]
+# NVIDIA Candle kernels (requires CUDA toolkit + MSVC toolchain on Windows).
+cuda = ["vox-populi/mens-candle-qlora-cuda"]
 
 [dependencies]
-# Core ML library — always with train + hf-hub; no compiler crates.
-vox-mens  = { workspace = true, features = ["train", "hf-hub"] }
+# Core ML (Mens) — Candle QLoRA + CUDA via default `cuda` feature (`mens-candle-qlora-cuda` on Populi).
+vox-populi = { workspace = true, features = ["mens", "mens-train", "mens-hf-hub"] }
 vox-corpus  = { workspace = true }
 vox-db      = { workspace = true }
 # CLI + async runtime

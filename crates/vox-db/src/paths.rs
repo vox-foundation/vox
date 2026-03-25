@@ -2,10 +2,19 @@
 //!
 //! Delegates to `vox_config` for a single source of truth. Re-exports for backward compatibility.
 
+use std::path::PathBuf;
+
 pub use vox_config::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, config_dir, data_dir, default_db_path, local_user_id,
     state_dir,
 };
+
+/// Separate SQLite file for training-run telemetry when the primary [`default_db_path`] uses a
+/// legacy `schema_version` chain (see [`crate::VoxDb::connect_default_with_training_fallback`]).
+#[must_use]
+pub fn training_telemetry_db_path() -> Option<PathBuf> {
+    default_db_path().map(|p| p.with_file_name("vox_training_telemetry.db"))
+}
 
 #[cfg(test)]
 mod tests {

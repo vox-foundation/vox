@@ -54,10 +54,10 @@ pub const OPENROUTER_CHAT_COMPLETIONS_URL: &str = "https://openrouter.ai/api/v1/
 
 /// Local Ollama-compatible API base URL.
 ///
-/// Precedence: **`OLLAMA_URL`** → **`POPULI_URL`** → `http://localhost:11434`.
+/// Precedence: **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
 pub fn local_ollama_populi_base_url() -> String {
-    std::env::var("OLLAMA_URL")
-        .or_else(|_| std::env::var("POPULI_URL"))
+    std::env::var("POPULI_URL")
+        .or_else(|_| std::env::var("OLLAMA_URL"))
         .unwrap_or_else(|_| "http://localhost:11434".to_string())
 }
 
@@ -115,4 +115,38 @@ pub fn sanitize_chatml(input: &str) -> String {
     input
         .replace("<|im_start|>", "[im_start]")
         .replace("<|im_end|>", "[im_end]")
+}
+
+#[cfg(test)]
+#[allow(unsafe_code)] // serialized with TEST_ENV_LOCK
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn local_base_prefers_populi_then_ollama() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        unsafe {
+            std::env::remove_var("POPULI_URL");
+            std::env::remove_var("OLLAMA_URL");
+        }
+        assert_eq!(local_ollama_populi_base_url(), "http://localhost:11434");
+
+        unsafe {
+            std::env::set_var("OLLAMA_URL", "http://localhost:9999");
+        }
+        assert_eq!(local_ollama_populi_base_url(), "http://localhost:9999");
+
+        unsafe {
+            std::env::set_var("POPULI_URL", "http://localhost:11434");
+        }
+        assert_eq!(local_ollama_populi_base_url(), "http://localhost:11434");
+
+        unsafe {
+            std::env::remove_var("POPULI_URL");
+            std::env::remove_var("OLLAMA_URL");
+        }
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "vox-populi"
-description = "Local and multi-node populi registry for Vox workers (CPU-first capabilities)"
+description = "Vox Populi: multi-node worker registry, HTTP control plane, and Mens native ML (Burn / Candle QLoRA)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,6 +15,43 @@ transport = [
     "dep:tower-http",
     "dep:subtle",
 ]
+# Mens ML — core deps (absorbed former `vox-mens` crate).
+mens = [
+    "dep:anyhow",
+    "dep:serde_yaml",
+    "dep:ctrlc",
+    "dep:tokio",
+    "dep:chrono",
+    "dep:dirs",
+    "dep:sysinfo",
+    "dep:rand",
+    "dep:vox-tensor",
+    "dep:vox-corpus",
+    "dep:vox-db",
+]
+mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors"]
+mens-candle-qlora = [
+    "mens",
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:safetensors",
+    "dep:tokenizers",
+    "dep:qlora-rs",
+    "dep:peft-rs",
+]
+mens-candle-qlora-cuda = [
+    "mens-candle-qlora",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+]
+mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub"]
+mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
+mens-cloud = [
+    "mens",
+    "dep:async-trait",
+    "dep:futures",
+    "dep:reqwest",
+]
 
 [dependencies]
 serde = { workspace = true }
@@ -22,16 +59,41 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-repository = { workspace = true }
+
+# Populi transport
 axum = { version = "0.8", optional = true }
 tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
 tower-http = { version = "0.6.2", optional = true, features = ["trace", "request-id"] }
 subtle = { version = "2.6", optional = true }
 
+# Mens (optional)
+anyhow = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
+ctrlc = { version = "3.4", features = ["termination"], optional = true }
+chrono = { workspace = true, optional = true }
+dirs = { workspace = true, optional = true }
+sysinfo = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+vox-tensor = { workspace = true, optional = true }
+vox-corpus = { workspace = true, optional = true }
+vox-db = { workspace = true, optional = true }
+burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
+hf-hub = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
+safetensors = { workspace = true, optional = true }
+tokenizers = { workspace = true, optional = true }
+qlora-rs = { workspace = true, optional = true }
+peft-rs = { workspace = true, optional = true }
+async-trait = { version = "0.1", optional = true }
+futures = { version = "0.3", optional = true }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
 serde_yaml = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

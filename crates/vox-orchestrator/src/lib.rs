@@ -186,7 +186,7 @@ pub use planning::{
     ExecutionPolicy, PlanNode, PlanSessionRecord, PlanStatus, PlanVersionRecord, PlanningMode,
     PlanningStrategy, PlanningTaskMeta, ReplanTrigger, RouterEvaluation,
 };
-pub use populi_federation::{PopuliNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot};
+pub use populi_federation::{PopuliNodeBrief, RemotePopuliRoutingHint, RemotePopuliSnapshot};
 pub use scope::{ScopeCheckResult, ScopeEnforcement, ScopeGuard};
 pub use security::{
     AuditEntry, AuditLog, AuditResult, PolicyRule, SecurityAction, SecurityGuard, SecurityPolicy,
@@ -197,7 +197,10 @@ pub use services::{
 };
 pub use session::{Session, SessionConfig, SessionManager, SessionState};
 pub use snapshot::{SnapshotId, SnapshotStore};
-pub use socrates::{SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_gate};
+pub use socrates::{
+    SessionRetrievalEnvelope, SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_gate,
+    session_retrieval_envelope_key,
+};
 pub use summary::SummaryManager;
 pub use types::{
     A2AMessage, A2AMessageType, AccessKind, AgentId, AgentIdGenerator, AgentMessage, AgentTask,

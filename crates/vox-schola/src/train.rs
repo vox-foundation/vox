@@ -24,6 +24,7 @@ pub async fn run(args: Args) -> Result<()> {
         seed,
         min_rating,
         resume,
+        resume_checkpoint,
         force_restart,
         adapter_tag,
         context_filter,
@@ -66,8 +67,8 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     // ── Device ────────────────────────────────────────────────────────────────
-    let device_kind = vox_mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
-    vox_mens::apply_backend_env(device_kind);
+    let device_kind = vox_populi::mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    vox_populi::mens::apply_backend_env(device_kind);
 
     // ── Validation ────────────────────────────────────────────────────────────
     if let Some(r) = qlora_max_skip_rate
@@ -80,13 +81,13 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     // ── Device / VRAM diagnostics ─────────────────────────────────────────────
-    let gpu_info = vox_mens::probe_gpu();
+    let gpu_info = vox_populi::mens::probe_gpu();
     let device_profile =
-        vox_mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
-    let cli_overrides = vox_mens::CliOverrides {
+        vox_populi::mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
+    let cli_overrides = vox_populi::mens::CliOverrides {
         rank,
         alpha,
-        seq_len: Some(seq_len),
+        seq_len,
         batch_size,
         grad_accum,
         epochs,
@@ -126,7 +127,7 @@ pub async fn run(args: Args) -> Result<()> {
         workspace_root.as_deref(),
     )?;
 
-    let profile = vox_mens::resolve_effective_profile(
+    let profile = vox_populi::mens::resolve_effective_profile(
         preset.as_deref(),
         device_profile.clone(),
         resolved.sample_count,
@@ -135,7 +136,7 @@ pub async fn run(args: Args) -> Result<()> {
     if device.eq_ignore_ascii_case("cuda") {
         eprintln!(
             "  ⚙ {}",
-            vox_mens::tensor::vram_autodetect::vram_summary(true)
+            vox_populi::mens::tensor::vram_autodetect::vram_summary(true)
         );
     }
 
@@ -150,7 +151,7 @@ pub async fn run(args: Args) -> Result<()> {
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let result = rt.block_on(vox_mens::hub::download_model(&repo_id_for_download));
+            let result = rt.block_on(vox_populi::mens::hub::download_model(&repo_id_for_download));
             let _ = tx.send(result);
         });
         match rx
@@ -161,13 +162,13 @@ pub async fn run(args: Args) -> Result<()> {
                 eprintln!("  ✓ Cached at {}", files.cache_dir.display());
                 base_model_paths = Some((files.weights.clone(), files.config.clone()));
                 tokenizer_path = files.tokenizer.clone();
-                if let Ok(arch) = vox_mens::tensor::hf_load::detect_hf_architecture(&files.config) {
-                    let cfg = vox_mens::tensor::hf_load::config_dims_for_architecture(
+                if let Ok(arch) = vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config) {
+                    let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
                         &files.config,
                         arch,
                     )
                     .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
-                    let est_mb = vox_mens::estimate_training_vram_mb_qlora(
+                    let est_mb = vox_populi::mens::estimate_training_vram_mb_qlora(
                         cfg.n_embd,
                         cfg.n_head,
                         cfg.n_layer,
@@ -224,15 +225,21 @@ pub async fn run(args: Args) -> Result<()> {
     eprintln!();
 
     // ── Assemble LoraTrainingConfig and dispatch ───────────────────────────────
+    let effective_force_restart = if resume.is_some() {
+        force_restart
+    } else {
+        force_restart || !resume_checkpoint
+    };
+
     let run_id = vox_corpus::training::timestamp_string();
     let git_sha = option_env!("VOX_GIT_HASH").unwrap_or("unknown").to_string();
-    let device_profile_str = if device_kind == vox_mens::DeviceKind::Cpu {
+    let device_profile_str = if device_kind == vox_populi::mens::DeviceKind::Cpu {
         "cpu".to_string()
     } else {
         gpu_info.model_name.clone()
     };
 
-    let config = vox_mens::LoraTrainingConfig {
+    let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
         base_model_paths,
         tokenizer_path,
@@ -254,7 +261,7 @@ pub async fn run(args: Args) -> Result<()> {
         max_vram_fraction: vram_limit_fraction,
         adapter_tag,
         context_filter,
-        tokenizer_mode: vox_mens::MensTokenizerMode::Hf,
+        tokenizer_mode: vox_populi::mens::MensTokenizerMode::Hf,
         qlora_double_quant: !qlora_no_double_quant,
         finetune_contract_digest: None,
         qlora_require_full_proxy_stack,
@@ -263,8 +270,8 @@ pub async fn run(args: Args) -> Result<()> {
         qlora_proxy_max_layers,
         qlora_ce_last_k: qlora_ce_last_k.max(1),
         checkpoint_every,
-        force_restart,
-        deployment_target: vox_mens::TrainingDeploymentTarget::Workstation,
+        force_restart: effective_force_restart,
+        deployment_target: vox_populi::mens::TrainingDeploymentTarget::Workstation,
         validation_split_ratio: Some(0.05),
         curriculum: false,
         require_gpu: false,
@@ -272,8 +279,8 @@ pub async fn run(args: Args) -> Result<()> {
     };
 
     let system_prompt = vox_corpus::training::generate_training_system_prompt();
-    vox_mens::run_mens_training(
-        vox_mens::PopuliTrainBackend::CandleQlora,
+    vox_populi::mens::run_mens_training(
+        vox_populi::mens::PopuliTrainBackend::CandleQlora,
         &data_dir,
         Some(&output_dir),
         &config,

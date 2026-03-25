@@ -105,6 +105,9 @@ fn parse_msg_type(s: &str) -> A2AMessageType {
         "cancel_request" | "cancelrequest" => A2AMessageType::CancelRequest,
         "snapshot_share" | "snapshotshare" => A2AMessageType::SnapshotShare,
         "broadcast_news" | "broadcastnews" => A2AMessageType::BroadcastNews,
+        "remote_task_envelope" | "remotetaskenvelope" => A2AMessageType::PlanHandoff,
+        "remote_task_ack" | "remotetaskack" => A2AMessageType::ProgressUpdate,
+        "remote_task_result" | "remotetaskresult" => A2AMessageType::CompletionNotice,
         _ => A2AMessageType::FreeForm,
     }
 }
@@ -129,10 +132,10 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
     let msg_id = orch.send_a2a(sender, receiver, msg_type.clone(), params.payload.clone());
     let mut relay_attempted = false;
     let mut relay_ok = false;
-    if let Some(base) = vox_populi::http_lifecycle::mesh_http_control_base_from_env() {
+    if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() {
         if !base.trim().is_empty() {
             relay_attempted = true;
-            let client = vox_populi::http_client::MeshHttpClient::new(base).with_env_token();
+            let client = vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
             relay_ok = client
                 .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
                     sender_agent_id: params.sender_id.to_string(),
@@ -179,10 +182,10 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
         .collect();
     let mut remote_attempted = false;
     let mut remote_ok = false;
-    if let Some(base) = vox_populi::http_lifecycle::mesh_http_control_base_from_env() {
+    if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() {
         if !base.trim().is_empty() {
             remote_attempted = true;
-            let client = vox_populi::http_client::MeshHttpClient::new(base).with_env_token();
+            let client = vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
             if let Ok(remote) = client.relay_a2a_inbox(&params.agent_id.to_string()).await {
                 remote_ok = true;
                 let mut seen = std::collections::HashSet::new();
@@ -229,10 +232,10 @@ pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String {
     let local_success = orch.message_bus_mut().acknowledge(agent_id, message_id);
     let mut remote_attempted = false;
     let mut remote_success = false;
-    if let Some(base) = vox_populi::http_lifecycle::mesh_http_control_base_from_env() {
+    if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() {
         if !base.trim().is_empty() {
             remote_attempted = true;
-            let client = vox_populi::http_client::MeshHttpClient::new(base).with_env_token();
+            let client = vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
             remote_success = client
                 .relay_a2a_ack(&params.agent_id.to_string(), params.message_id)
                 .await

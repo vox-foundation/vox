@@ -3,7 +3,8 @@ info:
   title: Vox Codex HTTP API (vox-codex-api)
   description: |
     Self-hosted dashboard + Codex reactive surface served by `vox-codex-dashboard` / `run_dashboard`.
-    Baseline Arca schema is manifest-driven; `schema_version` is **1** for fresh databases.
+    Baseline Arca schema is manifest-driven; the applied `schema_version` row matches
+    `BASELINE_VERSION` in `crates/vox-db/src/schema/manifest.rs` (see `contracts/db/baseline-version-policy.yaml`).
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:3847

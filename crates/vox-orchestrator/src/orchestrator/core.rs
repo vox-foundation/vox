@@ -77,7 +77,7 @@ impl crate::orchestrator::Orchestrator {
             db: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
-            remote_mesh_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
+            remote_populi_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
         }
     }
 
@@ -142,7 +142,7 @@ impl crate::orchestrator::Orchestrator {
             db: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_rebalance_at: std::sync::Arc::new(std::sync::RwLock::new(None)),
             last_activity_ms: std::sync::atomic::AtomicU64::new(crate::types::now_unix_ms()),
-            remote_mesh_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
+            remote_populi_routing_hints: std::sync::Arc::new(std::sync::RwLock::new(Vec::new())),
         }
     }
 

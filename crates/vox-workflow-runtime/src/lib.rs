@@ -1,7 +1,7 @@
 //! Minimal **interpreted** workflow runner: walks a [`vox_compiler::hir::HirModule`] workflow body for
 //! activity calls and executes **no-op** steps with optional mens hooks.
 //!
-//! - Activities whose name starts with `mesh_` are treated as [`MeshActivity`] steps when the
+//! - Activities whose name starts with `mesh_` are treated as [`PopuliActivity`] steps when the
 //!   **`mens`** feature is enabled: they register with [`vox_populi::publish_local_registry_best_effort`]
 //!   and call the mens HTTP control plane derived from **`VOX_MESH_CONTROL_ADDR`** / `Vox.toml`
 //!   `[mens]` (never a user-supplied URL in workflow source). Use `with { mens: "noop" | "join" |
@@ -27,16 +27,16 @@ use vox_compiler::hir::{HirExpr, HirModule, HirStmt};
 pub mod db_tracker;
 pub use db_tracker::VoxDbTracker;
 
-/// Control-plane sub-step for a [`MeshActivity`] (URL always comes from env / `Vox.toml`, not source).
+/// Control-plane sub-step for a [`PopuliActivity`] (URL always comes from env / `Vox.toml`, not source).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MeshHttpOp {
+pub enum PopuliHttpOp {
     /// `POST` heartbeat with the current node record.
     Heartbeat,
     /// Log only; still runs local registry publish when mens is enabled.
     Noop,
-    /// `POST /v1/mens/join` for this process record.
+    /// `POST /v1/populi/join` for this process record.
     Join,
-    /// `GET /v1/mens/nodes` (counts in journal only; no arbitrary URLs).
+    /// `GET /v1/populi/nodes` (counts in journal only; no arbitrary URLs).
     Snapshot,
 }
 
@@ -45,24 +45,24 @@ pub enum MeshHttpOp {
 pub struct PlannedActivity {
     /// Activity name as referenced in the workflow body.
     pub name: String,
-    /// When true, run [`execute_mesh_step`].
+    /// When true, run [`execute_populi_step`].
     pub mens: bool,
     /// Idempotency / journal key from `with { activity_id: "…" }` when set.
     pub activity_id: Option<String>,
     /// Wall-clock timeout for mens HTTP sub-steps from `with { timeout: … }` (milliseconds).
     pub timeout_ms: Option<u64>,
-    /// Mens control-plane operation when [`Self::mens`] is true.
-    pub mesh_op: MeshHttpOp,
+    /// Populi control-plane operation when [`Self::mens`] is true.
+    pub populi_op: PopuliHttpOp,
 }
 
-/// Mens-tagged activity (name convention: `mesh_*`, plus [`MeshHttpOp`]).
+/// Mens-tagged activity (name convention: `mesh_*`, plus [`PopuliHttpOp`]).
 #[derive(Debug, Clone)]
-pub struct MeshActivity {
+pub struct PopuliActivity {
     /// Activity name from source.
     pub name: String,
     /// Resolved mens HTTP operation.
-    pub mesh_op: MeshHttpOp,
-    /// Timeout for mens HTTP client (defaults inside [`execute_mesh_step`] when unset).
+    pub populi_op: PopuliHttpOp,
+    /// Timeout for populi HTTP client (defaults inside [`execute_populi_step`] when unset).
     pub timeout_ms: Option<u64>,
     /// Stable id for journal / idempotency (`with { activity_id }` or generated).
     pub activity_id: String,
@@ -152,12 +152,12 @@ fn parse_duration_ms_str(s: &str) -> anyhow::Result<u64> {
     anyhow::bail!("expected duration like 5000, \"30s\", \"500ms\", \"2m\"");
 }
 
-fn parse_populi_control_op(s: &str) -> anyhow::Result<MeshHttpOp> {
+fn parse_populi_control_op(s: &str) -> anyhow::Result<PopuliHttpOp> {
     match s.trim() {
-        "noop" => Ok(MeshHttpOp::Noop),
-        "join" => Ok(MeshHttpOp::Join),
-        "snapshot" => Ok(MeshHttpOp::Snapshot),
-        "heartbeat" => Ok(MeshHttpOp::Heartbeat),
+        "noop" => Ok(PopuliHttpOp::Noop),
+        "join" => Ok(PopuliHttpOp::Join),
+        "snapshot" => Ok(PopuliHttpOp::Snapshot),
+        "heartbeat" => Ok(PopuliHttpOp::Heartbeat),
         other => anyhow::bail!(
             "unknown workflow mens control {:?}; expected noop|join|snapshot|heartbeat",
             other
@@ -165,16 +165,16 @@ fn parse_populi_control_op(s: &str) -> anyhow::Result<MeshHttpOp> {
     }
 }
 
-fn resolve_mesh_http_op(name: &str, mesh_key: Option<&str>) -> anyhow::Result<MeshHttpOp> {
+fn resolve_populi_http_op(name: &str, mesh_key: Option<&str>) -> anyhow::Result<PopuliHttpOp> {
     if let Some(k) = mesh_key {
         return parse_populi_control_op(k);
     }
     match name {
-        "mesh_noop" => Ok(MeshHttpOp::Noop),
-        "mesh_join" => Ok(MeshHttpOp::Join),
-        "mesh_snapshot" => Ok(MeshHttpOp::Snapshot),
-        _ if name.starts_with("mesh_") => Ok(MeshHttpOp::Heartbeat),
-        _ => Ok(MeshHttpOp::Heartbeat),
+        "mesh_noop" => Ok(PopuliHttpOp::Noop),
+        "mesh_join" => Ok(PopuliHttpOp::Join),
+        "mesh_snapshot" => Ok(PopuliHttpOp::Snapshot),
+        _ if name.starts_with("mesh_") => Ok(PopuliHttpOp::Heartbeat),
+        _ => Ok(PopuliHttpOp::Heartbeat),
     }
 }
 
@@ -218,13 +218,13 @@ fn collect_from_expr(
                         "workflow `{workflow_name}`: `mens` in `with {{ … }}` only applies to mesh_* activities (got `{name}`)"
                     );
                 }
-                let mesh_op = resolve_mesh_http_op(name, ctx.mesh_key.as_deref())?;
+                let populi_op = resolve_populi_http_op(name, ctx.mesh_key.as_deref())?;
                 out.push(PlannedActivity {
                     name: name.clone(),
                     mens,
                     activity_id: ctx.activity_id.clone(),
                     timeout_ms: ctx.timeout_ms,
-                    mesh_op,
+                    populi_op,
                 });
             } else {
                 collect_from_expr(workflow_name, callee, ctx, out)?;
@@ -399,13 +399,13 @@ pub async fn interpret_workflow_durable(
         let entry = if step.mens {
             #[cfg(feature = "mens")]
             {
-                let m = MeshActivity {
+                let m = PopuliActivity {
                     name: step.name.clone(),
-                    mesh_op: step.mesh_op,
+                    populi_op: step.populi_op,
                     timeout_ms: step.timeout_ms,
                     activity_id: activity_id.clone(),
                 };
-                execute_mesh_step(&m).await?
+                execute_populi_step(&m).await?
             }
             #[cfg(not(feature = "mens"))]
             {
@@ -447,13 +447,13 @@ pub async fn interpret_workflow_durable(
 
 /// Best-effort mens registration + optional control-plane HTTP (env-derived base URL only).
 #[cfg(feature = "mens")]
-pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value> {
+pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Value> {
     let _ = vox_populi::publish_local_registry_best_effort();
     let vox = vox_populi::resolve_vox_toml_best_effort();
-    let env = vox_populi::mesh_env_resolved(vox.as_deref());
+    let env = vox_populi::populi_env_resolved(vox.as_deref());
     let timeout = std::time::Duration::from_millis(activity.timeout_ms.unwrap_or(30_000).max(250));
     if let Some(base) = env.control_addr.clone() {
-        let client = vox_populi::http_client::MeshHttpClient::new_with_timeout(
+        let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
             normalize_control_base(&base),
             timeout,
         )
@@ -463,16 +463,16 @@ pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value>
             .clone()
             .unwrap_or_else(|| format!("wf-{}", activity.name.replace(' ', "_")));
         let node = vox_populi::node_record_for_current_process(id, Some(base.clone()));
-        let mesh_op = mesh_op_json(activity.mesh_op);
-        match activity.mesh_op {
-            MeshHttpOp::Noop => Ok(json!({
+        let mesh_op = populi_op_json(activity.populi_op);
+        match activity.populi_op {
+            PopuliHttpOp::Noop => Ok(json!({
                 "event": "MeshActivity",
                 "activity": activity.name,
                 "activity_id": activity.activity_id,
                 "mesh_op": mesh_op,
                 "control": "noop",
             })),
-            MeshHttpOp::Join => match client.join(&node).await {
+            PopuliHttpOp::Join => match client.join(&node).await {
                 Ok(n) => Ok(json!({
                     "event": "MeshActivity",
                     "activity": activity.name,
@@ -490,7 +490,7 @@ pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value>
                     "error": e.to_string(),
                 })),
             },
-            MeshHttpOp::Snapshot => match client.list_nodes().await {
+            PopuliHttpOp::Snapshot => match client.list_nodes().await {
                 Ok(f) => Ok(json!({
                     "event": "MeshActivity",
                     "activity": activity.name,
@@ -509,7 +509,7 @@ pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value>
                     "error": e.to_string(),
                 })),
             },
-            MeshHttpOp::Heartbeat => match client.heartbeat(&node).await {
+            PopuliHttpOp::Heartbeat => match client.heartbeat(&node).await {
                 Ok(n) => Ok(json!({
                     "event": "MeshActivity",
                     "activity": activity.name,
@@ -533,19 +533,19 @@ pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value>
             "event": "MeshActivity",
             "activity": activity.name,
             "activity_id": activity.activity_id,
-            "mesh_op": mesh_op_json(activity.mesh_op),
+            "mesh_op": populi_op_json(activity.populi_op),
             "control": "local_registry_only",
         }))
     }
 }
 
 #[cfg(feature = "mens")]
-fn mesh_op_json(op: MeshHttpOp) -> &'static str {
+fn populi_op_json(op: PopuliHttpOp) -> &'static str {
     match op {
-        MeshHttpOp::Heartbeat => "heartbeat",
-        MeshHttpOp::Noop => "noop",
-        MeshHttpOp::Join => "join",
-        MeshHttpOp::Snapshot => "snapshot",
+        PopuliHttpOp::Heartbeat => "heartbeat",
+        PopuliHttpOp::Noop => "noop",
+        PopuliHttpOp::Join => "join",
+        PopuliHttpOp::Snapshot => "snapshot",
     }
 }
 
@@ -612,9 +612,9 @@ mod tests {
         let p = plan_workflow_activities(&hir, "demo").expect("plan");
         assert_eq!(p.len(), 2);
         assert!(!p[0].mens);
-        assert_eq!(p[0].mesh_op, MeshHttpOp::Heartbeat);
+        assert_eq!(p[0].populi_op, PopuliHttpOp::Heartbeat);
         assert!(p[1].mens);
-        assert_eq!(p[1].mesh_op, MeshHttpOp::Heartbeat);
+        assert_eq!(p[1].populi_op, PopuliHttpOp::Heartbeat);
     }
 
     #[test]
@@ -641,7 +641,7 @@ mod tests {
         let hir = minimal_wf(body);
         let p = plan_workflow_activities(&hir, "demo").expect("plan");
         assert_eq!(p.len(), 1);
-        assert_eq!(p[0].mesh_op, MeshHttpOp::Snapshot);
+        assert_eq!(p[0].populi_op, PopuliHttpOp::Snapshot);
     }
 
     #[tokio::test]

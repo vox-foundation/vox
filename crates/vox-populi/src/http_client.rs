@@ -2,7 +2,7 @@
 //!
 //! Base URL should include scheme and host, e.g. `http://127.0.0.1:9847` (no trailing slash).
 //! When the control plane is protected with **`VOX_MESH_TOKEN`**, set the same value via
-//! [`MeshHttpClient::with_bearer`] (or [`MeshHttpClient::with_env_token`]).
+//! [`PopuliHttpClient::with_bearer`] (or [`PopuliHttpClient::with_env_token`]).
 
 use std::time::Duration;
 
@@ -13,13 +13,13 @@ use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
 /// Call the populi HTTP API (join / list / heartbeat / leave).
 #[derive(Debug, Clone)]
-pub struct MeshHttpClient {
+pub struct PopuliHttpClient {
     client: reqwest::Client,
     base: String,
     bearer: Option<String>,
 }
 
-impl MeshHttpClient {
+impl PopuliHttpClient {
     /// Hosted / BaaS control plane entrypoint: same as [`Self::new`], but documents org-scoped HTTPS
     /// bases (see `docs/src/adr/009-populi-hosted-baas.md`). **Never** embed secrets in the URL.
     #[must_use]

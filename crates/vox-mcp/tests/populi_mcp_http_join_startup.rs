@@ -10,11 +10,13 @@ use std::sync::LazyLock;
 
 use serde_json::json;
 
-use vox_mcp::tools;
 use vox_mcp::ServerState;
+use vox_mcp::tools;
 use vox_orchestrator::OrchestratorConfig;
-use vox_populi::http_client::MeshHttpClient;
-use vox_populi::transport::{A2ADeliverRequest, MeshHttpAuth, MeshTransportState, mesh_http_app_with_auth};
+use vox_populi::http_client::PopuliHttpClient;
+use vox_populi::transport::{
+    A2ADeliverRequest, PopuliHttpAuth, PopuliTransportState, populi_http_app_with_auth,
+};
 
 static MESH_ENV_MUTEX: LazyLock<tokio::sync::Mutex<()>> =
     LazyLock::new(|| tokio::sync::Mutex::new(()));
@@ -71,11 +73,11 @@ async fn populi_startup_registers_on_http_control_plane() {
     std::fs::create_dir_all(&tmp).unwrap();
     let registry_path = tmp.join("local-registry.json");
 
-    let state_reg = MeshTransportState::new();
+    let state_reg = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let bound = listener.local_addr().unwrap();
-    let app = mesh_http_app_with_auth(state_reg, MeshHttpAuth::Open);
+    let app = populi_http_app_with_auth(state_reg, PopuliHttpAuth::Open);
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
@@ -97,7 +99,7 @@ async fn populi_startup_registers_on_http_control_plane() {
     let state = ServerState::new(OrchestratorConfig::default());
     vox_mcp::populi_startup::publish_mesh_on_mcp_start(&state).await;
 
-    let client = MeshHttpClient::new(&base);
+    let client = PopuliHttpClient::new(&base);
     let file = client.list_nodes().await.expect("list_nodes after join");
     assert!(
         file.nodes.iter().any(|n| n.id == "mcp-join-integration"),
@@ -131,11 +133,11 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         saved.insert((*k).to_string(), std::env::var(k).ok());
     }
 
-    let state_reg = MeshTransportState::new();
+    let state_reg = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let bound = listener.local_addr().unwrap();
-    let app = mesh_http_app_with_auth(state_reg, MeshHttpAuth::Open);
+    let app = populi_http_app_with_auth(state_reg, PopuliHttpAuth::Open);
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
@@ -149,7 +151,7 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         std::env::remove_var("VOX_MESH_TOKEN");
     }
 
-    let mesh = MeshHttpClient::new(&base);
+    let mesh = PopuliHttpClient::new(&base);
     const AGENT: u64 = 42;
     mesh.relay_a2a(&A2ADeliverRequest {
         sender_agent_id: "7".into(),
@@ -183,22 +185,19 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
     .await
     .expect("local A2A send");
 
-    let inbox_raw = tools::handle_tool_call(
-        &mcp,
-        "vox_a2a_inbox",
-        json!({ "agent_id": AGENT }),
-    )
-    .await
-    .expect("vox_a2a_inbox");
+    let inbox_raw = tools::handle_tool_call(&mcp, "vox_a2a_inbox", json!({ "agent_id": AGENT }))
+        .await
+        .expect("vox_a2a_inbox");
     let inbox: serde_json::Value = serde_json::from_str(&inbox_raw).expect("inbox JSON");
     assert_eq!(inbox["success"], true, "{inbox_raw}");
     assert_eq!(
-        inbox["data"]["remote_ok"],
-        true,
+        inbox["data"]["remote_ok"], true,
         "expected remote mesh inbox poll to succeed: {inbox_raw}"
     );
 
-    let messages = inbox["data"]["messages"].as_array().expect("messages array");
+    let messages = inbox["data"]["messages"]
+        .as_array()
+        .expect("messages array");
     let payload_strs: Vec<&str> = messages
         .iter()
         .filter_map(|m| m["payload"].as_str())
@@ -209,12 +208,12 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         payload_strs
     );
     assert!(
-        payload_strs.iter().any(|p| *p == "mesh-late"),
+        payload_strs.contains(&"mesh-late"),
         "mesh id 2 should merge after local id 1 collides with mesh id 1: {:?}",
         payload_strs
     );
     assert!(
-        !payload_strs.iter().any(|p| *p == "mesh-early"),
+        !payload_strs.contains(&"mesh-early"),
         "duplicate message ids across planes should not duplicate rows: {:?}",
         payload_strs
     );
@@ -236,17 +235,15 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
     assert_eq!(ack["success"], true, "{ack_raw}");
     assert_eq!(ack["data"]["remote_acknowledged"], true, "{ack_raw}");
 
-    let inbox2_raw = tools::handle_tool_call(
-        &mcp,
-        "vox_a2a_inbox",
-        json!({ "agent_id": AGENT }),
-    )
-    .await
-    .expect("second inbox");
+    let inbox2_raw = tools::handle_tool_call(&mcp, "vox_a2a_inbox", json!({ "agent_id": AGENT }))
+        .await
+        .expect("second inbox");
     let inbox2: serde_json::Value = serde_json::from_str(&inbox2_raw).expect("inbox2 JSON");
     let after = inbox2["data"]["messages"].as_array().expect("messages");
     assert!(
-        !after.iter().any(|m| m["payload"].as_str() == Some("mesh-late")),
+        !after
+            .iter()
+            .any(|m| m["payload"].as_str() == Some("mesh-late")),
         "acked mesh row should disappear from remote poll: {inbox2_raw}"
     );
 

@@ -28,7 +28,7 @@ This document outlines the aspirational goals for the Vox Distributed Execution 
 
 ## 3. Advanced Memory & Socrates Integration
 
-**Current State**: The `SocratesTaskContext` and `MemorySearchEngine` provide BM25 + Vector grounding, but remain primarily rigid gates or explicit invocations.
+**Current State**: `vox_chat_message` and `vox_memory_search` share a unified retrieval trigger that prefers hybrid BM25 + vector search and falls back deterministically when embeddings/DB are unavailable. Broader autonomous contradiction-resolution orchestration remains aspirational.
 **Aspirational Goals**:
 - **Autonomous Subconscious Recall**: All LLM entrypoints should automatically run a low-latency vector-BM25 hybrid query against the `Codex` memory block using the user's prompt as the latent space seed. High-confidence facts (`score > 0.85`) should silently append to the preamble, fulfilling the "agent *knows* when to look" imperative.
 - **Contradiction Resolution Agents**: If the `MemorySearchEngine` detects a `potential_contradiction`, the Orchestrator should automatically pause the fast-path pipeline and insert a "Resolution Re-plan" task, spawning an investigative agent to resolve the factual split before the primary agent generates code.
@@ -42,6 +42,6 @@ This document outlines the aspirational goals for the Vox Distributed Execution 
 
 ## Next Steps for Build-out
 1. Implement basic session-isolated history in `vox-mcp` (Immediate).
-2. Wire `MemorySearchEngine` into `chat_tools.rs` for silent subconscious recall (Immediate).
+2. Extend chat retrieval into task-level replan orchestration when contradiction hints are detected (Immediate).
 3. Draft the HTN topology spec for `vox-orchestrator/src/queue.rs` (Q3 2026).
 4. Build the `PodManager` to enforce specialized agent teaming (Q4 2026).

@@ -1,8 +1,8 @@
 //! Minimal JSON-line RPC client for `vox-dei-d` (planning and other DeI surfaces).
 //!
-//! Wire shape `{ id, method, params }` matches [`vox_cli::dispatch_protocol::DispatchRequest`] and
-//! `contracts/dei/rpc-methods.schema.json` (JSON Schema `$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
-//! No `vox-cli` dependency here; keep structs in sync.
+//! Wire shape `{ id, method, params }` is [`vox_protocol::DispatchRequest`] (same as CLI dispatch); validates against
+//! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
+//! No `vox-cli` dependency — types come from `vox-protocol` only.
 
 use serde_json::Value;
 use std::process::Stdio;

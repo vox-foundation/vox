@@ -1,12 +1,13 @@
 //! `vox-schola` — standalone GPU-native binary for Vox ML.
 //!
-//! Equivalent to `vox mens …` but links only to `vox-mens`.
+//! Equivalent to `vox mens …` but links only to `vox-populi` (Mens via `mens` features).
 //! No compiler stack (lexer/parser/hir/codegen) is compiled in.
 //! Incremental build target: ~15 s vs ~45 s for the full `vox` binary.
 //!
 //! ## Quick start
 //!
 //! ```text
+//! vox-schola                                  # defaults to `train`
 //! vox-schola train --model Qwen/Qwen2.5-Coder-1.5B-Instruct
 //! vox-schola serve --model mens/runs/latest --port 8080
 //! vox-schola probe

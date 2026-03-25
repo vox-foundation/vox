@@ -6,22 +6,27 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 use anyhow::Result;
 
-/// Standalone Vox ML binary — train, serve, probe. GPU always enabled.
+/// Raw argv from clap (subcommand optional — default is [`Cmd::default_train`]).
 #[derive(Parser)]
 #[command(
     name = "vox-schola",
     about = "Vox ML: train/serve/probe — GPU always enabled, no compiler stack",
     long_about = "Standalone GPU-native binary for the Vox Mens ML subsystem.\n\
                   Equivalent to `vox mens …` but ~3× faster to compile (no lexer/parser/codegen).\n\n\
+                  With no subcommand, **`train`** runs with the same defaults as `vox-schola train`.\n\
+                  Pass flags on `train` (e.g. `vox-schola train --device cuda --preset 4080`).\n\n\
                   Quick start:\n\
-                  \n  vox-schola train --model Qwen/Qwen2.5-Coder-1.5B-Instruct\
+                  \n  vox-schola   # default `--model`: Qwen/Qwen2.5-Coder-3B-Instruct\
+                  \n  vox-schola train --device cuda --preset 4080 --model Qwen/Qwen2.5-Coder-1.5B-Instruct\
                   \n  vox-schola serve --model mens/runs/latest\
                   \n  vox-schola probe",
-    version
+    version,
+    subcommand_required = false,
+    arg_required_else_help = false
 )]
-pub struct Args {
+pub struct Cli {
     #[command(subcommand)]
-    pub cmd: Cmd,
+    cmd: Option<Cmd>,
     /// Enable verbose tracing output.
     #[arg(long, global = true)]
     pub verbose: bool,
@@ -30,13 +35,33 @@ pub struct Args {
     pub json: bool,
 }
 
+/// Resolved CLI: always has a concrete subcommand (default: train).
+pub struct Args {
+    /// Active subcommand (`train` if argv omitted it).
+    pub cmd: Cmd,
+    pub verbose: bool,
+    pub json: bool,
+}
+
+impl Args {
+    /// Parse argv; bare `vox-schola` → `train` with defaults (Mens QLoRA).
+    pub fn parse() -> Self {
+        let c = Cli::parse();
+        Self {
+            cmd: c.cmd.unwrap_or_else(Cmd::default_train),
+            verbose: c.verbose,
+            json: c.json,
+        }
+    }
+}
+
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)] // Clap CLI subcommands carry many path/buf fields by design.
 pub enum Cmd {
     /// Fine-tune a HuggingFace model with Candle QLoRA (NF4).
     Train {
         /// HuggingFace model repo (e.g. Qwen/Qwen2.5-Coder-1.5B-Instruct). Downloads weights.
-        #[arg(long)]
+        #[arg(long, default_value = vox_populi::mens::DEFAULT_MODEL_ID)]
         model: Option<String>,
         /// GPU backend: best | cuda | cpu | metal | vulkan | dx12.
         #[arg(long, default_value = "best")]
@@ -56,11 +81,11 @@ pub enum Cmd {
         /// LoRA alpha (usually 2× rank).
         #[arg(long)]
         alpha: Option<f32>,
-        /// Max sequence length (tokens).
-        #[arg(long, default_value_t = 512)]
-        seq_len: usize,
-        /// Steps between mid-epoch checkpoints (default: 500).
+        /// Max sequence length (tokens). Omit to use preset/device default.
         #[arg(long)]
+        seq_len: Option<usize>,
+        /// Steps between mid-epoch checkpoints (default: 500).
+        #[arg(long, default_value = "500")]
         checkpoint_every: Option<usize>,
         /// Batch size per step.
         #[arg(long)]
@@ -86,7 +111,10 @@ pub enum Cmd {
         /// Resume from an output directory that has a checkpoint_state.json.
         #[arg(long)]
         resume: Option<PathBuf>,
-        /// Ignore existing checkpoint and restart from scratch.
+        /// Load `checkpoint_state.json` from `--output-dir` when present (default: start a fresh run).
+        #[arg(long, visible_alias = "continue-run", action = clap::ArgAction::SetTrue)]
+        resume_checkpoint: bool,
+        /// Delete prior checkpoints/adapters in `--output-dir` and ignore checkpoint state.
         #[arg(long)]
         force_restart: bool,
         /// Dual-mode adapter tag (target | meta). Sets output directory suffix.
@@ -132,7 +160,7 @@ pub enum Cmd {
         #[arg(long)]
         model: PathBuf,
         /// Port to listen on.
-        #[arg(long, default_value_t = 8080)]
+        #[arg(long, default_value_t = 11434)]
         port: u16,
         /// Host to bind.
         #[arg(long, default_value = "127.0.0.1")]
@@ -172,6 +200,46 @@ pub enum Cmd {
     },
 }
 
+impl Cmd {
+    /// Defaults for `vox-schola` with no subcommand (must match `Train`’s clap defaults).
+    #[must_use]
+    pub fn default_train() -> Self {
+        Cmd::Train {
+            model: Some(vox_populi::mens::DEFAULT_MODEL_ID.to_string()),
+            device: "best".to_string(),
+            data_dir: PathBuf::from("target/dogfood"),
+            output_dir: PathBuf::from("mens/runs/latest"),
+            preset: None,
+            rank: None,
+            alpha: None,
+            seq_len: None,
+            checkpoint_every: Some(500),
+            batch_size: None,
+            grad_accum: None,
+            epochs: None,
+            lr: None,
+            warmup: None,
+            seed: 42,
+            min_rating: None,
+            resume: None,
+            resume_checkpoint: false,
+            force_restart: false,
+            adapter_tag: None,
+            context_filter: None,
+            vram_limit_fraction: None,
+            background: false,
+            log_dir: None,
+            skip_corpus_mix: false,
+            qlora_no_double_quant: false,
+            qlora_require_full_proxy_stack: false,
+            qlora_lm_head_only: false,
+            qlora_max_skip_rate: None,
+            qlora_proxy_max_layers: None,
+            qlora_ce_last_k: 64,
+        }
+    }
+}
+
 /// Backend enum (mirrors vox-cli PopuliTrainBackendCli for standalone use).
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum BackendCli {
@@ -183,12 +251,12 @@ pub enum BackendCli {
 }
 
 pub async fn run() -> Result<()> {
-    let args = Args::parse();
-    match args.cmd {
-        Cmd::Train { .. } => crate::train::run(args).await,
-        Cmd::Serve { .. } => crate::serve::run(args).await,
+    let Args { cmd, verbose, json } = Args::parse();
+    match cmd {
+        cmd @ Cmd::Train { .. } => crate::train::run(Args { cmd, verbose, json }).await,
+        cmd @ Cmd::Serve { .. } => crate::serve::run(Args { cmd, verbose, json }).await,
         Cmd::Probe => crate::probe::run(),
         Cmd::Status { run_dir } => crate::status::run(run_dir),
-        Cmd::Merge { .. } => crate::merge::run(args),
+        cmd @ Cmd::Merge { .. } => crate::merge::run(Args { cmd, verbose, json }),
     }
 }

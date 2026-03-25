@@ -35,7 +35,7 @@ Product demand may include a **managed** mens (discovery, quotas, org billing) w
 
 - Self-hosted and hosted meshes are **separate trust domains**; migrating workloads requires explicit re-enrollment and new credentials.
 - Distributed training / remote execute remain **non-goals** until artifact staging, authz, and NCCL (or equivalent) are designed (see mens capability plan non-goals).
-- **Stub:** [`MeshHttpClient::for_hosted_control_plane`](../../../crates/vox-populi/src/http_client.rs) documents the intended entrypoint for HTTPS bases; behavior matches `new` until hosted auth plumbing lands.
+- **Stub:** [`PopuliHttpClient::for_hosted_control_plane`](../../../crates/vox-populi/src/http_client.rs) documents the intended entrypoint for HTTPS bases; behavior matches `new` until hosted auth plumbing lands.
 - **Non-goal:** no in-tree account database, billing, or multi-tenant admin UI until product scope is explicit.
 
 ## Related

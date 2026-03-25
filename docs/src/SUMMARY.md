@@ -119,6 +119,7 @@
 - [import](api/keywords/import.md)
 - [let](api/keywords/let.md)
 - [match](api/keywords/match.md)
+- [MCP tool registry (contract YAML SSOT)](reference/mcp-tool-registry-contract.md)
 - [Mens Coordination & Database Write Safety](reference/mens-coordination.md)
 - [Mens SSOT (CPU-first)](reference/mens.md)
 - [Mobile and edge AI — SSOT](reference/mobile-edge-ai.md)

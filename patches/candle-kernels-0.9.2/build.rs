@@ -80,7 +80,10 @@ fn main() {
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok());
     if let Some(ver) = &nvcc_version {
-        println!("cargo:warning=nvcc detected: {}", ver.lines().last().unwrap_or("?"));
+        eprintln!(
+            "candle-kernels: nvcc detected: {}",
+            ver.lines().last().unwrap_or("?")
+        );
     } else {
         println!("cargo:warning=nvcc not found — CUDA kernel build may fail");
     }

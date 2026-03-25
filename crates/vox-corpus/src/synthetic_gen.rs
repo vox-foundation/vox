@@ -1979,6 +1979,7 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         "  [synthetic_search] total: {n} pairs → {}",
         search_output_path.display()
     );
+    total += n;
 
     // ── Coverage report ──────────────────────────────────────────────────
     // Re-generate the organic corpus to compute coverage metrics.

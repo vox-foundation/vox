@@ -253,7 +253,7 @@ pub async fn run(
                             42,   // seed
                             None, // min_rating
                             target_preset,
-                            vox_mens::TrainingDeploymentTarget::Workstation,
+                            vox_populi::mens::TrainingDeploymentTarget::Workstation,
                             "normal".into(),
                             None, // vram_limit_fraction
                             None, // adapter_tag

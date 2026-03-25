@@ -292,6 +292,27 @@ impl AgentQueue {
         false
     }
 
+    /// Attach Socrates evidence context to a queued or in-progress task.
+    pub fn attach_socrates_context(
+        &mut self,
+        task_id: TaskId,
+        ctx: crate::socrates::SocratesTaskContext,
+    ) -> bool {
+        if let Some(t) = self.in_progress.as_mut()
+            && t.id == task_id
+        {
+            t.socrates = Some(ctx);
+            return true;
+        }
+        for t in self.tasks.iter_mut() {
+            if t.id == task_id {
+                t.socrates = Some(ctx);
+                return true;
+            }
+        }
+        false
+    }
+
     /// List of completed task IDs.
     pub fn completed_ids(&self) -> &[TaskId] {
         &self.completed
@@ -592,5 +613,29 @@ mod tests {
         let ok = q.retry_task(task, 3);
         assert!(!ok, "should refuse when retry_count >= max_retries");
         assert!(q.is_empty());
+    }
+
+    #[test]
+    fn attach_socrates_context_updates_queued_task() {
+        let mut q = AgentQueue::new(AgentId(1), "test");
+        q.enqueue(make_task(7, TaskPriority::Normal));
+        let attached = q.attach_socrates_context(
+            TaskId(7),
+            crate::socrates::SocratesTaskContext {
+                factual_mode: true,
+                required_citations: 1,
+                evidence_count: 2,
+                contradiction_hints: 1,
+                retrieval_tier: Some("hybrid".to_string()),
+                retrieval_used_vector: true,
+                retrieval_used_lexical_fallback: false,
+                ..Default::default()
+            },
+        );
+        assert!(attached);
+        let t = q.tasks().iter().find(|t| t.id == TaskId(7)).expect("task");
+        let soc = t.socrates.as_ref().expect("socrates");
+        assert_eq!(soc.retrieval_tier.as_deref(), Some("hybrid"));
+        assert!(soc.retrieval_used_vector);
     }
 }

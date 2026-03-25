@@ -51,12 +51,12 @@ impl crate::orchestrator::Orchestrator {
     /// Replace cached remote mens capability hints (from a background mens poll).
     ///
     /// Does **not** enable remote task execution; see
-    /// `OrchestratorConfig::mesh_routing_experimental`.
-    pub fn set_remote_mesh_routing_hints(
+    /// `OrchestratorConfig::populi_routing_experimental`.
+    pub fn set_remote_populi_routing_hints(
         &self,
-        hints: Vec<crate::populi_federation::RemoteMeshRoutingHint>,
+        hints: Vec<crate::populi_federation::RemotePopuliRoutingHint>,
     ) {
-        *crate::sync_lock::rw_write(&*self.remote_mesh_routing_hints) = hints;
+        *crate::sync_lock::rw_write(&*self.remote_populi_routing_hints) = hints;
     }
 
     /// Map an AI agent session ID to an existing orchestrator agent queue.

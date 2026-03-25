@@ -11,7 +11,7 @@ A centralized registry of technical terms and concepts used within the Vox proje
 
 ## Named surfaces (language product terms)
 
-These names are **canonical in documentation** (code paths and env vars may still use historical identifiers such as `vox-mens`, `VOX_MESH_*`, or `/v1/mens/*` URLs):
+These names are **canonical in documentation** (code paths and env vars may still use historical identifiers such as `vox-mens` or `VOX_MESH_*`):
 
 | Name | Meaning | Typical CLI / crate touchpoints |
 |------|---------|--------------------------------|
