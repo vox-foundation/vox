@@ -202,19 +202,19 @@ pub struct OrchestratorConfig {
     /// Configuration for the session lifecycle manager.
     #[serde(default)]
     pub session: SessionConfig,
-    /// Optional mesh HTTP control plane base URL (`GET /v1/mesh/nodes`) for read-only status federation.
+    /// Optional mens HTTP control plane base URL (`GET /v1/mens/nodes`) for read-only status federation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mesh_control_url: Option<String>,
-    /// Optional mesh cluster / tenancy id from `Vox.toml` `[mesh].scope_id` or `VOX_MESH_SCOPE_ID` (env wins).
+    pub populi_control_url: Option<String>,
+    /// Optional mens cluster / tenancy id from `Vox.toml` `[mens].scope_id` or `VOX_MESH_SCOPE_ID` (env wins).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mesh_scope_id: Option<String>,
-    /// Background poll interval (seconds) for MCP mesh federation cache; `0` disables the poller.
+    /// Background poll interval (seconds) for MCP mens federation cache; `0` disables the poller.
     #[serde(default = "default_mesh_poll_interval_secs")]
     pub mesh_poll_interval_secs: u64,
-    /// HTTP client timeout (milliseconds) for mesh control plane `GET /v1/mesh/nodes`.
+    /// HTTP client timeout (milliseconds) for mens control plane `GET /v1/mens/nodes`.
     #[serde(default = "default_mesh_http_timeout_ms")]
     pub mesh_http_timeout_ms: u64,
-    /// Experimental: use remote mesh node labels when scoring routes (no remote task execution).
+    /// Experimental: use remote mens node labels when scoring routes (no remote task execution).
     #[serde(default = "default_false")]
     pub mesh_routing_experimental: bool,
     /// When true, MCP tool LLM calls collapse system/user turns into a single string
@@ -301,16 +301,16 @@ fn default_task_timeout() -> u64 {
     1_800_000
 }
 
-fn apply_vox_mesh_toml(config: &mut OrchestratorConfig, mesh: &vox_repository::VoxMeshToml) {
-    if let Some(url) = mesh
+fn apply_vox_populi_toml(config: &mut OrchestratorConfig, mens: &vox_repository::VoxMeshToml) {
+    if let Some(url) = mens
         .control_url
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        config.mesh_control_url = Some(url.to_string());
+        config.populi_control_url = Some(url.to_string());
     }
-    if let Some(sid) = mesh
+    if let Some(sid) = mens
         .scope_id
         .as_deref()
         .map(str::trim)
@@ -318,7 +318,7 @@ fn apply_vox_mesh_toml(config: &mut OrchestratorConfig, mesh: &vox_repository::V
     {
         config.mesh_scope_id = Some(sid.to_string());
     }
-    if let Some(labels) = mesh.labels.as_ref() {
+    if let Some(labels) = mens.labels.as_ref() {
         for lab in labels {
             let lab = lab.trim();
             if lab.is_empty() {
@@ -330,7 +330,7 @@ fn apply_vox_mesh_toml(config: &mut OrchestratorConfig, mesh: &vox_repository::V
             }
         }
     }
-    if mesh.advertise_gpu == Some(true) {
+    if mens.advertise_gpu == Some(true) {
         config.default_agent_capabilities.gpu_cuda = true;
     }
 }
@@ -381,7 +381,7 @@ impl Default for OrchestratorConfig {
             session: SessionConfig::default(),
             socrates_policy: None,
             socrates_reputation_weight: default_socrates_reputation_weight(),
-            mesh_control_url: None,
+            populi_control_url: None,
             mesh_scope_id: None,
             mesh_poll_interval_secs: default_mesh_poll_interval_secs(),
             mesh_http_timeout_ms: default_mesh_http_timeout_ms(),
@@ -417,10 +417,10 @@ impl OrchestratorConfig {
             Self::default()
         };
 
-        match vox_repository::read_vox_mesh_toml(path) {
-            Ok(Some(mesh)) => apply_vox_mesh_toml(&mut config, &mesh),
+        match vox_repository::read_vox_populi_toml(path) {
+            Ok(Some(mens)) => apply_vox_populi_toml(&mut config, &mens),
             Ok(None) => {}
-            Err(e) => tracing::warn!("Vox.toml [mesh] ignored (parse error): {e}"),
+            Err(e) => tracing::warn!("Vox.toml [mens] ignored (parse error): {e}"),
         }
 
         Ok(config)
@@ -615,16 +615,16 @@ impl OrchestratorConfig {
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_CONTROL_URL") {
             let v = val.trim();
             if v.is_empty() {
-                self.mesh_control_url = None;
+                self.populi_control_url = None;
             } else {
-                self.mesh_control_url = Some(v.to_string());
+                self.populi_control_url = Some(v.to_string());
             }
         } else if let Ok(val) = std::env::var("VOX_MESH_CONTROL_ADDR") {
             let v = val.trim();
             if v.is_empty() {
-                self.mesh_control_url = None;
+                self.populi_control_url = None;
             } else {
-                self.mesh_control_url = Some(v.to_string());
+                self.populi_control_url = Some(v.to_string());
             }
         }
         if let Ok(val) = std::env::var("VOX_MESH_SCOPE_ID") {
@@ -834,7 +834,7 @@ mod tests {
     }
 
     #[test]
-    fn mesh_toml_section_merges_into_config() {
+    fn populi_toml_section_merges_into_config() {
         let dir = tempfile::tempdir().expect("tempdir");
         let toml_path = dir.path().join("Vox.toml");
         std::fs::write(
@@ -843,8 +843,8 @@ mod tests {
 [orchestrator]
 max_agents = 3
 
-[mesh]
-control_url = "http://mesh.example:9847"
+[mens]
+control_url = "http://mens.example:9847"
 scope_id = "unit-scope"
 advertise_gpu = true
 labels = ["from=toml"]
@@ -854,8 +854,8 @@ labels = ["from=toml"]
         let cfg = OrchestratorConfig::load_from_toml(&toml_path).expect("load");
         assert_eq!(cfg.max_agents, 3);
         assert_eq!(
-            cfg.mesh_control_url.as_deref(),
-            Some("http://mesh.example:9847")
+            cfg.populi_control_url.as_deref(),
+            Some("http://mens.example:9847")
         );
         assert_eq!(cfg.mesh_scope_id.as_deref(), Some("unit-scope"));
         assert!(cfg.default_agent_capabilities.gpu_cuda);
@@ -882,7 +882,7 @@ labels = ["from=toml"]
         std::fs::write(
             &toml_path,
             r#"
-[mesh]
+[mens]
 control_url = "http://toml-loses:8888"
 "#,
         )
@@ -890,12 +890,12 @@ control_url = "http://toml-loses:8888"
 
         let mut cfg = OrchestratorConfig::load_from_toml(&toml_path).expect("load");
         assert_eq!(
-            cfg.mesh_control_url.as_deref(),
+            cfg.populi_control_url.as_deref(),
             Some("http://toml-loses:8888")
         );
         cfg.merge_env_overrides();
         assert_eq!(
-            cfg.mesh_control_url.as_deref(),
+            cfg.populi_control_url.as_deref(),
             Some("http://env-wins:7777")
         );
 

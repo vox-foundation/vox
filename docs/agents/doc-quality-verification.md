@@ -41,7 +41,7 @@ Use **`symbol_hints`** + **`quality_tag`** in [doc-inventory.json](doc-inventory
 
 - Mechanical docs replaced with **intent, contracts, failure modes**, or **links**.
 - No new SSOT contradictions vs [AGENTS.md](../../AGENTS.md) and ADRs.
-- Lints unchanged or stricter. **Exceptions:** `vox-tensor` uses `#![cfg_attr(feature = "gpu", allow(missing_docs))]` (Burn wrappers). `vox-populi` uses `#![allow(missing_docs)]` on the crate root (CLI/training wiring). Do not copy these to compiler/runtime/core crates.
+- Lints unchanged or stricter. **Exceptions:** `vox-tensor` uses `#![cfg_attr(feature = "gpu", allow(missing_docs))]` (Burn wrappers). `vox-mens` uses `#![allow(missing_docs)]` on the crate root (CLI/training wiring). Do not copy these to compiler/runtime/core crates.
 
 ## Snapshot template (paste into PR / issue)
 

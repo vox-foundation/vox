@@ -8,8 +8,8 @@ use anyhow::Context;
 pub const PRIMARY_TRAIN_FILE: &str = "train.jsonl";
 /// Fallback corpus file from extract/validate pipelines.
 pub const FALLBACK_TRAIN_FILE: &str = "validated.jsonl";
-/// Optional YAML contract under workspace `populi/config/`.
-pub const CONTRACT_PATH: &str = "populi/config/training_contract.yaml";
+/// Optional YAML contract under workspace `mens/config/`.
+pub const CONTRACT_PATH: &str = "mens/config/training_contract.yaml";
 
 /// Where the resolved training JSONL came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,7 +44,7 @@ struct TrainContract {
     train_path: Option<String>,
 }
 
-/// Parse `populi/config/training_contract.yaml` when present; returns override train path if set.
+/// Parse `mens/config/training_contract.yaml` when present; returns override train path if set.
 pub fn load_contract(workspace: &Path) -> anyhow::Result<Option<PathBuf>> {
     let p = workspace.join(CONTRACT_PATH);
     if !p.is_file() {
@@ -119,7 +119,7 @@ pub fn resolve_train_input(
         FALLBACK_TRAIN_FILE,
         data_dir.display(),
         CONTRACT_PATH,
-        "populi/config/training_contract.yaml"
+        "mens/config/training_contract.yaml"
     )
 }
 
@@ -168,7 +168,7 @@ mod tests {
         let primary = data.join(PRIMARY_TRAIN_FILE);
         std::fs::write(&primary, "{\"prompt\":\"stale\",\"response\":\"x\"}\n").unwrap();
 
-        let cfg_dir = ws.join("populi/config");
+        let cfg_dir = ws.join("mens/config");
         std::fs::create_dir_all(&cfg_dir).unwrap();
         let mut f = std::fs::File::create(cfg_dir.join("training_contract.yaml")).unwrap();
         writeln!(f, "train_path: this_file_does_not_exist.jsonl").unwrap();
@@ -198,7 +198,7 @@ mod tests {
         )
         .unwrap();
 
-        let cfg_dir = ws.join("populi/config");
+        let cfg_dir = ws.join("mens/config");
         std::fs::create_dir_all(&cfg_dir).unwrap();
         let mut f = std::fs::File::create(cfg_dir.join("training_contract.yaml")).unwrap();
         writeln!(

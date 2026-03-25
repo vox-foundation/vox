@@ -73,12 +73,12 @@ vox-lexer
 vox-lsp
 vox-ludus
 vox-mcp
-vox-mesh
+vox-populi
 vox-oratio
 vox-orchestrator
 vox-parser
 vox-pm
-vox-populi
+vox-mens
 vox-repository
 vox-runtime
 vox-skills
@@ -89,7 +89,7 @@ vox-tensor
 vox-test-harness
 vox-toestub
 vox-tools
-vox-train
+vox-schola
 vox-typeck
 vox-webhook
 vox-workflow-runtime

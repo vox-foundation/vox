@@ -31,22 +31,22 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
     }
 }
 
-/// When **`VOX_MESH_ENABLED`** is set and this binary was built with **`mesh`**, publish this
-/// process to the local mesh registry once (covers app and script `vox run` paths, including
+/// When **`VOX_MESH_ENABLED`** is set and this binary was built with **`mens`**, publish this
+/// process to the local mens registry once (covers app and script `vox run` paths, including
 /// `vox-compilerd` `run`).
 async fn mesh_publish_best_effort_for_run() {
-    #[cfg(feature = "mesh")]
+    #[cfg(feature = "mens")]
     {
-        if vox_mesh::mesh_enabled_from_env() {
-            let node_id = vox_mesh::mesh_env().node_id.clone();
-            let path = vox_mesh::local_registry_path();
-            match vox_mesh::publish_local_registry_best_effort() {
+        if vox_populi::mesh_enabled_from_env() {
+            let node_id = vox_populi::mesh_env().node_id.clone();
+            let path = vox_populi::local_registry_path();
+            match vox_populi::publish_local_registry_best_effort() {
                 Ok(()) => {
                     tracing::info!(
-                        target: "vox.mesh",
+                        target: "vox.mens",
                         path = %path.display(),
                         node_id = node_id.as_deref().unwrap_or("(generated)"),
-                        "mesh registry publish (vox run)"
+                        "mens registry publish (vox run)"
                     );
                     crate::mesh_codex_telemetry::record_local_registry_publish_opt(
                         &path,
@@ -56,14 +56,14 @@ async fn mesh_publish_best_effort_for_run() {
                 }
                 Err(e) => {
                     tracing::debug!(
-                        target: "vox.mesh",
+                        target: "vox.mens",
                         error = %e,
-                        "mesh registry publish failed (best-effort)"
+                        "mens registry publish failed (best-effort)"
                     );
                 }
             }
-            let _ = vox_mesh::http_lifecycle::mesh_http_join_best_effort(
-                vox_mesh::mesh_registration_record_for_process(),
+            let _ = vox_populi::http_lifecycle::mesh_http_join_best_effort(
+                vox_populi::mesh_registration_record_for_process(),
                 "vox run",
             )
             .await;

@@ -115,9 +115,9 @@ pub struct ResearchConfig {
     pub routing_thresholds: super::config::RoutingThresholds,
     /// Fusion weights: (vector_weight, bm25_weight, kb_chunk_weight).
     pub fusion_weights: (f64, f64, f64),
-    /// Minimum confidence to write a Populi training pair.
+    /// Minimum confidence to write a Mens training pair.
     pub training_pair_min_confidence: f64,
-    /// Minimum citation count to write a Populi training pair.
+    /// Minimum citation count to write a Mens training pair.
     pub training_pair_min_citations: usize,
     /// Provider configuration (high-trust domains, timeout, etc.).
     pub provider: super::config::ProviderConfig,

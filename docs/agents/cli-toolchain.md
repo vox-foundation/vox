@@ -45,7 +45,7 @@ crates/
 | `vox train` | Orchestrate fine-tuning |
 | `vox train --native` | Burn-based Rust training loop |
 | `vox learn` | Behavioral learning / dogfood export |
-| `vox populi corpus` | Training corpus (extract, validate, pairs, mix, eval) |
+| `vox mens corpus` | Training corpus (extract, validate, pairs, mix, eval) |
 | `vox generate` | LLM code generation |
 | `vox chat` | Interactive AI chat |
 | `vox config get/set` | Read/write VoxConfig SSOT |

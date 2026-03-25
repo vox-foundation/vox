@@ -1,4 +1,4 @@
-//! Rule-based prompt augmentation for Populi corpus diversity.
+//! Rule-based prompt augmentation for Mens corpus diversity.
 //!
 //! Generates perturbed variants of instruction prompts to improve model robustness
 //! to natural language variation, typos, shorthand, and synonym substitution.

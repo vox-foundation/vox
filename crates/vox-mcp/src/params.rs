@@ -77,7 +77,7 @@ pub struct SubmitTaskParams {
     /// Optional GPU / hardware routing hints.
     #[serde(default)]
     pub capabilities: Option<vox_orchestrator::TaskCapabilityHints>,
-    /// Optional session identifier for Populi telemetry grouping.
+    /// Optional session identifier for Mens telemetry grouping.
     pub session_id: Option<String>,
 }
 
@@ -233,12 +233,12 @@ pub struct StatusResponse {
     pub active_workspaces: usize,
     /// Number of tracked logical changes.
     pub active_changes: usize,
-    /// Read-only mesh HTTP snapshot when [`vox_orchestrator::OrchestratorConfig::mesh_control_url`] is set.
+    /// Read-only mens HTTP snapshot when [`vox_orchestrator::OrchestratorConfig::populi_control_url`] is set.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mesh_snapshot: Option<serde_json::Value>,
-    /// Background-polled mesh federation cache (same URL); does not replace `mesh_snapshot` live fetch.
+    /// Background-polled mens federation cache (same URL); does not replace `mesh_snapshot` live fetch.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mesh_federation_cache: Option<serde_json::Value>,
+    pub populi_federation_cache: Option<serde_json::Value>,
 }
 
 /// Single LSP-style diagnostic for validate-file responses.

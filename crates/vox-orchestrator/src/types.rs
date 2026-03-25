@@ -344,7 +344,7 @@ pub struct TaskDescriptor {
     /// Optional capability requirements for routing (same semantics as [`AgentTask::capability_requirements`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability_requirements: Option<crate::contract::TaskCapabilityHints>,
-    /// Optional session link (for chat/workflow grouping in Populi).
+    /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
 }
@@ -393,7 +393,7 @@ pub struct AgentTask {
     /// Optional GPU / hardware routing hints for distributed execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability_requirements: Option<crate::contract::TaskCapabilityHints>,
-    /// Optional session link (for chat/workflow grouping in Populi).
+    /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
 }

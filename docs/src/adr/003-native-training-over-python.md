@@ -16,7 +16,7 @@ training_eligible: true
 
 ## Context
 
-The original Populi training pipeline used `populi/training/train.py` (Python, Unsloth, QLoRA). This caused:
+The original Mens training pipeline used `mens/training/train.py` (Python, Unsloth, QLoRA). This caused:
 
 1. **Environment friction**: Python version conflicts, uv/pip version pinning, CUDA version mismatches
 2. **Slow iteration**: Python-based tokenizer was ~10× slower than native Rust
@@ -36,8 +36,8 @@ The original Populi training pipeline used `populi/training/train.py` (Python, U
 | Data generation | `scripts/datagen.py` | `vox generate-data` (Rust) |
 | Training loop | Python (`dogfood_train.py`) | `vox training native` (Burn) |
 | Large-model QLoRA | Python (Unsloth) | **Python retained** |
-| Corpus extraction | Python | `vox populi corpus extract` (Rust) |
-| Training validation | Python | `vox populi corpus eval` (Rust via vox-eval) |
+| Corpus extraction | Python | `vox mens corpus extract` (Rust) |
+| Training validation | Python | `vox mens corpus eval` (Rust via vox-eval) |
 
 ---
 

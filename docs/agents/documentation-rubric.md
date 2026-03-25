@@ -60,7 +60,7 @@ If prose disagrees with **AGENTS.md** or an **ADR**, update the SSOT document (o
 | Anti-pattern | Fix |
 |--------------|-----|
 | Claiming migration “done” without matching **tests** or **`vox ci`** guards | Tie claims to `crates/vox-cli/tests/*`, `ci.yml`, and `check-docs-ssot` artifacts. |
-| Reintroducing **Python** or retired **`scripts/docs/*`** for inventory / gates | Use **`vox ci doc-inventory`** and **`vox ci populi-gate`** only. |
+| Reintroducing **Python** or retired **`scripts/docs/*`** for inventory / gates | Use **`vox ci doc-inventory`** and **`vox ci mens-gate`** only. |
 | **Fat wrappers** that re-implement guard logic | One-line delegates to **`vox ci …`** / `cargo run -p vox-cli -- ci …`; see [command surface duals](../src/ci/command-surface-duals.md). |
 | Docs that cite **non-existent CLI** (`vox clean`, etc.) | Cross-check `ref-cli.md` and [command surface duals](../src/ci/command-surface-duals.md). |
 | Omitting **`script-execution`** from compile matrices | `FEATURE_SETS` in `commands/ci/mod.rs` must include the script lane. |

@@ -192,7 +192,7 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
         anyhow::bail!("Type checking failed");
     }
 
-    // Mesh registry publish runs once at the start of `commands::run::run` (all `vox run` modes).
+    // Mens registry publish runs once at the start of `commands::run::run` (all `vox run` modes).
 
     let hir = &result.hir;
     let source = &result.source;

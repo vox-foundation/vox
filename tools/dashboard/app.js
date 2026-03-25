@@ -23,7 +23,7 @@ const state = {
     },
     safetyEvents: [],
     skills: [],
-    trainingRuns: new Map(), // Added for Populi pipeline observation
+    trainingRuns: new Map(), // Added for Mens pipeline observation
 };
 
 // Agent accent colors (cycled)
@@ -246,7 +246,7 @@ function handleEvent(event, suppressRender = false) {
             if (!suppressRender) showToast(`Handoff: ${kind.from} → ${kind.to}`, 'info');
             break;
 
-        // --- Populi Training Events ---
+        // --- Mens Training Events ---
         case 'populi_training_started':
             state.trainingRuns.set(kind.run_id, {
                 runId: kind.run_id,

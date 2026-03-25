@@ -80,3 +80,7 @@ crates/*/target_*/
 crates/vox-populi/tests/fixtures/
 crates/vox-mesh/tests/*.sample.json
 docs/book/
+
+# Large model and data artifacts
+*.safetensors
+*.jsonl

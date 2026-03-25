@@ -27,11 +27,11 @@ The Rust web framework Vox compiles HTTP endpoints and SSR components into.
 
 ## B
 ### Bincode
-The binary serialization format Vox uses to pass messages and workflow state efficiently over the Mesh.
+The binary serialization format Vox uses to pass messages and workflow state efficiently over the Mens.
 ### Budget Manager
 The system that imposes token and time-based limits on A2A (Agent-to-Agent) orchestrator loops to prevent runaway execution.
 ### Burn
-A native Rust deep learning framework originally used for Vox Populi, alongside Candle.
+A native Rust deep learning framework originally used for Vox Mens, alongside Candle.
 
 ## C
 ### Candle
@@ -67,7 +67,7 @@ A type-level mechanism for tracking side effects (like I/O or network requests) 
 ### Feature Flag
 A mechanism for enabling new Vox compiler rules incrementally.
 ### Freshness Decay
-The rate at which the Populi ML model prioritizes recent `.vox` syntax changes over older (potentially deprecated) code patterns.
+The rate at which the Mens ML model prioritizes recent `.vox` syntax changes over older (potentially deprecated) code patterns.
 
 ## G
 ### Generics
@@ -79,7 +79,7 @@ The underlying tree structure for the Rowan CST. It is immutable and shared, all
 
 ## H
 ### HF (Hugging Face)
-A repository for ML models and tokenizer configurations. Vox Populi supports loading HF-compatible safetensor checkpoints.
+A repository for ML models and tokenizer configurations. Vox Mens supports loading HF-compatible safetensor checkpoints.
 ### HIR (High-level Intermediate Representation)
 A compiler representation that follows the AST but includes resolved names, types, and desugared constructs.
 ### HTMX
@@ -114,14 +114,14 @@ The gamification and reward subsystem for AI agents within the Vox DEI orchestra
 ## M
 ### MCP (Model Context Protocol)
 An open protocol that enables AI models to interact with local tools and data. Vox generates MCP tool schemas via `@mcp.tool`.
-### Mesh
+### Mens
 The distributed compute layer in Vox, allowing multiple nodes to coordinate and execute tasks across the network.
 
 ## N
 ### Name Resolution
 The compiler phase mapping identifiers in the CST to specific semantic definitions in the `TypeEnv`.
 ### NF4 (NormalFloat 4)
-The specific 4-bit quantization format used by Vox Populi to compress base model weights during training.
+The specific 4-bit quantization format used by Vox Mens to compress base model weights during training.
 
 ## O
 ### OpenClaw
@@ -136,7 +136,7 @@ The `vox-dei` sub-engine that routes tasks between human inputs, automated agent
 ## P
 ### Pattern Matching
 The `match` keyword allows exhaustive checking across union types and ADT variants, guaranteeing all states are handled.
-### Populi
+### Mens
 The native machine learning and training subsystem in Vox, optimized for QLoRA fine-tuning of LLMs.
 ### Prestige
 A Ludus mechanic for agents completing extreme workflow chains, granting permanent capability boosts.
@@ -169,7 +169,7 @@ The async Rust runtime undergirding Vox Actors and Workflows.
 ### TOESTUB
 An architectural enforcement standard for detecting AI-coding anti-patterns during agent execution.
 ### Training Weight
-The multiplier applied to a `.vox` file during Populi QLoRA preflight to emphasize syntactically modern examples.
+The multiplier applied to a `.vox` file during Mens QLoRA preflight to emphasize syntactically modern examples.
 
 ## U
 ### Unification

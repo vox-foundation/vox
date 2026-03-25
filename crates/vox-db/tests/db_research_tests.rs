@@ -47,7 +47,7 @@ async fn test_capability_map_crud() {
         vendor: "competitor_x".to_string(),
         area: "orchestration".to_string(),
         openclaw_capability: "dist_task".to_string(),
-        vox_evidence: "Vox has native mesh support...".to_string(),
+        vox_evidence: "Vox has native mens support...".to_string(),
         status: "active".to_string(),
         advantage_direction: "vox".to_string(),
         recommended_action: "implement more tests".to_string(),

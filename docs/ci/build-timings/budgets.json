@@ -7,7 +7,7 @@
     "check_vox_cli_no_default_features": 360000,
     "check_vox_db": 240000,
     "check_vox_oratio": 900000,
-    "check_vox_populi_train": 1200000,
+    "check_vox_mens_train": 1200000,
     "check_vox_cli_populi_oratio": 1080000
   }
 }

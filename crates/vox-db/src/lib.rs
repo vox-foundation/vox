@@ -81,10 +81,10 @@ mod eval_params;
 pub mod learning;
 /// Parameters for [`VoxDb::store_memory`].
 pub mod memory;
-/// Mesh control-plane audit (`mesh_control_event` in `research_metrics`).
-pub mod mesh_control_telemetry;
-/// Opt-in mesh local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
-pub mod mesh_registry_telemetry;
+/// Mens control-plane audit (`populi_control_event` in `research_metrics`).
+pub mod populi_control_telemetry;
+/// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
+pub mod populi_registry_telemetry;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
@@ -104,7 +104,7 @@ mod sync_invocables;
 pub mod toestub_store;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
-/// Populi QLoRA training run persistence (CRUD for `populi_training_run` table).
+/// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
 use crate::paths::local_user_id;
 

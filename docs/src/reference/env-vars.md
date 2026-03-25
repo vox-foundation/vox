@@ -45,33 +45,33 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT` | Weight for reliability blend (default in config: `1.0`). |
 | `VOX_ORCHESTRATOR_LOG_LEVEL` | Tracing/log level string. |
 | `VOX_ORCHESTRATOR_FALLBACK_SINGLE` | Ambiguous routing → single agent. |
-| `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | Base URL of the mesh HTTP control plane for **read-only** node snapshots in MCP/orchestrator (e.g. `http://mesh-ctrl:9847`). See [mesh SSOT](mesh.md), [deployment compose SSOT](deployment-compose.md). |
-| `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mesh HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
-| `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mesh control-plane requests. |
-| `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mesh SSOT](mesh.md)). |
+| `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | Base URL of the mens HTTP control plane for **read-only** node snapshots in MCP/orchestrator (e.g. `http://mens-ctrl:9847`). See [mens SSOT](mens.md), [deployment compose SSOT](deployment-compose.md). |
+| `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
+| `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mens control-plane requests. |
+| `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](mens.md)). |
 | `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
 
 Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates/vox-socrates-policy/src/lib.rs); optional TOML overrides live under `[orchestrator]` as `socrates_policy` (see `OrchestratorConfig`).
 
-## Populi / Candle
+## Mens / Candle
 
 | Variable | Role |
 |----------|------|
-| `VOX_CANDLE_DEVICE` | Forces Candle device (e.g. `cpu`); see Populi training SSOT. |
+| `VOX_CANDLE_DEVICE` | Forces Candle device (e.g. `cpu`); see Mens training SSOT. |
 | `VOX_INFERENCE_PROFILE` | `desktop_ollama` (default), `cloud_openai_compatible`, `mobile_litert`, `mobile_coreml`, `lan_gateway`; gates **vox-mcp** local Ollama + Ollama fallback to `desktop_ollama` / `lan_gateway` only; see [`vox_config::inference`](../../../crates/vox-config/src/inference.rs) and [mobile-edge-ai.md](mobile-edge-ai.md). |
 
-## Mesh (`vox-mesh`, orchestrator probe)
+## Mens (`vox-populi`, orchestrator probe)
 
-Full table: [mesh SSOT](mesh.md). Common entries:
+Full table: [mens SSOT](mens.md). Common entries:
 
 | Variable | Role |
 |----------|------|
-| `VOX_MESH_ENABLED` | Enables mesh registry publish and related hooks. |
+| `VOX_MESH_ENABLED` | Enables mens registry publish and related hooks. |
 | `VOX_MESH_CONTROL_ADDR` | This process’s control plane URL (publish/join target). |
 | `VOX_MESH_TOKEN` / `VOX_MESH_SCOPE_ID` | Auth and tenancy for the control plane. |
-| `VOX_MESH_MAX_STALE_MS` | Client-side staleness filter for mesh snapshots (MCP). |
-| `VOX_MESH_CODEX_TELEMETRY` | Emit Codex `mesh_control_event` rows when set. |
-| `VOX_MESH_HTTP_JOIN` | `0`/`false` disables MCP HTTP join to the control plane; see [mesh SSOT](mesh.md). |
+| `VOX_MESH_MAX_STALE_MS` | Client-side staleness filter for mens snapshots (MCP). |
+| `VOX_MESH_CODEX_TELEMETRY` | Emit Codex `populi_control_event` rows when set. |
+| `VOX_MESH_HTTP_JOIN` | `0`/`false` disables MCP HTTP join to the control plane; see [mens SSOT](mens.md). |
 | `VOX_MESH_HTTP_HEARTBEAT_SECS` | MCP heartbeat interval after join (`0` = no background heartbeat). |
 | `VOX_MESH_ADVERTISE_GPU` | Legacy: sets `gpu_cuda` on the host capability snapshot. |
 | `VOX_MESH_ADVERTISE_VULKAN` | Sets `gpu_vulkan`. |
@@ -79,11 +79,11 @@ Full table: [mesh SSOT](mesh.md). Common entries:
 | `VOX_MESH_ADVERTISE_NPU` | Sets `npu`. |
 | `VOX_MESH_DEVICE_CLASS` | Optional `TaskCapabilityHints.device_class` string. |
 
-## GPU probe overrides (Populi training)
+## GPU probe overrides (Mens training)
 
 | Variable | Role |
 |----------|------|
-| `VOX_GPU_MODEL` | With `VOX_GPU_VRAM_MB`, overrides [`probe_gpu`](../../../crates/vox-populi/src/tensor/device.rs) (CI / headless / Android host injection). |
+| `VOX_GPU_MODEL` | With `VOX_GPU_VRAM_MB`, overrides [`probe_gpu`](../../../crates/vox-mens/src/tensor/device.rs) (CI / headless / Android host injection). |
 | `VOX_GPU_VRAM_MB` | Paired with `VOX_GPU_MODEL` for VRAM heuristics. |
 
 ## CI / diagnostics

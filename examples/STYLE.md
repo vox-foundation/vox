@@ -6,7 +6,7 @@ This document defines the coding conventions, frontmatter requirements, and stru
 
 ## 1. Frontmatter (Required)
 
-Every `.vox` file **must** begin with a structured comment-frontmatter block. This block is parsed by the Vox CI pipeline and the Populi training corpus ingestion pipeline.
+Every `.vox` file **must** begin with a structured comment-frontmatter block. This block is parsed by the Vox CI pipeline and the Mens training corpus ingestion pipeline.
 
 ```
 // ---
@@ -71,7 +71,7 @@ Every `.vox` file **must** begin with a structured comment-frontmatter block. Th
 ## 5. Testing
 
 - Include at least one `@test` function that validates the example's output.
-- Tests make examples runnable in CI and provide a correctness guarantee for Populi training.
+- Tests make examples runnable in CI and provide a correctness guarantee for Mens training.
 
 ---
 

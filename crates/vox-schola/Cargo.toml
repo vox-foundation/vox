@@ -1,0 +1,42 @@
+[package]
+name = "vox-schola"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "vox-schola — standalone ML training/serving binary. GPU always enabled; no compiler stack dep."
+default-run = "vox-schola"
+
+[[bin]]
+name = "vox-schola"
+path = "src/main.rs"
+
+[features]
+default = []
+# NVIDIA CUDA kernels (requires CUDA toolkit; build from x64 Native Tools shell on Windows).
+cuda  = ["vox-mens/candle-qlora-cuda"]
+# Apple Metal (macOS only).
+metal = ["vox-mens/candle-qlora-metal"]
+
+[dependencies]
+# Core ML library — always with train + hf-hub; no compiler crates.
+vox-mens  = { workspace = true, features = ["train", "hf-hub"] }
+vox-corpus  = { workspace = true }
+vox-db      = { workspace = true }
+# CLI + async runtime
+clap        = { workspace = true, features = ["derive"] }
+anyhow      = { workspace = true }
+tokio       = { workspace = true }
+tracing     = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde_json  = { workspace = true }
+serde       = { workspace = true }
+chrono      = { workspace = true }
+ctrlc       = { version = "3.4", features = ["termination"] }
+uuid        = { version = "1", features = ["v4"] }
+# HTTP inference server
+axum        = { version = "0.8" }
+tokio-stream = { version = "0.1" }
+
+[lints]
+workspace = true

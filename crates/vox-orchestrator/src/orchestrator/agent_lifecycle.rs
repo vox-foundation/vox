@@ -49,13 +49,13 @@ impl crate::orchestrator::Orchestrator {
         Ok(agent_id)
     }
 
-    /// Replace cached remote mesh capability hints (from a background mesh poll).
+    /// Replace cached remote mens capability hints (from a background mens poll).
     ///
     /// Does **not** enable remote task execution; see
     /// `OrchestratorConfig::mesh_routing_experimental`.
     pub fn set_remote_mesh_routing_hints(
         &self,
-        hints: Vec<crate::mesh_federation::RemoteMeshRoutingHint>,
+        hints: Vec<crate::populi_federation::RemoteMeshRoutingHint>,
     ) {
         *crate::sync_lock::rw_write(&*self.remote_mesh_routing_hints) = hints;
     }

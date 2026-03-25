@@ -359,7 +359,7 @@ pub async fn feedback_rate(
         response_id.bright_cyan()
     );
     if should_contribute {
-        println!("  🌟 Valid example provided! Feedback forwarded to Populi training corpus.");
+        println!("  🌟 Valid example provided! Feedback forwarded to Mens training corpus.");
 
         let corpus_event = serde_json::json!({
             "type": "populi_corpus_contributed",

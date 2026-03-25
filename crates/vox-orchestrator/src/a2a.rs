@@ -26,23 +26,23 @@ pub struct DbA2AMessage {
 
 
 
-/// Relay a message to another mesh node via HTTP.
+/// Relay a message to another mens node via HTTP.
 pub async fn relay_to_mesh(
-    client: &vox_mesh::http_client::MeshHttpClient,
+    client: &vox_populi::http_client::MeshHttpClient,
     sender: AgentId,
     receiver: AgentId,
     msg_type: A2AMessageType,
     payload: impl Into<String>,
 ) -> Result<(), String> {
     client
-        .relay_a2a(&vox_mesh::transport::A2ADeliverRequest {
+        .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
             sender_agent_id: sender.0.to_string(),
             receiver_agent_id: receiver.0.to_string(),
             message_type: msg_type.to_string(),
             payload: payload.into(),
         })
         .await
-        .map_err(|e: vox_mesh::MeshRegistryError| e.to_string())
+        .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
 }
 
 /// Send a message to the database with circuit breaker protection.
@@ -160,7 +160,7 @@ pub async fn prune_old_a2a_messages(
         .map_err(|e| e.to_string())
 }
 
-/// Routing hint for mesh messaging.
+/// Routing hint for mens messaging.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum A2ARoute {
     /// Local in-memory delivery to an agent on the same node.

@@ -7,7 +7,7 @@
 //! - **Plan only (no git remotes):** `vox review coderabbit semantic-submit` (omit `--execute`).
 //! - **Open PRs:** same with `--execute`. Uses **`origin/<default>`** tip pushed to **`cr-baseline-*`**, then one PR per chunk from a **git worktree** under `.coderabbit/worktrees/` (main repo working tree is not checked out).
 //! - **Resume:** `--resume` loads `.coderabbit/run-state.json` and reuses its baseline when you omit `--baseline-branch`; mismatched `--baseline-branch` fails fast. Completed chunks are skipped unless `--force-chunks`.
-//! - **Exclusions:** `[review.coderabbit] exclude_prefixes = [\"populi/data/\"]` in `Vox.toml`.
+//! - **Exclusions:** `[review.coderabbit] exclude_prefixes = [\"mens/data/\"]` in `Vox.toml`.
 //! - **Legacy broad commit to default branch:** `--commit-main` (stages `git add -u` + manifest paths — avoid unless you intend it).
 
 pub mod config;

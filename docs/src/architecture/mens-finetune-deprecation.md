@@ -1,0 +1,24 @@
+---
+title: "Deprecation policy — Mens native fine-tuning"
+description: "Official documentation for Deprecation policy — Mens native fine-tuning for the Vox language. Detailed technical reference, architectur"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
+# Deprecation policy — Mens native fine-tuning
+
+## Stable
+
+- **`vox schola train`** with `--backend lora` and `--backend qlora`.
+- **`vox schola merge-qlora`** (alias **`merge-adapter`**).
+- **`vox mens merge-weights`** for Burn `*.bin` LoRA checkpoints.
+
+## Deprecated / transitional
+
+- **`vox train --native-lora`**: use **`vox schola train --backend lora`** (stderr deprecation already emitted from dispatch).
+- **Backend-only mental model**: prefer the **contract** fields (tokenizer mode, quant mode, adapter method) when scripting; CLI flags remain the user-facing surface until a preset/JSON contract ships.
+
+## Timeline
+
+- No CLI flags removed in this iteration; aliases added (`merge-adapter`).
+- Future removal of legacy paths will be announced in this doc + `mens-training.md` with one release notice.

@@ -1,4 +1,4 @@
-//! Native inference server for serving trained Vox Populi models.
+//! Native inference server for serving trained Vox Mens models.
 //!
 //! Provides a minimal HTTP API compatible with the OpenAI `/v1/completions`
 //! schema, backed by the native Burn model loaded from a checkpoint.
@@ -45,14 +45,14 @@ pub fn run_serve(config: &ServeConfig) -> Result<()> {
     use owo_colors::OwoColorize;
 
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
-    eprintln!("{}", "║   Vox Populi Inference Server            ║".cyan());
+    eprintln!("{}", "║   Vox Mens Inference Server            ║".cyan());
     eprintln!("{}", "╚══════════════════════════════════════════╝".cyan());
     eprintln!();
 
     if !config.model_path.exists() {
         anyhow::bail!(
             "Model checkpoint not found at {}.\n\
-             Run `vox populi train` first to produce a checkpoint.",
+             Run `vox schola train` first to produce a checkpoint.",
             config.model_path.display()
         );
     }
@@ -86,11 +86,11 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .parent()
         .unwrap_or(std::path::Path::new("."));
 
-    let arch = vox_populi::tensor::manifest::ArchParams::from_manifest(run_dir)?;
-    if let Err(e) = vox_populi::tensor::manifest::validate_checkpoint_manifest(
+    let arch = vox_mens::tensor::manifest::ArchParams::from_manifest(run_dir)?;
+    if let Err(e) = vox_mens::tensor::manifest::validate_checkpoint_manifest(
         &config.model_path,
         run_dir,
-        arch.to_validate_params(Some(vox_populi::tensor::manifest::CheckpointKind::Lora)),
+        arch.to_validate_params(Some(vox_mens::tensor::manifest::CheckpointKind::Lora)),
     ) {
         anyhow::bail!("{e}");
     }
@@ -99,7 +99,7 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .model_path
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("vox-populi-model")
+        .unwrap_or("vox-mens-model")
         .to_string();
 
     let system_prompt = config

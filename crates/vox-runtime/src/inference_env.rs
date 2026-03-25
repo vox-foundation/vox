@@ -1,4 +1,4 @@
-//! Async probes and **OpenAI-compatible endpoint descriptors** for Hugging Face + local Populi/Ollama.
+//! Async probes and **OpenAI-compatible endpoint descriptors** for Hugging Face + local Mens/Ollama.
 //!
 //! Environment **keys and base URL precedence** live in [`vox_config::inference`]; this module adds
 //! HTTP capability discovery and constants for the HF Inference Providers router.
@@ -130,7 +130,7 @@ pub async fn fetch_hf_hub_text_generation_models(
     parse_hf_hub_models_array(&body)
 }
 
-/// Result of probing an Ollama-compatible server (Populi local lane).
+/// Result of probing an Ollama-compatible server (Mens local lane).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct PopuliCapabilitySnapshot {
     /// Ollama-compatible server base URL that was probed.
@@ -224,7 +224,7 @@ pub async fn probe_populi_capabilities(base_url: &str) -> PopuliCapabilitySnapsh
         model_count = snapshot.model_names.len(),
         gpu_capable = ?snapshot.gpu_capable,
         event = "populi_capability_probe",
-        "populi probe complete"
+        "mens probe complete"
     );
 
     snapshot

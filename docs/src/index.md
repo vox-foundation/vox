@@ -21,7 +21,7 @@ The software industry has fragmented into hundreds of specialized frameworks. Vo
 - **Uniformity**: Frontend components, backend services, and database schemas live together in one `.vox` file. Define a `@table` and you get the schema, the CRUD API, and the React types for free.
 - **Durable Execution**: Workflows survive machine failures. If a server goes down during a multi-step `workflow`, Vox automatically resumes exactly where it left off upon restart.
 - **Zero Null States**: Null references are completely banned from the language. All absence of value must be represented by `Option[T]` or `Result`, eliminating the most common source of runtime crashes.
-- **Native ML Pipeline**: Integrated training with **Populi** allows you to perform Quantized Low-Rank Adaptation (QLoRA) directly within the Vox ecosystem.
+- **Native ML Pipeline**: Integrated training with **Mens** allows you to perform Quantized Low-Rank Adaptation (QLoRA) directly within the Vox ecosystem.
 - **First-Class AI Agents**: Adding `@mcp.tool` to any function instantly exposes it as a Model Context Protocol generic tool for external AI agents.
 
 ## Quick Start
@@ -94,7 +94,7 @@ Guided, step-by-step lessons to learn the platform.
 Goal-oriented recipes for common tasks.
 - [How To: Deploy to Production](how-to/how-to-deploy.md)
 - [How To: Build AI Agents & MCP Tools](how-to/how-to-ai-agents.md)
-- [How To: Train Populi Models](how-to/how-to-train-populi-4080.md)
+- [How To: Train Mens Models](how-to/how-to-train-mens-4080.md)
 
 ### 📚 Reference (Information)
 Technical descriptions of language machinery and syntax.

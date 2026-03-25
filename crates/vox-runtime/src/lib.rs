@@ -12,7 +12,7 @@ pub mod builtins;
 #[cfg(feature = "database")]
 /// Optional Codex / Turso database handle when the `database` feature is enabled.
 pub mod db;
-/// Hugging Face router, Hub listings, and Populi/Ollama capability probes.
+/// Hugging Face router, Hub listings, and Mens/Ollama capability probes.
 pub mod inference_env;
 /// OpenAI-compatible chat/embed clients, registry entries, and usage metrics.
 pub mod llm;
@@ -20,12 +20,12 @@ pub mod llm;
 pub mod llm_result;
 /// Actor mailboxes: envelopes, messages, requests, and process signals.
 pub mod mailbox;
-/// SSOT chat routing: manual URL, Populi, HF dedicated/router, OpenRouter.
+/// SSOT chat routing: manual URL, Mens, HF dedicated/router, OpenRouter.
 pub mod model_resolution;
 /// Opaque process identifiers for actors and messaging.
 pub mod pid;
-/// Populi/Ollama HTTP client for generate, embed, classify, and RAG helpers.
-pub mod populi;
+/// Mens/Ollama HTTP client for generate, embed, classify, and RAG helpers.
+pub mod mens;
 /// Actor `ProcessContext`, `ProcessHandle`, and `spawn_process`.
 pub mod process;
 /// Prompt normalization, conflict detection, and safety pass for LLM ingress.

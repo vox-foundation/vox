@@ -316,7 +316,7 @@ const CONTEXT_ENGINEERING_FILES: &[(&str, &str)] = &[
     ),
     (
         "populi_policy",
-        "docs/src/research/res-populi-context-policy.md",
+        "docs/src/research/res-mens-context-policy.md",
     ),
     (
         "capability_map",
@@ -467,7 +467,7 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
             "MCP chat_tools, Dei context_window",
             "partial",
             "vox_ahead",
-            "Reuse in Populi generate",
+            "Reuse in Mens generate",
             "crates/vox-mcp/src/tools/chat_tools.rs, crates/vox-dei/src/memory/context_window.rs",
         ),
         (
@@ -476,7 +476,7 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
             "Arca/Codex accessors; generate graph-aware mode",
             "partial",
             "parity",
-            "Populi generate --context-mode graph-aware --conversation-id N",
+            "Mens generate --context-mode graph-aware --conversation-id N",
             "crates/vox-arca/src/store_ext.rs, crates/vox-cli/src/commands/ai/generate.rs",
         ),
         (
@@ -485,7 +485,7 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
             "SchemaDigest, vox-codex retrieval",
             "partial",
             "parity",
-            "Augment Populi retrieval",
+            "Augment Mens retrieval",
             "crates/vox-codex/src/schema_digest.rs",
         ),
         (
@@ -500,10 +500,10 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
         (
             "context_editing",
             "Stale tool-result clearing before summarization",
-            "MCP has some; Populi none",
+            "MCP has some; Mens none",
             "partial",
             "vox_ahead",
-            "Extract shared, wire Populi",
+            "Extract shared, wire Mens",
             "crates/vox-mcp/src/tools/chat_tools.rs",
         ),
         (

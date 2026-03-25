@@ -238,21 +238,21 @@ Process identifier for actors in the Vox runtime.
 Unique within a runtime instance.
 
 
-## Module: `vox-runtime\src\populi.rs`
+## Module: `vox-runtime\src\mens.rs`
 
-# Populi LLM Client
+# Mens LLM Client
 
-`PopuliClient` communicates with the Populi LLM (local or remote) for
+`PopuliClient` communicates with the Mens LLM (local or remote) for
 code generation, text embedding, classification, and fine-tuning data submission.
 
 ## Modes
 - **Local**: `http://localhost:11434` (Ollama-compatible API)
-- **Remote**: `https://api.populi.dev` (configurable)
+- **Remote**: `https://api.mens.dev` (configurable)
 
 
-### `struct PopuliConfig`
+### `struct MensConfig`
 
-Configuration for connecting to Populi.
+Configuration for connecting to Mens.
 
 
 ### `struct GenerateResponse`
@@ -272,7 +272,7 @@ Classification result.
 
 ### `struct PopuliClient`
 
-The main Populi LLM client.
+The main Mens LLM client.
 
 
 ### `struct ProcessContext`

@@ -98,8 +98,8 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::build_observability::SCHEMA_BUILD_OBSERVABILITY,
     },
     SchemaFragment {
-        name: "populi_cloud",
-        sql: domains::populi_cloud::SCHEMA_POPULI_CLOUD,
+        name: "mens_cloud",
+        sql: domains::mens_cloud::SCHEMA_POPULI_CLOUD,
     },
 ];
 

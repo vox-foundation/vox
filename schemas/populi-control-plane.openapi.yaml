@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: Vox mens control plane
+  description: |
+    HTTP API for node registry (join, heartbeat, list, leave). Bearer auth is optional
+    (`VOX_MESH_TOKEN`); `GET /health` is never authenticated. See `docs/src/architecture/mens-ssot.md`.
+  version: 1.0.0
+
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok\n"
+
+  /v1/mens/nodes:
+    get:
+      summary: List registered nodes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Registry snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopuliRegistryFile"
+        "401":
+          description: Missing or invalid bearer when server requires token
+
+  /v1/mens/join:
+    post:
+      summary: Upsert a node (requires matching scope_id when server enforces VOX_MESH_SCOPE_ID)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeRecord"
+      responses:
+        "200":
+          description: Accepted node record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeRecord"
+        "401":
+          description: Unauthorized
+        "403":
+          description: scope_id mismatch
+
+  /v1/mens/heartbeat:
+    post:
+      summary: Refresh last_seen (and optional listen_addr)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeRecord"
+      responses:
+        "200":
+          description: Updated node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeRecord"
+        "401":
+          description: Unauthorized
+        "403":
+          description: scope_id mismatch
+
+  /v1/mens/leave:
+    post:
+      summary: Remove a node by id
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveRequest"
+      responses:
+        "204":
+          description: Removed
+        "404":
+          description: Unknown node id
+        "401":
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+
+  schemas:
+    LeaveRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: Node id to remove
+
+    TaskCapabilityHints:
+      type: object
+      description: Orchestrator capability hints (see vox-orchestrator contract)
+      additionalProperties: true
+
+    NodeRecord:
+      type: object
+      required: [id, capabilities, version, last_seen_unix_ms]
+      properties:
+        id:
+          type: string
+        capabilities:
+          $ref: "#/components/schemas/TaskCapabilityHints"
+        listen_addr:
+          type: string
+          nullable: true
+        version:
+          type: string
+        last_seen_unix_ms:
+          type: integer
+          format: int64
+        scope_id:
+          type: string
+          nullable: true
+          description: Must match server VOX_MESH_SCOPE_ID when server enforces scope
+
+    PopuliRegistryFile:
+      type: object
+      required: [schema_version, nodes]
+      properties:
+        schema_version:
+          type: integer
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/NodeRecord"

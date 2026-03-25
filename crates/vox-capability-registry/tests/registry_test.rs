@@ -3,16 +3,16 @@
 
 use vox_capability_registry::{
     PopuliExposure, capability_to_openai_function, default_registry,
-    populi_chat_parameters,
+    mens_chat_parameters,
 };
 
 #[test]
 fn default_registry_has_oratio_capabilities() {
     let reg = default_registry();
-    let caps: Vec<_> = reg.populi_chat_capabilities().collect();
+    let caps: Vec<_> = reg.mens_chat_capabilities().collect();
     assert!(
         !caps.is_empty(),
-        "default_registry should expose at least one Populi-chat capability"
+        "default_registry should expose at least one Mens-chat capability"
     );
     let ids: Vec<&str> = caps.iter().map(|c| c.capability_id.as_str()).collect();
     assert!(
@@ -30,10 +30,10 @@ fn default_registry_has_oratio_capabilities() {
 #[test]
 fn all_auto_exposed_capabilities_have_mcp_tool_name() {
     let reg = default_registry();
-    for cap in reg.populi_chat_capabilities() {
+    for cap in reg.mens_chat_capabilities() {
         assert!(
             cap.populi_exposure == PopuliExposure::Auto,
-            "populi_chat_capabilities iterator should only yield Auto-exposed caps"
+            "mens_chat_capabilities iterator should only yield Auto-exposed caps"
         );
         assert!(
             cap.invocation_forms.mcp_tool.is_some(),
@@ -44,8 +44,8 @@ fn all_auto_exposed_capabilities_have_mcp_tool_name() {
 }
 
 #[test]
-fn populi_chat_parameters_oratio_transcribe_has_path_property() {
-    let params = populi_chat_parameters("oratio.transcribe");
+fn mens_chat_parameters_oratio_transcribe_has_path_property() {
+    let params = mens_chat_parameters("oratio.transcribe");
     assert_eq!(
         params["type"].as_str().unwrap(),
         "object",
@@ -63,8 +63,8 @@ fn populi_chat_parameters_oratio_transcribe_has_path_property() {
 }
 
 #[test]
-fn populi_chat_parameters_oratio_status_is_empty_object_schema() {
-    let params = populi_chat_parameters("oratio.status");
+fn mens_chat_parameters_oratio_status_is_empty_object_schema() {
+    let params = mens_chat_parameters("oratio.status");
     assert_eq!(
         params["type"].as_str().unwrap(),
         "object",
@@ -73,8 +73,8 @@ fn populi_chat_parameters_oratio_status_is_empty_object_schema() {
 }
 
 #[test]
-fn populi_chat_parameters_unknown_returns_object_schema() {
-    let params = populi_chat_parameters("unknown.capability");
+fn mens_chat_parameters_unknown_returns_object_schema() {
+    let params = mens_chat_parameters("unknown.capability");
     assert_eq!(
         params["type"].as_str().unwrap(),
         "object",

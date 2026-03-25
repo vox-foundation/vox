@@ -1,13 +1,13 @@
 [package]
 name = "vox-workflow-runtime"
-description = "Interpreted workflow execution MVP (local + mesh activity hooks)"
+description = "Interpreted workflow execution MVP (local + mens activity hooks)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["mesh"]
-mesh = ["dep:vox-mesh", "vox-mesh/transport"]
+default = ["mens"]
+mens = ["dep:vox-populi", "vox-populi/transport"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -17,7 +17,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
-vox-mesh = { workspace = true, optional = true }
+vox-populi = { workspace = true, optional = true }
 
 [dev-dependencies]
 vox-compiler = { workspace = true }

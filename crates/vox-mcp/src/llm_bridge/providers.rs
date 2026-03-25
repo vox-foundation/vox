@@ -9,7 +9,7 @@ use serde::Serialize;
 use super::error::HttpInferError;
 use super::limits::{OLLAMA_PROBE_CACHE_TTL_SECS, OLLAMA_PROBE_TIMEOUT_SECS};
 
-/// Base URL for Ollama (`OLLAMA_HOST` or Populi local default).
+/// Base URL for Ollama (`OLLAMA_HOST` or Mens local default).
 pub(crate) fn ollama_base_url() -> String {
     std::env::var("OLLAMA_HOST")
         .unwrap_or_else(|_| vox_config::inference::local_ollama_populi_base_url())
@@ -46,7 +46,7 @@ pub(crate) async fn probe_ollama_tags(client: &reqwest::Client) -> Result<(), Ht
         .map_err(|e| HttpInferError {
             status: 0,
             message: format!(
-                "Ollama unreachable at {base} ({e}); set OLLAMA_HOST or start Ollama / Populi."
+                "Ollama unreachable at {base} ({e}); set OLLAMA_HOST or start Ollama / Mens."
             ),
         })?;
     let code = res.status().as_u16();

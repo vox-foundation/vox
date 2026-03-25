@@ -1,7 +1,7 @@
 //! MCP tools: query endpoint and agent reliability metrics (V19/20).
 //!
 //! Provides agents visibility into system performance, hallucination rates,
-//! and infra stability across OpenRouter and Populi backends.
+//! and infra stability across OpenRouter and Mens backends.
 
 use serde::Deserialize;
 use crate::params::ToolResult;

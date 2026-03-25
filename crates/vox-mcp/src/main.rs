@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    vox_mcp::mesh_startup::publish_mesh_on_mcp_start(&state).await;
+    vox_mcp::populi_startup::publish_mesh_on_mcp_start(&state).await;
 
     let server = VoxMcpServer::new(state);
     info!("server state initialized, starting stdio transport...");
@@ -77,8 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Load orchestrator configuration with the following precedence:
-/// 1. Nearest `Vox.toml` (manifest root), then CWD `Vox.toml` — each merges `[orchestrator]` + `[mesh]`
-/// 2. `VOX_ORCHESTRATOR_*` / `VOX_MESH_*` environment variables (see mesh SSOT)
+/// 1. Nearest `Vox.toml` (manifest root), then CWD `Vox.toml` — each merges `[orchestrator]` + `[mens]`
+/// 2. `VOX_ORCHESTRATOR_*` / `VOX_MESH_*` environment variables (see mens SSOT)
 /// 3. Defaults
 fn load_config() -> OrchestratorConfig {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));

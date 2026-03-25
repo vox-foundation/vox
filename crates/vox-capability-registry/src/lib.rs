@@ -1,10 +1,10 @@
-//! Capability registry for **Populi chat** tool surfaces.
+//! Capability registry for **Mens chat** tool surfaces.
 //!
 //! Entries with [`PopuliExposure::Auto`] are candidates for advertisement to LLM tool-calling
 //! clients; callers must still intersect with in-process executors (e.g. `vox_tools::DirectToolExecutor`).
-//! The `vox_tools::populi_chat` module builds OpenAI-style tool definitions from this registry ∩ executor.
+//! The `vox_tools::mens_chat` module builds OpenAI-style tool definitions from this registry ∩ executor.
 
-/// Whether a capability is exposed to Populi chat tool lists.
+/// Whether a capability is exposed to Mens chat tool lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PopuliExposure {
     /// Advertise when an in-process executor also implements the MCP tool name.
@@ -40,8 +40,8 @@ pub struct CapabilityRegistry {
 }
 
 impl CapabilityRegistry {
-    /// Capabilities eligible for Populi chat (subject to executor intersection).
-    pub fn populi_chat_capabilities(&self) -> impl Iterator<Item = &CapabilityDescriptor> + '_ {
+    /// Capabilities eligible for Mens chat (subject to executor intersection).
+    pub fn mens_chat_capabilities(&self) -> impl Iterator<Item = &CapabilityDescriptor> + '_ {
         self.caps
             .iter()
             .filter(|c| c.populi_exposure == PopuliExposure::Auto)
@@ -78,7 +78,7 @@ pub fn default_registry() -> CapabilityRegistry {
 
 /// JSON Schema `parameters` for OpenAI-style tool calling (`type` must be `"object"`).
 #[must_use]
-pub fn populi_chat_parameters(capability_id: &str) -> serde_json::Value {
+pub fn mens_chat_parameters(capability_id: &str) -> serde_json::Value {
     match capability_id {
         "oratio.transcribe" => serde_json::from_str(
             r#"{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative or absolute path to an audio file"}},"required":["path"]}"#,

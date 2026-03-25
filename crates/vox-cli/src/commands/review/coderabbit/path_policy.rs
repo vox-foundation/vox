@@ -87,12 +87,12 @@ mod tests {
     #[test]
     fn exclude_prefix_normalizes_slashes() {
         assert!(is_excluded_by_prefixes(
-            r"populi\data\train.jsonl",
-            &["populi/data/".to_string()]
+            r"mens\data\train.jsonl",
+            &["mens/data/".to_string()]
         ));
         assert!(!is_excluded_by_prefixes(
             "crates/foo.rs",
-            &["populi/".to_string()]
+            &["mens/".to_string()]
         ));
     }
 

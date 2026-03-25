@@ -2,7 +2,7 @@
 name = "vox-cli"
 version.workspace = true
 edition.workspace = true
-# `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-populi` when `populi-base`).
+# `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-mens` when `mens-base`).
 default-run = "vox"
 
 [[bin]]
@@ -13,38 +13,38 @@ path = "src/main.rs"
 name = "vox-compilerd"
 path = "src/bin/vox-compilerd.rs"
 
-# Thin entrypoint: `vox-populi train` ≡ `vox populi train` (inserts the `populi` subcommand).
+# Thin entrypoint: `vox-mens train` ≡ `vox schola train` (inserts the `mens` subcommand).
 [[bin]]
-name = "vox-populi"
-path = "src/bin/vox-populi.rs"
-required-features = ["populi-base"]
+name = "vox-mens"
+path = "src/bin/vox-mens.rs"
+required-features = ["mens-base"]
 
 [features]
-default = ["populi-base"]
+default = ["mens-base"]
 # Corpus paths, `train-uv`, plan (daemon), status, eval-gate, bench-completion, system-prompt-template.
-# Does **not** include Oratio (Candle Whisper stack) — use `populi-oratio` for `vox populi oratio`.
-populi-base = []
+# Does **not** include Oratio (Candle Whisper stack) — use `mens-oratio` for `vox mens oratio`.
+mens-base = []
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
-# Speech-to-text (`vox populi oratio`); pulls heavy `vox-oratio` / Candle deps.
-populi-oratio = ["populi-base", "dep:vox-oratio"]
-# Native Burn LoRA training + HF metadata (`vox populi train`, probe, merge-weights, eval-local).
+# Speech-to-text (`vox mens oratio`); pulls heavy `vox-oratio` / Candle deps.
+mens-oratio = ["mens-base", "dep:vox-oratio"]
+# Native Burn LoRA training + HF metadata (`vox schola train`, probe, merge-weights, eval-local).
 gpu = [
-    "populi-base",
-    "dep:vox-populi",
+    "mens-base",
+    "dep:vox-mens",
     "dep:vox-tensor",
-    "vox-populi/train",
-    "vox-populi/hf-hub",
+    "vox-mens/train",
+    "vox-mens/hf-hub",
     "vox-tensor/train",
 ]
-# Back-compat alias: `gpu` already enables `vox-populi/candle-qlora` (native `--backend qlora`).
-populi-qlora = ["gpu"]
+# Back-compat alias: `gpu` already enables `vox-mens/candle-qlora` (native `--backend qlora`).
+mens-qlora = ["gpu"]
 # Candle qlora on NVIDIA CUDA (requires CUDA toolkit when compiling `candle-core`).
-populi-candle-cuda = ["gpu", "vox-populi/candle-qlora-cuda"]
+mens-candle-cuda = ["gpu", "vox-mens/candle-qlora-cuda"]
 # Candle qlora on Apple Metal (macOS only).
-populi-candle-metal = ["gpu", "vox-populi/candle-qlora-metal"]
+mens-candle-metal = ["gpu", "vox-mens/candle-qlora-metal"]
 # Cloud GPU training/serving dispatch (Vast.ai, RunPod).
-cloud = ["gpu", "vox-populi/cloud"]
+cloud = ["gpu", "vox-mens/cloud"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
@@ -55,7 +55,7 @@ script-execution = [
     "dep:landlock",
     "dep:win32job",
 ]
-# Axum inference server (`vox populi serve`) + REST execution API; implies `script-execution`.
+# Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
 execution-api = ["script-execution", "gpu", "dep:axum", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
@@ -64,7 +64,7 @@ stub-check = [
     "dep:dirs",
     "dep:vox-ludus",
 ]
-# No-op reserved flag: legacy `vox populi` agent/dei/chat/learn and `runtime/info/status` referred to excluded `vox-dei`.
+# No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to excluded `vox-dei`.
 # Dashboard UX is the VS Code extension (see `docs/src/ref-cli.md`).
 dashboard = []
 # Pulls `vox-ars` + `vox-skills` for OpenClaw / skill registry (`openclaw`, ARS extras).
@@ -73,14 +73,16 @@ ars = ["dep:vox-ars", "dep:vox-skills"]
 extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).
 live = ["dep:vox-orchestrator"]
-# BYOK / config slices in `populi status`, extended `vox doctor`, scope checks (`vox_eval`).
+# Manage the DEI (Distributed Execution Intelligence) orchestrator.
+dei = ["dep:vox-orchestrator"]
+# BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = [
     "dep:dirs",
     "dep:vox-eval",
 ]
-# Extended DeI surfaces: generate, review, workflow, check, fix (`vox populi …`).
+# Extended DeI surfaces: generate, review, workflow, check, fix (`vox mens …`).
 # Pulls `vox-tensor` for the legacy in-process dogfood trainer (`crate::training::native`).
-populi-dei = ["dep:vox-tensor", "vox-tensor/train"]
+mens-dei = ["dep:vox-tensor", "vox-tensor/train"]
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
 coderabbit = [
     "dep:vox-forge",
@@ -91,10 +93,10 @@ coderabbit = [
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
 island = ["dep:comfy-table", "dep:dirs", "dep:which"]
-# Local mesh registry + `vox mesh status|serve` (`vox-mesh` / optional HTTP control plane).
-mesh = ["dep:vox-mesh", "vox-mesh/transport"]
-# Interpreted `vox populi workflow run` (journal + mesh activities); implies mesh hooks.
-workflow-runtime = ["populi-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mesh"]
+# Local populi registry + `vox populi status|serve` (`vox-populi` / optional HTTP control plane).
+populi = ["dep:vox-populi", "vox-populi/transport"]
+# Interpreted `vox mens workflow run` (journal + mens activities); implies mens hooks.
+workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
 # Stub for non-functional inference server when refactoring or debugging.
 broken_inference_stub = []
 
@@ -125,7 +127,7 @@ vox-doc-inventory = { path = "../vox-doc-inventory" }
 vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
 vox-orchestrator = { workspace = true, optional = true }
-vox-mesh = { workspace = true, optional = true }
+vox-populi = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-repository = { workspace = true }
 turso = { workspace = true }
@@ -136,7 +138,7 @@ chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
 vox-corpus = { workspace = true }
-vox-populi = { workspace = true, optional = true, default-features = false }
+vox-mens = { workspace = true, optional = true, default-features = false }
 vox-tensor = { workspace = true, optional = true }
 vox-runtime = { workspace = true }
 vox-oratio = { workspace = true, optional = true }
@@ -183,8 +185,8 @@ path = "tests/run_mode_dispatch.rs"
 required-features = ["script-execution"]
 
 [[test]]
-name = "workflow_mesh_golden"
-path = "tests/workflow_mesh_golden.rs"
+name = "workflow_populi_golden"
+path = "tests/workflow_populi_golden.rs"
 required-features = ["workflow-runtime"]
 
 [lints]

@@ -43,7 +43,7 @@ pub enum QuestType {
     Collaborate,
     /// Give AI response feedback (thumbs up or down).
     AiFeedback,
-    /// Contribute training examples to the Populi corpus.
+    /// Contribute training examples to the Mens corpus.
     PopuliContribute,
     /// Achieve consecutive green builds.
     BuildStreak,

@@ -1,4 +1,4 @@
-//! Corpus and training **SSOT** for Populi: paths, preflight, dataset contracts, and corpus helpers.
+//! Corpus and training **SSOT** for Mens: paths, preflight, dataset contracts, and corpus helpers.
 //!
 //! Compiler-coupled extraction stays in `vox-cli` (`commands/corpus.rs`). This crate holds portable
 //! metadata, validation, mix/benchmark contracts, and Codex-oriented snapshot types.

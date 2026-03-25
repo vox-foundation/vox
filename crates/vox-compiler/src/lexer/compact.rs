@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_compaction_single_line_serialization() {
         // Demonstrates that brace syntax enables full single-line serialization
-        // (essential for Populi training data minification and LLM token budget use)
+        // (essential for Mens training data minification and LLM token budget use)
         let src = r#"fn greet(name: str) to str {
     if name is "" {
         ret "Hello, stranger"

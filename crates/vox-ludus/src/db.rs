@@ -1086,7 +1086,7 @@ pub async fn process_event_rewards(
             profile_changed = true;
         }
 
-        // ── AI & Populi ──────────────────────────────────
+        // ── AI & Mens ──────────────────────────────────
         "ai_thumbs_up" | "ai_thumbs_down" => {
             advance_quests(
                 db,

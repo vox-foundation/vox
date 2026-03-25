@@ -18,7 +18,7 @@ const BUILTIN_SKILLS: &[(&str, &str)] = &[
         "vox.orchestrator",
         include_str!("../skills/orchestrator.skill.md"),
     ),
-    ("vox.mesh", include_str!("../skills/mesh.skill.md")),
+    ("vox.populi", include_str!("../skills/populi.skill.md")),
     ("vox.v0", include_str!("../skills/v0.skill.md")),
 ];
 
@@ -61,7 +61,7 @@ mod tests {
         assert!(ids.contains(&"vox.memory"));
         assert!(ids.contains(&"vox.git"));
         assert!(ids.contains(&"vox.orchestrator"));
-        assert!(ids.contains(&"vox.mesh"));
+        assert!(ids.contains(&"vox.mens"));
         assert!(ids.contains(&"vox.v0"));
     }
 
@@ -72,7 +72,7 @@ mod tests {
         assert_eq!(count, 7);
         assert!(reg.get("vox.compiler").is_some());
         assert!(reg.get("vox.memory").is_some());
-        assert!(reg.get("vox.mesh").is_some());
+        assert!(reg.get("vox.mens").is_some());
     }
 
     #[tokio::test]

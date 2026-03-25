@@ -24,7 +24,7 @@ This document outlines the aspirational goals for the Vox Distributed Execution 
 **Aspirational Goals**:
 - **Specialized "Agent Pods"**: Break down monolith tasks into sub-delegations using a hierarchical task network (HTN). Assign specialized agents (Planner, Executor, Verifier, Researcher) to specific nodes instead of relying on general-purpose code-gen agents.
 - **Dynamic Handoff/Triage (Delegation Pattern)**: An agent can unilaterally pause execution to issue an A2A RPC requesting help from an agent with higher `Trust` or specific `tool` permissions (e.g., a "Security Agent" for signing commits or handling API tokens).
-- **Parallel Analysis (Map-Reduce)**: The Orchestrator should support spawning *N* ephemeral agents to analyze independent files concurrently across the mesh, gathering the results via an accumulator agent.
+- **Parallel Analysis (Map-Reduce)**: The Orchestrator should support spawning *N* ephemeral agents to analyze independent files concurrently across the mens, gathering the results via an accumulator agent.
 
 ## 3. Advanced Memory & Socrates Integration
 
@@ -38,7 +38,7 @@ This document outlines the aspirational goals for the Vox Distributed Execution 
 **Current State**: Orchestrator enforces basic limits (`max_agents`, `stale_threshold_ms`, lock contention).
 **Aspirational Goals**:
 - **Structured Orchestration Transitions**: Formalize task execution into a state machine: `Understand -> Plan -> Act -> Evaluate`. Currently, agents can loop infinitely unless gated. This OS-level transition forces an episodic commit at each boundary.
-- **Standardized A2A Protocol Alignment**: Expose the internal `MessageBus` to conform fully with emerging 2026 standards like Google's Agent-to-Agent (A2A) protocol or Anthropic's Model Context Protocol (MCP) multi-agent routing extensions, allowing Vox mesh nodes to interoperate with non-Vox, third-party agents running on external infrastructure.
+- **Standardized A2A Protocol Alignment**: Expose the internal `MessageBus` to conform fully with emerging 2026 standards like Google's Agent-to-Agent (A2A) protocol or Anthropic's Model Context Protocol (MCP) multi-agent routing extensions, allowing Vox mens nodes to interoperate with non-Vox, third-party agents running on external infrastructure.
 
 ## Next Steps for Build-out
 1. Implement basic session-isolated history in `vox-mcp` (Immediate).

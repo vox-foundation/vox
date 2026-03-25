@@ -1,4 +1,4 @@
-//! Markdown documentation corpus extractor for Populi training data.
+//! Markdown documentation corpus extractor for Mens training data.
 //!
 //! Walks `docs/src/**/*.md` and extracts fenced code blocks tagged ` ```vox `
 //! as training pairs, plus section-level Q&A pairs from architecture docs.

@@ -20,7 +20,7 @@ Most full-stack projects are really three projects stitched together: a database
 Vox is a single, AI-native language built on **7 Core Tenets**:
 1. **Uniformity:** One language for the entire stack (Frontend + Backend + Infrastructure).
 2. **Durability:** Execution survives failures. Workflows and Actors are first-class primitives.
-3. **Distribution:** Location transparency is the default via the Mesh.
+3. **Distribution:** Location transparency is the default via the Mens.
 4. **AI-Native:** Designed to be easily generated and reasoned about by LLMs.
 5. **Performance:** Compiles to highly optimized Rust and TypeScript (React).
 6. **ZERO Null States:** `null` is permanently banned. All absent states use `Option[T]`.
@@ -201,11 +201,11 @@ vox check <file>           Type-check without producing output
 vox stub-check             Run TOESTUB anti-pattern detection
 ```
 
-### Vox Populi (Local Machine Learning)
+### Vox Mens (Local Machine Learning)
 ```text
-vox populi train           Train a local model using QLoRA natively in Rust
-vox populi review          AI-assisted code review
-vox populi status          Check model status and token quotas
+vox schola train           Train a local model using QLoRA natively in Rust
+vox mens review          AI-assisted code review
+vox mens status          Check model status and token quotas
 ```
 
 ### Vox Dei (AI Orchestration & Agents)
@@ -237,7 +237,7 @@ cd vox
 .\scripts\install.ps1 -InstallClang -Apply -Install
 ```
 
-### 3. NVIDIA GPU Install (Populi QLoRA Training)
+### 3. NVIDIA GPU Install (Mens QLoRA Training)
 To enable native hardware-accelerated LLM QLoRA training on NVIDIA hardware, do not use the bootstrap script. Instead, build the `vox-cuda-release` alias from a Visual Studio Developer shell:
 ```bash
 cargo vox-cuda-release

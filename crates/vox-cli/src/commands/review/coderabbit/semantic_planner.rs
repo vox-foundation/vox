@@ -174,8 +174,8 @@ static SEMANTIC_GROUPS: &[(u32, &str, SemanticMatcher)] = &[
             "editors/",
         ]),
     ),
-    // ── ML / Populi ─────────────────────────────────────────────────────────
-    (60, "12_populi_ml", SemanticMatcher::Prefix(&["populi/"])),
+    // ── ML / Mens ─────────────────────────────────────────────────────────
+    (60, "12_populi_ml", SemanticMatcher::Prefix(&["mens/"])),
     // ── Tests / Fixtures ────────────────────────────────────────────────────
     (65, "13_tests", SemanticMatcher::Prefix(&["tests/"])),
     // ── Compiler front-end ──────────────────────────────────────────────────
@@ -1043,7 +1043,7 @@ mod tests {
         assert_eq!(g("examples/hello.vox"), "09_examples");
         assert_eq!(g("vox-vscode/src/extension.ts"), "10_vscode_ext");
         assert_eq!(g("scripts/unlock.ps1"), "11_scripts_xtask");
-        assert_eq!(g("populi/data/sft_pairs.jsonl"), "12_populi_ml");
+        assert_eq!(g("mens/data/sft_pairs.jsonl"), "12_populi_ml");
         assert_eq!(g("tests/fixtures/minimal.vox"), "13_tests");
         assert_eq!(g("crates/vox-parser/src/lib.rs"), "14_crate_parser_lexer");
         assert_eq!(g("crates/vox-hir/src/hir/nodes.rs"), "15_crate_hir");

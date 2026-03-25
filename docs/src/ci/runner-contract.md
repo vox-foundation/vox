@@ -36,19 +36,19 @@ Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scri
 
 **ML / repo hygiene (Rust, not shell):**
 
-- **`vox ci grammar-drift`** — SHA-256 of the generated system prompt vs `populi/data/grammar_fingerprint.txt`; updates the file when drift is detected. Use **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`) or **`--emit gitlab`** (writes `drift.env` in the repo root).
+- **`vox ci grammar-drift`** — SHA-256 of the generated system prompt vs `mens/data/grammar_fingerprint.txt`; updates the file when drift is detected. Use **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`) or **`--emit gitlab`** (writes `drift.env` in the repo root).
 - **`vox ci repo-guards`** — replaces ad-hoc `grep`/`find` blocks: no `TypeVar(0)` in **`vox-codegen-rust` / `vox-codegen-ts` sources** (typechecker uses that sentinel legitimately), filtered `opencode` references under `crates/`, and no stray root clutter files (same policy as the former GitLab `guards` job).
 
 ## Build timings (wall-clock `cargo check`)
 
-**Canonical:** **`vox ci build-timings`** — prints duration for `cargo check -p vox-cli` (default features) and `cargo check -p vox-cli --features gpu,populi-qlora,stub-check`, plus an optional CUDA lane when `nvcc` is available (**`PATH`** or **`CUDA_PATH`** / **`CUDA_HOME`** pointing at the toolkit root; same skip rules as `cuda-features`). Use **`--json`** for one JSON object per line. **`--crates`** adds isolated `cargo check` lanes for `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features train`, and **`vox-cli --features populi-oratio`** (see [crate-build-lanes migration](../architecture/crate-build-lanes-migration.md)). Soft budgets: `docs/ci/build-timings/budgets.json`; optional env **`VOX_BUILD_TIMINGS_BUDGET_WARN=1`** (stderr when a lane exceeds its soft max) and **`VOX_BUILD_TIMINGS_BUDGET_FAIL=1`** (fail the command after successful checks — use only with tuned budgets). Pair committed **`latest.jsonl`** with **`docs/ci/build-timings/snapshot-metadata.json`** (`rustc` / host / CUDA / cache note). Skip CUDA lane when **`SKIP_CUDA_FEATURE_CHECK=1`**. GitHub `ci.yml` runs **`build-timings --crates`**. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md).
+**Canonical:** **`vox ci build-timings`** — prints duration for `cargo check -p vox-cli` (default features) and `cargo check -p vox-cli --features gpu,mens-qlora,stub-check`, plus an optional CUDA lane when `nvcc` is available (**`PATH`** or **`CUDA_PATH`** / **`CUDA_HOME`** pointing at the toolkit root; same skip rules as `cuda-features`). Use **`--json`** for one JSON object per line. **`--crates`** adds isolated `cargo check` lanes for `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, and **`vox-cli --features mens-oratio`** (see [crate-build-lanes migration](../architecture/crate-build-lanes-migration.md)). Soft budgets: `docs/ci/build-timings/budgets.json`; optional env **`VOX_BUILD_TIMINGS_BUDGET_WARN=1`** (stderr when a lane exceeds its soft max) and **`VOX_BUILD_TIMINGS_BUDGET_FAIL=1`** (fail the command after successful checks — use only with tuned budgets). Pair committed **`latest.jsonl`** with **`docs/ci/build-timings/snapshot-metadata.json`** (`rustc` / host / CUDA / cache note). Skip CUDA lane when **`SKIP_CUDA_FEATURE_CHECK=1`**. GitHub `ci.yml` runs **`build-timings --crates`**. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md).
 
 ## Optional CUDA compile gate
 
 **Canonical:** **`vox ci cuda-features`** (wired in GitHub `ci.yml`). It **no-ops** when `nvcc` is absent (common on CPU-only self-hosted runners). When `nvcc` is on `PATH`, it runs:
 
 - `cargo check -p vox-oratio --features cuda` — typechecks Oratio's `#[cfg(feature = "cuda")]` paths.
-- `cargo check -p vox-cli --features gpu,populi-candle-cuda` — typechecks Populi Candle qlora with CUDA.
+- `cargo check -p vox-cli --features gpu,mens-candle-cuda` — typechecks Mens Candle qlora with CUDA.
 
 Thin delegate: `scripts/check_cuda_feature_builds.sh` (optional POSIX wrapper around the same checks). Local escape hatch (e.g. Windows with CUDA installed but no MSVC host for `nvcc`): `SKIP_CUDA_FEATURE_CHECK=1 vox ci cuda-features` or the same env with `bash scripts/check_cuda_feature_builds.sh`. On PowerShell, use `bash -c 'export SKIP_CUDA_FEATURE_CHECK=1; ./scripts/check_cuda_feature_builds.sh'` so the variable reaches Bash.
 

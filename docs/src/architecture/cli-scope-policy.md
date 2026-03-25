@@ -21,8 +21,8 @@ Some variants exist only when Cargo features are enabled (see `crates/vox-cli/Ca
 - **`ars`** — `vox openclaw` / `oc` (OpenClaw gateway client; `vox-ars`) and `vox skill` (ARS registry / promote / context). Build with `cargo build -p vox-cli --features ars`.
 - **`extras-ludus`** — `vox ludus` (gamification; `vox-ludus`). Build with `cargo build -p vox-cli --features extras-ludus`.
 - **`live`** — `vox live` (orchestrator demo bus).
-- **`mesh`** — `vox mesh status` / `vox mesh serve` (`vox-mesh` registry + HTTP control plane). Build with `cargo build -p vox-cli --features mesh`.
-- **`workflow-runtime`** — interpreted `vox populi workflow run` + `commands::workflow` when enabled; implies **`populi-dei`**. Build with `cargo build -p vox-cli --features workflow-runtime`.
+- **`mens`** — `vox populi status` / `vox populi serve` (`vox-populi` registry + HTTP control plane). Build with `cargo build -p vox-cli --features mens`.
+- **`workflow-runtime`** — interpreted `vox mens workflow run` + `commands::workflow` when enabled; implies **`mens-dei`**. Build with `cargo build -p vox-cli --features workflow-runtime`.
 
 ## Documentation
 
@@ -37,7 +37,7 @@ Integration tests and scripts must not assume subcommands that are absent from t
 ## Script migration exceptions
 
 - **Allowed in GitHub workflows without Rust rewrite:** paths under `scripts/` that are **data artifacts** or **explicitly allowlisted** in `docs/agents/workflow-script-allowlist.txt`. CI enforces this via `vox ci workflow-scripts`.
-- **Thin shell / PowerShell shims** (`scripts/check_*.sh`, `scripts/populi/*_gate.*`, …) are **delegates** to `cargo run -p vox-cli -- ci …` — keep them one-liners to avoid drift.
+- **Thin shell / PowerShell shims** (`scripts/check_*.sh`, `scripts/mens/*_gate.*`, …) are **delegates** to `cargo run -p vox-cli -- ci …` — keep them one-liners to avoid drift.
 - **Host-only tooling** (GPU installers, external marketplace actions, third-party ML stacks) may stay outside `vox ci`; record them in [`docs/agents/script-registry.json`](../../agents/script-registry.json) with `status: "external"` when added.
 
 ## Governance

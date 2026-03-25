@@ -4,7 +4,7 @@
 //! - `extract` — walk .vox files, emit JSONL corpus
 //! - `validate` — re-check entries, dedup, print coverage
 //! - `pairs` — generate instruction→response training pairs
-//! - `mix` — merge sources per `populi/config/mix.yaml`
+//! - `mix` — merge sources per `mens/config/mix.yaml`
 //! - `prompt` — auto-generate system prompt from construct reference
 
 use anyhow::Result;
@@ -15,13 +15,13 @@ use std::path::Path;
 
 use clap::Parser;
 
-/// Subcommands for invoking native Populi training data pipelines.
+/// Subcommands for invoking native Mens training data pipelines.
 #[derive(Parser)]
 pub enum CorpusAction {
     /// Generate synthetic training pairs (tools, orchestrator, A2A, etc)
     Generate {
         /// Output JSONL file
-        #[arg(short, long, default_value = "populi/data/synthetic.jsonl")]
+        #[arg(short, long, default_value = "mens/data/synthetic.jsonl")]
         output: std::path::PathBuf,
         /// Force regeneration even if corpus fingerprint is fresh
         #[arg(long)]
@@ -38,7 +38,7 @@ pub enum CorpusAction {
         #[arg(required = true)]
         dir: std::path::PathBuf,
         /// Output JSONL file
-        #[arg(short, long, default_value = "populi/data/validated.jsonl")]
+        #[arg(short, long, default_value = "mens/data/validated.jsonl")]
         output: std::path::PathBuf,
     },
     /// Extract training pairs from Rust source code (.rs)
@@ -47,7 +47,7 @@ pub enum CorpusAction {
         #[arg(default_value = "crates")]
         dir: std::path::PathBuf,
         /// Output JSONL file
-        #[arg(short, long, default_value = "populi/data/mix_sources/rust_source.jsonl")]
+        #[arg(short, long, default_value = "mens/data/mix_sources/rust_source.jsonl")]
         output: std::path::PathBuf,
     },
     /// Extract training pairs from documentation (.md)
@@ -56,7 +56,7 @@ pub enum CorpusAction {
         #[arg(default_value = "docs/src")]
         dir: std::path::PathBuf,
         /// Output JSONL file
-        #[arg(short, long, default_value = "populi/data/mix_sources/docs.jsonl")]
+        #[arg(short, long, default_value = "mens/data/mix_sources/docs.jsonl")]
         output: std::path::PathBuf,
     },
     /// Validate and deduplicate a corpus JSONL file
@@ -83,7 +83,7 @@ pub enum CorpusAction {
         #[arg(long)]
         docs: Option<std::path::PathBuf>,
     },
-    /// Replay Arca telemetry into Populi training pairs
+    /// Replay Arca telemetry into Mens training pairs
     Replay {
         /// Emit full multi-turn ChatML sessions (groups events by session_id)
         #[arg(long)]
@@ -91,8 +91,8 @@ pub enum CorpusAction {
         /// Minimum session quality score to include (0.0 = all)
         #[arg(long, default_value = "0.0")]
         min_score: f64,
-        /// Output JSONL path (auto-picked by `vox populi mix`)
-        #[arg(short, long, default_value = "populi/data/mix_sources/autofeedback.jsonl")]
+        /// Output JSONL path (auto-picked by `vox mens mix`)
+        #[arg(short, long, default_value = "mens/data/mix_sources/autofeedback.jsonl")]
         output: std::path::PathBuf,
         /// Max session/event rows to query
         #[arg(long, default_value = "500")]
@@ -116,10 +116,10 @@ pub enum CorpusAction {
         #[arg(long)]
         print_summary: bool,
     },
-    /// Merge corpus sources defined in a mix config (same as `vox populi train` preflight)
+    /// Merge corpus sources defined in a mix config (same as `vox schola train` preflight)
     Mix {
-        /// Path to mix YAML (default: `populi/config/mix.yaml`)
-        #[arg(long, default_value = "populi/config/mix.yaml")]
+        /// Path to mix YAML (default: `mens/config/mix.yaml`)
+        #[arg(long, default_value = "mens/config/mix.yaml")]
         config: std::path::PathBuf,
     },
 }
@@ -265,7 +265,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
 }
 
 /// Aggregated quality metrics for a training JSONL file (fractions 0.0–1.0).
-#[cfg(all(feature = "populi-dei", feature = "gpu"))]
+#[cfg(all(feature = "mens-dei", feature = "gpu"))]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TrainEvalMetrics {
     /// Fraction of rows whose `response` parses without frontend errors.
@@ -341,7 +341,7 @@ fn scan_train_jsonl(path: &Path) -> Result<EvalScan> {
 }
 
 /// Compute parse rate and taxonomy coverage for `train.jsonl` (used by post-training gates).
-#[cfg(all(feature = "populi-dei", feature = "gpu"))]
+#[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) fn eval_metrics(train_jsonl: &Path) -> Result<TrainEvalMetrics> {
     let s = scan_train_jsonl(train_jsonl)?;
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
@@ -366,8 +366,8 @@ pub(crate) fn eval_metrics(train_jsonl: &Path) -> Result<TrainEvalMetrics> {
     })
 }
 
-/// When `VOX_BENCHMARK=1` (or `true`), runs `vox populi eval-local` against a held-out bench.
-#[cfg(all(feature = "populi-dei", feature = "gpu"))]
+/// When `VOX_BENCHMARK=1` (or `true`), runs `vox mens eval-local` against a held-out bench.
+#[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path>) -> Result<()> {
     let enabled = std::env::var("VOX_BENCHMARK")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
@@ -404,8 +404,8 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
                 vox_corpus::training::contract::find_workspace_root()
-                    .map(|r| r.join("populi/data/heldout_bench"))
-                    .unwrap_or_else(|| PathBuf::from("populi/data/heldout_bench"))
+                    .map(|r| r.join("mens/data/heldout_bench"))
+                    .unwrap_or_else(|| PathBuf::from("mens/data/heldout_bench"))
             });
 
         if !bench.is_dir() {
@@ -418,7 +418,7 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
 
         let out_json = base.join("benchmark_gate_eval.json");
         let status = tokio::process::Command::new(&exe)
-            .arg("populi")
+            .arg("mens")
             .arg("eval-local")
             .arg("--model")
             .arg(&model)
@@ -428,11 +428,11 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
             .arg(&out_json)
             .status()
             .await
-            .context("spawn vox populi eval-local")?;
+            .context("spawn vox mens eval-local")?;
 
         if !status.success() {
             anyhow::bail!(
-                "benchmark gate failed: vox populi eval-local exited with {:?}",
+                "benchmark gate failed: vox mens eval-local exited with {:?}",
                 status.code()
             );
         }

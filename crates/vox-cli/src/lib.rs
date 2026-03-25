@@ -31,7 +31,7 @@ mod latin_cmd;
 /// Lock-wait JSONL metrics (`vox lock-report`, recursive script guard).
 #[cfg(any(feature = "codex", feature = "stub-check", feature = "script-execution"))]
 mod lock_telemetry;
-#[cfg(feature = "mesh")]
+#[cfg(feature = "mens")]
 mod mesh_codex_telemetry;
 pub mod pipeline;
 #[cfg(feature = "island")]
@@ -125,12 +125,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: latin_cmd::FabricaCmd,
     },
-    /// Mind / diagnostics lane — doctor, architect, stub-check (`mens`).
-    #[command(name = "mens")]
-    Mens {
+    /// Diagnostics lane — doctor, architect, stub-check (`diag`).
+    #[command(name = "diag")]
+    Diag {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: latin_cmd::MensCmd,
+        cmd: latin_cmd::DiagCmd,
     },
     /// Craft / skills lane — snippet, share, skill, … (`ars`).
     #[command(name = "ars")]
@@ -250,6 +250,14 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::scientia::ScientiaCmd,
     },
+    /// Manage the DEI (Distributed Execution Intelligence) orchestrator.
+    #[cfg(feature = "dei")]
+    #[command(visible_alias = "orchestrator")]
+    Dei {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: crate::commands::dei::DeiCli,
+    },
     /// OpenClaw / ClawHub gateway (skill import, approvals); requires `--features ars`
     #[cfg(feature = "ars")]
     Openclaw {
@@ -284,12 +292,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::ci::CiCmd,
     },
-    /// Populi: train, serve, corpus, eval (`populi-base` default; native train needs `gpu`)
-    #[cfg(any(feature = "populi-base", feature = "gpu"))]
-    Populi {
+    /// Mens: train, serve, corpus, eval (`mens-base` default; native train needs `gpu`)
+    #[cfg(any(feature = "mens-base", feature = "gpu"))]
+    Mens {
         /// Action.
         #[command(subcommand)]
-        action: commands::populi::PopuliAction,
+        action: commands::mens::PopuliAction,
     },
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
@@ -305,19 +313,19 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: cli_actions::IslandCli,
     },
-    /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox populi train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `populi-dei`). **Canonical native QLoRA:** `vox populi train`.
-    #[cfg(all(feature = "gpu", feature = "populi-dei"))]
+    /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox schola train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `mens-dei`). **Canonical native QLoRA:** `vox schola train`.
+    #[cfg(all(feature = "gpu", feature = "mens-dei"))]
     Train {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::TrainLegacyArgs,
     },
-    /// Mesh registry + HTTP control plane (`--features mesh`).
-    #[cfg(feature = "mesh")]
-    Mesh {
+    /// Populi registry + HTTP control plane (`--features populi`).
+    #[cfg(feature = "populi")]
+    Populi {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::mesh_cli::MeshCli,
+        cmd: commands::populi_cli::MeshCli,
     },
 }
 
@@ -456,17 +464,17 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
     dispatch_cli(root.cmd, &root.global).await
 }
 
-/// Run as `vox populi …` while the process argv is `vox-populi …` (inserts the `populi` subcommand).
+/// Run as `vox mens …` while the process argv is `vox-mens …` (inserts the `mens` subcommand).
 ///
-/// Used by the **`vox-populi`** binary (`required-features = ["populi-base"]`).
+/// Used by the **`vox-mens`** binary (`required-features = ["mens-base"]`).
 pub async fn run_vox_cli_populi_prefixed() -> anyhow::Result<()> {
     let mut args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
         anyhow::bail!(
-            "usage: vox-populi <subcommand> …\n  Equivalent to: vox populi <subcommand> …\n  Native training needs: cargo build -p vox-cli --features gpu"
+            "usage: vox-mens <subcommand> …\n  Equivalent to: vox mens <subcommand> …\n  Native training needs: cargo build -p vox-cli --features gpu"
         );
     }
-    args.insert(1, "populi".into());
+    args.insert(1, "mens".into());
     let root = VoxCliRoot::try_parse_from(&args).map_err(|e| anyhow::anyhow!("{e}"))?;
     run_vox_cli_from_parsed(root).await
 }
@@ -549,18 +557,18 @@ async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run_mens_cmd(cmd: latin_cmd::MensCmd) -> anyhow::Result<()> {
-    use latin_cmd::MensCmd;
+async fn run_diag_cmd(cmd: latin_cmd::DiagCmd) -> anyhow::Result<()> {
+    use latin_cmd::DiagCmd;
     match cmd {
-        MensCmd::Doctor(a) => {
+        DiagCmd::Doctor(a) => {
             run_doctor_command(&a).await?;
         }
         #[cfg(any(feature = "codex", feature = "stub-check"))]
-        MensCmd::Architect { cmd } => {
+        DiagCmd::Architect { cmd } => {
             commands::diagnostics::tools::architect::run(cmd).await?;
         }
         #[cfg(feature = "stub-check")]
-        MensCmd::StubCheck(a) => {
+        DiagCmd::StubCheck(a) => {
             run_stub_check_command(&a).await?;
         }
     }
@@ -593,7 +601,7 @@ async fn run_ars_cmd(cmd: latin_cmd::ArsCmd) -> anyhow::Result<()> {
 }
 
 async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
-    #[cfg(not(any(feature = "populi-base", feature = "gpu")))]
+    #[cfg(not(any(feature = "mens-base", feature = "gpu")))]
     {
         let _ = global;
     }
@@ -620,8 +628,8 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
         Cli::Fabrica { cmd } => {
             run_fabrica_cmd(cmd).await?;
         }
-        Cli::Mens { cmd } => {
-            run_mens_cmd(cmd).await?;
+        Cli::Diag { cmd } => {
+            run_diag_cmd(cmd).await?;
         }
         Cli::Ars { cmd } => {
             run_ars_cmd(cmd).await?;
@@ -648,11 +656,11 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
             commands::lsp::run()?;
         }
         Cli::Doctor { args } => {
-            run_mens_cmd(latin_cmd::MensCmd::Doctor(args)).await?;
+            run_diag_cmd(latin_cmd::DiagCmd::Doctor(args)).await?;
         }
         #[cfg(any(feature = "codex", feature = "stub-check"))]
         Cli::Architect { cmd } => {
-            run_mens_cmd(latin_cmd::MensCmd::Architect { cmd }).await?;
+            run_diag_cmd(latin_cmd::DiagCmd::Architect { cmd }).await?;
         }
         Cli::Snippet { cmd } => {
             run_ars_cmd(latin_cmd::ArsCmd::Snippet { cmd }).await?;
@@ -665,6 +673,10 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
         }
         Cli::Scientia { cmd } => {
             commands::scientia::run(cmd).await?;
+        }
+        #[cfg(feature = "dei")]
+        Cli::Dei { cmd } => {
+            commands::dei::run(cmd).await?;
         }
         Cli::Codex { cmd } => match cmd {
             CodexCmd::Verify => {
@@ -704,11 +716,11 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
         }
         #[cfg(feature = "stub-check")]
         Cli::StubCheck { args } => {
-            run_mens_cmd(latin_cmd::MensCmd::StubCheck(args)).await?;
+            run_diag_cmd(latin_cmd::DiagCmd::StubCheck(args)).await?;
         }
-        #[cfg(any(feature = "populi-base", feature = "gpu"))]
-        Cli::Populi { action } => {
-            commands::populi::run(action, global.json, global.verbose).await?;
+        #[cfg(any(feature = "mens-base", feature = "gpu"))]
+        Cli::Mens { action } => {
+            commands::mens::run(action, global.json, global.verbose).await?;
         }
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
@@ -718,7 +730,7 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
         Cli::Island { cmd } => {
             commands::island::run(cmd).await?;
         }
-        #[cfg(all(feature = "gpu", feature = "populi-dei"))]
+        #[cfg(all(feature = "gpu", feature = "mens-dei"))]
         Cli::Train { args } => {
             commands::ai::train::run(
                 args.data_dir.clone(),
@@ -728,9 +740,9 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
             )
             .await?;
         }
-        #[cfg(feature = "mesh")]
-        Cli::Mesh { cmd } => {
-            commands::mesh_cli::run(cmd, global.json).await?;
+        #[cfg(feature = "populi")]
+        Cli::Populi { cmd } => {
+            commands::populi_cli::run(cmd, global.json).await?;
         }
     }
 

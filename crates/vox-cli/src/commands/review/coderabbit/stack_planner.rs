@@ -158,16 +158,16 @@ impl StackPlanner {
             return (25, "06_examples");
         }
 
-        // ── ML / Populi ──────────────────────────────────────────────────────
-        if p.starts_with("crates/vox-populi/src/tensor/lora.rs")
-            || p.starts_with("crates/vox-populi/src/tensor/model.rs")
+        // ── ML / Mens ──────────────────────────────────────────────────────
+        if p.starts_with("crates/vox-mens/src/tensor/lora.rs")
+            || p.starts_with("crates/vox-mens/src/tensor/model.rs")
         {
             return (30, "07_populi_lora_model");
         }
-        if p.starts_with("crates/vox-populi/src/tensor/") {
+        if p.starts_with("crates/vox-mens/src/tensor/") {
             return (32, "07_populi_tensor");
         }
-        if p.starts_with("crates/vox-populi/") || p.starts_with("populi/") {
+        if p.starts_with("crates/vox-mens/") || p.starts_with("mens/") {
             return (35, "07_populi_ml");
         }
 
@@ -541,10 +541,10 @@ mod tests {
         assert_eq!(name, "01_scaffold_manifests");
         assert_eq!(order, 5);
 
-        let (_, name) = StackPlanner::get_chunk_id("crates/vox-populi/src/tensor/lora.rs");
+        let (_, name) = StackPlanner::get_chunk_id("crates/vox-mens/src/tensor/lora.rs");
         assert_eq!(name, "07_populi_lora_model");
 
-        let (_, name) = StackPlanner::get_chunk_id("crates/vox-cli/src/commands/populi/mod.rs");
+        let (_, name) = StackPlanner::get_chunk_id("crates/vox-cli/src/commands/mens/mod.rs");
         assert_eq!(name, "14_crate_cli_commands");
     }
 

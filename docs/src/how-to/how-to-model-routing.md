@@ -57,7 +57,7 @@ API (if key) → Cache (if fresh) → Static fallback
 
 ### `vox chat` (CLI)
 
-The minimal **`vox`** binary does not ship the historical interactive `vox chat` subtree. Use **Populi / MCP / `vox-dei-d`** for chat-shaped flows, or wire a new chat module deliberately behind an explicit feature. When a chat stack is enabled, the cascade conceptually remains:
+The minimal **`vox`** binary does not ship the historical interactive `vox chat` subtree. Use **Mens / MCP / `vox-dei-d`** for chat-shaped flows, or wire a new chat module deliberately behind an explicit feature. When a chat stack is enabled, the cascade conceptually remains:
 
 1. Refresh or load catalog / model list (daemon or runtime)
 2. Check for Google AI Studio key → prefer Gemini-family routes where configured
@@ -65,9 +65,9 @@ The minimal **`vox`** binary does not ship the historical interactive `vox chat`
 4. Check for Ollama → fall back to local inference (`vox_config::inference::local_ollama_populi_base_url`)
 5. No keys → guide the user to free-tier setup
 
-### Populi / Ollama base URL
+### Mens / Ollama base URL
 
-Local inference uses a single resolution order: **`OLLAMA_URL` → `POPULI_URL` →** default `http://localhost:11434`, exposed as **`vox_config::inference::local_ollama_populi_base_url()`** (SSOT in `crates/vox-config/src/inference.rs`). The Populi client (`vox_runtime::populi::PopuliConfig::from_env`) uses the same precedence.
+Local inference uses a single resolution order: **`OLLAMA_URL` → `POPULI_URL` →** default `http://localhost:11434`, exposed as **`vox_config::inference::local_ollama_populi_base_url()`** (SSOT in `crates/vox-config/src/inference.rs`). The Mens client (`vox_runtime::mens::MensConfig::from_env`) uses the same precedence.
 
 ### Hugging Face Inference Providers (router)
 
@@ -87,9 +87,9 @@ Manual model pins and task overrides still win over automatic routing (see prece
 
 ### Runtime SSOT resolver (OpenAI-compatible chat)
 
-`vox_runtime::model_resolution::resolve_chat_provider_route` applies fixed precedence: **manual** → **Populi (GPU-prefer)** → **HF dedicated** (token + dedicated env) → **HF router** (token + `HF_CHAT_MODEL`) → **OpenRouter** (key) → **any Populi** → **OpenRouter bootstrap** (`OPENROUTER_AUTO`). Map the result with `chat_route_to_llm_config` before `vox_runtime::llm::llm_chat`. Cross-surface parity helpers include `route_telemetry_labels` and structured logs from the active router (targets may vary by crate; filter `RUST_LOG` by the MCP / runtime module you are debugging).
+`vox_runtime::model_resolution::resolve_chat_provider_route` applies fixed precedence: **manual** → **Mens (GPU-prefer)** → **HF dedicated** (token + dedicated env) → **HF router** (token + `HF_CHAT_MODEL`) → **OpenRouter** (key) → **any Mens** → **OpenRouter bootstrap** (`OPENROUTER_AUTO`). Map the result with `chat_route_to_llm_config` before `vox_runtime::llm::llm_chat`. Cross-surface parity helpers include `route_telemetry_labels` and structured logs from the active router (targets may vary by crate; filter `RUST_LOG` by the MCP / runtime module you are debugging).
 
-### Populi capability probe (GPU / health)
+### Mens capability probe (GPU / health)
 
 `vox_runtime::inference_env::probe_populi_capabilities(base_url)` (and `PopuliClient::probe_capabilities`) call Ollama-compatible **`/api/tags`** and **`/api/version`**. `gpu_capable` is `Some(true)` only when version JSON (string match) suggests CUDA, ROCm, or Metal; otherwise `None` if unknown.
 

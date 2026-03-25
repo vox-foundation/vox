@@ -3,8 +3,8 @@
 
 //! External integration tests for `vox_lsp::validate_document` diagnostics.
 //!
-//! These tests exercise the full lex → parse → typecheck → mesh-warning pipeline
-//! through the public crate boundary. Mesh-env tests use a mutex to
+//! These tests exercise the full lex → parse → typecheck → mens-warning pipeline
+//! through the public crate boundary. Mens-env tests use a mutex to
 //! prevent inter-test env pollution when tests run in parallel.
 
 use std::sync::Mutex;
@@ -43,7 +43,7 @@ fn valid_let_binding_no_diagnostics() {
     assert!(errors.is_empty(), "valid let binding must parse clean: {:?}", errors);
 }
 
-// ── Mesh activity warnings ────────────────────────────────────────────────────
+// ── Mens activity warnings ────────────────────────────────────────────────────
 
 #[test]
 fn mesh_activity_warning_fires_when_mesh_disabled() {
@@ -55,9 +55,9 @@ fn mesh_activity_warning_fires_when_mesh_disabled() {
 
     let has_warn = diags.iter().any(|d| {
         d.severity == Some(DiagnosticSeverity::WARNING)
-            && d.message.contains("Mesh activity call")
+            && d.message.contains("Mens activity call")
     });
-    assert!(has_warn, "Expected mesh warning when disabled; got: {:?}", diags);
+    assert!(has_warn, "Expected mens warning when disabled; got: {:?}", diags);
 }
 
 #[test]
@@ -70,9 +70,9 @@ fn mesh_activity_no_warning_when_enabled() {
 
     let has_warn = diags.iter().any(|d| {
         d.severity == Some(DiagnosticSeverity::WARNING)
-            && d.message.contains("Mesh activity call")
+            && d.message.contains("Mens activity call")
     });
-    assert!(!has_warn, "Expected NO mesh warning when enabled; got: {:?}", diags);
+    assert!(!has_warn, "Expected NO mens warning when enabled; got: {:?}", diags);
 }
 
 #[test]
@@ -80,15 +80,15 @@ fn mesh_activity_warning_only_inside_workflow_not_fn() {
     // mesh_* calls outside a `workflow` body must NOT emit warnings.
     let _lock = ENV_LOCK.lock().expect("env mutex poisoned");
     unsafe { std::env::set_var("VOX_MESH_ENABLED", "0") };
-    // A regular fn body — should not trigger mesh warning even when disabled.
+    // A regular fn body — should not trigger mens warning even when disabled.
     let diags = validate_document("fn regular() { mesh_snapshot() }");
     unsafe { std::env::remove_var("VOX_MESH_ENABLED") };
 
     let has_warn = diags.iter().any(|d| {
         d.severity == Some(DiagnosticSeverity::WARNING)
-            && d.message.contains("Mesh activity call")
+            && d.message.contains("Mens activity call")
     });
-    assert!(!has_warn, "Mesh warning should not fire outside workflow; got: {:?}", diags);
+    assert!(!has_warn, "Mens warning should not fire outside workflow; got: {:?}", diags);
 }
 
 #[test]
@@ -102,10 +102,10 @@ fn multiple_mesh_calls_each_produce_a_warning() {
         .iter()
         .filter(|d| {
             d.severity == Some(DiagnosticSeverity::WARNING)
-                && d.message.contains("Mesh activity call")
+                && d.message.contains("Mens activity call")
         })
         .count();
-    assert!(warn_count >= 2, "Expected at least 2 mesh warnings; got {warn_count}");
+    assert!(warn_count >= 2, "Expected at least 2 mens warnings; got {warn_count}");
 }
 
 // ── Diagnostic source labelling ───────────────────────────────────────────────

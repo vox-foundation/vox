@@ -43,7 +43,7 @@ vox-db = { version = "0.1.0", path = "../vox-db" }
 vox-config = { path = "../vox-config" }
 vox-socrates-policy = { workspace = true }
 vox-repository = { workspace = true }
-vox-mesh = { path = "../vox-mesh", features = ["transport"] }
+vox-populi = { path = "../vox-populi", features = ["transport"] }
 async-trait = "0.1.89"
 anyhow.workspace = true
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.

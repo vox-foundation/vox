@@ -32,9 +32,9 @@ pub enum FabricaCmd {
     Script(ScriptArgs),
 }
 
-/// `vox mens …` — mind / diagnostics lane (doctor, architect, stub-check).
+/// `vox diag …` — diagnostics lane (doctor, architect, stub-check).
 #[derive(Subcommand)]
-pub enum MensCmd {
+pub enum DiagCmd {
     /// Check toolchain and local environment readiness
     Doctor(DoctorArgs),
     /// Workspace layout validation + god-object scan

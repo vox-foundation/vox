@@ -16,7 +16,7 @@ use std::sync::RwLock;
 
 use vox_db::VoxDb;
 use vox_orchestrator::{
-    AffinityGroupRegistry, AgentEvent, BudgetManager, MeshNodeBrief, Orchestrator,
+    AffinityGroupRegistry, AgentEvent, BudgetManager, PopuliNodeBrief, Orchestrator,
     OrchestratorConfig, RemoteMeshRoutingHint, RemoteMeshSnapshot, SessionConfig, SessionManager,
     load_from_config,
 };
@@ -65,9 +65,9 @@ pub struct ServerState {
     pub mention_path_cache: Arc<SyncMutex<Option<(PathBuf, Arc<HashMap<String, PathBuf>>)>>>,
     /// Aborted and replaced when the orchestrator is re-rooted so stale event sinks do not leak.
     event_log_sink_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
-    /// Last background fetch of `GET /v1/mesh/nodes` (read-only federation; see mesh SSOT).
+    /// Last background fetch of `GET /v1/mens/nodes` (read-only federation; see mens SSOT).
     pub mesh_remote_snapshot: Arc<RwLock<RemoteMeshSnapshot>>,
-    /// Stops [`Self::spawn_mesh_federation_poller`] when re-rooting.
+    /// Stops [`Self::spawn_populi_federation_poller`] when re-rooting.
     mesh_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
@@ -136,15 +136,15 @@ impl ServerState {
             mesh_poll_join: Arc::new(SyncMutex::new(None)),
         };
         state.spawn_orchestrator_event_log_sink();
-        state.spawn_mesh_federation_poller();
+        state.spawn_populi_federation_poller();
         state
     }
 
-    /// Background poll of mesh control plane when `mesh_control_url` is set and `mesh_poll_interval_secs` > 0.
-    pub fn spawn_mesh_federation_poller(&self) {
+    /// Background poll of mens control plane when `populi_control_url` is set and `mesh_poll_interval_secs` > 0.
+    pub fn spawn_populi_federation_poller(&self) {
         let url = match self
             .orchestrator_config
-            .mesh_control_url
+            .populi_control_url
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty())
@@ -172,15 +172,15 @@ impl ServerState {
             loop {
                 tick.tick().await;
                 let timeout = std::time::Duration::from_millis(timeout_ms);
-                let client = vox_mesh::http_client::MeshHttpClient::new_with_timeout(&url, timeout)
+                let client = vox_populi::http_client::MeshHttpClient::new_with_timeout(&url, timeout)
                     .with_env_token();
-                let now = vox_mesh::wall_clock_unix_ms();
+                let now = vox_populi::wall_clock_unix_ms();
                 match client.list_nodes().await {
                     Ok(f) => {
-                        let brief: Vec<MeshNodeBrief> = f
+                        let brief: Vec<PopuliNodeBrief> = f
                             .nodes
                             .iter()
-                            .map(|n| MeshNodeBrief {
+                            .map(|n| PopuliNodeBrief {
                                 id: n.id.clone(),
                                 last_seen_unix_ms: n.last_seen_unix_ms,
                             })

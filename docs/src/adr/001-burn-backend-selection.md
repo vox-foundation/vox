@@ -16,14 +16,14 @@ training_eligible: true
 
 ## Context
 
-We needed a native Rust ML training framework for the Populi model. The options were:
+We needed a native Rust ML training framework for the Mens model. The options were:
 
 1. **PyTorch via PyO3** — keep Python, use Rust bindings
 2. **Candle (Hugging Face)** — Rust ML framework, CUDA-first
 3. **Burn 0.19** — pure-Rust framework with pluggable backends
 4. **ONNX Runtime** — inference-only, not useful for training
 
-The goal: train Populi without requiring Python at all, allow CPU and GPU training, and compile on all major platforms including Windows.
+The goal: train Mens without requiring Python at all, allow CPU and GPU training, and compile on all major platforms including Windows.
 
 ---
 

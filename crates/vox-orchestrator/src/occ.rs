@@ -1,7 +1,7 @@
 //! Optimistic Concurrency Control (OCC) helpers for Turso writes.
 //!
 //! Turso's default sync strategy is **last-push-wins** (row-level logical log). For
-//! tables where multiple mesh nodes may mutate the same row, this module provides a
+//! tables where multiple mens nodes may mutate the same row, this module provides a
 //! lightweight OCC pattern: read `written_at` before writing, abort if a newer version
 //! already exists in the remote, and record the conflict via [`crate::conflicts::ConflictManager`].
 //!

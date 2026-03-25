@@ -1,4 +1,4 @@
-//! `.vox` source code corpus extractor for Populi training data.
+//! `.vox` source code corpus extractor for Mens training data.
 //!
 //! Walks `crates/vox-parser/tests/golden/**/*.vox`, `crates/vox-integration-tests/**/*.vox`,
 //! and any other `.vox` files under the repo root, extracting complete file contents as

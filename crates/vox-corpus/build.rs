@@ -319,7 +319,7 @@ fn default_cli_commands() -> Vec<(String, String)> {
         ("check", "Type-check a .vox file"),
         ("run", "Build and run a .vox application"),
         ("test", "Run Vox test declarations"),
-        ("populi", "Populi training and inference"),
+        ("mens", "Mens training and inference"),
         ("ci", "CI guards and checks"),
     ].into_iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
 }

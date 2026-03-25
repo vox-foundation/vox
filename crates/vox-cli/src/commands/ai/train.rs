@@ -1,8 +1,8 @@
 //! Fine-tune orchestration over corpus-generated train.jsonl artifacts.
 //!
-//! **Canonical native training** is **`vox populi train`** (Burn LoRA or Candle QLoRA). This module keeps
-//! **`vox train`** for Together remote upload, **`--native`** (legacy Burn scratch trainer behind `populi-dei`),
-//! and a **local** path that errors with the exact `vox populi train` command to run instead of the removed
+//! **Canonical native training** is **`vox schola train`** (Burn LoRA or Candle QLoRA). This module keeps
+//! **`vox train`** for Together remote upload, **`--native`** (legacy Burn scratch trainer behind `mens-dei`),
+//! and a **local** path that errors with the exact `vox schola train` command to run instead of the removed
 //! `scripts/train_qlora.vox` flow.
 //!
 //! Remote: Together AI (`TOGETHER_API_KEY`). GPU vendor probing remains for any subprocess paths.
@@ -21,7 +21,7 @@ pub async fn run(
     native: bool,
 ) -> anyhow::Result<()> {
     eprintln!(
-        "Note: `vox train` is legacy. **Canonical training:** `vox populi train` (see docs/src/architecture/populi-training-ssot.md). `--provider local` prints the QLoRA command; use `vox populi train --backend qlora` directly."
+        "Note: `vox train` is legacy. **Canonical training:** `vox schola train` (see docs/src/architecture/mens-training-ssot.md). `--provider local` prints the QLoRA command; use `vox schola train --backend qlora` directly."
     );
     let data_dir = data_dir.unwrap_or_else(|| std::path::PathBuf::from(DEFAULT_DATA_DIR));
     tracing::debug!(
@@ -61,16 +61,16 @@ async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result
 
     let out_hint = output_dir
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "populi/runs/qwen25_qlora".to_string());
+        .unwrap_or_else(|| "mens/runs/qwen25_qlora".to_string());
 
     anyhow::bail!(
         "`vox train --provider local` does not run `scripts/train_qlora.vox` (not shipped).\n\
          **Canonical RTX 4080-class QLoRA (Candle + HF):**\n\
-           vox populi train --backend qlora --tokenizer hf --preset qwen_4080_16g \\\n\
+           vox schola train --backend qlora --tokenizer hf --preset qwen_4080_16g \\\n\
              --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir {} --output-dir {} \\\n\
              --device cuda --qlora-require-full-proxy-stack\n\
-         Build with `--features gpu,populi-candle-cuda` for NVIDIA CUDA.\n\
-         Docs: docs/src/architecture/populi-training-ssot.md and docs/src/how-to-train-populi-4080.md.",
+         Build with `--features gpu,mens-candle-cuda` for NVIDIA CUDA.\n\
+         Docs: docs/src/architecture/mens-training-ssot.md and docs/src/how-to-train-mens-4080.md.",
         data_dir.display(),
         out_hint
     );
@@ -155,7 +155,7 @@ async fn run_native(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Resul
     #[cfg(feature = "gpu")]
     {
         crate::training::native::run_training(data_dir, output_dir).await?;
-        crate::commands::populi::eval_gate::run_legacy_train_post_eval_gate(data_dir, output_dir)?;
+        crate::commands::mens::eval_gate::run_legacy_train_post_eval_gate(data_dir, output_dir)?;
         crate::commands::corpus::run_benchmark_gate(data_dir, output_dir).await?;
         Ok(())
     }
@@ -174,9 +174,9 @@ fn ensure_train_jsonl(train_jsonl: &Path, data_dir: &Path) -> anyhow::Result<()>
     }
     anyhow::bail!(
         "No train.jsonl at {}. Generate corpus first: \
-         vox populi corpus extract examples/ -o populi/data/validated.jsonl && \
-         vox populi corpus validate populi/data/validated.jsonl --no-recheck -o populi/data/validated.jsonl && \
-         vox populi corpus pairs populi/data/validated.jsonl -o {}/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/",
+         vox mens corpus extract examples/ -o mens/data/validated.jsonl && \
+         vox mens corpus validate mens/data/validated.jsonl --no-recheck -o mens/data/validated.jsonl && \
+         vox mens corpus pairs mens/data/validated.jsonl -o {}/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/",
         train_jsonl.display(),
         data_dir.display()
     );

@@ -7,7 +7,7 @@ training_eligible: true
 ---
 # HF fine-tuning capability matrix (code-grounded)
 
-Single control plane: `crates/vox-populi/src/tensor/finetune_contract.rs` (`FineTuneContract`) + `execution_planner.rs` (`ExecutionPlanner`). Execution kernels: **Burn (wgpu LoRA)** vs **Candle (qlora-rs NF4)**.
+Single control plane: `crates/vox-mens/src/tensor/finetune_contract.rs` (`FineTuneContract`) + `execution_planner.rs` (`ExecutionPlanner`). Execution kernels: **Burn (wgpu LoRA)** vs **Candle (qlora-rs NF4)**.
 
 | Capability | Burn kernel (`PopuliTrainBackend::BurnLora`) | Candle kernel (`PopuliTrainBackend::CandleQlora`) |
 |------------|---------------------------------------------|--------------------------------------------------|
@@ -29,13 +29,13 @@ Single control plane: `crates/vox-populi/src/tensor/finetune_contract.rs` (`Fine
 
 | Build | Notes |
 |-------|--------|
-| `vox-populi/gpu` | Burn + `tokenizers` + `safetensors` for HF-aware Burn path. |
-| `vox-populi/train` | `gpu` + `candle-qlora` + qlora-rs (CLI default native stack). |
+| `vox-mens/gpu` | Burn + `tokenizers` + `safetensors` for HF-aware Burn path. |
+| `vox-mens/train` | `gpu` + `candle-qlora` + qlora-rs (CLI default native stack). |
 
 ## Related
 
-- [Mobile edge AI SSOT](../reference/mobile-edge-ai.md) — off-device training vs on-device inference (LiteRT / Core ML), mesh hints, `VOX_INFERENCE_PROFILE`.
-- [Populi training SSOT](../reference/populi-training.md) — CLI entrypoints and regression tests.
+- [Mobile edge AI SSOT](../reference/mobile-edge-ai.md) — off-device training vs on-device inference (LiteRT / Core ML), mens hints, `VOX_INFERENCE_PROFILE`.
+- [Mens training SSOT](../reference/mens-training.md) — CLI entrypoints and regression tests.
 - [HF fine-tune gap matrix](../reference/hf-finetune-gap-matrix.md) — remaining risks vs resolved items (SSOT ↔ code).
-- [Populi LLM PR checklist](populi-llm-pr-checklist.md) — PR gate for LoRA duplication, layouts, parity tiers.
+- [Mens LLM PR checklist](mens-llm-pr-checklist.md) — PR gate for LoRA duplication, layouts, parity tiers.
 - ADR 006 / 007 — QLoRA graph scope and qlora-rs API gate.

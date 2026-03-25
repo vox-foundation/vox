@@ -736,7 +736,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let ctx_handle = state.orchestrator.context_handle();
         let session_age_secs = ctx_handle.read().unwrap().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0);
 
-        // Record high-quality LLM turn in agent_events for Populi replay/SFT
+        // Record high-quality LLM turn in agent_events for Mens replay/SFT
         let mut payload = serde_json::json!({
             "type": "llm_turn",
             "prompt": user_prompt,
@@ -1162,7 +1162,7 @@ pub struct GhostTextResult {
 ///
 /// Builds a fill-in-the-middle (FIM) prompt optimised for single-line editor
 /// completions and routes it to the fastest available LLM. Targets p95 < 50 ms
-/// time-to-first-token when using a local Ollama / Populi inference server.
+/// time-to-first-token when using a local Ollama / Mens inference server.
 pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String {
     let language = params.language.as_deref().unwrap_or("vox");
     let file_hint = params

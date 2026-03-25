@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Vox Populi cloud training/serving/agent entrypoint.
+# Vox Mens cloud training/serving/agent entrypoint.
 #
 # Runs on both Vast.ai (via `onstart: exec /entrypoint.sh`) and RunPod (container CMD).
 # Environment variables are injected at dispatch time by CloudResolver.
@@ -21,7 +21,7 @@ JOB_KIND="${VOX_JOB_KIND:-train}"
 MODEL_ID="${VOX_MODEL_ID:-Qwen/Qwen2.5-Coder-3B-Instruct}"
 SERVE_PORT="${VOX_SERVE_PORT:-8080}"
 
-log "=== Vox Populi Cloud — job_kind=$JOB_KIND model=$MODEL_ID ==="
+log "=== Vox Mens Cloud — job_kind=$JOB_KIND model=$MODEL_ID ==="
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared: self-termination functions

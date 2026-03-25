@@ -33,7 +33,7 @@ operations:
   - { surface: vox-cli, path: [ci, doc-inventory], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, workflow-scripts], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, line-endings], status: active, reachability_required: false }
-  - { surface: vox-cli, path: [ci, populi-gate], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, mens-gate], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, toestub-scoped], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, cuda-features], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, build-timings], status: active, reachability_required: false }
@@ -54,28 +54,28 @@ operations:
   - { surface: vox-cli, path: [skill], status: active, latin_ns: ars, feature_gate: ars, handler_rust: commands::extras::skill_cmd }
   - { surface: vox-cli, path: [ludus], status: active, latin_ns: ars, feature_gate: extras-ludus, handler_rust: commands::extras::ludus_cli }
   - { surface: vox-cli, path: [stub-check], status: active, latin_ns: mens, feature_gate: stub-check, handler_rust: commands::stub_check }
-  - { surface: vox-cli, path: [populi], status: active, latin_ns: populi, feature_gate: "populi-base|gpu", handler_rust: commands::populi }
-  - { surface: vox-cli, path: [populi, train], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, train-uv], status: retired, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, corpus], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, pipeline], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, status], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, plan], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, eval-gate], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, bench-completion], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, system-prompt-template], status: active, latin_ns: populi, feature_gate: populi-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, oratio], status: active, latin_ns: populi, feature_gate: populi-oratio, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, serve], status: active, latin_ns: populi, feature_gate: "gpu+execution-api", ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, probe], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, merge-weights], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, merge-qlora], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, eval-local], status: active, latin_ns: populi, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens], status: active, latin_ns: mens, feature_gate: "mens-base|gpu", handler_rust: commands::mens }
+  - { surface: vox-cli, path: [mens, train], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, train-uv], status: retired, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, corpus], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, pipeline], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, status], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, plan], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, eval-gate], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, bench-completion], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, system-prompt-template], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, oratio], status: active, latin_ns: mens, feature_gate: mens-oratio, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, serve], status: active, latin_ns: mens, feature_gate: "gpu+execution-api", ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, probe], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, merge-weights], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, merge-qlora], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, eval-local], status: active, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
   - { surface: vox-cli, path: [review], status: active, latin_ns: recensio, feature_gate: coderabbit, handler_rust: commands::review }
   - { surface: vox-cli, path: [island], status: active, feature_gate: island, handler_rust: commands::island }
-  - { surface: vox-cli, path: [train], status: deprecated, latin_ns: populi, feature_gate: "gpu+populi-dei", handler_rust: commands::ai::train, ref_cli_required: true }
-  - { surface: vox-cli, path: [mesh], status: active, latin_ns: fabrica, feature_gate: mesh, handler_rust: commands::mesh_cli }
-  - { surface: vox-cli, path: [mesh, status], status: active, latin_ns: fabrica, feature_gate: mesh, ref_cli_required: true }
-  - { surface: vox-cli, path: [mesh, serve], status: active, latin_ns: fabrica, feature_gate: mesh, ref_cli_required: true }
+  - { surface: vox-cli, path: [train], status: deprecated, latin_ns: mens, feature_gate: "gpu+mens-dei", handler_rust: commands::ai::train, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens], status: active, latin_ns: fabrica, feature_gate: mens, handler_rust: commands::populi_cli }
+  - { surface: vox-cli, path: [mens, status], status: active, latin_ns: fabrica, feature_gate: mens, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, serve], status: active, latin_ns: fabrica, feature_gate: mens, ref_cli_required: true }
 
   # --- vox-compilerd RPC methods ---
   - { surface: compilerd, path: [build], status: active, handler_rust: compilerd::handle_build }
@@ -105,7 +105,7 @@ operations:
 
   # --- Other binaries ---
   - { surface: internal-binary, path: [vox-compilerd], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: internal-binary, path: [vox-populi], status: active, ref_cli_required: false, reachability_required: false }
+  - { surface: internal-binary, path: [vox-mens], status: active, ref_cli_required: false, reachability_required: false }
 
 script_duals:
   - { script_glob: scripts/check_docs_ssot.*, canonical_cli: "vox ci check-docs-ssot" }
@@ -115,8 +115,8 @@ script_duals:
   - { script_glob: scripts/check_vox_cli_no_vox_dei.sh, canonical_cli: "vox ci no-vox-dei-import" }
   - { script_glob: scripts/check_cuda_feature_builds.sh, canonical_cli: "vox ci cuda-features" }
   - { script_glob: scripts/quality/toestub_scoped.sh, canonical_cli: "vox ci toestub-scoped" }
-  - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci populi-gate --profile m1m4" }
-  - { script_glob: scripts/populi/release_training_gate.*, canonical_cli: "vox ci populi-gate --profile training" }
+  - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci mens-gate --profile m1m4" }
+  - { script_glob: scripts/mens/release_training_gate.*, canonical_cli: "vox ci mens-gate --profile training" }
 
 # Names must appear in docs/src/reference/env-vars-ssot.md (Web / codegen / dev topology).
 env_var_ssot_index:

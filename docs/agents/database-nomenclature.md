@@ -84,7 +84,7 @@ To add a new table:
 | Provider usage tracking (`provider_usage`) | **DB** | Rate limit state shared across agents |
 | File locks in-process (`FileLockManager`) | **RAM** | Local to node; sub-millisecond |
 | Distributed locks (`distributed_locks`) | **DB** | Cross-node mutual exclusion |
-| Mesh heartbeats (`mesh_heartbeats`) | **DB** | Cross-node liveness; pruned on expiry |
+| Mens heartbeats (`mesh_heartbeats`) | **DB** | Cross-node liveness; pruned on expiry |
 | Companion/profile state (`gamify_*`) | **DB** | Must survive restarts |
 
 ## Adding New Domains

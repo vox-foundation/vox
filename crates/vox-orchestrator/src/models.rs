@@ -351,7 +351,7 @@ impl Default for ModelConfig {
                     capabilities: ModelCapabilities::default(),
                     supported_parameters: vec![],
                 },
-                // ── Local Ollama / Populi (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
+                // ── Local Ollama / Mens (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
                 ModelSpec {
                     id: "llama3.2".to_string(),
                     canonical_slug: "local/llama3.2".to_string(),

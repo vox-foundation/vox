@@ -17,7 +17,7 @@ if (-not $SkipBuild) {
         Write-Host "Building vox-cli (GPU profile, CPU Candle — no CUDA kernels)..."
         & $Cargo build -p vox-cli --release --features gpu
     } else {
-        Write-Host "cargo vox-cuda-release (alias: gpu,populi-candle-cuda; needs MSVC+nvcc)..."
+        Write-Host "cargo vox-cuda-release (alias: gpu,mens-candle-cuda; needs MSVC+nvcc)..."
         & $Cargo vox-cuda-release
     }
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -33,22 +33,22 @@ if (-not (Test-Path $Vox)) {
 }
 
 New-Item -ItemType Directory -Force -Path "$Root\target\dogfood" | Out-Null
-New-Item -ItemType Directory -Force -Path "$Root\populi\runs\logs" | Out-Null
-New-Item -ItemType Directory -Force -Path "$Root\populi\runs\qwen25_real" | Out-Null
+New-Item -ItemType Directory -Force -Path "$Root\mens\runs\logs" | Out-Null
+New-Item -ItemType Directory -Force -Path "$Root\mens\runs\qwen25_real" | Out-Null
 
-Write-Host "Launching background training (log under populi/runs/logs)..."
+Write-Host "Launching background training (log under mens/runs/logs)..."
 & $Vox @(
-    "populi", "train",
+    "mens", "train",
     "--backend", "qlora",
     "--tokenizer", "hf",
     "--preset", "qwen_4080_16g",
     "--model", "Qwen/Qwen2.5-Coder-3B-Instruct",
     "--data-dir", "target/dogfood",
-    "--output-dir", "populi/runs/qwen25_real",
+    "--output-dir", "mens/runs/qwen25_real",
     "--device", "cuda",
     "--background",
     "--vram-limit-fraction", "0.72",
     "--qlora-max-skip-rate", "0.20",
-    "--log-dir", "populi/runs/logs"
+    "--log-dir", "mens/runs/logs"
 )
 exit $LASTEXITCODE

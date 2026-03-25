@@ -16,23 +16,23 @@ Single map for **where code lives**, **which Cargo feature turns it on**, and **
 |--------|----------------------------|--------|
 | Unified DB facade type | `vox_db::VoxDb` or alias `vox_db::Codex` | Confusing `vox_codex::` in new code (use `vox-codex` crate only for legacy shims) |
 | Arca store / schema | `vox_pm`, `CodeStore` | Mixing “Arca” and “Codex” without context |
-| Populi corpus + runtime (no STT, no native train) | feature `populi-base` | Assuming Oratio or `vox-populi` is always on |
-| Oratio STT CLI | feature `populi-oratio` | Shipping `vox-oratio` in every default `vox-cli` build |
-| Native train / QLoRA | feature `gpu` (alias `populi-qlora`) | Expecting CUDA without `populi-candle-cuda` |
+| Mens corpus + runtime (no STT, no native train) | feature `mens-base` | Assuming Oratio or `vox-mens` is always on |
+| Oratio STT CLI | feature `mens-oratio` | Shipping `vox-oratio` in every default `vox-cli` build |
+| Native train / QLoRA | feature `gpu` (alias `mens-qlora`) | Expecting CUDA without `mens-candle-cuda` |
 | Repo layout / `repository_id` | `vox-repository` | Scattering repo-root logic in CLI ad hoc |
 
 ## Build lanes (what CI and `vox ci build-timings` measure)
 
 | Lane id | Command sketch | Purpose |
 |---------|----------------|---------|
-| `check_vox_cli_default` | `cargo check -p vox-cli` | Default contributor loop (`populi-base`, no Oratio, no `vox-populi`) |
+| `check_vox_cli_default` | `cargo check -p vox-cli` | Default contributor loop (`mens-base`, no Oratio, no `vox-mens`) |
 | `check_vox_cli_no_default_features` | `cargo check -p vox-cli --no-default-features` | Compiler + `vox-db` shell only |
-| `check_vox_cli_gpu_stub` | `… --features gpu,populi-qlora,stub-check` | ML + TOESTUB integration |
-| `check_vox_cli_gpu_populi_candle_cuda` | `… --features gpu,populi-candle-cuda` | CUDA compile gate (when `nvcc` on `PATH`) |
+| `check_vox_cli_gpu_stub` | `… --features gpu,mens-qlora,stub-check` | ML + TOESTUB integration |
+| `check_vox_cli_gpu_populi_candle_cuda` | `… --features gpu,mens-candle-cuda` | CUDA compile gate (when `nvcc` on `PATH`) |
 | `check_vox_db` | `cargo check -p vox-db` | Data-plane baseline |
 | `check_vox_oratio` | `cargo check -p vox-oratio` | STT crate isolation |
-| `check_vox_populi_train` | `cargo check -p vox-populi --features train` | Native training stack without linking full CLI |
-| `check_vox_cli_populi_oratio` | `cargo check -p vox-cli --features populi-oratio` | STT / Oratio stack on top of default `populi-base` |
+| `check_vox_mens_train` | `cargo check -p vox-mens --features train` | Native training stack without linking full CLI |
+| `check_vox_cli_populi_oratio` | `cargo check -p vox-cli --features mens-oratio` | STT / Oratio stack on top of default `mens-base` |
 
 Run: `vox ci build-timings` and `vox ci build-timings --crates` (`--json` for CI artifacts). Soft budgets: **`docs/ci/build-timings/budgets.json`** only (loaded by the CLI — no second copy in Rust). Env: `VOX_BUILD_TIMINGS_BUDGET_WARN=1` (missing lane keys + over cap), `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` (fail on over cap; warn not required).
 
@@ -44,10 +44,10 @@ Rough **cold** `cargo check -p …` on a typical dev machine (order-of-magnitude
 |--------------|-------------------------|--------|
 | `vox-cli` `--no-default-features` | 2–6 min | Lex/parser/typeck/codegen + `vox-db` |
 | `vox-cli` default | 4–10 min | + `vox-corpus`, `vox-runtime` |
-| `vox-cli` + `populi-oratio` | +3–8 min delta | + `vox-oratio` / Candle transformers |
-| `vox-cli` + `gpu` | +6–18 min delta | + `vox-populi` train + `vox-tensor` |
-| `vox-cli` + `populi-candle-cuda` | +10–30 min delta | nvcc / MSVC sensitive |
-| `vox-populi` `--features train` | 8–20 min | Burn + Candle + qlora-rs |
+| `vox-cli` + `mens-oratio` | +3–8 min delta | + `vox-oratio` / Candle transformers |
+| `vox-cli` + `gpu` | +6–18 min delta | + `vox-mens` train + `vox-tensor` |
+| `vox-cli` + `mens-candle-cuda` | +10–30 min delta | nvcc / MSVC sensitive |
+| `vox-mens` `--features train` | 8–20 min | Burn + Candle + qlora-rs |
 | `vox-oratio` | 5–15 min | Whisper / Candle path |
 | `vox-db` | 1–4 min | Turso stack |
 
@@ -64,7 +64,7 @@ Committed snapshot: `docs/ci/build-timings/latest.jsonl` (regenerate with `SKIP_
 | `check_vox_cli_no_default_features` | 4144 |
 | `check_vox_db` | 3892 |
 | `check_vox_oratio` | 826 |
-| `check_vox_populi_train` | 2444 |
+| `check_vox_mens_train` | 2444 |
 | `check_vox_cli_populi_oratio` | 9448 |
 
 Treat these as **telemetry**, not SLA: refresh `latest.jsonl` after toolchain or dependency upgrades.
@@ -83,24 +83,24 @@ Use **`docs/ci/build-timings/snapshot-metadata.json`** with each `latest.jsonl` 
 |-----------------|-------------------|-----------|---------------|-------------|
 | `vox_codex::…` imports in workspace | `vox_db::…` | Single data-plane mental model; `Codex` remains a **type alias** on `VoxDb` | Crate `vox-codex` re-exports `vox_db::*` | Retain facade until release notes removal |
 | `vox-codex` crate | Stay as thin shim over `vox-db` | External crates / legacy paths | `pub use vox_db::*` in `crates/vox-codex/src/lib.rs` | Document-only; no date until downstreams audited |
-| Oratio in default CLI | Feature `populi-oratio` | Candle/Whisper compile cost | `vox-cli` default = `populi-base` only | Done |
-| Native train / QLoRA in default CLI | Feature `gpu` (+ `populi-candle-cuda` for NVIDIA kernels) | Burn/Candle/qlora-rs blast radius | Aliases `populi-qlora` → `gpu` | Done |
+| Oratio in default CLI | Feature `mens-oratio` | Candle/Whisper compile cost | `vox-cli` default = `mens-base` only | Done |
+| Native train / QLoRA in default CLI | Feature `gpu` (+ `mens-candle-cuda` for NVIDIA kernels) | Burn/Candle/qlora-rs blast radius | Aliases `mens-qlora` → `gpu` | Done |
 | Ad-hoc repo root walks in new code | `vox_repository::…` | Stable `repository_id`, layout, scopes | N/A | Policy in `external-repositories.md` |
-| `vox populi` without `populi-base` | Enable `populi-base` (default) or build `vox-populi` bin | Command surface gate | `vox-populi` binary prepends subcommand | Done |
+| `vox mens` without `mens-base` | Enable `mens-base` (default) or build `vox-mens` bin | Command surface gate | `vox-mens` binary prepends subcommand | Done |
 | Shell timing scripts as SSOT | `vox ci build-timings` | Reproducible lanes in Rust | Scripts remain optional delegates | Done |
 
 ## Lateral moves already applied or targeted
 
 | From | To / policy | Why |
 |------|-------------|-----|
-| `vox-oratio` on default `populi-base` | feature `populi-oratio` | Cuts default `vox-cli` compile cost; STT is opt-in |
+| `vox-oratio` on default `mens-base` | feature `mens-oratio` | Cuts default `vox-cli` compile cost; STT is opt-in |
 | `vox_codex::` in `vox-cli` / `vox-ludus` | `vox_db::` | One data-plane mental model |
 | `vox-codex` crate | keep as thin re-export over `vox-db` | External/legacy `vox_codex` path without duplicating logic |
 | Dead `vox-ludus` / `vox-codex` deps in `vox-lsp` | removed | Less atomization in tooling crate |
 
 ## Deliverables checklist
 
-- [x] `populi-oratio` feature split in `vox-cli`
+- [x] `mens-oratio` feature split in `vox-cli`
 - [x] `vox ci build-timings --crates`
 - [x] This migration map + inventory doc updates
 - [ ] Optional: deprecate `vox-codex` crate in a later release after downstreams migrate (breaking policy: allowed)

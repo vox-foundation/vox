@@ -1,6 +1,6 @@
 //! VoxDB CRUD operations for training run tracking.
 //!
-//! Provides persistence for Populi QLoRA training runs so that progress
+//! Provides persistence for Mens QLoRA training runs so that progress
 //! survives crashes and can be queried from external tooling. The table is
 //! created lazily on first write (no migration required).
 //!

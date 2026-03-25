@@ -1,4 +1,4 @@
-//! Corpus coverage analysis for the Populi training pipeline.
+//! Corpus coverage analysis for the Mens training pipeline.
 //!
 //! Scans a JSONL corpus file, counts `{"category": ...}` entries per construct
 //! type, and compares against the full [`TAXONOMY`](vox_cli::training::TAXONOMY).
@@ -7,7 +7,7 @@
 //! ```rust,no_run
 //! use vox_corpus::corpus::coverage::{CoverageReport, analyse_jsonl_with_taxonomy};
 //! let taxonomy = &["function", "actor"];
-//! let report = analyse_jsonl_with_taxonomy(std::path::Path::new("populi/data/train.jsonl"), 5, taxonomy)
+//! let report = analyse_jsonl_with_taxonomy(std::path::Path::new("mens/data/train.jsonl"), 5, taxonomy)
 //!     .expect("coverage analysis");
 //! println!("{}", report.summary());
 //! ```

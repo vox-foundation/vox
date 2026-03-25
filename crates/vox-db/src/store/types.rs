@@ -464,7 +464,7 @@ pub struct TypedStreamEventEntry {
     pub created_at: String,
 }
 
-/// Populi / review row for a target entity.
+/// Mens / review row for a target entity.
 #[derive(Debug, Clone)]
 pub struct ReviewEntry {
     /// Row id.
@@ -539,7 +539,7 @@ pub struct EndpointReliabilityEntry {
     pub updated_at_ms: i64,
 }
 
-/// A single training data row exported from the database for Populi.
+/// A single training data row exported from the database for Mens.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CorpusRow {
     pub category: String,

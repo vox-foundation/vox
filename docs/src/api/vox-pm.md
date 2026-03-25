@@ -139,7 +139,7 @@ This is the core differentiator: one PM for all Vox artifact types.
 
 ### `struct PopuliClient`
 
-Client for communicating with local/remote Populi LLM services.
+Client for communicating with local/remote Mens LLM services.
 Now uses actual HTTP requests instead of hardcoded mock responses.
 
 

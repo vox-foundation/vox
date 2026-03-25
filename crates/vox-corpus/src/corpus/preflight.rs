@@ -32,8 +32,8 @@ const WATCHED_FILES: &[&str] = &[
     "crates/vox-corpus/src/corpus/preflight.rs",
     "crates/vox-corpus/src/corpus/augment.rs",
     "Cargo.toml",
-    "populi/config/templates.yaml",
-    "populi/config/mix.yaml",
+    "mens/config/templates.yaml",
+    "mens/config/mix.yaml",
 ];
 
 /// Compute xxh3 fingerprint over all watched files from the repo root.
@@ -365,7 +365,7 @@ pub const ARCHITECTURAL_PAIRS: &[(&str, &str)] = &[
     (
         "What is the difference between `@mcp.tool` and `@skill` in Vox?",
         "`@mcp.tool` exposes a function as an MCP tool callable by any agent or LLM via the protocol. \
-         `@skill` marks a function as a learnable capability for the Populi model to acquire. \
+         `@skill` marks a function as a learnable capability for the Mens model to acquire. \
          Tools are protocol-level; skills are training-level."
     ),
     (
@@ -419,8 +419,8 @@ pub const ARCHITECTURAL_PAIRS: &[(&str, &str)] = &[
         "How do I monitor a running Vox actor in production?",
         "Actors expose built-in telemetry via `@traced` — add it to any `actor` or `fn`. \
          Connect your observability stack (Prometheus, OTEL) via `vox.config` \
-         `[telemetry]` section. Use `vox mesh status` to see live actor health, \
-         mailbox depth, and error rates across the distributed mesh."
+         `[telemetry]` section. Use `vox populi status` to see live actor health, \
+         mailbox depth, and error rates across the distributed mens."
     ),
     (
         "How does Vox handle TypeScript interop for frontend code?",

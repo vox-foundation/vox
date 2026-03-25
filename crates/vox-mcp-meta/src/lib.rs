@@ -173,8 +173,8 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
     ("vox_replan", "Replan via vox-dei-d: session_id + delta_hint."),
     ("vox_plan_status", "Plan session status via vox-dei-d for a session_id."),
     ("vox_benchmark_list", "List recent benchmark_event rows from Codex for this repository."),
-    ("vox_train_submit", "Enqueue a background orchestrator task for Populi training intent."),
-    ("vox_mesh_local_status", "Return mesh environment variables and the local mesh registry file contents."),
+    ("vox_schola_submit", "Enqueue a background orchestrator task for Mens training intent."),
+    ("vox_populi_local_status", "Return mens environment variables and the local mens registry file contents."),
     ("vox_reliability_list", "List ranked LLM endpoint reliability metrics (hallucination rates, failures, timeouts)."),
     ("vox_reliability_agents", "List agent success/failure reliability EMAs (Socrates routing signals)."),
 ];

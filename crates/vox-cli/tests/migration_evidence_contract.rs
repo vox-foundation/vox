@@ -28,14 +28,14 @@ fn script_execution_integration_test_is_feature_gated() {
 fn populi_pipeline_ps1_is_thin_delegate() {
     let ps1 = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../scripts/run_populi_pipeline.ps1"
+        "/../../scripts/run_mens_pipeline.ps1"
     ));
     assert!(
-        ps1.contains("populi") && ps1.contains("pipeline"),
-        "PS1 should call `vox populi pipeline`"
+        ps1.contains("mens") && ps1.contains("pipeline"),
+        "PS1 should call `vox mens pipeline`"
     );
     assert!(
         !ps1.contains("corpus extract"),
-        "orchestration belongs in Rust (`vox populi pipeline`), not PS1"
+        "orchestration belongs in Rust (`vox mens pipeline`), not PS1"
     );
 }

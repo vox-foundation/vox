@@ -11,7 +11,7 @@ use crate::affinity::FileAffinityMap;
 use crate::config::OrchestratorConfig;
 use crate::contract::TaskCapabilityHints;
 use crate::groups::AffinityGroupRegistry;
-use crate::mesh_federation::RemoteMeshRoutingHint;
+use crate::populi_federation::RemoteMeshRoutingHint;
 use crate::queue::AgentQueue;
 use crate::types::{AgentId, FileAffinity};
 
@@ -85,7 +85,7 @@ impl RoutingService {
             Self::apply_capability_penalties(&mut scores, agents, req);
         }
 
-        // 3c. Experimental mesh visibility (read-only federation); never routes off-process.
+        // 3c. Experimental mens visibility (read-only federation); never routes off-process.
         if config.mesh_routing_experimental {
             Self::apply_experimental_mesh_routing_signals(
                 &mut scores,
@@ -264,7 +264,7 @@ impl RoutingService {
             && (!req.gpu_metal || r.gpu_metal)
     }
 
-    /// Soft score bump + tracing when cached remote mesh nodes align with task labels (no remote execute).
+    /// Soft score bump + tracing when cached remote mens nodes align with task labels (no remote execute).
     fn apply_experimental_mesh_routing_signals(
         scores: &mut HashMap<AgentId, f64>,
         agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
@@ -291,7 +291,7 @@ impl RoutingService {
                     target: "vox.orchestrator.routing",
                     decision = "remote_label_match_only",
                     remote_candidates,
-                    "mesh_routing_experimental: no local agent matches task labels; mesh lists remote candidates (no remote execute)"
+                    "mesh_routing_experimental: no local agent matches task labels; mens lists remote candidates (no remote execute)"
                 );
             } else if local_matches && remote_candidates > 0 {
                 tracing::debug!(
@@ -317,7 +317,7 @@ impl RoutingService {
                 tracing::trace!(
                     target: "vox.orchestrator.routing",
                     remote_gpu_candidates = remote_gpu,
-                    "mesh federation GPU visibility (experimental)"
+                    "mens federation GPU visibility (experimental)"
                 );
             }
         }
@@ -352,7 +352,7 @@ impl RoutingService {
 mod tests {
     use super::*;
     use crate::groups::AffinityGroup;
-    use crate::mesh_federation::RemoteMeshRoutingHint;
+    use crate::populi_federation::RemoteMeshRoutingHint;
     use crate::types::{TaskId, TaskPriority};
 
     #[test]

@@ -19,8 +19,8 @@ pub mod compiler_tools;
 pub mod db_tools;
 /// Thin `git` CLI wrappers scoped to the discovered git root.
 pub mod git_tools;
-/// Local mesh registry status (`vox_mesh_local_status`).
-pub mod mesh_tools;
+/// Local mens registry status (`vox_populi_local_status`).
+pub mod populi_tools;
 /// Oratio speech-to-text (Candle Whisper).
 pub mod oratio_tools;
 /// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
@@ -29,7 +29,7 @@ pub mod repo_index;
 pub mod toestub_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
-/// Training-intent submission via orchestrator (Populi CLI remains canonical executor).
+/// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
 pub mod training_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
@@ -519,12 +519,12 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores.",
     ),
     (
-        "vox_train_submit",
-        "Enqueue a background orchestrator task for Populi training intent; canonical execution remains `vox populi train`.",
+        "vox_schola_submit",
+        "Enqueue a background orchestrator task for Mens training intent; canonical execution remains `vox schola train`.",
     ),
     (
-        "vox_mesh_local_status",
-        "Return mesh environment variables and the local mesh registry file contents (CPU-first node records).",
+        "vox_populi_local_status",
+        "Return mens environment variables and the local mens registry file contents (CPU-first node records).",
     ),
 ];
 
@@ -602,14 +602,14 @@ async fn handle_tool_call_inner(
             Ok(task_tools::task_status(state, serde_json::from_value(args)?).await)
         }
         "vox_orchestrator_status" => {
-            Ok(crate::orchestrator_tools::orchestrator_status(state).await)
+            Ok(crate::dei_tools::orchestrator_status(state).await)
         }
-        "vox_orchestrator_start" => Ok(crate::orchestrator_tools::orchestrator_start(state).await),
+        "vox_orchestrator_start" => Ok(crate::dei_tools::orchestrator_start(state).await),
         "vox_complete_task" => {
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
-        "vox_check_file_owner" => Ok(crate::orchestrator_tools::check_file_owner(
+        "vox_check_file_owner" => Ok(crate::dei_tools::check_file_owner(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
         )
@@ -672,7 +672,7 @@ async fn handle_tool_call_inner(
         "vox_workspace_status" => Ok(vcs_tools::workspace_status(state, args).await),
         "vox_change_create" => Ok(vcs_tools::change_create(state, args).await),
         "vox_change_log" => Ok(vcs_tools::change_log(state, args).await),
-        "vox_vcs_status" => Ok(crate::orchestrator_tools::vcs_status(state).await),
+        "vox_vcs_status" => Ok(crate::dei_tools::vcs_status(state).await),
 
         "vox_db_schema" => Ok(db_tools::vox_db_schema(args)),
         "vox_db_relationships" => Ok(db_tools::vox_db_relationships(args)),
@@ -743,7 +743,7 @@ async fn handle_tool_call_inner(
             Ok(chat_tools::plan_status(state, serde_json::from_value(args)?).await)
         }
 
-        "vox_train_submit" => {
+        "vox_schola_submit" => {
             Ok(training_tools::train_submit(state, serde_json::from_value(args)?).await)
         }
 
@@ -842,42 +842,42 @@ async fn handle_tool_call_inner(
         }
 
         "vox_queue_status" => {
-            Ok(crate::orchestrator_tools::queue_status(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::queue_status(state, serde_json::from_value(args)?).await)
         }
-        "vox_lock_status" => Ok(crate::orchestrator_tools::lock_status(state).await),
-        "vox_budget_status" => Ok(crate::orchestrator_tools::budget_status(state).await),
+        "vox_lock_status" => Ok(crate::dei_tools::lock_status(state).await),
+        "vox_budget_status" => Ok(crate::dei_tools::budget_status(state).await),
         "vox_cancel_task" => {
-            Ok(crate::orchestrator_tools::cancel_task(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::cancel_task(state, serde_json::from_value(args)?).await)
         }
         "vox_reorder_task" => {
-            Ok(crate::orchestrator_tools::reorder_task(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::reorder_task(state, serde_json::from_value(args)?).await)
         }
         "vox_drain_agent" => {
-            Ok(crate::orchestrator_tools::drain_agent(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::drain_agent(state, serde_json::from_value(args)?).await)
         }
         "vox_cost_history" => {
-            Ok(crate::orchestrator_tools::cost_history(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::cost_history(state, serde_json::from_value(args)?).await)
         }
-        "vox_file_graph" => Ok(crate::orchestrator_tools::file_graph(state).await),
-        "vox_config_get" => Ok(crate::orchestrator_tools::config_get(state).await),
-        "vox_config_set" => Ok(crate::orchestrator_tools::config_set(state, args).await),
-        "vox_map_agent_session" => Ok(crate::orchestrator_tools::map_agent_session(
+        "vox_file_graph" => Ok(crate::dei_tools::file_graph(state).await),
+        "vox_config_get" => Ok(crate::dei_tools::config_get(state).await),
+        "vox_config_set" => Ok(crate::dei_tools::config_set(state, args).await),
+        "vox_map_agent_session" => Ok(crate::dei_tools::map_agent_session(
             state,
             serde_json::from_value(args)?,
         )
         .await),
         "vox_poll_events" => {
-            Ok(crate::orchestrator_tools::poll_events(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::poll_events(state, serde_json::from_value(args)?).await)
         }
         "vox_heartbeat" => {
-            Ok(crate::orchestrator_tools::heartbeat(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::heartbeat(state, serde_json::from_value(args)?).await)
         }
         "vox_record_cost" => {
-            Ok(crate::orchestrator_tools::record_cost(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::record_cost(state, serde_json::from_value(args)?).await)
         }
-        "vox_rebalance" => Ok(crate::orchestrator_tools::rebalance(state).await),
+        "vox_rebalance" => Ok(crate::dei_tools::rebalance(state).await),
         "vox_agent_events" => {
-            Ok(crate::orchestrator_tools::agent_events(state, serde_json::from_value(args)?).await)
+            Ok(crate::dei_tools::agent_events(state, serde_json::from_value(args)?).await)
         }
 
         "vox_a2a_send" => Ok(crate::a2a::a2a_send(state, serde_json::from_value(args)?).await),
@@ -926,7 +926,7 @@ async fn handle_tool_call_inner(
         "vox_oratio_transcribe" => Ok(oratio_tools::transcribe(state, args)?),
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
-        "vox_mesh_local_status" => Ok(mesh_tools::mesh_local_status(args)?),
+        "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),
         
         "vox_benchmark_list" => {
             Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)

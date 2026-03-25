@@ -42,7 +42,7 @@ impl FeedbackCollector {
             store,
             session_id: session_id.to_string(),
             user_id,
-            model_version: "populi-v1".to_string(),
+            model_version: "mens-v1".to_string(),
         }
     }
 

@@ -9567,7 +9567,7 @@ dependencies = [
  "vox-forge",
  "vox-git",
  "vox-ludus",
- "vox-mesh",
+ "vox-mens",
  "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
@@ -9820,10 +9820,10 @@ dependencies = [
  "vox-db",
  "vox-lsp",
  "vox-ludus",
- "vox-mesh",
  "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
+ "vox-populi",
  "vox-repository",
  "vox-runtime",
  "vox-skills",
@@ -9841,20 +9841,35 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-mesh"
+name = "vox-mens"
 version = "0.1.0"
 dependencies = [
- "axum",
+ "anyhow",
+ "async-trait",
+ "burn",
+ "candle-core",
+ "candle-nn",
+ "chrono",
+ "ctrlc",
+ "dirs",
+ "futures",
+ "hf-hub",
+ "peft-rs",
+ "qlora-rs",
+ "rand 0.8.5",
  "reqwest 0.12.28",
+ "safetensors 0.4.5",
  "serde",
  "serde_json",
  "serde_yaml",
- "subtle",
- "thiserror 1.0.69",
+ "sysinfo 0.38.4",
+ "tempfile",
+ "tokenizers",
  "tokio",
- "tower-http",
  "tracing",
- "vox-repository",
+ "vox-corpus",
+ "vox-db",
+ "vox-tensor",
 ]
 
 [[package]]
@@ -9906,8 +9921,8 @@ dependencies = [
  "vox-db",
  "vox-lsp",
  "vox-ludus",
- "vox-mesh",
  "vox-pm",
+ "vox-populi",
  "vox-repository",
  "vox-runtime",
  "vox-socrates-policy",
@@ -9939,32 +9954,17 @@ dependencies = [
 name = "vox-populi"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "async-trait",
- "burn",
- "candle-core",
- "candle-nn",
- "chrono",
- "ctrlc",
- "dirs",
- "futures",
- "hf-hub",
- "peft-rs",
- "qlora-rs",
- "rand 0.8.5",
+ "axum",
  "reqwest 0.12.28",
- "safetensors 0.4.5",
  "serde",
  "serde_json",
  "serde_yaml",
- "sysinfo 0.38.4",
- "tempfile",
- "tokenizers",
+ "subtle",
+ "thiserror 1.0.69",
  "tokio",
+ "tower-http",
  "tracing",
- "vox-corpus",
- "vox-db",
- "vox-tensor",
+ "vox-repository",
 ]
 
 [[package]]
@@ -9999,6 +9999,27 @@ dependencies = [
  "vox-config",
  "vox-db",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-schola"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "clap",
+ "ctrlc",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "vox-corpus",
+ "vox-db",
+ "vox-mens",
 ]
 
 [[package]]
@@ -10087,27 +10108,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-train"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "clap",
- "ctrlc",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "vox-corpus",
- "vox-db",
- "vox-populi",
-]
-
-[[package]]
 name = "vox-webhook"
 version = "0.1.0"
 dependencies = [
@@ -10138,7 +10138,7 @@ dependencies = [
  "tracing",
  "vox-compiler",
  "vox-db",
- "vox-mesh",
+ "vox-populi",
 ]
 
 [[package]]

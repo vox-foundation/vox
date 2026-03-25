@@ -35,7 +35,7 @@
 //! | `vox architect …` | `commands::diagnostics::tools::architect` (needs `--features stub-check` and/or `codex`) |
 //! | `vox lsp` | `commands::lsp` |
 //! | `vox doctor` (extended: `--build-perf` / `--scope` / `--json` need `--features codex`) | `commands::diagnostics::doctor` |
-//! | `vox train …` (feature `populi-dei` + `gpu`) | `commands::ai::train` |
+//! | `vox train …` (feature `mens-dei` + `gpu`) | `commands::ai::train` |
 //! | `vox review coderabbit …` | `commands::review` (needs `--features coderabbit`) |
 //! | `vox island …` | `commands::island` (needs `--features island`) |
 //!

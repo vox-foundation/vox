@@ -59,16 +59,16 @@ Vox has a native ML training loop powered by [Burn](https://burn.dev) (a pure-Ru
 docs/src/*.md + examples/*.vox
     │
     ▼
-vox populi corpus extract   # produces validated.jsonl
+vox mens corpus extract   # produces validated.jsonl
     │
     ▼
-vox populi corpus pairs     # produces train.jsonl (instruction-response pairs)
+vox mens corpus pairs     # produces train.jsonl (instruction-response pairs)
     │
     ▼
-vox populi train            # native Burn / HF path (default CLI features)
+vox schola train            # native Burn / HF path (default CLI features)
     │
     ▼
-populi/runs/v1/model_final.bin
+mens/runs/v1/model_final.bin
 ```
 
 The training loop is defined in `crates/vox-cli/src/training/native.rs`.
@@ -173,7 +173,7 @@ The full checklist for adding a new language construct:
 6. **Codegen** — Emit code in both `vox-codegen-rust` and `vox-codegen-ts`
 7. **Test** — Add an integration test in `vox-integration-tests/tests/`
 8. **Docs** — Add frontmatter + code example in `docs/src/`
-9. **Training** — Run `vox populi corpus extract` to include the new construct in ML data
+9. **Training** — Run `vox mens corpus extract` to include the new construct in ML data
 
 ---
 

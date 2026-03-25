@@ -1,7 +1,7 @@
 # Agent Time Awareness: Architecture & Implementation
 
 > [!IMPORTANT]
-> This document is the SSOT for time-awareness in the Vox orchestrator and agent mesh.
+> This document is the SSOT for time-awareness in the Vox orchestrator and agent mens.
 > All orchestrator, A2A, and MCP tool changes relating to temporal reasoning must stay
 > aligned with the patterns recorded here.
 

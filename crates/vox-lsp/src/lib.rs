@@ -82,7 +82,7 @@ pub fn validate_document(text: &str) -> Vec<Diagnostic> {
     diagnostics
 }
 
-fn vox_mesh_enabled_from_env() -> bool {
+fn vox_populi_enabled_from_env() -> bool {
     std::env::var("VOX_MESH_ENABLED")
         .map(|v| {
             let v = v.trim();
@@ -93,7 +93,7 @@ fn vox_mesh_enabled_from_env() -> bool {
 
 /// When `VOX_MESH_ENABLED` is unset/false, warn on `mesh_*` activity calls inside `workflow` bodies.
 fn mesh_workflow_env_warnings(text: &str, module: &vox_compiler::ast::decl::Module) -> Vec<Diagnostic> {
-    if vox_mesh_enabled_from_env() {
+    if vox_populi_enabled_from_env() {
         return Vec::new();
     }
     let mut spans = Vec::new();
@@ -122,7 +122,7 @@ fn mesh_workflow_env_warnings(text: &str, module: &vox_compiler::ast::decl::Modu
                 code: None,
                 code_description: None,
                 source: Some("vox-lsp".to_string()),
-                message: "Mesh activity call: enable VOX_MESH_ENABLED=1 (and mesh control-plane env) at runtime for mesh hooks.".to_string(),
+                message: "Mens activity call: enable VOX_MESH_ENABLED=1 (and mens control-plane env) at runtime for mens hooks.".to_string(),
                 related_information: None,
                 tags: None,
                 data: None,
@@ -362,24 +362,24 @@ mod tests {
     #[test]
     fn mesh_activity_warning_test() {
         let doc = "workflow w() { mesh_snapshot() }";
-        let _lock = MESH_WARNING_ENV_LOCK.lock().expect("mesh env mutex poisoned");
+        let _lock = MESH_WARNING_ENV_LOCK.lock().expect("mens env mutex poisoned");
         
-        // When mesh is DISABLED, we expect a WARNING diagnostic.
+        // When mens is DISABLED, we expect a WARNING diagnostic.
         // SAFETY: single-threaded under the mutex guard above.
         unsafe { std::env::set_var("VOX_MESH_ENABLED", "0"); }
         let diags = validate_document(doc);
         assert!(
-            diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")),
-            "Expected mesh call warning when VOX_MESH_ENABLED=0, got: {:?}", diags
+            diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")),
+            "Expected mens call warning when VOX_MESH_ENABLED=0, got: {:?}", diags
         );
 
-        // When mesh is ENABLED, no mesh WARNING should fire.
+        // When mens is ENABLED, no mens WARNING should fire.
         // SAFETY: single-threaded under the mutex guard above.
         unsafe { std::env::set_var("VOX_MESH_ENABLED", "1"); }
         let diags = validate_document(doc);
         assert!(
-            !diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mesh activity call")),
-            "Expected no mesh call warning when VOX_MESH_ENABLED=1, got: {:?}", diags
+            !diags.iter().any(|d| d.severity == Some(DiagnosticSeverity::WARNING) && d.message.contains("Mens activity call")),
+            "Expected no mens call warning when VOX_MESH_ENABLED=1, got: {:?}", diags
         );
 
         // SAFETY: restore to neutral state.

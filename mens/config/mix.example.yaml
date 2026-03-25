@@ -1,0 +1,18 @@
+# Example weighted merge for Mens `train.jsonl`.
+# Run from repo root: `vox mens corpus mix` (or `vox corpus mix`) with `-c` pointing here.
+#
+# Use `record_format: asr_refine` for JSONL matching `mens/schemas/asr_refine_pairs.schema.json`.
+# Use `record_format: tool_trace` for JSONL lines matching `ToolTraceRecord` in `vox-corpus`
+# (`task_prompt`, `tool_name`, `arguments_json`, `result_json`, `success`, optional `followup_text`).
+
+sources:
+  - path: mens/data/train.jsonl
+    weight: 1
+  # - path: mens/data/asr_refine_pairs.jsonl
+  #   weight: 8
+  #   record_format: asr_refine
+  # - path: mens/data/tool_traces.jsonl
+  #   weight: 4
+  #   record_format: tool_trace
+
+output: mens/data/train_mixed.jsonl

@@ -6,7 +6,7 @@
 //! [`vox_socrates_policy`] without pulling the full DeI graph into the main workspace.
 
 /// Numeric floors shared with [`vox_socrates_policy::ConfidencePolicy`] for research persistence
-/// and Populi training-pair export (see `research/orchestrator.rs` when that module is reattached).
+/// and Mens training-pair export (see `research/orchestrator.rs` when that module is reattached).
 pub mod research_policy {
     pub use vox_socrates_policy::ConfidencePolicy;
 

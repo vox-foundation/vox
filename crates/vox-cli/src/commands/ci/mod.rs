@@ -103,8 +103,8 @@ pub enum CiCmd {
         #[arg(long)]
         base: Option<String>,
     },
-    /// Run Populi gate steps from `scripts/populi/gates.yaml`.
-    #[command(name = "populi-gate")]
+    /// Run Mens gate steps from `scripts/mens/gates.yaml`.
+    #[command(name = "mens-gate")]
     PopuliGate {
         /// Profile name: `m1m4` or `training`.
         #[arg(long, default_value = "m1m4")]
@@ -126,7 +126,7 @@ pub enum CiCmd {
         /// Print one JSON object per lane (machine-readable).
         #[arg(long)]
         json: bool,
-        /// Also time isolated `cargo check -p <crate>` lanes (compiler vs data vs Oratio vs Populi train).
+        /// Also time isolated `cargo check -p <crate>` lanes (compiler vs data vs Oratio vs Mens train).
         #[arg(long)]
         crates: bool,
         /// Detailed per-crate telemetry persisted to Arca (V34+).
@@ -142,7 +142,7 @@ pub enum CiCmd {
         #[arg(long, default_value = "dev")]
         profile: String,
     },
-    /// Compare grammar taxonomy fingerprint (`generate_system_prompt` SHA-256) to `populi/data/grammar_fingerprint.txt`; update file on drift.
+    /// Compare grammar taxonomy fingerprint (`generate_system_prompt` SHA-256) to `mens/data/grammar_fingerprint.txt`; update file on drift.
     #[command(name = "grammar-drift")]
     GrammarDrift {
         /// Emit machine-readable `drift=true|false` for CI (e.g. append to `GITHUB_OUTPUT`).
@@ -198,8 +198,8 @@ const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/architecture/crate-build-lanes-migration.md",
     "docs/src/architecture/crate-topology-buckets.md",
     "docs/src/architecture/deployment-compose-ssot.md",
-    "docs/src/architecture/populi-training-ssot.md",
-    "docs/src/how-to-train-populi-4080.md",
+    "docs/src/architecture/mens-training-ssot.md",
+    "docs/src/how-to-train-mens-4080.md",
     "docs/src/architecture/phase0-migration-signoff.md",
     "docs/src/architecture/migration-script-dashboard.md",
     "docs/src/architecture/vox-automation-primitives.md",
@@ -251,18 +251,18 @@ const FEATURE_SETS: &[&str] = &[
     "stub-check",
     "codex,stub-check",
     "live",
-    "populi-dei",
-    "populi-oratio",
+    "mens-dei",
+    "mens-oratio",
     "dashboard",
     "ars",
     "extras-ludus",
-    "gpu,populi-qlora,stub-check",
+    "gpu,mens-qlora,stub-check",
     "island",
-    "island,populi-base",
+    "island,mens-base",
     "script-execution",
     "script-execution,stub-check",
-    "mesh",
-    "script-execution,mesh",
+    "mens",
+    "script-execution,mens",
     "workflow-runtime",
 ];
 
@@ -325,7 +325,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
-        CiCmd::PopuliGate { profile } => run_populi_gate(&root, &profile),
+        CiCmd::PopuliGate { profile } => run_mens_gate(&root, &profile),
         CiCmd::ToestubScoped { root: scan_root } => run_toestub_scoped(&root, &scan_root),
         CiCmd::CudaFeatures => run_cuda_features(),
         CiCmd::BuildTimings { json, crates, deep, persist, name, profile } => {
@@ -351,7 +351,7 @@ fn sha256_hex_lower(bytes: &[u8]) -> String {
 fn run_grammar_drift(root: &Path, emit: Option<GrammarDriftEmit>) -> Result<()> {
     let prompt = crate::training::generate_system_prompt();
     let fingerprint = sha256_hex_lower(prompt.as_bytes());
-    let path = root.join("populi/data/grammar_fingerprint.txt");
+    let path = root.join("mens/data/grammar_fingerprint.txt");
     let stored = if path.is_file() {
         fs::read_to_string(&path)
             .unwrap_or_default()
@@ -799,8 +799,8 @@ fn check_workflow_scripts(root: &Path, allowlist_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_populi_gate(root: &Path, profile: &str) -> Result<()> {
-    let manifest_path = root.join("scripts/populi/gates.yaml");
+fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
+    let manifest_path = root.join("scripts/mens/gates.yaml");
     let raw = fs::read_to_string(&manifest_path)
         .with_context(|| format!("read {}", manifest_path.display()))?;
     let doc: serde_yaml::Value = serde_yaml::from_str(&raw)?;
@@ -843,10 +843,10 @@ fn run_populi_gate(root: &Path, profile: &str) -> Result<()> {
                 .status()?
         };
         if !st.success() {
-            return Err(anyhow!("populi-gate step failed: {cmd} {:?}", arg_strs));
+            return Err(anyhow!("mens-gate step failed: {cmd} {:?}", arg_strs));
         }
     }
-    println!("Populi gate OK ({profile})");
+    println!("Mens gate OK ({profile})");
     Ok(())
 }
 
@@ -986,7 +986,7 @@ fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result<()> {
                 "-p",
                 "vox-cli",
                 "--features",
-                "gpu,populi-qlora,stub-check",
+                "gpu,mens-qlora,stub-check",
             ],
         ),
     ];
@@ -1004,12 +1004,12 @@ fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result<()> {
             ("check_vox_db", &["check", "-p", "vox-db"]),
             ("check_vox_oratio", &["check", "-p", "vox-oratio"]),
             (
-                "check_vox_populi_train",
-                &["check", "-p", "vox-populi", "--features", "train"],
+                "check_vox_mens_train",
+                &["check", "-p", "vox-mens", "--features", "train"],
             ),
             (
                 "check_vox_cli_populi_oratio",
-                &["check", "-p", "vox-cli", "--features", "populi-oratio"],
+                &["check", "-p", "vox-cli", "--features", "mens-oratio"],
             ),
         ];
         for (lane, args) in crate_lanes {
@@ -1030,7 +1030,7 @@ fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result<()> {
                     "-p",
                     "vox-cli",
                     "--features",
-                    "gpu,populi-candle-cuda",
+                    "gpu,mens-candle-cuda",
                 ],
             ));
         }
@@ -1114,12 +1114,12 @@ fn run_cuda_features() -> Result<()> {
             "-p",
             "vox-cli",
             "--features",
-            "gpu,populi-candle-cuda",
+            "gpu,mens-candle-cuda",
         ])
         .status()?;
     if !st2.success() {
         return Err(anyhow!(
-            "cargo check -p vox-cli --features gpu,populi-candle-cuda failed"
+            "cargo check -p vox-cli --features gpu,mens-candle-cuda failed"
         ));
     }
     println!("CUDA feature checks OK");
@@ -1140,7 +1140,7 @@ mod build_timing_budget_tests {
         "check_vox_cli_no_default_features",
         "check_vox_db",
         "check_vox_oratio",
-        "check_vox_populi_train",
+        "check_vox_mens_train",
         "check_vox_cli_populi_oratio",
     ];
 
@@ -1176,8 +1176,8 @@ mod feature_matrix_contract_tests {
     #[test]
     fn feature_sets_include_populi_oratio_lane() {
         assert!(
-            FEATURE_SETS.contains(&"populi-oratio"),
-            "CI feature matrix must compile the populi-oratio (Oratio STT) lane"
+            FEATURE_SETS.contains(&"mens-oratio"),
+            "CI feature matrix must compile the mens-oratio (Oratio STT) lane"
         );
     }
 }

@@ -1,10 +1,10 @@
 //! Vox MCP Server — Model Context Protocol (stdio) for Vox: orchestrator, Codex/Turso tools, LLM
-//! bridge, and Populi-adjacent registry surfaces.
+//! bridge, and Mens-adjacent registry surfaces.
 //!
 //! **Docs SSOT:** tool names in [`tools::TOOL_REGISTRY`]; per-tool JSON
 //! schemas live in `tools/input_schemas.rs` (`tool_input_schema`, wired from `server`). Long-form: mdBook
 //! [`vox-mcp.md`](../../../docs/src/api/vox-mcp.md), [`ref-cli.md`](../../../docs/src/ref-cli.md),
-//! [`populi-training-ssot.md`](../../../docs/src/architecture/populi-training-ssot.md), repo
+//! [`mens-training-ssot.md`](../../../docs/src/architecture/mens-training-ssot.md), repo
 //! [`AGENTS.md`](../../../AGENTS.md) §2.2.1 (Codex / Arca / Turso).
 //!
 //! **Shared event sink:** set **`VOX_ORCHESTRATOR_EVENT_LOG`** to a path; [`ServerState`](crate::server::ServerState) appends one JSON line per [`vox_orchestrator::AgentEvent`] (see [`ServerState::spawn_orchestrator_event_log_sink`](crate::server::ServerState::spawn_orchestrator_event_log_sink)). `vox live` can tail the same file when built with the `live` feature.
@@ -34,12 +34,12 @@ pub mod gamify;
 pub mod llm_bridge;
 /// Long-term MEMORY.md, Codex knowledge graph, sessions, and user preference tools.
 pub mod memory;
-/// Best-effort mesh registry publish on MCP startup (`VOX_MESH_ENABLED`).
-pub mod mesh_startup;
+/// Best-effort mens registry publish on MCP startup (`VOX_MESH_ENABLED`).
+pub mod populi_startup;
 /// Model registry MCP tools: list models, suggest by task category, per-agent overrides.
 pub mod models;
-/// Live orchestrator inspection: queues, locks, VCS, config, costs, task submit, heartbeats.
-pub mod orchestrator_tools;
+/// Live DEI orchestrator inspection: queues, locks, VCS, config, costs, task submit, heartbeats.
+pub mod dei_tools;
 /// Shared `ToolResult` envelope and Deserialize/Serialize shapes for MCP tool arguments.
 pub mod params;
 /// Bulletin-board Q&A between agents (ask, answer, pending, broadcast).

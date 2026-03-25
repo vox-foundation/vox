@@ -1,4 +1,4 @@
-//! Capability registry for Populi chat tools.
+//! Capability registry for Mens chat tools.
 //!
 //! Ported from `vox-capability-registry` for SSOT in `vox-tools`.
 
@@ -31,7 +31,7 @@ impl CapabilityRegistry {
         Self::default()
     }
 
-    pub fn populi_chat_capabilities(&self) -> impl Iterator<Item = &CapabilityDescriptor> {
+    pub fn mens_chat_capabilities(&self) -> impl Iterator<Item = &CapabilityDescriptor> {
         self.capabilities.iter()
     }
 }
@@ -53,7 +53,7 @@ pub fn default_registry() -> CapabilityRegistry {
 }
 
 /// Get JSON parameters for a specific capability ID.
-pub fn populi_chat_parameters(_id: &str) -> Value {
+pub fn mens_chat_parameters(_id: &str) -> Value {
     json!({
         "type": "object",
         "properties": {

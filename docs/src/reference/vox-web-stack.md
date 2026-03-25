@@ -70,5 +70,5 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 - [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md) — build outputs, Express `server.ts` opt-in, containers.
 - [`docs/src/ref-cli.md`](cli.md) — CLI including `vox island` (feature `island`).
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — dev topology during SSR adoption.
-- [Mesh SSOT](mesh.md) — worker/runtime mesh registry and HTTP control plane; not emitted by `vox-codegen-*` (operator env only).
+- [Mens SSOT](mens.md) — worker/runtime mens registry and HTTP control plane; not emitted by `vox-codegen-*` (operator env only).
 - [`AGENTS.md`](../../../AGENTS.md) — architecture index.

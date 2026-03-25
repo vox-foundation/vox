@@ -376,10 +376,10 @@ r#"  <item>
   </item>
 
   <item>
-    <title>v0.6.0 — Mesh Transport; Durable Workflow Runtime MVP</title>
+    <title>v0.6.0 — Mens Transport; Durable Workflow Runtime MVP</title>
     <link>https://vox-foundation.github.io/vox/changelog.html</link>
     <guid>https://vox-foundation.github.io/vox/changelog.html#v0.6.0</guid>
-    <description>CPU-first mesh registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mesh activity hooks.</description>
+    <description>CPU-first mens registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mens activity hooks.</description>
     <pubDate>Thu, 15 Jan 2026 00:00:00 GMT</pubDate>
   </item>
 "#);

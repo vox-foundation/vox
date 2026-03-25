@@ -4,11 +4,14 @@
 //! is available in [`crate::pipeline`] for a single frontend; `build` and `check` here still use the
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
-/// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `populi-dei` or `populi-base`).
-#[cfg(any(feature = "gpu", feature = "populi-dei", feature = "populi-base"))]
+/// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
+#[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;
 /// Building and codegen orchestration endpoints.
 pub mod build;
+/// DEI decision engine commands (requires `--features dei`).
+#[cfg(feature = "dei")]
+pub mod dei;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
 /// Validation and static checking (`vox check`).
@@ -48,9 +51,9 @@ pub mod island;
 pub mod live;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
-/// Mesh proxy diagnostic commands (`vox mesh status`).
-#[cfg(feature = "mesh")]
-pub mod mesh_cli;
+/// Mens proxy diagnostic commands (`vox populi status`).
+#[cfg(feature = "mens")]
+pub mod populi_cli;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;
@@ -61,7 +64,7 @@ pub mod stub_check;
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
 /// AI-powered CodeRabbit review adapter (`vox review`).
-#[cfg(any(feature = "populi-dei", feature = "coderabbit"))]
+#[cfg(any(feature = "mens-dei", feature = "coderabbit"))]
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;
@@ -73,7 +76,11 @@ pub mod scientia;
 pub mod test;
 
 
-/// ML tooling specific commands (`vox populi`).
-#[cfg(any(feature = "populi-base", feature = "gpu"))]
-pub mod populi;
+/// ML tooling specific commands (`vox mens`).
+#[cfg(any(feature = "mens-base", feature = "gpu"))]
+pub mod mens;
+
+/// Training tools (`vox schola`).
+#[cfg(feature = "gpu")]
+pub mod schola;
 

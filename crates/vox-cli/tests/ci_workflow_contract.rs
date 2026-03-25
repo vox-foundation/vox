@@ -28,12 +28,12 @@ fn github_ci_populi_gate_is_unified() {
         "/../../.github/workflows/ci.yml"
     ));
     assert!(
-        yml.contains("ci populi-gate --profile ci_full"),
-        "ci.yml should run a single Populi gate profile (ci_full)"
+        yml.contains("ci mens-gate --profile ci_full"),
+        "ci.yml should run a single Mens gate profile (ci_full)"
     );
     assert!(
         !yml.contains("populi_release_gate.sh"),
-        "do not call populi_release_gate.sh from CI; use `vox ci populi-gate`"
+        "do not call populi_release_gate.sh from CI; use `vox ci mens-gate`"
     );
 }
 

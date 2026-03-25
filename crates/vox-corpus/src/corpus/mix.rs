@@ -2,14 +2,14 @@
 //!
 //! ## `record_format: asr_refine`
 //!
-//! Lines are JSON objects with `noisy_text` and `corrected_text` (see `populi/schemas/asr_refine_pairs.schema.json`).
+//! Lines are JSON objects with `noisy_text` and `corrected_text` (see `mens/schemas/asr_refine_pairs.schema.json`).
 //! They are rewritten to `vox_tensor::data::TrainingPair`-compatible JSON (`prompt`, `response`, optional `rating`,
-//! `category`), with a fixed instruction prefix on `prompt` so Populi LoRA sees a consistent correction task.
+//! `category`), with a fixed instruction prefix on `prompt` so Mens LoRA sees a consistent correction task.
 //!
 //! ## `record_format: tool_trace`
 //!
 //! Lines are JSON objects matching [`crate::tool_workflow_corpus::ToolTraceRecord`]: tool invocations for SFT.
-//! JSON Schema: `populi/schemas/tool_trace_record.schema.json`; example JSONL: `populi/data/tool_traces.example.jsonl`.
+//! JSON Schema: `mens/schemas/tool_trace_record.schema.json`; example JSONL: `mens/data/tool_traces.example.jsonl`.
 //! They become `prompt`/`response` rows with `category` `tool_trace` (use `--context-filter tool_trace` in training
 //! to select only these rows).
 
@@ -184,7 +184,7 @@ pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
             if src.optional {
                 tracing::trace!("[mix] skip optional missing source {}", p.display());
             } else {
-                eprintln!("  [mix] ⚠ Missing required source: {}. Run 'vox populi corpus generate' first, or add 'optional: true' to mix.yaml.", p.display());
+                eprintln!("  [mix] ⚠ Missing required source: {}. Run 'vox mens corpus generate' first, or add 'optional: true' to mix.yaml.", p.display());
             }
             continue;
         }

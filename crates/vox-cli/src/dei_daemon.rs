@@ -19,7 +19,7 @@ pub mod method {
     pub const AI_REVIEW: &str = "ai.review";
     /// `ai.generate` — streamed codegen from a prompt.
     pub const AI_GENERATE: &str = "ai.generate";
-    /// `config.get` — orchestrator inference configuration snapshot.
+    /// `config.get` — DEI orchestrator inference configuration snapshot.
     pub const CONFIG_GET: &str = "config.get";
     /// `ai.plan.new` — create a structured plan session.
     pub const AI_PLAN_NEW: &str = "ai.plan.new";

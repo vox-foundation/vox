@@ -1,4 +1,4 @@
-//! `vox populi review` — delegates to `vox-dei-d` (`ai.review`).
+//! `vox mens review` — delegates to `vox-dei-d` (`ai.review`).
 
 use anyhow::Result;
 use std::path::PathBuf;

@@ -36,8 +36,8 @@ Yes. Use `@rust.import` for Rust crates and standard NPM imports in frontend blo
 - **Actor** — a stateful unit of concurrency with a private mailbox. Processes one message at a time; no shared-state races.
 - **Workflow** — a durable state machine that coordinates long-running work. If your server crashes mid-execution, the workflow resumes exactly where it left off on restart.
 
-### What is the Mesh?
-Vox's distributed compute layer. Nodes across regions communicate and route actor messages natively — no Redis or RabbitMQ setup required. The Mesh BaaS layer handles Codex (Turso) database connections and actor routing automatically.
+### What is the Mens?
+Vox's distributed compute layer. Nodes across regions communicate and route actor messages natively — no Redis or RabbitMQ setup required. The Mens BaaS layer handles Codex (Turso) database connections and actor routing automatically.
 
 ### How is Vox different from Go or Erlang/Elixir?
 Go's goroutines and Erlang's processes are ephemeral — a crash loses their state. Vox Workflows are durably persisted. Vox also adds static typing (Rust codegen) and a unified UI layer (React/TypeScript), which neither Go nor Erlang/Elixir provide out of the box.
@@ -47,14 +47,14 @@ Go's goroutines and Erlang's processes are ephemeral — a crash loses their sta
 ### How does Vox support AI agents?
 Vox has native [Model Context Protocol (MCP)](https://modelcontextprotocol.io) support. Add `@mcp.tool` to any function and Vox automatically generates a standard MCP JSON schema — your app instantly becomes a tool or data source for external agents (Claude, OpenAI, etc.).
 
-### What is Populi, and how do I fine-tune a model?
-Populi is Vox's native ML pipeline for QLoRA (Quantized Low-Rank Adaptation) fine-tuning of LLMs on your codebase — entirely in Rust, no Python required. Run:
+### What is Mens, and how do I fine-tune a model?
+Mens is Vox's native ML pipeline for QLoRA (Quantized Low-Rank Adaptation) fine-tuning of LLMs on your codebase — entirely in Rust, no Python required. Run:
 
 ```bash
-vox populi train --backend qlora
+vox schola train --backend qlora
 ```
 
-It crawls files marked `training_eligible: true`, builds tensors, and runs the Candle training backend. See [How To: Train Populi Models](../how-to/how-to-train-populi-4080.md).
+It crawls files marked `training_eligible: true`, builds tensors, and runs the Candle training backend. See [How To: Train Mens Models](../how-to/how-to-train-mens-4080.md).
 
 ### What is the Socrates Protocol?
 An anti-hallucination layer built into the orchestrator. Before generating or approving code, Vox asks the underlying LLM to self-evaluate confidence and structure its reasoning — reducing spurious output.
@@ -62,7 +62,7 @@ An anti-hallucination layer built into the orchestrator. Before generating or ap
 ## Deployment & Community
 
 ### How do I deploy a Vox app?
-Vox compiles to a single statically-linked binary. Deploy it anywhere — AWS, Render, a Raspberry Pi, or the Vox Mesh.
+Vox compiles to a single statically-linked binary. Deploy it anywhere — AWS, Render, a Raspberry Pi, or the Vox Mens.
 
 ### Is Vox open source? How do I contribute?
 Yes, Apache-2.0 licensed. Submit PRs on GitHub, follow `STYLE.md`, and run `vox ci check` before pushing.

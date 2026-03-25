@@ -236,7 +236,7 @@ Identified public items without documentation. This report helps maintain API co
 | `vox-pm\src\workspace.rs` | `enum WorkspaceError` |
 | `vox-runtime\src\activity.rs` | `enum ActivityStatus` |
 | `vox-runtime\src\feedback.rs` | `enum FeedbackError` |
-| `vox-runtime\src\populi.rs` | `enum PopuliError` |
+| `vox-runtime\src\mens.rs` | `enum MensError` |
 | `vox-runtime\src\prompt_canonical.rs` | `enum SafetyError` |
 | `vox-runtime\src\resilient_http.rs` | `enum ResilientHttpError` |
 | `vox-toestub\src\engine.rs` | `struct SeveritySummary` |

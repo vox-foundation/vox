@@ -25,7 +25,7 @@ The command-line interface for the Vox programming language. Entry point for all
 | `vox audit` | Check dependencies for security advisories |
 | `vox clean` | Remove build artifacts |
 | `vox stub-check` | Run TOESTUB anti-pattern detection |
-| `vox review coderabbit …` | CodeRabbit batch PRs (needs `--features coderabbit`; see `docs/src/ref-cli.md`; DeI review is `vox populi review`) |
+| `vox review coderabbit …` | CodeRabbit batch PRs (needs `--features coderabbit`; see `docs/src/ref-cli.md`; DeI review is `vox mens review`) |
 | `vox share <action>` | Publish/browse shared artifacts |
 | `vox snippet <action>` | Save/search code snippets |
 | `vox agent <action>` | Register/manage AI agents |

@@ -192,7 +192,7 @@ impl DbConfig {
         }
     }
 
-    /// Resolve configuration specifically for a mesh node:
+    /// Resolve configuration specifically for a mens node:
     /// - If `VOX_DB_URL`, `VOX_DB_TOKEN`, AND `VOX_DB_PATH` are set, use [`Self::EmbeddedReplica`].
     /// - If only `VOX_DB_URL` + `VOX_DB_TOKEN` are set, use [`Self::Remote`].
     /// - Otherwise, fall back to [`Self::resolve_standalone`] (local file).
@@ -211,7 +211,7 @@ impl DbConfig {
                 });
                 #[cfg(not(feature = "replication"))]
                 {
-                    tracing::warn!("EmbeddedReplica requested for mesh but 'replication' feature is disabled; falling back to Remote");
+                    tracing::warn!("EmbeddedReplica requested for mens but 'replication' feature is disabled; falling back to Remote");
                     Ok(Self::Remote { url: u, token: t })
                 }
             }

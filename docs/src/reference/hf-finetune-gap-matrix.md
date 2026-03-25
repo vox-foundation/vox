@@ -13,8 +13,8 @@ Maps **remaining** risks and **resolved** items to **modules** and **severity**.
 
 | Gap / risk | Location | Severity |
 |------------|----------|----------|
-| Burn: NF4 frozen base not wired into Populi train path | Primitives: `vox-tensor` `lora.rs` (QLoRA roadmap / f32 LoRA today); **full graph + merge:** `vox-populi` `tensor/lora.rs`; workspace Burn **0.19** has quantization building blocks — **not** integrated as frozen NF4 bases for `LoraVoxTransformer` | **High** — **integration backlog** (not physics-limited); single-kernel QLoRA on Burn remains unscoped until designed against Burn quant APIs + optimizer/device story |
-| Burn: `LoraAttention::merge()` when **`use_rope == true`** | `crates/vox-populi/src/tensor/lora.rs` `merge()` — asserts / rustdoc: RoPE cannot fold into static merged linears | **Medium** (serve/merge for RoPE stacks only) |
+| Burn: NF4 frozen base not wired into Mens train path | Primitives: `vox-tensor` `lora.rs` (QLoRA roadmap / f32 LoRA today); **full graph + merge:** `vox-mens` `tensor/lora.rs`; workspace Burn **0.19** has quantization building blocks — **not** integrated as frozen NF4 bases for `LoraVoxTransformer` | **High** — **integration backlog** (not physics-limited); single-kernel QLoRA on Burn remains unscoped until designed against Burn quant APIs + optimizer/device story |
+| Burn: `LoraAttention::merge()` when **`use_rope == true`** | `crates/vox-mens/src/tensor/lora.rs` `merge()` — asserts / rustdoc: RoPE cannot fold into static merged linears | **Medium** (serve/merge for RoPE stacks only) |
 | Candle: proxy stack (`o_proj` / `c_proj` + LM head), not full causal blocks | `candle_qlora_train.rs`, ADR 006/007 | **High** (cross-kernel parity) |
 | qlora-rs API: sequential `QuantizedLinear` only | ADR 007 | **Medium** (full-graph Candle training) |
 | Cross-stack logits parity | No end-to-end NF4 vs Burn **full-graph** LM assertion | **Medium** (primitives: matmul, **biased linear** (`candle_burn_f32_linear_lm_logits_parity`), **Tier B** NF4 dequant reference linear (`candle_burn_nf4_dequant_lm_reference_parity`), CE on shared f32 logits) |
@@ -30,6 +30,6 @@ Maps **remaining** risks and **resolved** items to **modules** and **severity**.
 
 ## Related
 
-- [Populi training SSOT](populi-training.md) — merge table and regression commands.
-- [Populi LLM PR checklist](../architecture/populi-llm-pr-checklist.md) — duplication, flags, layouts, merge, parity tiers.
-- `crates/vox-populi/src/tensor/finetune_contract.rs` — contract gates.
+- [Mens training SSOT](mens-training.md) — merge table and regression commands.
+- [Mens LLM PR checklist](../architecture/mens-llm-pr-checklist.md) — duplication, flags, layouts, merge, parity tiers.
+- `crates/vox-mens/src/tensor/finetune_contract.rs` — contract gates.

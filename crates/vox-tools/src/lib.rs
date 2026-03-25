@@ -1,11 +1,11 @@
-//! Direct (in-process) tool execution for Populi chat and similar clients.
+//! Direct (in-process) tool execution for Mens chat and similar clients.
 //!
 //! Tool **names** match MCP (`vox-mcp`) so registry-derived allowlists stay aligned.
 //!
-//! OpenAI-compatible tool lists and execution for models live in [`populi_chat`].
+//! OpenAI-compatible tool lists and execution for models live in [`mens_chat`].
 
-/// OpenAI-style tool definitions and execution for Populi chat (registry ∩ [`DirectToolExecutor`]).
-pub mod populi_chat;
+/// OpenAI-style tool definitions and execution for Mens chat (registry ∩ [`DirectToolExecutor`]).
+pub mod mens_chat;
 
 use std::path::{Path, PathBuf};
 
@@ -81,7 +81,7 @@ impl DirectToolExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::populi_chat::{ToolCall, chat_tool_definitions, execute_tool_calls};
+    use super::mens_chat::{ToolCall, chat_tool_definitions, execute_tool_calls};
     use super::*;
     use serde_json::json;
 

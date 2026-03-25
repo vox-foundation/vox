@@ -116,17 +116,17 @@ Example output:
 # Build from source
 docker build -t vox .
 
-# Optional: image with `vox mesh` (HTTP control plane)
-docker build -t vox:mesh --build-arg VOX_CLI_FEATURES=mesh .
+# Optional: image with `vox populi` (HTTP control plane)
+docker build -t vox:mens --build-arg VOX_CLI_FEATURES=mens .
 
 # Run MCP server
 docker run -e GEMINI_API_KEY=... -p 3000:3000 vox
 
-# MCP + in-container mesh sidecar (background `vox mesh serve` on 9847)
-docker run -e VOX_MESH_MESH_SIDECAR=1 -e GEMINI_API_KEY=... -p 3000:3000 -p 9847:9847 vox:mesh
+# MCP + in-container mens sidecar (background `vox populi serve` on 9847)
+docker run -e VOX_MESH_MESH_SIDECAR=1 -e GEMINI_API_KEY=... -p 3000:3000 -p 9847:9847 vox:mens
 
-# Example multi-service mesh compose (see `examples/mesh-compose.yml`)
-# docker compose -f examples/mesh-compose.yml up
+# Example multi-service mens compose (see `examples/mens-compose.yml`)
+# docker compose -f examples/mens-compose.yml up
 
 # Full stack with docker compose
 cp .env.example .env  # fill in GEMINI_API_KEY

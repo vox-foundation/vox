@@ -421,8 +421,8 @@ impl AchievementTracker {
             },
             Achievement {
                 id: AchievementId("first_corpus_contribution".into()),
-                name: "Populi Patron".into(),
-                description: "Contribute your first training data to the Populi corpus".into(),
+                name: "Mens Patron".into(),
+                description: "Contribute your first training data to the Mens corpus".into(),
                 icon: "🧠".into(),
                 category: AchievementCategory::AiCorpus,
                 xp_reward: 150,
@@ -431,7 +431,7 @@ impl AchievementTracker {
             Achievement {
                 id: AchievementId("ten_corpus_contributions".into()),
                 name: "Training Senator".into(),
-                description: "Contribute 10 training examples to the Populi corpus".into(),
+                description: "Contribute 10 training examples to the Mens corpus".into(),
                 icon: "🧬".into(),
                 category: AchievementCategory::AiCorpus,
                 xp_reward: 600,
@@ -449,7 +449,7 @@ impl AchievementTracker {
             Achievement {
                 id: AchievementId("inference_regular".into()),
                 name: "Vox Vulgaris".into(),
-                description: "Run local Populi inference 50 times".into(),
+                description: "Run local Mens inference 50 times".into(),
                 icon: "💬".into(),
                 category: AchievementCategory::AiCorpus,
                 xp_reward: 200,
@@ -932,7 +932,7 @@ impl AchievementTracker {
             },
             Achievement {
                 id: AchievementId("first_corpus_rating".into()),
-                name: "Iudex Populi".into(),
+                name: "Iudex Mens".into(),
                 description: "Rate your first training pair in the corpus".into(),
                 icon: "⚖️".into(),
                 category: AchievementCategory::AiCorpus,
@@ -996,8 +996,8 @@ impl AchievementTracker {
             },
             Achievement {
                 id: AchievementId("first_populi_serve".into()),
-                name: "Orator Populi".into(),
-                description: "Serve a trained model locally via `vox populi serve`".into(),
+                name: "Orator Mens".into(),
+                description: "Serve a trained model locally via `vox mens serve`".into(),
                 icon: "📡".into(),
                 category: AchievementCategory::AiCorpus,
                 xp_reward: 500,

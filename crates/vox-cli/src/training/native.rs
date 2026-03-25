@@ -1,5 +1,5 @@
 //! In-process Burn dogfood trainer (used when `vox ai train --native` is enabled).
-#![allow(dead_code)] // compiled with `gpu`; entry is `commands::ai::train` behind `populi-dei`
+#![allow(dead_code)] // compiled with `gpu`; entry is `commands::ai::train` behind `mens-dei`
 
 use anyhow::Result;
 use owo_colors::OwoColorize;

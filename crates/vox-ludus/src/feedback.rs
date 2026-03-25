@@ -1,7 +1,7 @@
 //! AI response feedback tracking and XP calculation.
 //!
 //! Records thumbs-up/thumbs-down signals on AI responses.
-//! These signals flow into the Populi training corpus and
+//! These signals flow into the Mens training corpus and
 //! award XP scaled by the richness of the feedback.
 
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,7 @@ pub struct AiFeedback {
     pub tokens_generated: u64,
     /// Optional `.vox` example code attached to this feedback.
     pub example_code: Option<String>,
-    /// Whether this feedback was forwarded to the Populi training corpus.
+    /// Whether this feedback was forwarded to the Mens training corpus.
     pub contributed_to_corpus: bool,
     /// Unix timestamp of submission.
     pub created_at: i64,

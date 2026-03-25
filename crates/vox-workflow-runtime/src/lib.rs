@@ -1,10 +1,10 @@
 //! Minimal **interpreted** workflow runner: walks a [`vox_compiler::hir::HirModule`] workflow body for
-//! activity calls and executes **no-op** steps with optional mesh hooks.
+//! activity calls and executes **no-op** steps with optional mens hooks.
 //!
 //! - Activities whose name starts with `mesh_` are treated as [`MeshActivity`] steps when the
-//!   **`mesh`** feature is enabled: they register with [`vox_mesh::publish_local_registry_best_effort`]
-//!   and call the mesh HTTP control plane derived from **`VOX_MESH_CONTROL_ADDR`** / `Vox.toml`
-//!   `[mesh]` (never a user-supplied URL in workflow source). Use `with { mesh: "noop" | "join" |
+//!   **`mens`** feature is enabled: they register with [`vox_populi::publish_local_registry_best_effort`]
+//!   and call the mens HTTP control plane derived from **`VOX_MESH_CONTROL_ADDR`** / `Vox.toml`
+//!   `[mens]` (never a user-supplied URL in workflow source). Use `with { mens: "noop" | "join" |
 //!   "snapshot" | "heartbeat" }` to select the operation; see `mesh_noop`, `mesh_join`,
 //!   `mesh_snapshot` shorthands.
 //! - Other activities are recorded as local no-ops (journal only).
@@ -14,7 +14,7 @@
 //! (see `docs/src/architecture/orchestration-unified-ssot.md`). Journal rows include
 //! **`ActivityStarted` / `ActivityCompleted`** with **`activity_id`** for idempotency hints.
 //!
-//! This crate is the MVP engine behind `vox populi workflow run` when `vox-cli` is built with
+//! This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is built with
 //! **`workflow-runtime`**.
 
 #![deny(missing_docs)]
@@ -32,11 +32,11 @@ pub use db_tracker::VoxDbTracker;
 pub enum MeshHttpOp {
     /// `POST` heartbeat with the current node record.
     Heartbeat,
-    /// Log only; still runs local registry publish when mesh is enabled.
+    /// Log only; still runs local registry publish when mens is enabled.
     Noop,
-    /// `POST /v1/mesh/join` for this process record.
+    /// `POST /v1/mens/join` for this process record.
     Join,
-    /// `GET /v1/mesh/nodes` (counts in journal only; no arbitrary URLs).
+    /// `GET /v1/mens/nodes` (counts in journal only; no arbitrary URLs).
     Snapshot,
 }
 
@@ -46,23 +46,23 @@ pub struct PlannedActivity {
     /// Activity name as referenced in the workflow body.
     pub name: String,
     /// When true, run [`execute_mesh_step`].
-    pub mesh: bool,
+    pub mens: bool,
     /// Idempotency / journal key from `with { activity_id: "…" }` when set.
     pub activity_id: Option<String>,
-    /// Wall-clock timeout for mesh HTTP sub-steps from `with { timeout: … }` (milliseconds).
+    /// Wall-clock timeout for mens HTTP sub-steps from `with { timeout: … }` (milliseconds).
     pub timeout_ms: Option<u64>,
-    /// Mesh control-plane operation when [`Self::mesh`] is true.
+    /// Mens control-plane operation when [`Self::mens`] is true.
     pub mesh_op: MeshHttpOp,
 }
 
-/// Mesh-tagged activity (name convention: `mesh_*`, plus [`MeshHttpOp`]).
+/// Mens-tagged activity (name convention: `mesh_*`, plus [`MeshHttpOp`]).
 #[derive(Debug, Clone)]
 pub struct MeshActivity {
     /// Activity name from source.
     pub name: String,
-    /// Resolved mesh HTTP operation.
+    /// Resolved mens HTTP operation.
     pub mesh_op: MeshHttpOp,
-    /// Timeout for mesh HTTP client (defaults inside [`execute_mesh_step`] when unset).
+    /// Timeout for mens HTTP client (defaults inside [`execute_mesh_step`] when unset).
     pub timeout_ms: Option<u64>,
     /// Stable id for journal / idempotency (`with { activity_id }` or generated).
     pub activity_id: String,
@@ -111,7 +111,7 @@ impl ActivityWithOpts {
                 "timeout" => {
                     n.timeout_ms = Some(parse_timeout_ms(v)?);
                 }
-                "mesh" => {
+                "mens" => {
                     if let HirExpr::StringLit(s, _) = v {
                         n.mesh_key = Some(s.clone());
                     }
@@ -152,14 +152,14 @@ fn parse_duration_ms_str(s: &str) -> anyhow::Result<u64> {
     anyhow::bail!("expected duration like 5000, \"30s\", \"500ms\", \"2m\"");
 }
 
-fn parse_mesh_control_op(s: &str) -> anyhow::Result<MeshHttpOp> {
+fn parse_populi_control_op(s: &str) -> anyhow::Result<MeshHttpOp> {
     match s.trim() {
         "noop" => Ok(MeshHttpOp::Noop),
         "join" => Ok(MeshHttpOp::Join),
         "snapshot" => Ok(MeshHttpOp::Snapshot),
         "heartbeat" => Ok(MeshHttpOp::Heartbeat),
         other => anyhow::bail!(
-            "unknown workflow mesh control {:?}; expected noop|join|snapshot|heartbeat",
+            "unknown workflow mens control {:?}; expected noop|join|snapshot|heartbeat",
             other
         ),
     }
@@ -167,7 +167,7 @@ fn parse_mesh_control_op(s: &str) -> anyhow::Result<MeshHttpOp> {
 
 fn resolve_mesh_http_op(name: &str, mesh_key: Option<&str>) -> anyhow::Result<MeshHttpOp> {
     if let Some(k) = mesh_key {
-        return parse_mesh_control_op(k);
+        return parse_populi_control_op(k);
     }
     match name {
         "mesh_noop" => Ok(MeshHttpOp::Noop),
@@ -212,16 +212,16 @@ fn collect_from_expr(
         }
         HirExpr::Call(callee, _, _, _) => {
             if let HirExpr::Ident(name, _) = &**callee {
-                let mesh = name.starts_with("mesh_");
-                if ctx.mesh_key.is_some() && !mesh {
+                let mens = name.starts_with("mesh_");
+                if ctx.mesh_key.is_some() && !mens {
                     anyhow::bail!(
-                        "workflow `{workflow_name}`: `mesh` in `with {{ … }}` only applies to mesh_* activities (got `{name}`)"
+                        "workflow `{workflow_name}`: `mens` in `with {{ … }}` only applies to mesh_* activities (got `{name}`)"
                     );
                 }
                 let mesh_op = resolve_mesh_http_op(name, ctx.mesh_key.as_deref())?;
                 out.push(PlannedActivity {
                     name: name.clone(),
-                    mesh,
+                    mens,
                     activity_id: ctx.activity_id.clone(),
                     timeout_ms: ctx.timeout_ms,
                     mesh_op,
@@ -389,8 +389,8 @@ pub async fn interpret_workflow_durable(
             "activity_id": activity_id,
         }));
         
-        let entry = if step.mesh {
-            #[cfg(feature = "mesh")]
+        let entry = if step.mens {
+            #[cfg(feature = "mens")]
             {
                 let m = MeshActivity {
                     name: step.name.clone(),
@@ -400,13 +400,13 @@ pub async fn interpret_workflow_durable(
                 };
                 execute_mesh_step(&m).await?
             }
-            #[cfg(not(feature = "mesh"))]
+            #[cfg(not(feature = "mens"))]
             {
                 json!({
                     "event": "MeshActivitySkipped",
                     "activity": step.name,
                     "activity_id": activity_id,
-                    "reason": "vox-workflow-runtime built without mesh feature",
+                    "reason": "vox-workflow-runtime built without mens feature",
                 })
             }
         } else {
@@ -436,15 +436,15 @@ pub async fn interpret_workflow_durable(
     Ok(journal)
 }
 
-/// Best-effort mesh registration + optional control-plane HTTP (env-derived base URL only).
-#[cfg(feature = "mesh")]
+/// Best-effort mens registration + optional control-plane HTTP (env-derived base URL only).
+#[cfg(feature = "mens")]
 pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value> {
-    let _ = vox_mesh::publish_local_registry_best_effort();
-    let vox = vox_mesh::resolve_vox_toml_best_effort();
-    let env = vox_mesh::mesh_env_resolved(vox.as_deref());
+    let _ = vox_populi::publish_local_registry_best_effort();
+    let vox = vox_populi::resolve_vox_toml_best_effort();
+    let env = vox_populi::mesh_env_resolved(vox.as_deref());
     let timeout = std::time::Duration::from_millis(activity.timeout_ms.unwrap_or(30_000).max(250));
     if let Some(base) = env.control_addr.clone() {
-        let client = vox_mesh::http_client::MeshHttpClient::new_with_timeout(
+        let client = vox_populi::http_client::MeshHttpClient::new_with_timeout(
             normalize_control_base(&base),
             timeout,
         )
@@ -453,7 +453,7 @@ pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value>
             .node_id
             .clone()
             .unwrap_or_else(|| format!("wf-{}", activity.name.replace(' ', "_")));
-        let node = vox_mesh::node_record_for_current_process(id, Some(base.clone()));
+        let node = vox_populi::node_record_for_current_process(id, Some(base.clone()));
         let mesh_op = mesh_op_json(activity.mesh_op);
         match activity.mesh_op {
             MeshHttpOp::Noop => Ok(json!({
@@ -530,7 +530,7 @@ pub async fn execute_mesh_step(activity: &MeshActivity) -> anyhow::Result<Value>
     }
 }
 
-#[cfg(feature = "mesh")]
+#[cfg(feature = "mens")]
 fn mesh_op_json(op: MeshHttpOp) -> &'static str {
     match op {
         MeshHttpOp::Heartbeat => "heartbeat",
@@ -540,7 +540,7 @@ fn mesh_op_json(op: MeshHttpOp) -> &'static str {
     }
 }
 
-#[cfg(feature = "mesh")]
+#[cfg(feature = "mens")]
 fn normalize_control_base(addr: &str) -> String {
     let a = addr.trim();
     if a.starts_with("http://") || a.starts_with("https://") {
@@ -602,9 +602,9 @@ mod tests {
         let hir = minimal_wf(body);
         let p = plan_workflow_activities(&hir, "demo").expect("plan");
         assert_eq!(p.len(), 2);
-        assert!(!p[0].mesh);
+        assert!(!p[0].mens);
         assert_eq!(p[0].mesh_op, MeshHttpOp::Heartbeat);
-        assert!(p[1].mesh);
+        assert!(p[1].mens);
         assert_eq!(p[1].mesh_op, MeshHttpOp::Heartbeat);
     }
 
@@ -620,7 +620,7 @@ mod tests {
                 )),
                 Box::new(HirExpr::ObjectLit(
                     vec![(
-                        "mesh".to_string(),
+                        "mens".to_string(),
                         HirExpr::StringLit("snapshot".to_string(), span()),
                     )],
                     span(),

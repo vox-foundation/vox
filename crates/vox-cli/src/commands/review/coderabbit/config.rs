@@ -25,7 +25,7 @@ struct CoderabbitTomlSection {
     tier: Option<String>,
     delay_between_prs_secs: Option<u64>,
     max_files_per_pr: Option<u32>,
-    /// Additional path prefixes to exclude (e.g. `"populi/data/"`).
+    /// Additional path prefixes to exclude (e.g. `"mens/data/"`).
     exclude_prefixes: Option<Vec<String>>,
 }
 
@@ -85,14 +85,14 @@ mod tests {
             r#"
 [review.coderabbit]
 tier = "pro"
-exclude_prefixes = ["populi/data/", "tmp/"]
+exclude_prefixes = ["mens/data/", "tmp/"]
 "#,
         )
         .expect("write Vox.toml");
         let c = load_from_dir(dir.path());
         assert_eq!(c.tier.as_deref(), Some("pro"));
         assert_eq!(c.exclude_prefixes.len(), 2);
-        assert!(c.exclude_prefixes[0].contains("populi"));
+        assert!(c.exclude_prefixes[0].contains("mens"));
     }
 
     #[test]

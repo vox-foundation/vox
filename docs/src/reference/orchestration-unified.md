@@ -25,9 +25,9 @@ On **`Orchestrator::spawn_agent`**, each new [`AgentQueue`](../../../crates/vox-
 4. **GPU / NPU flags:** operator config wins if already `true`; otherwise probe may set `gpu_cuda` when **`VOX_MESH_ADVERTISE_GPU=1|true`** (legacy workstation advertisement), or `gpu_vulkan` / `gpu_webgpu` / `npu` from the matching **`VOX_MESH_ADVERTISE_*`** vars (not driver probes). Optional **`VOX_MESH_DEVICE_CLASS`** fills `device_class`. See [mobile / edge AI SSOT](mobile-edge-ai.md).
 5. **`min_vram_mb` / `min_cpu_cores`:** filled from probe only when unset in config.
 
-Routing reads **`capability_requirements`** on tasks and applies GPU / VRAM / **`min_cpu_cores`** / **`prefer_gpu_compute`** soft penalties in `crates/vox-orchestrator/src/services/routing.rs` (mesh / Populi-style training hints).
+Routing reads **`capability_requirements`** on tasks and applies GPU / VRAM / **`min_cpu_cores`** / **`prefer_gpu_compute`** soft penalties in `crates/vox-orchestrator/src/services/routing.rs` (mens / Mens-style training hints).
 
-See also [mesh SSOT](mesh.md) for `VOX_MESH_*` and local registry.
+See also [mens SSOT](mens.md) for `VOX_MESH_*` and local registry.
 
 ## Environment and config
 
@@ -64,22 +64,22 @@ Boolean fields use Rust `bool` parsing (`true` / `false` only). Invalid values l
 | `VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD` | `urgent_rebalance_threshold` |
 | `VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED` | `orchestration_migration.orchestration_v2_enabled` |
 | `VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK` | `orchestration_migration.legacy_orchestration_fallback` |
-| `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | `mesh_control_url` — HTTP base for **`GET /v1/mesh/nodes`** (read-only); MCP `vox_orchestrator_status` includes **`mesh_snapshot`** JSON when set. Uses **`VOX_MESH_TOKEN`** on the client when present. Does not change task routing. |
+| `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | `populi_control_url` — HTTP base for **`GET /v1/mens/nodes`** (read-only); MCP `vox_orchestrator_status` includes **`mesh_snapshot`** JSON when set. Uses **`VOX_MESH_TOKEN`** on the client when present. Does not change task routing. |
 
 ### Other CLI / data plane
 
 | Variable | Purpose |
 |----------|---------|
 | `VOX_BENCHMARK_TELEMETRY` | When `1` / `true`, CLI benchmark entry points append `benchmark_event` rows via `VoxDb::record_benchmark_event`. |
-| `VOX_WORKFLOW_JOURNAL_CODEX` | When `1` / `true`, after `vox workflow run` / `vox populi workflow run` ( **`workflow-runtime`** ), append interpreted journal rows via `VoxDb::record_workflow_journal_entry` (session `workflow:<repository_id>`, metric `workflow_journal_entry`). Rows include **`ActivityStarted` / `ActivityCompleted`** and per-step payloads (e.g. **`MeshActivity`**) with **`activity_id`** when provided in `with { activity_id: … }`. |
-| `VOX_MESH_MAX_STALE_MS` | Client-side filter for mesh node lists in MCP snapshots (see [mesh SSOT](mesh.md)). |
-| `VOX_MESH_CODEX_TELEMETRY` | When `1` / `true`, append `mesh_control_event` rows via `VoxDb::record_mesh_control_event` (session `mesh:<repository_id>`): after **`vox run`** local registry publish ( **`mesh`** CLI feature), after **`vox-mcp`** startup publish when mesh is enabled, and after MCP **`vox_orchestrator_status`** mesh HTTP snapshot when Codex is connected. Implementation: [`vox_db::mesh_registry_telemetry`](../../../crates/vox-db/src/mesh_registry_telemetry.rs). **Never** stores `VOX_MESH_TOKEN`. |
+| `VOX_WORKFLOW_JOURNAL_CODEX` | When `1` / `true`, after `vox workflow run` / `vox mens workflow run` ( **`workflow-runtime`** ), append interpreted journal rows via `VoxDb::record_workflow_journal_entry` (session `workflow:<repository_id>`, metric `workflow_journal_entry`). Rows include **`ActivityStarted` / `ActivityCompleted`** and per-step payloads (e.g. **`MeshActivity`**) with **`activity_id`** when provided in `with { activity_id: … }`. |
+| `VOX_MESH_MAX_STALE_MS` | Client-side filter for mens node lists in MCP snapshots (see [mens SSOT](mens.md)). |
+| `VOX_MESH_CODEX_TELEMETRY` | When `1` / `true`, append `populi_control_event` rows via `VoxDb::record_populi_control_event` (session `mens:<repository_id>`): after **`vox run`** local registry publish ( **`mens`** CLI feature), after **`vox-mcp`** startup publish when mens is enabled, and after MCP **`vox_orchestrator_status`** mens HTTP snapshot when Codex is connected. Implementation: [`vox_db::populi_registry_telemetry`](../../../crates/vox-db/src/populi_registry_telemetry.rs). **Never** stores `VOX_MESH_TOKEN`. |
 | `VOX_MCP_LLM_COST_EVENTS` | Optional override for MCP LLM [`CostIncurred`](../../../crates/vox-orchestrator/src/events.rs) bus events vs Codex-only accounting; see [`vox-mcp.md`](../api/vox-mcp.md#llm-model-routing-modelstoml). |
 | `VOX_REPOSITORY_ROOT` | Optional directory for `repository_id` discovery in benchmark telemetry (and other CLI paths that adopt the same pattern); align with MCP’s discovered repo root when subprocess CWD differs. |
 
 **TOML:** under `[orchestrator]`, set `orchestration_migration = { orchestration_v2_enabled = true, … }` (field names match `OrchestrationMigrationFlags` in `crates/vox-orchestrator/src/contract.rs`). When v2 is enabled, MCP `vox_submit_task` success JSON may include **`orchestration_contract`: `"v2"`** as a client hint.
 
-Optional **`[mesh]`** in `Vox.toml` merges mesh scope/URL/labels for CLI and MCP (see [mesh SSOT](mesh.md)); **env wins** per field when set.
+Optional **`[mens]`** in `Vox.toml` merges mens scope/URL/labels for CLI and MCP (see [mens SSOT](mens.md)); **env wins** per field when set.
 
 Effective Socrates thresholds still merge from `vox-socrates-policy` with optional overrides in `OrchestratorConfig::socrates_policy` — no literal drift outside the policy crate + merge logic.
 
@@ -96,4 +96,4 @@ Effective Socrates thresholds still merge from `vox-socrates-policy` with option
 
 - [`external-repositories.md`](external-repositories.md) — `repository_id`, sessions, cache layout.
 - [`socrates-protocol.md`](socrates-protocol.md) — Socrates telemetry and policy.
-- [`populi-training.md`](populi-training.md) — training backends and env.
+- [`mens-training.md`](mens-training.md) — training backends and env.

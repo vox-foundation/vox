@@ -10,7 +10,7 @@ training_eligible: true
 
 ## Status
 
-**Accepted** — 2026-03-21. In-tree native Candle QLoRA (`vox populi train --backend qlora`) may expand from the current **single `QuantizedLinear` (LM head)** path to **multiple quantized layers** without forking **qlora-rs** 1.0.5, subject to graph construction work in `vox-populi`.
+**Accepted** — 2026-03-21. In-tree native Candle QLoRA (`vox schola train --backend qlora`) may expand from the current **single `QuantizedLinear` (LM head)** path to **multiple quantized layers** without forking **qlora-rs** 1.0.5, subject to graph construction work in `vox-mens`.
 
 ## Context
 
@@ -53,10 +53,10 @@ Source audit (`qlora-rs` 1.0.5 `src/training.rs`):
 ## Consequences
 
 - **Milestones 3–4** (multi-layer forward + training loop) should prefer **one `QLoraTrainer`**, **N** `QuantizedLinear` layers from **`var_builder()`**, **`init_optimizer(&layers)`**, **`training_step_lm(&layers, …)`**.
-- **Telemetry / manifest** must stop hard-coding `n_layers: 1` / `n_heads: 1` once real layout is threaded from HF `config.json` (see `HfTransformerLayout` in `vox-populi::tensor::hf_load` and SSOT).
+- **Telemetry / manifest** must stop hard-coding `n_layers: 1` / `n_heads: 1` once real layout is threaded from HF `config.json` (see `HfTransformerLayout` in `vox-mens::tensor::hf_load` and SSOT).
 - If qlora-rs is upgraded, **re-verify** `training.rs` forward loop and `init_optimizer` behavior before relying on this ADR.
 
 ## References
 
 - Crate: `qlora-rs` 1.0.5 (`training.rs`, `qlora.rs`).
-- SSOT: [`populi-training.md`](../reference/populi-training.md) — § Full-graph QLoRA design.
+- SSOT: [`mens-training.md`](../reference/mens-training.md) — § Full-graph QLoRA design.

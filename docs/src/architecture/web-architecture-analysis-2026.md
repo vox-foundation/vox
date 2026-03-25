@@ -139,10 +139,10 @@ Leptos (0.6) and Dioxus reaching production readiness for Rust→WASM UI, but:
 
 ---
 
-## 3. The Populi Training Purity Problem
+## 3. The Mens Training Purity Problem
 
 > [!WARNING]
-> Vox's AI model (Populi) must be trained on **pure Vox syntax** — not polluted by TypeScript, React hooks, JSX, or TanStack API patterns. The current architecture embeds React idioms directly in `.vox` files, making corpus separation difficult.
+> Vox's AI model (Mens) must be trained on **pure Vox syntax** — not polluted by TypeScript, React hooks, JSX, or TanStack API patterns. The current architecture embeds React idioms directly in `.vox` files, making corpus separation difficult.
 
 ### 3.1 Current Training Contamination Vectors
 
@@ -160,21 +160,21 @@ Research on AI-native language design (March 2026) establishes:
 2. **Corpus homogeneity** (training on a single, clean language) produces higher parse success rates than mixed-language training
 3. LLMs can learn novel DSLs from in-context prompts with **zero prior training exposure**, achieving high accuracy when the grammar is explicit and deterministic
 
-**Design implication**: Populi should be trained **exclusively** on `.vox` files. All React/TypeScript/TanStack code should be **generated artifacts** that Populi never sees. The compiler is the translation layer, not the developer's `.vox` syntax.
+**Design implication**: Mens should be trained **exclusively** on `.vox` files. All React/TypeScript/TanStack code should be **generated artifacts** that Mens never sees. The compiler is the translation layer, not the developer's `.vox` syntax.
 
 ### 3.3 Current vs. Desired Training Pipeline
 
 ```
 CURRENT (contaminated):
   .vox files (contain use_state, <div>, React hooks)
-    → Populi trains on this mixed syntax
+    → Mens trains on this mixed syntax
     → Model learns React idioms as "Vox"
     → Generated code is unpredictable
 
 DESIRED (clean):
   .vox files (pure Vox: component, state, view, route declarations)
-    → Populi trains on clean Vox only
-    → Compiler translates Vox → React/TS artifacts (never seen by Populi)
+    → Mens trains on clean Vox only
+    → Compiler translates Vox → React/TS artifacts (never seen by Mens)
     → Corpus filter: category == "vox_source" (exclude "generated_ts")
 ```
 
@@ -188,7 +188,7 @@ Implementation leverage: `vox_corpus::training::preflight` already supports `con
 
 **Effort**: Zero new work
 **K-complexity**: High — `.vox` authors must know React hooks, JSX, and TanStack patterns
-**Populi training**: Contaminated corpus unless filtered (lossy)
+**Mens training**: Contaminated corpus unless filtered (lossy)
 **Ecosystem access**: 100% React ecosystem via islands
 **Modern reactivity**: None (VDOM only)
 
@@ -227,7 +227,7 @@ The compiler translates `state` to fine-grained reactive signals, `derived` to c
 
 **Effort**: Major — redesign AST/HIR for `state`/`derived`/`effect` + new codegen paths
 **K-complexity**: Very low — Vox-native syntax, no framework knowledge required
-**Populi training**: Perfectly clean corpus
+**Mens training**: Perfectly clean corpus
 **Ecosystem interop**: React ecosystem via `@island` boundary (unchanged)
 **Modern reactivity**: 90%+ (compiler can generate optimal updates)
 
@@ -273,7 +273,7 @@ The `@island` boundary remains for **escape hatches** into the full React/shadcn
 
 **Effort**: Medium — abstractions over current codegen + new Vox syntax
 **K-complexity**: Very low for Vox authors, framework knowledge only needed in islands
-**Populi training**: Clean — `.vox` corpus contains zero framework syntax
+**Mens training**: Clean — `.vox` corpus contains zero framework syntax
 **Ecosystem interop**: Full via `@island` + whatever codegen backend targets
 **Modern reactivity**: Depends on backend; React gets hooks, vanilla gets true signals
 
@@ -321,9 +321,9 @@ graph TD
     
     Islands["@island (user TS/React)<br/>Escape hatch"] --> ReactApp
     
-    Populi["Populi Training"] --> VoxSource
-    Populi -.->|"NEVER sees"| ReactApp
-    Populi -.->|"NEVER sees"| Islands
+    Mens["Mens Training"] --> VoxSource
+    Mens -.->|"NEVER sees"| ReactApp
+    Mens -.->|"NEVER sees"| Islands
 ```
 
 ### 5.2 New HIR Nodes for Reactivity
@@ -348,13 +348,13 @@ For complex React ecosystem needs (shadcn, v0.dev, third-party libraries), the `
 
 Islands are:
 - **Authored in TypeScript/React** (in `islands/` directory)
-- **Never seen by Populi** (excluded from training corpus by `context_filter`)
+- **Never seen by Mens** (excluded from training corpus by `context_filter`)
 - **Mounted by the codegen scaffold** (Vite bundle, hydrated client-side)
 - **Type-safe at the boundary** (generated `vox-islands-meta.ts` + props interfaces)
 
 This preserves 100% access to React ecosystem (shadcn, Radix, v0, TanStack Query, TanStack Table) without contaminating Vox syntax.
 
-### 5.4 Populi Training Architecture
+### 5.4 Mens Training Architecture
 
 ```
 Corpus Pipeline:
@@ -362,18 +362,18 @@ Corpus Pipeline:
   generated .tsx/.ts → category: "codegen_output" → EXCLUDED from training
   islands/*.tsx → category: "user_typescript" → EXCLUDED from training
   
-Training Config (populi/config/training_contract.yaml):
+Training Config (mens/config/training_contract.yaml):
   context_filter: "vox_source"   # Only pure Vox in training data
   
 Result:
-  Populi learns ONLY Vox syntax for:
+  Mens learns ONLY Vox syntax for:
     - component, state, derived, effect, view
     - route declarations
     - table/schema definitions
     - server functions (Vox-native: @server, not createServerFn)
     - type definitions (ADTs, structs)
   
-  Populi NEVER learns:
+  Mens NEVER learns:
     - useState, useEffect, useMemo
     - JSX (React-style <Component /> syntax evolves to Vox-native view: syntax)
     - TanStack Router API (createRootRoute, etc.)
@@ -427,9 +427,9 @@ Result:
 - [ ] Update `codegen_ts/jsx.rs` to accept both syntaxes during migration
 
 ### Phase 3: Training Pipeline (1 week)
-- [ ] Verify `context_filter` correctly excludes generated TS from Populi training
+- [ ] Verify `context_filter` correctly excludes generated TS from Mens training
 - [ ] Generate golden `.vox` examples using new syntax for training corpus
-- [ ] Validate Populi parse success on clean Vox corpus
+- [ ] Validate Mens parse success on clean Vox corpus
 
 ### Phase 4: Documentation Convergence (1 week)
 - [ ] Update `vox-web-stack.md` to reflect new reactive component model
@@ -469,10 +469,10 @@ This analysis is grounded in 20+ web research queries conducted on 2026-03-24, c
 
 1. **The current architecture works** but is on a trajectory toward unmaintainable complexity. Every React/TanStack API change requires compiler updates. The codegen surface is ~1,130 lines tracking a moving external target.
 
-2. **The AI-native opportunity is being missed.** Populi training on files containing `use_state` and `<div>` learns React patterns, not Vox patterns. This directly undermines the language's core value proposition.
+2. **The AI-native opportunity is being missed.** Mens training on files containing `use_state` and `<div>` learns React patterns, not Vox patterns. This directly undermines the language's core value proposition.
 
 3. **The recommended path** is to introduce Vox-native reactivity primitives (`state`, `derived`, `effect`, `view`) that the compiler translates to React hooks. This is not a rewrite — it's an **abstraction layer over the existing codegen**. The current `component.rs` becomes the React backend for new HIR nodes.
 
 4. **The `@island` boundary is the right escape hatch.** Complex React components (shadcn, v0, custom hooks) belong in TypeScript. The Vox compiler should never try to express the full React API surface.
 
-5. **Quantified benefit**: This achieves ~91% of modern framework capability, reduces K-complexity by ~75% for `.vox` authors, and provides a clean training corpus for Populi — all while maintaining full backward compatibility via the `@island` escape hatch into the React/TanStack ecosystem.
+5. **Quantified benefit**: This achieves ~91% of modern framework capability, reduces K-complexity by ~75% for `.vox` authors, and provides a clean training corpus for Mens — all while maintaining full backward compatibility via the `@island` escape hatch into the React/TanStack ecosystem.

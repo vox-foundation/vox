@@ -1,4 +1,4 @@
-//! Single **policy-shaped** resolver: manual → Populi (GPU-prefer) → HF dedicated → HF router → OpenRouter → local Populi → bootstrap.
+//! Single **policy-shaped** resolver: manual → Mens (GPU-prefer) → HF dedicated → HF router → OpenRouter → local Mens → bootstrap.
 //!
 //! Maps to [`crate::llm::LlmConfig`] for OpenAI-compatible HTTP chat only (including Ollama `/v1/chat/completions`).
 
@@ -21,7 +21,7 @@ pub enum ChatProviderRouteKind {
     },
     /// Local Ollama-compatible OpenAI chat API (`{base}/v1/chat/completions`).
     PopuliLocal {
-        /// Populi/Ollama server base URL (no `/v1/...` suffix).
+        /// Mens/Ollama server base URL (no `/v1/...` suffix).
         base_url: String,
         /// Model name as reported by `/api/tags`.
         model: String,
@@ -46,12 +46,12 @@ pub struct RouteResolutionInput {
     pub manual_base_url: Option<String>,
     /// Optional bearer token for the manual endpoint (otherwise unauthenticated).
     pub manual_bearer: Option<String>,
-    /// When true, prefer local Populi only if probe reports GPU-capable runtime.
+    /// When true, prefer local Mens only if probe reports GPU-capable runtime.
     pub prefer_populi_when_gpu: bool,
     /// Latest [`PopuliCapabilitySnapshot`] from [`inference_env::probe_populi_capabilities`], if any.
     pub populi_probe: Option<PopuliCapabilitySnapshot>,
-    /// Model tag to use with local Populi/Ollama when that route wins.
-    pub populi_chat_model: String,
+    /// Model tag to use with local Mens/Ollama when that route wins.
+    pub mens_chat_model: String,
     /// Pinned Inference Endpoint chat URL (`HF_DEDICATED_CHAT_URL` via [`vox_config::inference`]).
     pub hf_dedicated_chat_url: Option<String>,
     /// Model id for the dedicated endpoint (`HF_DEDICATED_CHAT_MODEL`).
@@ -70,7 +70,7 @@ impl Default for RouteResolutionInput {
             manual_bearer: None,
             prefer_populi_when_gpu: true,
             populi_probe: None,
-            populi_chat_model: std::env::var("POPULI_MODEL")
+            mens_chat_model: std::env::var("POPULI_MODEL")
                 .ok()
                 .filter(|s| !s.trim().is_empty())
                 .unwrap_or_else(|| "default-model".to_string()),
@@ -94,7 +94,7 @@ fn populi_model_plausible(snapshot: &PopuliCapabilitySnapshot, model: &str) -> b
 pub fn route_telemetry_labels(route: &ChatProviderRouteKind) -> (&'static str, &'static str) {
     match route {
         ChatProviderRouteKind::ManualOpenAiCompatible { .. } => ("manual", "openai_compatible"),
-        ChatProviderRouteKind::PopuliLocal { .. } => ("populi", "populi_local"),
+        ChatProviderRouteKind::PopuliLocal { .. } => ("mens", "populi_local"),
         ChatProviderRouteKind::HuggingFaceRouter(_) => ("huggingface", "router"),
         ChatProviderRouteKind::HuggingFaceDedicated(_) => ("huggingface", "dedicated_endpoint"),
         ChatProviderRouteKind::OpenRouter { .. } => ("openrouter", "openrouter"),
@@ -120,18 +120,18 @@ fn resolve_chat_provider_route_impl(
         if let Some(ref snap) = input.populi_probe {
             if snap.reachable
                 && snap.gpu_capable == Some(true)
-                && populi_model_plausible(snap, &input.populi_chat_model)
+                && populi_model_plausible(snap, &input.mens_chat_model)
             {
                 tracing::info!(
                     target: "vox_dei::model_route",
                     event = "route_resolution",
                     choice = "populi_gpu",
-                    model = %input.populi_chat_model,
-                    "routing: Populi (GPU-prefer)"
+                    model = %input.mens_chat_model,
+                    "routing: Mens (GPU-prefer)"
                 );
                 return ChatProviderRouteKind::PopuliLocal {
                     base_url: snap.base_url.clone(),
-                    model: input.populi_chat_model.clone(),
+                    model: input.mens_chat_model.clone(),
                 };
             }
         }
@@ -183,17 +183,17 @@ fn resolve_chat_provider_route_impl(
     }
 
     if let Some(ref snap) = input.populi_probe {
-        if snap.reachable && populi_model_plausible(snap, &input.populi_chat_model) {
+        if snap.reachable && populi_model_plausible(snap, &input.mens_chat_model) {
             tracing::info!(
                 target: "vox_dei::model_route",
                 event = "route_resolution",
                 choice = "populi_any",
-                model = %input.populi_chat_model,
-                "routing: Populi (reachable)"
+                model = %input.mens_chat_model,
+                "routing: Mens (reachable)"
             );
             return ChatProviderRouteKind::PopuliLocal {
                 base_url: snap.base_url.clone(),
-                model: input.populi_chat_model.clone(),
+                model: input.mens_chat_model.clone(),
             };
         }
     }
@@ -210,7 +210,7 @@ fn resolve_chat_provider_route_impl(
     }
 }
 
-/// Apply SSOT precedence from the routing plan (manual → GPU Populi → HF dedicated → HF router → OpenRouter → any Populi → OpenRouter auto).
+/// Apply SSOT precedence from the routing plan (manual → GPU Mens → HF dedicated → HF router → OpenRouter → any Mens → OpenRouter auto).
 #[must_use]
 pub fn resolve_chat_provider_route(input: &RouteResolutionInput) -> ChatProviderRouteKind {
     resolve_chat_provider_route_impl(input, inference_env::huggingface_hub_token().is_some())
@@ -290,7 +290,7 @@ mod tests {
             manual_bearer: Some("tok".to_string()),
             prefer_populi_when_gpu: true,
             populi_probe: Some(snap),
-            populi_chat_model: "default-model".into(),
+            mens_chat_model: "default-model".into(),
             hf_dedicated_chat_url: None,
             hf_dedicated_chat_model: None,
             hf_router_model: Some("hf/model".to_string()),
@@ -314,7 +314,7 @@ mod tests {
             manual_bearer: None,
             prefer_populi_when_gpu: false,
             populi_probe: None,
-            populi_chat_model: "m".into(),
+            mens_chat_model: "m".into(),
             hf_dedicated_chat_url: None,
             hf_dedicated_chat_model: None,
             hf_router_model: None,
@@ -362,7 +362,7 @@ mod tests {
                 manual_bearer: None,
                 prefer_populi_when_gpu: false,
                 populi_probe: None,
-                populi_chat_model: "m".into(),
+                mens_chat_model: "m".into(),
                 hf_dedicated_chat_url: Some("https://ep.example/v1/chat/completions".into()),
                 hf_dedicated_chat_model: Some("deployed-model".into()),
                 hf_router_model: Some("hf/router-model".into()),
@@ -395,7 +395,7 @@ mod tests {
                 manual_bearer: None,
                 prefer_populi_when_gpu: false,
                 populi_probe: None,
-                populi_chat_model: "m".into(),
+                mens_chat_model: "m".into(),
                 hf_dedicated_chat_url: None,
                 hf_dedicated_chat_model: None,
                 hf_router_model: Some("org/hf-only".into()),

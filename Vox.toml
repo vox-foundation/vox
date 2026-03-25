@@ -29,7 +29,7 @@ tier = "pro"
 # Uncomment to override:
 # delay_between_prs_secs = 450
 # max_files_per_pr = 250
-exclude_prefixes = ["docs/", "populi/data/", ".vox-research-data/"]
+exclude_prefixes = ["docs/", "mens/data/", ".vox-research-data/"]
 
 
 

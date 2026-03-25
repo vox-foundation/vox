@@ -19,7 +19,7 @@ training_eligible: true
 ---
 # Reference: `vox` CLI (minimal compiler binary)
 
-The **`vox`** executable is built from `crates/vox-cli` (repository root). This page documents the **commands that exist in that crate today**. Other markdown pages may describe a **broader future or workspace-wide toolchain** (Populi, review, MCP, etc.) — those are not necessarily linked into this binary yet.
+The **`vox`** executable is built from `crates/vox-cli` (repository root). This page documents the **commands that exist in that crate today**. Other markdown pages may describe a **broader future or workspace-wide toolchain** (Mens, review, MCP, etc.) — those are not necessarily linked into this binary yet.
 
 ## Global flags, completions, Latin groupings
 
@@ -46,7 +46,7 @@ Compile a `.vox` source file.
 
 ### `vox island …` (feature `island`)
 
-**Not in default builds.** `cargo build -p vox-cli --features island` (often add default stack: e.g. `--features island,populi-base` if you used `--no-default-features`).
+**Not in default builds.** `cargo build -p vox-cli --features island` (often add default stack: e.g. `--features island,mens-base` if you used `--no-default-features`).
 
 | Subcommand | Role |
 |------------|------|
@@ -77,22 +77,22 @@ Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable 
 
 **Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--isolation`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
 
-When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features mesh`** (optionally combine with **`script-execution`**), `vox script` / script-mode `vox run` **best-effort** publishes a node record to the local registry file (see [mesh SSOT](mesh.md)).
+When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features mens`** (optionally combine with **`script-execution`**), `vox script` / script-mode `vox run` **best-effort** publishes a node record to the local registry file (see [mens SSOT](mens.md)).
 
-### `vox mesh …` (feature `mesh`)
+### `vox populi …` (feature `mens`)
 
-**Not in default builds.** Local mesh registry introspection and a minimal HTTP control plane (join / list / heartbeat). Build: `cargo build -p vox-cli --features mesh`.
+**Not in default builds.** Local mens registry introspection and a minimal HTTP control plane (join / list / heartbeat). Build: `cargo build -p vox-cli --features mens`.
 
 | Subcommand | Role |
 |------------|------|
-| `vox mesh status` | Print mesh env, on-disk registry path + nodes, and probed capabilities for this process (`--registry` override; `--json`). |
-| `vox mesh serve` | Bind HTTP (`--bind 127.0.0.1:9847`); optional `--registry` seeds in-memory state from a JSON file. |
+| `vox populi status` | Print mens env, on-disk registry path + nodes, and probed capabilities for this process (`--registry` override; `--json`). |
+| `vox populi serve` | Bind HTTP (`--bind 127.0.0.1:9847`); optional `--registry` seeds in-memory state from a JSON file. |
 
-Interpreted **`vox workflow run`** / **`vox populi workflow run`** (journal + `mesh_*` activity hooks) requires **`--features workflow-runtime`** (implies `populi-dei` + `vox-workflow-runtime`). The runtime emits **`ActivityStarted` / `ActivityCompleted`** rows with **`activity_id`** (from `with { activity_id: … }` or a generated id). Mesh steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mesh]` only — use `with { mesh: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls; see **`examples/mesh/workflow_mesh_demo.vox`**. Codex append is opt-in via **`VOX_WORKFLOW_JOURNAL_CODEX`** ([orchestration SSOT](orchestration-unified.md)).
+Interpreted **`vox workflow run`** / **`vox mens workflow run`** (journal + `mesh_*` activity hooks) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits **`ActivityStarted` / `ActivityCompleted`** rows with **`activity_id`** (from `with { activity_id: … }` or a generated id). Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls; see **`examples/mens/workflow_mesh_demo.vox`**. Codex append is opt-in via **`VOX_WORKFLOW_JOURNAL_CODEX`** ([orchestration SSOT](orchestration-unified.md)).
 
 ### `vox ci …`
 
-Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, workflow `scripts/` allowlist, Populi gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
+Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, workflow `scripts/` allowlist, Mens gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
 
 | Subcommand | Role |
 |------------|------|
@@ -102,10 +102,10 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `feature-matrix` / `no-vox-dei-import` | `vox-cli` compile matrix + import guard |
 | `workflow-scripts` | Fail if `.github/workflows/*.yml` references `scripts/…` not in `docs/agents/workflow-script-allowlist.txt` |
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
-| `populi-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/populi/gates.yaml` steps |
+| `mens-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/mens/gates.yaml` steps |
 | `toestub-scoped` | Default scan `crates/vox-repository` |
 | `cuda-features` | Optional CUDA compile checks when `nvcc` exists |
-| `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features train`, `vox-cli --features populi-oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
+| `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, `vox-cli --features mens-oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, `ref-cli.md`, reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
@@ -246,22 +246,22 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 
 Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited. Ensure `vox-lsp` is on `PATH` (e.g. `cargo build -p vox-lsp` and use `target/debug`).
 
-## Populi / DeI (feature-gated)
+## Mens / DeI (feature-gated)
 
-**Doc parity (`vox ci command-compliance`):** **`vox populi corpus`**, **`vox populi pipeline`**, **`vox populi status`**, **`vox populi plan`**, **`vox populi eval-gate`**, **`vox populi bench-completion`**, **`vox populi system-prompt-template`**, **`vox populi train`**, **`vox populi oratio`**, **`vox populi serve`**, **`vox populi probe`**, **`vox populi merge-weights`**, **`vox populi merge-qlora`**, **`vox populi eval-local`**.
+**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox schola train`**, **`vox mens oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox schola merge-qlora`**, **`vox mens eval-local`**.
 
-With default features (**`populi-base` only** — corpus + `vox-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox populi`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox populi oratio`** and **`vox ai oratio`** require **`--features populi-oratio`** (STT stack). **Native train** / **probe** / **merge-weights** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`populi-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,populi-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-populi`** binary (same as `vox populi …`, inserts the subcommand) — `cargo build -p vox-cli --features populi-base`; add **`populi-oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md). **`vox populi pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_populi_pipeline.ps1`). **`vox populi serve`** (HTTP completions) is **not** in the default feature set — build with **`cargo build -p vox-cli --features execution-api`** (see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox populi corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
+With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox mens oratio`** and **`vox ai oratio`** require **`--features mens-oratio`** (STT stack). **Native train** / **probe** / **merge-weights** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-mens`** binary (same as `vox mens …`, inserts the subcommand) — `cargo build -p vox-cli --features mens-base`; add **`mens-oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP completions) is **not** in the default feature set — build with **`cargo build -p vox-cli --features execution-api`** (see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 
-- **`vox populi train`** — native Populi training (contract/planner inside `vox-populi`). **`--backend lora`** (default): Burn + wgpu LoRA; **`--tokenizer vox`** (default) or **`--tokenizer hf`** with **GPT-2-shaped** HF `config.json` + optional **HF embed warm-start** from safetensors. **`--backend qlora`**: Candle + **qlora-rs** — **NF4 frozen base** linear(s) + trainable LoRA; **mmap `f32`** for context embeddings (`wte` / `model.embed_tokens`). When all per-layer **output-projection** weights exist in shards, trains a **sequential stack** + LM head; else **LM-head-only**. **`--qlora-no-double-quant`** turns off qlora-rs **double quant** of scales (default: on). **`--qlora-require-full-proxy-stack`** fails preflight if expected middle projection keys are missing from shards (strict prod gate). **`--qlora-lm-head-only`** skips the middle `o_proj` stack even when shards are complete (stable CE on some CUDA dogfood paths; conflicts with **`--qlora-require-full-proxy-stack`**). **`--qlora-proxy-max-layers N`** caps stacked middle projections for ablation (`0` = LM-head-only; conflicts with **`--qlora-lm-head-only`** when `N > 0`). **`--qlora-ce-last-k K`** (default **1**) applies next-token CE on the last **K** positions per JSONL row (bounded by **`seq_len`** and **64**). In-tree **qlora-rs** `training_step_lm`: pre-norm residual middles with **`1/√depth`** per block and again before the LM head. **`--qlora-max-skip-rate <0..=1>`** aborts training when skipped JSONL rows exceed the fraction per epoch. **`--log-dir DIR`** re-spawns **`vox populi train`** in the background with a timestamped log (parent returns immediately — avoids IDE/agent wall-clock timeouts; tail the log). **`--background`** lowers process priority and caps VRAM fraction for long runs. Same **`--device`** story; **CUDA** / **Metal** with **`populi-candle-cuda`** / **`populi-candle-metal`**. QLoRA needs **`--tokenizer hf`**, **`--model`**, HF safetensors + **`tokenizer.json`**. **`--deployment-target mobile_edge`** or **`--preset mobile_edge`**: planner gates for edge export + **`--device cpu`** required. See [`reference/populi-training.md`](populi-training.md), [`reference/mobile-edge-ai.md`](mobile-edge-ai.md), [`hf-finetune-capability-matrix.md`](../architecture/hf-finetune-capability-matrix.md). Python QLoRA: **`vox train`** / `train_qlora.vox` with **`--features populi-dei`**.
-- **`vox populi merge-weights`** — merges a **Burn** LoRA checkpoint (`*.bin`) into **`model_merged.bin`** (`gpu` only). Does **not** apply Candle qlora adapter tensors.
-- **`vox populi merge-qlora`** (alias **`merge-adapter`**) — merges **`candle_qlora_adapter.safetensors`** + sidecar meta (**v2** `candle_qlora_adapter_meta.json` or **v3** `populi_adapter_manifest_v3.json`) into **f32** base shards (subset); **`*.bin`** Burn checkpoints are **rejected** (use **`merge-weights`**). See SSOT merge table.
-- **`vox populi oratio`** — transcribe via **`vox-oratio`** (**Candle Whisper**, Rust + HF weights; not whisper.cpp). Build CLI with **`--features populi-oratio`**. Env: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, etc. HTTP: run **`cargo run -p vox-codex-api --bin vox-codex-dashboard`** for the small Codex + Oratio API (**`GET /api/audio/status`**, **`POST /api/audio/transcribe`** with JSON `{"path":"…"}`; relative paths use `VOX_ORATIO_WORKSPACE` or CWD). Bind with **`VOX_DASH_HOST`** / **`VOX_DASH_PORT`** (default `127.0.0.1:3847`).
+- **`vox schola train`** — native Mens training (contract/planner inside `vox-mens`). **`--backend lora`** (default): Burn + wgpu LoRA; **`--tokenizer vox`** (default) or **`--tokenizer hf`** with **GPT-2-shaped** HF `config.json` + optional **HF embed warm-start** from safetensors. **`--backend qlora`**: Candle + **qlora-rs** — **NF4 frozen base** linear(s) + trainable LoRA; **mmap `f32`** for context embeddings (`wte` / `model.embed_tokens`). When all per-layer **output-projection** weights exist in shards, trains a **sequential stack** + LM head; else **LM-head-only**. **`--qlora-no-double-quant`** turns off qlora-rs **double quant** of scales (default: on). **`--qlora-require-full-proxy-stack`** fails preflight if expected middle projection keys are missing from shards (strict prod gate). **`--qlora-lm-head-only`** skips the middle `o_proj` stack even when shards are complete (stable CE on some CUDA dogfood paths; conflicts with **`--qlora-require-full-proxy-stack`**). **`--qlora-proxy-max-layers N`** caps stacked middle projections for ablation (`0` = LM-head-only; conflicts with **`--qlora-lm-head-only`** when `N > 0`). **`--qlora-ce-last-k K`** (default **1**) applies next-token CE on the last **K** positions per JSONL row (bounded by **`seq_len`** and **64**). In-tree **qlora-rs** `training_step_lm`: pre-norm residual middles with **`1/√depth`** per block and again before the LM head. **`--qlora-max-skip-rate <0..=1>`** aborts training when skipped JSONL rows exceed the fraction per epoch. **`--log-dir DIR`** re-spawns **`vox schola train`** in the background with a timestamped log (parent returns immediately — avoids IDE/agent wall-clock timeouts; tail the log). **`--background`** lowers process priority and caps VRAM fraction for long runs. Same **`--device`** story; **CUDA** / **Metal** with **`mens-candle-cuda`** / **`mens-candle-metal`**. QLoRA needs **`--tokenizer hf`**, **`--model`**, HF safetensors + **`tokenizer.json`**. **`--deployment-target mobile_edge`** or **`--preset mobile_edge`**: planner gates for edge export + **`--device cpu`** required. See [`reference/mens-training.md`](mens-training.md), [`reference/mobile-edge-ai.md`](mobile-edge-ai.md), [`hf-finetune-capability-matrix.md`](../architecture/hf-finetune-capability-matrix.md). Python QLoRA: **`vox train`** / `train_qlora.vox` with **`--features mens-dei`**.
+- **`vox mens merge-weights`** — merges a **Burn** LoRA checkpoint (`*.bin`) into **`model_merged.bin`** (`gpu` only). Does **not** apply Candle qlora adapter tensors.
+- **`vox schola merge-qlora`** (alias **`merge-adapter`**) — merges **`candle_qlora_adapter.safetensors`** + sidecar meta (**v2** `candle_qlora_adapter_meta.json` or **v3** `populi_adapter_manifest_v3.json`) into **f32** base shards (subset); **`*.bin`** Burn checkpoints are **rejected** (use **`merge-weights`**). See SSOT merge table.
+- **`vox mens oratio`** — transcribe via **`vox-oratio`** (**Candle Whisper**, Rust + HF weights; not whisper.cpp). Build CLI with **`--features mens-oratio`**. Env: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, etc. HTTP: run **`cargo run -p vox-codex-api --bin vox-codex-dashboard`** for the small Codex + Oratio API (**`GET /api/audio/status`**, **`POST /api/audio/transcribe`** with JSON `{"path":"…"}`; relative paths use `VOX_ORATIO_WORKSPACE` or CWD). Bind with **`VOX_DASH_HOST`** / **`VOX_DASH_PORT`** (default `127.0.0.1:3847`).
 - **Vox source (`Speech.transcribe`)** — builtin module **`Speech`**: **`Speech.transcribe(path: str) → Result[str]`** uses Oratio and returns **refined** text (`display_text()`). Generated Rust crates depend on **`vox-oratio`** via codegen `Cargo.toml`.
-- **Corpus mix `asr_refine`** — in mix YAML, set `record_format: asr_refine` on a source whose JSONL lines match **`populi/schemas/asr_refine_pairs.schema.json`** (`noisy_text` / `corrected_text`); output lines are **`prompt`/`response`** JSON for `train.jsonl`.
-- **Corpus mix `tool_trace`** — set `record_format: tool_trace` for JSONL lines shaped like **`ToolTraceRecord`** in `vox-corpus` (`task_prompt`, `tool_name`, `arguments_json`, `result_json`, `success`, optional `followup_text`); schema **`populi/schemas/tool_trace_record.schema.json`**, example lines **`populi/data/tool_traces.example.jsonl`**. Emitted rows use **`category`: `tool_trace`** for **`--context-filter tool_trace`** during training.
+- **Corpus mix `asr_refine`** — in mix YAML, set `record_format: asr_refine` on a source whose JSONL lines match **`mens/schemas/asr_refine_pairs.schema.json`** (`noisy_text` / `corrected_text`); output lines are **`prompt`/`response`** JSON for `train.jsonl`.
+- **Corpus mix `tool_trace`** — set `record_format: tool_trace` for JSONL lines shaped like **`ToolTraceRecord`** in `vox-corpus` (`task_prompt`, `tool_name`, `arguments_json`, `result_json`, `success`, optional `followup_text`); schema **`mens/schemas/tool_trace_record.schema.json`**, example lines **`mens/data/tool_traces.example.jsonl`**. Emitted rows use **`category`: `tool_trace`** for **`--context-filter tool_trace`** during training.
 
-- **`--features populi-dei`**: enables **`vox train`** (local provider **bails** with the canonical **`vox populi train --backend qlora …`** command; Together API; **`--native`** Burn scratch) and `vox populi` surfaces that call **`vox-dei-d`** (generate, review, workflow, check, fix). RPC **method names** are centralized in [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs) (`crate::dei_daemon::method::*`) so CLI and daemon stay aligned. **`vox populi review`** uses `ai.review`; it does **not** embed the old TOESTUB/Fabrica/CodeRabbit tree.
-- **`--features coderabbit`**: enables **`vox review coderabbit`** — GitHub/CodeRabbit batch flows in Rust (`crates/vox-cli/src/commands/review/coderabbit/`). Build: `cargo build -p vox-cli --features coderabbit` (often pair with `populi-base` if you omit default features: `--no-default-features --features coderabbit,populi-base`). Set **`GITHUB_TOKEN`** or **`GH_TOKEN`**.
+- **`--features mens-dei`**: enables **`vox train`** (local provider **bails** with the canonical **`vox schola train --backend qlora …`** command; Together API; **`--native`** Burn scratch) and `vox mens` surfaces that call **`vox-dei-d`** (generate, review, workflow, check, fix). RPC **method names** are centralized in [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs) (`crate::dei_daemon::method::*`) so CLI and daemon stay aligned. **`vox mens review`** uses `ai.review`; it does **not** embed the old TOESTUB/Fabrica/CodeRabbit tree.
+- **`--features coderabbit`**: enables **`vox review coderabbit`** — GitHub/CodeRabbit batch flows in Rust (`crates/vox-cli/src/commands/review/coderabbit/`). Build: `cargo build -p vox-cli --features coderabbit` (often pair with `mens-base` if you omit default features: `--no-default-features --features coderabbit,mens-base`). Set **`GITHUB_TOKEN`** or **`GH_TOKEN`**.
 
 ### `vox review coderabbit` (feature `coderabbit`)
 
@@ -290,8 +290,8 @@ Splits local changes into concern-based PRs with a **real baseline** (`origin/<d
 **`Vox.toml`** — optional **`[review.coderabbit]`**: `tier`, `delay_between_prs_secs`, `max_files_per_pr`, **`exclude_prefixes`** (path prefixes, forward slashes) to drop noise paths from semantic/batch/stack planning.
 
 **Git hygiene**: `.gitignore` includes **`.coderabbit/worktrees/`**. You may commit **`.coderabbit/run-state.json`** if you want a shared run map (or keep it local). **Ignored in drift/planning (normalized repo-relative paths, including leading `./`)**: anything under **`.coderabbit/`** (local tooling, worktrees). Chunk worktree overlays **do not recurse into `.coderabbit/`** when copying from the main tree, so nested tool dirs are not duplicated.
-- **`--features dashboard`**: reserved **no-op** in `vox-cli`. The old **`vox populi` chat / agent / dei / learn** commands are removed from the CLI surface (they depended on workspace-excluded `vox-dei`). Use **`vox-codex-dashboard`** / the VS Code extension for dashboard-style surfaces.
-- **`VOX_BENCHMARK=1`**: after training paths that invoke it, runs **`vox populi eval-local`** (requires `gpu`) using `VOX_BENCHMARK_MODEL` / `VOX_BENCHMARK_DIR` when set.
+- **`--features dashboard`**: reserved **no-op** in `vox-cli`. The old **`vox mens` chat / agent / dei / learn** commands are removed from the CLI surface (they depended on workspace-excluded `vox-dei`). Use **`vox-codex-dashboard`** / the VS Code extension for dashboard-style surfaces.
+- **`VOX_BENCHMARK=1`**: after training paths that invoke it, runs **`vox mens eval-local`** (requires `gpu`) using `VOX_BENCHMARK_MODEL` / `VOX_BENCHMARK_DIR` when set.
 
 ## Related docs
 
@@ -315,7 +315,7 @@ Rust package path: **`crates/vox-cli`**. Produces the **`vox`** binary (`src/mai
 
 ## Scope
 
-This checkout’s `vox-cli` is a **minimal** compiler driver: clap dispatch, codegen orchestration, and a small set of subcommands. It does **not** yet expose the full Populi / review / MCP / `vox init` surface that appears in some older generated docs.
+This checkout’s `vox-cli` is a **minimal** compiler driver: clap dispatch, codegen orchestration, and a small set of subcommands. It does **not** yet expose the full Mens / review / MCP / `vox init` surface that appears in some older generated docs.
 
 Authoritative **user-facing** command list: [`ref-cli.md`](#).
 
@@ -333,7 +333,7 @@ Authoritative **user-facing** command list: [`ref-cli.md`](#).
 | `vox lsp` | `src/commands/lsp.rs` |
 | `vox architect` | `src/commands/diagnostics/tools/architect.rs` (features **`codex`** and/or **`stub-check`**) |
 
-**Library / dispatch modules (not always exposed as `vox` subcommands):** `src/commands/info.rs` (registry metadata), `src/commands/runtime/**` (extended run/dev/info/tree/shell). Inline script execution (`runtime/run/{script,backend,sandbox}`) builds with **`--features script-execution`**; Axum Populi inference server (`commands/ai/serve`) builds with **`--features execution-api`** (implies `script-execution` + `gpu` + Axum + `vox-corpus` validation helpers).
+**Library / dispatch modules (not always exposed as `vox` subcommands):** `src/commands/info.rs` (registry metadata), `src/commands/runtime/**` (extended run/dev/info/tree/shell). Inline script execution (`runtime/run/{script,backend,sandbox}`) builds with **`--features script-execution`**; Axum Mens inference server (`commands/ai/serve`) builds with **`--features execution-api`** (implies `script-execution` + `gpu` + Axum + `vox-corpus` validation helpers).
 
 ## Shared modules
 
@@ -386,7 +386,7 @@ Single source for **shipped `vox` CLI** conventions (see also [`ref-cli.md`](#),
 
 - **One primary tree** of nouns/verbs; avoid near-synonyms (`update` vs `upgrade`) for the same action.
 - **Latin-themed group commands** (`fabrica`, `mens`, `ars`, `recensio`) mirror the flat top-level commands for discoverability; legacy top-level names remain **active** (not hidden).
-- **Subcommand depth** should stay ≤ 2 for most flows; deeper trees only for dense domains (e.g. `populi corpus`).
+- **Subcommand depth** should stay ≤ 2 for most flows; deeper trees only for dense domains (e.g. `mens corpus`).
 - **Retired / deprecated** commands stay in the registry with `status` and doc’d migration (see [`command-surface-duals.md`](../ci/command-surface-duals.md)).
 
 ## Help, output, and exit codes
@@ -457,12 +457,12 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `ludus` | `extras-ludus` | `commands::extras::ludus_cli` |
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
-| `populi` | `populi-base` or `gpu` | `commands::populi` |
-| `populi oratio`, `ai oratio` | `populi-oratio` | `commands::populi::oratio_cmd`, `commands::ai::oratio` |
+| `mens` | `mens-base` or `gpu` | `commands::mens` |
+| `mens oratio`, `ai oratio` | `mens-oratio` | `commands::mens::oratio_cmd`, `commands::ai::oratio` |
 | `review` | `coderabbit` | `commands::review` |
 | `island` | `island` | `commands::island` |
-| `train` | `gpu` + `populi-dei` | `commands::ai::train` |
-| `mesh` | `mesh` | `commands::mesh_cli` |
+| `train` | `gpu` + `mens-dei` | `commands::ai::train` |
+| `mens` | `mens` | `commands::populi_cli` |
 
 ## `vox-compilerd` RPC (not CLI variants)
 

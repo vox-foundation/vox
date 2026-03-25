@@ -1,6 +1,6 @@
 [package]
 name = "vox-tools"
-description = "In-process execution of a subset of Vox MCP tools (Populi chat direct executor)"
+description = "In-process execution of a subset of Vox MCP tools (Mens chat direct executor)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

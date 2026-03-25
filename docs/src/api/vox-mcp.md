@@ -27,15 +27,15 @@ MCP chat, inline edit, and ghost-text tools resolve models through [`vox-orchest
 | Add/remove models, tune `strengths` / `cost_per_1k` | Edit `models.toml` and restart MCP (or reload config if your host supports it). |
 | Pin paid “performance” routing per task bucket (`codegen`, `review`, …) without recompiling | Set `[premium_alias]` entries in `models.toml` (e.g. `codegen = "anthropic/claude-sonnet-4.5"`). An empty map falls back to built-in defaults, then ranked paid models by cost when `cost_preference` is **performance**. |
 | OpenRouter free daily caps | Usage rows aggregate under provider **`openrouter`** and model **`:free`** (see `ModelSpec::llm_usage_key`). |
-| Local fallback | Default registry includes an **Ollama** model (`llama3.2`); MCP probes `GET /api/tags` before chat (cached briefly per process). Base URL: **`OLLAMA_HOST`** or Populi default from `vox_config::inference::local_ollama_populi_base_url`. **Desktop-oriented:** phones do not run Ollama on loopback; use **`VOX_INFERENCE_PROFILE`** / cloud or on-device runtimes per [mobile-edge-ai.md](../reference/mobile-edge-ai.md). |
+| Local fallback | Default registry includes an **Ollama** model (`llama3.2`); MCP probes `GET /api/tags` before chat (cached briefly per process). Base URL: **`OLLAMA_HOST`** or Mens default from `vox_config::inference::local_ollama_populi_base_url`. **Desktop-oriented:** phones do not run Ollama on loopback; use **`VOX_INFERENCE_PROFILE`** / cloud or on-device runtimes per [mobile-edge-ai.md](../reference/mobile-edge-ai.md). |
 | Cloud → local when `allow_cloud_ollama_fallback` | Same as above, but **only** when **`VOX_INFERENCE_PROFILE`** is **`desktop_ollama`** or **`lan_gateway`** (otherwise Ollama probes, direct `ProviderType::Ollama`, and fallback are skipped). Chat and inline tools: persisted **daily cap**, in-memory **budget exceeded**, **rate limit**, and many **HTTP errors** retry once via the best **Ollama** candidate (largest `max_tokens`, stable id). Ghost-text uses the same path with **free-tier-only** resolution. |
 | **`VOX_MCP_LLM_COST_EVENTS`** | `1` / `true` always emits [`AgentEventKind::CostIncurred`](../../../crates/vox-orchestrator/src/events.rs) on successful MCP LLM calls; `0` / `false` never. **Default:** emit only when Codex is **not** attached (avoid double-counting with `provider_usage`); with Codex, set `1` if your consumer needs bus events as well as DB. |
 
 Codex-attached deployments pair MCP LLM calls with [`BudgetGate`](../../../crates/vox-orchestrator/src/gate.rs) + [`UsageTracker`](../../../crates/vox-orchestrator/src/usage.rs); HTTP **429** marks rate limits on the usage key.
 
-### Mesh + MCP startup
+### Mens + MCP startup
 
-When **`VOX_MESH_ENABLED=1`**, the **`vox-mcp`** binary calls `vox_mesh::publish_local_registry_best_effort()` after DB connect (same pattern as **`vox run`**), then best-effort **`POST /v1/mesh/join`** when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base ([`normalize_http_control_base`](../../../crates/vox-mesh/src/lib.rs)), plus periodic **`POST /v1/mesh/heartbeat`** (see **`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`** on [mesh SSOT](../reference/mesh.md)). Optional Codex rows: **`VOX_MESH_CODEX_TELEMETRY`**, **`mesh_http_join_ok` / `mesh_http_join_err`**. Docker: [mesh SSOT](../reference/mesh.md) (`VOX_MESH_MESH_SIDECAR`, `docker/vox-entrypoint.sh`).
+When **`VOX_MESH_ENABLED=1`**, the **`vox-mcp`** binary calls `vox_populi::publish_local_registry_best_effort()` after DB connect (same pattern as **`vox run`**), then best-effort **`POST /v1/mens/join`** when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base ([`normalize_http_control_base`](../../../crates/vox-populi/src/lib.rs)), plus periodic **`POST /v1/mens/heartbeat`** (see **`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`** on [mens SSOT](../reference/mens.md)). Optional Codex rows: **`VOX_MESH_CODEX_TELEMETRY`**, **`mesh_http_join_ok` / `mesh_http_join_err`**. Docker: [mens SSOT](../reference/mens.md) (`VOX_MESH_MESH_SIDECAR`, `docker/vox-entrypoint.sh`).
 
 ## Process model
 
@@ -434,7 +434,7 @@ Return the data flow map: which queries read which tables, which mutations write
 
 Return full list of capabilities to the Vox agent client.
 
-Populi **chat** intersects this surface with in-process execution via `vox-tools` (`DirectToolExecutor` + `populi_chat::chat_tool_definitions` / `execute_tool_calls`) and `vox-capability-registry` (Oratio: `vox_oratio_transcribe`, `vox_oratio_status` — same names as here).
+Mens **chat** intersects this surface with in-process execution via `vox-tools` (`DirectToolExecutor` + `mens_chat::chat_tool_definitions` / `execute_tool_calls`) and `vox-capability-registry` (Oratio: `vox_oratio_transcribe`, `vox_oratio_status` — same names as here).
 
 
 ### `fn handle_tool_call`

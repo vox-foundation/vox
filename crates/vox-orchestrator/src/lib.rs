@@ -29,7 +29,7 @@
 //!
 //! **Embedding:** the usual MCP host is the `vox-mcp` crate (stdio server), which
 //! holds `Orchestrator` plus optional Turso `VoxDb` for Codex/Arca. Training and model SSOT for
-//! Populi live in mdBook [`populi-training-ssot.md`](../../../docs/src/architecture/populi-training-ssot.md)
+//! Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/mens-training-ssot.md)
 //! (three levels up from `src/` to repo root).
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::too_many_arguments)]
@@ -79,8 +79,8 @@ pub mod locks;
 pub mod memory;
 /// Hybrid search over orchestrator memory (lexical + embeddings).
 pub mod memory_search;
-/// Read-only mesh HTTP federation snapshot types (filled by MCP / embedders).
-pub mod mesh_federation;
+/// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
+pub mod populi_federation;
 /// LLM model registry and provider configuration.
 pub mod models;
 /// Dynamic model catalogs.
@@ -164,7 +164,7 @@ pub use heartbeat::{persist_heartbeat, live_nodes_from_db, evict_dead_heartbeats
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
 pub use memory::{DailyLog, LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
 pub use memory_search::{HybridSearchHit, MemorySearchEngine};
-pub use mesh_federation::{MeshNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot};
+pub use populi_federation::{PopuliNodeBrief, RemoteMeshRoutingHint, RemoteMeshSnapshot};
 pub use monitor::AiMonitor;
 pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
 pub use orchestrator::{Orchestrator, TaskTraceStep};

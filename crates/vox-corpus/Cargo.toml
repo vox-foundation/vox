@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Training data contracts, preflight, corpus SSOT, and Populi dataset metadata"
+description = "Training data contracts, preflight, corpus SSOT, and Mens dataset metadata"
 
 [features]
 database = ["dep:vox-db", "dep:turso"]

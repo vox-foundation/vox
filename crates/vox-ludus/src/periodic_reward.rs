@@ -159,8 +159,8 @@ static REWARD_POOL: &[RewardDef] = &[
         description: "Awarded for maintaining a 7-day build streak.",
     },
     RewardDef {
-        id: "vox_populi_week",
-        name: "Vox Populi",
+        id: "vox_mens_week",
+        name: "Vox Mens",
         icon: "📢",
         xp_bonus: 400,
         crystal_bonus: 80,

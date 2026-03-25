@@ -1,52 +1,52 @@
-# Single source of truth for Populi CI gates (replaces duplicated shell/PowerShell matrices).
-# Run: `vox ci populi-gate --profile m1m4` | `training` | `ci_full`
+# Single source of truth for Mens CI gates (replaces duplicated shell/PowerShell matrices).
+# Run: `vox ci mens-gate --profile m1m4` | `training` | `ci_full`
 profiles:
-  # Union of the former `ci.yml` Populi matrix + legacy shell gate (now `vox ci populi-gate`; no duplicate steps).
+  # Union of the former `ci.yml` Mens matrix + legacy shell gate (now `vox ci mens-gate`; no duplicate steps).
   ci_full:
     steps:
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, execution_planner] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, hf_keymap] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, training_text] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, preflight_strict_rejects_missing_o_proj] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, burn_full_graph_smoke] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, lora_vox_transformer_checkpoint_roundtrip] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, merged_vox_transformer_matches_lora_full_forward] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_f32_matmul_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_cross_entropy_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_f32_linear_lm_logits_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_nf4_dequant_lm_reference_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, execution_planner] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, hf_keymap] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, training_text] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, preflight_strict_rejects_missing_o_proj] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, burn_full_graph_smoke] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, lora_vox_transformer_checkpoint_roundtrip] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, merged_vox_transformer_matches_lora_full_forward] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_f32_matmul_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_cross_entropy_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_f32_linear_lm_logits_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_nf4_dequant_lm_reference_parity] }
       - { command: cargo, args: [test, -p, vox-cli, merge_] }
       - { command: cargo, args: [test, -p, vox-tensor, --features, gpu, --lib, linear_warmup_sequence_matches] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, merge_v2] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, qlora_preflight] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --lib, last_hidden_shape_is_d_model] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, qlora_preflight] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --lib, last_hidden_shape_is_d_model] }
       - { command: cargo, args: [test, -p, vox-corpus, tool_trace_] }
   m1m4:
     steps:
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, execution_planner] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, hf_keymap] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, qlora_preflight] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --lib, last_hidden_shape_is_d_model] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_nf4_dequant_lm_reference_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, execution_planner] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, hf_keymap] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, qlora_preflight] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --lib, last_hidden_shape_is_d_model] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_nf4_dequant_lm_reference_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, merge_v2] }
       - { command: cargo, args: [test, -p, vox-cli, merge_] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_f32_matmul_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_f32_linear_lm_logits_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_cross_entropy_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_f32_matmul_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_f32_linear_lm_logits_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_cross_entropy_parity] }
       - { command: cargo, args: [test, -p, vox-corpus, tool_trace_] }
   training:
     steps:
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, execution_planner] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, hf_keymap] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, training_text] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, preflight_strict_rejects_missing_o_proj] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, burn_full_graph_smoke] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, lora_vox_transformer_checkpoint_roundtrip] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, merged_vox_transformer_matches_lora_full_forward] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_f32_matmul_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_cross_entropy_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_f32_linear_lm_logits_parity] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, --test, candle_burn_nf4_dequant_lm_reference_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, execution_planner] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, hf_keymap] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, training_text] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, preflight_strict_rejects_missing_o_proj] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, burn_full_graph_smoke] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, lora_vox_transformer_checkpoint_roundtrip] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, merged_vox_transformer_matches_lora_full_forward] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_f32_matmul_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_cross_entropy_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_f32_linear_lm_logits_parity] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, --test, candle_burn_nf4_dequant_lm_reference_parity] }
       - { command: cargo, args: [test, -p, vox-tensor, --features, gpu, --lib, linear_warmup_sequence_matches] }
       - { command: cargo, args: [test, -p, vox-cli, merge_] }
-      - { command: cargo, args: [test, -p, vox-populi, --features, train, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-mens, --features, train, merge_v2] }

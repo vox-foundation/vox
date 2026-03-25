@@ -1,4 +1,4 @@
-//! Arca SQL: Mesh coordination — distributed locks, persistent op-log, A2A messages, heartbeats.
+//! Arca SQL: Mens coordination — distributed locks, persistent op-log, A2A messages, heartbeats.
 pub const SCHEMA_COORDINATION: &str = "
 CREATE TABLE IF NOT EXISTS distributed_locks (
     lock_key      TEXT    NOT NULL,

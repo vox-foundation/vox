@@ -14,10 +14,10 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 
 | Feature | Default | Compile impact (high level) |
 |---------|---------|-------------------------------|
-| *(none)* | when using `--no-default-features` | Compiler pipeline + `vox-db` + **`vox-corpus`** + **`vox-runtime`** (always linked for training JSONL / grammar paths); **no** `vox populi …` surface (`populi-base` off) and **no** Oratio / native train |
-| `populi-base` | **yes** | Marker: enables `vox populi …` CLI (corpus commands, etc.) without `vox-populi` / Oratio — **`vox-corpus` / `vox-runtime` are not feature-gated** |
-| `populi-oratio` | **no** (opt-in) | Implies `populi-base` + `vox-oratio` (Candle Whisper STT) — heavy; enables `vox populi oratio` |
-| `gpu` | **no** (opt-in) | Adds `vox-populi` + `vox-tensor` with `train` / HF / Candle QLoRA stack — **largest** incremental cost |
+| *(none)* | when using `--no-default-features` | Compiler pipeline + `vox-db` + **`vox-corpus`** + **`vox-runtime`** (always linked for training JSONL / grammar paths); **no** `vox mens …` surface (`mens-base` off) and **no** Oratio / native train |
+| `mens-base` | **yes** | Marker: enables `vox mens …` CLI (corpus commands, etc.) without `vox-mens` / Oratio — **`vox-corpus` / `vox-runtime` are not feature-gated** |
+| `mens-oratio` | **no** (opt-in) | Implies `mens-base` + `vox-oratio` (Candle Whisper STT) — heavy; enables `vox mens oratio` |
+| `gpu` | **no** (opt-in) | Adds `vox-mens` + `vox-tensor` with `train` / HF / Candle QLoRA stack — **largest** incremental cost |
 
 ## Optional features (alphabetical by concern)
 
@@ -31,13 +31,13 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 | `extras-ludus` | `vox-ludus`, `vox-toestub` |
 | `island` | `comfy-table`, `dirs`, `walkdir`, `which` |
 | `live` | `vox-orchestrator` |
-| `mesh` | `vox-mesh` + `transport` (axum / reqwest / tokio) — `vox mesh …` |
-| `workflow-runtime` | `populi-dei` + `vox-workflow-runtime` (implies `mesh` via that crate) — interpreted workflow run |
-| `populi-candle-cuda` | `gpu` + `vox-populi/candle-qlora-cuda` (nvcc / CUDA toolkit at build time) |
-| `populi-candle-metal` | `gpu` + Metal Candle stack (macOS) |
-| `populi-dei` | `vox-tensor/train` without full Populi (legacy `vox train` path) |
-| `populi-oratio` | `populi-base` + `vox-oratio` — STT CLI (`vox populi oratio`, `vox ai oratio`) |
-| `populi-qlora` | Alias for **`gpu`** (QLoRA is in the `train` feature chain) |
+| `mens` | `vox-populi` + `transport` (axum / reqwest / tokio) — `vox populi …` |
+| `workflow-runtime` | `mens-dei` + `vox-workflow-runtime` (implies `mens` via that crate) — interpreted workflow run |
+| `mens-candle-cuda` | `gpu` + `vox-mens/candle-qlora-cuda` (nvcc / CUDA toolkit at build time) |
+| `mens-candle-metal` | `gpu` + Metal Candle stack (macOS) |
+| `mens-dei` | `vox-tensor/train` without full Mens (legacy `vox train` path) |
+| `mens-oratio` | `mens-base` + `vox-oratio` — STT CLI (`vox mens oratio`, `vox ai oratio`) |
+| `mens-qlora` | Alias for **`gpu`** (QLoRA is in the `train` feature chain) |
 | `script-execution` | `wasmtime`, `wasmtime-wasi`, `landlock` / `win32job`, … |
 | `stub-check` | `vox-toestub`, `vox-ludus`, … — DB via **`vox-db`** |
 
@@ -47,7 +47,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 |--------|---------------------|---------|
 | `vox` | *(none)* | Main CLI |
 | `vox-compilerd` | *(none)* | Watch / compile daemon |
-| `vox-populi` | `populi-base` | Same CLI surface as `vox populi …` without typing the `populi` subcommand (argv injection) |
+| `vox-mens` | `mens-base` | Same CLI surface as `vox mens …` without typing the `mens` subcommand (argv injection) |
 
 ## Crate categories (where “like lives with like”)
 
@@ -56,7 +56,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 | Compiler front | `vox-lexer`, `vox-parser`, `vox-ast`, `vox-hir`, `vox-typeck` | Tight pipeline; parallel incremental builds |
 | Codegen | `vox-codegen-rust`, `vox-codegen-ts`, `vox-codegen-llvm`, `vox-codegen-wasm` | Backends isolated from CLI features |
 | Data plane | `vox-db`, `vox-pm`, `vox-codex` (compat facade over `vox-db`) | Turso / Arca / Codex naming SSOT |
-| ML / training | `vox-populi`, `vox-tensor`; `vox-corpus` linked always, native stack gated behind **`gpu`** | Keep Burn/Candle off default lane; corpus types shared |
+| ML / training | `vox-mens`, `vox-tensor`; `vox-corpus` linked always, native stack gated behind **`gpu`** | Keep Burn/Candle off default lane; corpus types shared |
 | Agent / MCP | `vox-mcp`, `vox-orchestrator`, `vox-repository` | Optional tooling surfaces |
 
 ## Keyring / secrets
@@ -65,5 +65,5 @@ OS keyring helpers live on **`vox-db`** as `vox_db::secrets`. The `vox-codex` cr
 
 ## Measuring build time
 
-- Local / CI: `vox ci build-timings` (human table or `--json`). Add **`--crates`** for extra isolated `cargo check -p …` lanes (`vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features train`) — see [crate-build-lanes migration](crate-build-lanes-migration.md).
+- Local / CI: `vox ci build-timings` (human table or `--json`). Add **`--crates`** for extra isolated `cargo check -p …` lanes (`vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`) — see [crate-build-lanes migration](crate-build-lanes-migration.md).
 - CUDA lane is skipped unless `nvcc` is on `PATH` (same policy as `vox ci cuda-features`).

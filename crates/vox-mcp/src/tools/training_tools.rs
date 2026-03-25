@@ -1,4 +1,4 @@
-//! MCP tools: submit Populi / training-style work through the orchestrator (compatibility shim).
+//! MCP tools: submit Mens / training-style work through the orchestrator (compatibility shim).
 
 use serde::Deserialize;
 use serde_json::json;
@@ -7,7 +7,7 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use vox_orchestrator::{TaskCapabilityHints, TaskPriority};
 
-/// Arguments for `vox_train_submit`.
+/// Arguments for `vox_schola_submit`.
 #[derive(Debug, Deserialize)]
 pub struct TrainSubmitParams {
     /// Human-readable training goal (stored on the orchestrator task).
@@ -22,7 +22,7 @@ pub struct TrainSubmitParams {
     pub min_vram_mb: Option<u32>,
 }
 
-/// Enqueue a background orchestrator task tagged for training; returns canonical `vox populi train` hint.
+/// Enqueue a background orchestrator task tagged for training; returns canonical `vox schola train` hint.
 pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> String {
     let prefer_gpu_compute = params.require_cuda || params.require_metal;
     let caps = TaskCapabilityHints {
@@ -34,7 +34,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
     };
 
     let desc = format!(
-        "[Populi train orchestration] {}\n\nRun locally: `vox populi train --backend qlora --tokenizer hf --device cuda|metal|cpu` (see docs/src/architecture/populi-training-ssot.md).",
+        "[Mens train orchestration] {}\n\nRun locally: `vox schola train --backend qlora --tokenizer hf --device cuda|metal|cpu` (see docs/src/architecture/mens-training-ssot.md).",
         params.description
     );
 
@@ -52,8 +52,8 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
     {
         Ok(task_id) => ToolResult::ok(json!({
             "task_id": task_id.0,
-            "hint": "Training execution remains in Populi CLI; this task records intent and routes GPU-capable agents when configured.",
-            "canonical_cli": "vox populi train",
+            "hint": "Training execution remains in Mens CLI; this task records intent and routes GPU-capable agents when configured.",
+            "canonical_cli": "vox schola train",
         }))
         .to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("{e}")).to_json(),

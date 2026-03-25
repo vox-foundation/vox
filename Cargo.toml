@@ -29,7 +29,7 @@ vox-ars                   = { path = "crates/vox-ars" }
 vox-bootstrap             = { path = "crates/vox-bootstrap" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-cli                   = { path = "crates/vox-cli" }
-vox-train                 = { path = "crates/vox-train" }
+vox-schola                 = { path = "crates/vox-schola" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
@@ -44,13 +44,13 @@ vox-git                   = { path = "crates/vox-git" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
-vox-mesh                  = { path = "crates/vox-mesh" }
+vox-populi                  = { path = "crates/vox-populi" }
 vox-mcp                   = { path = "crates/vox-mcp" }
 vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-pm                    = { path = "crates/vox-pm" }
-vox-populi                = { path = "crates/vox-populi", default-features = false }
+vox-mens                = { path = "crates/vox-mens", default-features = false }
 vox-repository            = { path = "crates/vox-repository" }
 vox-runtime               = { path = "crates/vox-runtime" }
 vox-skills                = { path = "crates/vox-skills" }

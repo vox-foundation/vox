@@ -111,21 +111,21 @@ pub enum AgentEventKind {
         task_id: TaskId,
         agent_id: AgentId,
         description: String,
-        /// Optional session link (for chat/workflow grouping in Populi).
+        /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
     },
     /// A task started executing.
     TaskStarted {
         task_id: TaskId,
         agent_id: AgentId,
-        /// Optional session link (for chat/workflow grouping in Populi).
+        /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
     },
     /// A task completed successfully.
     TaskCompleted {
         task_id: TaskId,
         agent_id: AgentId,
-        /// Optional session link (for chat/workflow grouping in Populi).
+        /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
     },
     /// A task failed.
@@ -133,7 +133,7 @@ pub enum AgentEventKind {
         task_id: TaskId,
         agent_id: AgentId,
         error: String,
-        /// Optional session link (for chat/workflow grouping in Populi).
+        /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
     },
 
@@ -234,7 +234,7 @@ pub enum AgentEventKind {
         snapshot_id: String,
         file_count: usize,
         description: String,
-        /// Optional session link (for chat/workflow grouping in Populi).
+        /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
     },
     /// Overlapping edits detected between agents.

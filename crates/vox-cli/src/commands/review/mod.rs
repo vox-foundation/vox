@@ -1,8 +1,8 @@
-//! Review-related helpers: DeI daemon review is invoked from **`vox populi review`** (`populi-dei`); GitHub CodeRabbit flows are **`vox review coderabbit`** (`coderabbit`).
+//! Review-related helpers: DeI daemon review is invoked from **`vox mens review`** (`mens-dei`); GitHub CodeRabbit flows are **`vox review coderabbit`** (`coderabbit`).
 
-#[cfg(feature = "populi-dei")]
+#[cfg(feature = "mens-dei")]
 mod dei;
-#[cfg(feature = "populi-dei")]
+#[cfg(feature = "mens-dei")]
 pub use dei::run;
 
 #[cfg(feature = "coderabbit")]

@@ -112,8 +112,8 @@ pub struct DoctorArgs {
     pub json: bool,
 }
 
-/// `vox train` (legacy; canonical: `vox populi train`)
-#[cfg(all(feature = "gpu", feature = "populi-dei"))]
+/// `vox train` (legacy; canonical: `vox schola train`)
+#[cfg(all(feature = "gpu", feature = "mens-dei"))]
 #[derive(Args, Clone, Debug)]
 pub struct TrainLegacyArgs {
     #[arg(long)]

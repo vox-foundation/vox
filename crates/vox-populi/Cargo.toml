@@ -1,71 +1,37 @@
 [package]
 name = "vox-populi"
+description = "Local and multi-node populi registry for Vox workers (CPU-first capabilities)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository.workspace = true
-description = "Populi native ML: Burn LoRA; Candle + qlora-rs QLoRA (NF4 projection stack + LM head, mmap f32 embeds); HF helpers"
-
-[dependencies]
-anyhow = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-ctrlc = { version = "3.4", features = ["termination"] }
-tokio = { workspace = true }
-tracing = { workspace = true }
-chrono = { workspace = true }
-dirs = { workspace = true }
-sysinfo = { workspace = true }
-rand = { workspace = true }
-vox-tensor = { workspace = true }
-vox-corpus = { workspace = true }
-vox-db = { workspace = true }
-burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
-hf-hub = { workspace = true, optional = true }
-candle-core = { workspace = true, optional = true }
-candle-nn = { workspace = true, optional = true }
-safetensors = { workspace = true, optional = true }
-tokenizers = { workspace = true, optional = true }
-qlora-rs = { workspace = true, optional = true }
-peft-rs = { workspace = true, optional = true }
-async-trait = { version = "0.1", optional = true }
-futures = { version = "0.3", optional = true }
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false, optional = true }
 
 [features]
 default = []
-gpu = ["dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors"]
-# Used as a dependency bundle for QLoRA; trainers and merge live behind `train` (see `tensor/mod.rs`).
-candle-qlora = [
-    "dep:candle-core",
-    "dep:candle-nn",
-    "dep:safetensors",
-    "dep:tokenizers",
-    "dep:qlora-rs",
-    "dep:peft-rs",
-]
-candle-qlora-cuda = [
-    "candle-qlora",
-    "candle-core/cuda",
-    "candle-nn/cuda"
-]
-candle-qlora-metal = [
-    "candle-qlora",
-    "candle-core/metal",
-    "candle-nn/metal",
-]
-train = ["gpu", "vox-tensor/train", "candle-qlora"]
-hf-hub = ["dep:hf-hub", "tokio/rt-multi-thread"]
-cloud = [
-    "dep:async-trait",
-    "dep:futures",
+# HTTP control plane (join / heartbeat / list) for multi-node loopback or LAN (TLS in ops layer).
+transport = [
+    "dep:axum",
+    "dep:tokio",
     "dep:reqwest",
+    "dep:tower-http",
+    "dep:subtle",
 ]
 
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+vox-repository = { workspace = true }
+axum = { version = "0.8", optional = true }
+tokio = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
+tower-http = { version = "0.6.2", optional = true, features = ["trace", "request-id"] }
+subtle = { version = "2.6", optional = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
+serde_yaml = { workspace = true }
 
 [lints]
 workspace = true

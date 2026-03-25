@@ -355,11 +355,11 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_benchmark_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500}},"additionalProperties":false}"#,
         ),
-        "vox_train_submit" => parse_obj(
+        "vox_schola_submit" => parse_obj(
             r#"{"type":"object","properties":{"description":{"type":"string","minLength":1,"maxLength":65536},"require_cuda":{"type":"boolean"},"require_metal":{"type":"boolean"},"min_vram_mb":{"type":"integer","minimum":0}},"required":["description"],"additionalProperties":false}"#,
         ),
-        "vox_mesh_local_status" => parse_obj(
-            r#"{"type":"object","properties":{"registry_path":{"type":"string","description":"Optional override for the mesh registry JSON path"}},"additionalProperties":false}"#,
+        "vox_populi_local_status" => parse_obj(
+            r#"{"type":"object","properties":{"registry_path":{"type":"string","description":"Optional override for the mens registry JSON path"}},"additionalProperties":false}"#,
         ),
 
         _ => Map::new(),

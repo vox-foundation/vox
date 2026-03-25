@@ -1,0 +1,71 @@
+[package]
+name = "vox-mens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Mens native ML: Burn LoRA; Candle + qlora-rs QLoRA (NF4 projection stack + LM head, mmap f32 embeds); HF helpers"
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+ctrlc = { version = "3.4", features = ["termination"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+sysinfo = { workspace = true }
+rand = { workspace = true }
+vox-tensor = { workspace = true }
+vox-corpus = { workspace = true }
+vox-db = { workspace = true }
+burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
+hf-hub = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
+safetensors = { workspace = true, optional = true }
+tokenizers = { workspace = true, optional = true }
+qlora-rs = { workspace = true, optional = true }
+peft-rs = { workspace = true, optional = true }
+async-trait = { version = "0.1", optional = true }
+futures = { version = "0.3", optional = true }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false, optional = true }
+
+[features]
+default = []
+gpu = ["dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors"]
+# Used as a dependency bundle for QLoRA; trainers and merge live behind `train` (see `tensor/mod.rs`).
+candle-qlora = [
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:safetensors",
+    "dep:tokenizers",
+    "dep:qlora-rs",
+    "dep:peft-rs",
+]
+candle-qlora-cuda = [
+    "candle-qlora",
+    "candle-core/cuda",
+    "candle-nn/cuda"
+]
+candle-qlora-metal = [
+    "candle-qlora",
+    "candle-core/metal",
+    "candle-nn/metal",
+]
+train = ["gpu", "vox-tensor/train", "candle-qlora"]
+hf-hub = ["dep:hf-hub", "tokio/rt-multi-thread"]
+cloud = [
+    "dep:async-trait",
+    "dep:futures",
+    "dep:reqwest",
+]
+
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

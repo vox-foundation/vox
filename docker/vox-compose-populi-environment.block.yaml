@@ -1,0 +1,22 @@
+      # SSOT: repo docker/vox-compose-mens-environment.block.yaml (see docs/architecture/deployment-compose-ssot.md)
+      # Optional CPU mens hooks (see docs/src/architecture/mens-ssot.md)
+      - VOX_MESH_ENABLED=${VOX_MESH_ENABLED:-0}
+      - VOX_MESH_NODE_ID=${VOX_MESH_NODE_ID:-}
+      - VOX_MESH_LABELS=${VOX_MESH_LABELS:-}
+      - VOX_MESH_CONTROL_ADDR=${VOX_MESH_CONTROL_ADDR:-}
+      - VOX_MESH_REGISTRY_PATH=${VOX_MESH_REGISTRY_PATH:-}
+      - VOX_MESH_ADVERTISE_GPU=${VOX_MESH_ADVERTISE_GPU:-0}
+      - VOX_MESH_ADVERTISE_VULKAN=${VOX_MESH_ADVERTISE_VULKAN:-0}
+      - VOX_MESH_ADVERTISE_WEBGPU=${VOX_MESH_ADVERTISE_WEBGPU:-0}
+      - VOX_MESH_ADVERTISE_NPU=${VOX_MESH_ADVERTISE_NPU:-0}
+      - VOX_MESH_DEVICE_CLASS=${VOX_MESH_DEVICE_CLASS:-}
+      - VOX_ORCHESTRATOR_MESH_CONTROL_URL=${VOX_ORCHESTRATOR_MESH_CONTROL_URL:-}
+      - VOX_MESH_MAX_STALE_MS=${VOX_MESH_MAX_STALE_MS:-}
+      - VOX_MESH_CODEX_TELEMETRY=${VOX_MESH_CODEX_TELEMETRY:-0}
+      - VOX_MESH_HTTP_JOIN=${VOX_MESH_HTTP_JOIN:-}
+      - VOX_MESH_HTTP_HEARTBEAT_SECS=${VOX_MESH_HTTP_HEARTBEAT_SECS:-}
+      # Cluster / tenancy id; join/heartbeat must match server when server sets this. See mens-ssot.md.
+      - VOX_MESH_SCOPE_ID=${VOX_MESH_SCOPE_ID:-}
+      # Bearer token for `vox populi serve` when secured; never log. See mens-ssot.md.
+      - VOX_MESH_TOKEN=${VOX_MESH_TOKEN:-}
+

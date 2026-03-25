@@ -5,7 +5,7 @@ use std::path::Path;
 
 /// Hardware hints for a **task** requirement or an **agent** queue capability profile.
 ///
-/// **CPU-first mesh:** `cpu_cores`, `arch`, `hostname`, and `labels` describe the host; GPU / NPU
+/// **CPU-first mens:** `cpu_cores`, `arch`, `hostname`, and `labels` describe the host; GPU / NPU
 /// fields remain optional extensions. Deserialization fills missing fields from defaults so older
 /// JSON/TOML remains valid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -38,16 +38,16 @@ pub struct TaskCapabilityHints {
     /// Target architecture string (e.g. `x86_64`, `aarch64`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arch: Option<String>,
-    /// Host name when known (mesh / placement visibility).
+    /// Host name when known (mens / placement visibility).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
-    /// Optional scheduler labels (mesh, region, pool, …).
+    /// Optional scheduler labels (mens, region, pool, …).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub labels: Vec<String>,
     /// Task requires at least this many logical cores (soft routing penalty when unmet).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_cpu_cores: Option<u32>,
-    /// Soft routing hint: deprioritize agents without any GPU capability (Populi-style training intent).
+    /// Soft routing hint: deprioritize agents without any GPU capability (Mens-style training intent).
     #[serde(default)]
     pub prefer_gpu_compute: bool,
 }

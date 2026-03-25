@@ -426,7 +426,7 @@ fn extract_mcp_handler_tools(src: &str) -> Result<HashSet<String>> {
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
 const KNOWN_LATIN_NS: &[&str] = &[
-    "fabrica", "mens", "ars", "ci", "codex", "populi", "recensio",
+    "fabrica", "mens", "ars", "ci", "codex", "mens", "recensio",
 ];
 
 fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {

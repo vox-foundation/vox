@@ -15,7 +15,7 @@ wasm = ["dep:wasmtime"]
 [dependencies]
 # Workspace dependencies
 vox-orchestrator = { workspace = true, features = ["json-schema"] }
-vox-mesh = { workspace = true, features = ["transport"] }
+vox-populi = { workspace = true, features = ["transport"] }
 vox-repository   = { workspace = true, features = ["json-schema"] }
 vox-runtime      = { workspace = true }
 vox-config       = { workspace = true }

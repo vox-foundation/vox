@@ -1,4 +1,4 @@
-//! Rust source code corpus extractor for Populi training data.
+//! Rust source code corpus extractor for Mens training data.
 //!
 //! Walks `crates/**/*.rs` and extracts function-level doc comment + signature + body
 //! triples as `prompt`/`response` [`TrainingPair`](vox_tensor::data::TrainingPair)-compatible

@@ -9,7 +9,7 @@
 //! ```no_run
 //! use vox_corpus::synthetic_gen::{SyntheticGenConfig, generate_all};
 //! let cfg = SyntheticGenConfig::default();
-//! generate_all(&cfg, std::path::Path::new("populi/data/synthetic.jsonl")).unwrap();
+//! generate_all(&cfg, std::path::Path::new("mens/data/synthetic.jsonl")).unwrap();
 //! ```
 
 use std::io::Write;
@@ -225,7 +225,7 @@ struct ScenarioDef {
 }
 
 static TEMPLATES: LazyLock<SyntheticTemplates> = LazyLock::new(|| {
-    let yaml = include_str!("../../../populi/config/templates.yaml");
+    let yaml = include_str!("../../../mens/config/templates.yaml");
     let cfg: TemplatesConfig = serde_yaml::from_str(yaml).expect("Failed to parse templates.yaml");
     cfg.synthetic
 });
@@ -290,7 +290,7 @@ fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
         | "vox_repo_index_status" | "vox_repo_index_refresh" | "vox_vcs_status"
         | "vox_session_list" | "vox_memory_list_keys" | "vox_session_cleanup"
         | "vox_lock_status2" | "vox_rebalance" | "vox_oratio_status"
-        | "vox_chat_history" | "vox_get_active_model" | "vox_mesh_local_status"
+        | "vox_chat_history" | "vox_get_active_model" | "vox_populi_local_status"
         | "vox_benchmark_list" => json!({}),
         "vox_run_tests" => json!({ "crate_name": "vox-cli", "filter": "training" }),
         "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
@@ -409,8 +409,8 @@ fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
         }
         "vox_replan" => json!({ "session_id": "sess-abc123", "delta_hint": "User wants OAuth instead of basic auth" }),
         "vox_plan_status" => json!({ "session_id": "sess-abc123" }),
-        "vox_train_submit" => {
-            json!({ "description": "Train Populi on the updated corpus", "require_cuda": true })
+        "vox_schola_submit" => {
+            json!({ "description": "Train Mens on the updated corpus", "require_cuda": true })
         }
         "vox_reliability_list" => json!({ "limit": 25 }),
         "vox_reliability_agents" => json!({}),
@@ -854,7 +854,7 @@ fn generate_script_pairs(
         // (prompt, script content, category)
         (
             "Write a PowerShell script to monitor QLoRA training telemetry",
-            r#"$TelemetryPath = "populi\runs\qwen25_qlora\telemetry.jsonl"
+            r#"$TelemetryPath = "mens\runs\qwen25_qlora\telemetry.jsonl"
 if (Test-Path $TelemetryPath) {
     Get-Content $TelemetryPath -Wait -Tail 10 | ForEach-Object {
         $event = $_ | ConvertFrom-Json
@@ -876,20 +876,20 @@ if %errorlevel% neq 0 (
     echo MSVC init failed
     exit /b 1
 )
-cargo build -p vox-cli --release --features gpu,populi-candle-cuda
+cargo build -p vox-cli --release --features gpu,mens-candle-cuda
 endlocal"#,
             "batch_script",
         ),
         (
-            "Write a PowerShell script to generate and mix the Populi training corpus",
+            "Write a PowerShell script to generate and mix the Mens training corpus",
             r#"$RepoRoot = (Resolve-Path "$PSScriptRoot\..").Path
 Set-Location $RepoRoot
 
 Write-Host "Generating synthetic corpus..." -ForegroundColor Cyan
-& "$RepoRoot\target\release\vox.exe" populi corpus generate --output populi/data/synthetic.jsonl
+& "$RepoRoot\target\release\vox.exe" mens corpus generate --output mens/data/synthetic.jsonl
 
 Write-Host "Mixing corpus..." -ForegroundColor Cyan
-& "$RepoRoot\target\release\vox.exe" populi corpus mix --config populi/config/mix.yaml
+& "$RepoRoot\target\release\vox.exe" mens corpus mix --config mens/config/mix.yaml
 
 Write-Host "Corpus ready at target/dogfood/train_mixed.jsonl" -ForegroundColor Green"#,
             "powershell_script",
@@ -906,7 +906,7 @@ Write-Host "Corpus ready at target/dogfood/train_mixed.jsonl" -ForegroundColor G
         ),
         (
             "Write a PowerShell script to start QLoRA training detached with persistent logging",
-            r#"$RunDir = "populi\runs\qwen25_qlora"
+            r#"$RunDir = "mens\runs\qwen25_qlora"
 New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 New-Item -ItemType Directory -Force -Path "target\dogfood" | Out-Null
 
@@ -926,7 +926,7 @@ Write-Host "Training started. Monitor with: Get-Content $RunDir\telemetry.jsonl 
         ),
         (
             "Write a PowerShell command to tail the training log file",
-            "Get-Content C:\\Users\\Owner\\vox\\populi\\runs\\qwen25_qlora\\telemetry.jsonl -Wait -Tail 10",
+            "Get-Content C:\\Users\\Owner\\vox\\mens\\runs\\qwen25_qlora\\telemetry.jsonl -Wait -Tail 10",
             "shell_command",
         ),
         (
@@ -1020,7 +1020,7 @@ pub fn generate_tool_chain_pairs(
 /// Generate routing decision pairs where the model must decide HOW to respond
 /// (tool call, direct answer, agent delegation) given a user request.
 ///
-/// This teaches Populi to act as the orchestrator itself, not just as a tool
+/// This teaches Mens to act as the orchestrator itself, not just as a tool
 /// that executes commands — critical for autonomous agent operation.
 pub fn generate_routing_decision_pairs(
     out: &mut impl Write,
@@ -1229,7 +1229,7 @@ pub fn generate_error_recovery_pairs(
         (
             "error: no training rows after rating >= 3 and context filter Some(\"vox\")",
             "empty_training_corpus",
-            "The training JSONL has no rows matching the 'vox' category filter. Either: (a) remove --context-filter to use all rows, (b) regenerate corpus with 'vox populi corpus generate', or (c) check that mix.yaml points to files with category='vox' rows.",
+            "The training JSONL has no rows matching the 'vox' category filter. Either: (a) remove --context-filter to use all rows, (b) regenerate corpus with 'vox mens corpus generate', or (c) check that mix.yaml points to files with category='vox' rows.",
         ),
         (
             "CUDA out of memory. Tried to allocate 2.00 GiB",
@@ -1239,7 +1239,7 @@ pub fn generate_error_recovery_pairs(
         (
             "error: package ID specification `candle-kernels` did not match any packages",
             "cargo_workspace",
-            "candle-kernels is a patched crate under patches/ but must be built via the workspace from the repo root (not from patches/candle-kernels-0.9.2/). Navigate to the repo root and run 'cargo build -p vox-cli --features gpu,populi-candle-cuda'.",
+            "candle-kernels is a patched crate under patches/ but must be built via the workspace from the repo root (not from patches/candle-kernels-0.9.2/). Navigate to the repo root and run 'cargo build -p vox-cli --features gpu,mens-candle-cuda'.",
         ),
         (
             "thread 'main' panicked at 'Failed to connect to Codex, retrying (3/3)'",
@@ -1368,12 +1368,12 @@ pub fn generate_telemetry_interpretation_pairs(
         (
             r#"{"event":"train_complete","payload":{"wall_seconds":86400,"mean_steps_per_sec":1.18,"steps_executed":102240}}"#,
             "interpret_training_complete",
-            "Training completed in 24h. 102,240 steps at 1.18 step/s. Check the adapter manifest at populi/runs/v1/populi_adapter_manifest_v3.json and the telemetry.jsonl for per-epoch loss trends before promoting the adapter.",
+            "Training completed in 24h. 102,240 steps at 1.18 step/s. Check the adapter manifest at mens/runs/v1/populi_adapter_manifest_v3.json and the telemetry.jsonl for per-epoch loss trends before promoting the adapter.",
         ),
         (
-            r#"{"event":"checkpoint_saved","payload":{"epoch":1,"global_step":31504,"path":"populi/runs/v1/candle_qlora_adapter_epoch1.safetensors"}}"#,
+            r#"{"event":"checkpoint_saved","payload":{"epoch":1,"global_step":31504,"path":"mens/runs/v1/candle_qlora_adapter_epoch1.safetensors"}}"#,
             "interpret_checkpoint_saved",
-            "Epoch 1 checkpoint saved at step 31504. The safetensors file contains the LoRA A/B matrices for this epoch. You can inspect it with 'vox populi merge-qlora' or use it as an intermediate checkpoint for early inference testing.",
+            "Epoch 1 checkpoint saved at step 31504. The safetensors file contains the LoRA A/B matrices for this epoch. You can inspect it with 'vox schola merge-qlora' or use it as an intermediate checkpoint for early inference testing.",
         ),
         (
             "[Epoch 2/3 Step 500] Loss: 2.14 | Skips: VCB:3 HID:0 SEQ:0 | ETA≈12h30m",
@@ -1383,7 +1383,7 @@ pub fn generate_telemetry_interpretation_pairs(
         (
             "How do I monitor training progress in real time?",
             "telemetry_monitoring",
-            "Tail the training log: Get-Content populi/runs/v1/train_*.log -Wait -Tail 25. For structured telemetry: Get-Content populi/runs/v1/telemetry.jsonl -Wait -Tail 5 | ForEach-Object { $_ | ConvertFrom-Json }. For VoxDb events: vox codex verify checks schema health; the telemetry channel logs train_step events every 20 steps.",
+            "Tail the training log: Get-Content mens/runs/v1/train_*.log -Wait -Tail 25. For structured telemetry: Get-Content mens/runs/v1/telemetry.jsonl -Wait -Tail 5 | ForEach-Object { $_ | ConvertFrom-Json }. For VoxDb events: vox codex verify checks schema health; the telemetry channel logs train_step events every 20 steps.",
         ),
     ];
 
@@ -1423,13 +1423,13 @@ pub fn generate_agent_lifecycle_pairs(
             "agent_lifecycle_create",
         ),
         (
-            "deploy a Vox agent to the distributed mesh",
-            "After registering, call `vox_submit_task` with `task_type = 'deploy_agent'` and the agent's `agent_id`. The mesh runtime handles placement.",
+            "deploy a Vox agent to the distributed mens",
+            "After registering, call `vox_submit_task` with `task_type = 'deploy_agent'` and the agent's `agent_id`. The mens runtime handles placement.",
             "agent_lifecycle_deploy",
         ),
         (
             "check whether a Vox agent is healthy and responsive",
-            "Call `vox_get_task_status` with the agent's active task id, or query the mesh with `vox_mesh_local_status` to inspect mailbox depth and last heartbeat.",
+            "Call `vox_get_task_status` with the agent's active task id, or query the mens with `vox_populi_local_status` to inspect mailbox depth and last heartbeat.",
             "agent_lifecycle_health",
         ),
         (
@@ -1808,7 +1808,7 @@ mod tests {
     #[test]
     fn all_workflow_scenarios_appear_in_output() {
     let out = run_all_to_string(&default_cfg());
-    let yaml = include_str!("../../../populi/config/templates.yaml");
+    let yaml = include_str!("../../../mens/config/templates.yaml");
     let cfg: serde_json::Value = serde_yaml::from_str(yaml).unwrap();
     let workflows = cfg.get("synthetic").unwrap().get("workflows").unwrap().as_array().unwrap();
     for w in workflows {
@@ -1820,7 +1820,7 @@ mod tests {
     #[test]
     fn all_agent_scenarios_appear_in_output() {
     let out = run_all_to_string(&default_cfg());
-    let yaml = include_str!("../../../populi/config/templates.yaml");
+    let yaml = include_str!("../../../mens/config/templates.yaml");
     let cfg: serde_json::Value = serde_yaml::from_str(yaml).unwrap();
     let agents = cfg.get("synthetic").unwrap().get("agents").unwrap().as_array().unwrap();
     for a in agents {

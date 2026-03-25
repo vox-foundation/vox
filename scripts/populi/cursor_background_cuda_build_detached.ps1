@@ -3,8 +3,8 @@
 # spawning `cursor_background_cuda_build.ps1` in a child pwsh avoids that and matches IDE/agent timeouts.
 #
 # Usage (repo root or any cwd — script resolves repo via $PSScriptRoot):
-#   pwsh scripts/populi/cursor_background_cuda_build_detached.ps1
-#   Get-Content populi/runs/logs/cuda_build_*.log -Wait -Tail 30
+#   pwsh scripts/mens/cursor_background_cuda_build_detached.ps1
+#   Get-Content mens/runs/logs/cuda_build_*.log -Wait -Tail 30
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -16,4 +16,4 @@ Start-Process -FilePath "pwsh" -WorkingDirectory $root -ArgumentList @(
     $buildScript
 ) | Out-Null
 
-Write-Host "Spawned background CUDA build (see populi/runs/logs/cuda_build_*.log). This shell returned immediately."
+Write-Host "Spawned background CUDA build (see mens/runs/logs/cuda_build_*.log). This shell returned immediately."

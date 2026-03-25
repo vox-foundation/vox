@@ -1,4 +1,4 @@
-//! `vox populi generate` — AI-powered Vox code generation.
+//! `vox mens generate` — AI-powered Vox code generation.
 //!
 //! Connects to the `vox-dei-d` daemon and streams AI-generated Vox source code
 //! from a natural language prompt. Supports context modes, output validation,
@@ -124,7 +124,7 @@ async fn try_enqueue_job(prompt: &str, result: &str) {
     );
 }
 
-/// Main entry point for `vox populi generate`.
+/// Main entry point for `vox mens generate`.
 ///
 /// # Parameters
 /// - `prompt` — natural language description of the code to generate

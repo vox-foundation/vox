@@ -49,10 +49,10 @@
   </item>
 
   <item>
-    <title>ADR 006: Populi full-graph Candle QLoRA with qlora-rs</title>
-    <link>https://vox-foundation.github.io/vox/adr/006-populi-full-graph-qlora-qlora-rs.html</link>
-    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/006-populi-full-graph-qlora-qlora-rs.html</guid>
-    <description>Official documentation for ADR 006: Populi full-graph Candle QLoRA with qlora-rs for the Vox language.</description>
+    <title>ADR 006: Mens full-graph Candle QLoRA with qlora-rs</title>
+    <link>https://vox-foundation.github.io/vox/adr/006-mens-full-graph-qlora-qlora-rs.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/006-mens-full-graph-qlora-qlora-rs.html</guid>
+    <description>Official documentation for ADR 006: Mens full-graph Candle QLoRA with qlora-rs for the Vox language.</description>
     <pubDate>Tue, 24 Mar 2026 00:00:00 GMT</pubDate>
   </item>
 
@@ -65,18 +65,18 @@
   </item>
 
   <item>
-    <title>ADR 008: Mesh transport</title>
-    <link>https://vox-foundation.github.io/vox/adr/008-mesh-transport.html</link>
-    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/008-mesh-transport.html</guid>
-    <description>Official documentation for ADR 008: Mesh transport for the Vox language. Detailed technical reference, architecture guides, and implement</description>
+    <title>ADR 008: Mens transport</title>
+    <link>https://vox-foundation.github.io/vox/adr/008-mens-transport.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/008-mens-transport.html</guid>
+    <description>Official documentation for ADR 008: Mens transport for the Vox language. Detailed technical reference, architecture guides, and implement</description>
     <pubDate>Tue, 24 Mar 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
-    <title>ADR 009: Hosted mesh / BaaS (future scope)</title>
-    <link>https://vox-foundation.github.io/vox/adr/009-mesh-hosted-baas.html</link>
-    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/009-mesh-hosted-baas.html</guid>
-    <description>Official documentation for ADR 009: Hosted mesh / BaaS (future scope) for the Vox language. Detailed technical reference, architecture gu</description>
+    <title>ADR 009: Hosted mens / BaaS (future scope)</title>
+    <link>https://vox-foundation.github.io/vox/adr/009-mens-hosted-baas.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/009-mens-hosted-baas.html</guid>
+    <description>Official documentation for ADR 009: Hosted mens / BaaS (future scope) for the Vox language. Detailed technical reference, architecture gu</description>
     <pubDate>Tue, 24 Mar 2026 00:00:00 GMT</pubDate>
   </item>
 
@@ -185,10 +185,10 @@
   </item>
 
   <item>
-    <title>v0.6.0 — Mesh Transport; Durable Workflow Runtime MVP</title>
+    <title>v0.6.0 — Mens Transport; Durable Workflow Runtime MVP</title>
     <link>https://vox-foundation.github.io/vox/changelog.html</link>
     <guid>https://vox-foundation.github.io/vox/changelog.html#v0.6.0</guid>
-    <description>CPU-first mesh registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mesh activity hooks.</description>
+    <description>CPU-first mens registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mens activity hooks.</description>
     <pubDate>Thu, 15 Jan 2026 00:00:00 GMT</pubDate>
   </item>
 </channel>

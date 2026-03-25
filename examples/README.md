@@ -4,7 +4,7 @@ Working code examples demonstrating Vox language features. Each `.vox` file is a
 
 ## Golden Examples
 
-The `golden/` directory contains validated, current-syntax examples suitable for learning and for the **Populi** ML training corpus. Every file in `golden/` passes `vox check` in CI.
+The `golden/` directory contains validated, current-syntax examples suitable for learning and for the **Mens** ML training corpus. Every file in `golden/` passes `vox check` in CI.
 
 | Example | Description | Difficulty |
 |---------|-------------|------------|
@@ -25,7 +25,7 @@ The `golden/` directory contains validated, current-syntax examples suitable for
 golden → deprecated → archived
 ```
 
-1. **Golden**: Current, validated syntax. CI must pass. Eligible for Populi training.
+1. **Golden**: Current, validated syntax. CI must pass. Eligible for Mens training.
 2. **Deprecated**: Syntax is outdated. Kept for historical reference. Not in training corpus.
 3. **Archived**: Moved to `archive/`. Not shown in docs. Not in training.
 

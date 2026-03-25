@@ -1,4 +1,4 @@
-//! Environment resolution for **inference providers** (local Populi/Ollama and cloud keys).
+//! Environment resolution for **inference providers** (local Mens/Ollama and cloud keys).
 //!
 //! This module is the **SSOT** for reading env vars used across CLI, MCP, and runtime. Callers that
 //! need HTTP probes (health, model lists) use `vox_runtime::inference_env::probe_populi_capabilities`.

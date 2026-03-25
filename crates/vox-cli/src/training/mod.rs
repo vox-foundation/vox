@@ -371,7 +371,7 @@ pub const SYSTEM_PROMPT_PREAMBLE: &str = r#"You are a Vox programming language e
 
 /// Generate the full system prompt string (taxonomy / eval fingerprint).
 ///
-/// Populi training and file-backed prompts use [`vox_corpus::training::generate_system_prompt`]
+/// Mens training and file-backed prompts use [`vox_corpus::training::generate_system_prompt`]
 /// (`scripts/vox_system_prompt.txt` when present). Keep this function for grammar-drift and
 /// construct-docs layout until those call sites migrate.
 pub fn generate_system_prompt() -> String {

@@ -19,7 +19,7 @@ pub use types::{
     StoreError, ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 
-pub use ops_populi_cloud::CloudCostSummary;
+pub use ops_mens_cloud::CloudCostSummary;
 pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};
 
 
@@ -33,4 +33,4 @@ mod ops_learning;
 mod ops_ludus;
 mod ops_memory;
 mod ops_orchestrator;
-mod ops_populi_cloud;
+mod ops_mens_cloud;

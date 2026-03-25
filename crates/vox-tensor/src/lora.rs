@@ -20,9 +20,9 @@
 //! See the `quant` module (planned) for that implementation.
 //! Ultimately this may be extracted to a `burn-lora` crate on crates.io.
 //!
-//! **Populi full transformer + merge** (`LoraVoxTransformer`, attention merge, HF warm-start) lives in
-//! **`vox-populi`** `tensor/lora.rs` — not in this crate. Workspace Burn **0.19** includes quantization
-//! primitives; Populi train path integration is tracked in `docs/src/architecture/hf-finetune-gap-matrix-ssot.md`.
+//! **Mens full transformer + merge** (`LoraVoxTransformer`, attention merge, HF warm-start) lives in
+//! **`vox-mens`** `tensor/lora.rs` — not in this crate. Workspace Burn **0.19** includes quantization
+//! primitives; Mens train path integration is tracked in `docs/src/architecture/hf-finetune-gap-matrix-ssot.md`.
 
 use burn::module::Module;
 use burn::nn;

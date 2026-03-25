@@ -43,7 +43,7 @@ Thin delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/verify_wor
 
 Runner contract: [CI runner contract](../ci/runner-contract.md) (section **Optional: strict parse for all examples**).
 
-## Training / Populi
+## Training / Mens
 
 Prefer golden root examples for corpus ingest; treat `examples/archive/**` as **non-canonical** unless a pipeline explicitly opts in (see [`examples/archive/README.md`](../adr/README.md)).
 
