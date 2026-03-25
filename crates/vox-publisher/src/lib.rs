@@ -1,6 +1,8 @@
 pub mod adapters;
 pub mod contract;
 pub mod gate;
+pub mod publication;
+pub mod scholarly;
 pub mod templates;
 pub mod types;
 

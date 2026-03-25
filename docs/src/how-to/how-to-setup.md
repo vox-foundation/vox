@@ -21,7 +21,7 @@ git clone https://github.com/vox-foundation/vox && cd vox
 .\scripts\install.ps1
 ```
 
-Both scripts ensure **rustup/cargo**, then run **`vox-bootstrap`** (`cargo run --locked -p vox-bootstrap`): same logic on every OS. When `--install` is used, bootstrap now attempts a GitHub Release binary first (with checksum verification) and automatically falls back to source install if the binary lane is unavailable. See `crates/vox-bootstrap/README.md`.
+Both scripts ensure **rustup/cargo**, then run **`vox-bootstrap`** (`cargo run --locked -p vox-bootstrap`): same logic on every OS. When `--install` is used, bootstrap attempts a **binary-first** install from GitHub Releases (SHA-256 via `checksums.txt`; latest tag from the GitHub API so asset names match `vox-<tag>-<triple>.*`), then falls back to **`cargo install --path crates/vox-cli`** from the resolved repo root (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`). Artifact layout and targets: [binary release contract](../ci/binary-release-contract.md). See `crates/vox-bootstrap/README.md`.
 
 | Flag / args | Effect |
 |-------------|--------|
@@ -35,19 +35,17 @@ Both scripts ensure **rustup/cargo**, then run **`vox-bootstrap`** (`cargo run -
 
 Examples: `./scripts/install.sh --install --version v1.2.3`, `.\scripts\install.ps1 -Install`, `./scripts/install.sh --install --source-only`, `./scripts/install.sh plan`.
 
-Then build the CLI with `cargo build -p vox-cli` and run **`vox setup`** for keys, wasm, and project checks.
+Then build the CLI with `cargo build -p vox-cli` and run **`vox doctor`** to verify your local environment.
 
-## Cross-Platform Setup Wizard
+## Cross-Platform Verification Checklist
 
-After installing `vox`, run the built-in setup wizard:
+After installing `vox`, run:
 
 ```bash
-vox setup                    # Interactive setup
-vox setup --dev              # Include dev tools (clippy, nextest)
-vox setup --non-interactive  # CI mode (reads env vars only)
+vox doctor
 ```
 
-The wizard checks:
+This check focuses on:
 
 | Check | Required? | How to Fix |
 |---|---|---|
@@ -73,7 +71,7 @@ No credit card required. Provides Gemini 2.5 Flash, Flash-Lite, and Pro.
 # Get your key (takes 10 seconds):
 # https://aistudio.google.com/apikey
 
-vox login --registry google YOUR_KEY
+export GEMINI_API_KEY=YOUR_KEY
 ```
 
 ### Layer 2: OpenRouter (Optional)
@@ -81,7 +79,7 @@ vox login --registry google YOUR_KEY
 Free API key unlocks dozens of `:free` models (Devstral 2, Qwen3 Coder, Llama 4 Scout, Kimi K2). Paid key unlocks SOTA models (DeepSeek v3.2, Claude Sonnet 4.5, GPT-5, O3).
 
 ```bash
-vox login --registry openrouter YOUR_KEY
+export OPENROUTER_API_KEY=YOUR_KEY
 ```
 
 ### Layer 3: Ollama (Optional, Local)

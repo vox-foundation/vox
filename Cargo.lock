@@ -9841,6 +9841,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-pm",
  "vox-populi",
+ "vox-publisher",
  "vox-repository",
  "vox-runtime",
  "vox-skills",

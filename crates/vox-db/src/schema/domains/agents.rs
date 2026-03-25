@@ -196,9 +196,21 @@ CREATE TABLE IF NOT EXISTS agent_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id TEXT NOT NULL,
     event_type TEXT NOT NULL,
-    payload TEXT,
+    payload_json TEXT,
+    cli_version TEXT,
     timestamp TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Orchestrator MCP session replay (SSOT when DB attached); JSONL is optional export only.
+CREATE TABLE IF NOT EXISTS agent_session_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_session_events_session ON agent_session_events(session_id);
 
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

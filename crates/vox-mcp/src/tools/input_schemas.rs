@@ -355,6 +355,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_benchmark_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500}},"additionalProperties":false}"#,
         ),
+        "vox_benchmark_record" => parse_obj(
+            r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":512,"description":"Benchmark name (e.g. build_time, eval_p95)"},"value":{"type":"number","description":"Optional metric value"},"details":{"description":"Optional structured JSON details"}},"required":["name"],"additionalProperties":false}"#,
+        ),
+        "vox_toestub_findings_upsert" => parse_obj(
+            r#"{"type":"object","properties":{"findings":{"type":"array","minItems":1,"items":{"type":"object","properties":{"rule_id":{"type":"string","minLength":1},"rule_name":{"type":"string","minLength":1},"severity":{"type":"string","enum":["Info","Warning","Error","Critical"]},"file":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"column":{"type":"integer","minimum":0},"message":{"type":"string","minLength":1},"suggestion":{"type":"string"},"context":{"type":"string"}},"required":["rule_id","rule_name","severity","file","line","column","message"],"additionalProperties":false}},"session_id":{"type":"string","maxLength":2048}},"required":["findings"],"additionalProperties":false}"#,
+        ),
         "vox_schola_submit" => parse_obj(
             r#"{"type":"object","properties":{"description":{"type":"string","minLength":1,"maxLength":65536},"require_cuda":{"type":"boolean"},"require_metal":{"type":"boolean"},"min_vram_mb":{"type":"integer","minimum":0}},"required":["description"],"additionalProperties":false}"#,
         ),
@@ -367,7 +373,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"content":{"type":"string","minLength":1,"description":"Markdown with YAML frontmatter"}},"required":["content"],"additionalProperties":false}"#,
         ),
         "vox_news_draft_research" => parse_obj(
-            r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"maxLength":256,"description":"Filename stem for docs/news/drafts/{id}.md"},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"abstract_text":{"type":"string"}},"required":["id","title","author","abstract_text"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256,"description":"Filename stem for docs/news/drafts/{news_id}.md"},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"abstract_text":{"type":"string"}},"required":["news_id","title","author","abstract_text"],"additionalProperties":false}"#,
         ),
         "vox_news_approve" => parse_obj(
             r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["news_id","approver"],"additionalProperties":false}"#,
@@ -377,6 +383,15 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_news_simulate_publish_gate" => parse_obj(
             r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"content":{"type":"string","minLength":1}},"required":["news_id","content"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_prepare" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"content":{"type":"string","minLength":1},"abstract_text":{"type":"string"},"citations_json":{"type":"object"}},"required":["publication_id","title","author","content"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_approve" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id","approver"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_submit_local" | "vox_scientia_publication_status" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
 
         _ => Map::new(),

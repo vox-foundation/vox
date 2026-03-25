@@ -13,7 +13,7 @@ training_eligible: true
 | Check | Source |
 |-------|--------|
 | Top-level `vox` subcommands exist in `Cli` | `crates/vox-cli/src/lib.rs` |
-| Doc needles for `ref_cli_required` operations | `docs/src/ref-cli.md` (fallback: `docs/src/reference/cli.md`) — `vox ci …` and `vox codex` subcommands are checked **only inside** their `### \`vox ci …\`` / `### \`vox codex\`` sections (not whole-file substring matches) |
+| Doc needles for `ref_cli_required` operations | `docs/src/ref-cli.md` if present, else canonical `docs/src/reference/cli.md` — checks **always** run (no skip). `vox ci …` and `vox codex` subcommands are validated **only inside** their `### \`vox ci …\`` / `### \`vox codex\`` sections (not whole-file substring matches) |
 | Top-level reachability table rows | `docs/src/reference/cli-reachability.md` (rows skipped for `completions`, `fabrica`, `mens`, `ars`, `recensio`, and when `reachability_required: false`) |
 | Compiler daemon RPC method names | `crates/vox-cli/src/compilerd.rs` |
 | DeI daemon RPC method ids | `crates/vox-cli/src/dei_daemon.rs` |

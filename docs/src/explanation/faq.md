@@ -22,10 +22,12 @@ Null is completely banned. Absent values use `Option[T]` (`Some(value)` or `None
 ## Installation & Toolchain
 
 ### How do I install and update Vox?
-Build from source with `cargo install --path crates/vox-cli`, or run `vox upgrade` to pull the latest binary from the Vox Foundation servers.
+Build from source with `cargo install --path crates/vox-cli` (or use the install scripts in the repo).  
+To discover what your currently installed binary supports, run `vox commands --recommended` and `vox commands --include-nested`.
 
 ### What does `vox build` do?
-It lexes, parses, and type-checks your `.vox` files, then generates Rust source in `src-gen/` and TypeScript in `frontend-gen/`, and invokes Cargo/Vite to produce the final binaries.
+`vox build` lexes, parses, and type-checks your `.vox` file, then generates Rust and TypeScript output.  
+Why use it: it gives you a deterministic compile artifact you can inspect before running or bundling.
 
 ### Can I use existing Rust or NPM libraries?
 Yes. Use `@rust.import` for Rust crates and standard NPM imports in frontend blocks.
@@ -51,7 +53,7 @@ Vox has native [Model Context Protocol (MCP)](https://modelcontextprotocol.io) s
 Mens is Vox's native ML pipeline for QLoRA (Quantized Low-Rank Adaptation) fine-tuning of LLMs on your codebase — entirely in Rust, no Python required. Run:
 
 ```bash
-vox schola train --backend qlora
+vox mens train --backend qlora
 ```
 
 It crawls files marked `training_eligible: true`, builds tensors, and runs the Candle training backend. See [How To: Train Mens Models](../how-to/how-to-train-mens-4080.md).
@@ -65,4 +67,4 @@ An anti-hallucination layer built into the orchestrator. Before generating or ap
 Vox compiles to a single statically-linked binary. Deploy it anywhere — AWS, Render, a Raspberry Pi, or the Vox Mens.
 
 ### Is Vox open source? How do I contribute?
-Yes, Apache-2.0 licensed. Submit PRs on GitHub, follow `STYLE.md`, and run `vox ci check` before pushing.
+Yes, Apache-2.0 licensed. Submit PRs on GitHub, follow `STYLE.md`, and run `vox ci manifest` plus `vox ci command-compliance` before pushing.

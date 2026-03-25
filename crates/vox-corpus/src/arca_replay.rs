@@ -31,11 +31,10 @@ pub async fn extract_arca_pairs(
     // Replay 1: A2A Messages
     // Extract recent A2A interaction payloads using payload shapes from actual telemetry.
     let sql_a2a = "
-        SELECT sender, receiver, msg_type, payload
+        SELECT sender_agent, receiver_agent, msg_type, payload
         FROM a2a_messages
         WHERE payload IS NOT NULL AND msg_type != ''
-          AND (code_version >= '0.3.0' OR code_version IS NULL)
-          AND timestamp > datetime('now', '-30 days')
+          AND created_at > datetime('now', '-30 days')
         ORDER BY id DESC
         LIMIT ?1
     ";
@@ -73,9 +72,9 @@ pub async fn extract_arca_pairs(
 
     // Replay 2: Agent Events (Tool Trace / LLM Turns / Multi-turn sessions)
     let sql_events = "
-        SELECT event_type, payload
+        SELECT event_type, payload_json
         FROM agent_events
-        WHERE payload IS NOT NULL 
+        WHERE payload_json IS NOT NULL 
           AND timestamp > datetime('now', '-30 days')
         ORDER BY id ASC
         LIMIT ?1

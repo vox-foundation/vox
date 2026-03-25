@@ -83,7 +83,7 @@ async fn mark_news_published_column_order_matches_github_twitter_oc() {
         .unwrap();
     let rows = db
         .query_all(
-            "SELECT github_release_id, twitter_tweet_id, opencollective_update_id FROM published_news WHERE id = 'x'",
+            "SELECT github_release_id, twitter_tweet_id, opencollective_update_id FROM published_news WHERE news_id = 'x'",
             (),
         )
         .await

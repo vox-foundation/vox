@@ -64,6 +64,8 @@ impl crate::VoxDb {
             .await?;
         }
 
+        crate::schema_cutover::apply_schema_cutover(conn).await?;
+
         Ok(())
     }
 

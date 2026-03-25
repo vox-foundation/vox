@@ -122,27 +122,17 @@ pub async fn poll_inbox_from_db(
     let mut msgs = Vec::new();
     for row in rows {
         msgs.push(DbA2AMessage {
-            id: row[0]
-                .as_ref()
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(0),
-            message_uuid: row[1].clone().unwrap_or_default(),
-            sender_agent: row[2].clone().unwrap_or_default(),
-            receiver_agent: row[3].clone().unwrap_or_default(),
-            msg_type: row[4].clone().unwrap_or_default(),
-            payload: row[5].clone().unwrap_or_default(),
-            priority: row[6]
-                .as_ref()
-                .and_then(|s| s.parse::<i64>().ok())
-                .unwrap_or(1),
-            thread_id: row[7].clone(),
-            acknowledged: row[8]
-                .as_ref()
-                .and_then(|s| s.parse::<i64>().ok())
-                .unwrap_or(0)
-                != 0,
-            created_at: row[9].clone().unwrap_or_default(),
-            repository_id: row[10].clone().unwrap_or_default(),
+            id: row.id as u64,
+            message_uuid: row.message_uuid,
+            sender_agent: row.sender_agent,
+            receiver_agent: row.receiver_agent,
+            msg_type: row.msg_type,
+            payload: row.payload,
+            priority: row.priority,
+            thread_id: row.thread_id,
+            acknowledged: row.acknowledged,
+            created_at: row.created_at,
+            repository_id: row.repository_id,
         });
     }
     Ok(msgs)

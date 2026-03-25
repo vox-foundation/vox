@@ -11,7 +11,27 @@ use tar::Builder;
 use zip::CompressionMethod;
 use zip::write::SimpleFileOptions;
 
+/// Supported release triples (must stay in sync with `vox-bootstrap` and `release-binaries.yml`).
+pub const SUPPORTED_RELEASE_TARGETS: &[&str] = &[
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+];
+
+pub(crate) fn validate_release_target(target: &str) -> Result<()> {
+    if SUPPORTED_RELEASE_TARGETS.contains(&target) {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "unsupported release target `{target}`; supported: {}",
+            SUPPORTED_RELEASE_TARGETS.join(", ")
+        ))
+    }
+}
+
 pub fn run(repo_root: &Path, target: &str, version: Option<&str>, out_dir: &Path) -> Result<()> {
+    validate_release_target(target).context("release-build target")?;
     let artifact_version = version.unwrap_or(env!("CARGO_PKG_VERSION"));
     let out_dir_abs = resolve_out_dir(repo_root, out_dir);
     fs::create_dir_all(&out_dir_abs)
@@ -19,7 +39,15 @@ pub fn run(repo_root: &Path, target: &str, version: Option<&str>, out_dir: &Path
 
     let status = Command::new(super::cargo_bin())
         .current_dir(repo_root)
-        .args(["build", "-p", "vox-cli", "--release", "--target", target])
+        .args([
+            "build",
+            "-p",
+            "vox-cli",
+            "--release",
+            "--locked",
+            "--target",
+            target,
+        ])
         .status()
         .context("spawn cargo build for release artifact")?;
     if !status.success() {
@@ -93,6 +121,7 @@ fn artifact_filename(version: &str, target: &str) -> String {
     format!("vox-{version}-{target}.{}", artifact_extension(target))
 }
 
+/// Deterministic archive layout for CI: a single member at the archive root named `vox` or `vox.exe`.
 fn package_tar_gz(binary_path: &Path, artifact_path: &Path, archive_name: &str) -> Result<()> {
     let artifact = File::create(artifact_path)
         .with_context(|| format!("create archive {}", artifact_path.display()))?;
@@ -144,7 +173,16 @@ fn checksum_line(sha256_hex: &str, filename: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{artifact_filename, checksum_line, executable_name};
+    use super::{artifact_filename, checksum_line, executable_name, validate_release_target};
+
+    #[test]
+    fn unsupported_target_errors() {
+        let err = validate_release_target("riscv64-unknown-linux-gnu").unwrap_err();
+        assert!(
+            err.to_string().contains("unsupported release target"),
+            "{err}"
+        );
+    }
 
     #[test]
     fn executable_name_matches_target_family() {
@@ -162,6 +200,10 @@ mod tests {
         assert_eq!(
             artifact_filename("v1.2.3", "x86_64-unknown-linux-gnu"),
             "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
+        );
+        assert_eq!(
+            artifact_filename("v1.2.3", "aarch64-apple-darwin"),
+            "vox-v1.2.3-aarch64-apple-darwin.tar.gz"
         );
     }
 

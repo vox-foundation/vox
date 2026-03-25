@@ -1,7 +1,7 @@
 //! Shared library for the **`vox`** and **`vox-compilerd`** binaries.
 //!
 //! For the end-user CLI surface and subcommand map, see the `vox` binary crate root
-//! (`src/main.rs`) and repository `docs/src/ref-cli.md`.
+//! (`src/main.rs`) and repository `docs/src/reference/cli.md`.
 
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::drop_non_drop)]
@@ -12,6 +12,7 @@ mod build_lock;
 mod build_service;
 mod cli_actions;
 mod cli_args;
+mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
@@ -97,6 +98,7 @@ pub struct GlobalOpts {
 #[command(
     name = "vox",
     about = "The Vox AI-native language compiler",
+    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested",
     version = VOX_VERSION
 )]
 pub struct VoxCliRoot {
@@ -117,6 +119,18 @@ pub enum Cli {
         /// Target shell.
         #[arg(value_enum)]
         shell: Shell,
+    },
+    /// Print a dynamic command catalog generated from the clap command tree.
+    Commands {
+        /// Output format.
+        #[arg(long, value_enum, default_value_t = command_catalog::CatalogFormat::Text)]
+        format: command_catalog::CatalogFormat,
+        /// Show only commands recommended for first-time users.
+        #[arg(long)]
+        recommended: bool,
+        /// Include nested subcommands (default shows top-level only).
+        #[arg(long)]
+        include_nested: bool,
     },
     /// Workshop lane — same as top-level `build` (`fabrica` = Latin *workshop*).
     #[command(name = "fabrica", visible_alias = "fab")]
@@ -624,6 +638,27 @@ async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
             use clap::CommandFactory;
             let mut cmd = VoxCliRoot::command();
             clap_complete::generate(shell, &mut cmd, "vox", &mut std::io::stdout());
+        }
+        Cli::Commands {
+            format,
+            recommended,
+            include_nested,
+        } => {
+            let catalog = command_catalog::build_catalog();
+            let selected =
+                command_catalog::select_entries(catalog.entries, recommended, include_nested);
+            match format {
+                command_catalog::CatalogFormat::Text => {
+                    println!("{}", command_catalog::render_text(&selected));
+                }
+                command_catalog::CatalogFormat::Json => {
+                    let out = command_catalog::CommandCatalog {
+                        generated_from: catalog.generated_from,
+                        entries: selected,
+                    };
+                    println!("{}", serde_json::to_string_pretty(&out)?);
+                }
+            }
         }
         Cli::Fabrica { cmd } => {
             run_fabrica_cmd(cmd).await?;

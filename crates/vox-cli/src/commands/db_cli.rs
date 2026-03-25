@@ -263,6 +263,55 @@ pub enum DbCli {
         #[arg(long)]
         min_score: Option<f64>,
     },
+    /// Upsert a publication manifest from markdown for scientia/journal flows.
+    #[command(name = "publication-prepare")]
+    PublicationPrepare {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Content type (`scientia`, `news`, `paper`, ...).
+        #[arg(long, default_value = "scientia")]
+        content_type: String,
+        /// Author identity.
+        #[arg(long)]
+        author: String,
+        /// Human title.
+        #[arg(long)]
+        title: String,
+        /// Path to markdown body.
+        #[arg(required = true)]
+        path: PathBuf,
+        /// Optional abstract text.
+        #[arg(long)]
+        abstract_text: Option<String>,
+        /// Optional citations JSON file path.
+        #[arg(long)]
+        citations_json: Option<PathBuf>,
+    },
+    /// Record digest-bound approval for a prepared publication.
+    #[command(name = "publication-approve")]
+    PublicationApprove {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Approver identity (must be distinct across at least two values).
+        #[arg(long)]
+        approver: String,
+    },
+    /// Submit a prepared publication using the local scholarly adapter.
+    #[command(name = "publication-submit-local")]
+    PublicationSubmitLocal {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Print publication manifest, approvals, and scholarly submission rows.
+    #[command(name = "publication-status")]
+    PublicationStatus {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+    },
 }
 
 /// Dispatch `vox db` subcommands to `commands::db` implementations.
@@ -375,5 +424,33 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         } => db::research_metrics(session_id, metric_type.as_deref()).await,
         DbCli::ReliabilityList { domain, limit } => db::reliability_list(&domain, limit).await,
         DbCli::ReliabilityAgents { limit, min_score } => db::reliability_agents(limit, min_score).await,
+        DbCli::PublicationPrepare {
+            publication_id,
+            content_type,
+            author,
+            title,
+            path,
+            abstract_text,
+            citations_json,
+        } => {
+            db::publication_prepare(
+                &publication_id,
+                &content_type,
+                &author,
+                &title,
+                &path,
+                abstract_text.as_deref(),
+                citations_json.as_ref(),
+            )
+            .await
+        }
+        DbCli::PublicationApprove {
+            publication_id,
+            approver,
+        } => db::publication_approve(&publication_id, &approver).await,
+        DbCli::PublicationSubmitLocal { publication_id } => {
+            db::publication_submit_local(&publication_id).await
+        }
+        DbCli::PublicationStatus { publication_id } => db::publication_status(&publication_id).await,
     }
 }

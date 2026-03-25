@@ -204,6 +204,10 @@
       {
         "command": "vox.rebalance",
         "title": "Vox: Rebalance Agents"
+      },
+      {
+        "command": "vox.commandPalette",
+        "title": "Vox: Command Entry (Dynamic)"
       }
     ],
     "keybindings": [

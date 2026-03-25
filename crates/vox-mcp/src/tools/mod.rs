@@ -23,6 +23,8 @@ pub mod git_tools;
 pub mod introspection_tools;
 /// Unified News Publishing System tools
 pub mod news_tools;
+/// Scientia publication lifecycle tools (manifest, approval, submission).
+pub mod scientia_tools;
 /// Oratio speech-to-text (Candle Whisper).
 pub mod oratio_tools;
 /// Local mens registry status (`vox_populi_local_status`).
@@ -547,6 +549,22 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_news_simulate_publish_gate",
         "Parse news markdown and report what would block live publish (dry_run, approvals, armed) without posting.",
     ),
+    (
+        "vox_scientia_publication_prepare",
+        "Create/update a canonical scientia publication manifest and return its content digest.",
+    ),
+    (
+        "vox_scientia_publication_approve",
+        "Record one digest-bound approval for a scientia publication manifest.",
+    ),
+    (
+        "vox_scientia_publication_submit_local",
+        "Submit an approved scientia publication through the local scholarly ledger adapter.",
+    ),
+    (
+        "vox_scientia_publication_status",
+        "Return manifest state, digest-bound approval count, and scholarly submission rows.",
+    ),
 ];
 
 /// Convert the static [`TOOL_REGISTRY`] table into RMCP [`rmcp::model::Tool`] descriptors.
@@ -779,6 +797,28 @@ async fn handle_tool_call_inner(
             Ok(news_tools::vox_news_approval_status(state, serde_json::from_value(args)?).await)
         }
         "vox_news_simulate_publish_gate" => Ok(news_tools::vox_news_simulate_publish_gate(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_scientia_publication_prepare" => Ok(scientia_tools::vox_scientia_publication_prepare(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_scientia_publication_approve" => Ok(scientia_tools::vox_scientia_publication_approve(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_scientia_publication_submit_local" => Ok(
+            scientia_tools::vox_scientia_publication_submit_local(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_status" => Ok(scientia_tools::vox_scientia_publication_status(
             state,
             serde_json::from_value(args)?,
         )

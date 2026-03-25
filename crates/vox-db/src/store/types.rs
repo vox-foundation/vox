@@ -119,6 +119,33 @@ pub struct PublishArtifactParams<'a> {
     pub status: &'a str,
 }
 
+/// Parameters for [`crate::VoxDb::upsert_publication_manifest`].
+#[derive(Debug, Clone)]
+pub struct PublicationManifestParams<'a> {
+    /// Stable publication id (e.g. news id or scientia artifact id).
+    pub publication_id: &'a str,
+    /// Logical content type (`news`, `scientia`, `paper`, ...).
+    pub content_type: &'a str,
+    /// Optional upstream source reference (URL, repo path, DOI, etc.).
+    pub source_ref: Option<&'a str>,
+    /// Human title.
+    pub title: &'a str,
+    /// Author name/identifier string.
+    pub author: &'a str,
+    /// Optional abstract.
+    pub abstract_text: Option<&'a str>,
+    /// Canonical markdown body.
+    pub body_markdown: &'a str,
+    /// Optional serialized citations payload.
+    pub citations_json: Option<&'a str>,
+    /// Optional serialized metadata payload.
+    pub metadata_json: Option<&'a str>,
+    /// Immutable digest for approval and publication checks.
+    pub content_sha3_256: &'a str,
+    /// Lifecycle status (`draft`, `approved`, `submitted`, `published`, ...).
+    pub state: &'a str,
+}
+
 /// Parameters for [`crate::VoxDb::register_agent`].
 #[derive(Debug, Clone)]
 pub struct RegisterAgentParams<'a> {
@@ -617,27 +644,31 @@ pub struct QuestionRow {
     pub created_at_ms: i64,
 }
 
-/// A single row from `a2a_messages`.
+/// One unacknowledged row from `a2a_messages` as returned by [`crate::VoxDb::poll_a2a_inbox`].
 #[derive(Debug, Clone)]
 pub struct A2AMessageRow {
     pub id: i64,
-    pub sender_id: String,
-    pub receiver_id: String,
+    pub message_uuid: String,
+    pub sender_agent: String,
+    pub receiver_agent: String,
     pub msg_type: String,
-    pub payload_json: String,
-    pub status: String,
-    pub created_at_ms: i64,
+    pub payload: String,
+    pub priority: i64,
+    pub thread_id: Option<String>,
+    pub acknowledged: bool,
+    pub created_at: String,
+    pub repository_id: String,
 }
 
-/// A single row from `agent_events`.
+/// A single row from `agent_events` (telemetry / gamify audit).
 #[derive(Debug, Clone)]
 pub struct AgentEventRow {
     pub id: i64,
     pub agent_id: String,
     pub event_type: String,
-    pub repository_id: String,
-    pub metadata_json: String,
-    pub created_at_ms: i64,
+    pub payload_json: Option<String>,
+    pub cli_version: Option<String>,
+    pub timestamp: String,
 }
 
 /// A single row from `benchmark_events`.
@@ -652,16 +683,17 @@ pub struct BenchmarkEventRow {
     pub created_at_ms: i64,
 }
 
-/// A single row from `agent_sessions`.
+/// Row shape for `agent_sessions` (MCP/orchestrator session lifecycle in Codex).
 #[derive(Debug, Clone)]
 pub struct SessionRow {
-    pub session_id: String,
-    pub repository_id: String,
+    pub id: String,
     pub agent_id: String,
-    pub model_id: String,
-    pub task_snapshot_json: Option<String>,
-    pub created_at_ms: i64,
-    pub updated_at_ms: i64,
+    pub agent_name: Option<String>,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub status: String,
+    pub task_snapshot: Option<String>,
+    pub context_summary: Option<String>,
 }
 
 /// A single row from `agent_session_events`.
@@ -718,6 +750,40 @@ pub struct ThroughputProfileRow {
     pub tokens_per_sec: f64,
     pub latency_p50_ms: i64,
     pub updated_at_ms: i64,
+}
+
+/// One row from `publication_manifests`.
+#[derive(Debug, Clone)]
+pub struct PublicationManifestRow {
+    pub publication_id: String,
+    pub content_type: String,
+    pub source_ref: Option<String>,
+    pub title: String,
+    pub author: String,
+    pub abstract_text: Option<String>,
+    pub body_markdown: String,
+    pub citations_json: Option<String>,
+    pub metadata_json: Option<String>,
+    pub content_sha3_256: String,
+    pub version: i64,
+    pub state: String,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+/// One row from `scholarly_submissions`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScholarlySubmissionRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub content_sha3_256: String,
+    pub adapter: String,
+    pub external_submission_id: String,
+    pub status: String,
+    pub submitted_at_ms: i64,
+    pub updated_at_ms: i64,
+    pub response_fingerprint: Option<String>,
+    pub metadata_json: Option<String>,
 }
 
 /// A single row from `local_train_log`.

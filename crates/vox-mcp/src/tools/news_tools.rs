@@ -9,6 +9,14 @@ use vox_publisher::templates;
 use vox_publisher::types::UnifiedNewsItem;
 use vox_publisher::{Publisher, PublisherConfig};
 
+fn news_content_paths(state: &ServerState, news_id: &str) -> [PathBuf; 2] {
+    let root = PathBuf::from(&state.orchestrator_config.news.news_dir);
+    [
+        root.join(format!("{news_id}.md")),
+        root.join("drafts").join(format!("{news_id}.md")),
+    ]
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxNewsTestSyndicateParams {
     /// Markdown with YAML frontmatter matching [`UnifiedNewsItem`].
@@ -58,30 +66,31 @@ pub async fn vox_news_test_syndicate(
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxNewsDraftResearchParams {
-    /// Filename stem for `docs/news/drafts/{id}.md` (no slashes).
-    pub id: String,
+    /// Filename stem for `docs/news/drafts/{news_id}.md` (no slashes).
+    pub news_id: String,
     pub title: String,
     pub author: String,
     pub abstract_text: String,
 }
 
 pub async fn vox_news_draft_research(
-    _state: &ServerState,
+    state: &ServerState,
     params: VoxNewsDraftResearchParams,
 ) -> String {
-    if let Err(e) = vox_publisher::contract::validate_news_id(&params.id) {
+    if let Err(e) = vox_publisher::contract::validate_news_id(&params.news_id) {
         return ToolResult::<String>::err(e.to_string()).to_json();
     }
     let now = chrono::Utc::now();
     let draft_content = templates::render_research_update(
-        &params.id,
+        &params.news_id,
         &params.title,
         &params.author,
         &now.to_rfc3339(),
         &params.abstract_text,
     );
 
-    let draft_path = PathBuf::from("docs/news/drafts").join(format!("{}.md", params.id));
+    let draft_path =
+        PathBuf::from(&state.orchestrator_config.news.news_dir).join("drafts").join(format!("{}.md", params.news_id));
     if let Some(parent) = draft_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -119,17 +128,63 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
         )
         .to_json();
     };
-    let news_path = PathBuf::from("docs/news").join(format!("{}.md", params.news_id));
-    let draft_path = PathBuf::from("docs/news/drafts").join(format!("{}.md", params.news_id));
-    let content = fs::read_to_string(&news_path)
-        .or_else(|_| fs::read_to_string(&draft_path))
-        .unwrap_or_default();
+    let paths = news_content_paths(state, &params.news_id);
+    let content = match fs::read_to_string(&paths[0]).or_else(|_| fs::read_to_string(&paths[1])) {
+        Ok(c) => c,
+        Err(e) => {
+            return ToolResult::<String>::err(format!(
+                "Could not read news markdown for {:?}: {}",
+                params.news_id, e
+            ))
+            .to_json();
+        }
+    };
     let digest = match UnifiedNewsItem::parse(&content, &params.news_id) {
         Ok(item) => item.content_sha3_256(),
-        Err(_) => "unparsed-content".to_string(),
+        Err(e) => {
+            return ToolResult::<String>::err(format!(
+                "Cannot approve without a valid UnifiedNewsItem parse: {}",
+                e
+            ))
+            .to_json();
+        }
     };
+    let item = match UnifiedNewsItem::parse(&content, &params.news_id) {
+        Ok(item) => item,
+        Err(e) => {
+            return ToolResult::<String>::err(format!(
+                "Cannot approve without a valid UnifiedNewsItem parse: {}",
+                e
+            ))
+            .to_json();
+        }
+    };
+    let metadata_json = serde_json::json!({
+        "tags": item.tags,
+        "syndication": item.syndication,
+    })
+    .to_string();
+    let source_ref = paths[0].to_string_lossy().to_string();
+    if let Err(e) = db
+        .upsert_publication_manifest(vox_db::PublicationManifestParams {
+            publication_id: &params.news_id,
+            content_type: "news",
+            source_ref: Some(source_ref.as_str()),
+            title: &item.title,
+            author: &item.author,
+            abstract_text: None,
+            body_markdown: &item.content_markdown,
+            citations_json: None,
+            metadata_json: Some(metadata_json.as_str()),
+            content_sha3_256: &digest,
+            state: "draft",
+        })
+        .await
+    {
+        return ToolResult::<String>::err(format!("DB error: {}", e)).to_json();
+    }
     match db
-        .record_news_approval_for_digest(&params.news_id, &digest, approver)
+        .record_publication_approval_for_digest(&params.news_id, &digest, approver)
         .await
     {
         Ok(()) => {}
@@ -138,7 +193,7 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
         }
     }
     let count = match db
-        .count_news_approvers_for_digest(&params.news_id, &digest)
+        .count_publication_approvers_for_digest(&params.news_id, &digest)
         .await
     {
         Ok(c) => c,
@@ -176,24 +231,36 @@ pub async fn vox_news_approval_status(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let news_path = PathBuf::from("docs/news").join(format!("{}.md", params.news_id));
-    let draft_path = PathBuf::from("docs/news/drafts").join(format!("{}.md", params.news_id));
-    let content = fs::read_to_string(&news_path)
-        .or_else(|_| fs::read_to_string(&draft_path))
-        .unwrap_or_default();
+    let paths = news_content_paths(state, &params.news_id);
+    let content = match fs::read_to_string(&paths[0]).or_else(|_| fs::read_to_string(&paths[1])) {
+        Ok(c) => c,
+        Err(e) => {
+            return ToolResult::<String>::err(format!(
+                "Could not read news markdown for {:?}: {}",
+                params.news_id, e
+            ))
+            .to_json();
+        }
+    };
     let digest = match UnifiedNewsItem::parse(&content, &params.news_id) {
         Ok(item) => item.content_sha3_256(),
-        Err(_) => "unparsed-content".to_string(),
+        Err(e) => {
+            return ToolResult::<String>::err(format!(
+                "Cannot read approval status without a valid UnifiedNewsItem parse: {}",
+                e
+            ))
+            .to_json();
+        }
     };
     let count = match db
-        .count_news_approvers_for_digest(&params.news_id, &digest)
+        .count_publication_approvers_for_digest(&params.news_id, &digest)
         .await
     {
         Ok(c) => c,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
     };
     let dual = match db
-        .has_dual_news_approval_with_fallback(&params.news_id, &digest)
+        .has_dual_publication_approval_for_digest(&params.news_id, &digest)
         .await
     {
         Ok(b) => b,
@@ -220,7 +287,8 @@ struct GateReport {
     parse_ok: bool,
     validate_ok: bool,
     dual_approval_met: bool,
-    orchestrator_publish_armed: bool,
+    /// Effective “armed for live publish” after config + `VOX_NEWS_PUBLISH_ARMED` env.
+    publish_armed_effective: bool,
     would_be_live_without_dry_run: bool,
     blocking_reasons: Vec<GateReason>,
 }
@@ -238,7 +306,7 @@ pub async fn vox_news_simulate_publish_gate(
                 parse_ok: false,
                 validate_ok: false,
                 dual_approval_met: false,
-                orchestrator_publish_armed: state.orchestrator_config.news.publish_armed,
+                publish_armed_effective: state.orchestrator_config.news.publish_armed,
                 would_be_live_without_dry_run: false,
                 blocking_reasons: reasons
                     .into_iter()
@@ -263,7 +331,7 @@ pub async fn vox_news_simulate_publish_gate(
     let digest = item.content_sha3_256();
 
     let dual = if let Some(db) = &state.db {
-        db.has_dual_news_approval_with_fallback(&params.news_id, &digest)
+        db.has_dual_publication_approval_for_digest(&params.news_id, &digest)
             .await
             .unwrap_or(false)
     } else {
@@ -293,7 +361,7 @@ pub async fn vox_news_simulate_publish_gate(
         parse_ok: true,
         validate_ok,
         dual_approval_met: dual,
-        orchestrator_publish_armed: gate.armed,
+        publish_armed_effective: gate.armed,
         would_be_live_without_dry_run: gate.would_be_live_without_dry_run,
         blocking_reasons,
     })

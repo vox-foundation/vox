@@ -1,6 +1,7 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
 use anyhow::{Context, Result};
+use std::fs;
 use std::path::PathBuf;
 
 /// Print current VoxDB schema version and connection path.
@@ -305,6 +306,159 @@ pub async fn pref_list(user_id: &str, prefix: Option<&str>) -> Result<()> {
             println!("{k} = {v}");
         }
     }
+    Ok(())
+}
+
+/// Prepare (upsert) a canonical publication manifest from markdown body content.
+pub async fn publication_prepare(
+    publication_id: &str,
+    content_type: &str,
+    author: &str,
+    title: &str,
+    path: &PathBuf,
+    abstract_text: Option<&str>,
+    citations_json_path: Option<&PathBuf>,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let body_markdown = fs::read_to_string(path)
+        .with_context(|| format!("failed to read markdown body from {}", path.display()))?;
+    let citations_json = if let Some(p) = citations_json_path {
+        Some(
+            fs::read_to_string(p)
+                .with_context(|| format!("failed to read citations JSON from {}", p.display()))?,
+        )
+    } else {
+        None
+    };
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: publication_id.to_string(),
+        content_type: content_type.to_string(),
+        source_ref: Some(path.display().to_string()),
+        title: title.to_string(),
+        author: author.to_string(),
+        abstract_text: abstract_text.map(std::string::ToString::to_string),
+        body_markdown,
+        citations_json: citations_json.clone(),
+        metadata_json: Some(
+            serde_json::json!({
+                "prepared_by": "vox db publication-prepare",
+            })
+            .to_string(),
+        ),
+    };
+    let digest = manifest.content_sha3_256();
+    db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+        publication_id: &manifest.publication_id,
+        content_type: &manifest.content_type,
+        source_ref: manifest.source_ref.as_deref(),
+        title: &manifest.title,
+        author: &manifest.author,
+        abstract_text: manifest.abstract_text.as_deref(),
+        body_markdown: &manifest.body_markdown,
+        citations_json: citations_json.as_deref(),
+        metadata_json: manifest.metadata_json.as_deref(),
+        content_sha3_256: &digest,
+        state: "draft",
+    })
+    .await?;
+    println!(
+        "Prepared publication '{}' ({}) digest={}",
+        publication_id, content_type, digest
+    );
+    Ok(())
+}
+
+/// Record one digest-bound publication approval.
+pub async fn publication_approve(publication_id: &str, approver: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(manifest) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let approver = approver.trim();
+    if approver.is_empty() {
+        anyhow::bail!("approver must not be empty");
+    }
+    db.record_publication_approval_for_digest(publication_id, &manifest.content_sha3_256, approver)
+        .await?;
+    let count = db
+        .count_publication_approvers_for_digest(publication_id, &manifest.content_sha3_256)
+        .await?;
+    if count >= 2 {
+        db.set_publication_state(publication_id, "approved", None).await?;
+    }
+    println!(
+        "Recorded approval for '{}' digest={} distinct_approvers={}",
+        publication_id, manifest.content_sha3_256, count
+    );
+    Ok(())
+}
+
+/// Submit to the first scholarly adapter integration (`local_ledger`).
+pub async fn publication_submit_local(publication_id: &str) -> Result<()> {
+    use vox_publisher::scholarly::ScholarlyAdapter;
+
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let dual = db
+        .has_dual_publication_approval_for_digest(publication_id, &row.content_sha3_256)
+        .await?;
+    if !dual {
+        anyhow::bail!("publication requires two distinct digest-bound approvers before submission");
+    }
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    };
+    let adapter = vox_publisher::scholarly::LocalLedgerAdapter;
+    let receipt = adapter.submit(&manifest)?;
+    db.upsert_scholarly_submission(
+        publication_id,
+        &row.content_sha3_256,
+        &receipt.adapter,
+        &receipt.external_submission_id,
+        &receipt.status,
+        receipt.response_fingerprint.as_deref(),
+        receipt.metadata_json.as_deref(),
+    )
+    .await?;
+    println!(
+        "Submitted '{}' via {} as {} ({})",
+        publication_id, receipt.adapter, receipt.external_submission_id, receipt.status
+    );
+    Ok(())
+}
+
+/// Show publication state and scholarly submission rows.
+pub async fn publication_status(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let approvals = db
+        .count_publication_approvers_for_digest(publication_id, &row.content_sha3_256)
+        .await?;
+    let submissions = db.list_scholarly_submissions(publication_id).await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "publication_id": row.publication_id,
+            "content_type": row.content_type,
+            "state": row.state,
+            "digest": row.content_sha3_256,
+            "version": row.version,
+            "approvals_for_digest": approvals,
+            "scholarly_submissions": submissions,
+        }))?
+    );
     Ok(())
 }
 

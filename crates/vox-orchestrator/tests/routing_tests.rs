@@ -42,6 +42,7 @@ async fn test_routing_service_affinity_assignment() {
         None,
         Some(&caps),
         None,
+        None,
     );
 
     match route {
@@ -74,6 +75,7 @@ async fn test_routing_service_load_balancing() {
         &groups,
         &agents,
         &config,
+        None,
         None,
         None,
         None,

@@ -48,8 +48,14 @@ pub struct ExecutionPolicy {
     pub allowed_action_labels: Vec<String>,
     #[serde(default)]
     pub replan_triggers: Vec<ReplanTrigger>,
+    /// Omitted in minimal JSON blobs (e.g. tests, hand-authored policy); defaults to `1` like `ExecutionPolicy::default()`.
+    #[serde(default = "default_max_retries")]
     pub max_retries: u32,
     pub timeout_ms: Option<u64>,
+}
+
+fn default_max_retries() -> u32 {
+    1
 }
 
 impl Default for ExecutionPolicy {

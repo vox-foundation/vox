@@ -588,6 +588,9 @@ pub struct AgentEventRecord {
     pub event_type: String,
     /// Optional JSON payload attached to the event.
     pub payload: Option<String>,
+    /// CLI / crate version string stored with the event when present.
+    #[serde(default)]
+    pub cli_version: Option<String>,
     /// SQLite `datetime` string when the event was recorded.
     pub timestamp: String,
 }
@@ -600,13 +603,14 @@ pub async fn get_events(
 ) -> Result<Vec<AgentEventRecord>> {
     let rows = db.list_gamify_events(agent_id, limit.unwrap_or(50)).await?;
     let mut events = Vec::new();
-    for (id, agent_id, event_type, payload, timestamp) in rows {
+    for row in rows {
         events.push(AgentEventRecord {
-            id,
-            agent_id,
-            event_type,
-            payload,
-            timestamp,
+            id: row.id,
+            agent_id: row.agent_id,
+            event_type: row.event_type,
+            payload: row.payload_json,
+            cli_version: row.cli_version,
+            timestamp: row.timestamp,
         });
     }
     Ok(events)

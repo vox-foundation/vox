@@ -1,7 +1,7 @@
 pub const SCHEMA_NEWS: &'static str = "
 -- Table of published news items to prevent duplicate syndication.
 CREATE TABLE IF NOT EXISTS published_news (
-    id TEXT PRIMARY KEY,
+    news_id TEXT PRIMARY KEY,
     published_at_ms INTEGER NOT NULL,
     github_release_id TEXT,
     twitter_tweet_id TEXT,

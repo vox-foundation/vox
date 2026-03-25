@@ -89,7 +89,10 @@ impl NewsService {
 
             let db_opt = orch.db();
             let dual_approval_met = if let Some(db) = &db_opt {
-                match db.has_dual_news_approval_with_fallback(id, &content_digest).await {
+                match db
+                    .has_dual_publication_approval_for_digest(id, &content_digest)
+                    .await
+                {
                     Ok(v) => v,
                     Err(e) => {
                         tracing::error!("Approval check failed for {}: {}", id, e);
@@ -124,6 +127,30 @@ impl NewsService {
                 continue;
             }
 
+            if let Some(db) = &db_opt {
+                let source_ref = path.to_string_lossy().to_string();
+                let metadata_json = serde_json::json!({
+                    "tags": item.tags,
+                    "syndication": item.syndication
+                })
+                .to_string();
+                let _ = db
+                    .upsert_publication_manifest(vox_db::PublicationManifestParams {
+                        publication_id: id,
+                        content_type: "news",
+                        source_ref: Some(source_ref.as_str()),
+                        title: &item.title,
+                        author: &item.author,
+                        abstract_text: None,
+                        body_markdown: &item.content_markdown,
+                        citations_json: None,
+                        metadata_json: Some(metadata_json.as_str()),
+                        content_sha3_256: &content_digest,
+                        state: "approved",
+                    })
+                    .await;
+            }
+
             tracing::info!("Publishing new news item: {}", id);
 
             let result = match publisher.publish_all(&item).await {
@@ -139,16 +166,37 @@ impl NewsService {
                     let _ = db
                         .record_news_publish_attempt(id, &content_digest, &result_json)
                         .await;
+                    let _ = db
+                        .record_publication_attempt(id, &content_digest, "community_syndication", &result_json)
+                        .await;
                 }
                 if gate.live_publish_allowed && result.all_enabled_channels_succeeded(&item) {
                     let _ = db
                         .mark_news_published(id, result.github_id(), result.twitter_id(), result.oc_id())
+                        .await;
+                    let _ = db
+                        .set_publication_state(
+                            id,
+                            "published",
+                            Some(&serde_json::json!({
+                                "channel_group": "community_syndication"
+                            }).to_string()),
+                        )
                         .await;
                 } else if result.has_failures() {
                     tracing::warn!(
                         "Publish attempt for {} had channel failures; not marking as published.",
                         id
                     );
+                    let _ = db
+                        .set_publication_state(
+                            id,
+                            "publish_failed",
+                            Some(&serde_json::json!({
+                                "channel_group": "community_syndication"
+                            }).to_string()),
+                        )
+                        .await;
                 }
             }
         }

@@ -8,6 +8,7 @@ import { registerInlineEdit } from './inline/InlineEditController';
 import { registerVcsCommands, UndoRedoManager } from './vcs/SnapshotProvider';
 import { GamifyManager } from './gamify/GamifyManager';
 import { AgentController } from './agents/AgentController';
+import { registerCommandCatalogCommand } from './commands/commandCatalog';
 import { registerModelCommands } from './commands/model';
 import { SidebarProvider } from './SidebarProvider';
 
@@ -52,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Model Commands ───────────────────────────────────────────────────
     registerModelCommands(context, mcp);
+    registerCommandCatalogCommand(context);
 
     // ── VCS / Snapshot Tree ──────────────────────────────────────────────
     if (ConfigManager.vcsShowSnapshotBar) {

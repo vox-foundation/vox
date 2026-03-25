@@ -25,7 +25,8 @@ The **`vox`** executable is built from `crates/vox-cli` (repository root). This 
 
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
-- **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/bundle/fmt/script; **`vox mens`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
+- **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
+- **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/bundle/fmt/script; **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
 Design rules and registry parity: [`cli-design-rules.md`](#), [`command-compliance.md`](command-compliance.md).
 
@@ -108,10 +109,22 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, `vox-cli --features mens-oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
-| `release-build --target <triple> [--version <tag>] [--out-dir dist]` | Build and package `vox` for a target (`.tar.gz` on Unix, `.zip` on Windows) and write `checksums.txt` for release publishing |
-| `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, `ref-cli.md`, reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
+| `release-build --target <triple> [--version <tag>] [--out-dir dist]` | Build and package `vox` for an allowlisted release triple (`cargo build --locked --release`); `.tar.gz` on Unix, `.zip` on Windows; writes `checksums.txt` (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
+| `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
 
 **Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.
+
+### `vox commands`
+
+Generate a dynamic command catalog from clap (`VoxCliRoot::command()`), so the list always matches what this binary actually exposes.
+
+Why this exists: it is the discoverability source for first-timers, editor integrations, and docs/CI parity checks.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--format text\|json` | `text` | Human table output or machine JSON |
+| `--recommended` | `false` | Show only first-time starter commands |
+| `--include-nested` | `false` | Include nested subcommands (`vox ci …`, `vox mens …`) |
 
 ### `vox dev <file>`
 
@@ -184,7 +197,16 @@ Common subcommands: `status`, `schema`, `sample`, `migrate`, `export` / `import`
 
 ### `vox scientia`
 
-**Vox Scientia** — thin facade over the same Codex research / capability-map handlers as `vox db` (`capability-list`, `research-list`, `research-map-list`, `retrieval-status`, `research-refresh`). Use `vox scientia --help` for flags; connection resolution matches `vox db` (`VOX_DB_*`, …).
+**Vox Scientia** — facade over Codex research and publication workflows.
+
+- Research/capability helpers: `capability-list`, `research-list`, `research-map-list`, `retrieval-status`, `research-refresh`.
+- Scientific publication lifecycle:
+  - `vox scientia publication-prepare --publication-id <id> --author <name> --title <title> <path.md>`
+  - `vox scientia publication-approve --publication-id <id> --approver <identity>`
+  - `vox scientia publication-submit-local --publication-id <id>`
+  - `vox scientia publication-status --publication-id <id>`
+
+Connection resolution matches `vox db` (`VOX_DB_*`, …). The publication flow uses digest-bound dual approvals before scholarly submission.
 
 ### `vox codex`
 
@@ -249,7 +271,7 @@ Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited.
 
 ## Mens / DeI (feature-gated)
 
-**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox schola train`**, **`vox mens oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox schola merge-qlora`**, **`vox mens eval-local`**.
+**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA entry; alias to **`vox schola train`**), **`vox schola train`**, **`vox mens oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`** (alias **`vox schola merge-qlora`**), **`vox schola merge-qlora`**, **`vox mens eval-local`**.
 
 With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox mens oratio`** and **`vox ai oratio`** require **`--features mens-oratio`** (STT stack). **Native train** / **probe** / **merge-weights** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-mens`** binary (same as `vox mens …`, inserts the subcommand) — `cargo build -p vox-cli --features mens-base`; add **`mens-oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP completions) is **not** in the default feature set — build with **`cargo build -p vox-cli --features execution-api`** (see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 
@@ -318,7 +340,7 @@ Rust package path: **`crates/vox-cli`**. Produces the **`vox`** binary (`src/mai
 
 This checkout’s `vox-cli` is a **minimal** compiler driver: clap dispatch, codegen orchestration, and a small set of subcommands. It does **not** yet expose the full Mens / review / MCP / `vox init` surface that appears in some older generated docs.
 
-Authoritative **user-facing** command list: [`ref-cli.md`](#).
+Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 
 ## Subcommands → source
 
@@ -381,7 +403,7 @@ training_eligible: true
 
 # CLI design rules
 
-Single source for **shipped `vox` CLI** conventions (see also [`ref-cli.md`](#), [`cli-scope-policy.md`](../architecture/cli-scope-policy.md), [`cli-reachability.md`](#)).
+Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md`](cli.md), [`cli-scope-policy.md`](../architecture/cli-scope-policy.md), [`cli-reachability.md`](cli.md)).
 
 ## Hierarchy and naming
 
@@ -397,6 +419,14 @@ Single source for **shipped `vox` CLI** conventions (see also [`ref-cli.md`](#),
 - Prefer **`--json`**, **`--quiet`**, **`--verbose`** on subcommands that emit structured or noisy output; root sets hints via env (`VOX_CLI_GLOBAL_JSON`, `VOX_CLI_QUIET`) when using global flags.
 - **Non-zero exits** must mean something actionable (document in help where non-obvious).
 
+## Description style standard
+
+Use one canonical command description in clap for each command, then reuse it in docs/editor surfaces.
+
+- **What**: one sentence describing the operation.
+- **Why/When**: one short phrase for first-time guidance when non-obvious.
+- Keep wording stable so `vox commands` output, docs tables, and editor quick-picks do not drift.
+
 ## Global flags (root)
 
 - **`--color auto|always|never`** — forwarded to `vox_cli::diagnostics` (`NO_COLOR` still wins when set).
@@ -407,7 +437,7 @@ Single source for **shipped `vox` CLI** conventions (see also [`ref-cli.md`](#),
 
 ## Completions
 
-- **`vox completions <shell>`** — use **`clap_complete`**; shells: **bash**, **zsh**, **fish**, **powershell**, **elvish**. Install by redirecting stdout to the appropriate completion path for your shell (see [`ref-cli.md`](#)).
+- **`vox completions <shell>`** — use **`clap_complete`**; shells: **bash**, **zsh**, **fish**, **powershell**, **elvish**. Install by redirecting stdout to the appropriate completion path for your shell (see [`reference/cli.md`](cli.md)).
 
 ## Adding or renaming commands
 
@@ -458,6 +488,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `ludus` | `extras-ludus` | `commands::extras::ludus_cli` |
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
+| `commands` | default | `command_catalog` |
 | `mens` | `mens-base` or `gpu` | `commands::mens` |
 | `mens oratio`, `ai oratio` | `mens-oratio` | `commands::mens::oratio_cmd`, `commands::ai::oratio` |
 | `review` | `coderabbit` | `commands::review` |

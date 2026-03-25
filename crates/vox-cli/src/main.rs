@@ -39,7 +39,7 @@
 //! | `vox review coderabbit …` | `commands::review` (needs `--features coderabbit`) |
 //! | `vox island …` | `commands::island` (needs `--features island`) |
 //!
-//! End-user docs: repository file `docs/src/ref-cli.md`. `@v0` integration during `build`: module `v0`.
+//! End-user docs: repository file `docs/src/reference/cli.md`. `@v0` integration during `build`: module `v0`.
 
 use clap::Parser;
 

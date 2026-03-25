@@ -1,15 +1,14 @@
 //! Gamification CRUD for [`crate::store::VoxDb`] (Arca / Turso).
 //!
 //! All gamification tables live in the schema under the `gamify_*` prefix. This module provides
-//! the typed CRUD methods that `vox-ludus` consumes, keeping raw SQL inside `vox-pm` where it
-//! belongs (SSOT rule from §5.1 AGENTS.md — all SQL routes through `vox-pm`).
+//! the typed CRUD methods that `vox-ludus` consumes; SQL is owned by `vox-db` (`store/ops_*.rs`).
 //!
-//! **Do not** use `db.conn.execute(...)` from `vox-ludus` or other crates. Add a method
-//! here and call it via `db.<method>` or a `VoxDb` wrapper in `vox-db/src/ludus.rs`.
+//! **Do not** use `db.connection().execute(...)` from `vox-ludus` or other crates. Add a method
+//! here and call it via `VoxDb::<method>`.
 
 use turso::params;
 
-use crate::store::types::StoreError;
+use crate::store::types::{A2AMessageRow, AgentEventRow, StoreError};
 
 impl crate::VoxDb {
     // ── Profiles (gamify_profiles) ────────────────────────────────────────────
@@ -519,24 +518,25 @@ impl crate::VoxDb {
         &self,
         agent_id: &str,
         limit: i64,
-    ) -> Result<Vec<(i64, String, String, Option<String>, String)>, StoreError> {
+    ) -> Result<Vec<AgentEventRow>, StoreError> {
         let mut rows = self
             .conn
             .query(
-                "SELECT id, agent_id, event_type, payload, timestamp
+                "SELECT id, agent_id, event_type, payload_json, cli_version, timestamp
              FROM agent_events WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
                 params![agent_id, limit],
             )
             .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            out.push((
-                row.get::<i64>(0)?,
-                row.get::<String>(1)?,
-                row.get::<String>(2)?,
-                row.get::<Option<String>>(3)?,
-                row.get::<String>(4)?,
-            ));
+            out.push(AgentEventRow {
+                id: row.get(0)?,
+                agent_id: row.get(1)?,
+                event_type: row.get(2)?,
+                payload_json: row.get(3)?,
+                cli_version: row.get(4)?,
+                timestamp: row.get(5)?,
+            });
         }
         Ok(out)
     }
@@ -1015,10 +1015,10 @@ impl crate::VoxDb {
         &self,
         agent_id: &str,
         repository_id: &str,
-    ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
+    ) -> Result<Vec<A2AMessageRow>, StoreError> {
         let mut rows = self.conn.query(
-            "SELECT CAST(id AS TEXT), message_uuid, sender_agent, receiver_agent, msg_type, payload,
-                    CAST(priority AS TEXT), thread_id, CAST(acknowledged AS TEXT), created_at, repository_id
+            "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload,
+                    priority, thread_id, acknowledged, created_at, repository_id
              FROM a2a_messages
              WHERE receiver_agent=?1 AND acknowledged=0 AND repository_id=?2
              ORDER BY priority DESC, created_at ASC",
@@ -1026,10 +1026,20 @@ impl crate::VoxDb {
         ).await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            let cols: Vec<Option<String>> = (0..11)
-                .map(|i| row.get::<Option<String>>(i).unwrap_or(None))
-                .collect();
-            out.push(cols);
+            let ack: i64 = row.get(8).unwrap_or(0);
+            out.push(A2AMessageRow {
+                id: row.get(0)?,
+                message_uuid: row.get(1)?,
+                sender_agent: row.get(2)?,
+                receiver_agent: row.get(3)?,
+                msg_type: row.get(4)?,
+                payload: row.get(5)?,
+                priority: row.get(6)?,
+                thread_id: row.get(7)?,
+                acknowledged: ack != 0,
+                created_at: row.get(9)?,
+                repository_id: row.get(10)?,
+            });
         }
         Ok(out)
     }

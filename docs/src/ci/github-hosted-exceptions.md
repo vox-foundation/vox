@@ -14,7 +14,7 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 |----------|--------|--------|
 | `docs-deploy.yml` | `ubuntu-latest` | GitHub Pages deploy + mdBook; portable Pages API. |
 | `link_checker.yml` | `ubuntu-latest` | External link checks; no secrets to self-hosted pool. |
-| `release-binaries.yml` | `windows-latest`, `macos-latest` | Publish tagged Windows/macOS binaries; Linux lane remains self-hosted. |
+| `release-binaries.yml` | `windows-latest`, `macos-latest` (×2 targets: x86_64 and aarch64 macOS jobs) | Publish tagged Windows/macOS binaries; Linux **build** lane remains self-hosted; **publish** job runs on Linux self-hosted. |
 
 Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) must add a row here or switch to the self-hosted tuple.
 

@@ -659,6 +659,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
                 agent_id: agent_id.to_string(),
                 event_type: event_type.to_string(),
                 payload: Some(payload),
+                cli_version: None,
                 timestamp: ev.timestamp_ms.to_string(),
             });
         }

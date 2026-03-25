@@ -105,23 +105,9 @@ fn parse_msg_type(s: &str) -> A2AMessageType {
     }
 }
 
-fn msg_type_name(mt: &A2AMessageType) -> String {
-    match mt {
-        A2AMessageType::PlanHandoff => "PlanHandoff".to_string(),
-        A2AMessageType::ScopeRequest => "ScopeRequest".to_string(),
-        A2AMessageType::ScopeGrant => "ScopeGrant".to_string(),
-        A2AMessageType::ProgressUpdate => "ProgressUpdate".to_string(),
-        A2AMessageType::HelpRequest => "HelpRequest".to_string(),
-        A2AMessageType::CompletionNotice => "CompletionNotice".to_string(),
-        A2AMessageType::ErrorReport => "ErrorReport".to_string(),
-        A2AMessageType::FreeForm => "FreeForm".to_string(),
-        A2AMessageType::ConflictDetected => "ConflictDetected".to_string(),
-        A2AMessageType::ConflictResolved => "ConflictResolved".to_string(),
-        A2AMessageType::VcsEvent => "VcsEvent".to_string(),
-        A2AMessageType::CancelRequest => "CancelRequest".to_string(),
-        A2AMessageType::SnapshotShare => "SnapshotShare".to_string(),
-        A2AMessageType::BroadcastNews => "BroadcastNews".to_string(),
-    }
+// Wire format matches [`A2AMessageType::into_str`] (snake_case) — same as DB `a2a_messages.msg_type`.
+fn msg_type_wire(mt: &A2AMessageType) -> String {
+    mt.into_str().to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +145,7 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
             id: m.id.0,
             sender: m.sender.0,
             receiver: m.receiver.map(|r| r.0),
-            msg_type: msg_type_name(&m.msg_type),
+            msg_type: msg_type_wire(&m.msg_type),
             payload: format!("{} [Received {}s ago]", m.payload, m.elapsed_ms() / 1000),
             timestamp_ms: m.timestamp_ms,
             acknowledged: m.acknowledged,
@@ -233,7 +219,7 @@ pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> Strin
                 id: m.id.0,
                 sender: m.sender.0,
                 receiver: m.receiver.map(|r| r.0),
-                msg_type: msg_type_name(&m.msg_type),
+                msg_type: msg_type_wire(&m.msg_type),
                 payload: format!("{} [Received {}s ago]", m.payload, m.elapsed_ms() / 1000),
                 timestamp_ms: m.timestamp_ms,
                 acknowledged: m.acknowledged,
@@ -250,7 +236,7 @@ pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> Strin
                 id: m.id.0,
                 sender: m.sender.0,
                 receiver: m.receiver.map(|r| r.0),
-                msg_type: msg_type_name(&m.msg_type),
+                msg_type: msg_type_wire(&m.msg_type),
                 payload: format!("{} [Received {}s ago]", m.payload, m.elapsed_ms() / 1000),
                 timestamp_ms: m.timestamp_ms,
                 acknowledged: m.acknowledged,

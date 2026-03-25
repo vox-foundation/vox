@@ -1,5 +1,17 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PublicationApprovalMode {
+    DigestBound,
+}
+
+impl Default for PublicationApprovalMode {
+    fn default() -> Self {
+        Self::DigestBound
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GateReason {
     pub code: String,
@@ -22,6 +34,7 @@ pub struct PublishGateDecision {
     pub armed: bool,
     pub db_present: bool,
     pub dual_approval_met: bool,
+    pub approval_mode: PublicationApprovalMode,
     pub live_publish_allowed: bool,
     pub blocking_reasons: Vec<GateReason>,
 }
@@ -42,6 +55,30 @@ fn reason(code: &str, message: &str) -> GateReason {
 
 #[must_use]
 pub fn evaluate_publish_gate(inputs: PublishGateInputs) -> PublishGateDecision {
+    evaluate_publication_gate(PublicationGateInputs {
+        orchestrator_dry_run: inputs.orchestrator_dry_run,
+        item_dry_run: inputs.item_dry_run,
+        publish_armed_config: inputs.publish_armed_config,
+        publish_armed_env: inputs.publish_armed_env,
+        db_present: inputs.db_present,
+        dual_approval_met: inputs.dual_approval_met,
+        approval_mode: PublicationApprovalMode::DigestBound,
+    })
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PublicationGateInputs {
+    pub orchestrator_dry_run: bool,
+    pub item_dry_run: bool,
+    pub publish_armed_config: bool,
+    pub publish_armed_env: bool,
+    pub db_present: bool,
+    pub dual_approval_met: bool,
+    pub approval_mode: PublicationApprovalMode,
+}
+
+#[must_use]
+pub fn evaluate_publication_gate(inputs: PublicationGateInputs) -> PublishGateDecision {
     let would_be_live_without_dry_run = !inputs.orchestrator_dry_run && !inputs.item_dry_run;
     let armed = inputs.publish_armed_config || inputs.publish_armed_env;
     let mut blocking_reasons = Vec::new();
@@ -72,6 +109,7 @@ pub fn evaluate_publish_gate(inputs: PublishGateInputs) -> PublishGateDecision {
         armed,
         db_present: inputs.db_present,
         dual_approval_met: inputs.dual_approval_met,
+        approval_mode: inputs.approval_mode,
         live_publish_allowed: would_be_live_without_dry_run && blocking_reasons.is_empty(),
         blocking_reasons,
     }

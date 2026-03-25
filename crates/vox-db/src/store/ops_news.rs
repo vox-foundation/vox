@@ -17,7 +17,7 @@ impl VoxDb {
 
         self.conn
             .execute(
-                "INSERT OR REPLACE INTO published_news (id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id) VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT OR REPLACE INTO published_news (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id) VALUES (?1, ?2, ?3, ?4, ?5)",
                 (
                     id.to_string(),
                     now,
@@ -33,7 +33,7 @@ impl VoxDb {
     pub async fn is_news_published(&self, id: &str) -> Result<bool, StoreError> {
         let rows = self
             .query_all(
-                "SELECT 1 FROM published_news WHERE id = ?1",
+                "SELECT 1 FROM published_news WHERE news_id = ?1",
                 (id.to_string(),),
             )
             .await?;

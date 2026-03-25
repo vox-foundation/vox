@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS gamify_battles (
 );
 CREATE TABLE IF NOT EXISTS agent_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id TEXT NOT NULL, event_type TEXT NOT NULL,
-    payload TEXT, timestamp TEXT NOT NULL DEFAULT (datetime('now')), cli_version TEXT NOT NULL DEFAULT ''
+    payload_json TEXT, cli_version TEXT, timestamp TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id TEXT NOT NULL, session_id TEXT,

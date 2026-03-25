@@ -33,18 +33,37 @@ export PATH="$PWD/target/release:$PATH"
 ## Step 2: Create a New Project
 
 ```bash
-# Create a new Vox application
 mkdir my-app && cd my-app
-vox init --kind application
+mkdir src
+```
+
+Create `src/main.vox` with this starter content:
+
+```vox
+@table type Note {
+    title: str
+    content: str
+}
+
+@server fn health() to Result[str] {
+    ret Ok("ok")
+}
+
+@island
+fn App() to Element {
+    <div>"Hello Vox"</div>
+}
+
+routes {
+    "/" to App
+}
 ```
 
 This creates:
 ```
 my-app/
-├── Vox.toml          # Project manifest
 ├── src/
 │   └── main.vox      # Your app source (full-stack in one file!)
-└── .vox_modules/     # Package cache
 ```
 
 ## Step 3: Explore the Generated Code

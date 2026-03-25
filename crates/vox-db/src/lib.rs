@@ -10,11 +10,10 @@
 //! |------|------------|
 //! | **[`VoxDb`]** | Stable **Rust type** for this facade; use it in signatures and tests. |
 //! | **[`Codex`]** | **Type alias** for `VoxDb` — same type, product-facing name in docs/UI. |
-//! | **[`VoxDb`]** | Lower-level **`vox_pm`** store: content-addressed blobs + SQL tables. |
-//! | **Arca** | Historical / internal name for the `vox_pm` store stack (see `vox-pm` docs). |
+//! | **Arca** | Internal name for **schema + SQL** owned by this crate (`crates/vox-db/src/schema/`). |
+//! | **`vox-pm`** | Package registry / artifacts — **not** the SQL schema SSOT. |
 //!
-//! [`VoxDb::store`] returns `&VoxDb` (the field is named like the type). It is **not** the
-//! verb “store data”; use [`VoxDb::store`] on that reference for content hashing.
+//! Use [`VoxDb::store`] (async method) for content-addressed blob writes (`ops_cas`); it is not a getter.
 //!
 //! ## Connection modes
 //!
@@ -64,6 +63,8 @@ mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 pub mod schema;
+/// Idempotent fixes after baseline `CREATE IF NOT EXISTS` (column adds, renames).
+mod schema_cutover;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
 
@@ -139,12 +140,12 @@ pub use store::{
     CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample,
     CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary,
     LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublishArtifactParams,
-    QuestionRow, RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams,
-    SaveSnippetParams, ScheduledEntry, SessionEventRow, SessionRow, SessionTurnEntry,
-    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
-    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry,
-    WarningRow, WorkflowExecutionRow,
+    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationManifestParams,
+    PublicationManifestRow, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
+    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScholarlySubmissionRow, ScheduledEntry,
+    SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
+    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
+    TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use toestub_store::{

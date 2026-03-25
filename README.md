@@ -182,45 +182,33 @@ fn search_knowledge(query: str, max_results: int) to SearchResult {
 
 ## The CLI
 
-The `vox` binary gives you access to the entire toolchain:
+The `vox` binary is the entrypoint for compile, run, package, and diagnostics.
 
-### Core Setup & Build
+Start with this first-time flow:
+
 ```text
-vox build <file>           Compile .vox to Rust + TypeScript
-vox run <file>             Build and run locally
-vox bundle <file>          Produce a statically-linked binary
-vox test <file>            Run @test functions
-vox upgrade                Update to the latest compiler version
+vox commands --recommended   List the most important starter commands
+vox doctor                   Why: verify toolchain and env before coding
+vox build <file>             Why: compile and inspect generated output
+vox check <file>             Why: fast type validation without full build
+vox run <file>               Why: execute app locally end-to-end
+vox bundle <file>            Why: produce deployable binary output
 ```
 
-### Tooling & Diagnostics
+For full command coverage (including feature-gated surfaces), use:
+
 ```text
-vox lsp                    Launch the Language Server
-vox doc                    Generate standard documentation
-vox check <file>           Type-check without producing output
-vox stub-check             Run TOESTUB anti-pattern detection
+vox commands --format json --include-nested
+vox --help
 ```
 
-### Vox Mens (Local Machine Learning)
-```text
-vox schola train           Train a local model using QLoRA natively in Rust
-vox mens review          AI-assisted code review
-vox mens status          Check model status and token quotas
-```
-
-### Vox Dei (AI Orchestration & Agents)
-```text
-vox orchestrator status    View active agents and queued tasks
-vox orchestrator dispatch  Add a task to the queue
-vox dashboard              Open the real-time orchestrator web UI
-vox agent list             Show registered agents
-```
+Canonical command reference: [`docs/src/reference/cli.md`](docs/src/reference/cli.md).
 
 ---
 
 ## Installation
 
-Vox installation is managed via a unified bootstrap script that automatically configures required C-toolchains (like Clang for Turso/Aegis), Rust dependencies, and builds the CLI from source.
+Vox installation is managed via a unified bootstrap script that configures required C-toolchains (e.g. Clang for Turso/Aegis when needed) and Rust. With **`--install`**, the bootstrap tries **`vox` release binaries** from GitHub Releases first (checksum-verified), then falls back to building **`vox-cli` from source** if the binary path fails. Supported binaries and naming are documented in [`docs/src/ci/binary-release-contract.md`](docs/src/ci/binary-release-contract.md).
 
 ### 1. Unified Install (Mac/Linux)
 ```bash
@@ -250,10 +238,10 @@ cargo vox-cuda-release
 
 Want to dig deeper? We maintain a strictly standardized set of docs:
 
-1. **[Frequently Asked Questions (FAQ)](docs/src/faq.md)** — Start here for deep answers on architecture, scaling, null safety, and AI integration.
+1. **[Frequently Asked Questions (FAQ)](docs/src/explanation/faq.md)** — Start here for deep answers on architecture, scaling, null safety, and AI integration.
 2. **[Architecture Single Source of Truth](AGENTS.md)** — The definitive guide to the Vox compiler pipeline, repository rules, and core tenets.
 3. **[First Full-Stack App](docs/src/how-to/first-full-stack-app.md)** — Step-by-step tutorial.
-4. **[CLI Reference](docs/src/ref-cli.md)** — All terminal commands and flags.
+4. **[CLI Reference](docs/src/reference/cli.md)** — All terminal commands and flags.
 5. **[Syntax Reference](examples/STYLE.md)** — The 0.8.0 syntax standard.
 
 ---

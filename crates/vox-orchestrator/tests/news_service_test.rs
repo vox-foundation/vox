@@ -71,6 +71,12 @@ async fn news_tick_publishes_when_armed_and_digest_has_dual_approval() {
     db.record_news_approval_for_digest(id, &digest, "bob")
         .await
         .expect("approve bob");
+    db.record_publication_approval_for_digest(id, &digest, "alice")
+        .await
+        .expect("approve publication alice");
+    db.record_publication_approval_for_digest(id, &digest, "bob")
+        .await
+        .expect("approve publication bob");
 
     let orch = Orchestrator::new(build_config(&news_dir, &feed_path, true)).with_db(db.clone());
     NewsService::tick(&orch).await.expect("tick");

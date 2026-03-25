@@ -42,6 +42,7 @@ async fn test_mcp_token_streaming_poll() {
                 agent_id: agent_id_str,
                 event_type: event_type.to_string(),
                 payload: Some(payload),
+                cli_version: None,
                 timestamp: ev.timestamp_ms.to_string(),
             });
         }

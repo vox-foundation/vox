@@ -21,5 +21,6 @@ This directory contains ADRs for the Vox project.
 | [008](008-mens-transport.md) | **Mens control plane (HTTP; TLS at edge)** |
 | [009](009-mens-hosted-baas.md) | **Hosted mens / BaaS (future trust model)** |
 | [010](010-tanstack-web-spine.md) | **TanStack web spine (Router → Start, SSR topology)** |
+| [011](011-scientia-publication-ssot.md) | **Scientia publication manifest SSOT** |
 
 See also: [Codex vNext schema](../architecture/codex-vnext-schema.md), [Codex BaaS](../architecture/codex-baas.md).

@@ -227,6 +227,7 @@ const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/ci/crate-hardening-matrix.md",
     "docs/src/ci/github-hosted-exceptions.md",
     "docs/src/ci/workflow-enumeration.md",
+    "docs/src/ci/binary-release-contract.md",
 ];
 
 const CODEX_SSOT_FILES: &[&str] = &[

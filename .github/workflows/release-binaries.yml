@@ -25,6 +25,8 @@ jobs:
             runs_on: '["windows-latest"]'
           - target: x86_64-apple-darwin
             runs_on: '["macos-latest"]'
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-latest"]'
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +36,31 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build and package release artifact
-        run: cargo run -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist
+        run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist
+
+      - name: Smoke test packaged binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shopt -s nullglob
+          for f in vox-*.tar.gz; do
+            rm -f vox
+            tar -xzf "$f"
+            ./vox --version
+          done
+
+      - name: Smoke test packaged binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Location dist
+          Get-ChildItem -Filter 'vox-*.zip' | ForEach-Object {
+            if (Test-Path _smoke) { Remove-Item -Recurse -Force _smoke }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke -Force
+            & ".\_smoke\vox.exe" --version
+          }
 
       - name: Upload packaged binary
         uses: actions/upload-artifact@v4
@@ -52,6 +78,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+
+      # Native `vox --version` smoke runs in each matrix job above; this job only merges hashes and uploads assets.
 
       - name: Generate consolidated checksums
         run: |

@@ -1,8 +1,8 @@
-//! Arca SQL schema — **baseline-v33** + ordered fragments (SSOT).
+//! Arca SQL schema — ordered domain fragments + [`BASELINE_VERSION`] (SSOT).
 //!
-//! Canonical DDL is defined by `SCHEMA_FRAGMENTS` and applied once as `baseline_sql()`.
-//! Fresh databases store a single `schema_version` row with version **33**.
-//! Any version ≤ 32 is automatically advanced to 33 at open (DDL is idempotent).
+//! Canonical DDL is defined by `SCHEMA_FRAGMENTS` and applied via `baseline_sql()`.
+//! Fresh databases store a `schema_version` row at [`BASELINE_VERSION`] on first open.
+//! Idempotent `schema_cutover` runs after migrate for column-level alignment on existing files.
 
 mod manifest;
 mod pragmas;
@@ -49,6 +49,10 @@ mod migration_chain_tests {
         assert!(
             agents.contains("agent_sessions") && agents.contains("behavior_events"),
             "agents must define agent DDL"
+        );
+        assert!(
+            agents.contains("agent_session_events") && agents.contains("agent_events"),
+            "agents must define session + telemetry tables"
         );
     }
 }

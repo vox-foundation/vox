@@ -1,11 +1,11 @@
 //! Session lifecycle management for Vox agents.
 //!
 //! Inspired by OpenClaw's session model:
-//! - Sessions are persisted in [`vox_db::VoxDb`] (primary SSOT)
-//! - Historical JSONL file persistence is supported as a secondary fallback
-//! - Each session has its own context, permissions, and state
-//! - Supports reset, cleanup, idle timeout, and daily reset policies
-//! - Sessions survive restarts via replay from VoxDb (preferred) or JSONL
+//! - When a DB is attached, **`agent_sessions` + `agent_session_events` in Codex** are the durable SSOT.
+//! - JSONL under [`SessionConfig::sessions_dir`] is an **optional, non-authoritative** export when `persist` is enabled (telemetry / human-readable traces — not replay truth).
+//! - Each session has its own context, permissions, and state.
+//! - Supports reset, cleanup, idle timeout, and daily reset policies.
+//! - Restarts should reload from Codex via [`SessionManager::load`]; JSONL replay is legacy fallback only ([`SessionManager::load_from_jsonl`]).
 
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -167,15 +167,26 @@ impl Session {
 
     /// Add a conversation turn.
     pub fn add_turn(&mut self, role: impl Into<String>, content: impl Into<String>, tokens: usize) {
+        self.add_turn_at(role, content, tokens, now_secs());
+    }
+
+    /// Add a turn with an explicit timestamp (matches persisted event ordering).
+    pub(crate) fn add_turn_at(
+        &mut self,
+        role: impl Into<String>,
+        content: impl Into<String>,
+        tokens: usize,
+        at: u64,
+    ) {
         let turn = SessionTurn {
             role: role.into(),
             content: content.into(),
             tokens,
-            at: now_secs(),
+            at,
         };
         self.turn_count += 1;
         self.total_tokens += tokens;
-        self.last_active = now_secs();
+        self.last_active = at;
         self.turns.push(turn);
     }
 
@@ -313,11 +324,43 @@ pub enum SessionError {
 // SessionManager
 // ---------------------------------------------------------------------------
 
+/// Run Codex session writes synchronously from non-async code (MCP / orchestrator hooks).
+fn run_session_db_io(
+    fut: impl std::future::Future<Output = Result<(), vox_db::StoreError>> + Send,
+) -> Result<(), SessionError> {
+    use tokio::runtime::Handle;
+    use tokio::task::block_in_place;
+    match Handle::try_current() {
+        Ok(handle) => block_in_place(|| handle.block_on(fut)).map_err(|e| {
+            SessionError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        }),
+        Err(_) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| {
+                SessionError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("tokio runtime: {e}"),
+                ))
+            })?
+            .block_on(fut)
+            .map_err(|e| {
+                SessionError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            }),
+    }
+}
+
 /// Manages agent sessions: creation, persistence, lifecycle, cleanup.
 ///
-/// When a `VoxDb` is attached via [`SessionManager::with_db`], every session creation and
-/// turn addition also writes to the `user_sessions` and `session_turns`
-/// tables. JSONL files remain the hot cache; VoxDB is the durable SSOT.
+/// When a `VoxDb` is attached via [`SessionManager::with_db`], session rows and
+/// `agent_session_events` are the **durable SSOT**. JSONL under [`SessionConfig::sessions_dir`]
+/// is an optional, non-authoritative export for debugging or tooling when `persist` is enabled.
 pub struct SessionManager {
     config: SessionConfig,
     sessions: HashMap<String, Session>,
@@ -357,6 +400,25 @@ impl SessionManager {
         let session = Session::new(agent_id);
         let id = session.id.clone();
 
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = id.clone();
+            let aid_str = agent_id.0.to_string();
+            let created_at = session.created_at;
+            let event = SessionEvent::Created {
+                session_id: id.clone(),
+                agent_id: agent_id.0,
+                created_at,
+            };
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            let meta = format!("{{\"agent_id\":\"{aid_str}\",\"state\":\"active\"}}");
+            run_session_db_io(async move {
+                db.create_session(&sid, &aid_str, Some(meta.as_str())).await?;
+                db.append_session_event(&sid, "created", &payload).await?;
+                Ok(())
+            })?;
+        }
+
         if self.config.persist {
             let event = SessionEvent::Created {
                 session_id: id.clone(),
@@ -364,24 +426,6 @@ impl SessionManager {
                 created_at: session.created_at,
             };
             self.append_event(&id, &event)?;
-        }
-
-        // Dual-write to VoxDB
-        if let Some(db) = &self.db {
-            let db = db.clone();
-            let sid = id.clone();
-            let aid_str = agent_id.0.to_string();
-            let event = SessionEvent::Created {
-                session_id: id.clone(),
-                agent_id: agent_id.0,
-                created_at: session.created_at,
-            };
-            let payload = serde_json::to_string(&event).unwrap_or_default();
-            tokio::spawn(async move {
-                let meta = format!("{{\"agent_id\":\"{aid_str}\",\"state\":\"active\"}}");
-                let _ = db.create_session(&sid, &aid_str, Some(meta.as_str())).await;
-                let _ = db.append_session_event(&sid, "created", &payload).await;
-            });
         }
 
         self.sessions.insert(id.clone(), session);
@@ -408,23 +452,32 @@ impl SessionManager {
     ) -> Result<(), SessionError> {
         let content = content.into();
         let role = role.into();
+        let at = now_secs();
+        let event = SessionEvent::TurnAdded {
+            role: role.clone(),
+            content: content.clone(),
+            tokens,
+            at,
+        };
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            run_session_db_io(async move {
+                db.append_session_event(&sid, "turn_added", &payload).await
+            })?;
+        }
 
         let session = self
             .sessions
             .get_mut(session_id)
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
-        session.add_turn(&role, &content, tokens);
+        session.add_turn_at(role, content, tokens, at);
 
         if self.config.persist {
-            let event = SessionEvent::TurnAdded {
-                role,
-                content,
-                tokens,
-                at: now_secs(),
-            };
             self.append_event(session_id, &event)?;
-            self.dual_write_event(session_id, "turn_added", &event);
         }
         Ok(())
     }
@@ -438,6 +491,21 @@ impl SessionManager {
     ) -> Result<(), SessionError> {
         let key = key.into();
         let value = value.into();
+        let at = now_secs();
+        let event = SessionEvent::MetaUpdated {
+            key: key.clone(),
+            value: value.clone(),
+            at,
+        };
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            run_session_db_io(async move {
+                db.append_session_event(&sid, "meta_updated", &payload).await
+            })?;
+        }
 
         let session = self
             .sessions
@@ -447,13 +515,7 @@ impl SessionManager {
         session.set_meta(&key, &value);
 
         if self.config.persist {
-            let event = SessionEvent::MetaUpdated {
-                key,
-                value,
-                at: now_secs(),
-            };
             self.append_event(session_id, &event)?;
-            self.dual_write_event(session_id, "meta_updated", &event);
         }
         Ok(())
     }
@@ -599,8 +661,8 @@ impl SessionManager {
             if let Some(db) = &self.db {
                 let db_clone = db.clone();
                 let sid = id.clone();
-                tokio::spawn(async move {
-                    let _ = db_clone.close_session(&sid, "archived").await;
+                let _ = run_session_db_io(async move {
+                    db_clone.close_session(&sid, "archived").await
                 });
             }
         }
@@ -843,21 +905,8 @@ impl SessionManager {
         }
     }
 
-    /// Dual-write an event to VoxDb session history.
-    fn dual_write_event(&self, session_id: &str, event_type: &str, event: &SessionEvent) {
-        if let Some(db) = &self.db {
-            let db = db.clone();
-            let sid = session_id.to_string();
-            let etype = event_type.to_string();
-            let payload = serde_json::to_string(event).unwrap_or_default();
-            tokio::spawn(async move {
-                let _ = db.append_session_event(&sid, &etype, &payload).await;
-            });
-        }
-    }
-
-    /// Scan the sessions directory and load all JSONL files.
-    pub fn load_all(&mut self) -> Result<usize, SessionError> {
+    /// Scan the sessions directory and load all JSONL files (non-authoritative; prefer [`Self::load`] from DB).
+    pub async fn load_all(&mut self) -> Result<usize, SessionError> {
         if !self.config.sessions_dir.exists() {
             return Ok(0);
         }
@@ -869,7 +918,7 @@ impl SessionManager {
                 continue;
             }
             if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                let _ = self.load(stem);
+                let _ = self.load(stem).await;
                 loaded += 1;
             }
         }

@@ -111,7 +111,8 @@ CREATE TABLE IF NOT EXISTS agent_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id TEXT NOT NULL,
     event_type TEXT NOT NULL,
-    payload TEXT,
+    payload_json TEXT,
+    cli_version TEXT,
     timestamp TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

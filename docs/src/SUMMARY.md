@@ -22,6 +22,7 @@
 - [First full-stack Vox app](how-to/first-full-stack-app.md)
 - [How To: Train Mens on RTX 4080 Super](how-to/how-to-train-mens-4080.md)
 - [How-To: Build AI Agents and MCP Tools](how-to/how-to-ai-agents.md)
+- [How-To: Publish Scientia findings](how-to/how-to-scientia-publication.md)
 - [How-To: Deploy to Production](how-to/how-to-deploy.md)
 - [How-To: Handle Errors Gracefully](how-to/how-to-error-handling.md)
 - [How-To: Model Complex Domain Logic](how-to/how-to-custom-types.md)
@@ -158,4 +159,5 @@
 - [ADR 008: Mens transport](adr/008-mens-transport.md)
 - [ADR 009: Hosted mens / BaaS (future scope)](adr/009-mens-hosted-baas.md)
 - [ADR 010 — TanStack as the Vox web spine](adr/010-tanstack-web-spine.md)
+- [ADR 011 — Scientia publication manifest SSOT](adr/011-scientia-publication-ssot.md)
 - [Architecture Decision Records (ADR)](adr/README.md)
