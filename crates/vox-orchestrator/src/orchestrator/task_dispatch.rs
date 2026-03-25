@@ -6,10 +6,114 @@ use crate::oplog::OperationKind;
 use crate::scope::ScopeEnforcement;
 use crate::services::{MessageGateway, PolicyCheckResult, PolicyEngine, RouteResult, RoutingService};
 use crate::locks::LockKind;
+use crate::planning::{PlanningMode, PlanningTaskMeta, PlanningStrategy};
 
 use super::{Orchestrator, OrchestratorError, TaskTraceStep, MAX_TASK_TRACES};
 
 impl Orchestrator {
+    /// Submit a higher-level goal that may be routed through planning.
+    pub async fn submit_goal(
+        &self,
+        goal: impl Into<String>,
+        file_manifest: Vec<FileAffinity>,
+        priority: Option<TaskPriority>,
+        planning_mode: Option<PlanningMode>,
+        session_id: Option<String>,
+    ) -> Result<TaskId, OrchestratorError> {
+        let goal = goal.into();
+        let cfg = crate::sync_lock::rw_read(&*self.config).clone();
+        if planning_mode.is_none()
+            && (!cfg.planning_auto_mode_enabled || cfg.planning_rollout_percent == 0)
+        {
+            return self
+                .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)
+                .await;
+        }
+        if planning_mode.is_none() {
+            let selector = seahash::hash(goal.as_bytes()) % 100;
+            if selector >= u64::from(cfg.planning_rollout_percent) {
+                return self
+                    .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)
+                    .await;
+            }
+        }
+        let eval = crate::planning::intake_router::evaluate_goal(&cfg, &goal, planning_mode);
+        self.event_bus.emit(crate::events::AgentEventKind::PlanningRouted {
+            strategy: format!("{:?}", eval.strategy),
+            complexity: eval.complexity,
+            confidence: eval.confidence,
+            rationale: eval.rationale.clone(),
+        });
+
+        if cfg.planning_shadow_mode || eval.strategy == PlanningStrategy::ImmediateAct {
+            return self
+                .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)
+                .await;
+        }
+
+        if eval.strategy == PlanningStrategy::WorkflowHandoff && cfg.planning_workflow_handoff_enabled {
+            return self
+                .submit_workflow_handoff_goal(goal, file_manifest, priority, session_id)
+                .await;
+        }
+
+        let plan_session_id = format!("plan-{}", uuid::Uuid::new_v4());
+        let plan_version = 1_u32;
+        let nodes = crate::planning::synthesizer::synthesize_plan_nodes(&goal);
+        if let Some(db) = self.db() {
+            let strategy = format!("{:?}", eval.strategy);
+            let _ = db
+                .create_plan_session(
+                    &plan_session_id,
+                    session_id.as_deref(),
+                    &goal,
+                    &strategy,
+                )
+                .await;
+            let _ = db
+                .append_plan_version(&plan_session_id, plan_version as i64, None, None, None)
+                .await;
+            for n in &nodes {
+                let deps_json = serde_json::to_string(&n.depends_on).unwrap_or_else(|_| "[]".to_string());
+                let pol_json = serde_json::to_string(&n.execution_policy).unwrap_or_else(|_| "{}".to_string());
+                let _ = db
+                    .upsert_plan_node(
+                        &plan_session_id,
+                        plan_version as i64,
+                        &n.node_id,
+                        &n.description,
+                        &deps_json,
+                        &pol_json,
+                        "pending",
+                        n.workflow_invocation.as_deref(),
+                    )
+                    .await;
+            }
+        }
+        self.event_bus.emit(crate::events::AgentEventKind::PlanSessionCreated {
+            plan_session_id: plan_session_id.clone(),
+            strategy: format!("{:?}", eval.strategy),
+            version: plan_version as i64,
+        });
+
+        let first = nodes.first().cloned().unwrap_or_else(|| crate::planning::PlanNode {
+            node_id: "n1".to_string(),
+            description: goal.clone(),
+            depends_on: vec![],
+            status: crate::planning::PlanStatus::Pending,
+            execution_policy: crate::planning::ExecutionPolicy::default(),
+            workflow_invocation: None,
+        });
+        crate::planning::executor_bridge::enqueue_plan_node(
+            self,
+            &first,
+            &plan_session_id,
+            plan_version,
+            session_id,
+        )
+        .await
+    }
+
     /// Create a new orchestrator with the given configuration.
     // ORCH-01 SPLIT TARGET:
     //   new() / with_groups() / init_db() → orchestrator/core.rs
@@ -212,6 +316,36 @@ impl Orchestrator {
             );
         }
 
+        Ok(task_id)
+    }
+
+    /// Submit a task with planning metadata attached.
+    pub async fn submit_task_with_agent_planned(
+        &self,
+        description: impl Into<String>,
+        file_manifest: Vec<FileAffinity>,
+        priority: Option<TaskPriority>,
+        target_agent: Option<String>,
+        capability_requirements: Option<crate::contract::TaskCapabilityHints>,
+        session_id: Option<String>,
+        planning_meta: Option<PlanningTaskMeta>,
+    ) -> Result<TaskId, OrchestratorError> {
+        let task_id = self
+            .submit_task_with_agent(
+                description,
+                file_manifest,
+                priority,
+                target_agent,
+                capability_requirements,
+                session_id,
+            )
+            .await?;
+        if let Some(meta) = planning_meta
+            && let Some(agent_id) = crate::sync_lock::rw_read(&*self.task_assignments).get(&task_id).copied()
+            && let Some(q_lock) = crate::sync_lock::rw_read(&*self.agents).get(&agent_id)
+        {
+            let _ = crate::sync_lock::rw_write(&**q_lock).attach_planning_meta(task_id, &meta);
+        }
         Ok(task_id)
     }
 
@@ -429,7 +563,7 @@ impl Orchestrator {
         let reputation_routing = crate::sync_lock::rw_read(&*self.config).socrates_reputation_routing;
         let reliability_map: Option<HashMap<AgentId, f64>> =
             if reputation_routing {
-                crate::sync_lock::rw_read(&*self.db).as_ref().map(|db| {
+                self.db().map(|db| {
                     db.block_on(async { db.list_agent_reliability().await })
                         .unwrap_or_default()
                         .into_iter()
@@ -464,6 +598,7 @@ impl Orchestrator {
                 reliability_map.as_ref(),
                 task_capability_requirements,
                 remote,
+                None, // Phase 15: attention_trust_scores (pass BudgetManager::trust_snapshot() when enabled)
             )
         };
         drop(remote_hints);
@@ -682,14 +817,34 @@ impl Orchestrator {
         // Unblock dependent tasks across ALL agents
         {
             let agents = crate::sync_lock::rw_read(&*self.agents);
-            let _db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+            let _db_opt = self.db();
             for queue_lock in agents.values() {
                 crate::sync_lock::rw_write(&**queue_lock).unblock(task_id);
             }
         }
 
-        if let Some(db) = crate::sync_lock::rw_read(&*self.db).as_ref() {
+        if let Some(db) = self.db() {
             let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
+            // Best-effort planning attempt persistence for plan-linked tasks.
+            if let Some(queue_lock) = crate::sync_lock::rw_read(&*self.agents).get(&agent_id) {
+                let queue = crate::sync_lock::rw_read(&**queue_lock);
+                if let Some(task) = queue.current_task()
+                    && let (Some(ps), Some(node), Some(ver)) =
+                        (task.plan_session_id.as_deref(), task.plan_node_id.as_deref(), task.plan_version)
+                {
+                    let _ = db
+                        .block_on(db.record_plan_node_attempt(
+                            ps,
+                            i64::from(ver),
+                            node,
+                            1,
+                            Some(&task_id.0.to_string()),
+                            "completed",
+                            None,
+                            None,
+                        ));
+                }
+            }
         }
 
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
@@ -707,7 +862,7 @@ impl Orchestrator {
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
-        let session_id = {
+        let (session_id, planning_meta, failed_desc) = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let queue_lock = agents
                 .get(&agent_id)
@@ -715,11 +870,29 @@ impl Orchestrator {
             let mut queue = crate::sync_lock::rw_write(&**queue_lock);
 
             let session_id = queue.current_task().and_then(|t| t.session_id.clone());
+            let planning_meta = queue.current_task().and_then(|t| {
+                if let (Some(plan_session_id), Some(plan_node_id), Some(plan_version)) =
+                    (t.plan_session_id.clone(), t.plan_node_id.clone(), t.plan_version)
+                {
+                    Some(PlanningTaskMeta {
+                        plan_session_id,
+                        plan_node_id,
+                        plan_version,
+                        execution_policy_json: t.execution_policy_json.clone(),
+                    })
+                } else {
+                    None
+                }
+            });
+            let failed_desc = queue
+                .current_task()
+                .map(|t| t.description.clone())
+                .unwrap_or_default();
             queue.mark_failed(task_id, reason.clone());
-            session_id
+            (session_id, planning_meta, failed_desc)
         };
 
-        if let Some(db) = crate::sync_lock::rw_read(&*self.db).as_ref() {
+        if let Some(db) = self.db() {
             let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
         }
 
@@ -762,8 +935,65 @@ impl Orchestrator {
             task_id,
             agent_id,
             reason.clone(),
-            session_id,
+            session_id.clone(),
         );
+
+        let planning_cfg = crate::sync_lock::rw_read(&*self.config).clone();
+        if planning_cfg.planning_enabled
+            && planning_cfg.planning_replan_enabled
+            && let Some(meta) = planning_meta
+            && crate::planning::replan::trigger_matches(&reason, meta.execution_policy_json.as_deref())
+        {
+            if let Some(db) = self.db() {
+                let _ = db
+                    .record_plan_node_attempt(
+                        &meta.plan_session_id,
+                        i64::from(meta.plan_version),
+                        &meta.plan_node_id,
+                        1,
+                        Some(&task_id.0.to_string()),
+                        "failed",
+                        Some(&reason),
+                        None,
+                    )
+                    .await;
+                let next_version = i64::from(meta.plan_version) + 1;
+                let _ = db
+                    .append_plan_version(
+                        &meta.plan_session_id,
+                        next_version,
+                        Some(i64::from(meta.plan_version)),
+                        Some("task_failed"),
+                        Some(
+                            &serde_json::json!({
+                                "task_id": task_id.0,
+                                "reason": reason,
+                            })
+                            .to_string(),
+                        ),
+                    )
+                    .await;
+                self.event_bus.emit(crate::events::AgentEventKind::PlanVersionCreated {
+                    plan_session_id: meta.plan_session_id.clone(),
+                    version: next_version,
+                    parent_version: Some(i64::from(meta.plan_version)),
+                });
+                self.event_bus.emit(crate::events::AgentEventKind::ReplanTriggered {
+                    plan_session_id: meta.plan_session_id.clone(),
+                    node_id: meta.plan_node_id.clone(),
+                    reason: reason.clone(),
+                    next_version,
+                });
+            }
+            let _ = crate::planning::replan::enqueue_recovery_first_node(
+                self,
+                &meta,
+                &reason,
+                &failed_desc,
+                session_id.clone(),
+            )
+            .await;
+        }
 
         tracing::warn!("Task {} failed: {}", task_id, reason);
         Ok(())

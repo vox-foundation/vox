@@ -283,6 +283,42 @@ pub enum AgentEventKind {
         task_id: TaskId,
         warnings: Vec<String>,
     },
+    /// Planning router chose a strategy for a submitted goal.
+    PlanningRouted {
+        strategy: String,
+        complexity: u8,
+        confidence: f32,
+        rationale: String,
+    },
+    /// A new plan session was created.
+    PlanSessionCreated {
+        plan_session_id: String,
+        strategy: String,
+        version: i64,
+    },
+    /// A branch/replan version was created.
+    PlanVersionCreated {
+        plan_session_id: String,
+        version: i64,
+        parent_version: Option<i64>,
+    },
+    /// Failure triggered a replan branch.
+    ReplanTriggered {
+        plan_session_id: String,
+        node_id: String,
+        reason: String,
+        next_version: i64,
+    },
+    /// Planner requested workflow runtime handoff.
+    WorkflowHandoffRequested {
+        plan_session_id: String,
+        workflow_name: String,
+    },
+    /// Workflow handoff finished and yielded a task id.
+    WorkflowHandoffCompleted {
+        plan_session_id: String,
+        task_id: u64,
+    },
     /// Durable workflow lifecycle (MCP / dashboard).
     WorkflowStarted {
         workflow_id: String,

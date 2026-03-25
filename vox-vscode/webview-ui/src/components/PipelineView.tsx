@@ -13,7 +13,8 @@ export const PipelineView = ({ status = {} }: any) => {
   return (
     <div className="h-full grid grid-cols-5 divide-x divide-white/5 bg-[#09090b]">
        {STAGES.map((stage, idx) => {
-         const isOk = status[stage.id] === 'ok' || !status[stage.id]; // fallback for demo
+         const isOk = status && status[stage.id] ? status[stage.id].ok : false; 
+         const logs = status && status[stage.id] && status[stage.id].recent_logs ? status[stage.id].recent_logs : [];
          return (
            <div key={stage.id} className={`p-8 flex flex-col group hover:bg-white/[0.01] transition-all relative overflow-hidden`}>
              {/* Stage Progress */}
@@ -40,21 +41,18 @@ export const PipelineView = ({ status = {} }: any) => {
                   <span className="text-[9px] font-bold text-zinc-500 uppercase">Live Output</span>
                 </div>
                 <div className="space-y-1.5 opacity-60">
-                   <div className="flex gap-2">
-                     <span className="text-zinc-600">[{idx % 2 === 0 ? 'TRACE' : 'DEBUG'}]</span>
-                     <span className="text-zinc-300">Initialized {stage.id} runtime context...</span>
-                   </div>
-                   <div className="flex gap-2">
-                     <span className="text-zinc-600">[META]</span>
-                     <span className="text-zinc-400">Loading worker pool (8 threads)</span>
-                   </div>
-                   <div className="flex gap-2">
-                     <span className="text-emerald-600">[DONE]</span>
-                     <span className="text-emerald-400/80">Calibration matrix validated.</span>
-                   </div>
-                   <div className="mt-4 animate-pulse">
-                     <span className="text-blue-500">{" > "} STAGE {idx + 1} ACTIVE</span>
-                   </div>
+                   {logs.length > 0 ? logs.slice(-5).map((log: string, lgId: number) => (
+                       <div key={lgId} className="flex gap-2">
+                         <span className={log.includes('[ERR]') ? 'text-rose-500' : 'text-zinc-300'}>{log}</span>
+                       </div>
+                   )) : (
+                       <div className="text-zinc-500 italic mt-2">No output yet.</div>
+                   )}
+                   {isOk && logs.length > 0 && (
+                       <div className="mt-4 animate-pulse">
+                         <span className="text-blue-500">{" > "} STAGE {idx + 1} ACTIVE</span>
+                       </div>
+                   )}
                 </div>
              </div>
 

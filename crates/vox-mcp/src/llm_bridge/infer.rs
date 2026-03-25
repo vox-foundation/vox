@@ -217,6 +217,9 @@ pub async fn mcp_infer_completion(
                         .into(),
                     );
                 }
+                GateResult::AttentionExhausted { message, .. } => {
+                    return Err(message);
+                }
             }
         }
 

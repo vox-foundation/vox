@@ -72,4 +72,57 @@ CREATE TABLE IF NOT EXISTS actor_state (
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Dynamic planning sessions and branching versions.
+CREATE TABLE IF NOT EXISTS plan_sessions (
+    plan_session_id TEXT PRIMARY KEY,
+    origin_session_id TEXT,
+    goal_text TEXT NOT NULL,
+    strategy TEXT NOT NULL,
+    current_version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS plan_versions (
+    plan_session_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    parent_version INTEGER,
+    trigger_event TEXT,
+    trigger_payload_json TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (plan_session_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS plan_nodes (
+    plan_session_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    node_id TEXT NOT NULL,
+    description TEXT NOT NULL,
+    dependencies_json TEXT NOT NULL DEFAULT '[]',
+    execution_policy_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending',
+    workflow_invocation TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (plan_session_id, version, node_id)
+);
+
+CREATE TABLE IF NOT EXISTS plan_node_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_session_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    node_id TEXT NOT NULL,
+    attempt_no INTEGER NOT NULL,
+    task_id TEXT,
+    outcome TEXT NOT NULL,
+    error_text TEXT,
+    latency_ms INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_plan_sessions_status ON plan_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_plan_nodes_status ON plan_nodes(status);
+CREATE INDEX IF NOT EXISTS idx_plan_attempts_node ON plan_node_attempts(plan_session_id, version, node_id);
 ";

@@ -221,6 +221,125 @@ pub struct OrchestratorConfig {
     /// formatted with `<|im_start|>` markers instead of JSON message arrays.
     #[serde(default = "default_false")]
     pub chatml_strict: bool,
+    /// Enable dynamic planning mode (router + plan execution bridge).
+    #[serde(default = "default_false")]
+    pub planning_enabled: bool,
+    /// Enable intake router classification at ingress.
+    #[serde(default = "default_false")]
+    pub planning_router_enabled: bool,
+    /// Enable branch-based replanning after qualifying failures.
+    #[serde(default = "default_false")]
+    pub planning_replan_enabled: bool,
+    /// Allow workflow runtime handoff path from planner.
+    #[serde(default = "default_false")]
+    pub planning_workflow_handoff_enabled: bool,
+    /// Compute planning decisions but keep direct execution path.
+    #[serde(default = "default_false")]
+    pub planning_shadow_mode: bool,
+    /// Enable `planning_mode=auto` behavior for goal ingress.
+    #[serde(default = "default_false")]
+    pub planning_auto_mode_enabled: bool,
+    /// Rollout percentage for auto planning (0-100).
+    #[serde(default)]
+    pub planning_rollout_percent: u8,
+
+    // ── Phase 15: Attention Budget ─────────────────────────────────────────────
+    /// Enable attention budget tracking. Default: false (shadow/observe mode).
+    #[serde(default = "default_false")]
+    pub attention_enabled: bool,
+    /// Pilot attention budget per session period in ms. Default: 3_600_000 (1 hr).
+    #[serde(default = "default_attention_budget_ms")]
+    pub attention_budget_ms: u64,
+    /// Ratio of budget that triggers AttentionHigh signal. Default: 0.7.
+    #[serde(default = "default_attention_alert_threshold")]
+    pub attention_alert_threshold: f64,
+    /// Baseline interrupt recovery cost in ms. Default: 23_250 (Gloria Mark).
+    #[serde(default = "default_attention_interrupt_cost_ms")]
+    pub attention_interrupt_cost_ms: u64,
+    /// EWMA alpha for trust score updates. Default: 0.1.
+    #[serde(default = "default_trust_ewma_alpha")]
+    pub trust_ewma_alpha: f64,
+    /// Minimum outcomes for Untrusted → Provisional. Default: 5.
+    #[serde(default = "default_trust_provisional_threshold")]
+    pub trust_provisional_threshold: u32,
+    /// Minimum outcomes for Provisional → Trusted. Default: 20.
+    #[serde(default = "default_trust_trusted_threshold")]
+    pub trust_trusted_threshold: u32,
+    /// Minimum trust score for auto-approve eligibility. Default: 0.85.
+    #[serde(default = "default_trust_auto_approve_min")]
+    pub trust_auto_approve_min: f64,
+    /// Routing weight applied to trust scores in step 3d. Default: 2.0.
+    #[serde(default = "default_attention_trust_routing_weight")]
+    pub attention_trust_routing_weight: f64,
+    /// NASA TLX subscale weights for attention cost computation.
+    /// Defaults to validated pilot-study values (mental=0.35, temporal=0.25, etc.).
+    #[serde(default)]
+    pub attention_tlx_weights: crate::attention::NasaTlxWeights,
+    /// Approval tier gate thresholds. Override to tune auto-approve graduation.
+    #[serde(default)]
+    pub tier_gate: crate::attention::TierGateConfig,
+    /// Configuration for the unified news publisher (docs/news/ → RSS/X/GitHub).
+    #[serde(default)]
+    pub news: NewsConfig,
+}
+
+/// Unified news syndication configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct NewsConfig {
+    /// Whether the background news monitor is active (default: false).
+    pub enabled: bool,
+    /// Relative path to watch for new Markdown news items (default: "docs/news").
+    pub news_dir: String,
+    /// When true, walk `news_dir` recursively (includes `drafts/` subfolders).
+    #[serde(default = "default_true")]
+    pub scan_recursive: bool,
+    /// Personal access token for GitHub Releases (Octocrab).
+    pub github_token: Option<String>,
+    /// Bearer token for Twitter X API v2 (reqwest).
+    pub twitter_token: Option<String>,
+    /// API Key for Open Collective GraphQL v2 (reqwest).
+    pub opencollective_token: Option<String>,
+    /// Global flag to force local testing only without actually calling external publish endpoints.
+    pub dry_run: bool,
+    /// Must be true (or `VOX_NEWS_PUBLISH_ARMED=1`) before any **live** syndication attempt.
+    #[serde(default)]
+    pub publish_armed: bool,
+    /// Override public site URL for RSS links (default: vox-publisher contract default).
+    #[serde(default)]
+    pub site_base_url: Option<String>,
+    /// Path to `feed.xml` relative to repo root.
+    #[serde(default)]
+    pub rss_feed_path: Option<String>,
+    #[serde(default)]
+    pub opencollective_graphql_url: Option<String>,
+    #[serde(default)]
+    pub github_graphql_url: Option<String>,
+    #[serde(default)]
+    pub github_rest_base: Option<String>,
+    #[serde(default)]
+    pub twitter_api_base: Option<String>,
+}
+
+impl Default for NewsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            news_dir: "docs/news".to_string(),
+            scan_recursive: true,
+            github_token: None,
+            twitter_token: None,
+            opencollective_token: None,
+            dry_run: true,
+            publish_armed: false,
+            site_base_url: None,
+            rss_feed_path: None,
+            opencollective_graphql_url: None,
+            github_graphql_url: None,
+            github_rest_base: None,
+            twitter_api_base: None,
+        }
+    }
 }
 
 fn default_heartbeat_interval() -> u64 {
@@ -300,6 +419,16 @@ fn default_idle_timeout() -> u64 {
 fn default_task_timeout() -> u64 {
     1_800_000
 }
+
+// Phase 15: Attention budget defaults
+fn default_attention_budget_ms() -> u64 { 3_600_000 }
+fn default_attention_alert_threshold() -> f64 { 0.7 }
+fn default_attention_interrupt_cost_ms() -> u64 { 23_250 }
+fn default_trust_ewma_alpha() -> f64 { 0.1 }
+fn default_trust_provisional_threshold() -> u32 { 5 }
+fn default_trust_trusted_threshold() -> u32 { 20 }
+fn default_trust_auto_approve_min() -> f64 { 0.85 }
+fn default_attention_trust_routing_weight() -> f64 { 2.0 }
 
 fn apply_vox_populi_toml(config: &mut OrchestratorConfig, mens: &vox_repository::VoxMeshToml) {
     if let Some(url) = mens
@@ -387,6 +516,26 @@ impl Default for OrchestratorConfig {
             mesh_http_timeout_ms: default_mesh_http_timeout_ms(),
             mesh_routing_experimental: default_false(),
             chatml_strict: default_false(),
+            planning_enabled: default_false(),
+            planning_router_enabled: default_false(),
+            planning_replan_enabled: default_false(),
+            planning_workflow_handoff_enabled: default_false(),
+            planning_shadow_mode: default_false(),
+            planning_auto_mode_enabled: default_false(),
+            planning_rollout_percent: 0,
+            // Phase 15: Attention budget
+            attention_enabled: false,
+            attention_budget_ms: default_attention_budget_ms(),
+            attention_alert_threshold: default_attention_alert_threshold(),
+            attention_interrupt_cost_ms: default_attention_interrupt_cost_ms(),
+            trust_ewma_alpha: default_trust_ewma_alpha(),
+            trust_provisional_threshold: default_trust_provisional_threshold(),
+            trust_trusted_threshold: default_trust_trusted_threshold(),
+            trust_auto_approve_min: default_trust_auto_approve_min(),
+            attention_trust_routing_weight: default_attention_trust_routing_weight(),
+            attention_tlx_weights: crate::attention::NasaTlxWeights::default(),
+            tier_gate: crate::attention::TierGateConfig::default(),
+            news: NewsConfig::default(),
         }
     }
 }
@@ -663,6 +812,106 @@ impl OrchestratorConfig {
                 self.chatml_strict,
             );
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ENABLED") {
+            self.planning_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_ENABLED",
+                &val,
+                self.planning_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED") {
+            self.planning_router_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED",
+                &val,
+                self.planning_router_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED") {
+            self.planning_replan_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED",
+                &val,
+                self.planning_replan_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED") {
+            self.planning_workflow_handoff_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED",
+                &val,
+                self.planning_workflow_handoff_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE") {
+            self.planning_shadow_mode = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE",
+                &val,
+                self.planning_shadow_mode,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED") {
+            self.planning_auto_mode_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED",
+                &val,
+                self.planning_auto_mode_enabled,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT") {
+            self.planning_rollout_percent = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT",
+                &val,
+                self.planning_rollout_percent,
+            );
+        }
+        // Phase 15: Attention Budget env overrides
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_ENABLED") {
+            self.attention_enabled = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_ENABLED", &v, self.attention_enabled);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS") {
+            self.attention_budget_ms = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS", &v, self.attention_budget_ms);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD") {
+            self.attention_alert_threshold = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD", &v, self.attention_alert_threshold);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS") {
+            self.attention_interrupt_cost_ms = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS", &v, self.attention_interrupt_cost_ms);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA") {
+            self.trust_ewma_alpha = parse_or_warn("VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA", &v, self.trust_ewma_alpha);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD") {
+            self.trust_provisional_threshold = parse_or_warn("VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD", &v, self.trust_provisional_threshold);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD") {
+            self.trust_trusted_threshold = parse_or_warn("VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD", &v, self.trust_trusted_threshold);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN") {
+            self.trust_auto_approve_min = parse_or_warn("VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN", &v, self.trust_auto_approve_min);
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT") {
+            self.attention_trust_routing_weight = parse_or_warn("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT", &v, self.attention_trust_routing_weight);
+        }
+        // News syndication (see docs/architecture/news_syndication_security.md)
+        if let Ok(v) = std::env::var("VOX_NEWS_PUBLISH_ARMED") {
+            self.news.publish_armed = parse_or_warn("VOX_NEWS_PUBLISH_ARMED", &v, self.news.publish_armed);
+        }
+        if let Ok(v) = std::env::var("VOX_NEWS_SITE_BASE_URL") {
+            let t = v.trim();
+            if t.is_empty() {
+                self.news.site_base_url = None;
+            } else {
+                self.news.site_base_url = Some(t.to_string());
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_NEWS_RSS_FEED_PATH") {
+            let t = v.trim();
+            if t.is_empty() {
+                self.news.rss_feed_path = None;
+            } else {
+                self.news.rss_feed_path = Some(t.to_string());
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_NEWS_SCAN_RECURSIVE") {
+            self.news.scan_recursive = parse_or_warn("VOX_NEWS_SCAN_RECURSIVE", &v, self.news.scan_recursive);
+        }
     }
 
     /// Create a config suitable for testing (small limits, fast timeouts).
@@ -692,6 +941,9 @@ pub enum ConfigValidationError {
     /// Scaling bounds were inconsistent (`min_agents` > `max_agents`).
     #[error("min_agents ({0}) cannot be greater than max_agents ({1})")]
     InvalidScalingLimits(usize, usize),
+    /// Planning toggles are inconsistent.
+    #[error("invalid planning configuration: {0}")]
+    PlanningInvalid(String),
 }
 
 impl OrchestratorConfig {
@@ -716,6 +968,26 @@ impl OrchestratorConfig {
             errors.push(ConfigValidationError::InvalidScalingLimits(
                 self.min_agents,
                 self.max_agents,
+            ));
+        }
+        if self.planning_router_enabled && !self.planning_enabled {
+            errors.push(ConfigValidationError::PlanningInvalid(
+                "planning_router_enabled requires planning_enabled".to_string(),
+            ));
+        }
+        if self.planning_replan_enabled && !self.planning_enabled {
+            errors.push(ConfigValidationError::PlanningInvalid(
+                "planning_replan_enabled requires planning_enabled".to_string(),
+            ));
+        }
+        if self.planning_workflow_handoff_enabled && !self.planning_enabled {
+            errors.push(ConfigValidationError::PlanningInvalid(
+                "planning_workflow_handoff_enabled requires planning_enabled".to_string(),
+            ));
+        }
+        if self.planning_rollout_percent > 100 {
+            errors.push(ConfigValidationError::PlanningInvalid(
+                "planning_rollout_percent must be <= 100".to_string(),
             ));
         }
 

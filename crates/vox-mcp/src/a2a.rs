@@ -100,6 +100,7 @@ fn parse_msg_type(s: &str) -> A2AMessageType {
         "vcs_event" | "vcsevent" => A2AMessageType::VcsEvent,
         "cancel_request" | "cancelrequest" => A2AMessageType::CancelRequest,
         "snapshot_share" | "snapshotshare" => A2AMessageType::SnapshotShare,
+        "broadcast_news" | "broadcastnews" => A2AMessageType::BroadcastNews,
         _ => A2AMessageType::FreeForm,
     }
 }
@@ -119,6 +120,7 @@ fn msg_type_name(mt: &A2AMessageType) -> String {
         A2AMessageType::VcsEvent => "VcsEvent".to_string(),
         A2AMessageType::CancelRequest => "CancelRequest".to_string(),
         A2AMessageType::SnapshotShare => "SnapshotShare".to_string(),
+        A2AMessageType::BroadcastNews => "BroadcastNews".to_string(),
     }
 }
 

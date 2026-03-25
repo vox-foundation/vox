@@ -50,6 +50,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'pickModel':
                     vscode.commands.executeCommand('vox.pickModel');
                     break;
+                case 'updateBudgetCap':
+                    await this._mcp.preferenceSet('budget_cap_usd', msg.value);
+                    break;
+                case 'updateApiKey':
+                    await this._mcp.preferenceSet('byok_key_' + msg.provider, msg.value);
+                    break;
+                case 'setModel':
+                    await this._mcp.preferenceSet('active_model', msg.value);
+                    break;
+                case 'resumeWorkflow':
+                    await this._mcp.call('vox_workflow_resume', { step: msg.step });
+                    break;
+                case 'setSocratesGate':
+                    await this._mcp.preferenceSet('socrates_gate_enforced', msg.enforce);
+                    break;
+                case 'rejectExecution':
+                    await this._mcp.call('vox_reject_execution', { intent_id: msg.intentId });
+                    break;
+                case 'rebalance':
+                    await this._mcp.rebalance();
+                    break;
+                case 'runCommand':
+                    vscode.commands.executeCommand(msg.value);
+                    break;
             }
         });
 
@@ -81,6 +105,24 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         const tasks = await this._mcp.a2aTasks();
         if (tasks) this.postMessage({ type: 'a2aTasks', value: tasks });
+        
+        const workflow = await this._mcp.workflowStatus();
+        this.postMessage({ type: 'workflowStatus', value: workflow });
+        
+        const mesh = await this._mcp.meshStatus();
+        this.postMessage({ type: 'meshStatus', value: mesh });
+        
+        const intentions = await this._mcp.intentionMatrix();
+        this.postMessage({ type: 'intentionMatrix', value: intentions });
+        
+        const oplog = await this._mcp.oplog();
+        if (oplog) this.postMessage({ type: 'oplog', value: oplog });
+        
+        const budgetHist = await this._mcp.budgetHistory(20);
+        this.postMessage({ type: 'budgetHistory', value: budgetHist });
+        
+        const modelList = await this._mcp.modelList();
+        this.postMessage({ type: 'modelList', value: modelList });
 
         this._sendAst();
     }

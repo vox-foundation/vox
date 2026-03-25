@@ -2,7 +2,7 @@
   "name": "vox-lang",
   "displayName": "Vox Language",
   "description": "Language support for Vox — the AI-native, full-stack programming language",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "vox-lang",
   "license": "Apache-2.0",
   "engines": {
@@ -81,6 +81,20 @@
           "type": "boolean",
           "default": true,
           "description": "Enable the Companion gamification HUD."
+        },
+        "vox.visualizer.protocol": {
+          "type": "string",
+          "enum": [
+            "iframe",
+            "sdui_native"
+          ],
+          "default": "sdui_native",
+          "description": "Protocol used to render the visualizer"
+        },
+        "vox.visualizer.autoDiscovery": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically discover new Vox language features from the server-driven UI."
         },
         "vox.ai.model": {
           "type": "string",

@@ -114,6 +114,25 @@ export class VoxMcpClient {
         const result = await this.call<AgentEvent[]>('vox_poll_events', { limit });
         return Array.isArray(result) ? result : [];
     }
+    
+    // ── SDUI & Real-time Integrations ─────────────────────────────────────────
+    async workflowStatus(): Promise<unknown> {
+        return this.call('vox_workflow_status', {});
+    }
+    async meshStatus(): Promise<unknown> {
+        return this.call('vox_mesh_status', {});
+    }
+    async intentionMatrix(): Promise<unknown> {
+        return this.call('vox_intention_matrix', {});
+    }
+    async budgetHistory(buckets = 20): Promise<unknown[]> {
+        const result = await this.call<unknown[]>('vox_budget_history', { buckets });
+        return Array.isArray(result) ? result : [];
+    }
+    async modelList(): Promise<unknown[]> {
+        const result = await this.call<unknown[]>('vox_model_list', {});
+        return Array.isArray(result) ? result : [];
+    }
 
     // ── Code Generation ───────────────────────────────────────────────────────
     async generateCode(payload: {

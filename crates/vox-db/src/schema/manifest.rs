@@ -1,14 +1,14 @@
 //! Single-source Arca/Codex schema: ordered fragments, baseline SQL, digest, and capability metadata.
 //!
 //! **SSOT:** This manifest defines the current global Arca schema collapsed into logical domains.
-//! Version **33** is the latest unified baseline.
+//! Baseline version is [`BASELINE_VERSION`] (see monolithic DDL in `baseline_sql()`).
 
 use std::sync::OnceLock;
 use sha3::{Digest, Keccak256};
 use super::domains;
 
 /// Latest unified schema baseline version for new and existing databases.
-pub const BASELINE_VERSION: i64 = 35;
+pub const BASELINE_VERSION: i64 = 37;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -100,6 +100,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "mens_cloud",
         sql: domains::mens_cloud::SCHEMA_POPULI_CLOUD,
+    },
+    SchemaFragment {
+        name: "news",
+        sql: domains::news::SCHEMA_NEWS,
     },
 ];
 

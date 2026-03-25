@@ -42,7 +42,7 @@ mens-qlora = ["gpu"]
 # Candle qlora on NVIDIA CUDA (requires CUDA toolkit when compiling `candle-core`).
 mens-candle-cuda = ["gpu", "vox-mens/candle-qlora-cuda"]
 # Candle qlora on Apple Metal (macOS only).
-mens-candle-metal = ["gpu", "vox-mens/candle-qlora-metal"]
+
 # Cloud GPU training/serving dispatch (Vast.ai, RunPod).
 cloud = ["gpu", "vox-mens/cloud"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.

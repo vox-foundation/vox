@@ -498,6 +498,13 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
             .await
         {
             Ok(()) => {
+                if params.key == "socrates_gate_enforced" {
+                    if let Ok(enforce) = params.value.parse::<bool>() {
+                        let cfg_handle = state.orchestrator.config_handle();
+                        let mut cfg = cfg_handle.write().unwrap();
+                        cfg.socrates_gate_enforce = enforce;
+                    }
+                }
                 ToolResult::ok(format!("Set '{}' = '{}'", params.key, params.value)).to_json()
             }
             Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),

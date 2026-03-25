@@ -20,11 +20,19 @@ impl crate::orchestrator::Orchestrator {
         description: impl Into<String>,
     ) -> SnapshotId {
         let desc = description.into();
+        // Fast path: no paths to snapshot (zero-cost in tests and read-only routes).
+        if paths.is_empty() {
+            return crate::sync_lock::rw_write(&*self.snapshot_store)
+                .take_snapshot(agent_id, &[], &desc);
+        }
         let snap_id = crate::sync_lock::rw_write(&*self.snapshot_store).take_snapshot(agent_id, paths, &desc);
 
+        // Only attempt CAS upload if a DB is attached (never in tests).
         let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
         if let Some(db) = db_opt {
             for p in paths {
+                // Skip non-existent files (relative paths in tests, missing artifacts).
+                if !p.exists() { continue; }
                 if let Ok(data) = std::fs::read(p) {
                     let _ = db.store("file", &data).await;
                 }

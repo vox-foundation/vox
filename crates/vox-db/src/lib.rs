@@ -142,7 +142,7 @@ pub use store::{
     A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
     CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample, CrateSampleRow,
     EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
-    LogInteractionParams, MemoryEntry, PackageSearchResult, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
+    LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
     ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, SessionEventRow, SessionRow, SessionTurnEntry,
     SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
     TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,

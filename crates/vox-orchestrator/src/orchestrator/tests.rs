@@ -266,4 +266,93 @@ mod tests {
         assert_eq!(q.completed_count(), 0);
         assert!(!q.is_empty());
     }
+
+    #[tokio::test]
+    async fn submit_goal_falls_back_to_direct_when_planning_disabled() {
+        let orch = test_orchestrator();
+        let task_id = orch
+            .submit_goal(
+                "small direct change",
+                vec![FileAffinity::write("src/lib.rs")],
+                None,
+                None,
+                None,
+            )
+            .await
+            .expect("submit goal");
+        assert!(orch.task_assignments.read().unwrap().contains_key(&task_id));
+    }
+
+    #[tokio::test]
+    async fn submit_goal_force_plan_attaches_plan_metadata() {
+        let orch = Orchestrator::new(OrchestratorConfig {
+            planning_enabled: true,
+            planning_router_enabled: true,
+            ..OrchestratorConfig::for_testing()
+        });
+        let task_id = orch
+            .submit_goal(
+                "refactor and add tests",
+                vec![FileAffinity::write("src/lib.rs")],
+                None,
+                Some(crate::planning::PlanningMode::ForcePlan),
+                Some("s1".to_string()),
+            )
+            .await
+            .expect("submit planned goal");
+        let agent_id = *orch
+            .task_assignments
+            .read()
+            .unwrap()
+            .get(&task_id)
+            .expect("assignment");
+        let queue_lock = orch.agent_queue(agent_id).expect("queue");
+        let queue = queue_lock.read().unwrap();
+        let has_meta = queue
+            .tasks()
+            .iter()
+            .any(|t| t.id == task_id && t.plan_session_id.is_some() && t.plan_node_id.is_some());
+        assert!(has_meta, "planned task should contain planning metadata");
+    }
+
+    #[tokio::test]
+    async fn fail_task_with_replan_trigger_enqueues_recovery_work() {
+        let orch = Orchestrator::new(OrchestratorConfig {
+            planning_enabled: true,
+            planning_replan_enabled: true,
+            ..OrchestratorConfig::for_testing()
+        });
+        let agent_id = orch.spawn_agent("planner").expect("spawn");
+        let mut t = AgentTask::new(
+            TaskId(777),
+            "run tests",
+            TaskPriority::Normal,
+            vec![FileAffinity::write("src/lib.rs")],
+        );
+        t.plan_session_id = Some("p1".to_string());
+        t.plan_node_id = Some("n1".to_string());
+        t.plan_version = Some(1);
+        t.execution_policy_json = Some(
+            serde_json::json!({
+                "replan_triggers": ["test_failure_new_regression"]
+            })
+            .to_string(),
+        );
+        {
+            let queue_lock = orch.agent_queue(agent_id).expect("queue");
+            let mut queue = queue_lock.write().unwrap();
+            queue.enqueue(t);
+            let _ = queue.dequeue();
+        }
+        orch.task_assignments
+            .write()
+            .unwrap()
+            .insert(TaskId(777), agent_id);
+        orch.fail_task(TaskId(777), "test failure in suite".to_string())
+            .await
+            .expect("fail");
+        let queue_lock = orch.agent_queue(agent_id).expect("queue");
+        let queue = queue_lock.read().unwrap();
+        assert!(queue.len() >= 1, "replan should enqueue recovery work");
+    }
 }

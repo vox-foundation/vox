@@ -62,6 +62,7 @@ vox-toestub               = { path = "crates/vox-toestub" }
 vox-tools                 = { path = "crates/vox-tools" }
 vox-webhook               = { path = "crates/vox-webhook" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
+vox-publisher             = { path = "crates/vox-publisher" }
 
 # External dependencies (centralized versions)
 logos              = "0.16"

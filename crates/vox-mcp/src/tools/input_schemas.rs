@@ -362,6 +362,23 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"registry_path":{"type":"string","description":"Optional override for the mens registry JSON path"}},"additionalProperties":false}"#,
         ),
 
+        // ── Unified news (syndication safety + templates) ───────────────────
+        "vox_news_test_syndicate" => parse_obj(
+            r#"{"type":"object","properties":{"content":{"type":"string","minLength":1,"description":"Markdown with YAML frontmatter"}},"required":["content"],"additionalProperties":false}"#,
+        ),
+        "vox_news_draft_research" => parse_obj(
+            r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"maxLength":256,"description":"Filename stem for docs/news/drafts/{id}.md"},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"abstract_text":{"type":"string"}},"required":["id","title","author","abstract_text"],"additionalProperties":false}"#,
+        ),
+        "vox_news_approve" => parse_obj(
+            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["news_id","approver"],"additionalProperties":false}"#,
+        ),
+        "vox_news_approval_status" => parse_obj(
+            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256}},"required":["news_id"],"additionalProperties":false}"#,
+        ),
+        "vox_news_simulate_publish_gate" => parse_obj(
+            r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"content":{"type":"string","minLength":1}},"required":["news_id","content"],"additionalProperties":false}"#,
+        ),
+
         _ => Map::new(),
     }
 }

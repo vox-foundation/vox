@@ -16,7 +16,7 @@ default = []
 # NVIDIA CUDA kernels (requires CUDA toolkit; build from x64 Native Tools shell on Windows).
 cuda  = ["vox-mens/candle-qlora-cuda"]
 # Apple Metal (macOS only).
-metal = ["vox-mens/candle-qlora-metal"]
+
 
 [dependencies]
 # Core ML library — always with train + hf-hub; no compiler crates.

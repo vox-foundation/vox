@@ -63,6 +63,13 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         "urgent" => TaskPriority::Urgent,
         _ => TaskPriority::Normal,
     });
+    let planning_mode = params.planning_mode.as_deref().and_then(|m| match m {
+        "auto" => Some(vox_orchestrator::PlanningMode::Auto),
+        "direct" => Some(vox_orchestrator::PlanningMode::Direct),
+        "force_plan" => Some(vox_orchestrator::PlanningMode::ForcePlan),
+        "workflow_only" => Some(vox_orchestrator::PlanningMode::WorkflowOnly),
+        _ => None,
+    });
 
     // Prompt canonicalization: normalize and order-invariant pack to reduce order bias
     let (description, canonical_info) = match prompt_canonical::canonicalize_prompt(
@@ -91,8 +98,17 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         }
     };
 
-    match orch
-        .submit_task_with_agent(
+    let submit_result = if params.planning_mode.is_some() {
+        orch.submit_goal(
+            description.clone(),
+            manifest,
+            priority,
+            planning_mode,
+            params.session_id.clone(),
+        )
+        .await
+    } else {
+        orch.submit_task_with_agent(
             &description,
             manifest,
             priority,
@@ -101,7 +117,8 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             params.session_id.clone(),
         )
         .await
-    {
+    };
+    match submit_result {
         Ok(task_id) => {
             if let Some((_, Some(ref w), _)) = canonical_info {
                 if !w.is_empty() {

@@ -79,6 +79,14 @@ pub struct SubmitTaskParams {
     pub capabilities: Option<vox_orchestrator::TaskCapabilityHints>,
     /// Optional session identifier for Mens telemetry grouping.
     pub session_id: Option<String>,
+    /// Optional planning mode (`auto`, `direct`, `force_plan`, `workflow_only`).
+    pub planning_mode: Option<String>,
+    /// Optional semantic goal type hint for planning.
+    pub goal_type: Option<String>,
+    /// Optional scope hint for planning.
+    pub goal_scope: Option<String>,
+    /// Optional cap on planner depth.
+    pub max_plan_depth: Option<u32>,
 }
 
 /// Identifier payload returned after a successful [`SubmitTaskParams`] submission.
@@ -239,6 +247,9 @@ pub struct StatusResponse {
     /// Background-polled mens federation cache (same URL); does not replace `mesh_snapshot` live fetch.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub populi_federation_cache: Option<serde_json::Value>,
+    /// Optional planning summary from persisted plan sessions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub planning: Option<serde_json::Value>,
 }
 
 /// Single LSP-style diagnostic for validate-file responses.

@@ -406,6 +406,30 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
             c.render_status_bar(15).split("HP: ").last().unwrap_or("")
         ));
     }
+    let planning = if let Some(db) = &state.db {
+        let mut active = 0_i64;
+        let mut total = 0_i64;
+        if let Ok(rows) = db
+            .query_all(
+                "SELECT
+                    SUM(CASE WHEN status IN ('pending','queued','in_progress') THEN 1 ELSE 0 END) AS active,
+                    COUNT(*) AS total
+                 FROM plan_sessions",
+                (),
+            )
+            .await
+            && let Some(row) = rows.first()
+        {
+            active = row.get(0).unwrap_or(0);
+            total = row.get(1).unwrap_or(0);
+        }
+        Some(serde_json::json!({
+            "active_sessions": active,
+            "total_sessions": total,
+        }))
+    } else {
+        None
+    };
 
     markdown.push_str("\n#### 📋 Agent Queue\n\n");
     for a in &agents {
@@ -438,6 +462,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         active_changes: vcs_active_changes,
         mesh_snapshot,
         populi_federation_cache,
+        planning,
     };
 
     ToolResult::ok(response).to_json()

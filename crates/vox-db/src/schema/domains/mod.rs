@@ -11,4 +11,5 @@ pub mod identity;
 pub mod knowledge;
 pub mod packages;
 pub mod mens_cloud;
+pub mod news;
 pub mod toestub;

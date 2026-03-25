@@ -15,16 +15,16 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
 
       {/* Primary Stats row */}
       <div className="col-span-3">
-        <StatCard title="Active Agents" value={stats.activeAgents || "4"} delta="+1" color="blue" icon={<Cpu size={16} />} />
+        <StatCard title="Active Agents" value={stats.activeAgents ?? "--"} color="blue" icon={<Cpu size={16} />} />
       </div>
       <div className="col-span-3">
-        <StatCard title="Queue Depth" value={stats.queueDepth || "12"} delta="-2" color="emerald" icon={<Layers size={16} />} />
+        <StatCard title="Queue Depth" value={stats.queueDepth ?? "--"} color="emerald" icon={<Layers size={16} />} />
       </div>
       <div className="col-span-3">
-        <StatCard title="Avg Latency" value={stats.latency || "0.8s"} delta="-120ms" color="purple" icon={<Zap size={16} />} />
+        <StatCard title="Avg Latency" value={stats.latency ?? "--"} color="purple" icon={<Zap size={16} />} />
       </div>
       <div className="col-span-3">
-        <StatCard title="Fleet Budget" value={stats.budget || "98%"} delta="+0.4%" color="amber" icon={<Target size={16} />} />
+        <StatCard title="Fleet Budget" value={stats.budget ?? "--"} color="amber" icon={<Target size={16} />} />
       </div>
 
       {/* Main interaction row */}
@@ -44,11 +44,18 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
            </div>
 
            <div className="space-y-1">
-             <OpRow label="vox_validate_file" agent="A-01" status="Success" time="42ms" />
-             <OpRow label="vox_run_tests" agent="A-03" status="Running" time="2.4s" active />
-             <OpRow label="vox_a2a_tasks" agent="A-01" status="Success" time="12ms" />
-             <OpRow label="vox_submit_task" agent="A-04" status="Queued" time="-" />
-             <OpRow label="vox_git_status" agent="A-02" status="Success" time="4ms" />
+             {ops && ops.length > 0 ? ops.slice(0, 10).map((entry: any) => (
+                <OpRow 
+                  key={entry.id} 
+                  label={entry.description || entry.op_type} 
+                  agent={entry.agent_id ?? "--"} 
+                  status={entry.status || "Completed"} 
+                  time={entry.duration_ms ? `${entry.duration_ms}ms` : "--"} 
+                  active={entry.status === 'Running'} 
+                />
+             )) : (
+                <div className="py-8 text-center text-zinc-500 text-xs font-bold uppercase tracking-widest">No recent operations</div>
+             )}
            </div>
         </div>
       </div>
@@ -75,8 +82,8 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
 
         {/* Action Quicklinks */}
         <div className="grid grid-cols-2 gap-4">
-           <ActionBtn icon={<Terminal size={16} />} label="Fmt Build" />
-           <ActionBtn icon={<Layers size={16} />} label="Rebalance" />
+           <ActionBtn icon={<Terminal size={16} />} label="Fmt Build" onClick={() => vscode.postMessage({ type: 'runCommand', value: 'vox.build' })} />
+           <ActionBtn icon={<Layers size={16} />} label="Rebalance" onClick={() => vscode.postMessage({ type: 'rebalance' })} />
         </div>
       </div>
     </div>
@@ -138,8 +145,8 @@ const StatCard = ({ title, value, delta, color, icon }: any) => (
   </motion.div>
 );
 
-const ActionBtn = ({ icon, label }: any) => (
-  <button className="flex-1 glass border border-white/5 rounded-2xl py-5 px-4 flex flex-col items-center gap-3 group hover:border-blue-500/40 hover:bg-blue-500/[0.02] transition-all">
+const ActionBtn = ({ icon, label, onClick }: any) => (
+  <button onClick={onClick} className="flex-1 glass border border-white/5 rounded-2xl py-5 px-4 flex flex-col items-center gap-3 group hover:border-blue-500/40 hover:bg-blue-500/[0.02] transition-all">
      <div className="text-zinc-500 group-hover:text-blue-500 transition-colors">{icon}</div>
      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest group-hover:text-zinc-300">{label}</span>
   </button>

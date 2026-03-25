@@ -265,6 +265,33 @@ impl AgentQueue {
         &self.tasks
     }
 
+    /// Attach planning metadata to a queued or in-progress task.
+    pub fn attach_planning_meta(
+        &mut self,
+        task_id: TaskId,
+        meta: &crate::planning::PlanningTaskMeta,
+    ) -> bool {
+        if let Some(t) = self.in_progress.as_mut()
+            && t.id == task_id
+        {
+            t.plan_session_id = Some(meta.plan_session_id.clone());
+            t.plan_node_id = Some(meta.plan_node_id.clone());
+            t.plan_version = Some(meta.plan_version);
+            t.execution_policy_json = meta.execution_policy_json.clone();
+            return true;
+        }
+        for t in self.tasks.iter_mut() {
+            if t.id == task_id {
+                t.plan_session_id = Some(meta.plan_session_id.clone());
+                t.plan_node_id = Some(meta.plan_node_id.clone());
+                t.plan_version = Some(meta.plan_version);
+                t.execution_policy_json = meta.execution_policy_json.clone();
+                return true;
+            }
+        }
+        false
+    }
+
     /// List of completed task IDs.
     pub fn completed_ids(&self) -> &[TaskId] {
         &self.completed

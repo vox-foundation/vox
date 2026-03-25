@@ -35,6 +35,7 @@ use crate::types::{
 
 pub mod types;
 pub mod task_dispatch;
+pub mod workflow_bridge;
 pub mod accessors;
 pub mod comms;
 

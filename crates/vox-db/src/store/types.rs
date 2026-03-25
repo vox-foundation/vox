@@ -742,3 +742,37 @@ pub struct WarningRow {
     pub metadata_json: String,
     pub created_at_ms: i64,
 }
+
+/// One row from `plan_sessions`.
+#[derive(Debug, Clone)]
+pub struct PlanSessionRow {
+    pub plan_session_id: String,
+    pub origin_session_id: Option<String>,
+    pub goal_text: String,
+    pub strategy: String,
+    pub current_version: i64,
+    pub status: String,
+}
+
+/// One row from `plan_versions`.
+#[derive(Debug, Clone)]
+pub struct PlanVersionRow {
+    pub plan_session_id: String,
+    pub version: i64,
+    pub parent_version: Option<i64>,
+    pub trigger_event: Option<String>,
+    pub trigger_payload_json: Option<String>,
+}
+
+/// One row from `plan_nodes`.
+#[derive(Debug, Clone)]
+pub struct PlanNodeRow {
+    pub plan_session_id: String,
+    pub version: i64,
+    pub node_id: String,
+    pub description: String,
+    pub dependencies_json: String,
+    pub execution_policy_json: String,
+    pub status: String,
+    pub workflow_invocation: Option<String>,
+}

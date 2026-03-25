@@ -50,6 +50,10 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mens control-plane requests. |
 | `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](mens.md)). |
 | `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
+| `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
+| `VOX_NEWS_SITE_BASE_URL` | Public site base URL for RSS links (overrides `[orchestrator.news].site_base_url`). |
+| `VOX_NEWS_RSS_FEED_PATH` | Repo-relative path to `feed.xml` (overrides `[orchestrator.news].rss_feed_path`). |
+| `VOX_NEWS_SCAN_RECURSIVE` | `0`/`1`: whether `NewsService` walks `news_dir` recursively (default `1`). |
 
 Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates/vox-socrates-policy/src/lib.rs); optional TOML overrides live under `[orchestrator]` as `socrates_policy` (see `OrchestratorConfig`).
 

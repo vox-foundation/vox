@@ -41,6 +41,8 @@ impl RoutingService {
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
         remote_mesh_hints: Option<&[RemoteMeshRoutingHint]>,
+        // Phase 15: prefer agents with higher trust to reduce pilot interrupts.
+        attention_trust_scores: Option<&HashMap<AgentId, crate::attention::AgentTrustScore>>,
     ) -> RouteResult {
         if manifest.is_empty() {
             return Self::least_loaded_or_spawn(agents, config);
@@ -93,6 +95,18 @@ impl RoutingService {
                 task_capability_requirements,
                 remote_mesh_hints,
             );
+        }
+
+        // 3d. Attention-aware routing: prefer agents with higher EWMA trust score.
+        if config.attention_enabled {
+            if let Some(trust_map) = attention_trust_scores {
+                let w = config.attention_trust_routing_weight;
+                for (agent_id, score) in scores.iter_mut() {
+                    if let Some(ts) = trust_map.get(agent_id) {
+                        *score += ts.trust_score * w;
+                    }
+                }
+            }
         }
 
         // 4. Optional reliability blend (Arca `agent_reliability`, schema V10)
@@ -387,6 +401,7 @@ mod tests {
             Some(&rel),
             None,
             None,
+            None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a2));
     }
@@ -450,6 +465,7 @@ mod tests {
             None,
             Some(&hints),
             None,
+            None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(gpu));
     }
@@ -496,6 +512,7 @@ mod tests {
             None,
             Some(&hints),
             Some(remote.as_slice()),
+            None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a1));
     }

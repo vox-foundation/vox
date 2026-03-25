@@ -35,6 +35,8 @@ pub mod training_tools;
 pub mod vcs_tools;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
+/// Unified News Publishing System tools
+pub mod news_tools;
 
 mod input_schemas;
 mod tool_aliases;
@@ -526,6 +528,26 @@ pub const TOOL_REGISTRY: &[(&str, &str)] = &[
         "vox_populi_local_status",
         "Return mens environment variables and the local mens registry file contents (CPU-first node records).",
     ),
+    (
+        "vox_news_test_syndicate",
+        "Validates a markdown string against the UnifiedNewsItem parser and executes a pure dry_run without posting anything live.",
+    ),
+    (
+        "vox_news_draft_research",
+        "Writes docs/news/drafts/{id}.md from the embedded research template (dry_run in frontmatter).",
+    ),
+    (
+        "vox_news_approve",
+        "Record a maker-checker approval for a news_id in VoxDb (two distinct approvers required before live syndication).",
+    ),
+    (
+        "vox_news_approval_status",
+        "Return distinct approver count and whether dual approval is satisfied for a news_id.",
+    ),
+    (
+        "vox_news_simulate_publish_gate",
+        "Parse news markdown and report what would block live publish (dry_run, approvals, armed) without posting.",
+    ),
 ];
 
 /// Convert the static [`TOOL_REGISTRY`] table into RMCP [`rmcp::model::Tool`] descriptors.
@@ -746,6 +768,21 @@ async fn handle_tool_call_inner(
         "vox_schola_submit" => {
             Ok(training_tools::train_submit(state, serde_json::from_value(args)?).await)
         }
+
+        "vox_news_test_syndicate" => {
+            Ok(news_tools::vox_news_test_syndicate(state, serde_json::from_value(args)?).await)
+        }
+
+        "vox_news_draft_research" => {
+            Ok(news_tools::vox_news_draft_research(state, serde_json::from_value(args)?).await)
+        }
+        "vox_news_approve" => Ok(news_tools::vox_news_approve(state, serde_json::from_value(args)?).await),
+        "vox_news_approval_status" => {
+            Ok(news_tools::vox_news_approval_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_news_simulate_publish_gate" => Ok(
+            news_tools::vox_news_simulate_publish_gate(state, serde_json::from_value(args)?).await,
+        ),
 
         // Delegate others to existing modules
         "vox_my_files" => Ok(crate::affinity::my_files(state, serde_json::from_value(args)?).await),
