@@ -9630,6 +9630,7 @@ dependencies = [
  "chrono",
  "quote",
  "rand 0.8.5",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -9663,6 +9664,7 @@ dependencies = [
  "turso",
  "vox-compiler",
  "vox-config",
+ "vox-repository",
  "vox-socrates-policy",
  "vox-test-harness",
 ]
@@ -9885,6 +9887,7 @@ dependencies = [
  "globset",
  "jj-lib",
  "proptest",
+ "reqwest 0.12.28",
  "schemars",
  "serde",
  "serde_json",

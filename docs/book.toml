@@ -1,13 +1,23 @@
 [book]
-title = "Vox: The Engineering Manual"
+title = "Vox: The AI-Native Programming Language"
 authors = ["The Vox Core Team"]
-description = "Official documentation for the Vox AI-native programming language."
+description = "Official documentation for Vox, the AI-native full-stack programming language that compiles to Rust and TypeScript. Tutorials, API reference, architecture guides, and examples."
 src = "src"
+
+[preprocessor.metadata]
+# Reads YAML frontmatter and injects <meta> tags into <head>.
+# Requires: mdbook-metadata
+renderer = ["html"]
+
+[preprocessor.sitemap]
+# Requires: mdbook-sitemap-generator
+command = "mdbook-sitemap-generator"
+domain = "https://vox-foundation.github.io/vox/"
+optional = true
 
 [output.html]
 mathjax-support = false
 git-repository-url = "https://github.com/vox-foundation/vox"
-# mdbook 0.5: use `fab-` (brands) for GitHub. `fa-github` maps to the "regular" set and fails with "Missing font github".
 git-repository-icon = "fab-github"
 edit-url-template = "https://github.com/vox-foundation/vox/edit/main/docs/src/{path}"
 
@@ -19,3 +29,5 @@ use-boolean-and = true
 expand = true
 heading-split-level = 3
 copy-js = true
+
+

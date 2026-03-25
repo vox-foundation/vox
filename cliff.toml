@@ -36,3 +36,5 @@ commit_parsers = [
     { message = "^chore", group = "Miscellaneous Tasks" },
     { body = ".*security", group = "Security" },
 ]
+
+

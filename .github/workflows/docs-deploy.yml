@@ -45,6 +45,14 @@ jobs:
       - name: Run Docs Pipeline (extract + validate SUMMARY)
         run: |
           cargo run -p vox-doc-pipeline
+        env:
+          # Passed through to feed.xml lastBuildDate for reproducible builds.
+          # GitHub sets this to the ISO 8601 commit timestamp; the pipeline
+          # accepts both ISO strings and Unix epoch integers.
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
+
+      - name: Validate feed.xml (well-formed XML)
+        run: xmllint --noout docs/src/feed.xml
 
       - name: Check SUMMARY.md drift
         run: cargo run -p vox-doc-pipeline -- --check

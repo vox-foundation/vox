@@ -79,3 +79,4 @@ crates/*/target_*/
 # Generated test fixture snapshots (re-created by build)
 crates/vox-populi/tests/fixtures/
 crates/vox-mesh/tests/*.sample.json
+docs/book/
