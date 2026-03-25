@@ -66,6 +66,13 @@ contracts:
     enforced_by:
       - vox ci check-codex-ssot
 
+  - id: db-retention-policy
+    path: contracts/db/retention-policy.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Table retention hints for vox db prune-plan / prune-apply.
+    enforced_by: []
+
   - id: ssot-evidence-snapshot
     path: contracts/reports/evidence-snapshot-rev-c.json
     owner: platform-ci
@@ -99,6 +106,46 @@ contracts:
     description: Default publication worthiness thresholds, red lines, and venue profile checks.
     enforced_by:
       - vox ci scientia-worthiness-contract
+      - vox ci ssot-drift
+
+  - id: scientia-distribution-schema
+    path: contracts/scientia/distribution.schema.json
+    owner: scientia
+    kind: json-schema
+    description: JSON Schema for scientia social distribution metadata_json.scientia_distribution payload.
+    enforced_by:
+      - vox ci ssot-drift
+
+  - id: scientia-distribution-default
+    path: contracts/scientia/distribution.default.yaml
+    owner: scientia
+    kind: yaml
+    description: Default scientia social distribution policy and channel payload baseline.
+    enforced_by:
+      - vox ci ssot-drift
+
+  - id: scientia-distribution-topic-packs
+    path: contracts/scientia/distribution.topic-packs.yaml
+    owner: scientia
+    kind: yaml
+    description: Topic-to-channel policy packs used for balanced social routing defaults.
+    enforced_by:
+      - vox ci ssot-drift
+
+  - id: scientia-social-execution-board-template
+    path: contracts/scientia/social-execution-board.template.yaml
+    owner: scientia
+    kind: yaml
+    description: Template used to generate WSx-Tyyy Scientia social execution task IDs.
+    enforced_by:
+      - vox ci ssot-drift
+
+  - id: scientia-social-execution-board-generated
+    path: contracts/scientia/social-execution-board.generated.yaml
+    owner: scientia
+    kind: yaml
+    description: Generated Scientia social execution board metadata (task ranges and counts).
+    enforced_by:
       - vox ci ssot-drift
 
   - id: scaling-policy

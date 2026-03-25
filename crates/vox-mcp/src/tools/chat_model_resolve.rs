@@ -16,7 +16,13 @@ pub async fn resolve_chat_llm_model(
     mut resolution: McpChatModelResolution,
     user_id: Option<&str>,
 ) -> Result<(ModelSpec, bool), String> {
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return Err(e.to_string()),
+    };
     let orch = &state.orchestrator;
     if resolution.context_fill_ratio.is_none() {
         resolution.context_fill_ratio = mcp_global_llm_context_fill_ratio(orch);

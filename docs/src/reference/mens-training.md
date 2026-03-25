@@ -10,7 +10,7 @@ training_eligible: true
 ## Why
 
 - **One canonical CLI** for in-repo native fine-tuning: **`vox schola train`**.
-- **Contract-first control plane** (in `vox-mens`): **`FineTuneContract`** + **`ExecutionPlanner`** + **`preflight_train`** gate impossible combos before kernels run (`finetune_contract.rs`, `execution_planner.rs`, `preflight_train.rs`). Capability table: [hf-finetune-capability-matrix.md](../architecture/hf-finetune-capability-matrix.md). Gap labels: [hf-finetune-gap-matrix.md](hf-finetune-gap-matrix.md).
+- **Contract-first control plane** (in `vox-populi::mens::tensor`): **`FineTuneContract`** + **`ExecutionPlanner`** + **`preflight_train`** gate impossible combos before kernels run (`finetune_contract.rs`, `execution_planner.rs`, `preflight_train.rs`). Capability table: [hf-finetune-capability-matrix.md](../architecture/hf-finetune-capability-matrix.md). Gap labels: [hf-finetune-gap-matrix.md](hf-finetune-gap-matrix.md).
 - **Honest execution-kernel split**:
   - **Burn + wgpu LoRA** (`--backend lora`): default **`VoxTokenizer`** JSONL; optional **`--tokenizer hf`** for **GPT-2-shaped** HF configs + ChatML-supervised HF tokenization + optional **embed warm-start** (`burn_hf_load.rs`). **Not** NF4 QLoRA.
   - **Candle + qlora-rs** (`--backend qlora`, `--tokenizer hf`): **NF4-quantized** trainable stack: when every expected **block output projection** (`o_proj` / GPT-2 `h.{L}.attn.c_proj.weight`) is present in the HF shards, **`training_step_lm`** runs **sequentially** through those layers plus the **tied LM head**; otherwise **LM-head-only** (backward compatible). **Context embeddings** stay **mmap `f32`** (`index_select`). Same **`--device`** story: CUDA / Metal with **`mens-candle-cuda`** / **`mens-candle-metal`**, else CPU; **`VOX_CANDLE_DEVICE=cpu`** forces CPU. Telemetry includes **`execution_kernel`**, **`telemetry_schema`**, and **`candle_compat_mode`** for Candle transitional scope.
@@ -18,46 +18,74 @@ training_eligible: true
 - **GPU visibility (Burn)**: stderr + **`burn_wgpu_device`** under **`vox_mens_gpu`**.
 - **CI / CUDA**: When **`nvcc`** is on `PATH`, CI runs **`scripts/check_cuda_feature_builds.sh`**. See [`ci/runner-contract.md`](../ci/runner-contract.md#optional-cuda-compile-gate).
 
+## Provenance and trajectory metadata (2026 update)
+
+MENS run artifacts now treat lineage and trajectory policy as explicit metadata:
+
+- **Provenance fields** (contract + manifest):
+  - upstream family id,
+  - upstream model id,
+  - license class,
+  - attribution-required flag.
+- **Trajectory-weighting fields** (config + telemetry semantics):
+  - optional weighting toggle for tool-trace style rows,
+  - optional boost for failure/error categories,
+  - optional quality floor and quality boost.
+- **Experimental optimizer lane**:
+  - `optimizer_experiment_mode` defaults to `off`,
+  - non-default modes require `VOX_MENS_EXPERIMENTAL_OPTIMIZER=1`.
+
+These defaults remain conservative and do not change baseline behavior unless enabled.
+Context and source-strength notes for Composer/Kimi findings are documented in
+[`../architecture/mens-composer-kimi-findings-2026.md`](../architecture/mens-composer-kimi-findings-2026.md).
+
+## `finetune_contract_digest` scope
+
+`finetune_contract_digest` is a reproducibility fingerprint for planner-relevant training semantics. Current scope includes:
+
+- model/config/tokenizer file identity used by the contract,
+- quantization and adapter method knobs,
+- tokenizer mode and selected QLoRA behavior gates,
+- provenance metadata fields (`base_family`, `upstream_model_id`, `license_class`, `attribution_required`).
+
+It intentionally excludes runtime-only telemetry counters and post-hoc eval outcomes.
+
 ## What (surfaces)
 
 | Piece | Role |
 |--------|------|
-| **`vox-cli`** `vox schola train` | **Compile:** `cargo build -p vox-cli --features gpu` (default features are **`mens-base` only**). **Runtime defaults:** **`--backend lora`** + **`--tokenizer vox`**. **`--backend qlora`**: **`--tokenizer hf`**, **`--model`**, safetensors + tokenizer; optional GPU via **`mens-candle-cuda`** / **`mens-candle-metal`**. Alias **`mens-qlora`** = **`gpu`**. **Mobile edge export:** **`--deployment-target mobile_edge`** or **`--preset mobile_edge`** → planner gates + **`--device cpu`** required; see [mobile-edge-ai.md](mobile-edge-ai.md). |
+| **`vox-cli`** `vox schola train` | **Compile:** `cargo build -p vox-cli --features gpu` (default features are **`mens-base` only**). **Operational default:** `--backend qlora --tokenizer hf` (Candle QLoRA). Legacy `--backend lora` is deprecated and retained only for compatibility context. **Mobile edge export:** **`--deployment-target mobile_edge`** or **`--preset mobile_edge`** → planner gates + **`--device cpu`** required; see [mobile-edge-ai.md](mobile-edge-ai.md). |
 | **`vox-cli`** `vox mens serve` | **Requires `execution-api`** when building `vox-cli` (not in default features). Serves Burn **LoRA** checkpoints (`model_final.bin`, `checkpoint_*.bin`) and **merged** `model_merged.bin` from **`merge-weights`** (same HTTP surface). |
-| **`vox-mens`** `PopuliTrainBackend` | Enum + `FromStr` / serde in `crates/vox-mens/src/tensor/train_backend.rs`. |
-| **`vox-mens`** `TrainingBackend` | Trait in `tensor/backend.rs`; Burn `tensor/backend_burn_lora.rs`; Candle `tensor/backend_candle_qlora.rs` + `tensor/candle_qlora_train.rs` (compiled with feature **`train`**, which pulls **`candle-qlora`** + **`qlora-rs`**; do not rely on **`candle-qlora`** alone for the trainer graph). |
-| **`vox-mens`** `run_mens_training` | Dispatch in `tensor/lora_train.rs` → `.run()` on the matching backend unit struct. |
-| **`vox-mens`** `LoraTrainingConfig` | `tensor/training_config.rs` (`MensTokenizerMode`, shared across backends). |
+| **`vox-populi`** `PopuliTrainBackend` | Enum + `FromStr` / serde in `crates/vox-populi/src/mens/tensor/train_backend.rs`. |
+| **`vox-populi`** `TrainingBackend` | Trait in `tensor/backend.rs`; Candle implementation in `tensor/backend_candle_qlora.rs` + `tensor/candle_qlora_train` modules. |
+| **`vox-populi`** `run_mens_training` | Dispatch in `tensor/lora_train.rs` with contract/planner/preflight gates. |
+| **`vox-populi`** `LoraTrainingConfig` | `tensor/training_config.rs` (`MensTokenizerMode`, provenance/trajectory knobs). |
 | **`vox train`** | Legacy: **`--provider local`** bails with the canonical **`vox schola train --backend qlora …`** command (no shipped `train_qlora.vox`). **`--native`** uses the old Burn scratch trainer when built with **`mens-dei`**. Together remote unchanged. |
 | **`vox schola train-uv`** | **Retired** — bails; use **`vox schola train --backend qlora`**. |
 
 ## Who / when
 
-- **Implementers**: `vox-mens` (tensor/train), `vox-cli` (`commands/schola/train.rs`, `commands/mens/mod.rs`), `vox-schola` (`src/train.rs`), corpus preflight (`vox-corpus::training`).
+- **Implementers**: `vox-populi` (`mens::tensor`), `vox-cli` (`commands/schola/train/*`, `commands/mens/populi/*`), `vox-schola` (`src/train.rs`), corpus preflight (`vox-corpus::training`).
 - **When to touch**: training knobs, telemetry keys, CLI flags, qlora-rs / Candle versions, or merge/export behavior.
 
 ## Where (files)
 
-- `crates/vox-mens/src/tensor/train_backend.rs` — CLI/backend enum (`PopuliTrainBackend`) + `ExecutionKernel` alias
-- `crates/vox-mens/src/tensor/finetune_contract.rs` — `FineTuneContract` + sub-specs
-- `crates/vox-mens/src/tensor/execution_planner.rs` — planner + hard gates
-- `crates/vox-mens/src/tensor/preflight_train.rs` — shared preflight entry
-- `crates/vox-mens/src/tensor/hf_keymap.rs` — shared HF weight key maps
-- `crates/vox-mens/src/tensor/training_text.rs` — prompt / ChatML text policy
-- `crates/vox-mens/src/tensor/telemetry_schema.rs` — stable telemetry keys
-- `crates/vox-mens/src/tensor/adapter_schema_v3.rs` — adapter manifest v3 + merge bridge
-- `crates/vox-mens/src/tensor/finetune_registry.rs` — method / quant / target registries
-- `crates/vox-mens/src/tensor/burn_hf_load.rs` — HF → Burn warm-start (token embed + optional **GPT-2** decoder weights)
-- `crates/vox-mens/src/tensor/training_config.rs` — `LoraTrainingConfig`
-- `crates/vox-mens/src/tensor/backend.rs` — `TrainingBackend` trait
-- `crates/vox-mens/src/tensor/backend_burn_lora.rs` — Burn + wgpu LoRA
-- `crates/vox-mens/src/tensor/backend_candle_qlora.rs` — Candle qlora-rs entry (`train`)
-- `crates/vox-mens/src/tensor/candle_qlora_train.rs` — qlora-rs trainer (`train`; mmap embed + optional **o_proj** proxy stack + tied LM head + v2 LoRA export)
-- `crates/vox-mens/src/tensor/train_log.rs` — `[mens-train]` stderr + **`gpu_fallback`**
-- `crates/vox-mens/src/tensor/qlora_preflight.rs` — HF safetensors + tokenizer checks (embedding table: `wte.weight` preferred over `model.embed_tokens.weight` when both exist across shards)
-- `crates/vox-mens/src/tensor/operator_messages.rs` — shared operator error strings for planner + QLoRA preflight (avoid drift)
-- `crates/vox-mens/src/tensor/burn_inference_load.rs` — load LoRA vs merged Burn checkpoints for serve/eval
-- `crates/vox-mens/src/tensor/lora_train.rs` — `run_mens_training` / `run_lora_training`
+- `crates/vox-populi/src/mens/tensor/train_backend.rs` — CLI/backend enum (`PopuliTrainBackend`) + execution kernel
+- `crates/vox-populi/src/mens/tensor/finetune_contract.rs` — `FineTuneContract`, provenance, digest
+- `crates/vox-populi/src/mens/tensor/execution_planner.rs` — planner + hard gates
+- `crates/vox-populi/src/mens/tensor/preflight_train.rs` — shared preflight entry
+- `crates/vox-populi/src/mens/tensor/hf_keymap.rs` — shared HF weight key maps
+- `crates/vox-populi/src/mens/tensor/training_text.rs` — prompt / ChatML text policy
+- `crates/vox-populi/src/mens/tensor/telemetry_schema.rs` — stable telemetry keys
+- `crates/vox-populi/src/mens/tensor/adapter_schema_v3.rs` — adapter manifest v3 + merge bridge
+- `crates/vox-populi/src/mens/tensor/training_config.rs` — `LoraTrainingConfig`
+- `crates/vox-populi/src/mens/tensor/backend.rs` — `TrainingBackend` trait
+- `crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs` — Candle qlora-rs entry
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train/*` — trainer graph, loop, checkpoints
+- `crates/vox-populi/src/mens/tensor/train_log.rs` — `[mens-train]` stderr + fallback notes
+- `crates/vox-populi/src/mens/tensor/qlora_preflight.rs` — HF safetensors + tokenizer checks
+- `crates/vox-populi/src/mens/tensor/operator_messages.rs` — shared operator error strings
+- `crates/vox-populi/src/mens/tensor/lora_train.rs` — `run_mens_training`
 - `crates/vox-cli/src/commands/mens/mod.rs` — `--backend` CLI mapping
 - `crates/vox-cli/src/commands/schola/train.rs` — `run_train` → `run_mens_training`
 - `crates/vox-schola/src/train.rs` — standalone `vox-schola train` QLoRA path
@@ -73,10 +101,10 @@ training_eligible: true
 
 ## How (contracts)
 
-- **Build**: `cargo check -p vox-mens --features train` (**`train`** pulls **`candle-qlora`** + **`qlora-rs`**). Optional CUDA/Metal: **`mens-candle-cuda`** / **`candle-qlora-cuda`**, **`mens-candle-metal`** / **`candle-qlora-metal`**.
+- **Build**: `cargo check -p vox-populi --features mens-train` (pulls qlora-rs + candle trainer path). Optional CUDA lane: `--features mens-train,mens-candle-qlora-cuda`.
   > [!IMPORTANT]
   > **Windows MSVC/NVCC constraint**: Building the CUDA `candle-kernels` completely fails if executed through a nested subshell (e.g. `cmd.exe /c "vcvars64.bat && cargo build"`). The inner `bindgen_cuda` executable natively drops nested path states, leading to an immediate `'cl.exe' is not recognized` failure. You **must** interactively open the VS Developer Command Prompt or physically run `vcvars64.bat` in your persistent PowerShell window before typing cargo commands for CUDA.
-- **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-mens` optional dep. **`[patch.crates-io]`** (`patches/qlora-rs-1.0.5`, see `VOX_PATCH.md`) adds **RMSNorm (γ=1) between stacked projections** in `training_step_lm` and **gradient-accumulation scaling** for LM steps — upstream `qlora-rs` alone can report **~1e20 CE** on deep Vox `o_proj` proxy stacks (no residual / norm between layers).
+- **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-populi` optional deps. **`[patch.crates-io]`** (`patches/qlora-rs-1.0.5`, see `VOX_PATCH.md`) adds **RMSNorm (γ=1) between stacked projections** in `training_step_lm` and **gradient-accumulation scaling** for LM steps — upstream `qlora-rs` alone can report **~1e20 CE** on deep Vox `o_proj` proxy stacks (no residual / norm between layers).
 - **Input**: `train.jsonl` (and `mens/config/training_contract.yaml` / preflight overrides).
 - **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys.
 
@@ -95,7 +123,7 @@ training_eligible: true
 | Goal | Prefer |
 |------|--------|
 | **Train a real Hugging Face base** (e.g. Qwen2.5-Coder) on **16G VRAM** with industry-style **NF4 + LoRA** | **Candle QLoRA** (`--backend qlora`, `--tokenizer hf`, `--model …`, CUDA build) |
-| **Full in-tree f32 causal LM** on **VoxTokenizer JSONL** (docs/examples → pairs), **merge → `vox mens serve`** without an external runtime | **Burn LoRA** (`--backend lora`, default) |
+| **Full in-tree f32 causal LM** on **VoxTokenizer JSONL** (docs/examples → pairs), **merge → `vox mens serve`** without an external runtime | **Burn LoRA** (`--backend lora`, legacy path) |
 | **Apples-to-apples loss** with “full decoder” next-token CE on the **same** architecture | **Burn** on the **small** Vox causal stack; Candle QLoRA is a **bounded proxy graph** (LM head + optional `o_proj`/`c_proj` stack), not a full NF4 transformer (see [candle-full-graph-feasibility.md](../architecture/candle-full-graph-feasibility.md)) |
 
 So: **QLoRA is “better” for large-model, VRAM-efficient fine-tuning on shipped HF weights.** **Burn LoRA is “better” for the closed Vox corpus loop and first-class serve/merge in this repo.** You may run **both** in a serious program: Burn for **syntax/docs/tooling-shaped** adapters on the native head; QLoRA for **Qwen-class** behavior on HF bases.
@@ -168,22 +196,58 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 
 ## Regression tests
 
-- **Execution planner + hard gates**: `cargo test -p vox-mens --features train execution_planner`
-- **QLoRA strict proxy stack (missing middle keys)**: `cargo test -p vox-mens --features train preflight_strict_rejects_missing_o_proj`
-- **Fine-tune digest (`qlora_proxy_max_layers`)**: `cargo test -p vox-mens --features train finetune_contract_digest_changes_with_proxy_max_layers`
-- **Fine-tune digest (`qlora_ce_last_k`)**: `cargo test -p vox-mens --features train finetune_contract_digest_changes_with_ce_last_k`
-- Candle qlora trainer unit test in `candle_qlora_train.rs` (hidden state shape): `cargo test -p vox-mens --features train` (filter `last_hidden` / module tests as documented in crate).
-- **Burn LoRA `Checkpoint` bin roundtrip** (NdArray): `cargo test -p vox-mens --features train lora_vox_transformer_checkpoint_roundtrip`
-- **Burn `LoraVoxTransformer::merge` full forward parity** (NdArray): `cargo test -p vox-mens --features train merged_vox_transformer_matches_lora_full_forward`
+- **Execution planner + hard gates**: `cargo test -p vox-populi execution_planner`
+- **QLoRA strict proxy stack (missing middle keys)**: `cargo test -p vox-populi --features mens-train preflight_strict_rejects_missing_o_proj`
+- **Fine-tune digest (`qlora_proxy_max_layers`)**: `cargo test -p vox-populi --features mens-train finetune_contract_digest_changes_with_proxy_max_layers`
+- **Fine-tune digest (`qlora_ce_last_k`)**: `cargo test -p vox-populi --features mens-train finetune_contract_digest_changes_with_ce_last_k`
+- Candle qlora trainer unit tests: `cargo test -p vox-populi --features mens-train`
+- **Burn LoRA checkpoint parity tests**: use `vox-tensor` crate unit tests where applicable.
+- **Legacy Burn merge parity tests**: kept for historical compatibility only.
 - **Burn linear LR warmup** (Burn `LinearLrScheduler`): `cargo test -p vox-tensor --features gpu --lib linear_warmup_sequence_matches`
-- **Candle vs Burn f32 matmul** (CPU numeric touchpoint, not full LM logits): `cargo test -p vox-mens --features train --test candle_burn_f32_matmul_parity`
-- **Candle vs Burn f32 LM linear logits** (`x @ W + bias`, not NF4 / not full graphs): `cargo test -p vox-mens --features train --test candle_burn_f32_linear_lm_logits_parity`
-- **Tier B — NF4 dequant reference linear** (qlora-rs quantize→dequant→shared f32 `W`, same layout as `QuantizedLinear` matmul): `cargo test -p vox-mens --features train --test candle_burn_nf4_dequant_lm_reference_parity`
-- **Candle vs Burn cross-entropy** (same f32 logits + labels): `cargo test -p vox-mens --features train --test candle_burn_cross_entropy_parity`
+- **Candle vs Burn f32 parity touchpoints**: `cargo test -p vox-populi --features mens-train --test <parity_test_name>`
+- **Tier B NF4 dequant reference parity**: `cargo test -p vox-populi --features mens-train --test candle_burn_nf4_dequant_lm_reference_parity`
+- **Candle vs Burn cross-entropy parity**: `cargo test -p vox-populi --features mens-train --test candle_burn_cross_entropy_parity`
 - **`merge-qlora` rejects Burn `*.bin`**: `cargo test -p vox-cli merge_qlora_rejects_burn_bin_adapter`
 - **`merge-weights`** rejects `candle_qlora_adapter.safetensors` (Burn path only) and points to **`merge-qlora`**: `cargo test -p vox-cli merge_weights_rejects_candle_qlora_adapter_file`
 - **`merge-qlora` CLI** synthetic roundtrip: `cargo test -p vox-cli merge_qlora_cli_roundtrip_lm_head_subset`
-- Adapter **v2** merge math: `cargo test -p vox-mens --features train merge_v2_applies_lm_head_delta`
+- Adapter **v2** merge math: `cargo test -p vox-populi --features mens-train merge_v2_applies_lm_head_delta`
+
+## Evaluation protocol (trajectory and cost)
+
+Use a small, repeatable local harness before promoting new training knobs:
+
+- Build a mixed eval set with:
+  - baseline code-completion prompts,
+  - tool/terminal trajectory prompts,
+  - explicit success and failure recovery prompts.
+- Run two adjacent configurations:
+  - control (`trajectory_weighting_enabled=false`),
+  - candidate (trajectory weighting and/or provenance metadata enabled).
+- Compare:
+  - trajectory pass rate,
+  - failure-recovery success rate,
+  - mean tokens and wall-clock per successful solve (`cost-per-success` proxy).
+
+Promotion criteria should require non-regressing baseline quality while improving trajectory metrics.
+
+## Rollout gates and env toggles
+
+- `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL`
+  - Enables training-task specific route scoring (still local execution only).
+- `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE`
+  - Soft scalar (0.0-1.0) that penalizes expensive training placements under budget pressure.
+- `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL`
+  - Existing federation visibility signal; combine with training routing toggle for staged rollout.
+
+Recommended rollout order: shadow (`routing_experimental`), then training scoring (`training_routing_experimental`), then budget pressure tuning.
+
+## Acceptance criteria and rollout protocol
+
+- **A/B baseline:** run control (`trajectory_weighting_enabled=false`) and candidate with the same data + seed envelope.
+- **4080-first gate:** local RTX 4080 class run must remain non-regressed before enabling any distributed/cloud knobs.
+- **Staged toggles:** enable `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` first, then `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL`, then set `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE`.
+- **Promotion gate:** require non-regressing baseline quality plus improved trajectory/failure-recovery metrics.
+- **Cost guardrail:** compare mean wall-seconds and tokens per successful trajectory solve (`cost-per-success` proxy) against baseline.
 
 ## Merge / export / inference
 

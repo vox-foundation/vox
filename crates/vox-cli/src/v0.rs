@@ -54,9 +54,14 @@ async fn fetch_v0_tsx(
     user_instruction: &str,
     image_path: Option<&Path>,
 ) -> Result<String> {
-    let api_key = std::env::var("V0_API_KEY").map_err(|_| {
-        anyhow!("V0_API_KEY environment variable not found. Please set it to use @v0 components.")
-    })?;
+    let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::V0ApiKey)
+        .expose()
+        .map(std::string::ToString::to_string)
+        .ok_or_else(|| {
+            anyhow!(
+                "V0_API_KEY environment variable not found. Please set it to use @v0 components."
+            )
+        })?;
 
     if let Some(path) = image_path {
         info!(
@@ -169,6 +174,9 @@ pub struct IslandCacheEntry {
 
 /// JSON cache in `~/.vox/island-cache/` for `vox island generate` (skip API when prompt matches).
 #[cfg(feature = "island")]
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
+#[cfg(feature = "island")]
 pub struct IslandCache {
     /// Absolute path to the cache directory (typically `~/.vox/island-cache`).
     root: PathBuf,
@@ -195,7 +203,7 @@ impl IslandCache {
         if !p.exists() {
             return Ok(None);
         }
-        let s = fs::read_to_string(&p).context("read island cache")?;
+        let s = read_utf8_path_capped(&p).context("read island cache")?;
         let e: IslandCacheEntry = serde_json::from_str(&s).context("parse island cache JSON")?;
         Ok(Some(e))
     }
@@ -227,7 +235,7 @@ impl IslandCache {
             if p.extension().and_then(|x| x.to_str()) != Some("json") {
                 continue;
             }
-            let s = match fs::read_to_string(&p) {
+            let s = match read_utf8_path_capped(&p) {
                 Ok(s) => s,
                 Err(_) => continue,
             };

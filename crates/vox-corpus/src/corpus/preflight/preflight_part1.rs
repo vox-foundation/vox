@@ -16,7 +16,7 @@ pub fn compute_corpus_fingerprint(repo_root: &Path) -> String {
 /// Returns `true` if the corpus fingerprint stored in `snapshot_file` matches
 /// the current fingerprint (i.e., corpus is fresh and does not need regeneration).
 pub fn corpus_is_fresh(repo_root: &Path, snapshot_file: &Path) -> bool {
-    match std::fs::read_to_string(snapshot_file) {
+    match crate::bounded_fs::read_utf8_path_capped(snapshot_file) {
         Ok(stored) => stored.trim() == compute_corpus_fingerprint(repo_root),
         Err(_) => false,
     }

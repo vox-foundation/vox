@@ -124,12 +124,19 @@ pub async fn repo_index_status(state: &ServerState) -> String {
     let orch = &state.orchestrator;
     let fresh_check = {
         let handle = orch.context_handle();
-        let ctx = handle.read().unwrap();
-        if ctx.is_fresh("workspace_index_status", 30) {
-            let entry = ctx.get_entry("workspace_index_status");
-            entry.map(|e| e.value)
-        } else {
-            None
+        match crate::sync_poison::poison_rw_read(handle.read(), "orchestrator context") {
+            Ok(ctx) => {
+                if ctx.is_fresh("workspace_index_status", 30) {
+                    let entry = ctx.get_entry("workspace_index_status");
+                    entry.map(|e| e.value)
+                } else {
+                    None
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "repo_index_status: context poisoned");
+                None
+            }
         }
     };
     if let Some(cached) = fresh_check {
@@ -141,12 +148,20 @@ pub async fn repo_index_status(state: &ServerState) -> String {
         Err(e) => ToolResult::<RepoIndexSummary>::err(e).to_json(),
     };
 
-    state.orchestrator.context_handle().write().unwrap().set(
-        vox_orchestrator::AgentId(0),
-        "workspace_index_status",
-        summary.clone(),
-        30,
-    );
+    match crate::sync_poison::poison_rw_write(
+        state.orchestrator.context_handle().write(),
+        "orchestrator context",
+    ) {
+        Ok(mut ctx) => {
+            ctx.set(
+                vox_orchestrator::AgentId(0),
+                "workspace_index_status",
+                summary.clone(),
+                30,
+            );
+        }
+        Err(e) => tracing::warn!(error = %e, "repo_index_status: context poisoned on cache write"),
+    }
     summary
 }
 
@@ -155,12 +170,19 @@ pub async fn repo_index_refresh(state: &ServerState) -> String {
     let orch = &state.orchestrator;
     let fresh_check = {
         let handle = orch.context_handle();
-        let ctx = handle.read().unwrap();
-        if ctx.is_fresh("workspace_index_refresh", 30) {
-            let entry = ctx.get_entry("workspace_index_refresh");
-            entry.map(|e| e.value)
-        } else {
-            None
+        match crate::sync_poison::poison_rw_read(handle.read(), "orchestrator context") {
+            Ok(ctx) => {
+                if ctx.is_fresh("workspace_index_refresh", 30) {
+                    let entry = ctx.get_entry("workspace_index_refresh");
+                    entry.map(|e| e.value)
+                } else {
+                    None
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "repo_index_refresh: context poisoned");
+                None
+            }
         }
     };
     if let Some(cached) = fresh_check {

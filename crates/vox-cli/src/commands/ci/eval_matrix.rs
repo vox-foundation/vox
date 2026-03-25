@@ -13,6 +13,8 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
+use super::bounded_read::read_utf8_path_capped;
+
 const SCHEMA_REL: &str = "contracts/eval/benchmark-matrix.schema.json";
 const DATA_REL: &str = "contracts/eval/benchmark-matrix.json";
 
@@ -70,10 +72,8 @@ struct Milestone {
 pub fn run_verify(repo_root: &Path) -> Result<()> {
     let schema_path = repo_root.join(SCHEMA_REL);
     let data_path = repo_root.join(DATA_REL);
-    let schema_src = std::fs::read_to_string(&schema_path)
-        .with_context(|| format!("read {}", schema_path.display()))?;
-    let data_src = std::fs::read_to_string(&data_path)
-        .with_context(|| format!("read {}", data_path.display()))?;
+    let schema_src = read_utf8_path_capped(&schema_path)?;
+    let data_src = read_utf8_path_capped(&data_path)?;
     let schema_val: serde_json::Value = serde_json::from_str(&schema_src)
         .with_context(|| format!("parse {}", schema_path.display()))?;
     let data_val: serde_json::Value = serde_json::from_str(&data_src)
@@ -99,8 +99,7 @@ pub fn run_verify(repo_root: &Path) -> Result<()> {
 pub fn run_executions(repo_root: &Path, milestone_filter: Option<&str>) -> Result<()> {
     run_verify(repo_root)?;
     let data_path = repo_root.join(DATA_REL);
-    let raw = std::fs::read_to_string(&data_path)
-        .with_context(|| format!("read {}", data_path.display()))?;
+    let raw = read_utf8_path_capped(&data_path)?;
     let m: MatrixFile =
         serde_json::from_str(&raw).with_context(|| format!("parse {}", data_path.display()))?;
 
@@ -280,7 +279,7 @@ mod tests {
     fn matrix_json_classes_match_schema_enum_and_rust_ssot() {
         let root = repo_root();
         let data_path = root.join(DATA_REL);
-        let raw = std::fs::read_to_string(&data_path).expect("read benchmark-matrix.json");
+        let raw = read_utf8_path_capped(&data_path).expect("read benchmark-matrix.json");
         let m: MatrixFile = serde_json::from_str(&raw).expect("parse benchmark-matrix.json");
 
         let mut from_matrix = HashSet::new();
@@ -298,7 +297,7 @@ mod tests {
         );
 
         let schema_path = root.join(SCHEMA_REL);
-        let schema_src = std::fs::read_to_string(&schema_path).expect("read schema");
+        let schema_src = read_utf8_path_capped(&schema_path).expect("read schema");
         let schema_val: serde_json::Value =
             serde_json::from_str(&schema_src).expect("parse schema");
         let enum_vals = schema_val

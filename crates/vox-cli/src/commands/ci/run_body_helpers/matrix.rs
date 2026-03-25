@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::cmd_enums::ToestubCiMode;
 use crate::commands::ci::constants::FEATURE_SETS;
@@ -25,7 +26,7 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
     let src = root.join("crates/vox-cli/src");
     let re = regex::Regex::new(r"\bvox_dei::")?;
     visit_rs_files(&src, &mut |p: &Path| {
-        let text = fs::read_to_string(p)?;
+        let text = read_utf8_path_capped(p)?;
         if re.is_match(&text) {
             return Err(anyhow!(
                 "vox-cli must not reference vox_dei:: (crate is workspace-excluded). Offender: {}",
@@ -41,7 +42,7 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
 pub(crate) fn check_workflow_scripts(root: &Path, allowlist_path: &Path) -> Result<()> {
     let allow_path = root.join(allowlist_path);
     let allowed: std::collections::HashSet<String> = if allow_path.is_file() {
-        fs::read_to_string(&allow_path)?
+        read_utf8_path_capped(&allow_path)?
             .lines()
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
@@ -61,7 +62,7 @@ pub(crate) fn check_workflow_scripts(root: &Path, allowlist_path: &Path) -> Resu
         {
             continue;
         }
-        let text = fs::read_to_string(&p)?;
+        let text = read_utf8_path_capped(&p)?;
         for cap in re.find_iter(&text) {
             let path = cap.as_str().to_string();
             if !allowed.contains(&path) {
@@ -79,9 +80,19 @@ pub(crate) fn check_workflow_scripts(root: &Path, allowlist_path: &Path) -> Resu
     Ok(())
 }
 
+fn resolve_mens_gate_manifest_path(root: &Path) -> PathBuf {
+    let canonical = root.join("scripts/populi/gates.yaml");
+    if canonical.is_file() {
+        canonical
+    } else {
+        // Back-compat fallback for older repos/worktrees.
+        root.join("scripts/mens/gates.yaml")
+    }
+}
+
 pub(crate) fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
-    let manifest_path = root.join("scripts/mens/gates.yaml");
-    let raw = fs::read_to_string(&manifest_path)
+    let manifest_path = resolve_mens_gate_manifest_path(root);
+    let raw = read_utf8_path_capped(&manifest_path)
         .with_context(|| format!("read {}", manifest_path.display()))?;
     let doc: serde_yaml::Value = serde_yaml::from_str(&raw)?;
     let profiles = doc
@@ -180,7 +191,10 @@ pub(crate) fn run_feature_matrix(root: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod feature_matrix_contract_tests {
+    use std::path::{Path, PathBuf};
+
     use crate::commands::ci::constants::FEATURE_SETS;
+    use crate::commands::ci::run_body_helpers::matrix::resolve_mens_gate_manifest_path;
 
     #[test]
     fn feature_sets_include_script_execution_lane() {
@@ -199,6 +213,36 @@ mod feature_matrix_contract_tests {
         assert!(
             FEATURE_SETS.contains(&"oratio"),
             "CI feature matrix must compile the oratio (Oratio STT) lane"
+        );
+    }
+
+    #[test]
+    fn canonical_mens_gate_manifest_exists_in_repo() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("..");
+        let resolved = resolve_mens_gate_manifest_path(&root);
+        assert!(
+            resolved.ends_with(PathBuf::from("scripts/populi/gates.yaml")),
+            "expected canonical mens gate manifest path to resolve first, got {}",
+            resolved.display()
+        );
+        assert!(resolved.is_file(), "missing gate manifest: {}", resolved.display());
+    }
+
+    #[test]
+    fn mens_gate_manifest_resolution_uses_legacy_fallback() {
+        let td = tempfile::tempdir().expect("tempdir");
+        let root = td.path();
+        std::fs::create_dir_all(root.join("scripts/mens")).expect("mkdir scripts/mens");
+        std::fs::write(root.join("scripts/mens/gates.yaml"), "profiles: {}\n")
+            .expect("write legacy gates");
+        let resolved = resolve_mens_gate_manifest_path(root);
+        assert!(
+            resolved.ends_with(PathBuf::from("scripts/mens/gates.yaml")),
+            "expected legacy fallback, got {}",
+            resolved.display()
         );
     }
 }

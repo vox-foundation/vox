@@ -39,3 +39,15 @@ Rust accessors: `vox-scaling-policy` crate.
 3. **P2 — scaling strictness:** Use `toestub --rules scaling` with rising `--min-severity` once per-crate overrides and false positives are stable.
 
 Remediation rollup index: [`contracts/reports/scaling-audit/rollup/INDEX.yaml`](../../../contracts/reports/scaling-audit/rollup/INDEX.yaml).
+
+## Programmatic audit limitations (read before trusting counts)
+
+TOESTUB/scaling checks are **heuristic and line-oriented**, not a substitute for the compiler, Miri, profilers, or load tests.
+
+- **Syntax / pattern matching:** Rules flag shapes in source text (`SELECT` without `LIMIT`, `Regex::new(` in a loop, `std::fs` under `async fn`). Legitimate code can match; bad code can evade.
+- **No cross-crate symbol resolution:** Families like `unresolved-ref/fn-call` use single-file heuristics. Embedded SQL in string literals, glob imports (`prelude::*`, `defaults::*`), and `crates/.../tests/` trees are treated specially to cut false positives — **real issues can still hide there**.
+- **`unwired/module`:** Only **private** `mod foo;` declarations are flagged; `pub` / `pub(crate)` file-backed modules are assumed to be reached from other files (typical `lib.rs` / `commands/mod.rs` roots).
+- **Severity is intentionally conservative:** Many scaling findings are **Info** so audits stay noisy but CI gates stay usable; promote severities only after burn-down.
+- **Behavior and performance:** “Scaling” here means *likely* scalability smells, not measured latency or memory. Validate hot paths with benchmarks and production telemetry.
+
+When a finding looks wrong, prefer a one-line `// toestub-ignore(...)` with a short reason, or a **policy override** in [`contracts/scaling/policy.yaml`](../../../contracts/scaling/policy.yaml) for intentional patterns — not silent detector hacks.

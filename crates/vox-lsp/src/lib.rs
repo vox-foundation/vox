@@ -11,6 +11,7 @@ use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_ast_module;
 
+pub mod bounded_fs;
 pub mod completions;
 pub mod grammar;
 pub mod symbols;

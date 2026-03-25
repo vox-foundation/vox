@@ -76,6 +76,7 @@ impl Orchestrator {
                     &desc.file_manifest,
                     None,
                     desc.capability_requirements.as_ref(),
+                    Some(desc.description.as_str()),
                 )
                 .await?;
 
@@ -290,12 +291,39 @@ impl Orchestrator {
         self.submit_batch(descriptors).await
     }
 
+    /// Submit a repository-scale shard workflow:
+    /// shard generation -> shard validation -> reducer merge.
+    ///
+    /// Returns all task ids in descriptor order:
+    /// - first N ids are shard generation tasks,
+    /// - next N ids are validation tasks,
+    /// - final id is the reducer merge task.
+    pub async fn submit_repo_shard_dag(
+        &self,
+        objective: impl Into<String>,
+        shard_manifests: Vec<Vec<FileAffinity>>,
+        merge_manifest: Vec<FileAffinity>,
+        priority: Option<crate::types::TaskPriority>,
+        session_id: Option<String>,
+    ) -> Result<Vec<TaskId>, OrchestratorError> {
+        let objective = objective.into();
+        let descriptors = build_repo_shard_descriptors(
+            &objective,
+            shard_manifests,
+            merge_manifest,
+            priority,
+            session_id,
+        );
+        self.submit_batch(descriptors).await
+    }
+
     /// Resolve route via RoutingService and spawn if needed.
     pub(crate) async fn resolve_route(
         &self,
         manifest: &[FileAffinity],
         target_agent: Option<&str>,
         task_capability_requirements: Option<&crate::contract::TaskCapabilityHints>,
+        task_description: Option<&str>,
     ) -> Result<AgentId, OrchestratorError> {
         if let Some(agent_name) = target_agent {
             // First check if an agent with this name exists
@@ -327,6 +355,12 @@ impl Orchestrator {
             None
         };
 
+        let attention_trust_scores = if crate::sync_lock::rw_read(&*self.config).attention_enabled {
+            Some(crate::sync_lock::rw_read(&*self.budget_manager).trust_snapshot())
+        } else {
+            None
+        };
+
         let remote_hints = crate::sync_lock::rw_read(&*self.remote_populi_routing_hints);
         let remote = if remote_hints.is_empty() {
             None
@@ -347,15 +381,110 @@ impl Orchestrator {
                 &config,
                 reliability_map.as_ref(),
                 task_capability_requirements,
+                task_description,
                 remote,
-                None, // Phase 15: attention_trust_scores (pass BudgetManager::trust_snapshot() when enabled)
+                attention_trust_scores.as_ref(),
             )
         };
         drop(remote_hints);
 
         match result {
             RouteResult::Existing(id) => Ok(id),
-            RouteResult::SpawnAgent(name) => self.spawn_agent(&name),
+            RouteResult::SpawnAgent(name) => self.spawn_dynamic_agent(&name),
         }
+    }
+}
+
+fn build_repo_shard_descriptors(
+    objective: &str,
+    shard_manifests: Vec<Vec<FileAffinity>>,
+    merge_manifest: Vec<FileAffinity>,
+    priority: Option<crate::types::TaskPriority>,
+    session_id: Option<String>,
+) -> Vec<crate::types::TaskDescriptor> {
+    let shard_count = shard_manifests.len();
+    let mut descriptors = Vec::with_capacity(shard_count.saturating_mul(2).saturating_add(1));
+
+    // Generation tasks (indices 0..N-1)
+    for (idx, file_manifest) in shard_manifests.iter().enumerate() {
+        descriptors.push(crate::types::TaskDescriptor {
+            description: format!(
+                "[PHASE:SHARD_GEN][SHARD:{}]\nGenerate repository shard implementation for:\n{}",
+                idx, objective
+            ),
+            priority,
+            file_manifest: file_manifest.clone(),
+            depends_on: vec![],
+            temp_deps: vec![],
+            capability_requirements: None,
+            session_id: session_id.clone(),
+        });
+    }
+
+    // Validation tasks (indices N..2N-1), each depends on its corresponding generator.
+    for (idx, file_manifest) in shard_manifests.iter().enumerate() {
+        descriptors.push(crate::types::TaskDescriptor {
+            description: format!(
+                "[PHASE:SHARD_VALIDATE][SHARD:{}]\nValidate generated shard for canonical output and parseability:\n{}",
+                idx, objective
+            ),
+            priority,
+            file_manifest: file_manifest.clone(),
+            depends_on: vec![],
+            temp_deps: vec![idx],
+            capability_requirements: None,
+            session_id: session_id.clone(),
+        });
+    }
+
+    // Reducer task depends on *all* validation tasks (validation-first merge gate).
+    let validation_temp_deps: Vec<usize> = (shard_count..(shard_count.saturating_mul(2))).collect();
+    descriptors.push(crate::types::TaskDescriptor {
+        description: format!(
+            "[PHASE:REDUCE]\nMerge validated shard outputs into repository-scale result for:\n{}",
+            objective
+        ),
+        priority,
+        file_manifest: merge_manifest,
+        depends_on: vec![],
+        temp_deps: validation_temp_deps,
+        capability_requirements: None,
+        session_id,
+    });
+
+    descriptors
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_repo_shard_descriptors;
+    use crate::types::{FileAffinity, TaskPriority};
+
+    #[test]
+    fn repo_shard_descriptors_enforce_validation_before_reduce() {
+        let shard_manifests = vec![
+            vec![FileAffinity::write("src/a.vox")],
+            vec![FileAffinity::write("src/b.vox")],
+        ];
+        let merge_manifest = vec![FileAffinity::write("src/merged.vox")];
+        let descriptors = build_repo_shard_descriptors(
+            "Implement feature",
+            shard_manifests,
+            merge_manifest,
+            Some(TaskPriority::Normal),
+            Some("session-1".to_string()),
+        );
+
+        // 2 gen + 2 validate + 1 reducer
+        assert_eq!(descriptors.len(), 5);
+        assert_eq!(descriptors[0].temp_deps, Vec::<usize>::new());
+        assert_eq!(descriptors[1].temp_deps, Vec::<usize>::new());
+        assert_eq!(descriptors[2].temp_deps, vec![0]);
+        assert_eq!(descriptors[3].temp_deps, vec![1]);
+        assert_eq!(descriptors[4].temp_deps, vec![2, 3]);
+        assert!(
+            descriptors[4].description.contains("[PHASE:REDUCE]"),
+            "last descriptor must be reducer"
+        );
     }
 }

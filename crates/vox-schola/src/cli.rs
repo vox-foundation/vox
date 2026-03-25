@@ -153,6 +153,33 @@ pub enum Cmd {
         /// Next-token CE over the last K positions per row (default: 64).
         #[arg(long, default_value_t = 64)]
         qlora_ce_last_k: usize,
+        /// Provenance: coarse family label for upstream lineage.
+        #[arg(long)]
+        base_model_family: Option<String>,
+        /// Provenance: explicit upstream model id.
+        #[arg(long)]
+        upstream_model_id: Option<String>,
+        /// Provenance: license class label.
+        #[arg(long)]
+        license_class: Option<String>,
+        /// Provenance: mark downstream publication as attribution-required.
+        #[arg(long, default_value_t = false)]
+        attribution_required: bool,
+        /// Enable trajectory-aware weighting for tool/failure rows.
+        #[arg(long, default_value_t = false)]
+        trajectory_weighting_enabled: bool,
+        /// Multiplier for tool-trace rows.
+        #[arg(long, default_value_t = 1.1)]
+        trajectory_tool_trace_boost: f32,
+        /// Multiplier for failure/error rows.
+        #[arg(long, default_value_t = 1.15)]
+        trajectory_failure_category_boost: f32,
+        /// Minimum quality floor (1-5) for quality boost.
+        #[arg(long)]
+        trajectory_quality_floor: Option<u8>,
+        /// Multiplier when quality floor is met.
+        #[arg(long, default_value_t = 1.05)]
+        trajectory_quality_boost: f32,
     },
     /// Serve a trained adapter via HTTP (OpenAI-compatible ChatCompletion).
     Serve {
@@ -236,6 +263,15 @@ impl Cmd {
             qlora_max_skip_rate: None,
             qlora_proxy_max_layers: None,
             qlora_ce_last_k: 64,
+            base_model_family: None,
+            upstream_model_id: None,
+            license_class: None,
+            attribution_required: false,
+            trajectory_weighting_enabled: false,
+            trajectory_tool_trace_boost: 1.1,
+            trajectory_failure_category_boost: 1.15,
+            trajectory_quality_floor: None,
+            trajectory_quality_boost: 1.05,
         }
     }
 }

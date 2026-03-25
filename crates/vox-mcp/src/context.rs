@@ -61,7 +61,12 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
     let orch = &state.orchestrator;
     let ttl = params.ttl_seconds.unwrap_or(0);
     let ctx_handle = orch.context_handle();
-    ctx_handle.write().unwrap().set(
+    let mut guard = match crate::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    guard.set(
         vox_orchestrator::AgentId(params.agent_id),
         &params.key,
         &params.value,
@@ -74,7 +79,12 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
 pub async fn get_context(state: &ServerState, params: GetContextParams) -> String {
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
-    if let Some(val) = ctx_handle.read().unwrap().get(&params.key) {
+    let read_guard = match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    if let Some(val) = read_guard.get(&params.key) {
         ToolResult::ok(val).to_json()
     } else {
         ToolResult::<String>::err("Key not found or expired").to_json()
@@ -85,7 +95,12 @@ pub async fn get_context(state: &ServerState, params: GetContextParams) -> Strin
 pub async fn list_context(state: &ServerState, params: ListContextParams) -> String {
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
-    let keys = ctx_handle.read().unwrap().list_keys(&params.prefix);
+    let read_guard = match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<Vec<String>>::err(e.to_string()).to_json(),
+    };
+    let keys = read_guard.list_keys(&params.prefix);
     ToolResult::ok(keys).to_json()
 }
 
@@ -94,7 +109,12 @@ pub async fn context_budget(state: &ServerState, params: ContextBudgetParams) ->
     let orch = &state.orchestrator;
     let id = vox_orchestrator::AgentId(params.agent_id);
     let budget_handle = orch.budget_handle();
-    if let Some(budget) = budget_handle.read().unwrap().check_budget(id) {
+    let budget_guard = match crate::sync_poison::poison_rw_read(budget_handle.read(), "token budget")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    if let Some(budget) = budget_guard.check_budget(id) {
         let should_summarize = budget.should_summarize();
         ToolResult::ok(format!(
             "Budget: {}/{} tokens used. Summarize recommended: {}",
@@ -110,7 +130,14 @@ pub async fn context_budget(state: &ServerState, params: ContextBudgetParams) ->
 pub async fn handoff_context(state: &ServerState, params: HandoffContextParams) -> String {
     let orch = &state.orchestrator;
     let summary_handle = orch.summary_handle();
-    summary_handle.write().unwrap().handoff(
+    let mut sum_guard = match crate::sync_poison::poison_rw_write(
+        summary_handle.write(),
+        "context summary",
+    ) {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    sum_guard.handoff(
         vox_orchestrator::AgentId(params.from_agent),
         vox_orchestrator::AgentId(params.to_agent),
     );

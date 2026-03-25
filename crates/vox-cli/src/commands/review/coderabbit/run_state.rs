@@ -3,6 +3,8 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use serde::{Deserialize, Serialize};
 
 /// One semantic chunk execution record.
@@ -41,7 +43,7 @@ impl CoderabbitRunState {
         if !p.is_file() {
             return Ok(None);
         }
-        let raw = std::fs::read_to_string(&p).with_context(|| format!("read {}", p.display()))?;
+        let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
         let s: Self = serde_json::from_str(&raw).context("parse run-state.json")?;
         Ok(Some(s))
     }

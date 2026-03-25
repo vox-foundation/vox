@@ -86,7 +86,13 @@ impl LanguageServer for Backend {
         let tdp = params.text_document_position_params;
         let uri = &tdp.text_document.uri;
         let pos = tdp.position;
-        let text = self.documents.lock().unwrap().get(uri).cloned();
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("hover: documents mutex poisoned: {e}");
+                return Ok(None);
+            }
+        };
         let Some(text) = text else {
             return Ok(None);
         };
@@ -117,7 +123,13 @@ impl LanguageServer for Backend {
         params: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = &params.text_document.uri;
-        let text = self.documents.lock().unwrap().get(uri).cloned();
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("document_symbol: documents mutex poisoned: {e}");
+                return Ok(None);
+            }
+        };
         let Some(text) = text else {
             return Ok(None);
         };
@@ -136,7 +148,13 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = &params.text_document.uri;
-        let text = self.documents.lock().unwrap().get(uri).cloned();
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("semantic_tokens_full: documents mutex poisoned: {e}");
+                return Ok(None);
+            }
+        };
         let Some(text) = text else {
             return Ok(None);
         };
@@ -223,10 +241,16 @@ impl LanguageServer for Backend {
 
 impl Backend {
     async fn validate_document(&self, uri: Url, text: String) {
-        self.documents
-            .lock()
-            .unwrap()
-            .insert(uri.clone(), text.clone());
+        {
+            let mut guard = match self.documents.lock() {
+                Ok(g) => g,
+                Err(e) => {
+                    tracing::error!("validate_document: documents mutex poisoned: {e}");
+                    return;
+                }
+            };
+            guard.insert(uri.clone(), text.clone());
+        }
 
         let mut diagnostics = Vec::new();
 

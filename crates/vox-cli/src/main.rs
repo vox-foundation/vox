@@ -26,7 +26,7 @@
 //! | `vox live` | `commands::live` (needs `--features live`) |
 //! | `vox db …` | `commands::db_cli` |
 //! | `vox scientia …` | `commands::scientia` (research / capability-map facade over `db_cli`) |
-//! | `vox codex verify \| export-legacy \| import-legacy \| socrates-metrics \| socrates-eval-snapshot` | `commands::codex` |
+//! | `vox codex verify \| export-legacy \| import-legacy \| cutover \| import-orchestrator-memory \| import-skill-bundle \| socrates-metrics \| socrates-eval-snapshot` | `commands::codex` |
 //! | `vox openclaw …` | `commands::openclaw` (needs `--features ars`) |
 //! | `vox snippet …` / `vox share …` | `commands::extras` |
 //! | `vox skill …` | `commands::extras::skill_cmd` (needs `--features ars`) |
@@ -35,6 +35,7 @@
 //! | `vox architect …` | `commands::diagnostics::tools::architect` (needs `--features stub-check` and/or `codex`) |
 //! | `vox lsp` | `commands::lsp` |
 //! | `vox doctor` (extended: `--build-perf` / `--scope` / `--json` need `--features codex`) | `commands::diagnostics::doctor` |
+//! | `vox clavis …` / `vox secrets …` | `commands::clavis` |
 //! | `vox train …` (feature `mens-dei` + `gpu`) | `commands::ai::train` |
 //! | `vox review coderabbit …` | `commands::review` (needs `--features coderabbit`) |
 //! | `vox island …` | `commands::island` (needs `--features island`) |

@@ -271,6 +271,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         d,
         rank,
         alpha,
+        None,
     );
     let meta_path = dir.path().join("meta_v3.json");
     std::fs::write(

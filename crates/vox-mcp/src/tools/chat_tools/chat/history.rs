@@ -12,11 +12,16 @@ pub async fn chat_history(state: &ServerState, params: ChatHistoryParams) -> Str
     let history_key = format!("chat_history:{session_id}");
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
-    let history: Vec<ChatTranscriptEntry> = ctx_handle
-        .read()
-        .unwrap()
-        .get(&history_key)
-        .and_then(|s: String| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
+    let history: Vec<ChatTranscriptEntry> =
+        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+            Ok(g) => g
+                .get(&history_key)
+                .and_then(|s: String| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            Err(e) => {
+                tracing::warn!(error = %e, "chat_history: context poisoned");
+                Vec::new()
+            }
+        };
     ToolResult::ok(history).to_json()
 }

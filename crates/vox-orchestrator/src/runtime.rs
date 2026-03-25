@@ -7,8 +7,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use vox_runtime::{
-    ProcessHandle, mailbox::MessagePayload, process::ProcessContext, scheduler::Scheduler,
-    supervisor::ChildSpec, supervisor::RestartStrategy, supervisor::Supervisor,
+    ProcessHandle, RegistryError, mailbox::MessagePayload, process::ProcessContext,
+    scheduler::Scheduler, supervisor::ChildSpec, supervisor::RestartStrategy,
+    supervisor::Supervisor,
 };
 
 use crate::events::AgentEventKind;
@@ -157,7 +158,7 @@ impl ActorAgent {
         name: String,
         orchestrator: Arc<Mutex<Orchestrator>>,
         processor: Arc<dyn TaskProcessor>,
-    ) -> ProcessHandle {
+    ) -> Result<ProcessHandle, RegistryError> {
         let process_name = format!("agent-{}", name);
 
         scheduler.spawn_named(&process_name, move |mut ctx: ProcessContext| async move {
@@ -317,13 +318,26 @@ impl AgentFleet {
                 })
                 .collect()
         };
+        let active_agent_ids: std::collections::HashSet<AgentId> =
+            agent_info.iter().map(|(id, _)| *id).collect();
 
         // 1. Ensure all active agents have actors
         for (agent_id, name) in agent_info {
             let proc_name = format!("agent-{}", name);
 
             // Check if process is already running in the global registry
-            if self.scheduler.registry().lookup_name(&proc_name).is_none() {
+            let already_running = match self.scheduler.registry().lookup_name(&proc_name) {
+                Ok(opt) => opt.is_some(),
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        proc_name = %proc_name,
+                        "process registry poisoned during fleet sync; aborting sync_fleet"
+                    );
+                    return;
+                }
+            };
+            if !already_running {
                 // Not running, add it to supervisor
                 let orchestrator_clone = self.orchestrator.clone();
                 let scheduler_clone = self.scheduler.clone();
@@ -346,13 +360,18 @@ impl AgentFleet {
             }
         }
 
-        // 2. Remove actors for agents that are no longer active
-        // This is a bit tricky with the current Supervisor as it doesn't expose a list of children
-        // easily for selective termination without names.
-        // However, we can use the scheduler registry to find agent processes and see if they belong
-        // to our active IDs.
-        // For now, sync_fleet mostly focuses on starting. The ActorAgent loop will also terminate
-        // if the channel closes or if we implement a "Kill" command.
+        // 2. Prune stale handles for retired agents so runtime state converges.
+        let orch = self.orchestrator.lock().await;
+        let mut handles = crate::sync_lock::rw_write(&*orch.agent_handles);
+        let stale_ids: Vec<AgentId> = handles
+            .keys()
+            .copied()
+            .filter(|id| !active_agent_ids.contains(id))
+            .collect();
+        for id in stale_ids {
+            handles.remove(&id);
+            tracing::debug!("Removed stale runtime handle for retired agent {}", id);
+        }
     }
 
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.

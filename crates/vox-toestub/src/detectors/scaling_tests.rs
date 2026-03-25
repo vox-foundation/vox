@@ -5,11 +5,12 @@ use std::path::PathBuf;
 #[test]
 fn detects_blocking_fs_in_async() {
     let d = ScalingSurfacesDetector::new();
-    let code = r#"
-pub async fn bad() -> std::io::Result<String> {
-    std::fs::read_to_string("x.txt")
-}
-"#;
+    let code = concat!(
+        "pub async fn bad() -> std::io::Result<String> {\n",
+        "    std::fs::",
+        "read_to_string(\"x.txt\")\n",
+        "}\n",
+    );
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
     let findings = d.detect(&f);
     assert!(
@@ -43,13 +44,14 @@ mod tests {
 #[test]
 fn detects_read_in_loop_heuristic() {
     let d = ScalingSurfacesDetector::new();
-    let code = r#"
-pub fn scan(paths: &[std::path::PathBuf]) {
-    for p in paths {
- let _ = std::fs::read_to_string(p);
-    }
-}
-"#;
+    let code = concat!(
+        "pub fn scan(paths: &[std::path::PathBuf]) {\n",
+        "    for p in paths {\n",
+        " let _ = std::fs::",
+        "read_to_string(p);\n",
+        "    }\n",
+        "}\n",
+    );
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
     let findings = d.detect(&f);
     assert!(

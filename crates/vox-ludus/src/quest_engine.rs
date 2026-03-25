@@ -13,6 +13,7 @@ use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::bounded_fs::read_utf8_path_capped;
 use crate::quest::{Quest, QuestModifier, QuestType};
 use crate::util::now_unix;
 
@@ -258,7 +259,7 @@ pub fn verify_quest(dq: &DynamicQuest) -> bool {
     };
 
     // Re-read the file and check if the tag still appears on that line
-    let Ok(content) = std::fs::read_to_string(&issue.file_path) else {
+    let Ok(content) = read_utf8_path_capped(&issue.file_path) else {
         // File deleted → consider resolved
         return true;
     };

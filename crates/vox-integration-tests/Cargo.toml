@@ -19,6 +19,7 @@ vox-container = { workspace = true }
 vox-mcp = { workspace = true }
 vox-skills = { workspace = true }
 vox-cli = { path = "../vox-cli" }
+vox-scaling-policy = { workspace = true }
 
 [lints]
 workspace = true

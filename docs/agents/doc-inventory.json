@@ -15345,9 +15345,9 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "crates/vox-db/src/schema/domains/publication.rs",
+      "path": "crates/vox-db/src/schema/domains/publish_cloud.rs",
       "kind": "rust",
-      "lines_total": 68,
+      "lines_total": 181,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,

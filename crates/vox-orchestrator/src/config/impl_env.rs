@@ -244,6 +244,20 @@ impl OrchestratorConfig {
                 self.populi_routing_experimental,
             );
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL") {
+            self.populi_training_routing_experimental = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL",
+                &val,
+                self.populi_training_routing_experimental,
+            );
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE") {
+            self.populi_training_budget_pressure = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE",
+                &val,
+                self.populi_training_budget_pressure,
+            );
+        }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL") {
             self.populi_remote_execute_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL",
@@ -368,6 +382,34 @@ impl OrchestratorConfig {
                 self.attention_trust_routing_weight,
             );
         }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT") {
+            self.repo_shard_specialization_weight = parse_or_warn(
+                "VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT",
+                &v,
+                self.repo_shard_specialization_weight,
+            );
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY") {
+            self.repo_shard_validation_failure_penalty = parse_or_warn(
+                "VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY",
+                &v,
+                self.repo_shard_validation_failure_penalty,
+            );
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY") {
+            self.repo_reduce_conflict_cooldown_penalty = parse_or_warn(
+                "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY",
+                &v,
+                self.repo_reduce_conflict_cooldown_penalty,
+            );
+        }
+        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS") {
+            self.repo_reduce_conflict_cooldown_ms = parse_or_warn(
+                "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS",
+                &v,
+                self.repo_reduce_conflict_cooldown_ms,
+            );
+        }
         // News syndication (see docs/architecture/news_syndication_security.md)
         if let Ok(v) = std::env::var("VOX_NEWS_PUBLISH_ARMED") {
             self.news.publish_armed =
@@ -406,6 +448,100 @@ impl OrchestratorConfig {
                 self.news.twitter_truncation_suffix = None;
             } else {
                 self.news.twitter_truncation_suffix = Some(t.to_string());
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_CLIENT_ID") {
+            let t = v.trim();
+            self.news.reddit_client_id = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_CLIENT_SECRET") {
+            let t = v.trim();
+            self.news.reddit_client_secret = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_REFRESH_TOKEN") {
+            let t = v.trim();
+            self.news.reddit_refresh_token = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_USER_AGENT") {
+            let t = v.trim();
+            self.news.reddit_user_agent = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_CLIENT_ID") {
+            let t = v.trim();
+            self.news.youtube_client_id = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_CLIENT_SECRET") {
+            let t = v.trim();
+            self.news.youtube_client_secret = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN") {
+            let t = v.trim();
+            self.news.youtube_refresh_token = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_HN_MODE") {
+            let t = v.trim();
+            self.news.hacker_news_mode = if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            };
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_WORTHINESS_ENFORCE") {
+            self.news.worthiness_enforce = parse_or_warn(
+                "VOX_SOCIAL_WORTHINESS_ENFORCE",
+                &v,
+                self.news.worthiness_enforce,
+            );
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_WORTHINESS_SCORE_MIN") {
+            self.news.worthiness_score_min = Some(parse_or_warn(
+                "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
+                &v,
+                self.news.worthiness_score_min.unwrap_or(0.85),
+            ));
+        }
+        if let Ok(v) = std::env::var("VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS") {
+            for pair in v.split(',') {
+                let trimmed = pair.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let mut parts = trimmed.splitn(2, '=');
+                let key = parts.next().unwrap_or("").trim().to_lowercase();
+                let val = parts.next().unwrap_or("").trim();
+                if key.is_empty() || val.is_empty() {
+                    continue;
+                }
+                let floor = parse_or_warn("VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS", val, 0.85_f64);
+                self.news.channel_worthiness_floors.insert(key, floor);
             }
         }
     }

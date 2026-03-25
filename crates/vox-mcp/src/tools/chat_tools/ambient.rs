@@ -62,29 +62,37 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
     }
 
     // 2. Active conflicts → Conflict decorations
-    let handle = orch.conflict_manager_handle();
-    let guard = handle.read().unwrap();
-    let conflicts = guard.active_conflicts();
-    for conflict in conflicts {
-        let path_str = conflict.path.to_string_lossy().to_string();
-        if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
-            continue;
+    {
+        let handle = orch.conflict_manager_handle();
+        match crate::sync_poison::poison_rw_read(handle.read(), "conflict manager") {
+            Ok(guard) => {
+                for conflict in guard.active_conflicts() {
+                    let path_str = conflict.path.to_string_lossy().to_string();
+                    if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
+                        continue;
+                    }
+                    let agent_ids: Vec<u64> =
+                        conflict.sides.iter().map(|s| s.agent_id.0).collect();
+                    decorations.push(serde_json::json!({
+                        "path": path_str,
+                        "decoration": {
+                            "type": "conflict",
+                            "conflict_id": conflict.id.to_string(),
+                            "agent_ids": agent_ids,
+                        },
+                        "severity": "error",
+                        "timestamp_ms": now_ms,
+                        "tooltip": format!(
+                            "\u{26a0} Conflict between {} agents — resolve before proceeding",
+                            conflict.sides.len()
+                        ),
+                    }));
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "ambient_state: conflict manager poisoned");
+            }
         }
-        let agent_ids: Vec<u64> = conflict.sides.iter().map(|s| s.agent_id.0).collect();
-        decorations.push(serde_json::json!({
-            "path": path_str,
-            "decoration": {
-                "type": "conflict",
-                "conflict_id": conflict.id.to_string(),
-                "agent_ids": agent_ids,
-            },
-            "severity": "error",
-            "timestamp_ms": now_ms,
-            "tooltip": format!(
-                "\u{26a0} Conflict between {} agents — resolve before proceeding",
-                conflict.sides.len()
-            ),
-        }));
     }
 
     // 3. Agent-to-file affinity (active tasks) → AgentActive decorations
@@ -92,7 +100,13 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
         let Some(queue) = orch.agent_queue(agent_id) else {
             continue;
         };
-        let guard = queue.read().unwrap();
+        let guard = match crate::sync_poison::poison_rw_read(queue.read(), "agent queue") {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::warn!(error = %e, ?agent_id, "ambient_state: agent queue poisoned");
+                continue;
+            }
+        };
         if let Some(task) = guard.current_task() {
             for fa in &task.file_manifest {
                 let path_str = fa.path.to_string_lossy().to_string();

@@ -6,6 +6,7 @@ use serde_json::Value as JsonValue;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::bounded_read::read_utf8_path_capped;
 use super::cargo_bin;
 use super::cmd_enums::ScalingAuditCmd;
 
@@ -34,14 +35,14 @@ struct TaskCategory {
 /// Validate `contracts/scaling/policy.yaml` against `policy.schema.json`.
 fn verify_policy_schema(repo_root: &Path) -> Result<()> {
     let policy_path = repo_root.join(POLICY_REL);
-    let raw = fs::read_to_string(&policy_path)
+    let raw = read_utf8_path_capped(&policy_path)
         .with_context(|| format!("read {}", policy_path.display()))?;
     let schema_path = repo_root.join(POLICY_SCHEMA_REL);
     if !schema_path.is_file() {
         return Err(anyhow!("missing {}", schema_path.display()));
     }
     let schema_val: JsonValue = serde_json::from_str(
-        &fs::read_to_string(&schema_path)
+        &read_utf8_path_capped(&schema_path)
             .with_context(|| format!("read {}", schema_path.display()))?,
     )
     .with_context(|| format!("parse {}", schema_path.display()))?;
@@ -59,7 +60,7 @@ fn verify_policy_schema(repo_root: &Path) -> Result<()> {
 /// Embedded policy must match on-disk file (vox-scaling-policy `include_str`).
 fn verify_embedded_policy_roundtrip(repo_root: &Path) -> Result<()> {
     let policy_path = repo_root.join(POLICY_REL);
-    let disk = fs::read_to_string(&policy_path)
+    let disk = read_utf8_path_capped(&policy_path)
         .with_context(|| format!("read {}", policy_path.display()))?;
     let parsed = vox_scaling_policy::ScalingPolicy::from_yaml_str(&disk)
         .context("parse policy with vox-scaling-policy")?;
@@ -93,7 +94,7 @@ fn workspace_crates(repo_root: &Path) -> Result<Vec<String>> {
 
 fn load_templates(repo_root: &Path) -> Result<TaskTemplatesFile> {
     let p = repo_root.join(TEMPLATES_REL);
-    let raw = fs::read_to_string(&p).with_context(|| format!("read {}", p.display()))?;
+    let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
     serde_yaml::from_str(&raw).context("parse task-templates.yaml")
 }
 

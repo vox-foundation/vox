@@ -40,6 +40,7 @@ impl RoutingService {
         config: &OrchestratorConfig,
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
+        task_description: Option<&str>,
         remote_populi_hints: Option<&[RemotePopuliRoutingHint]>,
         // Phase 15: prefer agents with higher trust to reduce pilot interrupts.
         attention_trust_scores: Option<&HashMap<AgentId, crate::attention::AgentTrustScore>>,
@@ -96,8 +97,23 @@ impl RoutingService {
                 remote_populi_hints,
             );
         }
+        if config.populi_training_routing_experimental {
+            if let Some(req) = task_capability_requirements {
+                Self::apply_training_task_signals(
+                    &mut scores,
+                    agents,
+                    req,
+                    task_description,
+                    remote_populi_hints,
+                    config.populi_training_budget_pressure,
+                );
+            }
+        }
 
-        // 3d. Attention-aware routing: prefer agents with higher EWMA trust score.
+        // 3d. Repo shard workflow specialization and reliability penalties.
+        Self::apply_repo_shard_phase_signals(&mut scores, agents, config, task_description);
+
+        // 3e. Attention-aware routing: prefer agents with higher EWMA trust score.
         if config.attention_enabled {
             if let Some(trust_map) = attention_trust_scores {
                 let w = config.attention_trust_routing_weight;
@@ -276,6 +292,10 @@ impl RoutingService {
         Self::labels_cover(&r.labels, &req.labels)
             && (!req.gpu_cuda || r.gpu_cuda)
             && (!req.gpu_metal || r.gpu_metal)
+            && match req.min_vram_mb {
+                None => true,
+                Some(need) => r.min_vram_mb.is_some_and(|have| have >= need),
+            }
     }
 
     /// Soft score bump + tracing when cached remote mens nodes align with task labels (no remote execute).
@@ -339,6 +359,147 @@ impl RoutingService {
                     remote_gpu_candidates = remote_gpu,
                     "mens federation GPU visibility (experimental)"
                 );
+            }
+        }
+    }
+
+    fn is_training_task(req: &TaskCapabilityHints) -> bool {
+        req.labels.iter().any(|l| {
+            let lower = l.to_ascii_lowercase();
+            lower == "workload=mens-train"
+                || lower == "workload=train"
+                || lower.starts_with("pool=train")
+        })
+    }
+
+    fn apply_training_task_signals(
+        scores: &mut HashMap<AgentId, f64>,
+        agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
+        req: &TaskCapabilityHints,
+        task_description: Option<&str>,
+        remote_populi_hints: Option<&[RemotePopuliRoutingHint]>,
+        budget_pressure: f64,
+    ) {
+        let description_training = task_description
+            .map(|d| d.to_ascii_lowercase().contains("train"))
+            .unwrap_or(false);
+        if !Self::is_training_task(req) && !description_training {
+            return;
+        }
+        let budget_pressure = budget_pressure.clamp(0.0, 1.0);
+        let mut boosted_gpu_agents: usize = 0;
+        let mut boosted_vram_agents: usize = 0;
+        let mut penalized_vram_agents: usize = 0;
+        let mut label_matched_agents: usize = 0;
+        for (agent_id, score) in scores.iter_mut() {
+            let Some(q_lock) = agents.get(agent_id) else {
+                continue;
+            };
+            let q = crate::sync_lock::rw_read(q_lock);
+            let has_gpu = q.capabilities.gpu_cuda
+                || q.capabilities.gpu_metal
+                || q.capabilities.gpu_vulkan
+                || q.capabilities.gpu_webgpu
+                || q.capabilities.npu;
+            if has_gpu {
+                *score += 0.75;
+                boosted_gpu_agents += 1;
+            }
+            if let Some(req_vram) = req.min_vram_mb {
+                let vram_ok = q
+                    .capabilities
+                    .min_vram_mb
+                    .is_some_and(|have| have >= req_vram);
+                if vram_ok {
+                    *score += 0.75;
+                    boosted_vram_agents += 1;
+                } else {
+                    *score -= 0.5;
+                    penalized_vram_agents += 1;
+                }
+                if req_vram >= 12_288 && budget_pressure > 0.0 {
+                    *score -= budget_pressure * 2.0;
+                }
+            }
+            let label_match =
+                req.labels.is_empty() || Self::labels_cover(&q.capabilities.labels, &req.labels);
+            if label_match {
+                *score += 0.25;
+                label_matched_agents += 1;
+            }
+        }
+        tracing::debug!(
+            target: "vox.orchestrator.routing",
+            boosted_gpu_agents,
+            boosted_vram_agents,
+            penalized_vram_agents,
+            label_matched_agents,
+            budget_pressure,
+            "training routing score signals applied"
+        );
+
+        if let Some(remote) = remote_populi_hints.filter(|h| !h.is_empty()) {
+            let remote_train_gpu = remote
+                .iter()
+                .filter(|h| {
+                    h.training_labels.iter().any(|l| l.starts_with("workload="))
+                        && (h.gpu_cuda || h.gpu_metal)
+                        && match req.min_vram_mb {
+                            None => true,
+                            Some(need) => h.min_vram_mb.is_some_and(|have| have >= need),
+                        }
+                })
+                .count();
+            if remote_train_gpu > 0 {
+                tracing::info!(
+                    target: "vox.orchestrator.routing",
+                    remote_training_candidates = remote_train_gpu,
+                    budget_pressure,
+                    "training routing signal: remote mens nodes advertise matching training capabilities (local placement retained)"
+                );
+            }
+        }
+    }
+
+    fn apply_repo_shard_phase_signals(
+        scores: &mut HashMap<AgentId, f64>,
+        agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
+        config: &OrchestratorConfig,
+        task_description: Option<&str>,
+    ) {
+        let phase = task_description
+            .map(str::to_ascii_uppercase)
+            .unwrap_or_default();
+        let is_shard_gen = phase.contains("[PHASE:SHARD_GEN]");
+        let is_shard_validate = phase.contains("[PHASE:SHARD_VALIDATE]");
+        let is_reduce = phase.contains("[PHASE:REDUCE]");
+        let now_ms = crate::types::now_unix_ms();
+
+        for (agent_id, score) in scores.iter_mut() {
+            if let Some(queue_lock) = agents.get(agent_id) {
+                let queue = crate::sync_lock::rw_read(queue_lock);
+
+                if is_shard_gen && let Some(rel) = queue.active_skills.get("shard_gen") {
+                    *score += rel * config.repo_shard_specialization_weight;
+                }
+                if is_shard_validate && let Some(rel) = queue.active_skills.get("shard_validate") {
+                    *score += rel * config.repo_shard_specialization_weight;
+                }
+                if is_reduce && let Some(rel) = queue.active_skills.get("reduce") {
+                    *score += rel * config.repo_shard_specialization_weight;
+                }
+
+                if is_shard_validate && queue.recent_shard_validation_failures > 0 {
+                    *score -= queue.recent_shard_validation_failures as f64
+                        * config.repo_shard_validation_failure_penalty;
+                }
+
+                if is_reduce
+                    && let Some(cooldown_until) = queue.reducer_cooldown_until_ms
+                    && cooldown_until > now_ms
+                {
+                    *score -= config.repo_reduce_conflict_cooldown_penalty;
+                }
             }
         }
     }
@@ -413,6 +574,7 @@ mod tests {
             Some(&rel),
             None,
             None,
+            None,
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a2));
@@ -477,6 +639,7 @@ mod tests {
             None,
             Some(&hints),
             None,
+            None,
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(gpu));
@@ -518,6 +681,8 @@ mod tests {
             labels: vec!["pool=a".to_string()],
             gpu_cuda: false,
             gpu_metal: false,
+            min_vram_mb: None,
+            training_labels: vec![],
         }];
         let route = RoutingService::route(
             &manifest,
@@ -527,9 +692,126 @@ mod tests {
             &config,
             None,
             Some(&hints),
+            None,
             Some(remote.as_slice()),
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a1));
+    }
+
+    #[test]
+    fn training_routing_prefers_agent_with_vram_and_gpu() {
+        let manifest = vec![FileAffinity::write("src/train.rs")];
+        let affinity = FileAffinityMap::new();
+        let groups = AffinityGroupRegistry::new(vec![AffinityGroup {
+            name: "train-group".to_string(),
+            patterns: vec!["**/src/**".to_string()],
+            default_agent: None,
+        }]);
+
+        let mut agents = HashMap::new();
+        let low = AgentId(11);
+        let high = AgentId(22);
+        let mut q_low = AgentQueue::new(low, "train-group");
+        q_low.capabilities.gpu_cuda = true;
+        q_low.capabilities.min_vram_mb = Some(8_192);
+        q_low.capabilities.labels = vec!["workload=mens-train".into()];
+        let mut q_high = AgentQueue::new(high, "train-group");
+        q_high.capabilities.gpu_cuda = true;
+        q_high.capabilities.min_vram_mb = Some(24_576);
+        q_high.capabilities.labels = vec!["workload=mens-train".into()];
+        agents.insert(low, Arc::new(std::sync::RwLock::new(q_low)));
+        agents.insert(high, Arc::new(std::sync::RwLock::new(q_high)));
+
+        let mut config = OrchestratorConfig::for_testing();
+        config.populi_training_routing_experimental = true;
+        config.populi_training_budget_pressure = 0.0;
+
+        let req = TaskCapabilityHints {
+            gpu_cuda: true,
+            min_vram_mb: Some(16_384),
+            prefer_gpu_compute: true,
+            labels: vec!["workload=mens-train".into()],
+            ..Default::default()
+        };
+        let route = RoutingService::route(
+            &manifest,
+            &affinity,
+            &groups,
+            &agents,
+            &config,
+            None,
+            Some(&req),
+            None,
+            None,
+            None,
+        );
+        assert_eq!(route, RouteResult::Existing(high));
+    }
+
+    #[test]
+    fn attention_trust_routing_prefers_higher_trust_when_enabled() {
+        let manifest = vec![FileAffinity::write("src/lib.rs")];
+        let affinity = FileAffinityMap::new();
+        let groups = AffinityGroupRegistry::new(vec![AffinityGroup {
+            name: "core-group".to_string(),
+            patterns: vec!["**/src/**".to_string()],
+            default_agent: None,
+        }]);
+        let mut agents = HashMap::new();
+        let a1 = AgentId(1);
+        let a2 = AgentId(2);
+        agents.insert(
+            a1,
+            Arc::new(std::sync::RwLock::new(AgentQueue::new(a1, "core-group"))),
+        );
+        agents.insert(
+            a2,
+            Arc::new(std::sync::RwLock::new(AgentQueue::new(a2, "core-group"))),
+        );
+
+        let mut config = OrchestratorConfig::for_testing();
+        config.attention_enabled = true;
+        config.attention_trust_routing_weight = 10.0;
+
+        let mut trust = HashMap::new();
+        trust.insert(
+            a1,
+            crate::attention::AgentTrustScore {
+                agent_id: a1,
+                trust_score: 0.1,
+                tier: crate::attention::TrustTier::Trusted,
+                total_outcomes: 20,
+                successful_outcomes: 2,
+                below_tier_streak: 0,
+                last_updated_ms: 0,
+            },
+        );
+        trust.insert(
+            a2,
+            crate::attention::AgentTrustScore {
+                agent_id: a2,
+                trust_score: 0.95,
+                tier: crate::attention::TrustTier::Trusted,
+                total_outcomes: 20,
+                successful_outcomes: 19,
+                below_tier_streak: 0,
+                last_updated_ms: 0,
+            },
+        );
+
+        let route = RoutingService::route(
+            &manifest,
+            &affinity,
+            &groups,
+            &agents,
+            &config,
+            None,
+            None,
+            None,
+            None,
+            Some(&trust),
+        );
+        assert_eq!(route, RouteResult::Existing(a2));
     }
 }

@@ -84,6 +84,7 @@ async fn populi_http_heartbeat_loop(
     component: &'static str,
 ) {
     let mut tick = tokio::time::interval(Duration::from_secs(interval_secs.max(1)));
+    let mut heartbeat_count: u64 = 0;
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     tick.tick().await;
     loop {
@@ -92,6 +93,17 @@ async fn populi_http_heartbeat_loop(
             .with_env_token();
         match client.heartbeat(&record).await {
             Ok(u) => {
+                heartbeat_count = heartbeat_count.saturating_add(1);
+                if heartbeat_count.is_multiple_of(20) {
+                    tracing::debug!(
+                        target: "vox.populi",
+                        node_id = %u.id,
+                        count = heartbeat_count,
+                        interval_secs,
+                        component,
+                        "populi HTTP heartbeat steady-state"
+                    );
+                }
                 record = u;
             }
             Err(e) => {
@@ -112,9 +124,19 @@ pub async fn populi_http_join_best_effort(
     component: &'static str,
 ) -> PopuliHttpJoinSpawnOutcome {
     if populi_http_join_disabled_from_env() {
+        tracing::debug!(
+            target: "vox.populi",
+            component,
+            "populi HTTP join skipped (VOX_MESH_HTTP_JOIN disabled)"
+        );
         return PopuliHttpJoinSpawnOutcome::Skipped;
     }
     let Some(base) = populi_http_control_base_from_env() else {
+        tracing::debug!(
+            target: "vox.populi",
+            component,
+            "populi HTTP join skipped (no valid control base)"
+        );
         return PopuliHttpJoinSpawnOutcome::Skipped;
     };
     let node_id = record.id.clone();
@@ -123,14 +145,16 @@ pub async fn populi_http_join_best_effort(
         .with_env_token();
     match client.join(&record).await {
         Ok(updated) => {
+            let secs = populi_heartbeat_interval_secs_from_env();
             tracing::info!(
                 target: "vox.populi",
                 node_id = %updated.id,
                 control_base = %base,
+                timeout_ms,
+                heartbeat_secs = secs,
                 component,
                 "populi HTTP join"
             );
-            let secs = populi_heartbeat_interval_secs_from_env();
             if secs > 0 {
                 let base_clone = base.clone();
                 tokio::spawn(populi_http_heartbeat_loop(

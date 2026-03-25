@@ -11,6 +11,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
     use super::db;
     match cmd {
         DbCli::Status => db::status().await,
+        DbCli::Audit { timestamps } => db::audit(timestamps).await,
         DbCli::Reset { file } => db::reset(file.as_ref()).await,
         DbCli::Schema { file } => db::schema(file.as_ref()).await,
         DbCli::Sample { table, limit } => db::sample(&table, limit).await,
@@ -19,6 +20,11 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         DbCli::Import { path } => db::import(&path).await,
         DbCli::Vacuum => db::vacuum().await,
         DbCli::Prune { user_id, days } => db::prune(&user_id, days).await,
+        DbCli::PrunePlan { policy } => db::prune_plan(policy.as_deref()).await,
+        DbCli::PruneApply {
+            policy,
+            i_understand,
+        } => db::prune_apply(policy.as_deref(), i_understand).await,
         DbCli::PrefGet { user_id, key } => db::pref_get(&user_id, &key).await,
         DbCli::PrefSet {
             user_id,
@@ -179,5 +185,46 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         DbCli::PublicationStatus { publication_id } => {
             db::publication_status(&publication_id).await
         }
+        DbCli::PublicationMediaUpsert {
+            publication_id,
+            asset_ref,
+            media_type,
+            storage_uri,
+            status,
+            metadata_json_path,
+        } => {
+            db::publication_media_upsert(
+                &publication_id,
+                &asset_ref,
+                &media_type,
+                storage_uri.as_deref(),
+                &status,
+                metadata_json_path.as_ref(),
+            )
+            .await
+        }
+        DbCli::PublicationMediaList { publication_id } => {
+            db::publication_media_list(&publication_id).await
+        }
+        DbCli::PublicationMediaDelete {
+            publication_id,
+            asset_ref,
+        } => db::publication_media_delete(&publication_id, &asset_ref).await,
+        DbCli::PublicationRouteSimulate {
+            publication_id,
+            json,
+        } => db::publication_route_simulate(&publication_id, json).await,
+        DbCli::PublicationPublish {
+            publication_id,
+            channels,
+            dry_run,
+            json,
+        } => db::publication_publish(&publication_id, channels.as_deref(), dry_run, json).await,
+        DbCli::PublicationRetryFailed {
+            publication_id,
+            channel,
+            dry_run,
+            json,
+        } => db::publication_retry_failed(&publication_id, channel.as_deref(), dry_run, json).await,
     }
 }

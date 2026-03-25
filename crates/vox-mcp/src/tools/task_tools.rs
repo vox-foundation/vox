@@ -188,7 +188,13 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
     let task_id = TaskId(params.task_id);
     for agent_summary in &status.agents {
         if let Some(queue_lock) = orch.agent_queue(AgentId(agent_summary.id.0)) {
-            let queue = queue_lock.read().unwrap();
+            let queue = match crate::sync_poison::poison_rw_read(queue_lock.read(), "agent queue") {
+                Ok(g) => g,
+                Err(e) => {
+                    tracing::warn!(error = %e, "task_status: agent queue poisoned");
+                    continue;
+                }
+            };
             if queue.completed_ids().contains(&task_id) {
                 return ToolResult::ok("Completed".to_string()).to_json();
             }

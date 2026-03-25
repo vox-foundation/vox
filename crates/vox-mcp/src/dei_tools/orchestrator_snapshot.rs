@@ -1,9 +1,11 @@
+use crate::sync_poison::poison_rw_read;
 use crate::{AgentInfo, ServerState, StatusResponse, ToolResult};
+
 use vox_ludus::companion::Companion;
 use vox_ludus::db::list_companions;
 
 /// Get a full snapshot of the orchestrator's state.
-pub async fn orchestrator_status(state: &ServerState) -> String {
+pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> {
     let (
         status,
         scaling_profile,
@@ -18,35 +20,55 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
     ) = {
         let orch = &state.orchestrator;
         let handle = orch.config_handle();
-        let cfg = handle.read().unwrap();
+        let cfg = poison_rw_read(
+            handle.read(),
+            "read orchestrator config for vox_orchestrator_status",
+        )?;
         let effective = cfg.scaling_threshold as f64 * cfg.scaling_profile.threshold_multiplier();
         (
             orch.status(),
             Some(format!("{:?}", cfg.scaling_profile).to_lowercase()),
             Some(effective),
-            orch.snapshot_store_handle().read().unwrap().count(),
-            orch.oplog_handle().read().unwrap().count(),
-            orch.conflict_manager_handle()
-                .read()
-                .unwrap()
-                .active_count(),
-            orch.workspace_manager_handle()
-                .read()
-                .unwrap()
-                .list_workspaces()
-                .len(),
-            orch.workspace_manager_handle()
-                .read()
-                .unwrap()
-                .list_changes(None, usize::MAX)
-                .len(),
+            poison_rw_read(
+                orch.snapshot_store_handle().read(),
+                "read VCS snapshot store for vox_orchestrator_status",
+            )?
+            .count(),
+            poison_rw_read(
+                orch.oplog_handle().read(),
+                "read VCS oplog for vox_orchestrator_status",
+            )?
+            .count(),
+            poison_rw_read(
+                orch.conflict_manager_handle().read(),
+                "read VCS conflict manager for vox_orchestrator_status",
+            )?
+            .active_count(),
+            poison_rw_read(
+                orch.workspace_manager_handle().read(),
+                "read VCS workspace manager (list_workspaces) for vox_orchestrator_status",
+            )?
+            .list_workspaces()
+            .len(),
+            poison_rw_read(
+                orch.workspace_manager_handle().read(),
+                "read VCS workspace manager (list_changes) for vox_orchestrator_status",
+            )?
+            .list_changes(None, usize::MAX)
+            .len(),
             cfg.populi_control_url.clone(),
             cfg.populi_http_timeout_ms,
         )
     };
 
-    let populi_federation_cache =
-        serde_json::to_value(state.populi_remote_snapshot.read().unwrap().clone()).ok();
+    let populi_federation_cache = serde_json::to_value(
+        poison_rw_read(
+            state.populi_remote_snapshot.read(),
+            "read Populi remote snapshot cache for vox_orchestrator_status",
+        )?
+        .clone(),
+    )
+    .ok();
 
     let max_stale_ms: Option<u64> = std::env::var("VOX_MESH_MAX_STALE_MS")
         .ok()
@@ -198,7 +220,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         planning,
     };
 
-    ToolResult::ok(response).to_json()
+    Ok(ToolResult::ok(response).to_json())
 }
 
 fn mesh_codex_telemetry_enabled() -> bool {

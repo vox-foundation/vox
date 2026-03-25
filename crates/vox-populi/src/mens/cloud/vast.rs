@@ -70,9 +70,12 @@ pub struct VastClient {
 impl VastClient {
     /// Construct using `VOX_VAST_API_KEY` environment variable.
     pub fn from_env(config: Arc<CloudProviderConfig>) -> anyhow::Result<Self> {
-        let api_key = std::env::var("VOX_VAST_API_KEY").map_err(|_| {
-            anyhow::anyhow!("VOX_VAST_API_KEY not set. Get it at: https://cloud.vast.ai/cli/")
-        })?;
+        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxVastApiKey)
+            .expose()
+            .map(std::string::ToString::to_string)
+            .ok_or_else(|| {
+                anyhow::anyhow!("VOX_VAST_API_KEY not set. Get it at: https://cloud.vast.ai/cli/")
+            })?;
         Ok(Self::new(api_key, config))
     }
 

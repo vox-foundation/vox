@@ -55,3 +55,76 @@ The status payload includes:
 - active content digest + version
 - approval count for that digest
 - scholarly submission rows and external submission ids
+- media assets, publication attempt timeline, and status event timeline
+
+## 5) Optional social distribution metadata
+
+To drive Reddit/Hacker News/YouTube planning from the same manifest, embed a
+`metadata_json.scientia_distribution` block conforming to:
+
+- `contracts/scientia/distribution.schema.json`
+- `contracts/scientia/distribution.default.yaml`
+
+Optional **`metadata_json.topic_pack`**: set to a pack id from `contracts/scientia/distribution.topic-packs.yaml` (for example `default_social`). At hydrate time the pack **merges** worthiness floors, template profiles, and topic filters into `scientia_distribution`. **Channel allowlists** in the pack **drop** any channel not listed for that pack (after merge), so operators can tighten routing without editing every manifest.
+
+Example skeleton:
+
+```json
+{
+  "topic_pack": "default_social",
+  "scientia_distribution": {
+    "channels": ["reddit", "hacker_news", "youtube"],
+    "channel_payloads": {
+      "reddit": {
+        "subreddit": "MachineLearning",
+        "kind": "link"
+      },
+      "hacker_news": {
+        "mode": "manual_assist"
+      },
+      "youtube": {
+        "video_asset_ref": "artifacts/videos/demo.mp4",
+        "privacy_status": "private"
+      }
+    },
+    "distribution_policy": {
+      "approval_required": true,
+      "dry_run": true,
+      "channel_policy": {
+        "reddit": {
+          "enabled": true,
+          "template_profile": "deep_dive_selfpost",
+          "worthiness_floor": 0.82,
+          "topic_filters": {
+            "include_tags": ["research_breakthrough", "benchmark"],
+            "exclude_tags": ["internal_only"],
+            "min_topic_score": 0.2
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Notes:
+
+- Hacker News support is manual-assist only (official API is read-only).
+- YouTube support uses OAuth refresh + resumable upload and should remain policy-gated by quota and audit readiness.
+- Configure social credentials via `VOX_SOCIAL_*` environment variables (`docs/src/reference/env-vars.md`).
+- SSOT precedence is: manifest overrides > distribution policy defaults/contracts > runtime env overrides.
+
+## 6) Route simulation and controlled fan-out
+
+Use `vox db` for operator controls that are broader than the `vox scientia` convenience subset:
+
+```bash
+vox db publication-route-simulate --publication-id ai-research-2026-03
+vox db publication-route-simulate --publication-id ai-research-2026-03 --json
+vox db publication-publish --publication-id ai-research-2026-03 --channels reddit,youtube --dry-run true
+vox db publication-publish --publication-id ai-research-2026-03 --channels reddit,youtube --dry-run true --json
+vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run true
+vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run true --json
+```
+
+Add `--json` for machine-readable stdout (one structured object per invocation). MCP equivalents `vox_scientia_publication_publish` and `vox_scientia_publication_retry_failed` accept **`json: true`** for a single-line compact JSON tool envelope.

@@ -20,6 +20,10 @@ fn default_config_values() {
     assert_eq!(cfg.min_agents, 1);
     assert!(!cfg.scaling_enabled);
     assert_eq!(cfg.cost_preference, CostPreference::Performance);
+    assert_eq!(cfg.repo_shard_specialization_weight, 1.5);
+    assert_eq!(cfg.repo_shard_validation_failure_penalty, 0.8);
+    assert_eq!(cfg.repo_reduce_conflict_cooldown_penalty, 2.5);
+    assert_eq!(cfg.repo_reduce_conflict_cooldown_ms, cfg.idle_retirement_ms);
 }
 
 #[test]
@@ -153,6 +157,54 @@ control_url = "http://toml-loses:8888"
         match prev {
             None => std::env::remove_var(KEY),
             Some(v) => std::env::set_var(KEY, v),
+        }
+    }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn repo_shard_env_overrides_apply_consistently() {
+    let _guard = ENV_MUTEX.lock().expect("env test lock");
+    const W_KEY: &str = "VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT";
+    const VF_KEY: &str = "VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY";
+    const RC_P_KEY: &str = "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY";
+    const RC_MS_KEY: &str = "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS";
+
+    let prev_w = std::env::var(W_KEY).ok();
+    let prev_vf = std::env::var(VF_KEY).ok();
+    let prev_rc_p = std::env::var(RC_P_KEY).ok();
+    let prev_rc_ms = std::env::var(RC_MS_KEY).ok();
+
+    unsafe {
+        std::env::set_var(W_KEY, "1.25");
+        std::env::set_var(VF_KEY, "0.55");
+        std::env::set_var(RC_P_KEY, "3.0");
+        std::env::set_var(RC_MS_KEY, "90000");
+    }
+
+    let mut cfg = OrchestratorConfig::default();
+    cfg.merge_env_overrides();
+    assert_eq!(cfg.repo_shard_specialization_weight, 1.25);
+    assert_eq!(cfg.repo_shard_validation_failure_penalty, 0.55);
+    assert_eq!(cfg.repo_reduce_conflict_cooldown_penalty, 3.0);
+    assert_eq!(cfg.repo_reduce_conflict_cooldown_ms, 90_000);
+
+    unsafe {
+        match prev_w {
+            None => std::env::remove_var(W_KEY),
+            Some(v) => std::env::set_var(W_KEY, v),
+        }
+        match prev_vf {
+            None => std::env::remove_var(VF_KEY),
+            Some(v) => std::env::set_var(VF_KEY, v),
+        }
+        match prev_rc_p {
+            None => std::env::remove_var(RC_P_KEY),
+            Some(v) => std::env::set_var(RC_P_KEY, v),
+        }
+        match prev_rc_ms {
+            None => std::env::remove_var(RC_MS_KEY),
+            Some(v) => std::env::set_var(RC_MS_KEY, v),
         }
     }
 }

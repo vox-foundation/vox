@@ -49,7 +49,7 @@ impl InferenceEngine {
             );
         }
 
-        let meta_raw = std::fs::read_to_string(&meta_path)?;
+        let meta_raw = crate::mens::bounded_fs::read_utf8_path_capped(&meta_path)?;
         let meta: crate::mens::tensor::candle_qlora_merge::QloraAdapterMetaV2 =
             serde_json::from_str(&meta_raw)?;
 
@@ -118,7 +118,7 @@ impl InferenceEngine {
         // For now, we'll try to find the layout or assume a default.
         let config_path = model_dir.join("config.json");
         let layout = if config_path.is_file() {
-            let s = std::fs::read_to_string(&config_path)?;
+            let s = crate::mens::bounded_fs::read_utf8_path_capped(&config_path)?;
             crate::mens::tensor::hf_load::HfTransformerLayout::from_config_json_str(&s)?
         } else {
             // Fallback to a common layout if config.json is missing?

@@ -8,6 +8,8 @@ use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use std::path::{Path, PathBuf};
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// System prompt preamble embedded into every generation request.
 const SYSTEM_PREAMBLE: &str = "You are an expert Vox language programmer. Vox is a full-stack AI-native programming \
      language that compiles to Rust/WASM. Generate clean, idiomatic Vox code. \
@@ -21,7 +23,7 @@ fn collect_schema_context() -> String {
         .filter(|p| p.exists());
 
     if let Some(path) = schema_file
-        && let Ok(content) = std::fs::read_to_string(&path)
+        && let Ok(content) = read_utf8_path_capped(&path)
     {
         return format!(
             "\n\n# Project Schema (schema.vox):\n```vox\n{}\n```",
@@ -68,7 +70,7 @@ fn validate_vox(source: &str) -> Result<()> {
 
 /// Validate against a JSON schema file (requires `output_mode` + `schema` path).
 fn validate_json_schema(source: &str, schema_path: &Path) -> Result<()> {
-    let schema_str = std::fs::read_to_string(schema_path)
+    let schema_str = read_utf8_path_capped(schema_path)
         .with_context(|| format!("Failed to read schema: {}", schema_path.display()))?;
     let schema: serde_json::Value =
         serde_json::from_str(&schema_str).context("Schema file is not valid JSON")?;

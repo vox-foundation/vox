@@ -1,0 +1,42 @@
+schema_version: 1
+board_id: scientia-social-publishing-2026
+description: >
+  Template for generating the WSx-Tyyy execution board for Scientia social publishing.
+id_format: "WS{workstream}-T{index:03d}"
+workstreams:
+  - ws: 1
+    name: discovery-hardening-policy-capture
+    task_count: 18
+  - ws: 2
+    name: scientia-package-merge-compat-shim
+    task_count: 24
+  - ws: 3
+    name: core-schema-model-evolution
+    task_count: 20
+  - ws: 4
+    name: db-migrations-crud-services
+    task_count: 20
+  - ws: 5
+    name: reddit-adapter-end-to-end
+    task_count: 24
+  - ws: 6
+    name: hacker-news-manual-assist
+    task_count: 14
+  - ws: 7
+    name: youtube-upload-social-derivation
+    task_count: 30
+  - ws: 8
+    name: cli-mcp-api-surfaces-contracts
+    task_count: 18
+  - ws: 9
+    name: secrets-auth-storage-unification
+    task_count: 16
+  - ws: 10
+    name: dependency-build-governance
+    task_count: 10
+  - ws: 11
+    name: tests-fixtures-chaos-rate-limits
+    task_count: 14
+  - ws: 12
+    name: docs-runbooks-ssot-drift-controls
+    task_count: 8

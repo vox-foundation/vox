@@ -62,7 +62,7 @@ pub struct MixConfigSchema {
 impl MixConfigSchema {
     /// Read and validate a mix YAML file from disk.
     pub fn load(path: &Path) -> anyhow::Result<Self> {
-        let raw = std::fs::read_to_string(path)
+        let raw = crate::bounded_fs::read_utf8_path_capped(path)
             .with_context(|| format!("read mix config {}", path.display()))?;
         let cfg: Self = serde_yaml::from_str(&raw)
             .with_context(|| format!("parse mix YAML {}", path.display()))?;

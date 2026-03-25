@@ -53,7 +53,7 @@ pub async fn extract_arca_pairs(
                     rows.push(ReplayRow {
                         prompt: format!("Process A2A {} message from {}", msg_type, sender),
                         response: payload.clone(),
-                        category: msg_type,
+                        category: msg_type.clone(),
                         record_type: "a2a_trace".to_string(),
                         chatml: false,
                         repository_id: "unknown".to_string(), // A2A table needs repository_id column in V33+
@@ -90,12 +90,13 @@ pub async fn extract_arca_pairs(
                 let payload = row.get::<String>(1).unwrap_or_default();
 
                 if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&payload) {
-                    // Ensure event type is captured in json if missing
-                    if !json.as_object().unwrap().contains_key("type") {
-                        json.as_object_mut().unwrap().insert(
-                            "type".to_string(),
-                            serde_json::Value::String(event_type.clone()),
-                        );
+                    if json.get("type").is_none() {
+                        if let Some(m) = json.as_object_mut() {
+                            m.insert(
+                                "type".to_string(),
+                                serde_json::Value::String(event_type.clone()),
+                            );
+                        }
                     }
 
                     if let Some(session_id) = json.get("session_id").and_then(|v| v.as_str()) {
@@ -143,6 +144,10 @@ pub async fn extract_arca_pairs(
                                         record_type: "llm_turn".to_string(),
                                         chatml: false,
                                         repository_id: repo_id.to_string(),
+                                        difficulty: Some(crate::training::construct_difficulty(
+                                            prompt,
+                                            "llm_turn",
+                                        )),
                                     });
                                 }
                             }

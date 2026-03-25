@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
+use crate::bounded_fs::read_utf8_path_capped;
+
 /// Primary training filename inside a data directory.
 pub const PRIMARY_TRAIN_FILE: &str = "train.jsonl";
 /// Fallback corpus file from extract/validate pipelines.
@@ -33,8 +35,8 @@ pub struct ResolvedTrainInput {
     pub sample_count: Option<usize>,
 }
 
-fn count_nonempty_lines(path: &Path) -> std::io::Result<usize> {
-    let data = std::fs::read_to_string(path)?;
+fn count_nonempty_lines(path: &Path) -> anyhow::Result<usize> {
+    let data = read_utf8_path_capped(path)?;
     Ok(data.lines().filter(|l| !l.trim().is_empty()).count())
 }
 
@@ -50,7 +52,7 @@ pub fn load_contract(workspace: &Path) -> anyhow::Result<Option<PathBuf>> {
     if !p.is_file() {
         return Ok(None);
     }
-    let raw = std::fs::read_to_string(&p)
+    let raw = read_utf8_path_capped(&p)
         .with_context(|| format!("read training contract {}", p.display()))?;
     let c: TrainContract = serde_yaml::from_str(&raw)
         .with_context(|| format!("parse YAML contract {}", p.display()))?;

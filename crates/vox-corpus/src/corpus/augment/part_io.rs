@@ -63,7 +63,7 @@ pub fn augment_corpus_file(
     config: &AugmentConfig,
     seed: u64,
 ) -> anyhow::Result<usize> {
-    let content = std::fs::read_to_string(path)
+    let content = crate::bounded_fs::read_utf8_path_capped(path)
         .with_context(|| format!("augment_corpus_file: read {}", path.display()))?;
     let lines: Vec<String> = content
         .lines()

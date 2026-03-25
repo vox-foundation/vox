@@ -4,6 +4,8 @@ mod fix_pipeline;
 use std::path::PathBuf;
 
 use anyhow::Context;
+
+use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
 use owo_colors::OwoColorize;
 use vox_toestub::rules::{Language, Severity};
 use vox_toestub::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
@@ -65,7 +67,7 @@ pub async fn run(
     if import_suppressions {
         let db = Codex::connect_default().await?;
         let toml_path = path.join("toestub.toml");
-        let content = tokio::fs::read_to_string(&toml_path)
+        let content = read_utf8_path_capped_async(&toml_path)
             .await
             .with_context(|| format!("Failed to read {}", toml_path.display()))?;
         let parsed: toml::Value = toml::from_str(&content)?;
@@ -105,7 +107,7 @@ pub async fn run(
     }
 
     if let Some(ingest_path) = ingest_findings {
-        let content = std::fs::read_to_string(ingest_path)
+        let content = read_utf8_path_capped(ingest_path)
             .with_context(|| format!("Failed to read {}", ingest_path.display()))?;
         let findings: Vec<Finding> = serde_json::from_str(&content)?;
         let ingest_path = ingest_path.to_path_buf();
@@ -295,7 +297,7 @@ pub async fn run(
                 );
             }
             "warnings" => {
-                let content = tokio::fs::read_to_string(budget_path)
+                let content = read_utf8_path_capped_async(budget_path)
                     .await
                     .with_context(|| format!("Failed to read budget {}", budget_path.display()))?;
                 let budget_arr: Vec<serde_json::Value> = serde_json::from_str(&content)?;
@@ -343,7 +345,7 @@ pub async fn run(
             || baseline_arg.ends_with(".json")
         {
             let path = PathBuf::from(baseline_arg);
-            let s = tokio::fs::read_to_string(&path).await?;
+            let s = read_utf8_path_capped_async(&path).await?;
             cache::baseline_from_json(&s)?
         } else {
             let db = db_opt

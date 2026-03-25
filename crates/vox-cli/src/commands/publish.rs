@@ -12,7 +12,7 @@ pub async fn run(registry_url: Option<&str>) -> Result<()> {
 
     // Read auth token
     let token_path = dirs_path().join("auth_token");
-    let token = std::fs::read_to_string(&token_path)
+    let token = crate::commands::ci::bounded_read::read_utf8_path_capped(&token_path)
         .with_context(|| "Not logged in. Run `vox login` first.")?;
     let token = token.trim();
 

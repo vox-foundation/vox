@@ -62,7 +62,7 @@ pub(crate) async fn build_system_prompt(state: &ServerState) -> String {
 
     for rel in ["VOX.md", ".vox/MEMORY.md"] {
         let p = ws_root.join(rel);
-        if let Ok(content) = std::fs::read_to_string(&p) {
+        if let Ok(content) = crate::bounded_fs::read_utf8_path_capped(&p) {
             prompt.push_str("## ");
             prompt.push_str(rel);
             prompt.push_str("\n\n");

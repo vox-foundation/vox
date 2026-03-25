@@ -2,6 +2,8 @@
 
 use tokio::process::Command;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+
 use super::super::common::{self, AuthRegistriesOnly, Check};
 use super::super::provider_policy::{ProviderPolicyEngine, ProviderSupportLevel};
 
@@ -159,7 +161,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let engine = ProviderPolicyEngine::new();
     let auth_path = common::vox_dot_dir().join("auth.json");
     if tokio::fs::try_exists(&auth_path).await.unwrap_or(false) {
-        if let Ok(content) = tokio::fs::read_to_string(&auth_path).await {
+        if let Ok(content) = read_utf8_path_capped_async(&auth_path).await {
             if let Ok(config) = serde_json::from_str::<AuthRegistriesOnly>(&content) {
                 for (reg, _) in config.registries {
                     let policy = engine.policy_for(&reg);

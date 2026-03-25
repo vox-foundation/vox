@@ -4,6 +4,11 @@ version = "0.8.0"
 edition = "2024"
 description = "Unified news syndication and publishing for vox"
 
+[features]
+default = []
+scientia-reddit = []
+scientia-youtube = []
+
 [dependencies]
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -15,10 +20,13 @@ tracing = { workspace = true }
 octocrab = "0.38"
 quick-xml = { version = "0.31", features = ["serialize"] }
 reqwest = { workspace = true }
+mime_guess = "2.0"
 sha3 = { workspace = true }
 regex = { workspace = true }
 pulldown-cmark = "0.13"
+vox-scaling-policy = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+tempfile = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json"] }

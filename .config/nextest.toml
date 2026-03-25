@@ -1,12 +1,9 @@
 [profile.default]
 retries = 2
-# Hard cap per test (default nextest global-timeout is effectively unbounded).
-global-timeout = "10m"
+# Per-test hang detection (this cargo-nextest build does not accept profile-level `global-timeout`).
 slow-timeout = { period = "60s", terminate-after = 3 }
 fail-fast = false
 
 [profile.ci]
 retries = 3
-# CI runners can be slower; still bound hangs.
-global-timeout = "15m"
 slow-timeout = { period = "120s", terminate-after = 2 }

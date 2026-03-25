@@ -201,7 +201,20 @@ Reply with ONLY compact JSON (no markdown) matching this shape:\n\
         complexity: 1,
         ..Default::default()
     };
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => {
+            tracing::warn!(target: "vox_mcp_oratio", stage = "llm_pass", "mcp_chat_model_override: {e}");
+            return json!({
+                "applied": false,
+                "reason": "model_pref_lock_failed",
+                "error": format!("{e}"),
+            });
+        }
+    };
     let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
         state,
         &user_prompt,

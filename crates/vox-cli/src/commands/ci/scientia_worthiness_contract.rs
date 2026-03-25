@@ -5,6 +5,8 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 use serde_json::Value as JsonValue;
 
+use super::bounded_read::read_utf8_path_capped;
+
 const SCHEMA_REL: &str = "contracts/scientia/publication-worthiness.schema.json";
 const DATA_REL: &str = "contracts/scientia/publication-worthiness.default.yaml";
 
@@ -12,9 +14,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
     let schema_path = repo_root.join(SCHEMA_REL);
     let data_path = repo_root.join(DATA_REL);
 
-    let schema_src = std::fs::read_to_string(&schema_path)
+    let schema_src = read_utf8_path_capped(&schema_path)
         .with_context(|| format!("read {}", schema_path.display()))?;
-    let yaml_src = std::fs::read_to_string(&data_path)
+    let yaml_src = read_utf8_path_capped(&data_path)
         .with_context(|| format!("read {}", data_path.display()))?;
 
     let schema_val: JsonValue = serde_json::from_str(&schema_src)

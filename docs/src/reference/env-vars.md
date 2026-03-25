@@ -49,6 +49,8 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
 | `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mens control-plane requests. |
 | `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](mens.md)). |
+| `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
+| `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) to reduce expensive training placements under budget pressure. |
 | `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
 | `VOX_NEWS_SITE_BASE_URL` | Public site base URL for RSS links (overrides `[orchestrator.news].site_base_url`). |
@@ -56,6 +58,17 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_NEWS_SCAN_RECURSIVE` | `0`/`1`: whether `NewsService` walks `news_dir` recursively (default `1`). |
 | `VOX_NEWS_TWITTER_TEXT_CHUNK_MAX` | Optional integer override for tweet chunk length (defaults to publisher contract value). |
 | `VOX_NEWS_TWITTER_TRUNCATION_SUFFIX` | Optional suffix used when shortening non-thread tweets (default `...`). |
+| `VOX_SOCIAL_REDDIT_CLIENT_ID` | Reddit OAuth client id for scientia/news syndication submission paths. |
+| `VOX_SOCIAL_REDDIT_CLIENT_SECRET` | Reddit OAuth client secret for token refresh on publish. |
+| `VOX_SOCIAL_REDDIT_REFRESH_TOKEN` | Reddit refresh token used to mint short-lived access tokens for `/api/submit`. |
+| `VOX_SOCIAL_REDDIT_USER_AGENT` | Required descriptive Reddit User-Agent (`platform:app:version (by /u/name)`). |
+| `VOX_SOCIAL_YOUTUBE_CLIENT_ID` | YouTube OAuth client id for channel upload automation. |
+| `VOX_SOCIAL_YOUTUBE_CLIENT_SECRET` | YouTube OAuth client secret for channel upload automation. |
+| `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN` | YouTube refresh token for user-channel upload scopes. |
+| `VOX_SOCIAL_HN_MODE` | Hacker News publish mode (`manual_assist` only; official HN API is read-only). |
+| `VOX_SOCIAL_WORTHINESS_ENFORCE` | `0`/`1`: enforce worthiness floor before live social fan-out in orchestrator news service. |
+| `VOX_SOCIAL_WORTHINESS_SCORE_MIN` | Optional minimum worthiness score floor for live fan-out (default policy fallback if unset). |
+| `VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS` | Optional CSV `channel=floor` map (e.g., `reddit=0.82,hacker_news=0.86`) merged into runtime channel policy. |
 
 Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates/vox-socrates-policy/src/lib.rs); optional TOML overrides live under `[orchestrator]` as `socrates_policy` (see `OrchestratorConfig`).
 
@@ -64,6 +77,8 @@ Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates
 | Variable | Role |
 |----------|------|
 | `VOX_CANDLE_DEVICE` | Forces Candle device (e.g. `cpu`); see Mens training SSOT. |
+| `VOX_VRAM_OVERRIDE_GB` | Overrides VRAM autodetect for preset hints in `vram_autodetect` (useful in CI/headless hosts). |
+| `VOX_MENS_EXPERIMENTAL_OPTIMIZER` | Guard flag required when `optimizer_experiment_mode` is set to a non-`off` value. |
 | `VOX_INFERENCE_PROFILE` | `desktop_ollama` (default), `cloud_openai_compatible`, `mobile_litert`, `mobile_coreml`, `lan_gateway`; gates **vox-mcp** local Ollama + Ollama fallback to `desktop_ollama` / `lan_gateway` only; see [`vox_config::inference`](../../../crates/vox-config/src/inference.rs) and [mobile-edge-ai.md](mobile-edge-ai.md). |
 | `VOX_AUTO_MODEL_STRATEGY` | OpenRouter strategy for auto model ids: `provider_auto` or `preferred_model`; see [`vox_config::routing_policy`](../../../crates/vox-config/src/routing_policy.rs). |
 | `VOX_AUTO_ROUTING_PRIORITY` | Weighted MCP auto-routing priorities (`efficiency,precision,latency,availability,balance,mobile`) as `k=v` CSV. |
@@ -121,3 +136,14 @@ Full table: [mens SSOT](mens.md). Common entries:
 - [Deployment compose SSOT](deployment-compose.md) — Compose profiles and Coolify/GitLab notes.
 - [CI runner contract](../ci/runner-contract.md) — self-hosted labels and CUDA workflow notes.
 - [ADR 005 / Socrates](../adr/) — policy and orchestration gates (index in repo).
+- [Clavis SSOT](clavis-ssot.md) — canonical managed secret env names and secret-resolution precedence.
+
+## Social credentials precedence
+
+For scientia/news social distribution credentials, resolve in this order:
+
+1. `VOX_SOCIAL_*` environment variables (preferred for CI/production injection),
+2. OS keyring (`vox_db::secrets`) when explicitly configured by operator tooling,
+3. local `~/.vox/auth.json` fallback for developer-only sessions.
+
+Do not persist raw social API credentials in publication metadata or VoxDb domain tables.

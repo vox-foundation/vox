@@ -2,6 +2,7 @@
 //! [`RepositoryContext::repository_id`], and probe stack capabilities for MCP/orchestrator wiring.
 
 mod agent_scope;
+mod bounded_fs;
 mod capabilities;
 mod discover;
 mod error;

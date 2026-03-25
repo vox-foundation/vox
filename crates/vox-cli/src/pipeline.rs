@@ -14,6 +14,8 @@ use vox_compiler::hir::HirModule;
 use vox_compiler::typeck::Diagnostic;
 use vox_compiler::typeck::diagnostics::Severity;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 fn line_col_for_byte_offset(source: &str, byte_idx: usize) -> (usize, usize) {
     let (l0, c0) = vox_compiler::ast::span::byte_offset_to_line_col_zero_based(source, byte_idx);
     (l0 as usize + 1, c0 as usize + 1)
@@ -70,7 +72,7 @@ impl FrontendResult {
 /// Type/HIR diagnostics are stored in [`FrontendResult::diagnostics`]; it is
 /// the caller's responsibility to decide whether to treat them as fatal.
 pub async fn run_frontend(file: &Path, json: bool) -> Result<FrontendResult> {
-    let source = std::fs::read_to_string(file)
+    let source = read_utf8_path_capped(file)
         .with_context(|| format!("Failed to read source file: {}", file.display()))?;
 
     run_frontend_str(&source, file, json)

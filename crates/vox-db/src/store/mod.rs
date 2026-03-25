@@ -16,12 +16,13 @@ pub use types::{
     CommandFrequencyEntry, ComponentEntry, CrateSampleRow, EmbeddingEntry,
     EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry,
     LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
-    PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationManifestParams, PublicationManifestRow,
-    PublishArtifactParams, QuestionRow, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
-    SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow,
-    SessionTurnEntry, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry,
-    SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair,
-    TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
+    PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationManifestParams,
+    PublicationManifestRow, PublicationMediaAssetParams, PublicationMediaAssetRow,
+    PublicationStatusEventRow, PublishArtifactParams, QuestionRow, RegisterAgentParams,
+    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
+    SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
+    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
+    TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 
 pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};

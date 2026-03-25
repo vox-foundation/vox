@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::cli_actions::IslandCacheAction;
 use crate::island_paths::island_src_dir;
 use crate::v0::IslandCache;
@@ -37,7 +38,7 @@ pub(super) fn list_islands(root: &Path, json: bool) -> Result<()> {
     // Merge Vox.toml [islands] (adds any registered names not found in src/)
     let vox_toml = root.join("Vox.toml");
     if vox_toml.exists() {
-        let content = std::fs::read_to_string(&vox_toml).context("Failed to read Vox.toml")?;
+        let content = read_utf8_path_capped(&vox_toml).context("Failed to read Vox.toml")?;
         let mut in_section = false;
         for line in content.lines() {
             let trimmed = line.trim();

@@ -42,8 +42,19 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
 
     let record = vox_populi::populi_registration_record_for_process();
     match populi_http_join_best_effort(record, "vox-mcp").await {
-        PopuliHttpJoinSpawnOutcome::Skipped => {}
+        PopuliHttpJoinSpawnOutcome::Skipped => {
+            tracing::debug!(
+                target: "vox.mens",
+                "populi HTTP join skipped (disabled or no control base)"
+            );
+        }
         PopuliHttpJoinSpawnOutcome::Joined { base, node_id } => {
+            tracing::info!(
+                target: "vox.mens",
+                control_base = %base,
+                node_id = %node_id,
+                "populi HTTP join established (vox-mcp)"
+            );
             vox_db::populi_registry_telemetry::record_populi_http_join_opt(
                 &state.repository.repository_id,
                 true,
@@ -54,6 +65,13 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
             .await;
         }
         PopuliHttpJoinSpawnOutcome::Failed { base, node_id, err } => {
+            tracing::warn!(
+                target: "vox.mens",
+                control_base = %base,
+                node_id = %node_id,
+                error = %err,
+                "populi HTTP join failed (vox-mcp)"
+            );
             vox_db::populi_registry_telemetry::record_populi_http_join_opt(
                 &state.repository.repository_id,
                 false,

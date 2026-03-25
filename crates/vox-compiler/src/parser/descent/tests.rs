@@ -1,5 +1,4 @@
 use super::*;
-use crate::ast::decl::*;
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;

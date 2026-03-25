@@ -3,6 +3,8 @@
 //! Covers: db_schema, db_relationships, db_data_flow, db_sample_data,
 //! db_explain_query, db_suggest_query, and the shared parse_vox_module helper.
 
+use std::path::Path;
+
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
@@ -12,8 +14,8 @@ use crate::server::ServerState;
 
 /// Parse a .vox file and return its Module AST.
 pub(crate) fn parse_vox_module(path: &str) -> Result<vox_compiler::ast::decl::Module, String> {
-    let source =
-        std::fs::read_to_string(path).map_err(|e| format!("Cannot read file '{}': {}", path, e))?;
+    let source = crate::bounded_fs::read_utf8_path_capped(Path::new(path))
+        .map_err(|e| format!("Cannot read file '{}': {}", path, e))?;
     let tokens = vox_compiler::lexer::cursor::lex(&source);
     let module = vox_compiler::parser::parse(tokens).map_err(|errs| {
         let msgs: Vec<String> = errs.iter().map(|e| format!("{:?}", e)).collect();
@@ -216,7 +218,13 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         ..Default::default()
     };
 
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
     let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
         state,
         &prompt,

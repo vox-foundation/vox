@@ -6,7 +6,10 @@ pub use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
+    use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
     #[test]
     fn dispatch_response_roundtrip_done() {
@@ -30,7 +33,7 @@ mod tests {
 
         let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let schema_path = manifest.join("../../contracts/dei/rpc-methods.schema.json");
-        let schema_src = std::fs::read_to_string(&schema_path)
+        let schema_src = read_utf8_path_capped(Path::new(&schema_path))
             .unwrap_or_else(|e| panic!("read {}: {e}", schema_path.display()));
         let schema_val: serde_json::Value =
             serde_json::from_str(&schema_src).expect("parse DeI RPC schema");
@@ -55,7 +58,7 @@ mod tests {
         let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let schema_path = manifest.join("../../contracts/dei/rpc-methods.schema.json");
         let schema_val: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(&schema_path).expect("read DeI RPC schema"),
+            &read_utf8_path_capped(Path::new(&schema_path)).expect("read DeI RPC schema"),
         )
         .expect("parse DeI RPC schema");
         let methods = schema_val["properties"]["method"]["enum"]

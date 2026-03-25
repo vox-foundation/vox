@@ -82,7 +82,7 @@ impl ModelRegistry {
         let model_config = if let Some(mut config_path) = vox_db::paths::config_dir() {
             config_path.push("models.toml");
             if config_path.exists() {
-                if let Ok(contents) = std::fs::read_to_string(&config_path) {
+                if let Ok(contents) = crate::bounded_fs::read_utf8_path_capped(&config_path) {
                     toml::from_str(&contents).unwrap_or_else(|_| ModelConfig::default())
                 } else {
                     ModelConfig::default()
@@ -111,6 +111,9 @@ impl ModelRegistry {
         for model in model_config.models {
             registry.register(model);
         }
+        // Live catalog merge hits the network and shifts `best_for` rankings; keep unit tests on the
+        // static TOML/default model list unless integration coverage opts in elsewhere.
+        #[cfg(not(test))]
         registry.maybe_refresh_openrouter_models();
 
         registry

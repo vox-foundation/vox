@@ -62,7 +62,11 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
 
     let question = prompt_canonical::canonicalize_simple(&params.question);
     let q_router = orch.qa_router_handle();
-    let corr_id = q_router.write().unwrap().ask(
+    let mut q_guard = match crate::sync_poison::poison_rw_write(q_router.write(), "qa router") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    let corr_id = q_guard.ask(
         AgentId(params.from_agent),
         AgentId(params.to_agent),
         question.clone(),
@@ -91,7 +95,11 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
     let answer = params.answer.clone();
     let corr_id = vox_orchestrator::types::CorrelationId(params.correlation_id);
     let q_router = orch.qa_router_handle();
-    match q_router.write().unwrap().answer(corr_id, &answer) {
+    let mut q_guard = match crate::sync_poison::poison_rw_write(q_router.write(), "qa router") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    match q_guard.answer(corr_id, &answer) {
         Some(original_asker) => {
             let answerer = AgentId(params.from_agent);
             let msg = vox_orchestrator::types::AgentMessage::Answer {
@@ -121,10 +129,11 @@ pub async fn pending_questions(state: &ServerState, params: PendingQuestionsPara
     let orch = &state.orchestrator;
 
     let q_router = orch.qa_router_handle();
-    let questions = q_router
-        .read()
-        .unwrap()
-        .pending_questions(AgentId(params.agent_id));
+    let read_guard = match crate::sync_poison::poison_rw_read(q_router.read(), "qa router") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    let questions = read_guard.pending_questions(AgentId(params.agent_id));
 
     let result: Vec<PendingQuestionResponse> = questions
         .into_iter()

@@ -232,6 +232,8 @@ fn checksum_line(sha256_hex: &str, filename: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
     use super::{
         artifact_filename, bootstrap_executable_name, checksum_line, executable_name,
         validate_release_target,
@@ -312,9 +314,9 @@ mod tests {
         use std::path::PathBuf;
 
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let sh = std::fs::read_to_string(repo_root.join("scripts/install.sh"))
+        let sh = read_utf8_path_capped(&repo_root.join("scripts/install.sh"))
             .expect("read scripts/install.sh");
-        let ps1 = std::fs::read_to_string(repo_root.join("scripts/install.ps1"))
+        let ps1 = read_utf8_path_capped(&repo_root.join("scripts/install.ps1"))
             .expect("read scripts/install.ps1");
 
         for triple in super::SUPPORTED_RELEASE_TARGETS {
@@ -338,7 +340,7 @@ mod tests {
 
         let wf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../.github/workflows/release-binaries.yml");
-        let yml = std::fs::read_to_string(&wf).expect("read release-binaries.yml");
+        let yml = read_utf8_path_capped(&wf).expect("read release-binaries.yml");
 
         let mut from_workflow = BTreeSet::new();
         for line in yml.lines() {

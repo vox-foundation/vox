@@ -4,6 +4,8 @@ use std::io::{self, Write};
 
 use tokio::process::Command;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+
 /// Run the `vox shell` REPL.
 pub async fn run_shell() -> anyhow::Result<()> {
     println!("╔══════════════════════════════════════════════════╗");
@@ -55,7 +57,7 @@ pub async fn run_shell() -> anyhow::Result<()> {
                     eprintln!("Usage: cat <file>");
                 } else {
                     let path = cwd.join(args[0]);
-                    match tokio::fs::read_to_string(&path).await {
+                    match read_utf8_path_capped_async(&path).await {
                         Ok(content) => print!("{content}"),
                         Err(e) => eprintln!("Error reading file: {e}"),
                     }

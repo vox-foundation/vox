@@ -237,7 +237,7 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
     // Re-read the generated JSONL and apply the typo/synonym/case augmentation
     // engine to produce 3× more training variants with natural language noise.
     if cfg.augment_after_generate {
-        let raw_lines: Vec<String> = std::fs::read_to_string(output_path)?
+        let raw_lines: Vec<String> = crate::bounded_fs::read_utf8_path_capped(output_path)?
             .lines()
             .map(String::from)
             .collect();

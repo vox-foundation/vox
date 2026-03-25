@@ -9,6 +9,22 @@ use vox_publisher::templates;
 use vox_publisher::types::UnifiedNewsItem;
 use vox_publisher::{Publisher, PublisherConfig};
 
+fn read_news_markdown_first(paths: &[PathBuf; 2]) -> Result<String, String> {
+    crate::bounded_fs::read_utf8_path_capped(&paths[0])
+        .or_else(|e1| {
+            crate::bounded_fs::read_utf8_path_capped(&paths[1]).map_err(|e2| {
+                format!(
+                    "Could not read {} ({}); alternate {} ({})",
+                    paths[0].display(),
+                    e1,
+                    paths[1].display(),
+                    e2
+                )
+            })
+        })
+        .map_err(|e| e.to_string())
+}
+
 fn news_content_paths(state: &ServerState, news_id: &str) -> [PathBuf; 2] {
     let root = PathBuf::from(&state.orchestrator_config.news.news_dir);
     [
@@ -130,7 +146,7 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
         .to_json();
     };
     let paths = news_content_paths(state, &params.news_id);
-    let content = match fs::read_to_string(&paths[0]).or_else(|_| fs::read_to_string(&paths[1])) {
+    let content = match read_news_markdown_first(&paths) {
         Ok(c) => c,
         Err(e) => {
             return ToolResult::<String>::err(format!(
@@ -233,7 +249,7 @@ pub async fn vox_news_approval_status(
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
     let paths = news_content_paths(state, &params.news_id);
-    let content = match fs::read_to_string(&paths[0]).or_else(|_| fs::read_to_string(&paths[1])) {
+    let content = match read_news_markdown_first(&paths) {
         Ok(c) => c,
         Err(e) => {
             return ToolResult::<String>::err(format!(

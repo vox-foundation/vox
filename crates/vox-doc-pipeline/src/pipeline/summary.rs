@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use super::types::Page;
+use anyhow::Context;
 
 pub(crate) const SECTION_ORDER: &[&str] = &[
     "Getting Started",
@@ -28,43 +29,49 @@ pub(crate) fn walk_dir(
     sections: &mut BTreeMap<String, Vec<Page>>,
     root_pages: &mut Vec<Page>,
     all_pages: &mut Vec<Page>,
-) {
+) -> anyhow::Result<()> {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                walk_dir(root, &path, sections, root_pages, all_pages);
+                walk_dir(root, &path, sections, root_pages, all_pages)?;
             } else if path.extension().map(|e| e == "md").unwrap_or(false) {
                 let rel_path = path
                     .strip_prefix(root)
-                    .unwrap()
+                    .with_context(|| {
+                        format!(
+                            "doc path {} is not under root {}",
+                            path.display(),
+                            root.display()
+                        )
+                    })?
                     .to_str()
-                    .unwrap()
+                    .with_context(|| format!("non-UTF-8 doc path: {}", path.display()))?
                     .replace('\\', "/");
                 if rel_path == "SUMMARY.md" {
                     continue;
                 }
 
-                let content = fs::read_to_string(&path).unwrap_or_default();
+                let content = super::bounded_fs::read_utf8_path_capped(&path)
+                    .unwrap_or_else(|_| String::new());
                 let (title, category, sort_order, description, last_updated) =
-                    parse_frontmatter(&content, &path);
+                    parse_frontmatter(&content, &path)?;
 
                 let page = Page {
-                    title,
+                    title: title.clone(),
                     path: rel_path.clone(),
                     sort_order,
                     description,
                     last_updated,
                 };
-                all_pages.push(page);
-
                 let page2 = Page {
-                    title: all_pages.last().unwrap().title.clone(),
+                    title,
                     path: rel_path,
-                    sort_order: all_pages.last().unwrap().sort_order,
+                    sort_order,
                     description: None,
                     last_updated: None,
                 };
+                all_pages.push(page);
                 if let Some(cat) = category {
                     sections.entry(cat).or_default().push(page2);
                 } else {
@@ -73,17 +80,18 @@ pub(crate) fn walk_dir(
             }
         }
     }
+    Ok(())
 }
 
 fn parse_frontmatter(
     content: &str,
     path: &Path,
-) -> (String, Option<String>, i32, Option<String>, Option<String>) {
+) -> anyhow::Result<(String, Option<String>, i32, Option<String>, Option<String>)> {
     let mut title = path
         .file_stem()
-        .unwrap()
+        .with_context(|| format!("path has no file stem: {}", path.display()))?
         .to_str()
-        .unwrap()
+        .with_context(|| format!("non-UTF-8 file stem: {}", path.display()))?
         .replace(['-', '_'], " ");
     let mut category = None;
     let mut sort_order = 100i32;
@@ -140,7 +148,7 @@ fn parse_frontmatter(
         title = title_case(&title);
     }
 
-    (title, category, sort_order, description, last_updated)
+    Ok((title, category, sort_order, description, last_updated))
 }
 
 fn title_case(s: &str) -> String {

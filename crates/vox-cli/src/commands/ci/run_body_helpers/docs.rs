@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::LazyLock;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
 use crate::commands::ci::constants::{
@@ -40,7 +41,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
             doc_inv.display()
         ));
     }
-    let raw = fs::read_to_string(&doc_inv)?;
+    let raw = read_utf8_path_capped(&doc_inv)?;
     let v: serde_json::Value = serde_json::from_str(&raw)?;
     let sv = v
         .get("schema_version")
@@ -51,7 +52,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
     }
 
     let inv = root.join("docs/src/architecture/orphan-surface-inventory.md");
-    let inv_text = fs::read_to_string(&inv)?;
+    let inv_text = read_utf8_path_capped(&inv)?;
     if !inv_text.contains("workspace-crates-start") {
         return Err(anyhow!(
             "orphan inventory: missing workspace-crates-start marker"
@@ -106,7 +107,7 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
             {
                 continue;
             }
-            let text = fs::read_to_string(&p)?;
+            let text = read_utf8_path_capped(&p)?;
             for b in WORKFLOW_BANNED {
                 if text.contains(b) {
                     return Err(anyhow!(
@@ -128,7 +129,7 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
             if ext != Some("md") && ext != Some("yml") && ext != Some("yaml") {
                 continue;
             }
-            let text = fs::read_to_string(&p)?;
+            let text = read_utf8_path_capped(&p)?;
             for b in DOC_BANNED {
                 if text.contains(b) {
                     return Err(anyhow!(
@@ -191,7 +192,7 @@ fn parse_workspace_crate_block(md: &str) -> std::collections::HashSet<String> {
 }
 
 fn read_package_name(toml_path: &Path) -> Result<String> {
-    let text = fs::read_to_string(toml_path)?;
+    let text = read_utf8_path_capped(toml_path)?;
     let re = regex::Regex::new(r#"^name\s*=\s*"([^"]+)""#)?;
     for line in text.lines() {
         let t = line.trim();
@@ -207,7 +208,7 @@ fn read_package_name(toml_path: &Path) -> Result<String> {
 
 fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
     let policy_path = root.join("contracts/db/baseline-version-policy.yaml");
-    let raw = fs::read_to_string(&policy_path)
+    let raw = read_utf8_path_capped(&policy_path)
         .with_context(|| format!("read {}", policy_path.display()))?;
     let v: serde_yaml::Value =
         serde_yaml::from_str(&raw).with_context(|| format!("parse {}", policy_path.display()))?;
@@ -222,7 +223,7 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
             )
         })?;
     let manifest_path = root.join("crates/vox-db/src/schema/manifest.rs");
-    let man = fs::read_to_string(&manifest_path)
+    let man = read_utf8_path_capped(&manifest_path)
         .with_context(|| format!("read {}", manifest_path.display()))?;
     let re = regex::Regex::new(r"pub const BASELINE_VERSION:\s*i64\s*=\s*(\d+)")
         .expect("BASELINE_VERSION parse regex");
@@ -266,7 +267,7 @@ pub(crate) fn check_codex_ssot(root: &Path) -> Result<()> {
         }
     }
     let m = root.join("crates/vox-db/src/schema/manifest.rs");
-    let manifest = fs::read_to_string(&m).with_context(|| format!("read {}", m.display()))?;
+    let manifest = read_utf8_path_capped(&m).with_context(|| format!("read {}", m.display()))?;
     for needle in MANIFEST_SNIPPETS {
         if !manifest.contains(needle) {
             return Err(anyhow!("{} must contain substring: {needle}", m.display()));
@@ -274,7 +275,7 @@ pub(crate) fn check_codex_ssot(root: &Path) -> Result<()> {
     }
     verify_baseline_policy_alignment(root)?;
     let o = root.join("contracts/codex-api.openapi.yaml");
-    let o_text = fs::read_to_string(&o)?;
+    let o_text = read_utf8_path_capped(&o)?;
     for needle in OPENAPI_SUBSTRINGS {
         if !o_text.contains(needle) {
             return Err(anyhow!("openapi guard failed: missing {needle}"));

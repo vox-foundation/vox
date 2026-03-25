@@ -1,0 +1,17 @@
+{
+  "tags": [],
+  "syndication": {
+    "twitter": {
+      "thread": true
+    },
+    "rss": true,
+    "dry_run": true,
+    "distribution_policy": {
+      "channel_policy": {
+        "twitter": {
+          "enabled": false
+        }
+      }
+    }
+  }
+}

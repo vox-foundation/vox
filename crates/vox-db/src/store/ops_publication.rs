@@ -241,6 +241,83 @@ impl VoxDb {
         Ok(())
     }
 
+    /// Insert or update one publication media asset row.
+    pub async fn upsert_publication_media_asset(
+        &self,
+        params: PublicationMediaAssetParams<'_>,
+    ) -> Result<(), StoreError> {
+        let ts = now_ms();
+        self.conn
+            .execute(
+                "INSERT INTO publication_media_assets (
+                    publication_id, asset_ref, media_type, storage_uri, status, metadata_json, created_at_ms, updated_at_ms
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+                ON CONFLICT(publication_id, asset_ref) DO UPDATE SET
+                    media_type = excluded.media_type,
+                    storage_uri = excluded.storage_uri,
+                    status = excluded.status,
+                    metadata_json = excluded.metadata_json,
+                    updated_at_ms = excluded.updated_at_ms",
+                (
+                    params.publication_id.to_string(),
+                    params.asset_ref.to_string(),
+                    params.media_type.to_string(),
+                    params.storage_uri.map(std::string::ToString::to_string),
+                    params.status.to_string(),
+                    params.metadata_json.map(std::string::ToString::to_string),
+                    ts,
+                ),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// List media assets for one publication.
+    pub async fn list_publication_media_assets(
+        &self,
+        publication_id: &str,
+    ) -> Result<Vec<PublicationMediaAssetRow>, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT id, publication_id, asset_ref, media_type, storage_uri, status, metadata_json, created_at_ms, updated_at_ms
+                 FROM publication_media_assets
+                 WHERE publication_id = ?1
+                 ORDER BY id DESC",
+                (publication_id.to_string(),),
+            )
+            .await?;
+        rows.into_iter()
+            .map(|r| {
+                Ok(PublicationMediaAssetRow {
+                    id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                    publication_id: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                    asset_ref: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                    media_type: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                    storage_uri: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                    status: r.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                    metadata_json: r.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                    created_at_ms: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+                    updated_at_ms: r.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
+                })
+            })
+            .collect()
+    }
+
+    /// Delete a publication media asset by `publication_id + asset_ref`.
+    pub async fn delete_publication_media_asset(
+        &self,
+        publication_id: &str,
+        asset_ref: &str,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "DELETE FROM publication_media_assets WHERE publication_id = ?1 AND asset_ref = ?2",
+                (publication_id.to_string(), asset_ref.to_string()),
+            )
+            .await?;
+        Ok(())
+    }
+
     /// List scholarly submissions for one publication.
     pub async fn list_scholarly_submissions(
         &self,
@@ -265,6 +342,61 @@ impl VoxDb {
                     updated_at_ms: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
                     response_fingerprint: r.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
                     metadata_json: r.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
+                })
+            })
+            .collect()
+    }
+
+    /// List publication attempt rows for one publication (newest first: `ORDER BY id DESC`).
+    pub async fn list_publication_attempts(
+        &self,
+        publication_id: &str,
+    ) -> Result<Vec<PublicationAttemptRow>, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT id, publication_id, content_sha3_256, channel, attempted_at_ms, outcome_json
+                 FROM publication_attempts
+                 WHERE publication_id = ?1
+                 ORDER BY id DESC",
+                (publication_id.to_string(),),
+            )
+            .await?;
+        rows.into_iter()
+            .map(|r| {
+                Ok(PublicationAttemptRow {
+                    id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                    publication_id: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                    content_sha3_256: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                    channel: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                    attempted_at_ms: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                    outcome_json: r.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                })
+            })
+            .collect()
+    }
+
+    /// List immutable publication status events for one publication.
+    pub async fn list_publication_status_events(
+        &self,
+        publication_id: &str,
+    ) -> Result<Vec<PublicationStatusEventRow>, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT id, publication_id, status, detail_json, recorded_at_ms
+                 FROM publication_status_events
+                 WHERE publication_id = ?1
+                 ORDER BY id DESC",
+                (publication_id.to_string(),),
+            )
+            .await?;
+        rows.into_iter()
+            .map(|r| {
+                Ok(PublicationStatusEventRow {
+                    id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                    publication_id: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                    status: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                    detail_json: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                    recorded_at_ms: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
                 })
             })
             .collect()

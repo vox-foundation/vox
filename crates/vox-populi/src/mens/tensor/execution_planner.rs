@@ -253,7 +253,7 @@ mod tests {
 
     use crate::mens::tensor::finetune_contract::{
         AdapterSpec, AdapterTargetMask, ArtifactSpec, DataSpec, ExecSpec, FineTuneContract,
-        ModelSpec, QuantSpec,
+        ModelProvenanceSpec, ModelSpec, QuantSpec,
     };
     use crate::mens::tensor::training_config::{MensTokenizerMode, TrainingDeploymentTarget};
 
@@ -264,6 +264,12 @@ mod tests {
                 weight_shards: None,
                 config_json: None,
                 tokenizer_json: None,
+            },
+            provenance: ModelProvenanceSpec {
+                base_family: None,
+                upstream_model_id: None,
+                license_class: None,
+                attribution_required: false,
             },
             data: DataSpec {
                 train_file: None,

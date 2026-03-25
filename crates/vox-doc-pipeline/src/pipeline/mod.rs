@@ -1,5 +1,6 @@
 //! SUMMARY generation, RSS feed, and markdown lint.
 
+mod bounded_fs;
 mod feed;
 mod lint;
 mod summary;
@@ -86,13 +87,16 @@ pub fn run() {
     let mut root_pages = Vec::new();
     let mut all_pages: Vec<Page> = Vec::new();
 
-    walk_dir(
+    if let Err(e) = walk_dir(
         docs_src,
         docs_src,
         &mut sections,
         &mut root_pages,
         &mut all_pages,
-    );
+    ) {
+        eprintln!("Error walking docs/src: {e:#}");
+        std::process::exit(1);
+    }
 
     let mut output = String::from("# Summary\n\n");
 
@@ -124,7 +128,8 @@ pub fn run() {
 
     let summary_path = docs_src.join("SUMMARY.md");
     if check_mode {
-        let current = fs::read_to_string(&summary_path).unwrap_or_default();
+        let current =
+            bounded_fs::read_utf8_path_capped(&summary_path).unwrap_or_else(|_| String::new());
         if current.trim() != output.trim() {
             eprintln!(
                 "SUMMARY.md is out of sync with docs/src. Run `cargo run -p vox-doc-pipeline` to update."

@@ -65,7 +65,7 @@ pub enum CiCmd {
         #[arg(long)]
         base: Option<String>,
     },
-    /// Run Mens gate steps from `scripts/mens/gates.yaml`.
+    /// Run Mens gate steps from `scripts/populi/gates.yaml` (with legacy fallback).
     #[command(name = "mens-gate")]
     PopuliGate {
         /// Profile name: `m1m4` or `training`.
@@ -124,6 +124,16 @@ pub enum CiCmd {
     /// Repository hygiene guards (`TypeVar(0)` in codegen crates only, filtered `opencode` refs, stray root files) — GitLab parity.
     #[command(name = "repo-guards")]
     RepoGuards,
+    /// Fail when changed files add direct secret env reads outside Clavis-owned modules.
+    #[command(name = "secret-env-guard")]
+    SecretEnvGuard {
+        /// Scan all crate Rust files instead of only changed files.
+        #[arg(long)]
+        all: bool,
+    },
+    /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
+    #[command(name = "clavis-parity")]
+    ClavisParity,
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,

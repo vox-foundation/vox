@@ -113,6 +113,8 @@ fn is_word(t: &Token) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lexer::lex;
+    use crate::parser::parse;
 
     #[test]
     fn test_compaction_brace_syntax() {
@@ -178,5 +180,28 @@ mod tests {
         );
         assert!(compacted.contains("fn greet"), "Should have function name");
         assert!(compacted.contains("if name"), "Should have if condition");
+    }
+
+    #[test]
+    fn test_compaction_golden_output() {
+        let src = "fn main() {\n    let x = 10\n    ret x\n}";
+        let compacted = compact(src);
+        assert_eq!(compacted, "fn main(){let x=10 ret x}");
+    }
+
+    #[test]
+    fn test_compaction_roundtrip_parseable() {
+        let src = r#"
+fn sum(a: int, b: int) to int {
+    ret a + b
+}
+"#;
+        let compacted = compact(src);
+        let parsed = parse(lex(&compacted));
+        assert!(
+            parsed.is_ok(),
+            "compacted output must parse cleanly, got: {}",
+            compacted
+        );
     }
 }

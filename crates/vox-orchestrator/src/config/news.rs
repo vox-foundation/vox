@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use super::defaults::default_true;
 
@@ -19,6 +20,22 @@ pub struct NewsConfig {
     pub twitter_token: Option<String>,
     /// API Key for Open Collective GraphQL v2 (reqwest).
     pub opencollective_token: Option<String>,
+    /// Reddit OAuth app client id.
+    pub reddit_client_id: Option<String>,
+    /// Reddit OAuth app client secret.
+    pub reddit_client_secret: Option<String>,
+    /// Reddit OAuth refresh token for posting identity.
+    pub reddit_refresh_token: Option<String>,
+    /// Reddit API User-Agent string, e.g. platform:app:v1 (by /u/name).
+    pub reddit_user_agent: Option<String>,
+    /// YouTube OAuth client id.
+    pub youtube_client_id: Option<String>,
+    /// YouTube OAuth client secret.
+    pub youtube_client_secret: Option<String>,
+    /// YouTube OAuth refresh token.
+    pub youtube_refresh_token: Option<String>,
+    /// Hacker News routing mode (`manual_assist`).
+    pub hacker_news_mode: Option<String>,
     /// Global flag to force local testing only without actually calling external publish endpoints.
     pub dry_run: bool,
     /// Must be true (or `VOX_NEWS_PUBLISH_ARMED=1`) before any **live** syndication attempt.
@@ -44,6 +61,15 @@ pub struct NewsConfig {
     /// Optional truncation suffix for non-thread tweet shortening (default "...").
     #[serde(default)]
     pub twitter_truncation_suffix: Option<String>,
+    /// When true, block live fan-out unless worthiness decision is `Publish`.
+    #[serde(default)]
+    pub worthiness_enforce: bool,
+    /// Optional minimum score floor before live fan-out is allowed.
+    #[serde(default)]
+    pub worthiness_score_min: Option<f64>,
+    /// Optional per-channel worthiness floors (`channel -> floor`).
+    #[serde(default)]
+    pub channel_worthiness_floors: BTreeMap<String, f64>,
 }
 
 impl Default for NewsConfig {
@@ -55,6 +81,14 @@ impl Default for NewsConfig {
             github_token: None,
             twitter_token: None,
             opencollective_token: None,
+            reddit_client_id: None,
+            reddit_client_secret: None,
+            reddit_refresh_token: None,
+            reddit_user_agent: None,
+            youtube_client_id: None,
+            youtube_client_secret: None,
+            youtube_refresh_token: None,
+            hacker_news_mode: None,
             dry_run: true,
             publish_armed: false,
             site_base_url: None,
@@ -65,6 +99,9 @@ impl Default for NewsConfig {
             twitter_api_base: None,
             twitter_text_chunk_max: None,
             twitter_truncation_suffix: None,
+            worthiness_enforce: false,
+            worthiness_score_min: None,
+            channel_worthiness_floors: BTreeMap::new(),
         }
     }
 }

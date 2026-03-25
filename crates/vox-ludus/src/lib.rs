@@ -14,6 +14,7 @@ pub mod ability; // toestub-ignore(unwired/module)
 pub mod achievement; // toestub-ignore(unwired/module)
 pub mod ai; // toestub-ignore(unwired/module)
 pub mod battle; // toestub-ignore(unwired/module)
+mod bounded_fs;
 pub mod challenge; // toestub-ignore(unwired/module)
 pub mod combat; // toestub-ignore(unwired/module)
 pub mod combo; // toestub-ignore(unwired/module)

@@ -6201,7 +6201,7 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project",
- "secrecy",
+ "secrecy 0.8.0",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -7717,6 +7717,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "088c5d71572124929ea7549a8ce98e1a6fd33d0a38367b09027b382e67c033db"
 
 [[package]]
+name = "scc"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
+dependencies = [
+ "sdd",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7758,6 +7767,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "sdd"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
+
+[[package]]
 name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7768,6 +7783,15 @@ name = "secrecy"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+dependencies = [
+ "zeroize",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
 dependencies = [
  "zeroize",
 ]
@@ -7960,6 +7984,32 @@ dependencies = [
  "ryu",
  "serde",
  "unsafe-libyaml",
+]
+
+[[package]]
+name = "serial_test"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "911bd979bf1070a3f3aa7b691a3b3e9968f339ceeec89e08c280a8a22207a32f"
+dependencies = [
+ "futures-executor",
+ "futures-util",
+ "log",
+ "once_cell",
+ "parking_lot",
+ "scc",
+ "serial_test_derive",
+]
+
+[[package]]
+name = "serial_test_derive"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a7d91949b85b0d2fb687445e448b40d322b6b3e4af6b44a29b21d9a5f33e6d9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -9788,6 +9838,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-clavis"
+version = "0.1.0"
+dependencies = [
+ "keyring",
+ "secrecy 0.10.3",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "vox-scaling-policy",
+]
+
+[[package]]
 name = "vox-cli"
 version = "0.1.0"
 dependencies = [
@@ -9815,6 +9877,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "serial_test",
  "sha2",
  "tar",
  "tempfile",
@@ -9827,6 +9890,7 @@ dependencies = [
  "twox-hash",
  "uuid",
  "vox-ars",
+ "vox-clavis",
  "vox-compiler",
  "vox-config",
  "vox-corpus",
@@ -9880,6 +9944,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml 0.8.23",
+ "vox-clavis",
 ]
 
 [[package]]
@@ -9916,6 +9981,7 @@ dependencies = [
  "vox-mcp-meta",
  "vox-mcp-registry",
  "vox-repository",
+ "vox-scaling-policy",
  "xxhash-rust",
 ]
 
@@ -9952,12 +10018,17 @@ dependencies = [
  "serde",
  "serde_json",
  "vox-repository",
+ "vox-scaling-policy",
  "walkdir",
 ]
 
 [[package]]
 name = "vox-doc-pipeline"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "vox-scaling-policy",
+]
 
 [[package]]
 name = "vox-eval"
@@ -9998,6 +10069,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10018,6 +10090,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-repository",
  "vox-runtime",
+ "vox-scaling-policy",
  "vox-skills",
 ]
 
@@ -10025,6 +10098,7 @@ dependencies = [
 name = "vox-lsp"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "serde",
  "serde_json",
  "tokio",
@@ -10033,6 +10107,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vox-compiler",
+ "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10060,6 +10135,7 @@ dependencies = [
  "twox-hash",
  "vox-config",
  "vox-db",
+ "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10081,6 +10157,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serial_test",
  "thiserror 1.0.69",
  "tokio",
  "tower-lsp",
@@ -10088,6 +10165,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "vox-clavis",
  "vox-compiler",
  "vox-config",
  "vox-db",
@@ -10102,6 +10180,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-runtime",
+ "vox-scaling-policy",
  "vox-skills",
  "vox-socrates-policy",
  "vox-toestub",
@@ -10182,6 +10261,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-runtime",
+ "vox-scaling-policy",
  "vox-socrates-policy",
  "vox-toestub",
  "walkdir",
@@ -10239,9 +10319,11 @@ dependencies = [
  "tokio",
  "tower-http 0.6.8",
  "tracing",
+ "vox-clavis",
  "vox-corpus",
  "vox-db",
  "vox-repository",
+ "vox-scaling-policy",
  "vox-tensor",
 ]
 
@@ -10260,6 +10342,7 @@ dependencies = [
  "anyhow",
  "axum",
  "chrono",
+ "mime_guess",
  "octocrab",
  "pulldown-cmark",
  "quick-xml",
@@ -10269,8 +10352,10 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha3",
+ "tempfile",
  "tokio",
  "tracing",
+ "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10286,6 +10371,7 @@ dependencies = [
  "thiserror 1.0.69",
  "toml 0.8.23",
  "tracing",
+ "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10302,6 +10388,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "vox-clavis",
  "vox-config",
  "vox-db",
  "xxhash-rust",
@@ -10334,6 +10421,36 @@ dependencies = [
  "vox-corpus",
  "vox-db",
  "vox-populi",
+]
+
+[[package]]
+name = "vox-scientia-api"
+version = "0.1.0"
+dependencies = [
+ "vox-scientia-core",
+ "vox-scientia-social",
+]
+
+[[package]]
+name = "vox-scientia-core"
+version = "0.1.0"
+dependencies = [
+ "vox-publisher",
+]
+
+[[package]]
+name = "vox-scientia-runtime"
+version = "0.1.0"
+dependencies = [
+ "vox-scientia-core",
+ "vox-scientia-social",
+]
+
+[[package]]
+name = "vox-scientia-social"
+version = "0.1.0"
+dependencies = [
+ "vox-publisher",
 ]
 
 [[package]]

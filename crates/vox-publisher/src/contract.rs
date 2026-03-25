@@ -26,6 +26,14 @@ pub const DEFAULT_GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 
 /// Max tweet body length used for conservative chunking (legacy limit; adjust when tier supports longer).
 pub const TWITTER_TEXT_CHUNK_MAX: usize = 280;
+/// Conservative Reddit title cap.
+pub const REDDIT_TITLE_MAX: usize = 300;
+/// HN title cap.
+pub const HACKER_NEWS_TITLE_MAX: usize = 80;
+/// YouTube title cap.
+pub const YOUTUBE_TITLE_MAX: usize = 100;
+/// YouTube description cap.
+pub const YOUTUBE_DESCRIPTION_MAX: usize = 5000;
 
 /// Site configuration for RSS links and feed file location.
 #[derive(Debug, Clone)]
@@ -75,4 +83,38 @@ pub fn validate_news_id(id: &str) -> anyhow::Result<()> {
         anyhow::bail!("news id must not contain path segments or '..': {:?}", id);
     }
     Ok(())
+}
+
+/// Clamp text to `max_chars` preserving UTF-8 boundaries and adding `...` when truncated.
+#[must_use]
+pub fn clamp_text(input: &str, max_chars: usize) -> String {
+    let normalized = input
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
+    if normalized.chars().count() <= max_chars {
+        return normalized;
+    }
+    let keep = max_chars.saturating_sub(3);
+    format!("{}...", normalized.chars().take(keep).collect::<String>())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clamp_text;
+
+    #[test]
+    fn clamp_text_preserves_short_strings() {
+        let out = clamp_text("hello world", 20);
+        assert_eq!(out, "hello world");
+    }
+
+    #[test]
+    fn clamp_text_truncates_and_appends_ellipsis() {
+        let out = clamp_text("alpha beta gamma delta epsilon", 12);
+        assert!(out.ends_with("..."));
+        assert!(out.chars().count() <= 12);
+    }
 }

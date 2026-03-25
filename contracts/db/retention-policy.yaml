@@ -1,0 +1,23 @@
+# Table retention hints for `vox db prune-plan` / `vox db prune-apply`.
+# SSOT path: contracts/db/retention-policy.yaml
+#
+# kind:
+#   - keep_forever — listed for documentation only; no automated deletion
+#   - manual — operator must run targeted SQL or domain tools
+#   - days — delete rows older than `days` relative to `time_column` (SQLite TEXT/datetime or INTEGER ms)
+
+tables:
+  memories:
+    kind: days
+    days: 30
+    time_column: created_at
+  behavior_events:
+    kind: days
+    days: 90
+    time_column: created_at
+  conversation_messages:
+    kind: manual
+  agents:
+    kind: keep_forever
+  skill_manifests:
+    kind: keep_forever

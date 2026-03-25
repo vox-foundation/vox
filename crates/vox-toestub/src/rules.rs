@@ -176,3 +176,34 @@ pub trait DetectionRule: Send + Sync {
     /// Run the detector on a single source file.
     fn detect(&self, file: &SourceFile) -> Vec<Finding>;
 }
+
+// ---------------------------------------------------------------------------
+// Shared line scanning (detectors)
+// ---------------------------------------------------------------------------
+
+/// True if `byte_idx` falls inside a normal `"…"` string literal (`\"` aware).
+pub(crate) fn byte_index_in_ascii_double_quote_string(s: &str, byte_idx: usize) -> bool {
+    let bytes = s.as_bytes();
+    let mut i = 0usize;
+    let mut in_string = false;
+    let end = byte_idx.min(bytes.len());
+    while i < end {
+        let b = bytes[i];
+        if in_string {
+            if b == b'\\' && i + 1 < bytes.len() {
+                i += 2;
+                continue;
+            }
+            if b == b'"' {
+                in_string = false;
+            }
+            i += 1;
+        } else if b == b'"' {
+            in_string = true;
+            i += 1;
+        } else {
+            i += 1;
+        }
+    }
+    in_string
+}

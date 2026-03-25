@@ -29,6 +29,23 @@ fn has_col(cols: &[String], name: &str) -> bool {
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), StoreError> {
     align_agent_events(conn).await?;
     migrate_published_news_news_id(conn).await?;
+    apply_performance_indexes(conn).await?;
+    Ok(())
+}
+
+/// Idempotent composite / reporting indexes (safe on legacy DBs; `IF NOT EXISTS`).
+async fn apply_performance_indexes(conn: &Connection) -> Result<(), StoreError> {
+    let batch = r#"
+CREATE INDEX IF NOT EXISTS idx_memories_agent_created ON memories(agent_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_behavior_user_created ON behavior_events(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_codex_change_log_topic_id ON codex_change_log(topic, id);
+CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_a2a_ack_created ON a2a_messages(acknowledged, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo_ts ON agent_oplog(repository_id, timestamp_ms);
+CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attempts(news_id);
+CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id ON publication_status_events(publication_id, id);
+"#;
+    conn.execute_batch(batch).await?;
     Ok(())
 }
 

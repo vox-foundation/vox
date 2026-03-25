@@ -59,6 +59,10 @@ pub fn initial_training_manifest(
         n_layers: arch.n_layers,
         base_model: run.base_model,
         tokenizer_path,
+        provenance_base_family: run.provenance_base_family,
+        provenance_upstream_model_id: run.provenance_upstream_model_id,
+        provenance_license_class: run.provenance_license_class,
+        provenance_attribution_required: run.provenance_attribution_required,
         train_file: train_file.into(),
         rank: run.rank,
         alpha: run.alpha,
@@ -87,6 +91,11 @@ pub fn initial_training_manifest(
         training_deployment_target: run.training_deployment_target.clone(),
         training_deployment_note: run.training_deployment_note.clone(),
         eval_baseline_delta_note: None,
+        trajectory_weighting_enabled: run.trajectory_weighting_enabled,
+        trajectory_tool_trace_boost: run.trajectory_tool_trace_boost,
+        trajectory_failure_category_boost: run.trajectory_failure_category_boost,
+        trajectory_quality_floor: run.trajectory_quality_floor,
+        trajectory_quality_boost: run.trajectory_quality_boost,
     }
 }
 
@@ -96,4 +105,16 @@ fn default_manifest_schema_v1() -> u32 {
 
 fn default_candle_qlora_ce_last_k() -> usize {
     1
+}
+
+fn default_trajectory_tool_trace_boost() -> f32 {
+    1.1
+}
+
+fn default_trajectory_failure_category_boost() -> f32 {
+    1.15
+}
+
+fn default_trajectory_quality_boost() -> f32 {
+    1.05
 }

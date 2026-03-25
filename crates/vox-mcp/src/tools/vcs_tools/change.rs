@@ -14,10 +14,12 @@ pub async fn change_create(state: &ServerState, args: serde_json::Value) -> Stri
     let orch = &state.orchestrator;
 
     let mgr_handle = orch.workspace_manager_handle();
-    let change_id = mgr_handle
-        .write()
-        .unwrap()
-        .create_change(AgentId(agent_id), description);
+    let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
+    let change_id = mgr.create_change(AgentId(agent_id), description);
 
     ToolResult::ok(serde_json::json!({
         "change_id": change_id.to_string(),
@@ -36,7 +38,10 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
 
     if let Some(cid) = change_id {
         let mgr_handle = orch.workspace_manager_handle();
-        let mgr = mgr_handle.read().unwrap();
+        let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
+            Ok(g) => g,
+            Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        };
         match mgr.get_change(vox_orchestrator::workspace::ChangeId(cid))
         {
             Some(change) => ToolResult::ok(serde_json::json!({
@@ -53,7 +58,10 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
     } else {
         let agent = agent_id.map(AgentId);
         let mgr_handle = orch.workspace_manager_handle();
-        let mgr = mgr_handle.read().unwrap();
+        let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
+            Ok(g) => g,
+            Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        };
         let changes = mgr.list_changes(agent, limit);
         let items: Vec<serde_json::Value> = changes
             .iter()

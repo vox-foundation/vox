@@ -92,7 +92,7 @@ pub fn analyse_jsonl_with_taxonomy(
     min_pairs_per_category: usize,
     taxonomy: &[&str],
 ) -> anyhow::Result<CoverageReport> {
-    let content = std::fs::read_to_string(path)
+    let content = crate::bounded_fs::read_utf8_path_capped(path)
         .with_context(|| format!("read corpus for coverage analysis: {}", path.display()))?;
     let counts = count_categories_from_str(&content);
     Ok(build_report(counts, min_pairs_per_category, taxonomy))

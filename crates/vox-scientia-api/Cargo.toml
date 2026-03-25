@@ -1,0 +1,9 @@
+[package]
+name = "vox-scientia-api"
+version.workspace = true
+edition.workspace = true
+description = "Scientia API surface helpers for CLI and MCP."
+
+[dependencies]
+vox-scientia-core = { path = "../vox-scientia-core" }
+vox-scientia-social = { path = "../vox-scientia-social" }

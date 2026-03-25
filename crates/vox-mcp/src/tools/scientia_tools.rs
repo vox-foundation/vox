@@ -1,10 +1,12 @@
 use crate::{ServerState, ToolResult};
+use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::publication_preflight::PreflightProfile;
 use vox_publisher::scholarly::{LocalLedgerAdapter, ScholarlyAdapter};
 use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
+use vox_publisher::types::{SyndicationConfig, UnifiedNewsItem};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationPrepareParams {
@@ -39,6 +41,70 @@ impl From<PreflightProfileParam> for PreflightProfile {
             PreflightProfileParam::DoubleBlind => Self::DoubleBlind,
         }
     }
+}
+
+fn operator_publisher_config(state: &ServerState, dry_run: bool) -> vox_publisher::PublisherConfig {
+    let base_url = state
+        .orchestrator_config
+        .news
+        .site_base_url
+        .clone()
+        .unwrap_or_else(|| {
+            vox_publisher::contract::DEFAULT_SITE_BASE_URL
+                .trim_end_matches('/')
+                .to_string()
+        });
+    let site = vox_publisher::NewsSiteConfig {
+        base_url,
+        ..Default::default()
+    };
+    vox_publisher::PublisherConfig::from_operator_environment(
+        dry_run,
+        Some(vox_repository::resolve_repo_root_for_ci()),
+        site,
+    )
+}
+
+fn unified_news_item_from_manifest_row(
+    row: &vox_db::PublicationManifestRow,
+) -> Result<UnifiedNewsItem, String> {
+    #[derive(Deserialize, Default)]
+    struct MetaEnvelope {
+        #[serde(default)]
+        tags: Vec<String>,
+        #[serde(default)]
+        syndication: Option<SyndicationConfig>,
+        #[serde(default)]
+        topic_pack: Option<String>,
+    }
+    let meta: MetaEnvelope = match row
+        .metadata_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        None => MetaEnvelope::default(),
+        Some(s) => serde_json::from_str(s).map_err(|e| e.to_string())?,
+    };
+    let topic_pack = meta
+        .topic_pack
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string);
+    let mut item = UnifiedNewsItem {
+        id: row.publication_id.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        published_at: Utc::now(),
+        tags: meta.tags,
+        content_markdown: row.body_markdown.clone(),
+        syndication: meta.syndication.unwrap_or_default(),
+        topic_pack,
+    };
+    item.hydrate_topic_pack_if_set()
+        .map_err(|e| e.to_string())?;
+    Ok(item)
 }
 
 pub async fn vox_scientia_publication_prepare(
@@ -257,6 +323,9 @@ struct ScientiaPublicationStatusBody {
     version: i64,
     approvals_for_digest: i64,
     scholarly_submissions: Vec<vox_db::ScholarlySubmissionRow>,
+    media_assets: Vec<vox_db::PublicationMediaAssetRow>,
+    publication_attempts: Vec<vox_db::PublicationAttemptRow>,
+    publication_status_events: Vec<vox_db::PublicationStatusEventRow>,
 }
 
 pub async fn vox_scientia_publication_status(
@@ -284,6 +353,24 @@ pub async fn vox_scientia_publication_status(
         Ok(v) => v,
         Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
     };
+    let media_assets = match db
+        .list_publication_media_assets(&params.publication_id)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    let publication_attempts = match db.list_publication_attempts(&params.publication_id).await {
+        Ok(v) => v,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    let publication_status_events = match db
+        .list_publication_status_events(&params.publication_id)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
     ToolResult::ok(ScientiaPublicationStatusBody {
         publication_id: row.publication_id,
         content_type: row.content_type,
@@ -292,8 +379,325 @@ pub async fn vox_scientia_publication_status(
         version: row.version,
         approvals_for_digest: approvals,
         scholarly_submissions: submissions,
+        media_assets,
+        publication_attempts,
+        publication_status_events,
     })
     .to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationMediaUpsertParams {
+    pub publication_id: String,
+    pub asset_ref: String,
+    pub media_type: String,
+    #[serde(default)]
+    pub storage_uri: Option<String>,
+    pub status: String,
+    #[serde(default)]
+    pub metadata_json: Option<serde_json::Value>,
+}
+
+pub async fn vox_scientia_publication_media_upsert(
+    state: &ServerState,
+    params: VoxScientiaPublicationMediaUpsertParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let metadata_json = params
+        .metadata_json
+        .as_ref()
+        .map(serde_json::Value::to_string);
+    if let Err(e) = db
+        .upsert_publication_media_asset(vox_db::PublicationMediaAssetParams {
+            publication_id: params.publication_id.as_str(),
+            asset_ref: params.asset_ref.as_str(),
+            media_type: params.media_type.as_str(),
+            storage_uri: params.storage_uri.as_deref(),
+            status: params.status.as_str(),
+            metadata_json: metadata_json.as_deref(),
+        })
+        .await
+    {
+        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+    }
+    ToolResult::ok(serde_json::json!({
+        "publication_id": params.publication_id,
+        "asset_ref": params.asset_ref,
+        "media_type": params.media_type,
+        "storage_uri": params.storage_uri,
+        "status": params.status,
+        "metadata_json_present": metadata_json.is_some()
+    }))
+    .to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationMediaListParams {
+    pub publication_id: String,
+}
+
+pub async fn vox_scientia_publication_media_list(
+    state: &ServerState,
+    params: VoxScientiaPublicationMediaListParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let rows = match db
+        .list_publication_media_assets(&params.publication_id)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    ToolResult::ok(rows).to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationMediaDeleteParams {
+    pub publication_id: String,
+    pub asset_ref: String,
+}
+
+pub async fn vox_scientia_publication_media_delete(
+    state: &ServerState,
+    params: VoxScientiaPublicationMediaDeleteParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    if let Err(e) = db
+        .delete_publication_media_asset(&params.publication_id, &params.asset_ref)
+        .await
+    {
+        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+    }
+    ToolResult::ok(serde_json::json!({
+        "deleted": true,
+        "publication_id": params.publication_id,
+        "asset_ref": params.asset_ref
+    }))
+    .to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationRouteSimulateParams {
+    pub publication_id: String,
+}
+
+pub async fn vox_scientia_publication_route_simulate(
+    state: &ServerState,
+    params: VoxScientiaPublicationRouteSimulateParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let row = match db.get_publication_manifest(&params.publication_id).await {
+        Ok(r) => r,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    let Some(row) = row else {
+        return ToolResult::<String>::err("publication not found".to_string()).to_json();
+    };
+    let item = match unified_news_item_from_manifest_row(&row) {
+        Ok(i) => i,
+        Err(e) => {
+            return ToolResult::<String>::err(format!("parse metadata_json: {e}")).to_json();
+        }
+    };
+    let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, true));
+    match publisher.publish_all(&item).await {
+        Ok(r) => ToolResult::ok(r).to_json(),
+        Err(e) => ToolResult::<String>::err(format!("simulate failed: {e}")).to_json(),
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationPublishParams {
+    pub publication_id: String,
+    #[serde(default)]
+    pub channels: Option<Vec<String>>,
+    #[serde(default = "default_true")]
+    pub dry_run: bool,
+    /// When true, emit compact JSON in the tool text payload (single line).
+    #[serde(default)]
+    pub json: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+pub async fn vox_scientia_publication_publish(
+    state: &ServerState,
+    params: VoxScientiaPublicationPublishParams,
+) -> String {
+    let compact = params.json;
+    let Some(db) = &state.db else {
+        return ToolResult::<vox_publisher::SyndicationResult>::err(
+            "VoxDb is not connected".to_string(),
+        )
+        .to_json_styled(compact);
+    };
+    let row = match db.get_publication_manifest(&params.publication_id).await {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<vox_publisher::SyndicationResult>::err(format!("DB error: {e}"))
+                .to_json_styled(compact);
+        }
+    };
+    let Some(row) = row else {
+        return ToolResult::<vox_publisher::SyndicationResult>::err(
+            "publication not found".to_string(),
+        )
+        .to_json_styled(compact);
+    };
+    let digest = row.content_sha3_256.clone();
+    let mut item = match unified_news_item_from_manifest_row(&row) {
+        Ok(i) => i,
+        Err(e) => {
+            return ToolResult::<vox_publisher::SyndicationResult>::err(format!(
+                "parse metadata_json: {e}"
+            ))
+            .to_json_styled(compact);
+        }
+    };
+    if let Some(channels) = params.channels.as_ref() {
+        let norm: Vec<String> = channels.iter().map(|s| s.trim().to_lowercase()).collect();
+        let has = |name: &str| norm.iter().any(|x| x == name);
+        if !has("rss") {
+            item.syndication.rss = false;
+        }
+        if !has("twitter") {
+            item.syndication.twitter = None;
+        }
+        if !has("github") {
+            item.syndication.github = None;
+        }
+        if !has("open_collective") {
+            item.syndication.open_collective = None;
+        }
+        if !has("reddit") {
+            item.syndication.reddit = None;
+        }
+        if !has("hacker_news") {
+            item.syndication.hacker_news = None;
+        }
+        if !has("youtube") {
+            item.syndication.youtube = None;
+        }
+        if !has("crates_io") {
+            item.syndication.crates_io = None;
+        }
+    }
+    let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, params.dry_run));
+    let out = match publisher.publish_all(&item).await {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<vox_publisher::SyndicationResult>::err(format!(
+                "publish failed: {e}"
+            ))
+            .to_json_styled(compact);
+        }
+    };
+    if let Ok(out_json) = serde_json::to_string(&out) {
+        let _ = db
+            .record_publication_attempt(
+                &params.publication_id,
+                &digest,
+                "manual_mcp",
+                out_json.as_str(),
+            )
+            .await;
+    }
+    ToolResult::ok(out).to_json_styled(compact)
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationRetryFailedParams {
+    pub publication_id: String,
+    #[serde(default)]
+    pub channel: Option<String>,
+    #[serde(default = "default_true")]
+    pub dry_run: bool,
+    /// When true, emit compact JSON (including nested publish responses).
+    #[serde(default)]
+    pub json: bool,
+}
+
+pub async fn vox_scientia_publication_retry_failed(
+    state: &ServerState,
+    params: VoxScientiaPublicationRetryFailedParams,
+) -> String {
+    if let Some(ch) = params.channel.as_ref() {
+        return vox_scientia_publication_publish(
+            state,
+            VoxScientiaPublicationPublishParams {
+                publication_id: params.publication_id,
+                channels: Some(vec![ch.clone()]),
+                dry_run: params.dry_run,
+                json: params.json,
+            },
+        )
+        .await;
+    }
+    let compact = params.json;
+    let Some(db) = &state.db else {
+        return ToolResult::<serde_json::Value>::err("VoxDb is not connected".to_string())
+            .to_json_styled(compact);
+    };
+    let attempts = match db.list_publication_attempts(&params.publication_id).await {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("DB error: {e}"))
+                .to_json_styled(compact);
+        }
+    };
+    // `list_publication_attempts` returns newest-first.
+    let Some(last) = attempts.first() else {
+        return ToolResult::<serde_json::Value>::err("no attempts found".to_string())
+            .to_json_styled(compact);
+    };
+    let out: vox_publisher::SyndicationResult = match serde_json::from_str(&last.outcome_json) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("attempt parse: {e}"))
+                .to_json_styled(compact);
+        }
+    };
+    let mut failed = Vec::new();
+    let mut maybe = |name: &str, o: &vox_publisher::ChannelOutcome| {
+        if matches!(o, vox_publisher::ChannelOutcome::Failed { .. }) {
+            failed.push(name.to_string());
+        }
+    };
+    maybe("rss", &out.rss);
+    maybe("twitter", &out.twitter);
+    maybe("github", &out.github);
+    maybe("open_collective", &out.open_collective);
+    maybe("reddit", &out.reddit);
+    maybe("hacker_news", &out.hacker_news);
+    maybe("youtube", &out.youtube);
+    if failed.is_empty() {
+        return ToolResult::ok(serde_json::json!({
+            "publication_id": params.publication_id,
+            "retried": false,
+            "reason": "no_failed_channels"
+        }))
+        .to_json_styled(compact);
+    }
+    vox_scientia_publication_publish(
+        state,
+        VoxScientiaPublicationPublishParams {
+            publication_id: params.publication_id,
+            channels: Some(failed),
+            dry_run: params.dry_run,
+            json: params.json,
+        },
+    )
+    .await
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -356,11 +760,22 @@ pub async fn vox_scientia_publication_preflight(
                     .to_json();
             }
         }
+        match vox_publisher::scientia_evidence::enrich_metadata_json_with_repo_files(
+            manifest.metadata_json.as_deref(),
+            &state.repository.root,
+        ) {
+            Ok(Some(updated)) => manifest.metadata_json = Some(updated),
+            Ok(None) => {}
+            Err(e) => {
+                return ToolResult::<String>::err(format!("scientia_evidence file hydration: {e}"))
+                    .to_json();
+            }
+        }
         let path = state
             .repository
             .root
             .join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
-        let yaml = match std::fs::read_to_string(&path) {
+        let yaml = match crate::bounded_fs::read_utf8_path_capped(&path) {
             Ok(s) => s,
             Err(e) => {
                 return ToolResult::<String>::err(format!(
@@ -411,7 +826,7 @@ pub async fn vox_scientia_worthiness_evaluate(
         Some(rel) if !rel.trim().is_empty() => root.join(rel.trim()),
         _ => root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
     };
-    let yaml = match std::fs::read_to_string(&contract_path) {
+    let yaml = match crate::bounded_fs::read_utf8_path_capped(&contract_path) {
         Ok(s) => s,
         Err(e) => {
             return ToolResult::<String>::err(format!(

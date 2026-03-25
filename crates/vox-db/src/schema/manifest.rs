@@ -1,6 +1,6 @@
 //! Single-source Arca/Codex schema: ordered fragments, baseline SQL, digest, and capability metadata.
 //!
-//! **SSOT:** This manifest defines the current global Arca schema collapsed into logical domains.
+//! **SSOT:** This manifest defines the current global Arca schema collapsed into domain fragments.
 //! Baseline version is [`BASELINE_VERSION`] (see monolithic DDL in `baseline_sql()`).
 
 use super::domains;
@@ -25,7 +25,7 @@ pub const CODEX_API_REQUIRED_TABLES: &[&str] = &[
     "conversation_messages",
     "search_documents",
     "agent_sessions",
-    "ludus_events",
+    "agent_events",
     "distributed_locks",
 ];
 
@@ -43,20 +43,12 @@ pub const CODEX_REACTIVITY_TABLES: &[&str] = &[
 /// All non-empty SQL fragments to be applied as the monolithic baseline DDL.
 pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
-        name: "identity",
-        sql: domains::identity::SCHEMA_IDENTITY,
+        name: "foundation",
+        sql: domains::foundation::SCHEMA_FOUNDATION,
     },
     SchemaFragment {
-        name: "billing",
-        sql: domains::billing::SCHEMA_BILLING,
-    },
-    SchemaFragment {
-        name: "cas",
-        sql: domains::cas::SCHEMA_CAS,
-    },
-    SchemaFragment {
-        name: "codex",
-        sql: domains::codex::SCHEMA_CODEX,
+        name: "cas_codex",
+        sql: domains::cas_codex::SCHEMA_CAS_CODEX,
     },
     SchemaFragment {
         name: "conversations",
@@ -79,32 +71,16 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::packages::SCHEMA_PACKAGES,
     },
     SchemaFragment {
-        name: "gamification",
-        sql: domains::gamification::SCHEMA_GAMIFICATION,
+        name: "gamification_coordination",
+        sql: domains::gamification_coordination::SCHEMA_GAMIFICATION_COORDINATION,
     },
     SchemaFragment {
-        name: "coordination",
-        sql: domains::coordination::SCHEMA_COORDINATION,
+        name: "toestub_build",
+        sql: domains::toestub_build::SCHEMA_TOESTUB_BUILD,
     },
     SchemaFragment {
-        name: "toestub",
-        sql: domains::toestub::SCHEMA_TOESTUB,
-    },
-    SchemaFragment {
-        name: "build_observability",
-        sql: domains::build_observability::SCHEMA_BUILD_OBSERVABILITY,
-    },
-    SchemaFragment {
-        name: "mens_cloud",
-        sql: domains::mens_cloud::SCHEMA_POPULI_CLOUD,
-    },
-    SchemaFragment {
-        name: "news",
-        sql: domains::news::SCHEMA_NEWS,
-    },
-    SchemaFragment {
-        name: "publication",
-        sql: domains::publication::SCHEMA_PUBLICATION,
+        name: "publish_cloud",
+        sql: domains::publish_cloud::SCHEMA_PUBLISH_CLOUD,
     },
 ];
 

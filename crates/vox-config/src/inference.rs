@@ -65,14 +65,16 @@ pub fn local_ollama_populi_base_url() -> String {
 ///
 /// Precedence: **`HF_TOKEN`** → **`HUGGING_FACE_HUB_TOKEN`**.
 pub fn huggingface_hub_token() -> Option<String> {
-    std::env::var("HF_TOKEN")
-        .or_else(|_| std::env::var("HUGGING_FACE_HUB_TOKEN"))
-        .ok()
+    vox_clavis::resolve_env_only(vox_clavis::SecretId::HuggingFaceToken)
+        .expose()
+        .map(std::string::ToString::to_string)
 }
 
 /// OpenRouter API key (`OPENROUTER_API_KEY`).
 pub fn openrouter_api_key() -> Option<String> {
-    std::env::var("OPENROUTER_API_KEY").ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+        .expose()
+        .map(std::string::ToString::to_string)
 }
 
 /// Preferred Hugging Face **router** model id for chat when policy selects HF (`HF_CHAT_MODEL`).

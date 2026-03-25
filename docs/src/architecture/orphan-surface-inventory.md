@@ -33,7 +33,7 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 | Canonical `vox db` helpers | `crates/vox-cli/src/commands/db.rs`, `db_research_impl.rs` | Maintainers | medium | keep | ongoing | 2026-03-21 | `commands/db.rs` | `commands::ops` tree removed (unwired; duplicated `vox_dei`); DB helpers live under `commands::db` |
 | `vox scientia` CLI facade | `crates/vox-cli/src/commands/scientia.rs` | Maintainers | low | keep | ongoing | 2026-03-21 | `ref-cli.md`, `orchestration-unified.md` | Research / capability-map aliases over `commands::db_cli` (same DB + `repository_id` resolution as `vox db`) |
 | Unwired `vox_dei` CLI sources (removed) | _(deleted)_ `commands/chat/`, `commands/ops/`, `commands/quaero/`, `ai/{agent,dei,hud,learn}.rs` | Maintainers | low | delete | 2026-03-21 | `check_vox_cli_no_vox_dei.sh` | Daemon-only DeI: use `crate::dei_daemon` + external `vox-dei-d` |
-| `vox-runtime` DB helper | `crates/vox-runtime/src/db.rs` | Maintainers | medium | port | ongoing | 2026-03-20 | feature `database` | Align with Codex env policy |
+| `vox-runtime` DB helper | `crates/vox-runtime/src/db.rs` | Maintainers | low | keep | ongoing | 2026-03-25 | feature `database` | Uses `DbConfig::resolve_standalone` / `VOX_DB_*` (see crate rustdoc); parity with `vox-db` facade |
 | `vox-mcp`, `vox-git` | workspace members | Maintainers | low | keep | ongoing | 2026-03-20 | `ci.yml` smoke | Core agent/tooling |
 | Workspace excludes | root `Cargo.toml` `exclude` | Maintainers | medium | port | TBD | 2026-03-20 | `Cargo.toml` | Re-include when CI-stable |
 | Plans under `.cursor/plans/` | various | Maintainers | low | archive | ongoing | 2026-03-20 | — | May reference removed crates; not SSOT |

@@ -1,5 +1,7 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use turso::params;
 use vox_ludus::{LudusProfile, battle::Battle, db, quest};
 
@@ -110,7 +112,7 @@ pub async fn battle_start(companion_name: &str) -> Result<()> {
 /// Submit code to win a bug battle.
 pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) -> Result<()> {
     let db_conn = get_db().await?;
-    let code = std::fs::read_to_string(code_file)?;
+    let code = read_utf8_path_capped(code_file)?;
 
     let user_id = vox_db::paths::local_user_id();
     let mut profile = match db::get_profile(&db_conn, &user_id).await? {

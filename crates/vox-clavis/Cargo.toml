@@ -1,0 +1,25 @@
+[package]
+name = "vox-clavis"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Central secret resolution and compatibility adapters for Vox."
+
+[features]
+default = []
+clavis-infisical = []
+clavis-vault = []
+
+[dependencies]
+secrecy = "0.10"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+keyring = { workspace = true }
+vox-scaling-policy = { workspace = true }
+
+[lints]
+workspace = true

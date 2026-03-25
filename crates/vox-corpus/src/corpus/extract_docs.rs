@@ -12,6 +12,8 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::bounded_fs::read_utf8_path_capped;
+
 static VOX_DOC_LINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)").expect("vox doc link regex"));
 
@@ -144,8 +146,7 @@ pub fn extract_from_md_file(
     path: &Path,
     config: &ExtractDocsConfig,
 ) -> anyhow::Result<Vec<DocTrainingPair>> {
-    let source =
-        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let source = read_utf8_path_capped(path)?;
 
     let (eligible, staleness_penalty) = parse_frontmatter(&source);
     if !eligible {
@@ -272,7 +273,7 @@ fn extract_qa_sections(
                         let abs_target =
                             path.parent().unwrap_or(Path::new("")).join(target_path_str);
                         if let Ok(can) = std::fs::canonicalize(&abs_target)
-                            && let Ok(vox_code) = std::fs::read_to_string(&can)
+                            && let Ok(vox_code) = read_utf8_path_capped(&can)
                         {
                             extra_context.push_str("\n\n```vox\n");
                             extra_context.push_str(vox_code.trim());
@@ -315,7 +316,7 @@ fn extract_qa_sections(
                 let target_path_str = &cap[1];
                 let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
                 if let Ok(can) = std::fs::canonicalize(&abs_target)
-                    && let Ok(vox_code) = std::fs::read_to_string(&can)
+                    && let Ok(vox_code) = read_utf8_path_capped(&can)
                 {
                     extra_context.push_str("\n\n```vox\n");
                     extra_context.push_str(vox_code.trim());

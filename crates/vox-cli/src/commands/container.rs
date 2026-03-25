@@ -9,7 +9,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
         ContainerAction::Init { file, out_dir, dockerfile, project_name } => {
             println!("🛠️ Initializing Python container environment...");
 
-            let source = tokio::fs::read_to_string(&file)
+            let source = read_utf8_path_capped_async(&file)
                 .await
                 .with_context(|| format!("Failed to read source file: {}", file.display()))?;
             let tokens = vox_compiler::lexer::cursor::lex(&source);

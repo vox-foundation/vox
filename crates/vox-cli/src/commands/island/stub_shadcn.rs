@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
 use std::path::Path;
 
 use crate::island_paths::island_root;
@@ -12,7 +14,7 @@ pub(super) async fn inject_or_update_island_stub(
 ) -> Result<()> {
     // ZERO DESTRUCTION: read before write
     let existing = if tokio::fs::metadata(vox_file).await.is_ok() {
-        tokio::fs::read_to_string(vox_file)
+        read_utf8_path_capped_async(vox_file)
             .await
             .with_context(|| format!("Cannot read {}", vox_file.display()))?
     } else {
@@ -160,7 +162,7 @@ export function cn(...inputs: ClassValue[]) {
         if tokio::fs::metadata(path).await.is_ok() {
             let alias = shadcn_import_alias(component);
             let import_line = format!("@shadcn \"{component}\" as {alias}");
-            let existing = tokio::fs::read_to_string(path).await?;
+            let existing = read_utf8_path_capped_async(path).await?;
             if !existing.contains(&import_line) {
                 let mut new_content = existing.clone();
                 if !new_content.is_empty() && !new_content.ends_with('\n') {

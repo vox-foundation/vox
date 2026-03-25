@@ -11,7 +11,7 @@ use std::path::Path;
 /// that scan is insufficient (`vox_config::WebRunMode`).
 pub fn is_script_file_by_page_heuristic(file: &Path) -> bool {
     // Read the first 8 KiB to look for @page — avoids full parse for detection.
-    let Ok(head) = std::fs::read_to_string(file).map(|s| {
+    let Ok(head) = crate::commands::ci::bounded_read::read_utf8_path_capped(file).map(|s| {
         let end = usize::min(8192, s.len());
         s[..end].to_string()
     }) else {

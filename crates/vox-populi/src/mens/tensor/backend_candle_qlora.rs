@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::mens::tensor::backend::TrainingBackend;
 use crate::mens::tensor::device::DeviceKind;
-use crate::mens::tensor::training_config::LoraTrainingConfig;
+use crate::mens::tensor::training_config::{LoraTrainingConfig, OptimizerExperimentMode};
 
 /// Candle + HF tokenizer path (`--backend qlora`).
 #[derive(Debug, Clone, Copy, Default)]
@@ -22,6 +22,24 @@ impl TrainingBackend for CandleQloraBackend {
         system_prompt: &str,
     ) -> anyhow::Result<crate::mens::tensor::backend::TrainingSummary> {
         tracing::debug!(backend = "candle_qlora", "Candle qlora backend run");
+        if config.optimizer_experiment_mode != OptimizerExperimentMode::Off {
+            let enabled = std::env::var("VOX_MENS_EXPERIMENTAL_OPTIMIZER")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            if !enabled {
+                anyhow::bail!(
+                    "optimizer experiment mode `{}` requires VOX_MENS_EXPERIMENTAL_OPTIMIZER=1",
+                    match config.optimizer_experiment_mode {
+                        OptimizerExperimentMode::Off => "off",
+                        OptimizerExperimentMode::MuonClipLike => "muon_clip_like",
+                    }
+                );
+            }
+            tracing::warn!(
+                mode = ?config.optimizer_experiment_mode,
+                "experimental optimizer lane enabled"
+            );
+        }
         #[cfg(feature = "mens-candle-qlora")]
         {
             super::candle_qlora_train::run_candle_qlora_train(
@@ -48,7 +66,7 @@ mod tests {
 
     use crate::mens::tensor::backend::TrainingBackend;
     use crate::mens::tensor::device::DeviceKind;
-    use crate::mens::tensor::training_config::LoraTrainingConfig;
+    use crate::mens::tensor::training_config::{LoraTrainingConfig, OptimizerExperimentMode};
 
     use super::CandleQloraBackend;
 
@@ -69,5 +87,17 @@ mod tests {
             s.contains("tokenizer") || s.contains("hf") || s.contains("qlora"),
             "{s}"
         );
+    }
+
+    #[test]
+    fn experimental_optimizer_requires_env_guard() {
+        let cfg = LoraTrainingConfig {
+            optimizer_experiment_mode: OptimizerExperimentMode::MuonClipLike,
+            ..Default::default()
+        };
+        let err = CandleQloraBackend
+            .run(Path::new("."), None, &cfg, DeviceKind::Cpu, "")
+            .expect_err("guard should fail before training starts");
+        assert!(err.to_string().contains("VOX_MENS_EXPERIMENTAL_OPTIMIZER"));
     }
 }

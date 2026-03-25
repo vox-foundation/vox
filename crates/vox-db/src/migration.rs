@@ -1,7 +1,7 @@
 //! User-defined SQL migrations sharing the same `schema_version` table as built-in Arca migrations.
 //!
 //! Prefer [`crate::builtin_migrations`] when you need the canonical baseline snapshot as a single
-//! migration row (**version 1**). For custom migrations, ensure [`Migration::up_sql`] is compatible with
+//! migration row at [`crate::schema::BASELINE_VERSION`]. For custom migrations, ensure [`Migration::up_sql`] is compatible with
 //! [`turso::Connection::execute_batch`] (no row-returning statements).
 
 use crate::store::StoreError;
@@ -58,11 +58,11 @@ pub fn validate_migrations(migrations: &[Migration]) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// Returns the canonical baseline migration (**version 1**) from the `vox-pm` schema manifest.
+/// Returns the canonical baseline migration at [`crate::schema::BASELINE_VERSION`] from [`crate::schema::baseline_sql`].
 pub fn builtin_migrations() -> Vec<Migration> {
     vec![Migration::new(
         crate::schema::BASELINE_VERSION,
-        "arca_baseline_v1",
+        "arca_baseline",
         crate::schema::baseline_sql().to_string(),
     )]
 }

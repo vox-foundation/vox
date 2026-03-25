@@ -21,8 +21,8 @@ mod run_body_helpers;
 
 use run_body_helpers::{
     check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts, run_build_timings,
-    run_cuda_features, run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate,
-    run_repo_guards, run_ssot_drift, run_toestub_scoped,
+    run_clavis_parity, run_cuda_features, run_feature_matrix, run_grammar_drift, run_manifest,
+    run_mens_gate, run_repo_guards, run_secret_env_guard, run_ssot_drift, run_toestub_scoped,
 };
 
 /// Run `vox ci` subcommand.
@@ -120,6 +120,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
         CiCmd::RepoGuards => run_repo_guards(&root),
+        CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),
+        CiCmd::ClavisParity => run_clavis_parity(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
         CiCmd::CheckLinks => check_links::run(&root),
         CiCmd::ReleaseBuild {

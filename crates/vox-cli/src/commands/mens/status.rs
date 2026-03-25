@@ -3,6 +3,8 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 pub async fn run_status(
     run_dir: Option<PathBuf>,
     as_json: bool,
@@ -46,7 +48,7 @@ pub async fn run_status(
 
     let run_state_path = base.join("run_state.json");
     let run_state = if run_state_path.exists() {
-        std::fs::read_to_string(&run_state_path)
+        read_utf8_path_capped(&run_state_path)
             .ok()
             .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
     } else {
@@ -63,7 +65,7 @@ pub async fn run_status(
     }
 
     let content = if telemetry_path.exists() {
-        std::fs::read_to_string(&telemetry_path)?
+        read_utf8_path_capped(&telemetry_path)?
     } else {
         String::new()
     };

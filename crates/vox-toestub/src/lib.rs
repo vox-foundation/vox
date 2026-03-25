@@ -9,6 +9,8 @@
 //! Public modules and re-exports are intentionally thin; each detector/rule is documented in its
 //! own file where non-obvious heuristics exist.
 
+mod bounded_fs;
+
 /// Optional LLM-backed triage: wraps provider-specific clients behind a small `AiAnalyzer` API.
 pub mod ai_analyze;
 /// Concrete TOESTUB rules (stubs, empty bodies, secrets, DRY, …) registered by [`detectors::all_rules`].

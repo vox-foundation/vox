@@ -17,10 +17,55 @@ impl crate::VoxDb {
         // `pragma_update` so those rows are consumed (see turso `Connection::prepare_execute_batch`).
         let _ = conn.pragma_update("journal_mode", "WAL").await?;
         let _ = conn.pragma_update("busy_timeout", 5000).await?;
+        // Do not set `wal_autocheckpoint` via `pragma_update`: libsql rejects assignment forms for
+        // this pragma (parse → unsupported). SQLite default is 1000 pages, which matches intent.
         let _ = conn.pragma_update("synchronous", "NORMAL").await?;
         let _ = conn.pragma_update("foreign_keys", "ON").await?;
         let _ = conn.pragma_update("cache_size", -8000).await?;
         Ok(())
+    }
+
+    /// Drop every user-defined table (not `sqlite_%`). Caller usually follows with [`Self::migrate`].
+    #[cfg(feature = "local")]
+    pub async fn drop_all_user_tables(conn: &turso::Connection) -> Result<(), StoreError> {
+        conn.execute("PRAGMA foreign_keys = OFF", ())
+            .await
+            .map_err(StoreError::from)?;
+        let mut rows = conn
+            .query(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+                (),
+            )
+            .await?;
+        let mut names = Vec::new();
+        while let Some(row) = rows.next().await? {
+            names.push(row.get::<String>(0)?);
+        }
+        for name in names {
+            let quoted = sqlite_quote_ident(&name);
+            conn.execute(&format!("DROP TABLE IF EXISTS {quoted}"), ())
+                .await
+                .map_err(StoreError::from)?;
+        }
+        conn.execute("PRAGMA foreign_keys = ON", ())
+            .await
+            .map_err(StoreError::from)?;
+        Ok(())
+    }
+
+    /// Open a local file, wipe all user tables, and apply baseline + cutover (same as fresh migrate).
+    #[cfg(feature = "local")]
+    pub async fn open_local_reset_to_baseline(path: &str) -> Result<Self, StoreError> {
+        let db = turso::Builder::new_local(path).build().await?;
+        let conn = db.connect()?;
+        Self::apply_pragmas(&conn).await?;
+        Self::drop_all_user_tables(&conn).await?;
+        Self::migrate(&conn).await?;
+        Ok(Self {
+            conn,
+            sync_db: None,
+            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
+        })
     }
 
     /// Apply the manifest **baseline** DDL and advance `schema_version` to [`BASELINE_VERSION`].
@@ -168,6 +213,20 @@ impl crate::VoxDb {
         }
         Ok(())
     }
+}
+
+fn sqlite_quote_ident(name: &str) -> String {
+    let mut s = String::with_capacity(name.len() + 2);
+    s.push('"');
+    for c in name.chars() {
+        if c == '"' {
+            s.push_str("\"\"");
+        } else {
+            s.push(c);
+        }
+    }
+    s.push('"');
+    s
 }
 
 #[cfg(all(test, feature = "local"))]

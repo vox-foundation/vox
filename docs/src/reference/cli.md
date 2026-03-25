@@ -26,6 +26,7 @@ The **`vox`** executable is built from `crates/vox-cli` (repository root). This 
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
+- **Secrets namespace:** **`vox clavis`** (alias **`vox secrets`**) centralizes token health checks and credential compatibility storage.
 - **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/bundle/fmt/script; **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
 Design rules and registry parity: [`cli-design-rules.md`](#), [`command-compliance.md`](command-compliance.md).
@@ -115,11 +116,30 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, `vox-cli --features oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
+| `secret-env-guard [--all]` | Fails if Rust files add direct managed-secret env reads outside allowed modules (default changed-files; `--all` scans all crates). |
+| `clavis-parity` | Verifies Clavis managed secret names are synchronized with `docs/src/reference/clavis-ssot.md`. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
 | `contracts-index` | Validates `contracts/index.yaml` against `contracts/index.schema.json` and checks every listed contract path exists |
 | `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `command-compliance`, `contracts-index`, and `scientia-worthiness-contract` in one pass |
+
+### `vox clavis` (alias `vox secrets`)
+
+Centralized secret diagnostics and compatibility credential storage.
+
+| Subcommand | Role |
+|------------|------|
+| `vox clavis doctor --workflow chat\|mcp\|publish\|review\|db-remote\|mens-mesh --profile dev\|ci\|mobile\|prod --mode auto\|local\|cloud [--bundle minimal-local-dev\|minimal-cloud-dev\|gpu-cloud\|publish-review]` | Prints active-mode blocking vs optional secret readiness using requirement groups and optional bundle checks. |
+| `vox clavis set <registry> <token> [--username <name>]` | Stores a registry token in `~/.vox/auth.json` through the Clavis API. |
+| `vox clavis get <registry>` | Reads and prints redacted token status from Clavis resolution sources. |
+| `vox clavis backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
+| `vox clavis migrate-auth-store` | Migrates plaintext `auth.json` tokens to secure local store and leaves compatibility sentinels in JSON. |
+
+### Deprecated compatibility commands
+
+- `vox login [--registry <name>] [<token>] [--username <name>]` — compatibility shim for older workflows; prefer `vox clavis set`.
+- `vox logout [--registry <name>]` — compatibility shim; prefer `vox clavis` commands.
 
 **Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.
 
@@ -202,7 +222,11 @@ Build: `cargo build -p vox-cli --features codex` for the extended path.
 
 Local **VoxDB** inspection and research helpers (`crates/vox-cli/src/commands/db.rs`, `db_cli.rs`). Uses the same connection resolution as Codex (`VOX_DB_*`, compatibility `VOX_TURSO_*`, legacy `TURSO_*`, or local path).
 
-Common subcommands: `status`, `schema`, `sample`, `migrate`, `export` / `import`, `vacuum`, `pref-get` / `pref-set` / `pref-list`, plus research flows (`research-ingest-url`, `research-list`, `capability-list`, …). Run `vox db --help` for the full tree.
+`vox db audit` prints read-only JSON to stdout: schema version, database paths, select storage `PRAGMA`s, and per-user-table row counts. Add `--timestamps` for heuristic `MIN`/`MAX` on a chosen time-like column per table (extra queries).
+
+`vox db prune-plan` prints JSON counts for rows older than policy thresholds (`contracts/db/retention-policy.yaml`). `vox db prune-apply --i-understand` runs matching `DELETE`s.
+
+Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` / `import`, `vacuum`, `pref-get` / `pref-set` / `pref-list`, plus research flows (`research-ingest-url`, `research-list`, `capability-list`, …). Publication operator controls: `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. Run `vox db --help` for the full tree.
 
 ### `vox scientia`
 
@@ -225,11 +249,16 @@ Connection resolution matches `vox db` (`VOX_DB_*`, …). The publication flow u
 
 **Codex** (Turso / Arca) utilities backed by `vox-db`.
 
+`vox codex cutover` automates legacy-chain migration: exports JSONL + a JSON sidecar, creates a new local SQLite file at `--target-db`, imports, and prints the `VOX_DB_PATH` you should export next. Requires a **local** legacy file (`--source-db` or configured `VOX_DB_PATH`). Use `--force` only after backing up an existing target path.
+
 | Subcommand | Description |
 |------------|-------------|
 | `verify` | Prints `schema_version` (baseline **1**), manifest-derived reactivity table check, and legacy-chain flag |
 | `export-legacy -o <file>` | Writes JSONL for legacy table set (see `vox_db::codex_legacy::LEGACY_EXPORT_TABLES`) |
-| `import-legacy -i <file>` | Restores rows from that JSONL |
+| `import-legacy -i <file>` | Restores rows from that JSONL (clears allowlisted tables on the target, then inserts; for fresh baselines only) |
+| `cutover --target-db <new.db> [--source-db <old.db>] [--artifact-dir <dir>] [--force]` | Export + fresh target + import + `codex-cutover-*.{jsonl,sidecar.json}` artifacts |
+| `import-orchestrator-memory --dir <dir> --agent-id <id> [--session-id <s>]` | One `memories` row per top-level `*.md` |
+| `import-skill-bundle --file <bundle.json>` | JSON `{ id, version, manifest_json, skill_md }` → `skill_manifests` |
 | `socrates-metrics [--repository-id <id>] [--limit N]` | Prints `SocratesSurfaceAggregate` JSON from recent `socrates_surface` `research_metrics` rows |
 | `socrates-eval-snapshot --eval-id <id> [--repository-id <id>] [--limit N]` | Writes one `eval_runs` row via `VoxDb::record_socrates_eval_summary` (errors if no `socrates_surface` rows in window) |
 
@@ -488,8 +517,12 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `bundle` | default | `commands::bundle` |
 | `fmt` | default | `commands::fmt` (not implemented; fails with doc pointer; see `ref-cli.md`) |
 | `install` | default | `commands::install` (not implemented; fails with doc pointer; see `ref-cli.md`) |
+| `login` | default | `commands::login` (deprecated compatibility shim) |
+| `logout` | default | `commands::logout` (deprecated compatibility shim) |
 | `lsp` | default | `commands::lsp` |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
+| `clavis` | default | `commands::clavis` |
+| `secrets` | default | alias of `clavis` |
 | `architect` | `codex` or `stub-check` | `commands::diagnostics::tools::architect` |
 | `snippet` | default | `commands::extras::snippet_cli` |
 | `share` | default | `commands::extras::share_cli` |

@@ -28,8 +28,18 @@ pub(super) async fn run_gpu_training(
     checkpoint_every: Option<usize>,
     force_restart: bool,
     curriculum: bool,
+    optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     require_gpu: bool,
     allow_cpu_fallback: bool,
+    base_model_family: Option<String>,
+    upstream_model_id: Option<String>,
+    license_class: Option<String>,
+    attribution_required: bool,
+    trajectory_weighting_enabled: bool,
+    trajectory_tool_trace_boost: f32,
+    trajectory_failure_category_boost: f32,
+    trajectory_quality_floor: Option<u8>,
+    trajectory_quality_boost: f32,
     vram_limit_fraction: Option<f32>,
     adapter_tag: Option<String>,
     context_filter: Option<String>,
@@ -130,6 +140,27 @@ pub(super) async fn run_gpu_training(
     let epochs = profile.epochs;
     let warmup = profile.warmup;
     let lr = profile.lr;
+    if !trajectory_tool_trace_boost.is_finite() || trajectory_tool_trace_boost < 0.0 {
+        anyhow::bail!(
+            "--trajectory-tool-trace-boost must be finite and non-negative (got {trajectory_tool_trace_boost})"
+        );
+    }
+    if !trajectory_failure_category_boost.is_finite() || trajectory_failure_category_boost < 0.0 {
+        anyhow::bail!(
+            "--trajectory-failure-category-boost must be finite and non-negative (got {trajectory_failure_category_boost})"
+        );
+    }
+    if !trajectory_quality_boost.is_finite() || trajectory_quality_boost < 0.0 {
+        anyhow::bail!(
+            "--trajectory-quality-boost must be finite and non-negative (got {trajectory_quality_boost})"
+        );
+    }
+    if let Some(q) = trajectory_quality_floor
+        && !(1..=5).contains(&q)
+    {
+        anyhow::bail!("--trajectory-quality-floor must be between 1 and 5 (got {q})");
+    }
+
     let mut base_model_paths = None::<(Vec<std::path::PathBuf>, std::path::PathBuf)>;
     let mut tokenizer_path = None::<std::path::PathBuf>;
     if let Some(ref repo_id) = model {
@@ -229,6 +260,10 @@ pub(super) async fn run_gpu_training(
     };
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
+        base_model_family,
+        upstream_model_id,
+        license_class,
+        attribution_required,
         base_model_paths,
         tokenizer_path,
         train_file: Some(resolved.path),
@@ -262,6 +297,12 @@ pub(super) async fn run_gpu_training(
         force_restart,
         deployment_target,
         curriculum,
+        optimizer_experiment_mode,
+        trajectory_weighting_enabled,
+        trajectory_tool_trace_boost,
+        trajectory_failure_category_boost,
+        trajectory_quality_floor,
+        trajectory_quality_boost,
         require_gpu,
         allow_cpu_fallback,
     };

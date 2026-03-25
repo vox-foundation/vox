@@ -5,7 +5,9 @@ use anyhow::Result;
 use super::PopuliAction;
 
 #[cfg(feature = "gpu")]
-use super::{MensTokenizerCli, PopuliTrainBackendCli, TrainingDeploymentTargetCli};
+use super::{
+    MensTokenizerCli, OptimizerExperimentModeCli, PopuliTrainBackendCli, TrainingDeploymentTargetCli,
+};
 
 use crate::commands::mens::bench_completion;
 use crate::commands::mens::eval_gate;
@@ -108,8 +110,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Some(checkpoint_every),
                 force_restart,
                 false, // curriculum (dogfood default: off)
+                OptimizerExperimentModeCli::Off.into(),
                 true,  // require_gpu
                 false, // allow_cpu_fallback
+                None,  // base_model_family
+                None,  // upstream_model_id
+                None,  // license_class
+                false, // attribution_required
+                false, // trajectory_weighting_enabled
+                1.1,   // trajectory_tool_trace_boost
+                1.15,  // trajectory_failure_category_boost
+                None,  // trajectory_quality_floor
+                1.05,  // trajectory_quality_boost
             )
             .await?;
             Ok(())
@@ -151,6 +163,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             force_restart,
             require_gpu,
             allow_cpu_fallback,
+            base_model_family,
+            upstream_model_id,
+            license_class,
+            attribution_required,
+            trajectory_weighting_enabled,
+            trajectory_tool_trace_boost,
+            trajectory_failure_category_boost,
+            trajectory_quality_floor,
+            trajectory_quality_boost,
             cloud,
             max_budget,
             train_data_hf,
@@ -158,6 +179,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             max_runtime_secs,
             validation_split_ratio,
             curriculum,
+            optimizer_experiment_mode,
         } => {
             super::train_arm::run_train(
                 model,
@@ -195,6 +217,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 force_restart,
                 require_gpu,
                 allow_cpu_fallback,
+                base_model_family,
+                upstream_model_id,
+                license_class,
+                attribution_required,
+                trajectory_weighting_enabled,
+                trajectory_tool_trace_boost,
+                trajectory_failure_category_boost,
+                trajectory_quality_floor,
+                trajectory_quality_boost,
                 cloud,
                 max_budget,
                 train_data_hf,
@@ -202,6 +233,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 max_runtime_secs,
                 validation_split_ratio,
                 curriculum,
+                optimizer_experiment_mode.into(),
             )
             .await
         }
@@ -422,7 +454,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
         #[cfg(feature = "mens-dei")]
         PopuliAction::Fix { file, errors } => {
-            let code = std::fs::read_to_string(&file)?;
+            let code = crate::commands::ci::bounded_read::read_utf8_path_capped(&file)?;
             let errors_val = if let Some(e) = errors {
                 e
             } else {

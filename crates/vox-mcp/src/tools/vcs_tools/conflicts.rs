@@ -3,12 +3,24 @@ use vox_orchestrator::{AgentId, ConflictId, ConflictResolution, SnapshotId};
 use super::parse::parse_conflict_id_value;
 use crate::params::ToolResult;
 use crate::server::ServerState;
+use crate::sync_poison::{poison_rw_read, poison_rw_write};
+
+fn lock_err(e: anyhow::Error) -> String {
+    ToolResult::<String>::err(e.to_string()).to_json()
+}
 
 /// List active conflicts (async).
 pub async fn conflicts_list(state: &ServerState) -> String {
+    match conflicts_list_inner(state) {
+        Ok(s) => s,
+        Err(e) => lock_err(e),
+    }
+}
+
+fn conflicts_list_inner(state: &ServerState) -> anyhow::Result<String> {
     let orch = &state.orchestrator;
     let cm_lock = orch.conflict_manager_handle();
-    let mgr = cm_lock.read().unwrap();
+    let mgr = poison_rw_read(cm_lock.read(), "read conflict manager for conflicts_list")?;
     let conflicts = mgr.active_conflicts();
 
     let items: Vec<serde_json::Value> = conflicts
@@ -23,15 +35,22 @@ pub async fn conflicts_list(state: &ServerState) -> String {
         })
         .collect();
 
-    ToolResult::ok(serde_json::json!({
+    Ok(ToolResult::ok(serde_json::json!({
         "active_conflicts": items,
         "total_active": items.len(),
     }))
-    .to_json()
+    .to_json())
 }
 
 /// Show an N-way conflict diff for a specific conflict (async).
 pub async fn conflict_diff(state: &ServerState, args: serde_json::Value) -> String {
+    match conflict_diff_inner(state, args) {
+        Ok(s) => s,
+        Err(e) => lock_err(e),
+    }
+}
+
+fn conflict_diff_inner(state: &ServerState, args: serde_json::Value) -> anyhow::Result<String> {
     let conflict_id = if let Some(raw) = args.get("conflict_id").and_then(|v| v.as_u64()) {
         ConflictId(raw)
     } else if let Some(raw) = args.get("conflict_id").and_then(|v| v.as_str()) {
@@ -40,30 +59,34 @@ pub async fn conflict_diff(state: &ServerState, args: serde_json::Value) -> Stri
             .and_then(|s| s.parse::<u64>().ok())
             .map(ConflictId)
         else {
-            return ToolResult::<String>::err("Invalid conflict_id format. Expected C-XXXXXX")
-                .to_json();
+            return Ok(
+                ToolResult::<String>::err("Invalid conflict_id format. Expected C-XXXXXX")
+                    .to_json(),
+            );
         };
         id
     } else {
-        return ToolResult::<String>::err(
+        return Ok(ToolResult::<String>::err(
             "Missing conflict_id (number or C-XXXXXX string)".to_string(),
         )
-        .to_json();
+        .to_json());
     };
 
     let orch = &state.orchestrator;
     let ss_lock = orch.snapshot_store_handle();
     let conflict = {
         let mgr_handle = orch.conflict_manager_handle();
-        let mgr = mgr_handle.read().unwrap();
+        let mgr = poison_rw_read(mgr_handle.read(), "read conflict manager for conflict_diff")?;
         mgr.get(conflict_id).cloned()
     };
 
     let Some(c) = conflict else {
-        return ToolResult::<String>::err(format!("Conflict {} not found", conflict_id)).to_json();
+        return Ok(
+            ToolResult::<String>::err(format!("Conflict {} not found", conflict_id)).to_json(),
+        );
     };
 
-    let store = ss_lock.read().unwrap();
+    let store = poison_rw_read(ss_lock.read(), "read snapshot store for conflict_diff")?;
     let base = c.base_snapshot.and_then(|sid| store.get(sid).cloned());
     let mut unique_hashes = std::collections::BTreeSet::new();
     let mut sides = Vec::new();
@@ -132,16 +155,23 @@ pub async fn conflict_diff(state: &ServerState, args: serde_json::Value) -> Stri
         "sides": sides,
     });
 
-    ToolResult::ok(body).to_json()
+    Ok(ToolResult::ok(body).to_json())
 }
 
 /// Resolve a conflict (async).
 pub async fn resolve_conflict(state: &ServerState, args: serde_json::Value) -> String {
+    match resolve_conflict_inner(state, args) {
+        Ok(s) => s,
+        Err(e) => lock_err(e),
+    }
+}
+
+fn resolve_conflict_inner(state: &ServerState, args: serde_json::Value) -> anyhow::Result<String> {
     let Some(conflict_id) = parse_conflict_id_value(args.get("conflict_id")) else {
-        return ToolResult::<String>::err(
+        return Ok(ToolResult::<String>::err(
             "Missing or invalid conflict_id (number or C-XXXXXX string)".to_string(),
         )
-        .to_json();
+        .to_json());
     };
     let strategy = args
         .get("strategy")
@@ -163,13 +193,19 @@ pub async fn resolve_conflict(state: &ServerState, args: serde_json::Value) -> S
     };
 
     let conflict_manager = orch.conflict_manager_handle();
-    let mut mgr_guard = conflict_manager.write().unwrap();
+    let mut mgr_guard = poison_rw_write(
+        conflict_manager.write(),
+        "write conflict manager for resolve_conflict",
+    )?;
     let ok = mgr_guard.resolve(conflict_id, resolution);
 
     if ok {
-        ToolResult::ok("Conflict resolved".to_string()).to_json()
+        Ok(ToolResult::ok("Conflict resolved".to_string()).to_json())
     } else {
-        ToolResult::<String>::err("Conflict not found or already resolved".to_string()).to_json()
+        Ok(
+            ToolResult::<String>::err("Conflict not found or already resolved".to_string())
+                .to_json(),
+        )
     }
 }
 

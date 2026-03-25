@@ -164,6 +164,8 @@ pub(super) fn run_training_loop(
     let mut skip_no_supervised_positions: u64 = 0;
     let mut skip_short_seq: u64 = 0;
     let mut skip_curriculum: u64 = 0;
+    let mut trajectory_weighted_pairs: u64 = 0;
+    let mut trajectory_clamped_pairs: u64 = 0;
 
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
@@ -216,6 +218,14 @@ pub(super) fn run_training_loop(
         for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start)
         {
             let pair = &pairs[pair_real_idx];
+            let (sample_weight, was_clamped) = trajectory_weight_for_pair(pair, config);
+            if config.trajectory_weighting_enabled && (sample_weight - 1.0_f64).abs() > f64::EPSILON
+            {
+                trajectory_weighted_pairs += 1;
+            }
+            if was_clamped {
+                trajectory_clamped_pairs += 1;
+            }
 
             // Curriculum filter
             if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
@@ -304,8 +314,10 @@ pub(super) fn run_training_loop(
                     .gather(&targets_flat.unsqueeze(1)?, 1)?
                     .flatten_all()?;
                 let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
-                // Invert sign because log_softmax is negative
-                let loss = (loss * -1.0)?;
+                // Invert sign (log_softmax is negative) and apply trajectory sample weight.
+                let w = (-1.0_f64 * sample_weight) as f32;
+                let w_t = candle_core::Tensor::new(&[w], device)?;
+                let loss = loss.broadcast_mul(&w_t)?;
 
                 let loss_scalar = loss.to_scalar::<f32>()?;
                 if !loss_scalar.is_finite() {
@@ -331,7 +343,7 @@ pub(super) fn run_training_loop(
                     config.learning_rate,
                 );
                 let micro_step_after_backward = global_step + 1;
-                if micro_step_after_backward % grad_accum == 0 {
+                if micro_step_after_backward.is_multiple_of(grad_accum) {
                     optimizer_step_count += 1;
                     trainer.config.adapter_config.learning_rate = lr_next;
                     trainer.update_lr();
@@ -395,7 +407,7 @@ pub(super) fn run_training_loop(
                     .map(|v| format!("{:.4}", v))
                     .unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
-                    "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={})",
+                    "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={}) traj(weighted_pairs={},clamped_pairs={})",
                     epoch,
                     config.epochs,
                     global_step,
@@ -408,7 +420,9 @@ pub(super) fn run_training_loop(
                     eta_str,
                     skip_no_supervised_positions,
                     skip_short_seq,
-                    skip_curriculum
+                    skip_curriculum,
+                    trajectory_weighted_pairs,
+                    trajectory_clamped_pairs
                 ));
                 telemetry::append(
                     out,
@@ -425,6 +439,8 @@ pub(super) fn run_training_loop(
                         "skip_no_supervised_positions": skip_no_supervised_positions,
                         "skip_short_seq": skip_short_seq,
                         "skip_curriculum": skip_curriculum,
+                        "trajectory_weighted_pairs": trajectory_weighted_pairs,
+                        "trajectory_clamped_pairs": trajectory_clamped_pairs,
                     }),
                 )?;
                 progress_anchor_step = optimizer_step_count;
@@ -545,22 +561,52 @@ fn build_epoch_shuffled_indices(
     resume_shuffled_indices: &Option<Vec<usize>>,
     rng: &mut rand::rngs::StdRng,
 ) -> Vec<usize> {
-    if epoch == start_epoch {
-        if let Some(idx) = resume_shuffled_indices
-            && !idx.is_empty()
-        {
-            return idx.clone();
-        }
+    if epoch == start_epoch
+        && let Some(idx) = resume_shuffled_indices
+        && !idx.is_empty()
+    {
+        return idx.clone();
     }
     let mut idx: Vec<usize> = (0..pair_count).collect();
     idx.shuffle(rng);
     idx
 }
 
+fn trajectory_weight_for_pair(pair: &TrainingPair, config: &LoraTrainingConfig) -> (f64, bool) {
+    if !config.trajectory_weighting_enabled {
+        return (1.0, false);
+    }
+    let mut weight = 1.0_f64;
+    if let Some(category) = pair.category.as_deref() {
+        let c = category.to_ascii_lowercase();
+        if c.contains("tool_trace") || c.contains("trajectory") {
+            weight *= config.trajectory_tool_trace_boost.max(0.0) as f64;
+        }
+        if c.contains("fail") || c.contains("error") {
+            weight *= config.trajectory_failure_category_boost.max(0.0) as f64;
+        }
+    }
+    if let (Some(floor), Some(rating)) = (config.trajectory_quality_floor, pair.rating)
+        && rating >= floor
+    {
+        weight *= config.trajectory_quality_boost.max(0.0) as f64;
+    }
+    if !weight.is_finite() {
+        return (1.0, true);
+    }
+    const MAX_TRAJECTORY_WEIGHT: f64 = 8.0;
+    let clamped = weight.clamp(0.0, MAX_TRAJECTORY_WEIGHT);
+    let was_clamped = (clamped - weight).abs() > f64::EPSILON;
+    (clamped, was_clamped)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::build_epoch_shuffled_indices;
+    use super::{build_epoch_shuffled_indices, trajectory_weight_for_pair};
     use rand::SeedableRng;
+    use vox_tensor::data::TrainingPair;
+
+    use crate::mens::tensor::training_config::LoraTrainingConfig;
 
     #[test]
     fn uses_resume_indices_when_present_and_nonempty() {
@@ -577,5 +623,62 @@ mod tests {
         let expect = build_epoch_shuffled_indices(2, 1, 6, &None, &mut rng_b);
         assert_eq!(got, expect);
         assert!(!got.is_empty());
+    }
+
+    #[test]
+    fn trajectory_weighting_defaults_to_identity_when_disabled() {
+        let pair = TrainingPair {
+            prompt: "p".into(),
+            response: "r".into(),
+            rating: Some(5),
+            category: Some("tool_trace".into()),
+            difficulty: None,
+        };
+        let cfg = LoraTrainingConfig::default();
+        assert_eq!(trajectory_weight_for_pair(&pair, &cfg), (1.0, false));
+    }
+
+    #[test]
+    fn trajectory_weighting_applies_category_and_quality_boosts() {
+        let pair = TrainingPair {
+            prompt: "p".into(),
+            response: "r".into(),
+            rating: Some(5),
+            category: Some("tool_trace_failure".into()),
+            difficulty: None,
+        };
+        let cfg = LoraTrainingConfig {
+            trajectory_weighting_enabled: true,
+            trajectory_tool_trace_boost: 1.2,
+            trajectory_failure_category_boost: 1.1,
+            trajectory_quality_floor: Some(4),
+            trajectory_quality_boost: 1.05,
+            ..Default::default()
+        };
+        let (w, clamped) = trajectory_weight_for_pair(&pair, &cfg);
+        assert!(!clamped);
+        assert!((w - (1.2_f64 * 1.1_f64 * 1.05_f64)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn trajectory_weighting_clamps_pathological_values() {
+        let pair = TrainingPair {
+            prompt: "p".into(),
+            response: "r".into(),
+            rating: Some(5),
+            category: Some("trajectory_failure".into()),
+            difficulty: None,
+        };
+        let cfg = LoraTrainingConfig {
+            trajectory_weighting_enabled: true,
+            trajectory_tool_trace_boost: 1000.0,
+            trajectory_failure_category_boost: 1000.0,
+            trajectory_quality_floor: Some(1),
+            trajectory_quality_boost: 1000.0,
+            ..Default::default()
+        };
+        let (w, clamped) = trajectory_weight_for_pair(&pair, &cfg);
+        assert!(clamped);
+        assert!(w <= 8.0);
     }
 }

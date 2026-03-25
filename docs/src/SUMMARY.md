@@ -53,6 +53,8 @@
 - [Scaling CI enforcement rollout](architecture/scaling-ci-enforcement.md)
 - [SCIENTIA publication readiness audit](architecture/scientia-publication-readiness-audit.md)
 - [SCIENTIA publication automation SSOT](architecture/scientia-publication-automation-ssot.md)
+- [MENS findings: Composer and Kimi (2026)](architecture/mens-composer-kimi-findings-2026.md)
+- [Mens Architecture 2026 Synthesis](architecture/mens-architecture-2026-synthesis.md)
 
 # Reference
 

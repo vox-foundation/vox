@@ -18,6 +18,9 @@
 #![allow(clippy::explicit_auto_deref)]
 #![allow(clippy::type_complexity)]
 
+mod bounded_fs;
+mod sync_poison;
+
 /// Agent-to-agent messaging over the orchestrator bus (send, inbox, ack, broadcast, history).
 pub mod a2a;
 /// File-path affinity: which agent owns a path, claim/transfer, and list files per agent.

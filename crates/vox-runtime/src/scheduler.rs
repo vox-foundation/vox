@@ -1,5 +1,5 @@
 use crate::process::{ProcessContext, ProcessHandle, spawn_process};
-use crate::registry::ProcessRegistry;
+use crate::registry::{ProcessRegistry, RegistryError};
 
 /// Cooperative scheduler for the Vox actor runtime.
 /// Uses Tokio's work-stealing executor under the hood, with
@@ -17,26 +17,30 @@ impl Scheduler {
     }
 
     /// Spawn a new actor process in the scheduler.
-    pub fn spawn<F, Fut>(&self, behavior: F) -> ProcessHandle
+    pub fn spawn<F, Fut>(&self, behavior: F) -> Result<ProcessHandle, RegistryError>
     where
         F: FnOnce(ProcessContext) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
         let handle = spawn_process(behavior);
-        self.registry.register(handle.clone());
-        handle
+        self.registry.register(handle.clone())?;
+        Ok(handle)
     }
 
     /// Spawn a named actor process.
-    pub fn spawn_named<F, Fut>(&self, name: &str, behavior: F) -> ProcessHandle
+    pub fn spawn_named<F, Fut>(
+        &self,
+        name: &str,
+        behavior: F,
+    ) -> Result<ProcessHandle, RegistryError>
     where
         F: FnOnce(ProcessContext) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
         let handle = spawn_process(behavior);
         self.registry
-            .register_name(name.to_string(), handle.clone());
-        handle
+            .register_name(name.to_string(), handle.clone())?;
+        Ok(handle)
     }
 
     /// Get the process registry.
@@ -45,7 +49,7 @@ impl Scheduler {
     }
 
     /// Number of active processes.
-    pub fn process_count(&self) -> usize {
+    pub fn process_count(&self) -> Result<usize, RegistryError> {
         self.registry.len()
     }
 }
@@ -62,7 +66,7 @@ mod tests {
     use crate::mailbox::{Envelope, Message, MessagePayload};
 
     #[tokio::test]
-    async fn test_spawn_and_send() {
+    async fn test_spawn_and_send() -> Result<(), RegistryError> {
         let scheduler = Scheduler::new();
         let (tx, rx) = tokio::sync::oneshot::channel::<String>();
 
@@ -72,7 +76,7 @@ mod tests {
                     let _ = tx.send(text);
                 }
             }
-        });
+        })?;
 
         let msg = Envelope::Message(Message {
             from: crate::pid::Pid::new(),
@@ -82,10 +86,11 @@ mod tests {
 
         let result = rx.await.unwrap();
         assert_eq!(result, "hello vox");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_named_process() {
+    async fn test_named_process() -> Result<(), RegistryError> {
         let scheduler = Scheduler::new();
         let _handle = scheduler.spawn_named("echo", |mut ctx| async move {
             while let Some(env) = ctx.receive().await {
@@ -96,14 +101,15 @@ mod tests {
                     _ => break,
                 }
             }
-        });
+        })?;
 
-        let found = scheduler.registry().lookup_name("echo");
+        let found = scheduler.registry().lookup_name("echo")?;
         assert!(found.is_some());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_call_reply() {
+    async fn test_call_reply() -> Result<(), RegistryError> {
         use crate::process::ProcessContext;
 
         let scheduler = Scheduler::new();
@@ -127,5 +133,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(response, "Echo: hello from caller");
+        Ok(())
     }
 }

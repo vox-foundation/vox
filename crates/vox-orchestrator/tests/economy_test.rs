@@ -89,6 +89,20 @@ async fn test_model_selection_preference() {
 
     let mh = orch.models_handle();
     mh.write().unwrap().register(ModelSpec {
+        id: "anthropic/claude-sonnet-4.5".to_string(),
+        canonical_slug: "anthropic/claude-sonnet-4.5".to_string(),
+        provider: "anthropic".to_string(),
+        provider_type: vox_orchestrator::models::ProviderType::OpenRouter,
+        max_tokens: 200_000,
+        cost_per_1k: 3.0,
+        cost_per_1k_input: 3.0,
+        cost_per_1k_output: 15.0,
+        is_free: false,
+        strengths: vec!["codegen".to_string()],
+        capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+        supported_parameters: vec![],
+    });
+    mh.write().unwrap().register(ModelSpec {
         id: "budget-coder".to_string(),
         canonical_slug: "budget-coder".to_string(),
         provider: "local".to_string(),
@@ -103,7 +117,7 @@ async fn test_model_selection_preference() {
         supported_parameters: vec![],
     });
 
-    // Performance preference (default) should pick Sonnet
+    // Performance preference (default) should pick the cheapest *paid* codegen model (registered above).
     let best_perf = mh
         .read()
         .unwrap()

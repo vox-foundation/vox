@@ -135,7 +135,6 @@ async fn stress_test_1000_tasks_10_agents() {
 
         let mut outer = 0usize;
         loop {
-            outer != 0;
             outer += 1;
             assert!(
                 outer <= max_outer_rounds,

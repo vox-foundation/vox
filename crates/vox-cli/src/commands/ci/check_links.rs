@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use regex::Regex;
-use std::fs;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 pub fn run(repo_root: &Path) -> Result<()> {
     let docs_src = repo_root.join("docs").join("src");
@@ -33,7 +34,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
         if entry.file_type().is_file() && entry.path().extension().is_some_and(|ext| ext == "md") {
             let path = entry.path();
             let content =
-                fs::read_to_string(path).with_context(|| format!("Failed to read {:?}", path))?;
+                read_utf8_path_capped(path).with_context(|| format!("Failed to read {:?}", path))?;
 
             let parent_dir = path.parent().unwrap();
 

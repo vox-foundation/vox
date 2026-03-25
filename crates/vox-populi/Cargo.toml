@@ -14,6 +14,7 @@ transport = [
     "dep:reqwest",
     "dep:tower-http",
     "dep:subtle",
+    "dep:vox-scaling-policy",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -28,6 +29,7 @@ mens = [
     "dep:vox-tensor",
     "dep:vox-corpus",
     "dep:vox-db",
+    "dep:vox-scaling-policy",
 ]
 mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors"]
 mens-candle-qlora = [
@@ -59,6 +61,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-repository = { workspace = true }
+vox-clavis = { workspace = true }
 
 # Populi transport
 axum = { version = "0.8", optional = true }
@@ -78,6 +81,7 @@ rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
 vox-db = { workspace = true, optional = true }
+vox-scaling-policy = { workspace = true, optional = true }
 burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
 hf-hub = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }

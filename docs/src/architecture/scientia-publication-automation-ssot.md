@@ -42,7 +42,7 @@ Internal SSOT and implementation anchors:
 - `crates/vox-cli/src/commands/scientia.rs`
 - `crates/vox-cli/src/commands/db.rs`
 - `crates/vox-mcp/src/tools/scientia_tools.rs`
-- `crates/vox-db/src/schema/domains/publication.rs`
+- `crates/vox-db/src/schema/domains/publish_cloud.rs` (publication tables in the `publish_cloud` Arca fragment)
 
 External requirements anchors (authoritative policies/guides):
 
@@ -55,6 +55,18 @@ External requirements anchors (authoritative policies/guides):
 - Nature Portfolio AI policy
 - Elsevier generative AI writing policy
 - Crossref required/recommended metadata guidance
+
+## Scientia package-family topology
+
+To avoid `vox-publisher` becoming a god-object crate, the Scientia namespace is split into
+package boundaries:
+
+- `vox-scientia-core`: publication manifest, preflight, worthiness, metadata/evidence modeling.
+- `vox-scientia-social`: channel syndication DTOs/outcomes and social adapter surface.
+- `vox-scientia-runtime`: runtime composition boundary for orchestrator-facing flows.
+- `vox-scientia-api`: API composition boundary for CLI/MCP surfaces.
+
+`vox-publisher` remains as a compatibility shim while downstream imports migrate.
 
 ## Pipeline SSOT
 
@@ -228,6 +240,37 @@ Use the companion rules doc:
 
 This architecture SSOT defines pipeline shape, boundaries, and implementation priorities; the rules doc defines scientific-worthiness classification and hard red lines.
 
+## Scientia social distribution (2026)
+
+Scientia publication manifests may include `metadata_json.scientia_distribution` for
+cross-channel routing metadata and policy. Canonical schema artifacts:
+
+- `contracts/scientia/distribution.schema.json`
+- `contracts/scientia/distribution.default.yaml`
+- `contracts/scientia/distribution.topic-packs.yaml`
+- `contracts/scientia/social-execution-board.template.yaml`
+- `contracts/scientia/social-execution-board.generated.yaml`
+
+Platform constraints and automation boundaries:
+
+- Reddit: Data API/OAuth with `submit` scope and strict User-Agent policy.
+- Hacker News: official API remains read-only; use manual-assist submit links.
+- YouTube: `videos.insert` requires OAuth user flow and quota budgeting; unverified projects are private-only until audit-approved.
+
+Required controls for live distribution:
+
+- digest-bound approvals remain mandatory,
+- per-channel attempts are ledgered in `publication_attempts`,
+- retries follow explicit profile budgets (no unbounded retry loops),
+- secrets are resolved through env/keyring/auth fallback precedence and never embedded into manifest payloads,
+- channel routing decisions honor topic filters and per-channel worthiness floors when configured.
+
+Distribution precedence:
+
+1. explicit per-item manifest/channel overrides,
+2. `metadata_json.scientia_distribution.distribution_policy.channel_policy`,
+3. orchestrator runtime/env overrides for live operations.
+
 ## External policy URL appendix
 
 - JMLR author and final style information: [https://jmlr.org/author-info.html](https://jmlr.org/author-info.html)
@@ -240,3 +283,10 @@ This architecture SSOT defines pipeline shape, boundaries, and implementation pr
 - Nature Portfolio AI policy for authors: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
 - Elsevier generative AI in publishing policy: [https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing](https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing)
 - Crossref metadata best practices: [https://www.crossref.org/documentation/schema-library/markup-guide-metadata-segments/](https://www.crossref.org/documentation/schema-library/markup-guide-metadata-segments/)
+- Reddit Data API Wiki: [https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki)
+- Reddit Developer Terms: [https://www.redditinc.com/policies/developer-terms](https://www.redditinc.com/policies/developer-terms)
+- Reddit Data API Terms: [https://www.redditinc.com/policies/data-api-terms](https://www.redditinc.com/policies/data-api-terms)
+- Hacker News API README: [https://raw.githubusercontent.com/HackerNews/API/master/README.md](https://raw.githubusercontent.com/HackerNews/API/master/README.md)
+- Y Combinator Hacker News API note: [https://www.ycombinator.com/blog/hacker-news-api](https://www.ycombinator.com/blog/hacker-news-api)
+- YouTube videos.insert reference: [https://developers.google.com/youtube/v3/docs/videos/insert](https://developers.google.com/youtube/v3/docs/videos/insert)
+- YouTube quota reference: [https://developers.google.com/youtube/v3/determine_quota_cost](https://developers.google.com/youtube/v3/determine_quota_cost)

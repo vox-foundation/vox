@@ -6,6 +6,8 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// Run the system-prompt-template subcommand.
 pub async fn run(output: Option<PathBuf>, format: &str) -> Result<()> {
     let mut prompt = vox_corpus::training::generate_system_prompt();
@@ -103,7 +105,7 @@ fn append_repository_context(prompt: &mut String) {
 
     let agents = repo.root.join("AGENTS.md");
     if agents.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&agents) {
+        if let Ok(text) = read_utf8_path_capped(&agents) {
             let take = text.len().min(REPO_CONTEXT_FILE_CAP);
             prompt.push_str("\n### AGENTS.md (excerpt)\n\n");
             prompt.push_str(&text[..take]);

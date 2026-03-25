@@ -7,6 +7,7 @@
 #![allow(unused_imports)]
 
 mod check_run;
+mod io;
 mod legacy;
 mod policy;
 mod run_gate;

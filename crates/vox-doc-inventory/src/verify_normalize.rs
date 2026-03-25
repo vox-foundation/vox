@@ -39,7 +39,7 @@ pub fn verify_fresh(root: &Path, committed_path: &Path) -> Result<()> {
             committed_path.display()
         ));
     }
-    let before_raw = fs::read_to_string(committed_path)?;
+    let before_raw = crate::bounded_fs::read_utf8_path_capped(committed_path)?;
     let before: Value = serde_json::from_str(&before_raw)
         .with_context(|| format!("parse {}", committed_path.display()))?;
     let sv = before
@@ -55,7 +55,7 @@ pub fn verify_fresh(root: &Path, committed_path: &Path) -> Result<()> {
         std::process::id()
     ));
     generate(root, &tmp)?;
-    let after_raw = fs::read_to_string(&tmp)?;
+    let after_raw = crate::bounded_fs::read_utf8_path_capped(&tmp)?;
     let _ = fs::remove_file(&tmp);
     let after: Value = serde_json::from_str(&after_raw)?;
 

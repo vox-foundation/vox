@@ -1,7 +1,6 @@
 //! Wire JSON shapes and API key resolution for chat / stream.
 
 use serde::{Deserialize, Serialize};
-use std::env;
 
 use super::types::{ChatMessage, LlmConfig};
 
@@ -46,9 +45,18 @@ pub(super) fn resolve_chat_api_key(config: &LlmConfig) -> String {
         .api_key
         .clone()
         .unwrap_or_else(|| match config.provider.as_str() {
-            "openrouter" => env::var("OPENROUTER_API_KEY").unwrap_or_default(),
-            "openai" => env::var("OPENAI_API_KEY").unwrap_or_default(),
-            "anthropic" => env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+            "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+                .expose()
+                .unwrap_or_default()
+                .to_string(),
+            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+                .expose()
+                .unwrap_or_default()
+                .to_string(),
+            "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+                .expose()
+                .unwrap_or_default()
+                .to_string(),
             "hf_router" | "huggingface" | "hf_endpoint" => {
                 vox_config::inference::huggingface_hub_token().unwrap_or_default()
             }

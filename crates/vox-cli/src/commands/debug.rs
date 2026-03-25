@@ -15,6 +15,8 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// Entry point for `vox debug`.
 pub async fn run(
     file: &Path,
@@ -84,7 +86,7 @@ async fn launch_dap_server(
 /// Runs the HIR interpreter with a `NullDapChannel` (no stepping) and prints
 /// a readable execution trace so developers can debug without an editor.
 async fn run_direct_script(abs: &Path, _mode: &str, _stop_on_entry: bool) -> Result<()> {
-    let source = std::fs::read_to_string(abs)
+    let source = read_utf8_path_capped(abs)
         .with_context(|| format!("cannot read {}", abs.display()))?;
 
     let tokens = vox_compiler::lexer::lex(&source);

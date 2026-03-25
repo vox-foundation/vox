@@ -1,10 +1,11 @@
 use subtle::ConstantTimeEq;
 
 pub(super) fn populi_control_token_from_env() -> Option<String> {
-    std::env::var("VOX_MESH_TOKEN")
-        .ok()
-        .map(|s| s.trim().to_string())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        .expose()
+        .map(str::trim)
         .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string)
 }
 
 /// Constant-time comparison when lengths match (avoids early return on length for the equal-length case).

@@ -69,7 +69,13 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
     if let Some(queue_arc) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let hp_bar = companion.render_status_bar(10);
         let (q_len, q_done, q_empty) = {
-            let q = queue_arc.read().unwrap();
+            let q = match crate::sync_poison::poison_rw_read(queue_arc.read(), "agent queue") {
+                Ok(g) => g,
+                Err(e) => {
+                    tracing::warn!(error = %e, "gamify status: queue poisoned");
+                    return ToolResult::<String>::err(e.to_string()).to_json();
+                }
+            };
             (q.len(), q.completed_count(), q.is_empty())
         };
         let markdown = format!(
@@ -132,7 +138,13 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
 
     if let Some(queue_arc) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let (active, completed) = {
-            let q = queue_arc.read().unwrap();
+            let q = match crate::sync_poison::poison_rw_read(queue_arc.read(), "agent queue") {
+                Ok(g) => g,
+                Err(e) => {
+                    tracing::warn!(error = %e, "gamify assess: queue poisoned");
+                    return ToolResult::<String>::err(e.to_string()).to_json();
+                }
+            };
             (q.len(), q.completed_count())
         };
 

@@ -8,7 +8,7 @@ use super::lora::{DEFAULT_D_MODEL, DEFAULT_N_HEADS, DEFAULT_N_LAYERS};
 use vox_tensor::data::VOCAB_SIZE;
 
 /// Bumped when new required semantics appear; readers use [`load_manifest`] (serde defaults).
-pub const TRAINING_MANIFEST_SCHEMA_VERSION: u32 = 4;
+pub const TRAINING_MANIFEST_SCHEMA_VERSION: u32 = 5;
 
 /// Architecture loaded from disk or defaulted for scratch training.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +80,18 @@ pub struct TrainingManifest {
     pub n_layers: usize,
     pub base_model: Option<String>,
     pub tokenizer_path: Option<String>,
+    /// Upstream lineage family label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance_base_family: Option<String>,
+    /// Upstream model id used as initialization source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance_upstream_model_id: Option<String>,
+    /// License class for attribution/compliance workflows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance_license_class: Option<String>,
+    /// Whether downstream artifact publication requires attribution.
+    #[serde(default)]
+    pub provenance_attribution_required: bool,
     pub train_file: String,
     pub rank: usize,
     pub alpha: f32,
@@ -148,6 +160,21 @@ pub struct TrainingManifest {
     /// Reserved: baseline vs adapter delta (populate when eval harness exists).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub eval_baseline_delta_note: Option<String>,
+    /// Whether trajectory-aware weighting was enabled for this run.
+    #[serde(default)]
+    pub trajectory_weighting_enabled: bool,
+    /// Multiplier for trajectory/tool-trace rows.
+    #[serde(default = "default_trajectory_tool_trace_boost")]
+    pub trajectory_tool_trace_boost: f32,
+    /// Multiplier for failure/error trajectory rows.
+    #[serde(default = "default_trajectory_failure_category_boost")]
+    pub trajectory_failure_category_boost: f32,
+    /// Optional rating floor to apply quality boost.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trajectory_quality_floor: Option<u8>,
+    /// Multiplier for rows that meet `trajectory_quality_floor`.
+    #[serde(default = "default_trajectory_quality_boost")]
+    pub trajectory_quality_boost: f32,
 }
 
 /// Snapshot of run settings for [`initial_training_manifest`].
@@ -157,6 +184,10 @@ pub struct TrainingManifest {
 #[derive(Debug, Clone)]
 pub struct InitialManifestRun {
     pub base_model: Option<String>,
+    pub provenance_base_family: Option<String>,
+    pub provenance_upstream_model_id: Option<String>,
+    pub provenance_license_class: Option<String>,
+    pub provenance_attribution_required: bool,
     pub rank: usize,
     pub alpha: f32,
     pub seq_len: usize,
@@ -174,6 +205,11 @@ pub struct InitialManifestRun {
     pub training_deployment_target: Option<String>,
     /// Operator note when `training_deployment_target` is set.
     pub training_deployment_note: Option<String>,
+    pub trajectory_weighting_enabled: bool,
+    pub trajectory_tool_trace_boost: f32,
+    pub trajectory_failure_category_boost: f32,
+    pub trajectory_quality_floor: Option<u8>,
+    pub trajectory_quality_boost: f32,
 }
 
 #[cfg(feature = "mens-train")]
@@ -182,6 +218,10 @@ impl InitialManifestRun {
     pub fn from_lora_config(c: &super::training_config::LoraTrainingConfig) -> Self {
         Self {
             base_model: c.base_model.clone(),
+            provenance_base_family: c.base_model_family.clone(),
+            provenance_upstream_model_id: c.upstream_model_id.clone(),
+            provenance_license_class: c.license_class.clone(),
+            provenance_attribution_required: c.attribution_required,
             rank: c.rank,
             alpha: c.alpha,
             seq_len: c.seq_len,
@@ -201,6 +241,11 @@ impl InitialManifestRun {
             training_deployment_note: (c.deployment_target
                 == super::training_config::TrainingDeploymentTarget::MobileEdge)
                 .then(|| super::operator_messages::MOBILE_EDGE_TRAINING_MANIFEST_NOTE.to_string()),
+            trajectory_weighting_enabled: c.trajectory_weighting_enabled,
+            trajectory_tool_trace_boost: c.trajectory_tool_trace_boost,
+            trajectory_failure_category_boost: c.trajectory_failure_category_boost,
+            trajectory_quality_floor: c.trajectory_quality_floor,
+            trajectory_quality_boost: c.trajectory_quality_boost,
         }
     }
 }
@@ -238,6 +283,10 @@ mod tests {
             git_sha: Some("deadbeef".into()),
             device_profile: Some("test-gpu".into()),
             adapter_tag: None,
+            provenance_base_family: None,
+            provenance_upstream_model_id: None,
+            provenance_license_class: None,
+            provenance_attribution_required: false,
             seed: 11,
             grad_accum: 3,
             context_filter: None,
@@ -245,6 +294,11 @@ mod tests {
             finetune_contract_digest: None,
             training_deployment_target: None,
             training_deployment_note: None,
+            trajectory_weighting_enabled: false,
+            trajectory_tool_trace_boost: 1.1,
+            trajectory_failure_category_boost: 1.15,
+            trajectory_quality_floor: None,
+            trajectory_quality_boost: 1.05,
         };
         let m = initial_training_manifest(
             ArchParams {
@@ -285,6 +339,10 @@ mod tests {
             git_sha: None,
             device_profile: None,
             adapter_tag: None,
+            provenance_base_family: None,
+            provenance_upstream_model_id: None,
+            provenance_license_class: None,
+            provenance_attribution_required: false,
             seed: 1,
             grad_accum: 2,
             context_filter: None,
@@ -292,6 +350,11 @@ mod tests {
             finetune_contract_digest: Some("digest".into()),
             training_deployment_target: None,
             training_deployment_note: None,
+            trajectory_weighting_enabled: false,
+            trajectory_tool_trace_boost: 1.1,
+            trajectory_failure_category_boost: 1.15,
+            trajectory_quality_floor: None,
+            trajectory_quality_boost: 1.05,
         };
         let tok = Some("tokenizer.json".to_string());
         let m_stack = initial_training_manifest(
@@ -419,6 +482,10 @@ mod tests {
             n_layers: 1,
             base_model: None,
             tokenizer_path: None,
+            provenance_base_family: None,
+            provenance_upstream_model_id: None,
+            provenance_license_class: None,
+            provenance_attribution_required: false,
             train_file: "train.jsonl".into(),
             rank: 4,
             alpha: 8.0,
@@ -447,6 +514,11 @@ mod tests {
             training_deployment_target: None,
             training_deployment_note: None,
             eval_baseline_delta_note: None,
+            trajectory_weighting_enabled: false,
+            trajectory_tool_trace_boost: 1.1,
+            trajectory_failure_category_boost: 1.15,
+            trajectory_quality_floor: None,
+            trajectory_quality_boost: 1.05,
         };
         write_training_manifest(dir.path(), m).expect("write");
         let loaded = load_manifest(dir.path()).expect("load").expect("some");

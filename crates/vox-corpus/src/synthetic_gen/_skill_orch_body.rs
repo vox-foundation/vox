@@ -107,6 +107,7 @@ pub(crate) fn generate_orchestrator_pairs(
                 json!({"tool":"vox_task_status","arguments":{"task_id":"task-001"}}),
                 json!({"tool":"vox_complete_task","arguments":{"task_id":"task-001"}}),
             ],
+            "success",
         ),
         (
             "Start the orchestrator, assign a file to an agent, then check locks.",
@@ -115,12 +116,38 @@ pub(crate) fn generate_orchestrator_pairs(
                 json!({"tool":"vox_claim_file","arguments":{"path":"src/auth.vox"}}),
                 json!({"tool":"vox_lock_status","arguments":{}}),
             ],
+            "success",
+        ),
+        (
+            "Submit a CUDA-required training task that fails capability checks, then cancel it.",
+            vec![
+                json!({"tool":"vox_schola_submit","arguments":{"description":"train qlora run","require_cuda":true,"min_vram_mb":16384,"trajectory_capture":true,"min_quality_score":4}}),
+                json!({"tool":"vox_task_status","arguments":{"task_id":"task-qlora-001"}}),
+                json!({"tool":"vox_cancel_task","arguments":{"task_id":"task-qlora-001"}}),
+            ],
+            "failure",
+        ),
+        (
+            "Submit a training task, detect stale lock contention, recover by requeueing, then verify queued status.",
+            vec![
+                json!({"tool":"vox_schola_submit","arguments":{"description":"train trajectory eval","require_cuda":true,"min_vram_mb":12288,"trajectory_capture":true,"min_quality_score":3}}),
+                json!({"tool":"vox_lock_status","arguments":{}}),
+                json!({"tool":"vox_reorder_task","arguments":{"task_id":"task-qlora-002","priority":"background"}}),
+                json!({"tool":"vox_task_status","arguments":{"task_id":"task-qlora-002"}}),
+            ],
+            "recovery",
         ),
     ];
 
-    for (desc, steps) in &scenarios {
-        let response = json!({ "multi_step": true, "steps": steps });
-        emit_line(out, desc, &response, "vox_submit_task", "tool_trace")?;
+    for (desc, steps, outcome) in &scenarios {
+        let response = json!({ "multi_step": true, "steps": steps, "outcome": outcome });
+        let category = match *outcome {
+            "success" => "trajectory_success",
+            "failure" => "trajectory_failure",
+            "recovery" => "trajectory_recovery",
+            _ => "tool_trace",
+        };
+        emit_line(out, desc, &response, "vox_submit_task", category)?;
         count += 1;
     }
 

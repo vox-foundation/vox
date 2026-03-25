@@ -64,9 +64,9 @@ impl AiMonitor {
                         elapsed
                     };
                     if observed_elapsed >= self.idle_threshold {
-                        let strategy = if has_in_progress && stalled_in_progress_ms > 0 {
-                            ContinuationStrategy::AssessRemaining
-                        } else if self.engine.continuation_count(agent_id) > 2 {
+                        let strategy = if (has_in_progress && stalled_in_progress_ms > 0)
+                            || self.engine.continuation_count(agent_id) > 2
+                        {
                             ContinuationStrategy::AssessRemaining
                         } else {
                             ContinuationStrategy::Continue

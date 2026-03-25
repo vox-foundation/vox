@@ -15,6 +15,7 @@ futures-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-config = { path = "../vox-config" }
+vox-clavis = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
 reqwest = { workspace = true, features = ["stream"] }
 serde = { workspace = true }

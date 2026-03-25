@@ -139,7 +139,7 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
 pub fn load_gpu_specs() -> Option<GpuSpecsFile> {
     let root = vox_corpus::training::contract::find_workspace_root()?;
     let p = root.join("mens/config/gpu-specs.yaml");
-    let raw = std::fs::read_to_string(p).ok()?;
+    let raw = crate::mens::bounded_fs::read_utf8_path_capped(p.as_path()).ok()?;
     serde_yaml::from_str(&raw).ok()
 }
 
@@ -150,7 +150,7 @@ impl TrainPresetRegistry {
     pub fn load() -> Option<serde_yaml::Value> {
         let root = vox_corpus::training::contract::find_workspace_root()?;
         let p = root.join("mens/config/train-presets.yaml");
-        let raw = std::fs::read_to_string(p).ok()?;
+        let raw = crate::mens::bounded_fs::read_utf8_path_capped(p.as_path()).ok()?;
         serde_yaml::from_str(&raw).ok()
     }
 }

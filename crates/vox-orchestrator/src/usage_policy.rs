@@ -87,7 +87,7 @@ pub fn resolve_provider_limits() -> Vec<ProviderLimitOwned> {
 
     if let Ok(path) = std::env::var("VOX_PROVIDER_DAILY_LIMITS_FILE") {
         let p = std::path::PathBuf::from(path);
-        if let Ok(raw) = std::fs::read_to_string(&p) {
+        if let Ok(raw) = crate::bounded_fs::read_utf8_path_capped(&p) {
             for d in parse_limit_json(&raw) {
                 merged.insert((d.provider, d.model), d.daily_limit);
             }

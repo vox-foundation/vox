@@ -209,7 +209,11 @@ fn make_client(
     let gateway_url = gateway
         .or_else(|| std::env::var("VOX_OPENCLAW_URL").ok())
         .unwrap_or_else(|| "http://localhost:3000".into());
-    let auth_token = token.or_else(|| std::env::var("VOX_OPENCLAW_TOKEN").ok());
+    let auth_token = token.or_else(|| {
+        vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+            .expose()
+            .map(std::string::ToString::to_string)
+    });
     let cfg = OpenClawRemoteConfig {
         gateway_url,
         auth_token,
@@ -330,7 +334,7 @@ async fn cmd_config(gateway: Option<String>, json: bool) -> anyhow::Result<()> {
     let url = gateway
         .or_else(|| std::env::var("VOX_OPENCLAW_URL").ok())
         .unwrap_or_else(|| "http://localhost:3000".into());
-    let token_set = std::env::var("VOX_OPENCLAW_TOKEN").is_ok();
+    let token_set = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken).is_present();
 
     if json {
         println!(

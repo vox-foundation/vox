@@ -20,8 +20,9 @@ Greenfield **Codex** releases do not rely on an unbounded chain of old SQL migra
 ## Shipped CLI (minimal `vox` binary)
 
 - `vox codex verify` — connection + `schema_version` + manifest-derived reactivity tables + legacy-chain flag
-- `vox codex export-legacy` — dump portable JSONL artifact (`LEGACY_EXPORT_TABLES`)
-- `vox codex import-legacy` — apply importers from that JSONL where possible
+- `vox codex export-legacy` — dump portable JSONL artifact (`LEGACY_EXPORT_TABLES` — full baseline user tables except `schema_version`)
+- `vox codex import-legacy` — full snapshot restore: **DELETE** all `LEGACY_EXPORT_TABLES` on the target, then **INSERT** rows from JSONL (fresh baseline DB only; not a merge)
+- `vox codex cutover` — **local** legacy file → timestamped `codex-cutover-*.jsonl` + `.sidecar.json`, new `--target-db`, import, verify
 
 See [ref-cli.md](../reference/cli.md).
 
@@ -30,7 +31,7 @@ See [ref-cli.md](../reference/cli.md).
 | Source | Notes |
 |--------|--------|
 | Turso file / remote `CodeStore` | Full relational + CAS |
-| Orchestrator `memory/` files | Map into `memories` / `session_turns` with provenance |
-| Skill bundles | `publish_skill` + object store |
+| Orchestrator `memory/` files | `vox codex import-orchestrator-memory --dir … --agent-id …` |
+| Skill bundles | `vox codex import-skill-bundle --file …` (JSON descriptor) |
 
 See [Codex vNext schema](codex-vnext-schema.md) and [ADR 004](../adr/004-codex-arca-turso-ssot.md).

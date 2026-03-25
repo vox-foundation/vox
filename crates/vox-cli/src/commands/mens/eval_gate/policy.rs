@@ -4,6 +4,8 @@ use anyhow::Result;
 use serde::Deserialize;
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// Eval gate policy schema (from eval-gates.yaml).
 #[derive(Debug, Clone, Deserialize)]
 pub struct EvalGatePolicy {
@@ -191,7 +193,7 @@ pub struct ModalMixGate {
 
 /// Load policy from path (default: mens/config/eval-gates.yaml).
 pub fn load_policy(path: &Path) -> Result<EvalGatePolicy> {
-    let content = std::fs::read_to_string(path)?;
+    let content = read_utf8_path_capped(path)?;
     let policy: EvalGatePolicy = serde_yaml::from_str(&content)?;
     Ok(policy)
 }

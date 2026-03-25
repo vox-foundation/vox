@@ -82,7 +82,10 @@ pub struct RunPodClient {
 impl RunPodClient {
     /// Construct from `VOX_RUNPOD_API_KEY`.
     pub fn from_env(config: Arc<CloudProviderConfig>) -> anyhow::Result<Self> {
-        let key = std::env::var("VOX_RUNPOD_API_KEY").map_err(|_| {
+        let key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRunpodApiKey)
+            .expose()
+            .map(std::string::ToString::to_string)
+            .ok_or_else(|| {
             anyhow::anyhow!(
                 "VOX_RUNPOD_API_KEY not set. Get it at https://www.runpod.io/console/user/settings"
             )

@@ -39,6 +39,8 @@
 
 pub mod sync_lock;
 
+mod bounded_fs;
+
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
 /// File and task affinity groups for routing work to the right agent.

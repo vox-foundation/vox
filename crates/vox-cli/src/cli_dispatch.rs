@@ -235,6 +235,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Ars { cmd } => {
             run_ars_cmd(cmd).await?;
         }
+        Cli::Clavis { cmd } => {
+            commands::clavis::run(cmd).await?;
+        }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {
             run_review_subcommand(cmd).await?;
@@ -252,6 +255,21 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Install { package_name } => {
             commands::install::run(Some(&package_name), false).await?;
+        }
+        Cli::Login {
+            registry,
+            token,
+            username,
+        } => {
+            eprintln!(
+                "warning: `vox login` is deprecated; use `vox clavis set <registry> <token>`."
+            );
+            commands::login::run(token.as_deref(), registry.as_deref(), username.as_deref())
+                .await?;
+        }
+        Cli::Logout { registry } => {
+            eprintln!("warning: `vox logout` is deprecated; use `vox clavis` management commands.");
+            commands::logout::run(registry.as_deref()).await?;
         }
         Cli::Lsp => {
             commands::lsp::run()?;
@@ -288,6 +306,24 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             }
             CodexCmd::ImportLegacy { input } => {
                 commands::codex::import_legacy(&input).await?;
+            }
+            CodexCmd::ImportOrchestratorMemory {
+                dir,
+                agent_id,
+                session_id,
+            } => {
+                commands::codex::import_orchestrator_memory(dir, agent_id, session_id).await?;
+            }
+            CodexCmd::ImportSkillBundle { file } => {
+                commands::codex::import_skill_bundle(file).await?;
+            }
+            CodexCmd::Cutover {
+                target_db,
+                source_db,
+                artifact_dir,
+                force,
+            } => {
+                commands::codex::cutover(artifact_dir, target_db, source_db, force).await?;
             }
             CodexCmd::SocratesMetrics {
                 repository_id,

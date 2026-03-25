@@ -12,7 +12,10 @@ pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String 
     let orch = &state.orchestrator;
     let agent = agent_id_val.map(AgentId);
     let handle = orch.oplog_handle();
-    let guard = handle.read().unwrap();
+    let guard = match crate::sync_poison::poison_rw_read(handle.read(), "oplog") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
     let ops = guard.list(agent, limit);
 
     let items: Vec<serde_json::Value> = ops

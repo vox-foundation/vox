@@ -23,7 +23,9 @@ pub(super) fn load_a2a_store(
     if !path.is_file() {
         return Ok(Vec::new());
     }
-    let raw = std::fs::read_to_string(path).map_err(PopuliRegistryError::Io)?;
+    let raw = crate::bounded_fs::read_utf8_path_capped(path).map_err(|e| {
+        PopuliRegistryError::Io(std::io::Error::other(e.to_string()))
+    })?;
     serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))
 }
 

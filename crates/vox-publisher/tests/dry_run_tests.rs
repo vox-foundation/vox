@@ -32,7 +32,9 @@ async fn test_dry_run_zero_web_leakage() {
             crates_io: None,
             rss: true,
             dry_run: true,
+            ..Default::default()
         },
+        topic_pack: None,
     };
 
     let publisher = Publisher::new(PublisherConfig {

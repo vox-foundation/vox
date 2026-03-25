@@ -1,4 +1,6 @@
-use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
+use crate::rules::{
+    DetectionRule, Finding, Language, Severity, SourceFile, byte_index_in_ascii_double_quote_string,
+};
 use regex::Regex;
 
 /// Detects `todo!()`, `unimplemented!()`, `panic!("not implemented")`,
@@ -20,6 +22,42 @@ impl Default for StubDetector {
     }
 }
 
+/// True when `stub` appears as its own word but not as the `stub-check` feature name.
+fn bare_stub_word_not_stub_check(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut i = 0usize;
+    while let Some(rel) = lower[i..].find("stub") {
+        let idx = i + rel;
+        if byte_index_in_ascii_double_quote_string(line, idx) {
+            i = idx + 1;
+            continue;
+        }
+        if lower[idx..].starts_with("stub-check") {
+            i = idx + 4;
+            continue;
+        }
+        let after = idx + 4;
+        // Markdown inline code like `stub` is not prose placeholder text.
+        if idx > 0 && bytes[idx - 1] == b'`' {
+            i = idx + 1;
+            continue;
+        }
+        if after < bytes.len() && bytes[after] == b'`' {
+            i = idx + 1;
+            continue;
+        }
+        let left_ok = idx == 0 || !bytes[idx - 1].is_ascii_alphanumeric() && bytes[idx - 1] != b'_';
+        let right_ok =
+            after >= bytes.len() || (!bytes[after].is_ascii_alphanumeric() && bytes[after] != b'_');
+        if left_ok && right_ok {
+            return true;
+        }
+        i = idx + 1;
+    }
+    false
+}
+
 impl StubDetector {
     /// Initializes Rust/Python/TS regexes for `todo!`, `NotImplementedError`, TODO comments, etc.
     pub fn new() -> Self {
@@ -32,7 +70,8 @@ impl StubDetector {
             py_pass_stub: Regex::new(r"^\s*pass\s*$").expect("valid regex"),
             ts_throw_not_impl: Regex::new(r#"throw\s+new\s+Error\s*\(\s*["']not\s+implemented"#)
                 .expect("valid regex"),
-            generic_placeholder: Regex::new(r"(?i)\bPLACEHOLDER\b|\bFIXME\b|\bSTUB\b")
+            // Avoid matching the English word "placeholder"; require shouty PLACEHOLDER.
+            generic_placeholder: Regex::new(r"(?i:\bFIXME\b)|\bPLACEHOLDER\b")
                 .expect("valid regex"),
             stub_comment: Regex::new(r"(?i)//\s*TODO\b|#\s*TODO\b").expect("valid regex"),
         }
@@ -82,7 +121,7 @@ impl StubDetector {
                     ),
                 ));
             }
-            if self.generic_placeholder.is_match(line) {
+            if self.generic_placeholder.is_match(line) || bare_stub_word_not_stub_check(line) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -318,5 +357,52 @@ mod tests {
             findings.is_empty(),
             "should exclude internal prompt strings"
         );
+    }
+
+    #[test]
+    fn placeholder_ignores_stub_check_feature_name() {
+        let d = StubDetector::new();
+        let f = source(
+            "rs",
+            "/// `vox stub-check` / `vox mens stub-check`\n#[cfg(feature = \"stub-check\")]\n",
+        );
+        let findings = d.detect(&f);
+        assert!(
+            !findings.iter().any(|x| x.rule_id == "stub/placeholder"),
+            "stub-check should not trip generic STUB placeholder rule"
+        );
+    }
+
+    #[test]
+    fn placeholder_still_detects_stub_word() {
+        let d = StubDetector::new();
+        let f = source("rs", "/// Run a workflow (stub for future runtime)\n");
+        let findings = d.detect(&f);
+        assert!(
+            findings.iter().any(|x| x.rule_id == "stub/placeholder"),
+            "plain 'stub' in prose should still be reported"
+        );
+    }
+
+    #[test]
+    fn placeholder_ignores_lowercase_english_placeholder_word() {
+        let d = StubDetector::new();
+        let f = source(
+            "rs",
+            "// This is a placeholder token for documentation only.\nfn ok() {}\n",
+        );
+        let findings = d.detect(&f);
+        assert!(
+            !findings.iter().any(|x| x.rule_id == "stub/placeholder"),
+            "common English 'placeholder' must not match"
+        );
+    }
+
+    #[test]
+    fn placeholder_detects_shouty_placeholder_marker() {
+        let d = StubDetector::new();
+        let f = source("rs", "// PLACEHOLDER: wire real API\nfn ok() {}\n");
+        let findings = d.detect(&f);
+        assert!(findings.iter().any(|x| x.rule_id == "stub/placeholder"));
     }
 }

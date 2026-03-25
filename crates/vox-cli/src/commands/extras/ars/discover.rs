@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::collections::HashSet;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 use super::registry::make_registry;
 
 pub async fn discover() -> Result<()> {
@@ -91,7 +93,7 @@ fn walk_for_skills(
         } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
             let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if fname.ends_with(".skill.md") {
-                if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(content) = read_utf8_path_capped(&path) {
                     let id = extract_skill_id(&content)
                         .unwrap_or_else(|| fname.trim_end_matches(".skill.md").to_string());
                     out.push((path, id));

@@ -1,6 +1,8 @@
 //! `vox snippet` — save, search, and manage code snippets.
 
 use anyhow::{Context, Result};
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use vox_db::VoxDb;
 use vox_db::store::SaveSnippetParams;
 
@@ -30,7 +32,7 @@ pub async fn save(
     tags: Option<&str>,
 ) -> Result<()> {
     let store: VoxDb = connect().await?;
-    let code = std::fs::read_to_string(file)?;
+    let code = read_utf8_path_capped(file)?;
     let lang = language_from_path(file);
     let id = store
         .save_snippet(SaveSnippetParams {

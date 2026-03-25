@@ -269,8 +269,18 @@ pub async fn run(
                             None,  // checkpoint_every
                             false, // force_restart
                             curriculum,
+                            vox_populi::mens::OptimizerExperimentMode::Off,
                             false, // require_gpu
                             true,  // allow_cpu_fallback
+                            None,  // base_model_family
+                            None,  // upstream_model_id
+                            None,  // license_class
+                            false, // attribution_required
+                            false, // trajectory_weighting_enabled
+                            1.1,   // trajectory_tool_trace_boost
+                            1.15,  // trajectory_failure_category_boost
+                            None,  // trajectory_quality_floor
+                            1.05,  // trajectory_quality_boost
                         )
                         .await?;
                     }

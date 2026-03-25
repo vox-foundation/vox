@@ -24,7 +24,7 @@ pub(super) fn maybe_save_mid_epoch_checkpoint(
 ) -> Result<()> {
     if let Some(every) = config.checkpoint_every
         && every > 0
-        && (pair_loop_idx + 1) % every == 0
+        && (pair_loop_idx + 1).is_multiple_of(every)
     {
         let ckpt_path = out.join(format!("checkpoint_step_{global_step}.safetensors"));
         trainer

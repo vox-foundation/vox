@@ -4,6 +4,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::path::PathBuf;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+
 /// One environment check row for human or JSON output.
 #[derive(Debug, Serialize)]
 pub(crate) struct Check {
@@ -68,7 +70,7 @@ pub(crate) fn redact_key(k: &str) -> String {
 
 pub(crate) async fn auth_registry_token(registry: &str) -> Option<String> {
     let auth_path = vox_dot_dir().join("auth.json");
-    let content = tokio::fs::read_to_string(&auth_path).await.ok()?;
+    let content = read_utf8_path_capped_async(&auth_path).await.ok()?;
     let v: serde_json::Value = serde_json::from_str(&content).ok()?;
     v.get("registries")?
         .get(registry)?
@@ -78,14 +80,9 @@ pub(crate) async fn auth_registry_token(registry: &str) -> Option<String> {
 }
 
 fn resolved_google_key_sync() -> Option<String> {
-    std::env::var("GEMINI_API_KEY")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            std::env::var("GOOGLE_AI_STUDIO_KEY")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-        })
+    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+        .expose()
+        .map(std::string::ToString::to_string)
 }
 
 pub(crate) async fn resolved_google_key() -> Option<String> {
@@ -96,9 +93,9 @@ pub(crate) async fn resolved_google_key() -> Option<String> {
 }
 
 fn resolved_openrouter_key_sync() -> Option<String> {
-    std::env::var("OPENROUTER_API_KEY")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+        .expose()
+        .map(std::string::ToString::to_string)
 }
 
 pub(crate) async fn resolved_openrouter_key() -> Option<String> {

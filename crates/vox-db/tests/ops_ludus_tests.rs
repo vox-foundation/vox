@@ -307,7 +307,6 @@ async fn cost_records() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn a2a_send_poll_acknowledge() {
     let store: VoxDb = open().await;
     store

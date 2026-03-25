@@ -4,6 +4,8 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::path::PathBuf;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// Prints all trained Mens models found in the run directories.
 pub fn run_models(_verbose: bool) -> Result<()> {
     let runs_dir = PathBuf::from(vox_scaling_policy::DEFAULT_MENS_RUNS_ROOT);
@@ -33,7 +35,7 @@ pub fn run_models(_verbose: bool) -> Result<()> {
             continue;
         }
 
-        if let Ok(manifest_raw) = std::fs::read_to_string(&manifest_path) {
+        if let Ok(manifest_raw) = read_utf8_path_capped(&manifest_path) {
             if let Ok(manifest) = serde_json::from_str::<
                 vox_populi::mens::tensor::manifest::TrainingManifest,
             >(&manifest_raw)

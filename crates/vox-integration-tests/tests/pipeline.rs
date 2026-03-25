@@ -4,6 +4,9 @@
 #![allow(unsafe_code)] // `std::env::{set_var,remove_var}` for opt-in Express codegen tests
 
 use std::ffi::OsString;
+use std::fs;
+use std::io::{Error, ErrorKind};
+use std::path::Path;
 use std::sync::Mutex;
 
 use vox_compiler::codegen_ts::{CodegenOptions, generate, generate_with_options};
@@ -724,12 +727,10 @@ fn chatbot_full_pipeline_e2e() {
     // Or just use the file path if we had a helper.
     // Since previous tests verify logic using inline strings, we'll read the file content here.
 
-    let path = std::path::Path::new("fixtures/chatbot.vox");
-    let src = std::fs::read_to_string(path).unwrap_or_else(|_| {
-        // Fallback if running from crate root
-        std::fs::read_to_string("tests/fixtures/chatbot.vox")
-            .expect("Could not read examples/chatbot.vox")
-    });
+    let path = Path::new("fixtures/chatbot.vox");
+    let src = read_utf8_path_capped(path)
+        .or_else(|_| read_utf8_path_capped(Path::new("tests/fixtures/chatbot.vox")))
+        .expect("Could not read chatbot.vox fixture");
 
     let tokens = vox_compiler::lexer::cursor::lex(&src);
     let module = vox_compiler::parser::parse(tokens).expect("Chatbot should parse");

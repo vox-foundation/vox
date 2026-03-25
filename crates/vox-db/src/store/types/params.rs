@@ -144,6 +144,23 @@ pub struct PublicationManifestParams<'a> {
     pub state: &'a str,
 }
 
+/// Parameters for [`crate::VoxDb::upsert_publication_media_asset`].
+#[derive(Debug, Clone)]
+pub struct PublicationMediaAssetParams<'a> {
+    /// Stable publication id owning this asset.
+    pub publication_id: &'a str,
+    /// Repository/local asset reference key.
+    pub asset_ref: &'a str,
+    /// Media type (`video`, `image`, `dataset`, ...).
+    pub media_type: &'a str,
+    /// Optional storage URI (local path, object store URL, external id).
+    pub storage_uri: Option<&'a str>,
+    /// Lifecycle status (`pending`, `uploaded`, `failed`, ...).
+    pub status: &'a str,
+    /// Optional JSON metadata blob.
+    pub metadata_json: Option<&'a str>,
+}
+
 /// Parameters for [`crate::VoxDb::register_agent`].
 #[derive(Debug, Clone)]
 pub struct RegisterAgentParams<'a> {

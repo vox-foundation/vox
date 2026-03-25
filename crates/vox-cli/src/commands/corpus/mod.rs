@@ -14,8 +14,6 @@ mod validate;
 #[cfg(feature = "database")]
 use anyhow::Context;
 use anyhow::Result;
-#[cfg(feature = "database")]
-use std::io::Write;
 
 use clap::Parser;
 
@@ -186,7 +184,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             output,
             docs,
         } => generate::run_pairs(&input, &output, docs.as_deref()).await,
-        CorpusAction::Prompt { output } => generate::run_prompt(&output),
+        CorpusAction::Prompt { output } => generate::run_prompt(&output).await,
         CorpusAction::Eval {
             input,
             output,
@@ -209,12 +207,15 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                         .await
                         .expect("Failed to extract Arca replay pairs");
                 let parent = _output.parent().unwrap_or(std::path::Path::new("."));
-                std::fs::create_dir_all(parent)?;
-                let mut f = std::fs::File::create(&_output)
-                    .with_context(|| format!("Cannot create output: {}", _output.display()))?;
+                tokio::fs::create_dir_all(parent).await?;
+                let mut body = String::new();
                 for row in &rows {
-                    writeln!(f, "{}", serde_json::to_string(row)?)?;
+                    body.push_str(&serde_json::to_string(row)?);
+                    body.push('\n');
                 }
+                tokio::fs::write(&_output, body)
+                    .await
+                    .with_context(|| format!("Cannot create output: {}", _output.display()))?;
                 println!(
                     "✓ Wrote {} replay pairs → {}",
                     rows.len(),

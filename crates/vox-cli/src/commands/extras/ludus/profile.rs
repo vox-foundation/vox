@@ -5,6 +5,8 @@ use owo_colors::OwoColorize;
 use vox_config::GamifyMode;
 use vox_ludus::{db, profile::LudusProfile};
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 use super::db_util;
 
 /// Show the daily gamification digest.
@@ -330,7 +332,7 @@ pub async fn feedback_rate(
     }
 
     if let Some(ex_path) = example {
-        let code = std::fs::read_to_string(ex_path)
+        let code = read_utf8_path_capped(ex_path)
             .map_err(|e| anyhow::anyhow!("Failed to read example file: {}", e))?;
         feedback = feedback.with_example(code);
     }

@@ -26,8 +26,8 @@
 //!
 //! Built-in and app-supplied migrations run through [`turso::Connection::execute_batch`], which uses
 //! `execute` and **fails on statements that return rows** (e.g. bare `SELECT`, assignment `PRAGMA`
-//! unless handled with `pragma_update`). The `vox-pm` open path applies pragmas via
-//! `pragma_update` and skips empty migration bodies; see also [`VoxDb::apply_migrations`].
+//! unless handled with `pragma_update`). [`VoxDb::connect`] / [`VoxDb::open`] apply pragmas via
+//! `pragma_update` and skip empty migration bodies; see also [`VoxDb::apply_migrations`].
 //!
 //! ```no_run
 //! use vox_db::{VoxDb, DbConfig};
@@ -80,6 +80,7 @@ pub mod error_enrichment;
 mod eval_params;
 pub mod hash;
 pub mod learning;
+pub mod legacy_import_extras;
 /// Parameters for [`VoxDb::store_memory`].
 pub mod memory;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
@@ -139,12 +140,14 @@ pub use store::{
     CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample,
     CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary,
     LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationManifestParams,
-    PublicationManifestRow, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
-    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
-    SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
-    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
-    TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
+    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow,
+    PublicationManifestParams, PublicationManifestRow, PublicationMediaAssetParams,
+    PublicationMediaAssetRow, PublicationStatusEventRow, PublishArtifactParams, QuestionRow,
+    RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
+    ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
+    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
+    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry,
+    WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use toestub_store::{
@@ -187,7 +190,10 @@ mod codex_contract {
 #[cfg(all(test, feature = "local"))]
 mod tests {
     use super::*;
-    use crate::codex_legacy::verify_legacy_store;
+    use crate::codex_legacy::{
+        LEGACY_EXPORT_SKIP_TABLES, LEGACY_EXPORT_TABLES, export_legacy_jsonl, import_legacy_jsonl,
+        list_sqlite_user_tables, verify_legacy_store,
+    };
     use crate::codex_schema::missing_codex_reactivity_tables;
     use crate::schema::{BASELINE_VERSION, CODEX_CHAT_TABLES};
 
@@ -313,11 +319,155 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn raw_sqlite_gamify_profiles_integer_round_trip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("raw.db");
+        let db = VoxDb::connect(DbConfig::Local {
+            path: p.to_string_lossy().into_owned(),
+        })
+        .await
+        .expect("db");
+        db.connection()
+            .execute(
+                "INSERT INTO gamify_profiles (user_id, level, xp) VALUES (?1, ?2, ?3)",
+                turso::params!["u1", 3i64, 900i64],
+            )
+            .await
+            .expect("insert");
+        let mut q = db
+            .connection()
+            .query(
+                "SELECT xp FROM gamify_profiles WHERE user_id = ?1",
+                turso::params!["u1"],
+            )
+            .await
+            .expect("sel");
+        let row = q.next().await.expect("r").expect("row");
+        assert_eq!(row.get::<i64>(0).expect("xp"), 900);
+    }
+
+    #[tokio::test]
+    async fn legacy_export_covers_all_baseline_tables() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+        let mut live = list_sqlite_user_tables(db.connection())
+            .await
+            .expect("list tables");
+        live.retain(|n| !LEGACY_EXPORT_SKIP_TABLES.contains(&n.as_str()));
+        live.sort();
+        let mut expected: Vec<&str> = LEGACY_EXPORT_TABLES.to_vec();
+        expected.sort();
+        assert_eq!(
+            live,
+            expected.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            "LEGACY_EXPORT_TABLES must match sqlite_master after migrate (minus skip list)"
+        );
+    }
+
+    /// Gamification + coordination rows survive JSONL export/import on baseline DBs.
+    #[tokio::test]
+    async fn legacy_jsonl_roundtrips_gamification_and_coordination() {
+        use std::io::Cursor;
+        use tempfile::tempdir;
+
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+        db.connection()
+            .execute(
+                "INSERT INTO gamify_profiles (user_id, level, xp) VALUES ('u1', 3, 900)",
+                (),
+            )
+            .await
+            .expect("insert profile");
+        db.connection()
+            .execute(
+                "INSERT INTO gamify_companions (id, user_id, name, language) VALUES ('c1', 'u1', 'Ada', 'vox')",
+                (),
+            )
+            .await
+            .expect("insert companion");
+        db.connection()
+            .execute(
+                "INSERT INTO distributed_locks (lock_key, holder_node, holder_agent, fence_token, expires_at) VALUES ('lk', 'node-a', 'owner', 1, '2099-01-01')",
+                (),
+            )
+            .await
+            .expect("insert lock");
+
+        let mut jsonl = Vec::<u8>::new();
+        let n = export_legacy_jsonl(&db, &mut jsonl).await.expect("export");
+        assert!(n >= 3, "expected ≥3 rows, got {n}");
+        let profile_lines = String::from_utf8_lossy(&jsonl)
+            .lines()
+            .filter(|l| l.contains("\"table\":\"gamify_profiles\""))
+            .count();
+        assert_eq!(
+            profile_lines, 1,
+            "export must emit exactly one gamify_profiles row"
+        );
+        let prof_json: serde_json::Value = String::from_utf8_lossy(&jsonl)
+            .lines()
+            .find(|l| l.contains("\"table\":\"gamify_profiles\""))
+            .and_then(|l| serde_json::from_str(l).ok())
+            .expect("parse profile jsonl");
+        assert_eq!(
+            prof_json["row"]["xp"].as_i64(),
+            Some(900),
+            "exported JSON must preserve xp: {}",
+            prof_json["row"]
+        );
+
+        let dir = tempdir().expect("tempdir");
+        let fresh_path = dir.path().join("roundtrip.db");
+        let fresh_str = fresh_path.to_string_lossy().to_string();
+        let db2 = VoxDb::connect(DbConfig::Local {
+            path: fresh_str.clone(),
+        })
+        .await
+        .expect("fresh file db");
+        let imported = import_legacy_jsonl(&db2, Cursor::new(&jsonl))
+            .await
+            .expect("import");
+        assert!(imported >= 3);
+
+        let mut q = db2
+            .connection()
+            .query(
+                "SELECT xp, level FROM gamify_profiles WHERE user_id = ?1",
+                turso::params!["u1"],
+            )
+            .await
+            .expect("q");
+        let row = q.next().await.expect("row").expect("has row");
+        assert_eq!(row.get::<i64>(0).expect("xp"), 900);
+        assert_eq!(row.get::<i64>(1).expect("level"), 3);
+
+        let mut q2 = db2
+            .connection()
+            .query(
+                "SELECT name FROM gamify_companions WHERE id = ?1",
+                turso::params!["c1"],
+            )
+            .await
+            .expect("q2");
+        let row2 = q2.next().await.expect("row").expect("r2");
+        assert_eq!(row2.get::<String>(0).expect("name"), "Ada");
+
+        let mut q3 = db2
+            .connection()
+            .query(
+                "SELECT holder_agent FROM distributed_locks WHERE lock_key = ?1",
+                turso::params!["lk"],
+            )
+            .await
+            .expect("q3");
+        let row3 = q3.next().await.expect("row").expect("r3");
+        assert_eq!(row3.get::<String>(0).expect("holder"), "owner");
+    }
+
     /// Simulates `vox codex export-legacy` → new file → `vox codex import-legacy` without the CLI.
     #[tokio::test]
     async fn legacy_chain_db_export_then_import_into_baseline_roundtrips_objects() {
         use crate::StoreError;
-        use crate::codex_legacy::{export_legacy_jsonl, import_legacy_jsonl};
         use crate::schema::BASELINE_VERSION;
         use std::io::Cursor;
         use tempfile::tempdir;

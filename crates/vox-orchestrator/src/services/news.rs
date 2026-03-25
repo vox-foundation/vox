@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -31,10 +32,17 @@ impl NewsService {
             site.rss_feed_path = PathBuf::from(p);
         }
 
-        let publisher_config = PublisherConfig {
+        let publisher_config_base = PublisherConfig {
             twitter_bearer_token: config.news.twitter_token.clone(),
             github_token: config.news.github_token.clone(),
             open_collective_token: config.news.opencollective_token.clone(),
+            reddit_client_id: config.news.reddit_client_id.clone(),
+            reddit_client_secret: config.news.reddit_client_secret.clone(),
+            reddit_refresh_token: config.news.reddit_refresh_token.clone(),
+            reddit_user_agent: config.news.reddit_user_agent.clone(),
+            youtube_client_id: config.news.youtube_client_id.clone(),
+            youtube_client_secret: config.news.youtube_client_secret.clone(),
+            youtube_refresh_token: config.news.youtube_refresh_token.clone(),
             dry_run: config.news.dry_run,
             site,
             twitter_api_base: config.news.twitter_api_base.clone(),
@@ -43,8 +51,10 @@ impl NewsService {
             opencollective_graphql_url: config.news.opencollective_graphql_url.clone(),
             twitter_text_chunk_max: config.news.twitter_text_chunk_max,
             twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
+            youtube_repo_root: Some(vox_repository::resolve_repo_root_for_ci()),
+            hacker_news_mode: config.news.hacker_news_mode.clone(),
+            worthiness_score: None,
         };
-        let publisher = Publisher::new(publisher_config);
 
         let paths = collect_news_markdown_paths(news_dir, config.news.scan_recursive);
         for path in paths {
@@ -69,7 +79,7 @@ impl NewsService {
                 continue;
             }
 
-            let content = match fs::read_to_string(&path) {
+            let content = match crate::bounded_fs::read_utf8_path_capped(&path) {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!("Failed to read news file {}: {}", path.display(), e);
@@ -77,13 +87,22 @@ impl NewsService {
                 }
             };
 
-            let item = match UnifiedNewsItem::parse(&content, id) {
+            let mut item = match UnifiedNewsItem::parse(&content, id) {
                 Ok(it) => it,
                 Err(e) => {
                     tracing::error!("Failed to parse news item {}: {}", path.display(), e);
                     continue;
                 }
             };
+            for (channel, floor) in &config.news.channel_worthiness_floors {
+                let entry = item
+                    .syndication
+                    .distribution_policy
+                    .channel_policy
+                    .entry(channel.trim().to_lowercase())
+                    .or_default();
+                entry.worthiness_floor = Some(*floor);
+            }
             let content_digest = item.content_sha3_256();
 
             let db_opt = orch.db();
@@ -130,7 +149,8 @@ impl NewsService {
                 let source_ref = path.to_string_lossy().to_string();
                 let metadata_json = serde_json::json!({
                     "tags": item.tags,
-                    "syndication": item.syndication
+                    "syndication": item.syndication,
+                    "topic_pack": item.topic_pack,
                 })
                 .to_string();
                 let _ = db
@@ -150,6 +170,32 @@ impl NewsService {
                     .await;
             }
 
+            let worthiness_score = compute_news_worthiness_score(&item)
+                .inspect_err(|e| {
+                    tracing::warn!("Worthiness score probe failed for {}: {}", id, e);
+                })
+                .ok();
+            if config.news.worthiness_enforce
+                && !config.news.dry_run
+                && !item.syndication.dry_run
+                && let Some(score) = worthiness_score
+            {
+                let floor = config.news.worthiness_score_min.unwrap_or(0.85);
+                if score < floor {
+                    tracing::warn!(
+                        "Skipping live syndication for {} due to worthiness floor: {:.3} < {:.3}",
+                        id,
+                        score,
+                        floor
+                    );
+                    continue;
+                }
+            }
+
+            let mut publisher_config = publisher_config_base.clone();
+            publisher_config.worthiness_score = worthiness_score;
+            let publisher = Publisher::new(publisher_config);
+
             tracing::info!("Publishing new news item: {}", id);
 
             let result = match publisher.publish_all(&item).await {
@@ -161,6 +207,28 @@ impl NewsService {
             };
 
             if let Some(db) = db_opt {
+                if let Some(yt_cfg) = &item.syndication.youtube {
+                    let (status, storage_uri) = match &result.youtube {
+                        vox_publisher::ChannelOutcome::Success { external_id } => {
+                            ("uploaded", external_id.clone())
+                        }
+                        vox_publisher::ChannelOutcome::DryRun { external_id } => {
+                            ("dry_run", external_id.clone())
+                        }
+                        vox_publisher::ChannelOutcome::Failed { .. } => ("failed", None),
+                        vox_publisher::ChannelOutcome::Disabled => ("disabled", None),
+                    };
+                    let _ = db
+                        .upsert_publication_media_asset(vox_db::PublicationMediaAssetParams {
+                            publication_id: id,
+                            asset_ref: yt_cfg.video_asset_ref.as_str(),
+                            media_type: "video",
+                            storage_uri: storage_uri.as_deref(),
+                            status,
+                            metadata_json: None,
+                        })
+                        .await;
+                }
                 if let Ok(result_json) = serde_json::to_string(&result) {
                     let _ = db
                         .record_news_publish_attempt(id, &content_digest, &result_json)
@@ -242,4 +310,32 @@ fn collect_news_markdown_paths(news_dir: &Path, recursive: bool) -> Vec<PathBuf>
     }
     out.sort();
     out
+}
+
+fn compute_news_worthiness_score(item: &UnifiedNewsItem) -> anyhow::Result<f64> {
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: item.id.clone(),
+        content_type: "news".to_string(),
+        source_ref: None,
+        title: item.title.clone(),
+        author: item.author.clone(),
+        abstract_text: None,
+        body_markdown: item.content_markdown.clone(),
+        citations_json: None,
+        metadata_json: None,
+    };
+    let profile = vox_publisher::publication_preflight::PreflightProfile::Default;
+    let preflight = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    let root = vox_repository::resolve_repo_root_for_ci();
+    let path = root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
+    let yaml = crate::bounded_fs::read_utf8_path_capped(&path)
+        .with_context(|| format!("read worthiness contract {}", path.display()))?;
+    let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
+    vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+    let inputs =
+        vox_publisher::publication_preflight::worthiness_inputs_from_manifest_and_preflight(
+            &manifest, &preflight,
+        );
+    let out = vox_publisher::publication_worthiness::evaluate_worthiness(&contract, &inputs);
+    Ok(out.worthiness_score)
 }

@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// CodeRabbit config from `Vox.toml` `[review.coderabbit]`.
 #[derive(Debug, Clone, Default)]
 pub struct CodeRabbitConfig {
@@ -40,7 +42,7 @@ struct VoxTomlRoot {
 /// the tier's defaults so callers don't have to hard-code tier math.
 pub fn load_from_dir(path: &Path) -> CodeRabbitConfig {
     let toml_path = path.join("Vox.toml");
-    let Ok(text) = std::fs::read_to_string(&toml_path) else {
+    let Ok(text) = read_utf8_path_capped(&toml_path) else {
         return CodeRabbitConfig::default();
     };
     let Ok(parsed) = toml::from_str::<VoxTomlRoot>(&text) else {

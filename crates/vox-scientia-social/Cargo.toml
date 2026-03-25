@@ -1,0 +1,16 @@
+[package]
+name = "vox-scientia-social"
+version.workspace = true
+edition.workspace = true
+description = "Scientia social distribution adapters and syndication outcomes."
+
+[features]
+default = []
+scientia-reddit = []
+scientia-youtube = []
+
+[dependencies]
+vox-publisher = { workspace = true }
+
+[lints]
+workspace = true

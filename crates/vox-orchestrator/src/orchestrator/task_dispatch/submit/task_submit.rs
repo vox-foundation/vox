@@ -71,6 +71,7 @@ impl Orchestrator {
                 &file_manifest,
                 target_agent.as_deref(),
                 capability_requirements.as_ref(),
+                Some(task.description.as_str()),
             )
             .await?;
 

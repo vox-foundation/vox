@@ -1,5 +1,7 @@
 use anyhow::Context;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 use super::helpers::{extract_md_title, html_to_text_lossy, split_csv, summarize_text};
 
 /// Fetch a URL and persist a normalized external research packet plus searchable document chunks.
@@ -99,7 +101,7 @@ pub async fn research_ingest_file(
     tags: Option<&str>,
     confidence: f64,
 ) -> anyhow::Result<()> {
-    let body = std::fs::read_to_string(path)
+    let body = read_utf8_path_capped(path)
         .with_context(|| format!("failed to read {}", path.display()))?;
     let title = extract_md_title(&body);
     let summary = summarize_text(&body, 320);

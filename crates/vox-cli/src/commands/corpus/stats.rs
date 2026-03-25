@@ -5,6 +5,8 @@ use owo_colors::OwoColorize;
 use std::collections::HashSet;
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+
 pub(super) async fn run_fingerprint() -> Result<()> {
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
     if let Some(ref root) = workspace_root {
@@ -15,6 +17,9 @@ pub(super) async fn run_fingerprint() -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(all(feature = "mens-dei", feature = "gpu"))]
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Aggregated quality metrics for a training JSONL file (fractions 0.0–1.0).
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
@@ -34,8 +39,7 @@ struct EvalScan {
     construct_hits: HashSet<String>,
 }
 
-fn scan_train_jsonl(path: &Path) -> Result<EvalScan> {
-    let content = std::fs::read_to_string(path)?;
+fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
     let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
 
     let mut format_valid = 0u32;
@@ -95,7 +99,8 @@ fn scan_train_jsonl(path: &Path) -> Result<EvalScan> {
 /// Compute parse rate and taxonomy coverage for `train.jsonl` (used by post-training gates).
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) fn eval_metrics(train_jsonl: &Path) -> Result<TrainEvalMetrics> {
-    let s = scan_train_jsonl(train_jsonl)?;
+    let content = read_utf8_path_capped(train_jsonl)?;
+    let s = scan_train_jsonl_content(&content)?;
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
     let coverage = s
         .construct_hits
@@ -153,7 +158,7 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
 
         let bench: PathBuf = std::env::var("VOX_BENCHMARK_DIR")
             .map(PathBuf::from)
-            .unwrap_or_else(|| {
+            .unwrap_or_else(|_| {
                 vox_corpus::training::contract::find_workspace_root()
                     .map(|r| r.join("mens/data/heldout_bench"))
                     .unwrap_or_else(|| PathBuf::from("mens/data/heldout_bench"))
@@ -202,11 +207,12 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
 }
 
 pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -> Result<()> {
-    if !input.exists() {
+    if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
 
-    let s = scan_train_jsonl(input)?;
+    let content = read_utf8_path_capped_async(input).await?;
+    let s = scan_train_jsonl_content(&content)?;
     let total = s.total;
 
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
@@ -229,9 +235,9 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
     });
 
     if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
-    std::fs::write(output, serde_json::to_string_pretty(&results)?)?;
+    tokio::fs::write(output, serde_json::to_string_pretty(&results)?).await?;
 
     if print_summary {
         let parse_pct = 100.0 * s.parse_passed as f64 / total.max(1) as f64;

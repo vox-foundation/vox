@@ -40,6 +40,10 @@ pub struct AgentQueue {
     pub workflow_context: Option<String>,
     /// Optional identifier linking this agent to a specific provider endpoint, used for reliability metrics.
     pub endpoint_reliability_key: Option<String>,
+    /// Count of recent shard-validation failures routed through this agent.
+    pub recent_shard_validation_failures: u32,
+    /// If set, reducer tasks are de-prioritized until this unix-ms timestamp.
+    pub reducer_cooldown_until_ms: Option<u64>,
 }
 
 #[cfg(test)]

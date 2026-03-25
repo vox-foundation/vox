@@ -8,6 +8,7 @@ description = "Centralized configuration and env/default resolution for Vox tool
 serde       = { workspace = true }
 toml        = { workspace = true }
 serde_json  = { workspace = true }
+vox-clavis  = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

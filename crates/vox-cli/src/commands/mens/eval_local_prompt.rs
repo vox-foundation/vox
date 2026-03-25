@@ -6,6 +6,8 @@
 
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 /// One benchmark row after resolving paths and assembling the inference prompt.
 pub(crate) struct PreparedBench {
     pub(crate) manifest_index: usize,
@@ -55,7 +57,7 @@ pub(crate) fn prepare_bench_item(
         let mut blocks: Vec<String> = Vec::new();
         for rel in &context_files {
             let p = bench.join(rel);
-            match std::fs::read_to_string(&p) {
+            match read_utf8_path_capped(&p) {
                 Ok(text) => {
                     blocks.push(format!("### {rel}\n{text}"));
                 }
@@ -78,7 +80,7 @@ pub(crate) fn prepare_bench_item(
     }
 
     let primary_text = if sample_path.exists() {
-        std::fs::read_to_string(&sample_path).unwrap_or_default()
+        read_utf8_path_capped(&sample_path).unwrap_or_default()
     } else {
         String::new()
     };

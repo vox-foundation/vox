@@ -12,17 +12,31 @@ operations:
   - { surface: vox-cli, path: [bundle], status: active, latin_ns: fabrica, handler_rust: commands::bundle }
   - { surface: vox-cli, path: [fmt], status: active, latin_ns: fabrica, handler_rust: commands::fmt }
   - { surface: vox-cli, path: [install], status: active, latin_ns: fabrica, handler_rust: commands::install }
+  - { surface: vox-cli, path: [login], status: deprecated, latin_ns: ars, handler_rust: commands::login }
+  - { surface: vox-cli, path: [logout], status: deprecated, latin_ns: ars, handler_rust: commands::logout }
   - { surface: vox-cli, path: [lsp], status: active, latin_ns: fabrica, handler_rust: commands::lsp }
   - { surface: vox-cli, path: [doctor], status: active, latin_ns: mens, handler_rust: commands::diagnostics::doctor }
+  - { surface: vox-cli, path: [clavis], status: active, latin_ns: ars, handler_rust: commands::clavis }
+  - { surface: vox-cli, path: [clavis, doctor], status: active, latin_ns: ars, ref_cli_required: true }
+  - { surface: vox-cli, path: [clavis, set], status: active, latin_ns: ars, ref_cli_required: true }
+  - { surface: vox-cli, path: [clavis, get], status: active, latin_ns: ars, ref_cli_required: true }
+  - { surface: vox-cli, path: [clavis, backend-status], status: active, latin_ns: ars, ref_cli_required: true }
+  - { surface: vox-cli, path: [clavis, migrate-auth-store], status: active, latin_ns: ars, ref_cli_required: true }
   - { surface: vox-cli, path: [snippet], status: active, latin_ns: ars, handler_rust: commands::extras::snippet_cli }
   - { surface: vox-cli, path: [share], status: active, latin_ns: ars, handler_rust: commands::extras::share_cli }
   - { surface: vox-cli, path: [codex], status: active, latin_ns: codex, handler_rust: commands::codex }
   - { surface: vox-cli, path: [codex, verify], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [codex, export-legacy], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [codex, import-legacy], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, cutover], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, import-orchestrator-memory], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [codex, import-skill-bundle], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [codex, socrates-metrics], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [codex, socrates-eval-snapshot], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [db], status: active, latin_ns: codex, handler_rust: commands::db_cli }
+  - { surface: vox-cli, path: [db, audit], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [db, prune-plan], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [db, prune-apply], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia], status: active, latin_ns: codex, handler_rust: commands::scientia }
   - { surface: vox-cli, path: [scientia, publication-prepare], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-prepare-validated], status: active, latin_ns: codex, ref_cli_required: true }
@@ -54,6 +68,8 @@ operations:
   - { surface: vox-cli, path: [ci, build-timings], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, grammar-drift], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, repo-guards], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, secret-env-guard], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, clavis-parity], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, contracts-index], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scientia-worthiness-contract], status: active, reachability_required: false }
@@ -148,3 +164,11 @@ env_var_ssot_index:
   - VOX_SSR_DEV_URL
   - VOX_WEB_VITE_SMOKE
   - VOX_EXAMPLES_STRICT_PARSE
+  - VOX_SOCIAL_REDDIT_CLIENT_ID
+  - VOX_SOCIAL_REDDIT_CLIENT_SECRET
+  - VOX_SOCIAL_REDDIT_REFRESH_TOKEN
+  - VOX_SOCIAL_REDDIT_USER_AGENT
+  - VOX_SOCIAL_YOUTUBE_CLIENT_ID
+  - VOX_SOCIAL_YOUTUBE_CLIENT_SECRET
+  - VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN
+  - VOX_SOCIAL_HN_MODE

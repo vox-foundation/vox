@@ -1,0 +1,27 @@
+{
+  "rss": {
+    "status": "dry_run",
+    "external_id": null
+  },
+  "twitter": {
+    "status": "disabled"
+  },
+  "github": {
+    "status": "disabled"
+  },
+  "open_collective": {
+    "status": "disabled"
+  },
+  "reddit": {
+    "status": "disabled"
+  },
+  "hacker_news": {
+    "status": "disabled"
+  },
+  "youtube": {
+    "status": "disabled"
+  },
+  "decision_reasons": {
+    "twitter": "policy_disabled"
+  }
+}

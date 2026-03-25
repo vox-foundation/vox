@@ -15,6 +15,8 @@ pub mod bundle;
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
 pub mod ci;
+/// Centralized secret lifecycle commands (`vox clavis`).
+pub mod clavis;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
 /// Training data extraction / mixing pipelines (`vox corpus`).
@@ -28,6 +30,7 @@ use self::db_research as _;
 pub mod db;
 /// Clap entrypoints for `vox db`.
 pub mod db_cli;
+pub(crate) mod db_retention;
 /// DEI decision engine commands (requires `--features dei`).
 #[cfg(feature = "dei")]
 pub mod dei;
@@ -56,6 +59,10 @@ pub mod island;
 /// Interactive telemetry-enabled execution orchestrator (`vox live`).
 #[cfg(feature = "live")]
 pub mod live;
+/// Legacy login command (compat shim to Clavis).
+pub mod login;
+/// Legacy logout command (compat shim to Clavis).
+pub mod logout;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
 /// `vox openclaw` tools for orchestrator testing.

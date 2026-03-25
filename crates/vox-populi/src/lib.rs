@@ -423,6 +423,8 @@ pub mod http_client;
 #[cfg(feature = "transport")]
 pub mod http_lifecycle;
 #[cfg(feature = "transport")]
+mod bounded_fs;
+#[cfg(feature = "transport")]
 pub mod transport;
 
 #[cfg(test)]

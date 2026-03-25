@@ -2,8 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::bounded_fs::read_utf8_file_capped;
+
 fn read_package_json_name(root: &Path) -> Option<String> {
-    let text = std::fs::read_to_string(root.join("package.json")).ok()?;
+    let text = read_utf8_file_capped(&root.join("package.json"))?;
     let v: serde_json::Value = serde_json::from_str(&text).ok()?;
     v.get("name")?.as_str().map(|s| s.to_string())
 }
@@ -30,9 +32,8 @@ fn node_package_slug(root: &Path) -> String {
 }
 
 fn workspace_patterns_from_package_json(root: &Path) -> Vec<String> {
-    let text = match std::fs::read_to_string(root.join("package.json")) {
-        Ok(t) => t,
-        Err(_) => return Vec::new(),
+    let Some(text) = read_utf8_file_capped(&root.join("package.json")) else {
+        return Vec::new();
     };
     let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else {
         return Vec::new();
@@ -60,7 +61,7 @@ fn workspace_patterns_from_package_json(root: &Path) -> Vec<String> {
 
 fn workspace_patterns_from_pnpm(root: &Path) -> Vec<String> {
     let p = root.join("pnpm-workspace.yaml");
-    let Ok(text) = std::fs::read_to_string(&p) else {
+    let Some(text) = read_utf8_file_capped(&p) else {
         return Vec::new();
     };
     let Ok(y) = serde_yaml::from_str::<serde_yaml::Value>(&text) else {
@@ -108,7 +109,7 @@ fn expand_node_workspace_pattern(root: &Path, pat: &str) -> Vec<PathBuf> {
 }
 
 fn read_go_module_last_segment(root: &Path) -> Option<String> {
-    let text = std::fs::read_to_string(root.join("go.mod")).ok()?;
+    let text = read_utf8_file_capped(&root.join("go.mod"))?;
     for line in text.lines() {
         let line = line.trim();
         if let Some(rest) = line.strip_prefix("module ") {
@@ -185,7 +186,7 @@ pub fn cargo_workspace_member_dirs(root: &Path) -> Vec<PathBuf> {
     if !manifest.is_file() {
         return Vec::new();
     }
-    let Ok(text) = std::fs::read_to_string(&manifest) else {
+    let Some(text) = read_utf8_file_capped(&manifest) else {
         return Vec::new();
     };
     let Ok(val) = toml::from_str::<toml::Value>(&text) else {

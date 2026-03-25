@@ -62,7 +62,13 @@ pub async fn set_active_mcp_chat_model(
     state: &ServerState,
     params: SetActiveMcpModelParams,
 ) -> String {
-    let mut lock = state.mcp_chat_model_override.write().unwrap();
+    let mut lock = match crate::sync_poison::poison_rw_write(
+        state.mcp_chat_model_override.write(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
     if params.model_id.is_empty() {
         *lock = None;
         ToolResult::ok("cleared active MCP chat model override").to_json()
@@ -75,7 +81,13 @@ pub async fn set_active_mcp_chat_model(
 
 /// Return the active MCP chat model override, if any.
 pub async fn get_active_mcp_chat_model(state: &ServerState) -> String {
-    let id = state.mcp_chat_model_override.read().unwrap().clone();
+    let id = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
     ToolResult::ok(id.unwrap_or_default()).to_json()
 }
 

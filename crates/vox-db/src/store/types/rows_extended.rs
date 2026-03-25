@@ -243,6 +243,41 @@ pub struct ScholarlySubmissionRow {
     pub metadata_json: Option<String>,
 }
 
+/// One row from `publication_media_assets`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PublicationMediaAssetRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub asset_ref: String,
+    pub media_type: String,
+    pub storage_uri: Option<String>,
+    pub status: String,
+    pub metadata_json: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+/// One row from `publication_attempts`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PublicationAttemptRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub content_sha3_256: String,
+    pub channel: String,
+    pub attempted_at_ms: i64,
+    pub outcome_json: String,
+}
+
+/// One row from `publication_status_events`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PublicationStatusEventRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub status: String,
+    pub detail_json: Option<String>,
+    pub recorded_at_ms: i64,
+}
+
 /// A single row from `local_train_log`.
 #[derive(Debug, Clone)]
 pub struct LocalTrainRow {

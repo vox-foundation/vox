@@ -85,7 +85,13 @@ Rules:
         }
     };
 
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
         sticky_model_pref: pref.as_deref(),

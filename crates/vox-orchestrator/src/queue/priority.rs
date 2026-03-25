@@ -18,6 +18,8 @@ impl AgentQueue {
             active_skills: std::collections::HashMap::new(),
             workflow_context: None,
             endpoint_reliability_key: None,
+            recent_shard_validation_failures: 0,
+            reducer_cooldown_until_ms: None,
         }
     }
 

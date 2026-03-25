@@ -172,6 +172,15 @@ pub struct OrchestratorConfig {
     /// Experimental: use remote populi node labels when scoring routes (no remote task execution).
     #[serde(default = "default_false", alias = "mesh_routing_experimental")]
     pub populi_routing_experimental: bool,
+    /// Experimental: apply training-task specific placement boosts/penalties.
+    #[serde(
+        default = "default_false",
+        alias = "mesh_training_routing_experimental"
+    )]
+    pub populi_training_routing_experimental: bool,
+    /// Soft budget-pressure scalar applied to expensive training placements (0.0-1.0).
+    #[serde(default = "default_populi_training_budget_pressure")]
+    pub populi_training_budget_pressure: f64,
     /// Experimental: allow remote task-envelope dispatch over populi A2A relay with local fallback.
     #[serde(default = "default_false", alias = "mesh_remote_execute_experimental")]
     pub populi_remote_execute_experimental: bool,
@@ -229,6 +238,18 @@ pub struct OrchestratorConfig {
     /// Routing weight applied to trust scores in step 3d. Default: 2.0.
     #[serde(default = "default_attention_trust_routing_weight")]
     pub attention_trust_routing_weight: f64,
+    /// Routing bonus for shard-role specialization (`[PHASE:SHARD_*]`, `[PHASE:REDUCE]`).
+    #[serde(default = "default_repo_shard_specialization_weight")]
+    pub repo_shard_specialization_weight: f64,
+    /// Penalty per recent shard validation failure.
+    #[serde(default = "default_repo_shard_validation_failure_penalty")]
+    pub repo_shard_validation_failure_penalty: f64,
+    /// Penalty while an agent is in reducer conflict cooldown.
+    #[serde(default = "default_repo_reduce_conflict_cooldown_penalty")]
+    pub repo_reduce_conflict_cooldown_penalty: f64,
+    /// Cooldown window in ms applied after reducer conflict churn.
+    #[serde(default = "default_repo_reduce_conflict_cooldown_ms")]
+    pub repo_reduce_conflict_cooldown_ms: u64,
     /// NASA TLX subscale weights for attention cost computation.
     /// Defaults to validated pilot-study values (mental=0.35, temporal=0.25, etc.).
     #[serde(default)]

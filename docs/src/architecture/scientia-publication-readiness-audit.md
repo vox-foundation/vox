@@ -34,7 +34,7 @@ It also defines the implementation gap between where the codebase is now and wha
 - Scholarly adapter interface and current local adapter:
   - `crates/vox-publisher/src/scholarly.rs`
 - Persistence and state ledger:
-  - `crates/vox-db/src/schema/domains/publication.rs`
+  - `crates/vox-db/src/schema/domains/publish_cloud.rs`
   - `crates/vox-db/src/store/ops_publication.rs`
 - MCP parity tooling:
   - `crates/vox-mcp/src/tools/scientia_tools.rs`
@@ -207,7 +207,7 @@ codexLedger --> readinessReports[ReadinessAndOpsReports]
   - `crates/vox-publisher/src/publication.rs`
   - `crates/vox-publisher/src/scholarly.rs`
 - DB schema and operations:
-  - `crates/vox-db/src/schema/domains/publication.rs`
+  - `crates/vox-db/src/schema/domains/publish_cloud.rs`
   - `crates/vox-db/src/store/ops_publication.rs`
 - CLI:
   - `crates/vox-cli/src/commands/db.rs`

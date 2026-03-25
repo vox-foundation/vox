@@ -3,6 +3,9 @@
 use anyhow::Result;
 use tokio::process::Command;
 
+use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
+use std::path::Path;
+
 use super::common::Check;
 use super::output;
 
@@ -39,7 +42,7 @@ pub async fn run_build_perf(json: bool) -> Result<()> {
     });
 
     let tls_pass = if tokio::fs::try_exists("Cargo.lock").await.unwrap_or(false) {
-        let lock = tokio::fs::read_to_string("Cargo.lock")
+        let lock = read_utf8_path_capped_async(Path::new("Cargo.lock"))
             .await
             .unwrap_or_default();
         if lock.contains("name = \"native-tls\"") || lock.contains("name = \"openssl-sys\"") {
@@ -84,7 +87,7 @@ pub async fn run_build_perf(json: bool) -> Result<()> {
 
     let baseline_path = "docs/src/reference/ref-build-baseline.md";
     let baseline_status = if tokio::fs::try_exists(baseline_path).await.unwrap_or(false) {
-        let content = tokio::fs::read_to_string(baseline_path)
+        let content = read_utf8_path_capped_async(Path::new(baseline_path))
             .await
             .unwrap_or_default();
         if content.contains("## Timing Baseline") {
@@ -109,7 +112,7 @@ pub async fn run_build_perf(json: bool) -> Result<()> {
         while let Some(d) = dir {
             let candidate = d.join(".cargo/config.toml");
             if candidate.exists() {
-                found = std::fs::read_to_string(&candidate).ok();
+                found = read_utf8_path_capped(&candidate).ok();
                 break;
             }
             dir = d.parent().map(|p| p.to_path_buf());
@@ -168,7 +171,9 @@ pub async fn run_scope(json: bool) -> Result<()> {
     }
 
     for path in scan_paths {
-        let content = tokio::fs::read_to_string(&path).await.unwrap_or_default();
+        let content = read_utf8_path_capped_async(&path)
+            .await
+            .unwrap_or_default();
 
         let snippets: Vec<String> = if path.extension().is_some_and(|e| e == "md") {
             let mut blocks = vec![];

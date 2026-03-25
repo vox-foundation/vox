@@ -17,9 +17,9 @@ Vox Mens is the unified native Rust AI/ML subsystem that moves Vox beyond legacy
 
 1.  **`vox mens corpus` (Data Pipeline)**: Extracts syntactically correct code samples directly from `.vox` files in the repository. It performs a semantic validation through the Vox compiler and tokenizes data via the deterministic, character-level `VoxTokenizer`.
 2.  **`vox-tensor` (Core ML Primitives)**: The foundational crate that wraps backend logic. It abstracts tensors and Neural Network (`nn`) modules so they gracefully dispatch to specific device backends (WGPU, CUDA, Metal, NdArray).
-3.  **`vox schola train` (Native Orchestrator)**: The heart of the fine-tuning process, supporting two distinct and deliberate paths:
-    *   **Burn LoRA (`--backend lora`)**: Utilizes full-graph `f32` causal Language Modeling on Burn. It allows end-to-end local training and merging (`vox mens merge-weights`) for Vox's in-repo canonical Transformer architecture.
-    *   **Candle qlora-rs (`--backend qlora`)**: Geared specifically for 16GB VRAM hardware (e.g., RTX 4080) fine-tuning industry models like Qwen2.5-Coder. It applies NF4 (4-bit NormalFloat) quantization to frozen Hugging Face (HF) base model weights while only training localized High-Precision LoRA matrices. 
+3.  **`vox schola train` (Native Orchestrator)**: The heart of the fine-tuning process. The active and supported path is:
+    *   **Candle qlora-rs (`--backend qlora`)**: Geared specifically for 16GB VRAM hardware (e.g., RTX 4080) fine-tuning industry models like Qwen2.5-Coder. It applies NF4 (4-bit NormalFloat) quantization to frozen Hugging Face (HF) base model weights while only training localized high-precision LoRA matrices.
+    *   **Burn LoRA (`--backend lora`)**: historical path kept for context only; no longer the active training lane in current code.
 4.  **`vox mens serve` (Inference Server)**: An Axum-based high-concurrency server implementing the `OpenAI /v1/completions` API schema natively, seamlessly serving merged Burn LoRA checkpoints.
 
 ## 2. Mathematical Decisions & Foundations
@@ -38,7 +38,7 @@ The core mathematical architecture revolves around making Large Language Model (
 ## 3. What We Do Well (As of 2026)
 
 *   **Python Elimination**: Bypassing the Global Interpreter Lock (GIL), Python environment hell, and runtime overheads. Integrating training directly into the CLI via `vox schola train` allows users to deploy reproducible compilation-and-training loops safely.
-*   **Dual-Backend Flexibility**: Recognizing that no single framework covers all bases, Vox utilizes **Burn** for rigorous, local `f32` custom architecture scaling and **Candle** for headless, aggressive inference and NF4 QLoRA on 3B+ parameter industry models.
+*   **Contract-first native path**: Vox uses a contract/planner-preflight flow with Candle QLoRA as the active execution kernel while preserving historical Burn context for migration clarity.
 *   **Industry Class UX**: Mens's telemetry features an Exponential Moving Average (EMA) for reliable training times and true "Sample-based Counting" allowing stable loss scaling regardless of `grad_accum` sizes.
 
 ## 4. Gaps and Future Directions (Improvements for late 2026)
@@ -53,10 +53,24 @@ As we analyze the trends from late 2025 and 2026 (e.g., the introduction of Qwen
 **The Gap:** Qwen3-Coder (mid-2025) and Qwen3-Coder-Next (2026) achieve their state-of-the-art inference efficiency using expansive MoE architectures (e.g., activating only 35B parameters out of a 480B pool). Our native `LoraVoxTransformer` in Burn remains a classic dense transformer.
 **The Fix:** Introduce native primitive layers for MoE routing within `vox-tensor`. Implementing "Hybrid Thinking Modes" natively inside the Burn graph would drastically cut computational budgets for code-generation verification loops while exponentially increasing agentic context length scaling up to 256K tokens natively.
 
-### C. Burn `LoraAttention::merge` RoPE Support
+### C. Legacy Burn `LoraAttention::merge` RoPE support
 **The Gap:** Our current `LoraAttention::merge` path inside Burn mandates `use_rope == false` (GPT-2 logical style). Rotary Position Embeddings (RoPE) are mathematically essential for modern contexts (used by Qwen and Llama), but our RoPE stacks remain unmerged in Burn.
 **The Fix:** Complete the mathematical formulation for merging LoRA layers across RoPE-injected vectors to allow `--backend lora` to fully support modern Qwen/Llama architectures natively inside Vox.
 
 ### D. Export Pipelines for External Runtimes
 **The Gap:** Mens's `merge-qlora` command outputs raw `.safetensors`, but we cannot serve nested qlora adapters within our own `vox mens serve`. Users are forced to eject the pipeline into an external runtime (Ollama, vLLM).
 **The Fix:** Expand our native Candle execution server or extend Burn's inference loaders to interpret `QloraAdapterMetaV2` and `v3` schemas, creating a seamless "Train-in-Candle, Serve-in-Vox" pipeline for large open-weight models.
+
+## 5. Provenance and attribution as first-class training metadata
+
+MENS must treat model lineage as part of the run contract, not as an afterthought in release notes.
+This is especially important when using open-weight upstream bases and applying downstream continued
+pretraining and RL. Training artifacts should carry:
+
+- upstream family and model id,
+- license classification and attribution expectations,
+- whether attribution is required for a promoted artifact.
+
+This keeps compliance visible to operators and avoids ambiguity during model promotion and external
+distribution. Supporting evidence and confidence labels for the 2026 Composer/Kimi discussion are
+tracked in [`mens-composer-kimi-findings-2026.md`](mens-composer-kimi-findings-2026.md).

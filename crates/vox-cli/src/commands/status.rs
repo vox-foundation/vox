@@ -13,14 +13,13 @@ const PROVIDER_LIMITS: &[(&str, &str, u32)] = &[
 
 pub async fn run(json_output: bool) -> Result<()> {
     // Detect configured providers
-    let google_key = std::env::var("GEMINI_API_KEY")
-        .or_else(|_| std::env::var("GOOGLE_AI_STUDIO_KEY"))
-        .ok()
-        .or_else(|| super::login::get_auth("google").map(|a| a.token));
+    let google_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+        .expose()
+        .map(std::string::ToString::to_string);
 
-    let openrouter_key = std::env::var("OPENROUTER_API_KEY")
-        .ok()
-        .or_else(|| super::login::get_auth("openrouter").map(|a| a.token));
+    let openrouter_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+        .expose()
+        .map(std::string::ToString::to_string);
 
     let ollama_up = std::net::TcpStream::connect_timeout(
         &std::net::SocketAddr::from(([127, 0, 0, 1], 11434)),

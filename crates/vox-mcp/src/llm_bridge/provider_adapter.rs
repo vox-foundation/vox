@@ -70,14 +70,15 @@ impl ProviderAdapter for GoogleDirectAdapter {
     ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>>
     {
         Box::pin(async move {
-            let key = std::env::var("GEMINI_API_KEY").map_err(|_| HttpInferError {
+            let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey);
+            let key = resolved.expose().ok_or_else(|| HttpInferError {
                 status: 0,
                 message: "GEMINI_API_KEY is not set (required for Google-direct models)".into(),
             })?;
             let (text, prompt_tokens, completion_tokens, meta) = http_gemini_with_metadata(
                 client,
                 &model.id,
-                &key,
+                key,
                 req.system_prompt,
                 req.user_prompt,
                 req.max_t,

@@ -10,6 +10,12 @@ use super::types::{DbPreflightProfileCli, PublicationPrepareBodyCli};
 pub enum DbCli {
     /// Print schema version and data directory
     Status,
+    /// Print row counts, table inventory, and key PRAGMAs (read-only diagnostics)
+    Audit {
+        /// Include per-table MIN/MAX for a heuristic time column (extra queries)
+        #[arg(long, default_value_t = false)]
+        timestamps: bool,
+    },
     /// Drop user tables and re-run migrations from a `.vox` module
     Reset {
         /// Optional specific schema source file.
@@ -54,7 +60,7 @@ pub enum DbCli {
     },
     /// Run VACUUM on the local database
     Vacuum,
-    /// Delete old agent_memory rows for a user
+    /// Delete old `memories` rows for a user / agent id
     Prune {
         /// User identifier.
         #[arg(long)]
@@ -62,6 +68,22 @@ pub enum DbCli {
         /// Retain rows from the last N days.
         #[arg(long, default_value_t = 30)]
         days: u32,
+    },
+    /// Dry-run JSON for `contracts/db/retention-policy.yaml` (`days` rules only)
+    #[command(name = "prune-plan")]
+    PrunePlan {
+        /// Policy file (default: repo `contracts/db/retention-policy.yaml` next to vox-cli)
+        #[arg(long)]
+        policy: Option<PathBuf>,
+    },
+    /// Apply `days` deletions from the retention policy (destructive)
+    #[command(name = "prune-apply")]
+    PruneApply {
+        #[arg(long)]
+        policy: Option<PathBuf>,
+        /// Required acknowledgement flag for destructive deletes
+        #[arg(long, default_value_t = false)]
+        i_understand: bool,
     },
     /// Get one preference key
     #[command(name = "pref-get")]
@@ -340,5 +362,86 @@ pub enum DbCli {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+    },
+    /// Upsert one publication media asset row.
+    #[command(name = "publication-media-upsert")]
+    PublicationMediaUpsert {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Local/repository asset ref key.
+        #[arg(long)]
+        asset_ref: String,
+        /// Media type (`video`, `image`, `dataset`, ...).
+        #[arg(long)]
+        media_type: String,
+        /// Optional storage URI (URL, object key, external id).
+        #[arg(long)]
+        storage_uri: Option<String>,
+        /// Lifecycle status (`pending`, `uploaded`, `failed`, ...).
+        #[arg(long, default_value = "pending")]
+        status: String,
+        /// Optional JSON file path for metadata blob.
+        #[arg(long)]
+        metadata_json_path: Option<PathBuf>,
+    },
+    /// List publication media asset rows.
+    #[command(name = "publication-media-list")]
+    PublicationMediaList {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Delete one publication media asset row.
+    #[command(name = "publication-media-delete")]
+    PublicationMediaDelete {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Local/repository asset ref key.
+        #[arg(long)]
+        asset_ref: String,
+    },
+    /// Simulate channel routing outcomes for a prepared publication id.
+    #[command(name = "publication-route-simulate")]
+    PublicationRouteSimulate {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Emit compact single-line JSON (machine-friendly).
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Publish a prepared publication to selected channels.
+    #[command(name = "publication-publish")]
+    PublicationPublish {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Optional comma-separated channel allowlist.
+        #[arg(long)]
+        channels: Option<String>,
+        /// Force dry-run mode for this invocation.
+        #[arg(long, default_value_t = true)]
+        dry_run: bool,
+        /// Emit compact single-line JSON (machine-friendly).
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Retry failed channels from latest recorded attempt.
+    #[command(name = "publication-retry-failed")]
+    PublicationRetryFailed {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Optional single channel to retry.
+        #[arg(long)]
+        channel: Option<String>,
+        /// Force dry-run mode for retry.
+        #[arg(long, default_value_t = true)]
+        dry_run: bool,
+        /// Emit compact single-line JSON (machine-friendly).
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 }

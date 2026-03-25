@@ -1,5 +1,8 @@
 //! Optional `metadata_json.scientia_evidence` — ties publication manifests to Socrates, eval-gate, and benchmark artifacts.
 
+use std::path::Path;
+
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
 use crate::publication_worthiness::WorthinessInputs;
@@ -59,6 +62,15 @@ pub struct ScientiaEvidenceContext {
     pub eval_gate: Option<EvalGateSnapshot>,
     #[serde(default)]
     pub benchmark: Option<BenchmarkPairSnapshot>,
+    /// Repo-relative directory passed to `vox mens eval-gate` / `check_run` (CLI only when `with_worthiness`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eval_gate_run_dir_repo_relative: Option<String>,
+    /// Repo-relative JSON file with an [`EvalGateSnapshot`] (CLI + MCP); applied when `eval_gate` is absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eval_gate_report_repo_relative: Option<String>,
+    /// Repo-relative JSON file with a [`BenchmarkPairSnapshot`]; applied when `benchmark` is absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub benchmark_pair_report_repo_relative: Option<String>,
     /// Human attestation that there is a substantive novel result (never inferred from heuristics alone).
     #[serde(default)]
     pub human_meaningful_advance: bool,
@@ -82,6 +94,79 @@ pub fn parse_scientia_evidence(metadata_json: Option<&str>) -> Option<ScientiaEv
     let root: serde_json::Value = serde_json::from_str(trimmed).ok()?;
     let v = root.get(METADATA_KEY_SCIENTIA_EVIDENCE)?;
     serde_json::from_value(v.clone()).ok()
+}
+
+fn trim_repo_rel_path(s: &str) -> String {
+    s.trim()
+        .trim_start_matches('/')
+        .trim_start_matches('\\')
+        .to_string()
+}
+
+/// Read sidecar JSON files referenced under `scientia_evidence` and merge into `metadata_json` (no `check_run`).
+///
+/// Runs after live Socrates merge and (in the CLI) after eval-gate directory checks when those set `eval_gate`.
+/// Fills `eval_gate` / `benchmark` only when the corresponding snapshot field is still `None`.
+pub fn enrich_metadata_json_with_repo_files(
+    metadata_json: Option<&str>,
+    repo_root: &Path,
+) -> anyhow::Result<Option<String>> {
+    let Some(raw) = metadata_json else {
+        return Ok(None);
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    let mut root: serde_json::Value = serde_json::from_str(trimmed)
+        .with_context(|| "parse metadata_json for scientia_evidence file hydration")?;
+
+    let mut ev: ScientiaEvidenceContext = root
+        .get(METADATA_KEY_SCIENTIA_EVIDENCE)
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    let mut changed = false;
+
+    if ev.eval_gate.is_none()
+        && let Some(ref rel) = ev.eval_gate_report_repo_relative.clone()
+    {
+        let part = trim_repo_rel_path(rel);
+        if !part.is_empty() {
+            let p = repo_root.join(&part);
+            if p.is_file() {
+                let txt = crate::bounded_fs::read_utf8_path_capped(&p)
+                    .with_context(|| format!("read eval_gate report {}", p.display()))?;
+                let g: EvalGateSnapshot = serde_json::from_str(&txt)
+                    .with_context(|| format!("parse eval_gate report JSON {}", p.display()))?;
+                ev.eval_gate = Some(g);
+                changed = true;
+            }
+        }
+    }
+
+    if ev.benchmark.is_none()
+        && let Some(ref rel) = ev.benchmark_pair_report_repo_relative.clone()
+    {
+        let part = trim_repo_rel_path(rel);
+        if !part.is_empty() {
+            let p = repo_root.join(&part);
+            if p.is_file() {
+                let txt = crate::bounded_fs::read_utf8_path_capped(&p)
+                    .with_context(|| format!("read benchmark pair report {}", p.display()))?;
+                let b: BenchmarkPairSnapshot = serde_json::from_str(&txt)
+                    .with_context(|| format!("parse benchmark pair report JSON {}", p.display()))?;
+                ev.benchmark = Some(b);
+                changed = true;
+            }
+        }
+    }
+
+    if !changed {
+        return Ok(None);
+    }
+
+    root[METADATA_KEY_SCIENTIA_EVIDENCE] = serde_json::to_value(&ev)?;
+    Ok(Some(serde_json::to_string(&root)?))
 }
 
 fn merge_socrates_aggregate(inputs: &mut WorthinessInputs, agg: &SocratesAggregateSnapshot) {
@@ -133,18 +218,16 @@ pub fn apply_scientia_evidence(
         }
     }
 
-    if let Some(ref b) = evidence.benchmark {
-        if b.pair_complete
-            && b.baseline_run_id
-                .as_ref()
-                .is_some_and(|s| !s.trim().is_empty())
-            && b.candidate_run_id
-                .as_ref()
-                .is_some_and(|s| !s.trim().is_empty())
-        {
-            inputs.before_after_pair_integrity =
-                clamp01(inputs.before_after_pair_integrity.max(0.9));
-        }
+    if let Some(ref b) = evidence.benchmark
+        && b.pair_complete
+        && b.baseline_run_id
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty())
+        && b.candidate_run_id
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty())
+    {
+        inputs.before_after_pair_integrity = clamp01(inputs.before_after_pair_integrity.max(0.9));
     }
 
     if evidence.human_ai_disclosure_complete {
@@ -152,13 +235,13 @@ pub fn apply_scientia_evidence(
     }
 
     if evidence.human_meaningful_advance {
-        let socrates_ok = evidence.socrates_aggregate.as_ref().map_or(false, |a| {
+        let socrates_ok = evidence.socrates_aggregate.as_ref().is_some_and(|a| {
             a.parsed_metadata_rows > 0
                 && a.mean_hallucination_risk_proxy < 0.36
                 && a.mean_contradiction_ratio < 0.26
         });
-        let gate_ok = evidence.eval_gate.as_ref().map_or(true, |g| g.passed);
-        let bench_ok = evidence.benchmark.as_ref().map_or(true, |b| {
+        let gate_ok = evidence.eval_gate.as_ref().is_none_or(|g| g.passed);
+        let bench_ok = evidence.benchmark.as_ref().is_none_or(|b| {
             b.pair_complete
                 && b.baseline_run_id
                     .as_ref()
@@ -203,6 +286,9 @@ mod tests {
                 manifest_repo_relative: Some("contracts/eval/benchmark-matrix.json".into()),
                 pair_complete: true,
             }),
+            eval_gate_run_dir_repo_relative: None,
+            eval_gate_report_repo_relative: None,
+            benchmark_pair_report_repo_relative: None,
             human_meaningful_advance: true,
             human_ai_disclosure_complete: true,
         };
@@ -226,5 +312,37 @@ mod tests {
         assert_eq!(merged.ai_disclosure_compliance, 1.0);
         assert!(merged.epistemic > 0.65);
         assert!(merged.before_after_pair_integrity >= 0.88);
+    }
+
+    #[test]
+    fn file_hydration_inlines_eval_gate_from_repo_relative_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let report_path = dir.path().join("reports/eval_gate.json");
+        std::fs::create_dir_all(report_path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &report_path,
+            r#"{"passed":true,"gates_failed":0,"gates_total":4}"#,
+        )
+        .unwrap();
+        let meta = r#"{"repository_id":"r1","scientia_evidence":{"eval_gate_report_repo_relative":"reports/eval_gate.json"}}"#;
+        let out = enrich_metadata_json_with_repo_files(Some(meta), dir.path())
+            .unwrap()
+            .unwrap();
+        let ev = parse_scientia_evidence(Some(&out)).expect("evidence");
+        let g = ev.eval_gate.as_ref().unwrap();
+        assert!(g.passed);
+        assert_eq!(g.gates_total, 4);
+    }
+
+    #[test]
+    fn file_hydration_skips_when_sidecar_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let meta =
+            r#"{"scientia_evidence":{"eval_gate_report_repo_relative":"nope/missing.json"}}"#;
+        assert!(
+            enrich_metadata_json_with_repo_files(Some(meta), dir.path())
+                .unwrap()
+                .is_none()
+        );
     }
 }

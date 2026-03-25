@@ -89,6 +89,7 @@ async fn best_non_ollama_model_except(
             !matches!(m.provider_type, ProviderType::Ollama)
                 && m.id != exclude_model_id
                 && !matches!(m.provider_type, ProviderType::Custom(_))
+                && model_has_available_credentials(m)
         })
         .collect();
     v.sort_by(|a, b| {
@@ -97,6 +98,18 @@ async fn best_non_ollama_model_except(
             .then_with(|| b.max_tokens.cmp(&a.max_tokens))
     });
     v.into_iter().next()
+}
+
+fn model_has_available_credentials(model: &ModelSpec) -> bool {
+    match model.provider_type {
+        ProviderType::GoogleDirect => {
+            vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+                .expose()
+                .is_some_and(|s| !s.trim().is_empty())
+        }
+        ProviderType::Ollama => true,
+        _ => super::provider_auth::bearer_for(model).is_ok(),
+    }
 }
 
 fn is_openrouter_gemini_model(model: &ModelSpec) -> bool {
@@ -114,8 +127,8 @@ fn google_direct_fallback_for_gemini(
     if vox_config::GeminiRoutePolicy::from_env() != vox_config::GeminiRoutePolicy::OpenRouterFirst {
         return None;
     }
-    std::env::var("GEMINI_API_KEY")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+        .expose()
         .filter(|s| !s.trim().is_empty())?;
     let targets = vox_config::gemini_route_targets_from_env();
     crate::sync_lock::rw_read(&*state.orchestrator.models_handle())
@@ -374,7 +387,13 @@ pub async fn call_llm(
     user_prompt: &str,
     user_id: Option<&str>,
 ) -> Result<(String, String, u64), String> {
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return Err(e.to_string()),
+    };
     let (model, free_only, resolution_template) = {
         let orch = &state.orchestrator;
         let context_fill_ratio = super::model_route_policy::mcp_global_llm_context_fill_ratio(orch);

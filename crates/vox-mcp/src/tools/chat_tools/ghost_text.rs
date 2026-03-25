@@ -72,7 +72,13 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         Ok(pair) => pair,
         Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
     };
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
     let temperature = 0.2_f32;
     let routing = McpInferRouting {
         user_prompt: &user_prompt,

@@ -1,8 +1,9 @@
 // Legacy database import/export planning for **Codex** greenfield releases.
 //
-// Baseline **V1** stores a single `schema_version` row; pre-baseline databases that ran the
-// historical multi-step chain must be exported with `export_legacy_jsonl` (using a connection that
-// skips baseline migration) and imported into a fresh file. See `docs/src/architecture/codex-vnext-schema.md` and ADR 004.
+// Greenfield Codex stores `schema_version` at [`crate::schema::BASELINE_VERSION`]. Databases whose
+// `MAX(schema_version)` is not 0 and not that baseline (historical multi-step chain) must be
+// exported with `export_legacy_jsonl` (connection that skips baseline migration) and imported into
+// a fresh file. See `docs/src/architecture/codex-vnext-schema.md` and ADR 004.
 
 use std::io::{BufRead, Write};
 use turso::Value as SqlValue;
@@ -15,11 +16,11 @@ use crate::StoreError;
 /// Result of [`verify_legacy_store`].
 #[derive(Debug, Clone)]
 pub struct LegacyVerification {
-    /// Highest `schema_version.version` from the store (baseline Codex uses **1** only).
+    /// `MAX(schema_version.version)` from the store (greenfield equals [`crate::schema::BASELINE_VERSION`]).
     pub schema_version: i64,
     /// Whether all [`CODEX_REACTIVITY_TABLES`] exist (manifest-derived; not a numeric threshold).
     pub has_codex_reactivity: bool,
-    /// `true` when this database still has the pre-baseline multi-version chain (`MAX(version) > 1`).
+    /// `true` when `schema_version` does not match greenfield baseline (multi-version or stale chain).
     pub is_legacy_schema_chain: bool,
 }
 
@@ -44,10 +45,12 @@ pub async fn verify_legacy_store(store: &crate::VoxDb) -> Result<LegacyVerificat
             break;
         }
     }
+    let is_legacy_schema_chain =
+        schema_version != 0 && schema_version != crate::schema::BASELINE_VERSION;
     Ok(LegacyVerification {
         schema_version,
         has_codex_reactivity,
-        is_legacy_schema_chain: schema_version > crate::schema::BASELINE_VERSION,
+        is_legacy_schema_chain,
     })
 }
 
@@ -80,50 +83,153 @@ impl LegacyImportSource {
     }
 }
 
-/// Tables exported by [`export_legacy_jsonl`] / restored by [`import_legacy_jsonl`].
+/// Tables never exported: Turso/Arca owns `schema_version` via [`crate::VoxDb::migrate`].
+/// A fresh target DB must already hold [`crate::schema::BASELINE_VERSION`] before [`import_legacy_jsonl`].
+pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &["schema_version"];
+
+/// User tables included in [`export_legacy_jsonl`] / accepted by [`import_legacy_jsonl`].
+///
+/// SSOT: must match every `sqlite_master` user table after baseline migrate, except
+/// [`LEGACY_EXPORT_SKIP_TABLES`]. Kept sorted for diff review; see unit test
+/// `legacy_export_covers_all_baseline_tables`.
 pub const LEGACY_EXPORT_TABLES: &[&str] = &[
-    "objects",
-    "names",
-    "metadata",
-    "packages",
-    "package_deps",
-    "execution_log",
-    "scheduled",
+    "a2a_messages",
+    "actor_state",
+    "agent_events",
+    "agent_metrics",
+    "agent_oplog",
+    "agent_reliability",
+    "agent_session_events",
+    "agent_sessions",
+    "agents",
+    "artifact_reviews",
+    "artifacts",
+    "audit_log",
+    "behavior_events",
+    "build_crate_sample",
+    "build_run",
+    "build_warning",
+    "builder_sessions",
+    "causal",
+    "cloud_dispatch_log",
+    "codex_change_log",
+    "codex_projection_versions",
+    "codex_query_snapshots",
+    "codex_schema_lineage",
+    "codex_subscriptions",
     "components",
-    "users",
-    "user_preferences",
-    "conversations",
+    "conversation_edges",
+    "conversation_message_topics",
     "conversation_messages",
     "conversation_tool_calls",
-    "topics",
     "conversation_topics",
-    "conversation_message_topics",
-    "usage_limit_definitions",
-    "usage_counter_snapshots",
-    "search_documents",
-    "search_document_chunks",
-    "search_indexing_jobs",
-    "processing_runs",
-    "processing_run_steps",
-    "audit_log",
-    "research_sessions",
     "conversation_versions",
-    "conversation_edges",
-    "topic_evolution_events",
-    "memories",
-    "knowledge_nodes",
-    "knowledge_edges",
+    "conversations",
+    "cost_records",
+    "db_snapshots",
+    "distributed_locks",
     "embeddings",
+    "endpoint_reliability",
+    "eval_runs",
+    "execution_log",
+    "gamify_battles",
+    "gamify_companions",
+    "gamify_profiles",
+    "gamify_quests",
+    "knowledge_edges",
+    "knowledge_nodes",
+    "learned_patterns",
+    "llm_feedback",
+    "llm_interactions",
+    "local_train_log",
+    "memories",
+    "mesh_heartbeats",
+    "metadata",
+    "names",
+    "news_publish_approvals",
+    "news_publish_approvals_v2",
+    "news_publish_attempts",
+    "objects",
+    "package_deps",
+    "packages",
+    "plan_node_attempts",
+    "plan_nodes",
+    "plan_sessions",
+    "plan_versions",
+    "populi_reviews",
+    "processing_run_steps",
+    "processing_runs",
+    "publication_approvals",
+    "publication_attempts",
+    "publication_manifests",
+    "publication_media_assets",
+    "publication_status_events",
+    "published_news",
+    "repository_reliability",
+    "research_metrics",
+    "research_sessions",
+    "scheduled",
+    "scholarly_submissions",
+    "search_document_chunks",
+    "search_documents",
+    "search_indexing_jobs",
+    "session_turns",
+    "skill_executions",
     "skill_manifests",
+    "skill_reliability",
     "snippets",
-    "artifacts",
-    "agents",
-    "codex_change_log",
-    "codex_subscriptions",
-    "codex_schema_lineage",
-    "codex_query_snapshots",
-    "codex_projection_versions",
+    "toestub_baselines",
+    "toestub_file_cache",
+    "toestub_suppressions",
+    "toestub_task_queue",
+    "topic_evolution_events",
+    "topics",
+    "training_throughput_profiles",
+    "trusted_evidence_bundles",
+    "typed_stream_events",
+    "usage_counter_snapshots",
+    "usage_limit_definitions",
+    "user_preferences",
+    "users",
+    "workflow_activity_log",
+    "workflow_executions",
+    "workflow_reliability",
 ];
+
+/// List user-defined table names (excludes `sqlite_%`), sorted by SQLite.
+pub async fn list_sqlite_user_tables(conn: &turso::Connection) -> Result<Vec<String>, StoreError> {
+    let mut rows = conn
+        .query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+            (),
+        )
+        .await
+        .map_err(|e| StoreError::Db(e.to_string()))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().await? {
+        out.push(
+            row.get::<String>(0)
+                .map_err(|e| StoreError::Db(e.to_string()))?,
+        );
+    }
+    Ok(out)
+}
+
+async fn pragma_foreign_keys_enabled(conn: &turso::Connection) -> Result<bool, StoreError> {
+    let mut rows = conn
+        .query("PRAGMA foreign_keys", ())
+        .await
+        .map_err(|e| StoreError::Db(e.to_string()))?;
+    let v: i64 = rows
+        .next()
+        .await
+        .map_err(|e| StoreError::Db(e.to_string()))?
+        .map(|r| r.get::<i64>(0))
+        .transpose()
+        .map_err(|e| StoreError::Db(e.to_string()))?
+        .unwrap_or(0);
+    Ok(v != 0)
+}
 
 fn sql_value_to_json(v: SqlValue) -> serde_json::Value {
     match v {
@@ -155,10 +261,11 @@ pub async fn export_legacy_jsonl<W: Write>(
             continue;
         }
         let select = format!("SELECT {} FROM {}", columns.join(", "), table);
-        let mut rows: turso::Rows = match store.connection().query(&select, ()).await {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
+        let mut rows: turso::Rows = store
+            .connection()
+            .query(&select, ())
+            .await
+            .map_err(|e| StoreError::Db(format!("legacy export {table}: {e}")))?;
         while let Some(row) = rows.next().await? {
             let mut obj = serde_json::Map::new();
             for i in 0..columns.len() {
@@ -183,51 +290,114 @@ pub async fn export_legacy_jsonl<W: Write>(
     Ok(count)
 }
 
-/// Apply JSONL from [`export_legacy_jsonl`]. Uses `INSERT OR REPLACE` with bound parameters.
+/// Apply JSONL from [`export_legacy_jsonl`]. Clears each allowlisted table, then uses plain
+/// `INSERT` with bound parameters.
+///
+/// **Why not `INSERT OR REPLACE`:** the bundled `turso`/`libsql` stack mis-binds positional parameters
+/// for `INSERT OR REPLACE` in this crate’s tests (values shift; e.g. `xp` becomes `0`). Deleting
+/// snapshot tables first matches the documented workflow (**fresh baseline** target DB).
+///
+/// **Foreign keys:** disabled for the transaction so row order in JSONL need not respect FK edges;
+/// the previous `PRAGMA foreign_keys` setting is restored afterward.
 pub async fn import_legacy_jsonl<R: BufRead>(
     store: &crate::VoxDb,
     reader: R,
 ) -> Result<u64, StoreError> {
-    let mut applied = 0u64;
-    for line in reader.lines() {
-        let line = line.map_err(|e| StoreError::Db(format!("legacy import read: {e}")))?;
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
+    let conn = store.connection();
+    let fk_was_on = pragma_foreign_keys_enabled(conn).await?;
+    conn.execute("PRAGMA foreign_keys = OFF", ())
+        .await
+        .map_err(|e| StoreError::Db(format!("legacy import pragma foreign_keys off: {e}")))?;
+    conn.execute("BEGIN IMMEDIATE", ())
+        .await
+        .map_err(|e| StoreError::Db(format!("legacy import begin: {e}")))?;
+
+    let body = async {
+        let mut applied = 0u64;
+        for line in reader.lines() {
+            let line = line.map_err(|e| StoreError::Db(format!("legacy import read: {e}")))?;
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let v: serde_json::Value = serde_json::from_str(trimmed)
+                .map_err(|e| StoreError::Serialization(e.to_string()))?;
+            let table = v
+                .get("table")
+                .and_then(|x| x.as_str())
+                .ok_or_else(|| StoreError::Db("legacy import line missing table".into()))?;
+            let row = v
+                .get("row")
+                .and_then(|x| x.as_object())
+                .ok_or_else(|| StoreError::Db("legacy import line missing row object".into()))?;
+            if !LEGACY_EXPORT_TABLES.contains(&table) {
+                continue;
+            }
+            let columns: Vec<String> =
+                if let Some(arr) = v.get("columns").and_then(|c| c.as_array()) {
+                    let out: Vec<String> = arr
+                        .iter()
+                        .filter_map(|x| x.as_str().map(std::string::ToString::to_string))
+                        .collect();
+                    if out.is_empty() {
+                        row.keys().cloned().collect()
+                    } else {
+                        out
+                    }
+                } else {
+                    row.keys().cloned().collect()
+                };
+            if columns.is_empty() {
+                continue;
+            }
+            let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("?{i}")).collect();
+            let sql = format!(
+                "INSERT INTO {} ({}) VALUES ({})",
+                table,
+                columns.join(", "),
+                placeholders.join(", ")
+            );
+            let mut values: Vec<SqlValue> = Vec::with_capacity(columns.len());
+            for c in &columns {
+                let cell = row.get(c).unwrap_or(&serde_json::Value::Null);
+                values.push(json_to_sql_value(cell)?);
+            }
+            store.connection().execute(&sql, values).await?;
+            applied += 1;
         }
-        let v: serde_json::Value =
-            serde_json::from_str(trimmed).map_err(|e| StoreError::Serialization(e.to_string()))?;
-        let table = v
-            .get("table")
-            .and_then(|x| x.as_str())
-            .ok_or_else(|| StoreError::Db("legacy import line missing table".into()))?;
-        let row = v
-            .get("row")
-            .and_then(|x| x.as_object())
-            .ok_or_else(|| StoreError::Db("legacy import line missing row object".into()))?;
-        if !LEGACY_EXPORT_TABLES.contains(&table) {
-            continue;
+        Ok::<u64, StoreError>(applied)
+    };
+
+    let restore_fk = async {
+        let c = store.connection();
+        if fk_was_on {
+            c.execute("PRAGMA foreign_keys = ON", ())
+                .await
+                .map_err(|e| StoreError::Db(format!("legacy import restore foreign_keys: {e}")))?;
+        } else {
+            c.execute("PRAGMA foreign_keys = OFF", ())
+                .await
+                .map_err(|e| StoreError::Db(format!("legacy import restore foreign_keys: {e}")))?;
         }
-        let columns: Vec<String> = row.keys().cloned().collect();
-        if columns.is_empty() {
-            continue;
+        Ok::<(), StoreError>(())
+    };
+
+    match body.await {
+        Ok(n) => {
+            store
+                .connection()
+                .execute("COMMIT", ())
+                .await
+                .map_err(|e| StoreError::Db(format!("legacy import commit: {e}")))?;
+            restore_fk.await?;
+            Ok(n)
         }
-        let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("?{i}")).collect();
-        let sql = format!(
-            "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
-            table,
-            columns.join(", "),
-            placeholders.join(", ")
-        );
-        let mut values: Vec<SqlValue> = Vec::with_capacity(columns.len());
-        for c in &columns {
-            let cell = row.get(c).unwrap_or(&serde_json::Value::Null);
-            values.push(json_to_sql_value(cell)?);
+        Err(e) => {
+            let _ = store.connection().execute("ROLLBACK", ()).await;
+            let _ = restore_fk.await;
+            Err(e)
         }
-        store.connection().execute(&sql, values).await?;
-        applied += 1;
     }
-    Ok(applied)
 }
 
 fn json_to_sql_value(v: &serde_json::Value) -> Result<SqlValue, StoreError> {
@@ -242,6 +412,11 @@ fn json_to_sql_value(v: &serde_json::Value) -> Result<SqlValue, StoreError> {
         }
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
+                SqlValue::Integer(i)
+            } else if let Some(u) = n.as_u64() {
+                let i = i64::try_from(u).map_err(|_| {
+                    StoreError::Serialization(format!("JSON integer too large: {u}"))
+                })?;
                 SqlValue::Integer(i)
             } else if let Some(f) = n.as_f64() {
                 SqlValue::Real(f)

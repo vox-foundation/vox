@@ -12,9 +12,9 @@ pub async fn run(registry: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
-    let content = std::fs::read_to_string(&auth_path).context("Failed to read auth config")?;
-    let mut config: CliCredentials =
-        serde_json::from_str(&content).unwrap_or_default();
+    let content = crate::commands::ci::bounded_read::read_utf8_path_capped(&auth_path)
+        .context("Failed to read auth config")?;
+    let mut config: CliCredentials = serde_json::from_str(&content).unwrap_or_default();
 
     let reg_name = registry.unwrap_or("voxpm");
 

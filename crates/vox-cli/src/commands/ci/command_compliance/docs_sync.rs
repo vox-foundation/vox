@@ -1,8 +1,9 @@
 //! Doc loading and markdown section helpers for compliance checks.
 
 use anyhow::{Context, Result};
-use std::fs;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Extract the `### `vox ci …` section from the CLI reference doc (until the next `### ` heading).
 pub(crate) fn ref_cli_vox_ci_section(ref_text: &str) -> Option<&str> {
@@ -36,10 +37,10 @@ pub(crate) fn markdown_section<'a>(doc: &'a str, heading: &str) -> Option<&'a st
 pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<String> {
     let legacy = repo_root.join("docs/src/ref-cli.md");
     if legacy.is_file() {
-        return fs::read_to_string(&legacy).with_context(|| format!("read {}", legacy.display()));
+        return read_utf8_path_capped(&legacy).with_context(|| format!("read {}", legacy.display()));
     }
     let canonical = repo_root.join("docs/src/reference/cli.md");
-    fs::read_to_string(&canonical).with_context(|| {
+    read_utf8_path_capped(&canonical).with_context(|| {
         format!(
             "read {} (and docs/src/ref-cli.md is absent)",
             canonical.display()
@@ -50,11 +51,11 @@ pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<Stri
 pub(crate) fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
     let preferred = repo_root.join("docs/src/reference/env-vars-ssot.md");
     if preferred.is_file() {
-        return fs::read_to_string(&preferred)
+        return read_utf8_path_capped(&preferred)
             .with_context(|| format!("read {}", preferred.display()));
     }
     let fallback = repo_root.join("docs/src/reference/env-vars.md");
-    fs::read_to_string(&fallback).with_context(|| {
+    read_utf8_path_capped(&fallback).with_context(|| {
         format!(
             "read {} (fallback when docs/src/reference/env-vars-ssot.md is absent)",
             fallback.display()
@@ -64,7 +65,7 @@ pub(crate) fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
 
 pub(crate) fn read_reachability_doc(repo_root: &Path) -> Result<String> {
     let p = repo_root.join("docs/src/reference/cli.md");
-    fs::read_to_string(&p).with_context(|| {
+    read_utf8_path_capped(&p).with_context(|| {
         format!(
             "read {} (reachability matrix under 'CLI command reachability')",
             p.display()

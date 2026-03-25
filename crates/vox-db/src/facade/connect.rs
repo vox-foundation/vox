@@ -186,6 +186,7 @@ impl crate::VoxDb {
                 turso::Connection::open_remote(url, token).await?
             }
         };
+        Self::apply_pragmas(&conn).await?;
         Ok(Self {
             conn,
             sync_db: None,

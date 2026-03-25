@@ -83,9 +83,12 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
             p.display()
         );
     }
-    let api_key = std::env::var("TOGETHER_API_KEY").map_err(|_| {
-        anyhow::anyhow!("TOGETHER_API_KEY not set; required for --provider together")
-    })?;
+    let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherApiKey)
+        .expose()
+        .map(std::string::ToString::to_string)
+        .ok_or_else(|| {
+            anyhow::anyhow!("TOGETHER_API_KEY not set; required for --provider together")
+        })?;
     let train_jsonl = data_dir.join("train.jsonl");
     ensure_train_jsonl(&train_jsonl, data_dir)?;
     let body = std::fs::read(&train_jsonl)?;

@@ -50,7 +50,8 @@ impl From<UnifiedNewsItem> for PublicationManifest {
             metadata_json: Some(
                 serde_json::json!({
                     "tags": value.tags,
-                    "syndication": value.syndication
+                    "syndication": value.syndication,
+                    "topic_pack": value.topic_pack,
                 })
                 .to_string(),
             ),

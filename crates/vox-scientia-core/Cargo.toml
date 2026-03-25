@@ -1,0 +1,8 @@
+[package]
+name = "vox-scientia-core"
+version.workspace = true
+edition.workspace = true
+description = "Scientia core publication models, preflight, and worthiness APIs."
+
+[dependencies]
+vox-publisher = { workspace = true }

@@ -15,6 +15,7 @@ use super::training_config::{MensTokenizerMode, TrainingDeploymentTarget};
 #[derive(Debug, Clone)]
 pub struct FineTuneContract {
     pub model: ModelSpec,
+    pub provenance: ModelProvenanceSpec,
     pub data: DataSpec,
     pub adapter: AdapterSpec,
     pub quant: QuantSpec,
@@ -29,6 +30,15 @@ pub struct ModelSpec {
     pub weight_shards: Option<Vec<PathBuf>>,
     pub config_json: Option<PathBuf>,
     pub tokenizer_json: Option<PathBuf>,
+}
+
+/// Lineage and attribution metadata for downstream artifacts.
+#[derive(Debug, Clone)]
+pub struct ModelProvenanceSpec {
+    pub base_family: Option<String>,
+    pub upstream_model_id: Option<String>,
+    pub license_class: Option<String>,
+    pub attribution_required: bool,
 }
 
 /// Data + tokenization policy.
@@ -159,6 +169,12 @@ impl FineTuneContract {
                 config_json,
                 tokenizer_json: config.tokenizer_path.clone(),
             },
+            provenance: ModelProvenanceSpec {
+                base_family: config.base_model_family.clone(),
+                upstream_model_id: config.upstream_model_id.clone(),
+                license_class: config.license_class.clone(),
+                attribution_required: config.attribution_required,
+            },
             data: DataSpec {
                 train_file: config.train_file.clone(),
                 tokenizer_mode: config.tokenizer_mode,
@@ -212,6 +228,10 @@ pub fn finetune_contract_digest(c: &FineTuneContract) -> String {
     hash_opt_path(&mut h, &c.model.config_json);
     hash_opt_path(&mut h, &c.model.tokenizer_json);
     hash_opt_path_vec(&mut h, &c.model.weight_shards);
+    hash_opt_str(&mut h, &c.provenance.base_family);
+    hash_opt_str(&mut h, &c.provenance.upstream_model_id);
+    hash_opt_str(&mut h, &c.provenance.license_class);
+    c.provenance.attribution_required.hash(&mut h);
 
     hash_opt_path(&mut h, &c.data.train_file);
     c.data.tokenizer_mode.hash(&mut h);
@@ -400,6 +420,24 @@ mod digest_tests {
         assert_ne!(
             finetune_contract_digest(&c_w),
             finetune_contract_digest(&c_m)
+        );
+    }
+
+    #[test]
+    fn finetune_contract_digest_changes_with_provenance() {
+        let cfg_a = LoraTrainingConfig {
+            upstream_model_id: Some("moonshotai/Kimi-K2.5".into()),
+            ..Default::default()
+        };
+        let c_a = FineTuneContract::from_training_config(&cfg_a, PopuliTrainBackend::CandleQlora);
+        let cfg_b = LoraTrainingConfig {
+            upstream_model_id: Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
+            ..Default::default()
+        };
+        let c_b = FineTuneContract::from_training_config(&cfg_b, PopuliTrainBackend::CandleQlora);
+        assert_ne!(
+            finetune_contract_digest(&c_a),
+            finetune_contract_digest(&c_b)
         );
     }
 }

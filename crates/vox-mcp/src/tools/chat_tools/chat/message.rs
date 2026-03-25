@@ -169,12 +169,21 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
     let session_id = params.session_id.as_deref().unwrap_or("default");
     let ctx_handle = state.orchestrator.context_handle();
-    let session_ts = ctx_handle
-        .read()
-        .unwrap()
-        .age_secs(&format!("chat_history:{session_id}"))
-        .map(|a: u64| format!(" Session last active: {a}s ago."))
-        .unwrap_or_default();
+    let session_ts =
+        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+            Ok(guard) => guard
+                .age_secs(&format!("chat_history:{session_id}"))
+                .map(|a: u64| format!(" Session last active: {a}s ago."))
+                .unwrap_or_default(),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    tool = "vox_chat_message",
+                    "context lock poisoned; skipping session age hint"
+                );
+                String::new()
+            }
+        };
     let system_prompt = format!(
         "{}{}\n\n{}",
         build_system_prompt(state).await,
@@ -208,7 +217,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             .await
             {
                 Ok((model, free_only)) => {
-                    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+                    let pref =
+                        match crate::sync_poison::poison_rw_read(
+                            state.mcp_chat_model_override.read(),
+                            "mcp_chat_model_override",
+                        ) {
+                            Ok(g) => g.clone(),
+                            Err(e) => {
+                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                None
+                            }
+                        };
                     let max_tokens =
                         crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
                     let routing = McpInferRouting {
@@ -300,12 +319,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     };
 
     let ctx_handle = state.orchestrator.context_handle();
-    let existing_history: Vec<ChatTranscriptEntry> = ctx_handle
-        .read()
-        .unwrap()
-        .get(&history_key)
-        .and_then(|s: String| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
+    let existing_history: Vec<ChatTranscriptEntry> =
+        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+            Ok(guard) => guard
+                .get(&history_key)
+                .and_then(|s: String| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            Err(e) => {
+                tracing::warn!(error = %e, "chat_message: context poisoned reading history");
+                Vec::new()
+            }
+        };
 
     let mut history = existing_history;
     history.push(user_msg.clone());
@@ -319,13 +343,19 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     match serde_json::to_string(&history) {
         Ok(history_json) => {
             let ctx_handle = state.orchestrator.context_handle();
-            let mut ctx = ctx_handle.write().unwrap();
-            ctx.set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
-            if let Some(ev) = &retrieval_evidence
-                && let Ok(ev_json) = serde_json::to_string(ev)
-            {
-                // Keep recent retrieval envelope available for task submission->gate bridging.
-                ctx.set(vox_orchestrator::AgentId(0), &retrieval_key, &ev_json, 3600);
+            match crate::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
+                Ok(mut ctx) => {
+                    ctx.set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
+                    if let Some(ev) = &retrieval_evidence
+                        && let Ok(ev_json) = serde_json::to_string(ev)
+                    {
+                        // Keep recent retrieval envelope available for task submission->gate bridging.
+                        ctx.set(vox_orchestrator::AgentId(0), &retrieval_key, &ev_json, 3600);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "chat_message: context poisoned persisting history");
+                }
             }
         }
         Err(e) => {
@@ -381,11 +411,16 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let date_str = ts_to_date_str(now_s);
         let server_idle_secs = now_s.saturating_sub(state.orchestrator.last_activity_ms() / 1000);
         let ctx_handle = state.orchestrator.context_handle();
-        let session_age_secs = ctx_handle
-            .read()
-            .unwrap()
-            .age_secs(&format!("chat_history:{session_id}"))
-            .unwrap_or(0);
+        let session_age_secs =
+            match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+                Ok(g) => g
+                    .age_secs(&format!("chat_history:{session_id}"))
+                    .unwrap_or(0),
+                Err(e) => {
+                    tracing::warn!(error = %e, "chat_message: context poisoned for session_age_secs");
+                    0
+                }
+            };
 
         // Record high-quality LLM turn in agent_events for Mens replay/SFT
         let mut payload = serde_json::json!({

@@ -30,8 +30,13 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
                 if params.key == "socrates_gate_enforced" {
                     if let Ok(enforce) = params.value.parse::<bool>() {
                         let cfg_handle = state.orchestrator.config_handle();
-                        let mut cfg = cfg_handle.write().unwrap();
-                        cfg.socrates_gate_enforce = enforce;
+                        match crate::sync_poison::poison_rw_write(
+                            cfg_handle.write(),
+                            "orchestrator config",
+                        ) {
+                            Ok(mut cfg) => cfg.socrates_gate_enforce = enforce,
+                            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+                        }
                     }
                 }
                 ToolResult::ok(format!("Set '{}' = '{}'", params.key, params.value)).to_json()

@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use anyhow::{Context, bail};
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use clap::{Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -316,7 +318,7 @@ fn generate_populi_token() -> String {
 }
 
 fn load_env_file(path: &Path) -> Option<BTreeMap<String, String>> {
-    let raw = fs::read_to_string(path).ok()?;
+    let raw = read_utf8_path_capped(path).ok()?;
     let mut map = BTreeMap::new();
     for line in raw.lines() {
         let t = line.trim();
@@ -343,7 +345,7 @@ fn save_env_file(path: &Path, map: &BTreeMap<String, String>) -> anyhow::Result<
 }
 
 fn load_state_file(path: &Path) -> anyhow::Result<PopuliDaemonState> {
-    let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let raw = read_utf8_path_capped(path).with_context(|| format!("read {}", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("parse {}", path.display()))
 }
 

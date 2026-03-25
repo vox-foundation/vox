@@ -149,7 +149,7 @@ pub fn aggregate_metrics(base: &Path, limit: u64) -> Metrics {
     let mut agg = Agg::default();
     let mut count = 0usize;
 
-    if let Ok(data) = std::fs::read_to_string(&path) {
+    if let Ok(data) = crate::commands::ci::bounded_read::read_utf8_path_capped(&path) {
         let lines: Vec<&str> = data.lines().filter(|l| !l.is_empty()).collect();
         let take = limit as usize;
         let start = lines.len().saturating_sub(take);

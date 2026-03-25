@@ -1,4 +1,6 @@
 use anyhow::Result;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use owo_colors::OwoColorize;
 use std::path::Path;
 
@@ -8,8 +10,9 @@ pub fn run(file_path: &Path) -> Result<()> {
         anyhow::bail!("File not found: {}", file_path.display());
     }
 
-    let src = std::fs::read_to_string(file_path)?;
-    let compacted = vox_compiler::lexer::compact(&src);
+    let src = read_utf8_path_capped(file_path)?;
+    let compacted = vox_compiler::canonicalize_vox(&src)
+        .map_err(|e| anyhow::anyhow!("Compaction validation failed: {e}"))?;
 
     println!("{}", compacted);
 

@@ -1,0 +1,45 @@
+version: 1
+packs:
+  research_breakthrough:
+    description: "High-signal scientific finding with reproducible claim/evidence."
+    channels: [rss, github, reddit, hacker_news]
+    template_profile:
+      github: release_digest
+      reddit: deep_dive_selfpost
+      hacker_news: launch_title
+    min_worthiness_score:
+      github: 0.82
+      reddit: 0.84
+      hacker_news: 0.86
+  infra_release:
+    description: "Platform or tooling release intended for broad practitioner awareness."
+    channels: [rss, github, twitter, open_collective, hacker_news]
+    template_profile:
+      twitter: short_insight_thread
+      github: release_digest
+      hacker_news: launch_title
+    min_worthiness_score:
+      twitter: 0.75
+      github: 0.8
+      hacker_news: 0.84
+  benchmark:
+    description: "Before/after measured deltas with method and artifact references."
+    channels: [rss, github, twitter, reddit, youtube]
+    template_profile:
+      twitter: short_insight_thread
+      reddit: deep_dive_selfpost
+      youtube: demo_explainer
+    min_worthiness_score:
+      twitter: 0.76
+      reddit: 0.82
+      youtube: 0.8
+  video_demo:
+    description: "Video-first explainers and demonstrations with linked evidence."
+    channels: [youtube, twitter, reddit, open_collective]
+    template_profile:
+      youtube: demo_explainer
+      twitter: short_insight_thread
+      reddit: deep_dive_selfpost
+    min_worthiness_score:
+      youtube: 0.8
+      reddit: 0.82

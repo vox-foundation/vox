@@ -28,6 +28,7 @@ all = "warn"
 vox-ars                   = { path = "crates/vox-ars" }
 vox-bootstrap             = { path = "crates/vox-bootstrap" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
+vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-schola                 = { path = "crates/vox-schola" }
 vox-compiler              = { path = "crates/vox-compiler" }
@@ -65,6 +66,10 @@ vox-tools                 = { path = "crates/vox-tools" }
 vox-webhook               = { path = "crates/vox-webhook" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-publisher             = { path = "crates/vox-publisher" }
+vox-scientia-core         = { path = "crates/vox-scientia-core" }
+vox-scientia-social       = { path = "crates/vox-scientia-social" }
+vox-scientia-runtime      = { path = "crates/vox-scientia-runtime" }
+vox-scientia-api          = { path = "crates/vox-scientia-api" }
 
 # External dependencies (centralized versions)
 logos              = "0.16"
@@ -129,6 +134,7 @@ twox-hash          = "2"
 strum              = { version = "0.26", features = ["derive"] }
 dashmap            = "6.1.0"
 parking_lot        = "0.12"
+serial_test        = "3"
 
 # Turso / libsql pulls `aegis`; patch uses **pure-rust** defaults so MSVC builds skip the C backend (no clang-cl).
 [patch.crates-io]

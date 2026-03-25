@@ -1,4 +1,5 @@
 use crate::process::ProcessHandle;
+use crate::registry::RegistryError;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing;
@@ -19,7 +20,7 @@ pub struct ChildSpec {
     /// Child name for logging and restart correlation.
     pub name: String,
     /// Factory that spawns a fresh [`ProcessHandle`] when (re)starting the child.
-    pub start: Box<dyn Fn() -> ProcessHandle + Send + Sync>,
+    pub start: Box<dyn Fn() -> Result<ProcessHandle, RegistryError> + Send + Sync>,
 }
 
 /// A supervisor managing a set of child actor processes.
@@ -32,7 +33,7 @@ pub struct Supervisor {
 struct ChildEntry {
     name: String,
     handle: ProcessHandle,
-    start: Arc<dyn Fn() -> ProcessHandle + Send + Sync>,
+    start: Arc<dyn Fn() -> Result<ProcessHandle, RegistryError> + Send + Sync>,
     restart_count: u32,
 }
 
@@ -54,7 +55,17 @@ impl Supervisor {
 
     /// Add a child specification and start the process.
     pub async fn add_child(&self, spec: ChildSpec) {
-        let handle = (spec.start)();
+        let handle = match (spec.start)() {
+            Ok(h) => h,
+            Err(e) => {
+                tracing::error!(
+                    child = %spec.name,
+                    error = %e,
+                    "supervisor failed to start child (registry lock)"
+                );
+                return;
+            }
+        };
         let entry = ChildEntry {
             name: spec.name.clone(),
             handle,
@@ -98,14 +109,34 @@ impl Supervisor {
                             child.name,
                             child.restart_count + 1
                         );
-                        let new_handle = (child.start)();
+                        let new_handle = match (child.start)() {
+                            Ok(h) => h,
+                            Err(e) => {
+                                tracing::error!(
+                                    child = %child.name,
+                                    error = %e,
+                                    "supervisor restart failed (registry lock)"
+                                );
+                                continue;
+                            }
+                        };
                         child.handle = new_handle;
                         child.restart_count += 1;
                     }
                     RestartStrategy::OneForAll => {
                         tracing::info!("Restarting all children due to '{}' failure", child.name);
                         for c in children.iter_mut() {
-                            let new_handle = (c.start)();
+                            let new_handle = match (c.start)() {
+                                Ok(h) => h,
+                                Err(e) => {
+                                    tracing::error!(
+                                        child = %c.name,
+                                        error = %e,
+                                        "supervisor mass-restart failed (registry lock)"
+                                    );
+                                    continue;
+                                }
+                            };
                             c.handle = new_handle;
                             c.restart_count += 1;
                         }
@@ -114,7 +145,17 @@ impl Supervisor {
                     RestartStrategy::RestForOne => {
                         tracing::info!("Restarting '{}' and subsequent children", child.name);
                         for c in children[idx..].iter_mut() {
-                            let new_handle = (c.start)();
+                            let new_handle = match (c.start)() {
+                                Ok(h) => h,
+                                Err(e) => {
+                                    tracing::error!(
+                                        child = %c.name,
+                                        error = %e,
+                                        "supervisor rest-for-one restart failed (registry lock)"
+                                    );
+                                    continue;
+                                }
+                            };
                             c.handle = new_handle;
                             c.restart_count += 1;
                         }

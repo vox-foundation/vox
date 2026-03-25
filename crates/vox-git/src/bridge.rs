@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_or_empty};
 use crate::object::ObjectId;
 use crate::refs::RefName;
 use crate::sync::{SyncStatus, SyncStatusRef};
@@ -188,7 +189,7 @@ impl GitBridge {
         if !head_file.exists() {
             return Ok(None);
         }
-        let content = std::fs::read_to_string(&head_file).context("Failed to read HEAD")?;
+        let content = read_utf8_path_capped(&head_file).context("Failed to read HEAD")?;
         let content = content.trim();
 
         if let Some(branch) = content.strip_prefix("ref: ") {
@@ -201,7 +202,7 @@ impl GitBridge {
             if !ref_path.exists() {
                 return Ok(None); // unborn branch
             }
-            let sha = std::fs::read_to_string(&ref_path).context("Failed to read branch ref")?;
+            let sha = read_utf8_path_capped(&ref_path).context("Failed to read branch ref")?;
             Ok(ObjectId::parse(sha.trim().to_string()))
         } else {
             // Detached HEAD — content is the SHA directly.
@@ -288,7 +289,7 @@ impl GitBridge {
         if !ref_path.exists() {
             return Ok(None);
         }
-        let sha = std::fs::read_to_string(&ref_path)
+        let sha = read_utf8_path_capped(&ref_path)
             .with_context(|| format!("Failed to read ref {}", ref_name))?;
         Ok(ObjectId::parse(sha.trim().to_string()))
     }
@@ -296,7 +297,7 @@ impl GitBridge {
     /// Get the URL of the configured remote.
     pub fn remote_url(&self) -> Result<String> {
         let config_path = self.config.repo_path.join(".git").join("config");
-        let content = std::fs::read_to_string(&config_path).unwrap_or_default();
+        let content = read_utf8_path_capped_or_empty(&config_path);
 
         // Simple parse — find [remote "origin"] section and its url.
         let remote_header = format!("[remote \"{}\"]", self.config.remote_name);

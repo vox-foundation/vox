@@ -9,10 +9,9 @@ use crate::publication_preflight::parse_scientific_from_metadata_json;
 /// Build the `metadata` object for a new Zenodo deposit draft.
 #[must_use]
 pub fn zenodo_deposition_metadata(manifest: &PublicationManifest) -> serde_json::Value {
-    let scientific = match parse_scientific_from_metadata_json(manifest.metadata_json.as_deref()) {
-        Ok(s) => s,
-        Err(_) => None,
-    };
+    let scientific = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
+        .ok()
+        .flatten();
 
     let creators: Vec<serde_json::Value> = if let Some(ref sci) = scientific {
         if sci.authors.is_empty() {
@@ -22,10 +21,10 @@ pub fn zenodo_deposition_metadata(manifest: &PublicationManifest) -> serde_json:
                 .iter()
                 .map(|a| {
                     let mut o = serde_json::json!({ "name": a.name });
-                    if let Some(ref aff) = a.affiliation {
-                        if !aff.trim().is_empty() {
-                            o["affiliation"] = serde_json::Value::String(aff.clone());
-                        }
+                    if let Some(ref aff) = a.affiliation
+                        && !aff.trim().is_empty()
+                    {
+                        o["affiliation"] = serde_json::Value::String(aff.clone());
                     }
                     if let Some(ref oid) = a.orcid {
                         let t = oid.trim();

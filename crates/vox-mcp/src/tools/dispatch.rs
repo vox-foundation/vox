@@ -59,7 +59,7 @@ async fn handle_tool_call_inner(
         "vox_task_status" => {
             Ok(task_tools::task_status(state, serde_json::from_value(args)?).await)
         }
-        "vox_orchestrator_status" => Ok(crate::dei_tools::orchestrator_status(state).await),
+        "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
         "vox_orchestrator_start" => Ok(crate::dei_tools::orchestrator_start(state).await),
         "vox_complete_task" => {
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
@@ -246,6 +246,46 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )
         .await),
+        "vox_scientia_publication_media_upsert" => {
+            Ok(scientia_tools::vox_scientia_publication_media_upsert(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_publication_media_list" => {
+            Ok(scientia_tools::vox_scientia_publication_media_list(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_publication_media_delete" => {
+            Ok(scientia_tools::vox_scientia_publication_media_delete(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_publication_route_simulate" => {
+            Ok(scientia_tools::vox_scientia_publication_route_simulate(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_scientia_publication_publish" => Ok(scientia_tools::vox_scientia_publication_publish(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_scientia_publication_retry_failed" => {
+            Ok(scientia_tools::vox_scientia_publication_retry_failed(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
         "vox_scientia_publication_preflight" => {
             Ok(scientia_tools::vox_scientia_publication_preflight(
                 state,

@@ -4,8 +4,9 @@ use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
-use std::fs;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 pub(crate) const REGISTRY_REL: &str = "contracts/cli/command-registry.yaml";
 pub(crate) const SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";
@@ -57,7 +58,7 @@ pub(crate) fn validate_registry_against_json_schema(
     yaml_text: &str,
 ) -> Result<()> {
     let schema_path = repo_root.join(SCHEMA_REL);
-    let schema_val: JsonValue = serde_json::from_str(&fs::read_to_string(&schema_path)?)
+    let schema_val: JsonValue = serde_json::from_str(&read_utf8_path_capped(&schema_path)?)
         .with_context(|| {
             format!(
                 "parse {} as JSON",
@@ -110,6 +111,6 @@ pub(crate) fn parse_mcp_registry_yaml(yaml: &str) -> Result<Vec<String>> {
 /// Tool names from [`MCP_TOOL_REGISTRY_REL`] (SSOT); descriptions are enforced by `vox-mcp-registry` build.
 pub(crate) fn extract_mcp_registry_tool_names(repo_root: &Path) -> Result<Vec<String>> {
     let p = repo_root.join(MCP_TOOL_REGISTRY_REL);
-    let raw = fs::read_to_string(&p).with_context(|| format!("read {}", p.display()))?;
+    let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
     parse_mcp_registry_yaml(&raw)
 }

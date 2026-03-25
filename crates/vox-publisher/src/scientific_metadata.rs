@@ -64,18 +64,18 @@ pub fn build_scientia_metadata_json(
         "prepared_by".to_string(),
         serde_json::Value::String(prepared_by.to_string()),
     );
-    if let Some(id) = repository_id {
-        if !id.is_empty() {
-            root.insert("repository_id".to_string(), serde_json::json!(id));
-        }
+    if let Some(id) = repository_id
+        && !id.is_empty()
+    {
+        root.insert("repository_id".to_string(), serde_json::json!(id));
     }
-    if let Some(s) = scientific {
-        if s != &ScientificPublicationMetadata::default() {
-            root.insert(
-                METADATA_KEY_SCIENTIFIC.to_string(),
-                serde_json::to_value(s)?,
-            );
-        }
+    if let Some(s) = scientific
+        && s != &ScientificPublicationMetadata::default()
+    {
+        root.insert(
+            METADATA_KEY_SCIENTIFIC.to_string(),
+            serde_json::to_value(s)?,
+        );
     }
     if let Some(e) = scientia_evidence {
         root.insert(

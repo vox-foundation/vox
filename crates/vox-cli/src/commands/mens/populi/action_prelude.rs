@@ -66,6 +66,27 @@ impl From<TrainingDeploymentTargetCli> for vox_populi::mens::TrainingDeploymentT
     }
 }
 
+/// CLI mapping for optimizer experiment mode.
+#[cfg(feature = "gpu")]
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
+pub enum OptimizerExperimentModeCli {
+    /// Stable default behavior.
+    #[default]
+    Off,
+    /// Reserved experimental lane for MuonClip-style studies.
+    MuonClipLike,
+}
+
+#[cfg(feature = "gpu")]
+impl From<OptimizerExperimentModeCli> for vox_populi::mens::OptimizerExperimentMode {
+    fn from(value: OptimizerExperimentModeCli) -> Self {
+        match value {
+            OptimizerExperimentModeCli::Off => Self::Off,
+            OptimizerExperimentModeCli::MuonClipLike => Self::MuonClipLike,
+        }
+    }
+}
+
 /// Structured stages for the dogfood pipeline (`vox mens pipeline`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 #[serde(rename_all = "snake_case")]

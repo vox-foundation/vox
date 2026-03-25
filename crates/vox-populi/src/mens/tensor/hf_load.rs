@@ -3,6 +3,8 @@
 use std::path::Path;
 
 use anyhow::Context;
+
+use crate::mens::bounded_fs::read_utf8_path_capped;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -44,7 +46,7 @@ impl HfTransformerLayout {
     /// Parse `config.json` at `path` into a structured layout.
     pub fn from_config_path(path: &Path) -> anyhow::Result<Self> {
         let raw =
-            std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+            read_utf8_path_capped(path).with_context(|| format!("read {}", path.display()))?;
         Self::from_config_json_str(&raw).with_context(|| format!("parse {}", path.display()))
     }
 
@@ -208,19 +210,19 @@ struct Qwen2Cfg {
 }
 
 pub fn detect_hf_architecture(config_path: &Path) -> anyhow::Result<HfArchitecture> {
-    let raw = std::fs::read_to_string(config_path)
+    let raw = read_utf8_path_capped(config_path)
         .with_context(|| format!("read {}", config_path.display()))?;
     let v: Value = serde_json::from_str(&raw)?;
     Ok(classify_hf_architecture(&v))
 }
 
 fn gpt2_config_from_path(config_path: &Path) -> anyhow::Result<Gpt2Cfg> {
-    let raw = std::fs::read_to_string(config_path)?;
+    let raw = read_utf8_path_capped(config_path)?;
     Ok(serde_json::from_str(&raw)?)
 }
 
 fn qwen2_config_from_path(config_path: &Path) -> anyhow::Result<Qwen2Cfg> {
-    let raw = std::fs::read_to_string(config_path)?;
+    let raw = read_utf8_path_capped(config_path)?;
     Ok(serde_json::from_str(&raw)?)
 }
 

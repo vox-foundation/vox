@@ -6,6 +6,8 @@ use super::eval_local_prompt::{
 use anyhow::Result;
 use std::path::PathBuf;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 pub fn run_eval_local(
     model: PathBuf,
     bench: PathBuf,
@@ -26,7 +28,7 @@ pub fn run_eval_local(
 
     let manifest_path = bench.join("manifest.json");
     let manifest: serde_json::Value = if manifest_path.exists() {
-        let content = std::fs::read_to_string(&manifest_path)?;
+        let content = read_utf8_path_capped(&manifest_path)?;
         serde_json::from_str(&content)?
     } else {
         anyhow::bail!(
@@ -130,7 +132,9 @@ pub fn run_eval_local(
                             .saturating_add((manifest_index as u64).saturating_mul(1_000))
                             .saturating_add(sample_idx as u64);
                         let seed_opt = if temperature > 0.0 { Some(seed) } else { None };
-                        match eng.generate(&prompt, max_tokens, temperature as f64, seed_opt) {
+                        // InferenceEngine currently accepts `top_p` rather than seed.
+                        // Keep seed in eval metadata for reproducibility bookkeeping.
+                        match eng.generate(&prompt, max_tokens, temperature as f64, None) {
                             Ok(output) => {
                                 let verify =
                                     verify_completion(&output, &bench, &file, &id, manifest_index);

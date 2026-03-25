@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+
+use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
 use std::path::Path;
 
 use crate::island_paths::resolve_island_main_tsx;
@@ -39,7 +41,7 @@ pub(super) async fn generate(
     let tsx_path = v0::generate_island_tsx(prompt, name, root, image, force).await?;
 
     // 2. Emit @island stub from inferred prop types
-    let tsx = tokio::fs::read_to_string(&tsx_path)
+    let tsx = read_utf8_path_capped_async(&tsx_path)
         .await
         .with_context(|| format!("Cannot read generated TSX: {}", tsx_path.display()))?;
     let stub = v0::emit_island_stub(&tsx, name, target);
@@ -74,7 +76,7 @@ pub(super) async fn upgrade(name: &str, prompt: &str, root: &Path, no_build: boo
     bootstrap_islands_if_needed(root)?;
     let tsx_path = resolve_island_main_tsx(root, name)?;
 
-    let existing_tsx = std::fs::read_to_string(&tsx_path)
+    let existing_tsx = read_utf8_path_capped(&tsx_path)
         .with_context(|| format!("Cannot read existing island: {}", tsx_path.display()))?;
 
     // Build a prompt that includes the existing code as context

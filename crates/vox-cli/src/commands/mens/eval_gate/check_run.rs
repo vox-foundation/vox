@@ -3,6 +3,7 @@
 use anyhow::Result;
 use std::path::Path;
 
+use super::io::{read_jsonl_nonempty_lines, read_utf8_path_capped};
 use super::policy::{load_policy, mcp_tool_schema_metrics_path};
 
 /// Gate check result.
@@ -21,7 +22,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
 
     let manifest_path = run_dir.join("manifest.json");
     let manifest: Option<serde_json::Value> = if manifest_path.exists() {
-        let content = std::fs::read_to_string(&manifest_path)?;
+        let content = read_utf8_path_capped(&manifest_path)?;
         serde_json::from_str(&content).ok()
     } else {
         None
@@ -29,11 +30,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
 
     let metrics_path = run_dir.join("metrics.jsonl");
     let metrics_lines: Vec<String> = if metrics_path.exists() {
-        std::fs::read_to_string(&metrics_path)?
-            .lines()
-            .filter(|l| !l.is_empty())
-            .map(String::from)
-            .collect()
+        read_jsonl_nonempty_lines(&metrics_path)?
     } else {
         Vec::new()
     };
@@ -158,7 +155,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
     let eval_results_path = run_dir.join("eval_results.json");
     // Parse eval_results.json once and share it across all gates that need it (B2).
     let eval_json: Option<serde_json::Value> = if eval_results_path.exists() {
-        let content = std::fs::read_to_string(&eval_results_path)?;
+        let content = read_utf8_path_capped(&eval_results_path)?;
         serde_json::from_str(&content).ok()
     } else {
         None
@@ -277,7 +274,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 // Fallback: mix_report.json
                 let mix_report_path = run_dir.join("mix_report.json");
                 if mix_report_path.exists() {
-                    let content = std::fs::read_to_string(&mix_report_path)?;
+                    let content = read_utf8_path_capped(&mix_report_path)?;
                     serde_json::from_str(&content).ok()
                 } else {
                     None
@@ -323,7 +320,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 block: mcp_cfg.block,
             });
         } else {
-            let content = std::fs::read_to_string(&path)?;
+            let content = read_utf8_path_capped(&path)?;
             let v: serde_json::Value = serde_json::from_str(&content)
                 .map_err(|e| anyhow::anyhow!("{}: invalid JSON ({})", path.display(), e))?;
             let enabled = v
@@ -410,7 +407,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 block: passk_cfg.block,
             });
         } else {
-            let content = std::fs::read_to_string(&metrics_path)?;
+            let content = read_utf8_path_capped(&metrics_path)?;
             let v: serde_json::Value = serde_json::from_str(&content)
                 .map_err(|e| anyhow::anyhow!("{}: invalid JSON ({})", metrics_path.display(), e))?;
             let p1 = v
@@ -433,7 +430,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                         .unwrap_or_default(),
                 );
                 if baseline_path.exists() {
-                    let bcontent = std::fs::read_to_string(&baseline_path)?;
+                    let bcontent = read_utf8_path_capped(&baseline_path)?;
                     if let Ok(bv) = serde_json::from_str::<serde_json::Value>(&bcontent) {
                         let b1 = bv
                             .get("pass_rate_at_1")

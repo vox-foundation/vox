@@ -97,6 +97,7 @@ pub mod training_config;
 
 // Private QLoRA modules are referenced from sibling `.rs` files; anchor for unwired-module scans.
 #[cfg(feature = "mens-train")]
+#[allow(unused_imports)]
 use self::{
     backend_candle_qlora as _, candle_qlora_graph as _, candle_qlora_train as _,
     candle_qlora_weights as _, qlora_preflight as _,
@@ -118,4 +119,6 @@ pub use preset_schema::{
 #[cfg(feature = "mens-train")]
 pub use train_backend::{ExecutionKernel, PopuliTrainBackend};
 #[cfg(feature = "mens-train")]
-pub use training_config::{LoraTrainingConfig, MensTokenizerMode, TrainingDeploymentTarget};
+pub use training_config::{
+    LoraTrainingConfig, MensTokenizerMode, OptimizerExperimentMode, TrainingDeploymentTarget,
+};

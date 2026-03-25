@@ -85,3 +85,56 @@ async fn test_news_gate_simulation_returns_structured_reason_codes() {
         "expected parse_error reason code"
     );
 }
+
+#[tokio::test]
+async fn test_scientia_route_simulate_tool_is_registered_and_returns_json() {
+    let state = ServerState::new_test().await;
+    let result = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_route_simulate",
+        json!({ "publication_id": "missing-id" }),
+    )
+    .await
+    .expect("tool call should return structured json");
+    let val: serde_json::Value = serde_json::from_str(&result).expect("valid json");
+    assert!(val.get("success").is_some());
+}
+
+#[tokio::test]
+async fn test_scientia_publish_and_retry_tools_are_registered() {
+    let state = ServerState::new_test().await;
+    let publish = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_publish",
+        json!({ "publication_id": "missing-id", "dry_run": true }),
+    )
+    .await
+    .expect("publish tool json");
+    let retry = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_retry_failed",
+        json!({ "publication_id": "missing-id", "dry_run": true }),
+    )
+    .await
+    .expect("retry tool json");
+    let p: serde_json::Value = serde_json::from_str(&publish).expect("valid json");
+    let r: serde_json::Value = serde_json::from_str(&retry).expect("valid json");
+    assert!(p.get("success").is_some());
+    assert!(r.get("success").is_some());
+}
+
+#[tokio::test]
+async fn test_scientia_publish_compact_json_is_single_line() {
+    let state = ServerState::new_test().await;
+    let publish = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_publish",
+        json!({ "publication_id": "missing-id", "dry_run": true, "json": true }),
+    )
+    .await
+    .expect("publish tool json");
+    assert!(
+        !publish.contains('\n'),
+        "compact tool envelope should be one line, got: {publish:?}"
+    );
+}

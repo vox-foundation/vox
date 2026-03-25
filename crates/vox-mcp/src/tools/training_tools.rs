@@ -23,6 +23,15 @@ pub struct TrainSubmitParams {
     pub require_metal: bool,
     /// Optional minimum VRAM hint (MiB) for routing.
     pub min_vram_mb: Option<u32>,
+    /// Optional scheduler pool label for training placement (e.g. `pool=train-gpu`).
+    #[serde(default)]
+    pub pool_label: Option<String>,
+    /// Mark this request as trajectory capture/eval oriented.
+    #[serde(default)]
+    pub trajectory_capture: bool,
+    /// Optional minimum quality score (1-5) expected for trajectory rows.
+    #[serde(default)]
+    pub min_quality_score: Option<u8>,
 }
 
 /// Enqueue a background orchestrator task tagged for training; returns canonical `vox schola train` hint.
@@ -33,12 +42,30 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
         gpu_metal: params.require_metal,
         min_vram_mb: params.min_vram_mb,
         prefer_gpu_compute,
+        labels: {
+            let mut labels = vec!["workload=mens-train".to_string()];
+            if let Some(pool) = params.pool_label.as_deref().map(str::trim)
+                && !pool.is_empty()
+            {
+                labels.push(pool.to_string());
+            }
+            labels
+        },
         ..Default::default()
     };
 
+    let trajectory_note = if params.trajectory_capture {
+        format!(
+            "trajectory_capture=true quality_floor={}",
+            params.min_quality_score.unwrap_or(0)
+        )
+    } else {
+        "trajectory_capture=false".to_string()
+    };
+
     let desc = format!(
-        "[Mens train orchestration] {}\n\nRun locally: `vox schola train --backend qlora --tokenizer hf --device cuda|metal|cpu` (see docs/src/architecture/mens-training-ssot.md).",
-        params.description
+        "[Mens train orchestration] {}\ntrajectory: {}\n\nRun locally: `vox schola train --backend qlora --tokenizer hf --device cuda|metal|cpu` (see docs/src/reference/mens-training.md).",
+        params.description, trajectory_note
     );
 
     let orch = &state.orchestrator;
@@ -57,6 +84,8 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
             "task_id": task_id.0,
             "hint": "Training execution remains in Mens CLI; this task records intent and routes GPU-capable agents when configured.",
             "canonical_cli": "vox schola train",
+            "trajectory_capture": params.trajectory_capture,
+            "min_quality_score": params.min_quality_score,
         }))
         .to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("{e}")).to_json(),

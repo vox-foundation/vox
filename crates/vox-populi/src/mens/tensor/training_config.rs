@@ -37,10 +37,31 @@ pub enum MensTokenizerMode {
     Hf,
 }
 
+/// Non-default optimizer lane reserved for explicit experiments.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum OptimizerExperimentMode {
+    /// Stable default behavior.
+    #[default]
+    Off,
+    /// Reserved experimental lane for MuonClip-style optimizer studies.
+    MuonClipLike,
+}
+
 /// Full configuration for one LoRA / QLoRA training run.
 #[derive(Debug, Clone)]
 pub struct LoraTrainingConfig {
     pub base_model: Option<String>,
+    /// Provenance: coarse family label for the upstream/base model lineage.
+    pub base_model_family: Option<String>,
+    /// Provenance: explicit upstream model id used as initialization source.
+    pub upstream_model_id: Option<String>,
+    /// Provenance: license class label (e.g. `apache-2.0`, `modified-mit`).
+    pub license_class: Option<String>,
+    /// Provenance: whether downstream artifact publication requires attribution.
+    pub attribution_required: bool,
     pub base_model_paths: Option<(Vec<std::path::PathBuf>, std::path::PathBuf)>,
     pub tokenizer_path: Option<std::path::PathBuf>,
     pub train_file: Option<std::path::PathBuf>,
@@ -85,6 +106,18 @@ pub struct LoraTrainingConfig {
     pub deployment_target: TrainingDeploymentTarget,
     /// Whether to use curriculum learning (epoch-gated difficulty sampling).
     pub curriculum: bool,
+    /// Experimental optimizer lane. Must stay `off` unless explicitly requested.
+    pub optimizer_experiment_mode: OptimizerExperimentMode,
+    /// Enable trajectory-aware sample weighting for agentic/tool traces.
+    pub trajectory_weighting_enabled: bool,
+    /// Multiplier for rows tagged as tool traces / trajectories.
+    pub trajectory_tool_trace_boost: f32,
+    /// Multiplier for rows tagged as failure/error trajectories.
+    pub trajectory_failure_category_boost: f32,
+    /// Optional minimum quality rating to apply quality boost.
+    pub trajectory_quality_floor: Option<u8>,
+    /// Multiplier for rows meeting `trajectory_quality_floor`.
+    pub trajectory_quality_boost: f32,
     /// Require a real GPU execution path; fail if device selection falls back to CPU.
     pub require_gpu: bool,
     /// Allow automatic CPU fallback when `--device best` cannot initialize an accelerator.
@@ -95,6 +128,10 @@ impl Default for LoraTrainingConfig {
     fn default() -> Self {
         Self {
             base_model: None,
+            base_model_family: None,
+            upstream_model_id: None,
+            license_class: None,
+            attribution_required: false,
             base_model_paths: None,
             tokenizer_path: None,
             train_file: None,
@@ -128,6 +165,12 @@ impl Default for LoraTrainingConfig {
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),
             curriculum: false,
+            optimizer_experiment_mode: OptimizerExperimentMode::Off,
+            trajectory_weighting_enabled: false,
+            trajectory_tool_trace_boost: 1.1,
+            trajectory_failure_category_boost: 1.15,
+            trajectory_quality_floor: None,
+            trajectory_quality_boost: 1.05,
             require_gpu: false,
             allow_cpu_fallback: true,
         }

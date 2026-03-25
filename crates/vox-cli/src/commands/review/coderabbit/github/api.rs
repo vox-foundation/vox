@@ -24,9 +24,10 @@ pub(crate) fn parse_github_owner_repo(url: &str) -> Option<(String, String)> {
 
 /// Resolve GitHub token: `GITHUB_TOKEN` / `GH_TOKEN`.
 pub(crate) fn github_token() -> Result<String> {
-    std::env::var("GITHUB_TOKEN")
-        .or_else(|_| std::env::var("GH_TOKEN"))
-        .context("GITHUB_TOKEN or GH_TOKEN required. Set env or use `gh auth token` piped export.")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::GitHubToken)
+        .expose()
+        .map(std::string::ToString::to_string)
+        .context("GITHUB_TOKEN or GH_TOKEN required. Set env or configure Clavis.")
 }
 
 pub(crate) fn owner_repo_from_path(path: &Path) -> Result<(String, String)> {

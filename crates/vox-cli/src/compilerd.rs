@@ -7,6 +7,7 @@
 //! Plain `println!` from subcommands may interleave with JSON lines; the CLI client treats
 //! non-JSON lines as human-readable output.
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::config;
 use crate::dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use crate::watcher;
@@ -218,16 +219,11 @@ async fn handle_bundle(req: &DispatchRequest) -> anyhow::Result<()> {
 async fn handle_fmt(req: &DispatchRequest, check_only: bool) -> anyhow::Result<()> {
     let p: FmtParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\": \"...\" }}")?;
-    let before = std::fs::read_to_string(&p.file).ok();
+    let before = read_utf8_path_capped(&p.file).ok();
     crate::commands::fmt::run(&p.file, check_only).context("fmt failed")?;
     let changed = before
         .as_ref()
-        .map(|b| {
-            b.as_str()
-                != std::fs::read_to_string(&p.file)
-                    .unwrap_or_default()
-                    .as_str()
-        })
+        .map(|b| b.as_str() != read_utf8_path_capped(&p.file).unwrap_or_default().as_str())
         .unwrap_or(false);
     finish_ok(&req.id, json!({ "changed": changed })).await
 }

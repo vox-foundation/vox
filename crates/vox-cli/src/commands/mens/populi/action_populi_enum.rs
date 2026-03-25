@@ -173,6 +173,36 @@ pub enum PopuliAction {
         /// Enable curriculum learning: epoch-gated difficulty sampling (Candle QLoRA).
         #[arg(long, default_value_t = false)]
         curriculum: bool,
+        /// Experimental optimizer lane (guarded by VOX_MENS_EXPERIMENTAL_OPTIMIZER when non-off).
+        #[arg(long, value_enum, default_value_t = OptimizerExperimentModeCli::Off)]
+        optimizer_experiment_mode: OptimizerExperimentModeCli,
+        /// Provenance: coarse family label for upstream lineage (e.g. `kimi-k2.5`, `qwen2.5`).
+        #[arg(long)]
+        base_model_family: Option<String>,
+        /// Provenance: explicit upstream model id used as initialization source.
+        #[arg(long)]
+        upstream_model_id: Option<String>,
+        /// Provenance: license class for downstream attribution/compliance policy.
+        #[arg(long)]
+        license_class: Option<String>,
+        /// Provenance: mark downstream artifact publication as attribution-required.
+        #[arg(long, default_value_t = false)]
+        attribution_required: bool,
+        /// Enable trajectory-aware weighting for tool/failure rows.
+        #[arg(long, default_value_t = false)]
+        trajectory_weighting_enabled: bool,
+        /// Multiplier for tool-trace/trajectory categories.
+        #[arg(long, default_value_t = 1.1)]
+        trajectory_tool_trace_boost: f32,
+        /// Multiplier for failure/error categories.
+        #[arg(long, default_value_t = 1.15)]
+        trajectory_failure_category_boost: f32,
+        /// Minimum rating (1-5) to apply quality boost.
+        #[arg(long)]
+        trajectory_quality_floor: Option<u8>,
+        /// Multiplier for rows that meet `--trajectory-quality-floor`.
+        #[arg(long, default_value_t = 1.05)]
+        trajectory_quality_boost: f32,
 
         /// Cloud provider (auto, vast, runpod, local)
         #[arg(long, default_value = "local")]

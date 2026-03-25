@@ -63,30 +63,34 @@ fn embedding_config_from_env() -> Option<LlmConfig> {
             timeout_ms: None,
         });
     }
-    if let Ok(key) = std::env::var("OPENAI_API_KEY")
-        && !key.trim().is_empty()
-    {
+    let openai_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+        .expose()
+        .unwrap_or_default()
+        .to_string();
+    if !openai_key.trim().is_empty() {
         return Some(LlmConfig {
             provider: "openai".to_string(),
             model: std::env::var("VOX_EMBEDDING_MODEL")
                 .unwrap_or_else(|_| "text-embedding-3-small".to_string()),
             base_url: Some("https://api.openai.com/v1/embeddings".to_string()),
-            api_key: Some(key),
+            api_key: Some(openai_key),
             temperature: None,
             max_tokens: None,
             response_format: None,
             timeout_ms: None,
         });
     }
-    if let Ok(key) = std::env::var("OPENROUTER_API_KEY")
-        && !key.trim().is_empty()
-    {
+    let openrouter_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+        .expose()
+        .unwrap_or_default()
+        .to_string();
+    if !openrouter_key.trim().is_empty() {
         return Some(LlmConfig {
             provider: "openrouter".to_string(),
             model: std::env::var("VOX_EMBEDDING_MODEL")
                 .unwrap_or_else(|_| "text-embedding-3-small".to_string()),
             base_url: Some("https://openrouter.ai/api/v1/embeddings".to_string()),
-            api_key: Some(key),
+            api_key: Some(openrouter_key),
             temperature: None,
             max_tokens: None,
             response_format: None,

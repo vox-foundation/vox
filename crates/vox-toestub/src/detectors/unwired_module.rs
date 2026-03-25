@@ -21,7 +21,9 @@ impl UnwiredModuleDetector {
     /// Regexes for `mod foo;` vs `use crate::foo` and TS `export` declarations for wiring checks.
     pub fn new() -> Self {
         Self {
-            rust_mod_decl: Regex::new(r"^\s*(?:pub\s+)?mod\s+(\w+)\s*;").expect("valid regex"),
+            // File-backed modules: private `mod foo;` plus `pub`, `pub(crate)`, `pub(super)`, `pub(in ...)`.
+            rust_mod_decl: Regex::new(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;")
+                .expect("valid rust mod decl regex"),
             rust_use_stmt: Regex::new(r"\buse\s+(?:crate|super|self)::(\w+)").expect("valid regex"),
             ts_export_re: Regex::new(
                 r"export\s+(?:default\s+)?(?:function|class|const|let|type|interface|enum)\s+(\w+)",
@@ -42,6 +44,11 @@ impl UnwiredModuleDetector {
             if let Some(caps) = self.rust_mod_decl.captures(line)
                 && let Some(name) = caps.get(1)
             {
+                // `pub mod` / `pub(crate) mod` are crate API wiring — parent modules import from outside
+                // this file; same-file `foo::` is not required (avoids 100s of false positives in mod.rs roots).
+                if line.trim_start().starts_with("pub") {
+                    continue;
+                }
                 declared_mods.push((name.as_str().to_string(), i + 1));
             }
             for caps in self.rust_use_stmt.captures_iter(line) {
@@ -58,7 +65,8 @@ impl UnwiredModuleDetector {
                 || file.lines.iter().enumerate().any(|(j, line)| {
                     j + 1 != *line_num // skip the declaration line itself
                     && (line.contains(&format!("{}::", mod_name))
-                        || line.contains(&format!("use {}", mod_name)))
+                        || line.contains(&format!("use {}", mod_name))
+                        || line.contains(&format!("{mod_name} as ")))
                 });
 
             if !is_used {
@@ -142,5 +150,28 @@ mod tests {
         );
         let findings = d.detect(&f);
         assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn no_findings_when_wired_as_underscore() {
+        let d = UnwiredModuleDetector::new();
+        let f = source(
+            "rs",
+            "mod helpers;\nuse self::helpers as _;\n\nfn main() {}\n",
+        );
+        assert!(d.detect(&f).is_empty());
+    }
+
+    #[test]
+    fn skips_pub_file_backed_modules() {
+        let d = UnwiredModuleDetector::new();
+        let f = source(
+            "rs",
+            "pub mod alpha;\npub mod beta;\npub(crate) mod gamma;\n",
+        );
+        assert!(
+            d.detect(&f).is_empty(),
+            "public module declarations are wired from other crates/files"
+        );
     }
 }

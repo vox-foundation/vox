@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
+use std::collections::BTreeMap;
 
 use crate::contract::validate_github_repo;
 
@@ -15,6 +16,9 @@ pub struct UnifiedNewsItem {
     pub content_markdown: String,
     #[serde(default)]
     pub syndication: SyndicationConfig,
+    /// Optional id of a row in `contracts/scientia/distribution.topic-packs.yaml` (news frontmatter / DB metadata).
+    #[serde(default)]
+    pub topic_pack: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -22,14 +26,68 @@ pub struct SyndicationConfig {
     pub twitter: Option<TwitterConfig>,
     pub github: Option<GitHubConfig>,
     pub open_collective: Option<OpenCollectiveConfig>,
+    pub reddit: Option<RedditConfig>,
+    pub hacker_news: Option<HackerNewsConfig>,
+    pub youtube: Option<YouTubeConfig>,
     pub crates_io: Option<CratesIoConfig>,
+    #[serde(default)]
+    pub distribution_policy: DistributionPolicyConfig,
     #[serde(default = "default_rss")]
     pub rss: bool,
     #[serde(default)]
     pub dry_run: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DistributionPolicyConfig {
+    /// Per-channel routing policy keyed by channel name (`rss`, `twitter`, ...).
+    #[serde(default)]
+    pub channel_policy: BTreeMap<String, ChannelPolicyConfig>,
+    /// Optional retry profile label (contract/documentation level, runtime-specific handling).
+    #[serde(default)]
+    pub retry_profile: Option<String>,
+    /// Optional rate-limit profile label.
+    #[serde(default)]
+    pub rate_limit_profile: Option<String>,
+    /// Optional explicit policy gate for required approvals.
+    #[serde(default)]
+    pub approval_required: Option<bool>,
+    /// Optional per-item dry-run override (merged with existing dry_run booleans).
+    #[serde(default)]
+    pub dry_run: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ChannelPolicyConfig {
+    /// Explicit enable/disable override for this channel.
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    /// Optional topic filters for selective routing.
+    #[serde(default)]
+    pub topic_filters: Option<TopicFiltersConfig>,
+    /// Optional channel-specific publishability floor in `[0,1]`.
+    #[serde(default)]
+    pub worthiness_floor: Option<f64>,
+    /// Optional template profile key consumed by template derivation.
+    #[serde(default)]
+    pub template_profile: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TopicFiltersConfig {
+    #[serde(default)]
+    pub include_tags: Vec<String>,
+    #[serde(default)]
+    pub exclude_tags: Vec<String>,
+    #[serde(default)]
+    pub min_topic_score: Option<f64>,
+}
+
 fn default_rss() -> bool {
+    true
+}
+
+fn default_true() -> bool {
     true
 }
 
@@ -67,6 +125,86 @@ pub struct OpenCollectiveConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RedditPostKind {
+    Link,
+    SelfPost,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedditConfig {
+    pub subreddit: String,
+    #[serde(default = "default_reddit_kind")]
+    pub kind: RedditPostKind,
+    #[serde(default)]
+    pub title_override: Option<String>,
+    #[serde(default)]
+    pub text_override: Option<String>,
+    #[serde(default)]
+    pub url_override: Option<String>,
+    #[serde(default)]
+    pub nsfw: bool,
+    #[serde(default)]
+    pub spoiler: bool,
+    #[serde(default = "default_true")]
+    pub send_replies: bool,
+}
+
+fn default_reddit_kind() -> RedditPostKind {
+    RedditPostKind::Link
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HackerNewsMode {
+    ManualAssist,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HackerNewsConfig {
+    #[serde(default = "default_hn_mode")]
+    pub mode: HackerNewsMode,
+    #[serde(default)]
+    pub title_override: Option<String>,
+    #[serde(default)]
+    pub url_override: Option<String>,
+}
+
+fn default_hn_mode() -> HackerNewsMode {
+    HackerNewsMode::ManualAssist
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum YouTubePrivacyStatus {
+    Private,
+    Unlisted,
+    Public,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YouTubeConfig {
+    /// Repo-relative or absolute path to a local video payload for upload.
+    pub video_asset_ref: String,
+    #[serde(default)]
+    pub title_override: Option<String>,
+    #[serde(default)]
+    pub description_override: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub category_id: Option<String>,
+    #[serde(default = "default_youtube_privacy")]
+    pub privacy_status: YouTubePrivacyStatus,
+    #[serde(default)]
+    pub notify_subscribers: bool,
+}
+
+fn default_youtube_privacy() -> YouTubePrivacyStatus {
+    YouTubePrivacyStatus::Private
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CratesIoConfig {
     pub crates_to_update: Vec<String>,
 }
@@ -96,6 +234,8 @@ impl UnifiedNewsItem {
             tags: Vec<String>,
             #[serde(default)]
             syndication: SyndicationConfig,
+            #[serde(default)]
+            topic_pack: Option<String>,
         }
 
         let front: Frontmatter = serde_yaml::from_str(yaml)?;
@@ -115,7 +255,14 @@ impl UnifiedNewsItem {
             validate_github_repo(&gh.repo)?;
         }
 
-        Ok(Self {
+        let topic_pack = front
+            .topic_pack
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(std::string::ToString::to_string);
+
+        let mut item = Self {
             id: id.to_string(),
             title: front.title,
             author: front.author,
@@ -123,7 +270,24 @@ impl UnifiedNewsItem {
             tags: front.tags,
             content_markdown: markdown.to_string(),
             syndication: front.syndication,
-        })
+            topic_pack,
+        };
+        item.hydrate_topic_pack_if_set()?;
+        Ok(item)
+    }
+
+    /// Merge [`crate::topic_packs`] policy into [`Self::syndication`] when [`Self::topic_pack`] is set.
+    pub fn hydrate_topic_pack_if_set(&mut self) -> anyhow::Result<()> {
+        if let Some(ref p) = self.topic_pack {
+            let trimmed = p.trim();
+            if !trimmed.is_empty() {
+                crate::topic_packs::hydrate_syndication_from_pack_id(
+                    &mut self.syndication,
+                    trimmed,
+                )?;
+            }
+        }
+        Ok(())
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
@@ -161,12 +325,55 @@ impl UnifiedNewsItem {
         {
             anyhow::bail!("open_collective.collective_slug must not be empty");
         }
+        if let Some(ref reddit) = self.syndication.reddit {
+            if reddit.subreddit.trim().is_empty() {
+                anyhow::bail!("reddit.subreddit must not be empty");
+            }
+            if let Some(url) = reddit.url_override.as_deref()
+                && !url.trim().is_empty()
+                && !(url.starts_with("http://") || url.starts_with("https://"))
+            {
+                anyhow::bail!("reddit.url_override must start with http:// or https://");
+            }
+        }
+        if let Some(ref hn) = self.syndication.hacker_news
+            && let Some(url) = hn.url_override.as_deref()
+            && !url.trim().is_empty()
+            && !(url.starts_with("http://") || url.starts_with("https://"))
+        {
+            anyhow::bail!("hacker_news.url_override must start with http:// or https://");
+        }
+        if let Some(ref yt) = self.syndication.youtube
+            && yt.video_asset_ref.trim().is_empty()
+        {
+            anyhow::bail!("youtube.video_asset_ref must not be empty");
+        }
+        for (channel, policy) in &self.syndication.distribution_policy.channel_policy {
+            if channel.trim().is_empty() {
+                anyhow::bail!("distribution_policy.channel_policy keys must not be empty");
+            }
+            if let Some(floor) = policy.worthiness_floor
+                && !(0.0..=1.0).contains(&floor)
+            {
+                anyhow::bail!(
+                    "distribution_policy.channel_policy[{channel}].worthiness_floor must be within [0,1]"
+                );
+            }
+            if let Some(filters) = policy.topic_filters.as_ref()
+                && let Some(min) = filters.min_topic_score
+                && !(0.0..=1.0).contains(&min)
+            {
+                anyhow::bail!(
+                    "distribution_policy.channel_policy[{channel}].topic_filters.min_topic_score must be within [0,1]"
+                );
+            }
+        }
         Ok(())
     }
 
     #[must_use]
     pub fn content_sha3_256(&self) -> String {
-        let canonical = serde_json::json!({
+        let mut canonical = serde_json::json!({
             "id": self.id,
             "title": self.title,
             "author": self.author,
@@ -175,9 +382,71 @@ impl UnifiedNewsItem {
             "content_markdown": self.content_markdown,
             "syndication": self.syndication,
         });
+        if let Some(ref p) = self.topic_pack {
+            canonical["topic_pack"] = serde_json::Value::String(p.clone());
+        }
         let mut hasher = Sha3_256::new();
         hasher.update(canonical.to_string().as_bytes());
         let digest = hasher.finalize();
         format!("{digest:x}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    fn item_with_policy_floor(floor: f64) -> UnifiedNewsItem {
+        let mut channel_policy = BTreeMap::new();
+        channel_policy.insert(
+            "twitter".to_string(),
+            ChannelPolicyConfig {
+                worthiness_floor: Some(floor),
+                ..Default::default()
+            },
+        );
+        UnifiedNewsItem {
+            id: "policy-validate".to_string(),
+            title: "Title".to_string(),
+            author: "Author".to_string(),
+            published_at: Utc::now(),
+            tags: vec![],
+            content_markdown: "Body".to_string(),
+            syndication: SyndicationConfig {
+                distribution_policy: DistributionPolicyConfig {
+                    channel_policy,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            topic_pack: None,
+        }
+    }
+
+    #[test]
+    fn validate_rejects_invalid_worthiness_floor() {
+        let item = item_with_policy_floor(1.2);
+        let err = item.validate().expect_err("invalid floor should fail");
+        assert!(err.to_string().contains("worthiness_floor"));
+    }
+
+    #[test]
+    fn parse_applies_topic_pack_channel_allowlist() {
+        let md = r#"---
+title: T
+author: A
+topic_pack: research_breakthrough
+syndication:
+  rss: true
+  twitter:
+    short_text: null
+    thread: false
+---
+body"#;
+        let item = UnifiedNewsItem::parse(md, "nid").expect("parse");
+        assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
+        assert!(item.syndication.twitter.is_none());
+        assert!(item.syndication.rss);
     }
 }

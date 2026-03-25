@@ -86,6 +86,8 @@ pub async fn generate() -> Result<()> {
     use std::fs;
     use std::path::Path;
 
+    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
     let crates_dir = Path::new("crates");
     if !crates_dir.exists() {
         println!("No crates directory found. Make sure you are in the workspace root.");
@@ -102,7 +104,7 @@ pub async fn generate() -> Result<()> {
             let cargo_toml_path = entry.path().join("Cargo.toml");
 
             if cargo_toml_path.exists() {
-                let cargo_toml = fs::read_to_string(&cargo_toml_path)?;
+                let cargo_toml = read_utf8_path_capped(&cargo_toml_path)?;
                 let mut description = format!("{} component", crate_name);
 
                 for line in cargo_toml.lines() {

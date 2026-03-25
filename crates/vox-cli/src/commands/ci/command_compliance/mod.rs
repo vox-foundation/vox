@@ -1,8 +1,9 @@
 //! `vox ci command-compliance` — validate [`contracts/cli/command-registry.yaml`](../../../../../../contracts/cli/command-registry.yaml) against docs and implementation sources.
 
 use anyhow::{Context, Result, anyhow};
-use std::fs;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 mod docs_sync;
 mod mcp_wiring;
@@ -24,7 +25,7 @@ use validators::{
 pub fn run(repo_root: &Path) -> Result<()> {
     let reg_path = repo_root.join(REGISTRY_REL);
     let raw =
-        fs::read_to_string(&reg_path).with_context(|| format!("read {}", reg_path.display()))?;
+        read_utf8_path_capped(&reg_path).with_context(|| format!("read {}", reg_path.display()))?;
     let schema_path = repo_root.join(SCHEMA_REL);
     if !schema_path.is_file() {
         return Err(anyhow!("missing {}", schema_path.display()));
@@ -44,24 +45,26 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     let ref_cli = read_cli_reference_for_compliance(repo_root)?;
     let reach = read_reachability_doc(repo_root)?;
-    let duals_doc = fs::read_to_string(repo_root.join("docs/src/ci/command-surface-duals.md"))
+    let duals_doc = read_utf8_path_capped(&repo_root.join("docs/src/ci/command-surface-duals.md"))
         .context("read command-surface-duals.md")?;
-    let lib_rs =
-        fs::read_to_string(repo_root.join("crates/vox-cli/src/lib.rs")).context("read lib.rs")?;
-    let compilerd = fs::read_to_string(repo_root.join("crates/vox-cli/src/compilerd.rs"))
+    let lib_rs = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/lib.rs"))
+        .context("read lib.rs")?;
+    let compilerd = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/compilerd.rs"))
         .context("read compilerd.rs")?;
-    let dei = fs::read_to_string(repo_root.join("crates/vox-cli/src/dei_daemon.rs"))
+    let dei = read_utf8_path_capped(&repo_root.join("crates/vox-cli/src/dei_daemon.rs"))
         .context("read dei_daemon.rs")?;
-    let mcp_mod = fs::read_to_string(repo_root.join("crates/vox-mcp/src/tools/mod.rs"))
+    let mcp_mod = read_utf8_path_capped(&repo_root.join("crates/vox-mcp/src/tools/mod.rs"))
         .context("read vox-mcp tools/mod.rs")?;
-    let mcp_dispatch = fs::read_to_string(repo_root.join("crates/vox-mcp/src/tools/dispatch.rs"))
-        .context("read vox-mcp tools/dispatch.rs")?;
+    let mcp_dispatch =
+        read_utf8_path_capped(&repo_root.join("crates/vox-mcp/src/tools/dispatch.rs"))
+            .context("read vox-mcp tools/dispatch.rs")?;
     let mcp_tool_aliases =
-        fs::read_to_string(repo_root.join("crates/vox-mcp/src/tools/tool_aliases.rs"))
+        read_utf8_path_capped(&repo_root.join("crates/vox-mcp/src/tools/tool_aliases.rs"))
             .context("read vox-mcp tools/tool_aliases.rs")?;
-    let scripts_readme = fs::read_to_string(repo_root.join("scripts/README.md"))
+    let scripts_readme = read_utf8_path_capped(&repo_root.join("scripts/README.md"))
         .context("read scripts/README.md")?;
-    let root_readme = fs::read_to_string(repo_root.join("README.md")).context("read README.md")?;
+    let root_readme =
+        read_utf8_path_capped(&repo_root.join("README.md")).context("read README.md")?;
     let vox_cli_src = repo_root.join("crates/vox-cli/src");
 
     check_vox_cli_lib(&reg, &lib_rs)?;

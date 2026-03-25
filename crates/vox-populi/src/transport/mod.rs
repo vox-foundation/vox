@@ -186,7 +186,9 @@ impl PopuliTransportState {
     /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
     pub async fn load_from_path(path: &std::path::Path) -> Result<Self, PopuliRegistryError> {
         let reg = if path.is_file() {
-            let raw = std::fs::read_to_string(path).map_err(PopuliRegistryError::Io)?;
+            let raw = crate::bounded_fs::read_utf8_path_capped(path).map_err(|e| {
+                PopuliRegistryError::Io(std::io::Error::other(e.to_string()))
+            })?;
             serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))?
         } else {
             PopuliRegistryFile {

@@ -4,6 +4,7 @@
 //! metadata, validation, mix/benchmark contracts, and Codex-oriented snapshot types.
 
 pub mod arca_replay;
+pub mod bounded_fs;
 pub mod codegen_vox;
 pub mod corpus;
 pub mod dataset_snapshot;

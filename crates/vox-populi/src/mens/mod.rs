@@ -8,6 +8,8 @@
 
 #![allow(missing_docs)]
 
+mod bounded_fs;
+
 pub mod tensor;
 
 #[cfg(feature = "mens-hf-hub")]
@@ -40,5 +42,5 @@ pub use tensor::{
 #[cfg(feature = "mens-train")]
 pub use tensor::{
     ExecutionKernel, FineTuneContract, LoraTrainingConfig, MensTokenizerMode, PopuliTrainBackend,
-    TrainingDeploymentTarget, run_mens_training,
+    OptimizerExperimentMode, TrainingDeploymentTarget, run_mens_training,
 };

@@ -124,8 +124,9 @@ vox-ars = { workspace = true, optional = true }
 vox-skills = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }
 vox-config = { workspace = true }
+vox-clavis = { workspace = true }
 vox-db = { path = "../vox-db" }
-vox-publisher = { path = "../vox-publisher" }
+vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube"] }
 vox-doc-inventory = { path = "../vox-doc-inventory" }
 vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
@@ -178,7 +179,10 @@ windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
 
 [dev-dependencies]
 safetensors = { workspace = true }
+serial_test = { workspace = true }
 tempfile = { workspace = true }
+tokio = { workspace = true }
+vox-db = { path = "../vox-db" }
 vox-orchestrator = { workspace = true }
 
 [[test]]

@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::time::Duration;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::config;
 use crate::fs_utils;
 use crate::templates;
@@ -259,7 +260,7 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
     .context("Failed to write islands/src/island-mount.tsx")?;
 
     let vite_path = islands_dir.join("vite.config.ts");
-    if let Ok(existing) = std::fs::read_to_string(&vite_path) {
+    if let Ok(existing) = read_utf8_path_capped(&vite_path) {
         if !existing.contains("island-mount") {
             std::fs::write(&vite_path, templates::islands_vite_config())
                 .context("Failed to upgrade islands/vite.config.ts for island-mount entry")?;
@@ -318,7 +319,7 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
 }
 
 fn inject_island_mount_script(index_path: &Path) -> Result<()> {
-    let mut html = std::fs::read_to_string(index_path)
+    let mut html = read_utf8_path_capped(index_path)
         .with_context(|| format!("read {}", index_path.display()))?;
     if html.contains("island-mount.js") {
         return Ok(());

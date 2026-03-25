@@ -1,4 +1,5 @@
 use super::params::{AgentEventsParams, CostHistoryParams, QueueStatusParams};
+use crate::sync_poison::{poison_rw_read, poison_rw_write};
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::{AgentId, TaskId};
 
@@ -6,7 +7,10 @@ use vox_orchestrator::{AgentId, TaskId};
 pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> String {
     let orch = &state.orchestrator;
     if let Some(queue_lock) = orch.agent_queue(AgentId(params.agent_id)) {
-        let json = queue_lock.read().unwrap().to_json();
+        let json = match poison_rw_read(queue_lock.read(), "read agent queue for queue_status") {
+            Ok(guard) => guard.to_json(),
+            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        };
         ToolResult::ok(json).to_json()
     } else {
         ToolResult::<String>::err(format!("Agent {} not found", params.agent_id)).to_json()
@@ -30,7 +34,11 @@ pub async fn budget_status(state: &ServerState) -> String {
 
     let bh = orch.budget_handle();
     for agent_id in orch.agent_ids() {
-        if let Some(budget) = bh.read().unwrap().check_budget(agent_id) {
+        let budget = match poison_rw_read(bh.read(), "read budget for budget_status") {
+            Ok(guard) => guard.check_budget(agent_id),
+            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        };
+        if let Some(budget) = budget {
             total_tokens += budget.tokens_used;
             total_cost += budget.cost_usd;
         }
@@ -180,7 +188,10 @@ pub async fn config_get(state: &ServerState) -> String {
     let orch = &state.orchestrator;
     let orch_cfg = {
         let handle = orch.config_handle();
-        let cfg = handle.read().unwrap();
+        let cfg = match poison_rw_read(handle.read(), "read orchestrator config for config_get") {
+            Ok(c) => c,
+            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        };
         serde_json::to_value(&*cfg).unwrap_or_default()
     };
 
@@ -205,7 +216,10 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
 
     let mut current_json = {
         let handle = orch.config_handle();
-        let cfg = handle.read().unwrap();
+        let cfg = match poison_rw_read(handle.read(), "read orchestrator config for config_set") {
+            Ok(c) => c,
+            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        };
         serde_json::to_value(&*cfg).unwrap_or_default()
     };
 
@@ -219,7 +233,13 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
 
     match serde_json::from_value::<vox_orchestrator::config::OrchestratorConfig>(current_json) {
         Ok(new_config) => {
-            *orch.config_handle().write().unwrap() = new_config.clone();
+            match poison_rw_write(
+                orch.config_handle().write(),
+                "write orchestrator config for config_set",
+            ) {
+                Ok(mut w) => *w = new_config.clone(),
+                Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+            }
             ToolResult::ok(new_config).to_json()
         }
         Err(e) => ToolResult::<String>::err(format!("invalid config fields: {e}")).to_json(),

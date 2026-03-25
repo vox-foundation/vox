@@ -153,6 +153,17 @@ impl Orchestrator {
                 .unwrap_or_default();
             let phase_label = Self::extract_phase_label(&desc);
             let debug_iterations = current.map(|t| t.debug_iterations).unwrap_or(0);
+            if phase_label == "shard_validate" {
+                queue.recent_shard_validation_failures =
+                    queue.recent_shard_validation_failures.saturating_sub(1);
+                queue
+                    .active_skills
+                    .insert("shard_validate".to_string(), 1.0_f64);
+            } else if phase_label == "shard_gen" {
+                queue.active_skills.insert("shard_gen".to_string(), 1.0_f64);
+            } else if phase_label == "reduce" {
+                queue.active_skills.insert("reduce".to_string(), 1.0_f64);
+            }
             queue.mark_complete(task_id);
             (write_files, session_id, desc, phase_label, debug_iterations)
         };
@@ -201,10 +212,12 @@ impl Orchestrator {
                 .copied()
                 .collect()
         };
+        let mut overlap_conflicts = 0_u32;
         for other_id in other_agents {
             let overlaps = crate::sync_lock::rw_read(&*self.workspace_manager)
                 .overlapping_paths(agent_id, other_id);
             for overlap_path in overlaps {
+                overlap_conflicts = overlap_conflicts.saturating_add(1);
                 let conflict_id = crate::sync_lock::rw_write(&*self.conflict_manager)
                     .record_conflict(
                         overlap_path.clone(),
@@ -223,6 +236,16 @@ impl Orchestrator {
                     agent_id,
                     other_id
                 );
+            }
+        }
+
+        if phase_label == "reduce" && overlap_conflicts > 0 {
+            let cooldown_ms =
+                crate::sync_lock::rw_read(&*self.config).repo_reduce_conflict_cooldown_ms;
+            let now_ms = crate::types::now_unix_ms();
+            if let Some(queue_lock) = crate::sync_lock::rw_read(&*self.agents).get(&agent_id) {
+                let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+                queue.reducer_cooldown_until_ms = Some(now_ms.saturating_add(cooldown_ms));
             }
         }
 
@@ -287,6 +310,16 @@ impl Orchestrator {
                 }
             }
         }
+        {
+            let cfg = crate::sync_lock::rw_read(&*self.config).clone();
+            crate::sync_lock::rw_write(&*self.budget_manager).record_trust_outcome(
+                agent_id,
+                true,
+                cfg.trust_ewma_alpha,
+                cfg.trust_provisional_threshold,
+                cfg.trust_trusted_threshold,
+            );
+        }
 
         tracing::info!("Task {} completed by agent {}", task_id, agent_id);
         self.record_task_loop_metric(task_id, &phase_label, "completed", debug_iterations);
@@ -332,6 +365,10 @@ impl Orchestrator {
                 .current_task()
                 .map(|t| t.description.clone())
                 .unwrap_or_default();
+            if failed_desc.contains("[PHASE:SHARD_VALIDATE]") {
+                queue.recent_shard_validation_failures =
+                    queue.recent_shard_validation_failures.saturating_add(1);
+            }
             queue.mark_failed(task_id, reason.clone());
             (session_id, planning_meta, failed_desc)
         };
@@ -339,6 +376,16 @@ impl Orchestrator {
         if let Some(db) = self.db() {
             let _ =
                 db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
+        }
+        {
+            let cfg = crate::sync_lock::rw_read(&*self.config).clone();
+            crate::sync_lock::rw_write(&*self.budget_manager).record_trust_outcome(
+                agent_id,
+                false,
+                cfg.trust_ewma_alpha,
+                cfg.trust_provisional_threshold,
+                cfg.trust_trusted_threshold,
+            );
         }
 
         let now_ms = std::time::SystemTime::now()

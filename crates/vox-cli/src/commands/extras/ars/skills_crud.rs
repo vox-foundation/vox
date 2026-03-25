@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 use super::registry::make_registry;
 
 pub async fn list() -> Result<()> {
@@ -29,7 +31,7 @@ pub async fn list() -> Result<()> {
 pub async fn install(path: &PathBuf) -> Result<()> {
     let registry = make_registry().await;
 
-    let content = std::fs::read_to_string(path)
+    let content = read_utf8_path_capped(path)
         .with_context(|| format!("Failed to read skill file: {}", path.display()))?;
 
     let bundle = vox_ars::parser::parse_skill_md(&content)

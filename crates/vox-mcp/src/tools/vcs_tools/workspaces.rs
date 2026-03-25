@@ -8,18 +8,25 @@ pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> S
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64()).unwrap_or(0);
 
     let orch = &state.orchestrator;
-
-    let orch = &state.orchestrator;
     let base_id = {
         let snapshot_store = orch.snapshot_store_handle();
-        let mut store_guard = snapshot_store.write().unwrap();
+        let mut store_guard =
+            match crate::sync_poison::poison_rw_write(snapshot_store.write(), "snapshot store") {
+                Ok(g) => g,
+                Err(e) => {
+                    return ToolResult::<serde_json::Value>::err(e.to_string()).to_json();
+                }
+            };
         store_guard.take_snapshot(AgentId(agent_id), &[], "workspace base".to_string())
     };
 
     let mgr_handle = orch.workspace_manager_handle();
-    let ws = mgr_handle
-        .write()
-        .unwrap()
+    let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
+    let ws = mgr
         .create_workspace(AgentId(agent_id), base_id)
         .clone();
 
@@ -38,7 +45,10 @@ pub async fn workspace_status(state: &ServerState, args: serde_json::Value) -> S
     let orch = &state.orchestrator;
 
     let mgr_handle = orch.workspace_manager_handle();
-    let mgr = mgr_handle.read().unwrap();
+    let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
     match mgr.get_workspace(AgentId(agent_id)) {
         Some(ws) => {
             let paths: Vec<String> = ws
@@ -66,7 +76,11 @@ pub async fn workspace_merge(state: &ServerState, args: serde_json::Value) -> St
     let orch = &state.orchestrator;
 
     let mgr_handle = orch.workspace_manager_handle();
-    let mut mgr = mgr_handle.write().unwrap();
+    let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
+    {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
     match mgr.destroy_workspace(AgentId(agent_id)) {
         Some(ws) => {
             let count = ws.modified_count();

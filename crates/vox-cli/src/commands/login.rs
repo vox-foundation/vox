@@ -1,25 +1,18 @@
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::io::{self, Write};
+use std::path::PathBuf;
 
-/// Authentication configuration stored in ~/.vox/auth.json
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct CliCredentials {
-    pub registries: HashMap<String, RegistryAuth>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RegistryAuth {
-    pub token: String,
-    pub username: Option<String>,
-}
+pub type CliCredentials = vox_clavis::sources::auth_json::CliCredentials;
+pub type RegistryAuth = vox_clavis::sources::auth_json::RegistryAuth;
 
 /// `vox login` — authenticate with Vox AI providers, VoxPM, or other OCI registries.
 ///
 /// If token is absent, launches an interactive wizard.
-pub async fn run(token: Option<&str>, registry: Option<&str>, username: Option<&str>) -> Result<()> {
+pub async fn run(
+    token: Option<&str>,
+    registry: Option<&str>,
+    username: Option<&str>,
+) -> Result<()> {
     let (final_registry, final_token, final_user) = match token {
         Some(t) => {
             // Non-interactive mode
@@ -32,37 +25,21 @@ pub async fn run(token: Option<&str>, registry: Option<&str>, username: Option<&
         }
     };
 
-    let config_dir = dirs_path();
-    if !config_dir.exists() {
-        std::fs::create_dir_all(&config_dir)
-            .with_context(|| format!("Failed to create {}", config_dir.display()))?;
-    }
+    let auth_path = vox_clavis::set_registry_token(&final_registry, &final_token, final_user)
+        .map_err(anyhow::Error::msg)
+        .with_context(|| "Failed to save auth config")?;
 
-    let auth_path = config_dir.join("auth.json");
-    let mut config = if auth_path.exists() {
-        let content = std::fs::read_to_string(&auth_path)?;
-        serde_json::from_str::<CliCredentials>(&content).unwrap_or_default()
-    } else {
-        CliCredentials::default()
-    };
-
-    config.registries.insert(
-        final_registry.clone(),
-        RegistryAuth {
-            token: final_token.clone(),
-            username: final_user.clone(),
-        },
+    println!(
+        "\n  \x1b[32m✓\x1b[0m Successfully logged in to: \x1b[1;36m{}\x1b[0m",
+        final_registry
     );
-
-    let content = serde_json::to_string_pretty(&config)?;
-    std::fs::write(&auth_path, content).with_context(|| "Failed to save auth config")?;
-
-    println!("\n  \x1b[32m✓\x1b[0m Successfully logged in to: \x1b[1;36m{}\x1b[0m", final_registry);
     println!("    Credentials saved to {}", auth_path.display());
 
     // Hint for next steps after first setup
     if final_registry == "google" || final_registry == "openrouter" {
-        println!("\n  You are ready to use Vox AI! Try running: \x1b[1mvox chat\x1b[0m or \x1b[1mvox doctor\x1b[0m");
+        println!(
+            "\n  You are ready to use Vox AI! Try running: \x1b[1mvox chat\x1b[0m or \x1b[1mvox doctor\x1b[0m"
+        );
     }
 
     Ok(())
@@ -92,7 +69,7 @@ async fn interactive_wizard(default_registry: &str) -> Result<(String, String, O
         "2" | "openrouter" => "openrouter".to_string(),
         "3" | "voxpm" => "voxpm".to_string(),
         c if !c.is_empty() => c.to_string(),
-        _ => default_registry.to_string()
+        _ => default_registry.to_string(),
     };
 
     println!();
@@ -105,7 +82,9 @@ async fn interactive_wizard(default_registry: &str) -> Result<(String, String, O
         println!("  Get a key here: \x1b[36mhttps://openrouter.ai/settings/keys\x1b[0m");
     } else if registry == "voxpm" {
         println!("  \x1b[1mVoxPM\x1b[0m requires an API token to publish packages.");
-        println!("  Copy token from: \x1b[36mhttps://github.com/vox-foundation/vox/settings\x1b[0m");
+        println!(
+            "  Copy token from: \x1b[36mhttps://github.com/vox-foundation/vox/settings\x1b[0m"
+        );
     }
 
     println!();
@@ -136,36 +115,24 @@ async fn interactive_wizard(default_registry: &str) -> Result<(String, String, O
 }
 
 pub fn get_auth(registry: &str) -> Option<RegistryAuth> {
-    let config_dir = dirs_path();
-    let auth_path = config_dir.join("auth.json");
-    if !auth_path.exists() {
-        // Fallback to legacy auth_token if it exists and we're looking for voxpm
-        if registry == "voxpm" {
-            let legacy_path = config_dir.join("auth_token");
-            if let Ok(token) = std::fs::read_to_string(legacy_path) {
-                return Some(RegistryAuth {
-                    token: token.trim().to_string(),
-                    username: None,
-                });
-            }
-        }
-        return None;
-    }
-
-    let content = std::fs::read_to_string(auth_path).ok()?;
-    let config = serde_json::from_str::<CliCredentials>(&content).ok()?;
-    config.registries.get(registry).map(|a| RegistryAuth {
-        token: a.token.clone(),
-        username: a.username.clone(),
-    })
+    let token = vox_clavis::get_registry_token(registry)?;
+    let source = vox_clavis::sources::auth_json::read_registry_token(registry).map(|(_, s)| s)?;
+    let username = if matches!(source, vox_clavis::SecretSource::LegacyAuthToken) {
+        None
+    } else {
+        let content =
+            crate::commands::ci::bounded_read::read_utf8_path_capped(&dirs_path().join("auth.json"))
+                .ok()?;
+        let config = serde_json::from_str::<CliCredentials>(&content).ok()?;
+        config
+            .registries
+            .get(registry)
+            .and_then(|a| a.username.clone())
+    };
+    Some(RegistryAuth { token, username })
 }
 
 /// Get the VoxPM config directory (~/.vox/).
 pub fn dirs_path() -> PathBuf {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vox")
+    vox_clavis::sources::auth_json::vox_dir()
 }
-
-

@@ -36,12 +36,7 @@ impl ScalingSurfacesDetector {
     }
 
     pub fn with_policy(policy: ScalingPolicy) -> Self {
-        let mut fragments: Vec<String> = policy
-            .path_literals
-            .mens_runs_variants
-            .iter()
-            .cloned()
-            .collect();
+        let mut fragments: Vec<String> = policy.path_literals.mens_runs_variants.clone();
         fragments.extend(policy.path_literals.extra_flag_literals.clone());
 
         let mut alt: Vec<String> = fragments.iter().map(|s| regex::escape(s)).collect();
@@ -242,29 +237,26 @@ impl ScalingSurfacesDetector {
                 });
             }
 
-            if let Some(cap) = self.vec_capacity_re.captures(line) {
-                if let Some(n) = cap
+            if let Some(cap) = self.vec_capacity_re.captures(line)
+                && let Some(n) = cap
                     .get(1)
                     .and_then(|m| scaling_support::parse_rust_usize_literal(m.as_str()))
-                {
-                    if n >= 100_000
-                        && !self.line_suppressed(line, "scaling/large-in-memory-accumulator")
-                    {
-                        findings.push(Finding {
-                            rule_id: "scaling/large-in-memory-accumulator".to_string(),
-                            rule_name: "Scaling — very large Vec preallocation".to_string(),
-                            severity: Severity::Info,
-                            file: file.path.clone(),
-                            line: line_num,
-                            column: 0,
-                            message: format!(
-                                "`Vec::with_capacity({n})` — ensure N is bounded; streaming may scale better"
-                            ),
-                            suggestion: None,
-                            context: file.context_around(line_num, 1),
-                        });
-                    }
-                }
+                && n >= 100_000
+                && !self.line_suppressed(line, "scaling/large-in-memory-accumulator")
+            {
+                findings.push(Finding {
+                    rule_id: "scaling/large-in-memory-accumulator".to_string(),
+                    rule_name: "Scaling — very large Vec preallocation".to_string(),
+                    severity: Severity::Info,
+                    file: file.path.clone(),
+                    line: line_num,
+                    column: 0,
+                    message: format!(
+                        "`Vec::with_capacity({n})` — ensure N is bounded; streaming may scale better"
+                    ),
+                    suggestion: None,
+                    context: file.context_around(line_num, 1),
+                });
             }
 
             if line.contains(".lines()") && line.contains("collect::<Vec") {
@@ -342,24 +334,23 @@ impl ScalingSurfacesDetector {
                 });
             }
 
-            if line.contains("for ") && line.contains(" 0..") {
-                if let Some(next) = file.lines.get(i + 1) {
-                    if next.contains("(i + 1)..") || next.contains("(i+1)..") {
-                        findings.push(Finding {
-                            rule_id: "scaling/nested-pairwise-loop".to_string(),
-                            rule_name: "Scaling — pairwise nested loop".to_string(),
-                            severity: Severity::Info,
-                            file: file.path.clone(),
-                            line: line_num,
-                            column: 0,
-                            message:
-                                "Nested loop with `(i+1)..` — ensure collection size stays bounded"
-                                    .to_string(),
-                            suggestion: None,
-                            context: file.context_around(line_num, 2),
-                        });
-                    }
-                }
+            if line.contains("for ")
+                && line.contains(" 0..")
+                && let Some(next) = file.lines.get(i + 1)
+                && (next.contains("(i + 1)..") || next.contains("(i+1).."))
+            {
+                findings.push(Finding {
+                    rule_id: "scaling/nested-pairwise-loop".to_string(),
+                    rule_name: "Scaling — pairwise nested loop".to_string(),
+                    severity: Severity::Info,
+                    file: file.path.clone(),
+                    line: line_num,
+                    column: 0,
+                    message: "Nested loop with `(i+1)..` — ensure collection size stays bounded"
+                        .to_string(),
+                    suggestion: None,
+                    context: file.context_around(line_num, 2),
+                });
             }
         }
 

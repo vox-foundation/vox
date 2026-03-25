@@ -158,6 +158,13 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: latin_cmd::ArsCmd,
     },
+    /// Central secret lifecycle and diagnostics (`clavis`; alias: `secrets`).
+    #[command(name = "clavis", visible_alias = "secrets")]
+    Clavis {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::clavis::ClavisCmd,
+    },
     /// Review lane — CodeRabbit flows (`recensio`; alias of `review` when built with `coderabbit`).
     #[cfg(feature = "coderabbit")]
     #[command(name = "recensio", visible_alias = "rec")]
@@ -223,6 +230,23 @@ pub enum Cli {
         /// Target package name.
         #[arg(required = true)]
         package_name: String,
+    },
+    /// Deprecated compatibility command; use `vox clavis set` instead.
+    Login {
+        /// Registry name (for example `google`, `openrouter`, `voxpm`).
+        #[arg(long)]
+        registry: Option<String>,
+        /// Token to store (omit for interactive prompt).
+        token: Option<String>,
+        /// Optional username for registry flows.
+        #[arg(long)]
+        username: Option<String>,
+    },
+    /// Deprecated compatibility command; use `vox clavis` instead.
+    Logout {
+        /// Registry to remove (default `voxpm`).
+        #[arg(long)]
+        registry: Option<String>,
     },
     /// Start the Vox Language Server
     Lsp,
@@ -372,6 +396,40 @@ pub enum CodexCmd {
         /// Input file path
         #[arg(long, short = 'i')]
         input: std::path::PathBuf,
+    },
+    /// Import orchestrator-style `memory/*.md` snapshots into `memories`
+    #[command(name = "import-orchestrator-memory")]
+    ImportOrchestratorMemory {
+        /// Directory containing `*.md` files (non-recursive)
+        #[arg(long)]
+        dir: std::path::PathBuf,
+        /// `memories.agent_id` for inserted rows
+        #[arg(long)]
+        agent_id: String,
+        /// `memories.session_id` for inserted rows
+        #[arg(long, default_value = "orchestrator-import")]
+        session_id: String,
+    },
+    /// Upsert `skill_manifests` from a JSON file `{ id, version, manifest_json, skill_md }`
+    #[command(name = "import-skill-bundle")]
+    ImportSkillBundle {
+        #[arg(long)]
+        file: std::path::PathBuf,
+    },
+    /// Guided legacy-chain → fresh baseline file (export JSONL, create target DB, import, write sidecar)
+    Cutover {
+        /// SQLite file to create and populate (must not exist unless `--force`)
+        #[arg(long)]
+        target_db: std::path::PathBuf,
+        /// Legacy SQLite to read (defaults to `VOX_DB_PATH` / resolved local config)
+        #[arg(long)]
+        source_db: Option<std::path::PathBuf>,
+        /// Directory for `codex-cutover-*.jsonl` + `.sidecar.json` (default: cwd)
+        #[arg(long)]
+        artifact_dir: Option<std::path::PathBuf>,
+        /// Overwrite `target_db` if it already exists
+        #[arg(long, default_value_t = false)]
+        force: bool,
     },
     /// Aggregate MCP Socrates `research_metrics` rows and print JSON (`SocratesSurfaceAggregate`)
     #[command(name = "socrates-metrics")]

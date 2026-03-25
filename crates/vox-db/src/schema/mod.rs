@@ -14,8 +14,6 @@ pub use manifest::{
     SCHEMA_FRAGMENTS, SchemaFragment, baseline_sql, schema_baseline_digest_hex,
 };
 
-pub use domains::coordination::SCHEMA_COORDINATION;
-
 #[cfg(test)]
 mod migration_chain_tests {
     use super::SCHEMA_FRAGMENTS;

@@ -12,7 +12,10 @@ pub async fn snapshot_list(state: &ServerState, args: serde_json::Value) -> Stri
 
     let agent = agent_id_val.map(AgentId);
     let handle = orch.snapshot_store_handle();
-    let guard = handle.read().unwrap();
+    let guard = match crate::sync_poison::poison_rw_read(handle.read(), "snapshot store") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
     let snaps = guard.list(agent, limit);
 
     let items: Vec<serde_json::Value> = snaps
@@ -39,7 +42,10 @@ pub async fn snapshot_diff(state: &ServerState, args: serde_json::Value) -> Stri
     let orch = &state.orchestrator;
 
     let store_handle = orch.snapshot_store_handle();
-    let store = store_handle.read().unwrap();
+    let store = match crate::sync_poison::poison_rw_read(store_handle.read(), "snapshot store") {
+        Ok(g) => g,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    };
     let before = store.get(SnapshotId(before_id)).cloned();
     let after = store.get(SnapshotId(after_id)).cloned();
 

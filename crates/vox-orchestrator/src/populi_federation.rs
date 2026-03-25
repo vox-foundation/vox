@@ -21,6 +21,10 @@ pub struct RemotePopuliRoutingHint {
     pub gpu_cuda: bool,
     /// Remote node advertises Metal.
     pub gpu_metal: bool,
+    /// Remote node advertises minimum VRAM (MiB), if known.
+    pub min_vram_mb: Option<u32>,
+    /// Labels related to training workloads (`workload=mens-train`, pool tags, etc.).
+    pub training_labels: Vec<String>,
 }
 
 /// One line per remote node for status payloads (no full capability struct).

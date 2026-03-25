@@ -45,7 +45,9 @@ impl LlmConfig {
             provider: "openrouter".into(),
             model: model.into(),
             base_url: Some("https://openrouter.ai/api/v1/chat/completions".into()),
-            api_key: std::env::var("OPENROUTER_API_KEY").ok(),
+            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+                .expose()
+                .map(std::string::ToString::to_string),
             temperature: None,
             max_tokens: None,
             response_format: None,
@@ -59,7 +61,9 @@ impl LlmConfig {
             provider: "openai".into(),
             model: model.into(),
             base_url: Some("https://api.openai.com/v1/chat/completions".into()),
-            api_key: std::env::var("OPENAI_API_KEY").ok(),
+            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+                .expose()
+                .map(std::string::ToString::to_string),
             temperature: None,
             max_tokens: None,
             response_format: None,
@@ -97,9 +101,15 @@ impl LlmConfig {
             .as_deref()
             .and_then(|env_name| std::env::var(env_name).ok())
             .or_else(|| match entry.provider.as_str() {
-                "openrouter" => std::env::var("OPENROUTER_API_KEY").ok(),
-                "openai" => std::env::var("OPENAI_API_KEY").ok(),
-                "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+                "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+                    .expose()
+                    .map(std::string::ToString::to_string),
+                "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+                    .expose()
+                    .map(std::string::ToString::to_string),
+                "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+                    .expose()
+                    .map(std::string::ToString::to_string),
                 "hf_router" | "huggingface" | "hf_endpoint" => {
                     vox_config::inference::huggingface_hub_token()
                 }

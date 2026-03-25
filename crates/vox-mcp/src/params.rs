@@ -48,6 +48,22 @@ impl<T: Serialize> ToolResult<T> {
             format!("{{\"success\":false,\"error\":\"serialization failed: {e}\"}}")
         })
     }
+
+    /// Compact JSON (single line) for machine parsing.
+    pub fn to_json_compact(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|e| {
+            format!("{{\"success\":false,\"error\":\"serialization failed: {e}\"}}")
+        })
+    }
+
+    /// Pretty or compact JSON for MCP text content.
+    pub fn to_json_styled(&self, compact: bool) -> String {
+        if compact {
+            self.to_json_compact()
+        } else {
+            self.to_json()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

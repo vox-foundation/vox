@@ -108,7 +108,8 @@ pub fn extract_from_file(
     category: &str,
 ) -> anyhow::Result<Vec<RsTrainingPair>> {
     let source =
-        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+        crate::bounded_fs::read_utf8_path_capped(path)
+            .with_context(|| format!("read {}", path.display()))?;
     extract_from_source(&source, path, config, category)
 }
 

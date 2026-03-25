@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::cmd_enums::GrammarDriftEmit;
 
 use super::hash::sha256_hex_lower;
@@ -11,7 +12,7 @@ pub(crate) fn run_grammar_drift(root: &Path, emit: Option<GrammarDriftEmit>) -> 
     let fingerprint = sha256_hex_lower(prompt.as_bytes());
     let path = root.join("mens/data/grammar_fingerprint.txt");
     let stored = if path.is_file() {
-        fs::read_to_string(&path)
+        read_utf8_path_capped(&path)
             .unwrap_or_default()
             .trim()
             .to_string()

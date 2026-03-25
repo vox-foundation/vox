@@ -3,8 +3,9 @@
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use std::fs;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 const INDEX_REL: &str = "contracts/index.yaml";
 const SCHEMA_REL: &str = "contracts/index.schema.json";
@@ -25,14 +26,14 @@ struct IndexContract {
 /// Validate contract index: JSON Schema + every listed `path` exists.
 pub fn run(repo_root: &Path) -> Result<()> {
     let index_path = repo_root.join(INDEX_REL);
-    let raw = fs::read_to_string(&index_path)
+    let raw = read_utf8_path_capped(&index_path)
         .with_context(|| format!("read {}", index_path.display()))?;
 
     let schema_path = repo_root.join(SCHEMA_REL);
     if !schema_path.is_file() {
         return Err(anyhow!("missing {}", schema_path.display()));
     }
-    let schema_val: JsonValue = serde_json::from_str(&fs::read_to_string(&schema_path)?)
+    let schema_val: JsonValue = serde_json::from_str(&read_utf8_path_capped(&schema_path)?)
         .with_context(|| format!("parse {}", schema_path.display()))?;
     let instance: JsonValue =
         serde_yaml::from_str(&raw).context("parse contracts/index.yaml as JSON value")?;

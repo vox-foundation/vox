@@ -5,6 +5,8 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
+
 use super::docs_sync::{markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::registry::RegistryFile;
 
@@ -244,7 +246,7 @@ fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {
             if p.is_dir() {
                 walk(&p, needle, found)?;
             } else if p.extension().and_then(|s| s.to_str()) == Some("rs") {
-                let s = fs::read_to_string(&p).with_context(|| format!("read {}", p.display()))?;
+                let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
                 if s.contains(needle) {
                     *found = true;
                 }

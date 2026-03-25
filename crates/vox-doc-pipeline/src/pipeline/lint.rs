@@ -17,7 +17,8 @@ pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
                 if rel.contains("SUMMARY.md") {
                     continue;
                 }
-                let content = fs::read_to_string(&path).unwrap_or_default();
+                let content = super::bounded_fs::read_utf8_path_capped(&path)
+                    .unwrap_or_else(|_| String::new());
                 lint_file(&path, &content, errors);
             }
         }

@@ -365,7 +365,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"findings":{"type":"array","minItems":1,"items":{"type":"object","properties":{"rule_id":{"type":"string","minLength":1},"rule_name":{"type":"string","minLength":1},"severity":{"type":"string","enum":["Info","Warning","Error","Critical"]},"file":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"column":{"type":"integer","minimum":0},"message":{"type":"string","minLength":1},"suggestion":{"type":"string"},"context":{"type":"string"}},"required":["rule_id","rule_name","severity","file","line","column","message"],"additionalProperties":false}},"session_id":{"type":"string","maxLength":2048}},"required":["findings"],"additionalProperties":false}"#,
         ),
         "vox_schola_submit" => parse_obj(
-            r#"{"type":"object","properties":{"description":{"type":"string","minLength":1,"maxLength":65536},"require_cuda":{"type":"boolean"},"require_metal":{"type":"boolean"},"min_vram_mb":{"type":"integer","minimum":0}},"required":["description"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"description":{"type":"string","minLength":1,"maxLength":65536},"require_cuda":{"type":"boolean"},"require_metal":{"type":"boolean"},"min_vram_mb":{"type":"integer","minimum":0},"pool_label":{"type":"string","maxLength":256},"trajectory_capture":{"type":"boolean"},"min_quality_score":{"type":"integer","minimum":1,"maximum":5}},"required":["description"],"additionalProperties":false}"#,
         ),
         "vox_populi_local_status" => parse_obj(
             r#"{"type":"object","properties":{"registry_path":{"type":"string","description":"Optional override for the mens registry JSON path"}},"additionalProperties":false}"#,
@@ -401,6 +401,24 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_scientia_publication_submit_local" | "vox_scientia_publication_status" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_media_list" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_media_delete" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"asset_ref":{"type":"string","minLength":1,"maxLength":2048}},"required":["publication_id","asset_ref"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_media_upsert" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"asset_ref":{"type":"string","minLength":1,"maxLength":2048},"media_type":{"type":"string","minLength":1,"maxLength":64},"storage_uri":{"type":"string","maxLength":4096},"status":{"type":"string","minLength":1,"maxLength":64},"metadata_json":{"type":"object","additionalProperties":true}},"required":["publication_id","asset_ref","media_type","status"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_route_simulate" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_publish" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"channels":{"type":"array","items":{"type":"string","minLength":1,"maxLength":64}},"dry_run":{"type":"boolean"},"json":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_retry_failed" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"channel":{"type":"string","minLength":1,"maxLength":64},"dry_run":{"type":"boolean"},"json":{"type":"boolean"}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
 
         _ => Map::new(),

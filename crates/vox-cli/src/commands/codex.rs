@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use vox_db::codex_legacy::{
     LegacyVerification, export_legacy_jsonl, import_legacy_jsonl, verify_legacy_store,
 };
+use vox_db::legacy_import_extras::{import_orchestrator_memory_dir, import_skill_bundle_json_file};
 use vox_db::{Codex, DbConfig, StoreError};
 
 fn resolve_config() -> anyhow::Result<DbConfig> {
@@ -68,6 +69,126 @@ pub async fn import_legacy(path: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Export legacy-chain DB from disk → JSONL + sidecar, create `target_db`, import, verify baseline.
+pub async fn cutover(
+    artifact_dir: Option<PathBuf>,
+    target_db: PathBuf,
+    source_db: Option<PathBuf>,
+    force: bool,
+) -> anyhow::Result<()> {
+    let source_cfg = match source_db {
+        Some(p) => vox_db::DbConfig::local(p.to_string_lossy().to_string()),
+        None => {
+            let c = resolve_config()?;
+            match &c {
+                vox_db::DbConfig::Local { .. } => c,
+                other => {
+                    anyhow::bail!(
+                        "vox codex cutover needs a local legacy SQLite path.\n\
+                         Pass `--source-db <path.db>` or set `VOX_DB_PATH` to the legacy file.\n\
+                         Got config: {other:?}"
+                    );
+                }
+            }
+        }
+    };
+
+    let export_db = Codex::connect_legacy_export_only(source_cfg.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let leg = verify_legacy_store(&export_db)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    if !leg.is_legacy_schema_chain {
+        anyhow::bail!(
+            "Source is not a legacy multi-version schema chain (schema_version max={}).\n\
+             `cutover` is only for databases that still carry a pre-baseline migration chain.\n\
+             Already-baseline stores: use `vox codex export-legacy` / `import-legacy` manually if you only want a copy.",
+            leg.schema_version
+        );
+    }
+
+    let dir = artifact_dir.unwrap_or(std::env::current_dir()?);
+    let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
+    let jsonl_name = format!("codex-cutover-{ts}.jsonl");
+    let jsonl_path = dir.join(&jsonl_name);
+
+    let mut buf = Vec::<u8>::new();
+    let n = export_legacy_jsonl(&export_db, &mut buf)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    tokio::fs::write(&jsonl_path, &buf)
+        .await
+        .with_context(|| format!("write {}", jsonl_path.display()))?;
+
+    let target_str = target_db.to_string_lossy().into_owned();
+    if target_db.exists() && !force {
+        anyhow::bail!(
+            "target {} already exists; re-run with --force after backup",
+            target_db.display()
+        );
+    }
+    if target_db.exists() {
+        tokio::fs::remove_file(&target_db)
+            .await
+            .with_context(|| format!("remove {}", target_db.display()))?;
+    }
+    if let Some(parent) = target_db.parent() {
+        if !parent.as_os_str().is_empty() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .with_context(|| format!("create_dir_all {}", parent.display()))?;
+        }
+    }
+
+    let fresh = Codex::connect(vox_db::DbConfig::local(target_str.clone()))
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let file = std::fs::File::open(&jsonl_path)
+        .with_context(|| format!("open {}", jsonl_path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    let imported = import_legacy_jsonl(&fresh, reader)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let v2 = verify_legacy_store(&fresh)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    if v2.is_legacy_schema_chain {
+        anyhow::bail!("internal error: target still reports legacy schema chain after import");
+    }
+
+    let source_path = match &source_cfg {
+        vox_db::DbConfig::Local { path } => path.clone(),
+        _ => "unknown".to_string(),
+    };
+    let sidecar = serde_json::json!({
+        "kind": "vox_codex_cutover_v1",
+        "timestamp_utc": ts.to_string(),
+        "source_db_path": source_path,
+        "target_db_path": target_str,
+        "artifact_jsonl": jsonl_path.to_string_lossy(),
+        "exported_rows": n,
+        "imported_rows": imported,
+        "source_schema_version_max": leg.schema_version,
+        "target_schema_version": v2.schema_version,
+        "codex_reactivity_ok": v2.has_codex_reactivity,
+    });
+    let sidecar_path = dir.join(format!("codex-cutover-{ts}.sidecar.json"));
+    tokio::fs::write(
+        &sidecar_path,
+        serde_json::to_string_pretty(&sidecar).context("sidecar json")?,
+    )
+    .await
+    .with_context(|| format!("write {}", sidecar_path.display()))?;
+
+    println!("Cutover complete.");
+    println!("  JSONL   : {}", jsonl_path.display());
+    println!("  Sidecar : {}", sidecar_path.display());
+    println!("  Rows    : exported {n}, imported {imported}");
+    println!("  Next    : export VOX_DB_PATH={}", target_str);
+    Ok(())
+}
+
 /// Print aggregated Socrates surface metrics (`research_metrics` / `socrates_surface`) as JSON.
 pub async fn socrates_metrics(repository_id: Option<String>, limit: i64) -> anyhow::Result<()> {
     let db = Codex::connect(resolve_config()?)
@@ -85,6 +206,35 @@ pub async fn socrates_metrics(repository_id: Option<String>, limit: i64) -> anyh
 }
 
 /// Roll up recent Socrates events and append one `eval_runs` row (batch / scheduled jobs).
+pub async fn import_orchestrator_memory(
+    dir: PathBuf,
+    agent_id: String,
+    session_id: String,
+) -> anyhow::Result<()> {
+    let db = Codex::connect(resolve_config()?)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let n = import_orchestrator_memory_dir(&db, &dir, &agent_id, &session_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!(
+        "Imported {n} markdown file(s) from {} into `memories`.",
+        dir.display()
+    );
+    Ok(())
+}
+
+pub async fn import_skill_bundle(file: PathBuf) -> anyhow::Result<()> {
+    let db = Codex::connect(resolve_config()?)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    import_skill_bundle_json_file(&db, &file)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!("Upserted skill manifest from {}.", file.display());
+    Ok(())
+}
+
 pub async fn socrates_eval_snapshot(
     eval_id: String,
     repository_id: Option<String>,

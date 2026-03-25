@@ -50,7 +50,7 @@ pub fn post_task_validate(task: &AgentTask) -> ValidationResult {
     // LSP Integration
     for file_path in &write_files {
         if file_path.extension().and_then(|e| e.to_str()) == Some("vox") {
-            if let Ok(text) = std::fs::read_to_string(file_path) {
+            if let Ok(text) = crate::bounded_fs::read_utf8_path_capped(file_path) {
                 let diagnostics = vox_lsp::validate_document(&text);
                 let errors: Vec<_> = diagnostics
                     .into_iter()

@@ -341,7 +341,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             ..Default::default()
         };
 
-        let pref = state.mcp_chat_model_override.read().unwrap().clone();
+        let pref = match crate::sync_poison::poison_rw_read(
+            state.mcp_chat_model_override.read(),
+            "mcp_chat_model_override",
+        ) {
+            Ok(g) => g.clone(),
+            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        };
         let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
             state,
             &current_prompt,

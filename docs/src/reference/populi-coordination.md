@@ -238,4 +238,4 @@ Lock TTL defaults: 30s for file edits, 5m for long-running tasks.
 - `crates/vox-orchestrator/src/a2a.rs` — A2A message bus
 - `crates/vox-orchestrator/src/occ.rs` — OCC write guards
 - `crates/vox-db/src/circuit_breaker.rs` — DB circuit breaker
-- `crates/vox-pm/src/schema/domains/coordination.rs` — Turso schema DDL
+- `crates/vox-db/src/schema/domains/sql/coordination.sql` — coordination DDL (Arca fragment; merged in `gamification_coordination.rs`)

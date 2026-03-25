@@ -59,7 +59,9 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
             crates_io: None,
             rss: false,
             dry_run: false,
+            ..Default::default()
         },
+        topic_pack: None,
     };
 
     let publisher = Publisher::new(PublisherConfig {
@@ -123,7 +125,9 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
             crates_io: None,
             rss: false,
             dry_run: false,
+            ..Default::default()
         },
+        topic_pack: None,
     };
 
     let publisher = Publisher::new(PublisherConfig {

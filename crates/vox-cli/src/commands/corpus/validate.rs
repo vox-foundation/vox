@@ -1,14 +1,15 @@
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+
 pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> {
-    if !input.exists() {
+    if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
 
-    let content = std::fs::read_to_string(input)?;
+    let content = read_utf8_path_capped_async(input).await?;
     let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
     let total = lines.len();
     let mut valid: Vec<serde_json::Value> = Vec::new();
@@ -85,14 +86,15 @@ pub(super) async fn run_validate(input: &Path, output: &Path, recheck: bool) -> 
         deduped.push(record);
     }
 
-    // Write output
     if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
-    let mut f = std::fs::File::create(output)?;
+    let mut body = String::new();
     for record in &deduped {
-        writeln!(f, "{}", serde_json::to_string(record)?)?;
+        body.push_str(&serde_json::to_string(record)?);
+        body.push('\n');
     }
+    tokio::fs::write(output, body).await?;
 
     // Coverage report
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();

@@ -3,6 +3,8 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
 use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
 use vox_populi::mens::tensor::candle_qlora_merge::{
@@ -36,7 +38,7 @@ pub fn run_merge_qlora(
     if !meta.is_file() {
         anyhow::bail!("meta JSON not found: {}", meta.display());
     }
-    let raw = std::fs::read_to_string(&meta).with_context(|| format!("read {}", meta.display()))?;
+    let raw = read_utf8_path_capped(&meta).with_context(|| format!("read {}", meta.display()))?;
     let meta_v2: QloraAdapterMetaV2 =
         if let Ok(m) = serde_json::from_str::<QloraAdapterMetaV2>(&raw) {
             m

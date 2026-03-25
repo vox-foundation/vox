@@ -181,18 +181,36 @@ impl ServerState {
                                 labels: n.capabilities.labels.clone(),
                                 gpu_cuda: n.capabilities.gpu_cuda,
                                 gpu_metal: n.capabilities.gpu_metal,
+                                min_vram_mb: n.capabilities.min_vram_mb,
+                                training_labels: n
+                                    .capabilities
+                                    .labels
+                                    .iter()
+                                    .filter(|s| {
+                                        s.starts_with("workload=") || s.starts_with("pool=")
+                                    })
+                                    .cloned()
+                                    .collect(),
                             })
                             .collect();
 
                         orch.set_remote_populi_routing_hints(routing_hints);
 
-                        let mut w = snap.write().unwrap();
-                        *w = RemotePopuliSnapshot::success(now, f.schema_version, brief);
+                        match snap.write() {
+                            Ok(mut w) => {
+                                *w = RemotePopuliSnapshot::success(now, f.schema_version, brief);
+                            }
+                            Err(e) => tracing::error!(error = %e, "populi poll: snapshot lock poisoned"),
+                        }
                     }
                     Err(e) => {
                         orch.set_remote_populi_routing_hints(Vec::new());
-                        let mut w = snap.write().unwrap();
-                        *w = RemotePopuliSnapshot::failure(now, e.to_string());
+                        match snap.write() {
+                            Ok(mut w) => {
+                                *w = RemotePopuliSnapshot::failure(now, e.to_string());
+                            }
+                            Err(pe) => tracing::error!(error = %pe, "populi poll: snapshot lock poisoned"),
+                        }
                     }
                 }
             }

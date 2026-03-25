@@ -1,4 +1,6 @@
 use anyhow::Result;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use owo_colors::OwoColorize;
 use vox_ludus::{
     Companion, FreeAiClient, LudusProfile,
@@ -58,7 +60,7 @@ pub async fn companion_list() -> Result<()> {
 
 /// Create a new companion from a source file.
 pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result<()> {
-    let code = std::fs::read_to_string(code_file)?;
+    let code = read_utf8_path_capped(code_file)?;
 
     let id = vox_runtime::builtins::vox_uuid();
 

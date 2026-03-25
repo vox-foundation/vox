@@ -1,8 +1,12 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
 use anyhow::{Context, Result};
-use std::fs;
+use chrono::Utc;
 use std::path::{Path, PathBuf};
+use vox_publisher::types::SyndicationConfig;
+
+use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
+use crate::commands::db_retention;
 
 /// Print current VoxDB schema version and connection path.
 pub async fn status() -> Result<()> {
@@ -17,26 +21,154 @@ pub async fn status() -> Result<()> {
     Ok(())
 }
 
+fn sqlite_quote_ident(name: &str) -> String {
+    let mut s = String::with_capacity(name.len() + 2);
+    s.push('"');
+    for c in name.chars() {
+        if c == '"' {
+            s.push_str("\"\"");
+        } else {
+            s.push(c);
+        }
+    }
+    s.push('"');
+    s
+}
+
+async fn sqlite_pragma_i64(conn: &turso::Connection, sql: &str) -> Result<i64> {
+    let mut rows = conn.query(sql, ()).await?;
+    let Some(row) = rows.next().await? else {
+        return Ok(0i64);
+    };
+    Ok(row.get(0)?)
+}
+
+async fn sqlite_pragma_text(conn: &turso::Connection, sql: &str) -> Result<String> {
+    let mut rows = conn.query(sql, ()).await?;
+    let Some(row) = rows.next().await? else {
+        return Ok(String::new());
+    };
+    Ok(row.get(0)?)
+}
+
+fn pick_time_audit_column(col_names: &[String]) -> Option<String> {
+    const PREFERRED: &[&str] = &[
+        "updated_at_ms",
+        "created_at_ms",
+        "updated_at",
+        "created_at",
+        "recorded_at_ms",
+        "submitted_at_ms",
+        "attempted_at_ms",
+        "timestamp",
+        "ts",
+    ];
+    for name in PREFERRED {
+        if col_names.iter().any(|n| n == name) {
+            return Some((*name).to_string());
+        }
+    }
+    for n in col_names {
+        let l = n.to_lowercase();
+        if l.contains("at_ms") || l.ends_with("_at") || l.contains("timestamp") {
+            return Some(n.clone());
+        }
+    }
+    None
+}
+
+/// Read-only audit: table row counts + storage PRAGMAs (JSON to stdout).
+pub async fn audit(timestamps: bool) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let version = db.schema_version().await?;
+    let data_dir = vox_db::VoxDb::data_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "unknown".to_string());
+    let db_path = vox_db::paths::default_db_path()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let conn = db.connection();
+
+    let page_count = sqlite_pragma_i64(conn, "PRAGMA page_count").await?;
+    let page_size = sqlite_pragma_i64(conn, "PRAGMA page_size").await?;
+    let freelist_count = sqlite_pragma_i64(conn, "PRAGMA freelist_count").await?;
+    let journal_mode = sqlite_pragma_text(conn, "PRAGMA journal_mode").await?;
+
+    let mut name_rows = conn
+        .query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+            (),
+        )
+        .await?;
+    let mut tables: Vec<serde_json::Value> = Vec::new();
+    while let Some(row) = name_rows.next().await? {
+        let name: String = row.get(0)?;
+        let q = sqlite_quote_ident(&name);
+        let sql = format!("SELECT COUNT(*) FROM {q}");
+        let mut c = conn
+            .query(&sql, ())
+            .await
+            .with_context(|| format!("count {name}"))?;
+        let count: i64 = c
+            .next()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("missing count for {name}"))?
+            .get(0)?;
+        let mut entry = serde_json::json!({"name": name, "row_count": count});
+        if timestamps && count > 0 {
+            let info_sql = format!("PRAGMA table_info({q})");
+            let mut info_rows = conn.query(&info_sql, ()).await?;
+            let mut col_names = Vec::new();
+            while let Some(r) = info_rows.next().await? {
+                col_names.push(r.get::<String>(1)?);
+            }
+            if let Some(tc) = pick_time_audit_column(&col_names) {
+                let tq = sqlite_quote_ident(&tc);
+                let rng_sql =
+                    format!("SELECT MIN({tq}), MAX({tq}) FROM {q} WHERE {tq} IS NOT NULL");
+                if let Ok(mut rng) = conn.query(&rng_sql, ()).await {
+                    if let Some(rr) = rng.next().await? {
+                        let vmin: Option<String> = rr.get(0).ok();
+                        let vmax: Option<String> = rr.get(1).ok();
+                        entry["time_column"] = serde_json::json!(tc);
+                        entry["time_min"] = serde_json::json!(vmin);
+                        entry["time_max"] = serde_json::json!(vmax);
+                    }
+                }
+            }
+        }
+        tables.push(entry);
+    }
+
+    let out = serde_json::json!({
+        "schema_version": version,
+        "data_dir": data_dir,
+        "db_path": db_path,
+        "pragma": {
+            "page_count": page_count,
+            "page_size": page_size,
+            "freelist_count": freelist_count,
+            "journal_mode": journal_mode,
+        },
+        "table_count": tables.len(),
+        "tables": tables,
+    });
+    println!("{}", serde_json::to_string_pretty(&out)?);
+    Ok(())
+}
+
 /// Reset the database by dropping all tables and re-applying migrations.
 pub async fn reset(file: Option<&PathBuf>) -> Result<()> {
-    let db = vox_db::VoxDb::connect_default().await?;
     println!("Resetting database...");
+    let path = vox_db::paths::default_db_path()
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve default Codex database path"))?;
+    let path_str = path.to_string_lossy().into_owned();
+    let _db = vox_db::VoxDb::open_local_reset_to_baseline(&path_str)
+        .await
+        .map_err(|e| anyhow::anyhow!("Reset failed: {e}"))?;
+    println!("  Cleared {} and re-applied baseline.", path.display());
 
-    // Get list of tables to drop (excluding internal ones)
-    let mut rows = db.connection().query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'vox_%'", ()).await?;
-    let mut tables_to_drop = Vec::new();
-    while let Some(row) = rows.next().await? {
-        tables_to_drop.push(row.get::<String>(0)?);
-    }
-
-    for table in tables_to_drop {
-        println!("  Dropping table: {}", table);
-        db.connection()
-            .execute(&format!("DROP TABLE IF EXISTS {}", table), ())
-            .await?;
-    }
-
-    println!("Database cleared. Re-migrating...");
+    println!("Re-migrating from .vox declarations...");
     migrate(file).await?;
     println!("Reset complete.");
     Ok(())
@@ -187,7 +319,7 @@ pub async fn export(user_id: &str, output: Option<&PathBuf>) -> Result<()> {
     let json_str = serde_json::to_string_pretty(&data)?;
     match output {
         Some(path) => {
-            std::fs::write(path, &json_str)?;
+            tokio::fs::write(path, &json_str).await?;
             println!("Exported to {}", path.display());
         }
         None => println!("{json_str}"),
@@ -198,7 +330,7 @@ pub async fn export(user_id: &str, output: Option<&PathBuf>) -> Result<()> {
 /// Import preferences and memory from a JSON file previously exported with `vox db export`.
 pub async fn import(path: &PathBuf) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let json_str = std::fs::read_to_string(path)?;
+    let json_str = read_utf8_path_capped_async(path.as_path()).await?;
     let data: serde_json::Value = serde_json::from_str(&json_str)?;
 
     let user_id = data["user_id"].as_str().unwrap_or("default");
@@ -264,12 +396,106 @@ pub async fn prune(user_id: &str, days: u32) -> Result<()> {
     let deleted = db
         .connection()
         .execute(
-            "DELETE FROM agent_memory WHERE agent_id = ?1 AND created_at < ?2",
+            "DELETE FROM memories WHERE agent_id = ?1 AND created_at < ?2",
             turso::params![user_id, threshold_str],
         )
         .await
         .map_err(|e| anyhow::anyhow!("Prune failed: {e}"))?;
-    println!("Pruned {deleted} memory entries older than {days} days for '{user_id}'.");
+    println!("Pruned {deleted} rows from `memories` older than {days} days for '{user_id}'.");
+    Ok(())
+}
+
+fn retention_cutoff_sql(days: u32) -> String {
+    format!("datetime('now', '-{days} day')")
+}
+
+/// Emit JSON plan for rows that would be deleted per `contracts/db/retention-policy.yaml`.
+pub async fn prune_plan(policy: Option<&Path>) -> Result<()> {
+    let path = policy
+        .map(PathBuf::from)
+        .unwrap_or_else(db_retention::default_policy_path);
+    let pol = db_retention::load_policy(&path)?;
+    let db = vox_db::VoxDb::connect_default().await?;
+    let conn = db.connection();
+    let mut rows_out = Vec::new();
+    for (table, rule) in pol.tables.iter() {
+        if rule.kind != "days" {
+            rows_out.push(serde_json::json!({
+                "table": table,
+                "mode": rule.kind,
+                "would_delete": serde_json::Value::Null,
+            }));
+            continue;
+        }
+        let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
+            anyhow::bail!(
+                "retention policy: table `{table}` kind=days requires `days` and `time_column`"
+            );
+        };
+        let tq = db_retention::sqlite_quote_ident(table);
+        let cq = db_retention::sqlite_quote_ident(col);
+        let cutoff = retention_cutoff_sql(days);
+        let sql = format!("SELECT COUNT(*) FROM {tq} WHERE {cq} < {cutoff}");
+        let mut r = conn
+            .query(&sql, ())
+            .await
+            .with_context(|| format!("plan {table}"))?;
+        let n: i64 = r
+            .next()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("count {table}"))?
+            .get(0)?;
+        rows_out.push(serde_json::json!({
+            "table": table,
+            "mode": "days",
+            "days": days,
+            "time_column": col,
+            "would_delete": n,
+        }));
+    }
+    let out = serde_json::json!({
+        "policy": path.display().to_string(),
+        "tables": rows_out,
+    });
+    println!("{}", serde_json::to_string_pretty(&out)?);
+    Ok(())
+}
+
+/// Execute `days` rules from the retention policy (DELETE).
+pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()> {
+    if !i_understand {
+        anyhow::bail!("refusing prune-apply without `--i-understand` (destructive deletes)");
+    }
+    let path = policy
+        .map(PathBuf::from)
+        .unwrap_or_else(db_retention::default_policy_path);
+    let pol = db_retention::load_policy(&path)?;
+    let db = vox_db::VoxDb::connect_default().await?;
+    let conn = db.connection();
+    let mut total: u64 = 0;
+    for (table, rule) in pol.tables.iter() {
+        if rule.kind != "days" {
+            continue;
+        }
+        let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
+            anyhow::bail!(
+                "retention policy: table `{table}` kind=days requires `days` and `time_column`"
+            );
+        };
+        let tq = db_retention::sqlite_quote_ident(table);
+        let cq = db_retention::sqlite_quote_ident(col);
+        let cutoff = retention_cutoff_sql(days);
+        let sql = format!("DELETE FROM {tq} WHERE {cq} < {cutoff}");
+        let n = conn
+            .execute(&sql, ())
+            .await
+            .with_context(|| format!("delete {table}"))?;
+        total += n;
+    }
+    println!(
+        "prune-apply: deleted {total} rows total (policy {}).",
+        path.display()
+    );
     Ok(())
 }
 
@@ -323,18 +549,18 @@ pub async fn publication_prepare(
     preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let body_markdown = fs::read_to_string(path)
+    let body_markdown = read_utf8_path_capped(path)
         .with_context(|| format!("failed to read markdown body from {}", path.display()))?;
     let citations_json = if let Some(p) = citations_json_path {
         Some(
-            fs::read_to_string(p)
+            read_utf8_path_capped(p)
                 .with_context(|| format!("failed to read citations JSON from {}", p.display()))?,
         )
     } else {
         None
     };
     let scientific = if let Some(p) = scholarly_metadata_json_path {
-        let raw = fs::read_to_string(p).with_context(|| {
+        let raw = read_utf8_path_capped(p).with_context(|| {
             format!(
                 "failed to read scholarly metadata JSON from {}",
                 p.display()
@@ -428,13 +654,14 @@ pub async fn publication_preflight(
         metadata_json: row.metadata_json.clone(),
     };
     let report = if with_worthiness {
-        manifest =
-            super::scientia_worthiness_enrich::merge_live_socrates_aggregate(manifest, &db, None)
-                .await?;
         let root = vox_repository::resolve_repo_root_for_ci();
+        manifest = super::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
+            manifest, &db, &root, None,
+        )
+        .await?;
         let contract_path =
             root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
-        let yaml = fs::read_to_string(&contract_path).with_context(|| {
+        let yaml = read_utf8_path_capped(&contract_path).with_context(|| {
             format!(
                 "read worthiness contract {} (repo root discovery required)",
                 contract_path.display()
@@ -471,12 +698,12 @@ pub async fn publication_worthiness_evaluate(
         Some(p) => resolve_under_repo(&root, p),
         None => root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH),
     };
-    let yaml = fs::read_to_string(&contract_path)
+    let yaml = read_utf8_path_capped(&contract_path)
         .with_context(|| format!("read contract {}", contract_path.display()))?;
     let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
     vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
     let metrics_path = resolve_under_repo(&root, &metrics_json);
-    let m_src = fs::read_to_string(&metrics_path)
+    let m_src = read_utf8_path_capped(&metrics_path)
         .with_context(|| format!("read metrics {}", metrics_path.display()))?;
     let inputs: vox_publisher::publication_worthiness::WorthinessInputs =
         serde_json::from_str(&m_src).context("parse metrics JSON")?;
@@ -586,6 +813,9 @@ pub async fn publication_status(publication_id: &str) -> Result<()> {
         .count_publication_approvers_for_digest(publication_id, &row.content_sha3_256)
         .await?;
     let submissions = db.list_scholarly_submissions(publication_id).await?;
+    let media_assets = db.list_publication_media_assets(publication_id).await?;
+    let attempts = db.list_publication_attempts(publication_id).await?;
+    let status_events = db.list_publication_status_events(publication_id).await?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
@@ -596,9 +826,327 @@ pub async fn publication_status(publication_id: &str) -> Result<()> {
             "version": row.version,
             "approvals_for_digest": approvals,
             "scholarly_submissions": submissions,
+            "media_assets": media_assets,
+            "publication_attempts": attempts,
+            "publication_status_events": status_events,
         }))?
     );
     Ok(())
 }
 
+/// Upsert one publication media asset row.
+pub async fn publication_media_upsert(
+    publication_id: &str,
+    asset_ref: &str,
+    media_type: &str,
+    storage_uri: Option<&str>,
+    status: &str,
+    metadata_json_path: Option<&PathBuf>,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let metadata_json = if let Some(path) = metadata_json_path {
+        Some(
+            read_utf8_path_capped(path)
+                .with_context(|| format!("failed to read metadata JSON from {}", path.display()))?,
+        )
+    } else {
+        None
+    };
+    db.upsert_publication_media_asset(vox_db::PublicationMediaAssetParams {
+        publication_id,
+        asset_ref,
+        media_type,
+        storage_uri,
+        status,
+        metadata_json: metadata_json.as_deref(),
+    })
+    .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "publication_id": publication_id,
+            "asset_ref": asset_ref,
+            "media_type": media_type,
+            "storage_uri": storage_uri,
+            "status": status,
+            "metadata_json_present": metadata_json.is_some()
+        }))?
+    );
+    Ok(())
+}
+
+/// List publication media assets for one publication id.
+pub async fn publication_media_list(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let rows = db.list_publication_media_assets(publication_id).await?;
+    println!("{}", serde_json::to_string_pretty(&rows)?);
+    Ok(())
+}
+
+/// Delete one publication media asset by `publication_id + asset_ref`.
+pub async fn publication_media_delete(publication_id: &str, asset_ref: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    db.delete_publication_media_asset(publication_id, asset_ref)
+        .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "deleted": true,
+            "publication_id": publication_id,
+            "asset_ref": asset_ref
+        }))?
+    );
+    Ok(())
+}
+
+fn publication_item_from_manifest(
+    row: &vox_db::PublicationManifestRow,
+) -> Result<vox_publisher::types::UnifiedNewsItem> {
+    #[derive(serde::Deserialize, Default)]
+    struct MetaEnvelope {
+        #[serde(default)]
+        tags: Vec<String>,
+        #[serde(default)]
+        syndication: Option<SyndicationConfig>,
+        #[serde(default)]
+        topic_pack: Option<String>,
+    }
+    let meta: MetaEnvelope = row
+        .metadata_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(serde_json::from_str)
+        .transpose()
+        .context("parse metadata_json for route simulation/publish")?
+        .unwrap_or_default();
+    let topic_pack = meta
+        .topic_pack
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string);
+    let mut item = vox_publisher::types::UnifiedNewsItem {
+        id: row.publication_id.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        published_at: Utc::now(),
+        tags: meta.tags,
+        content_markdown: row.body_markdown.clone(),
+        syndication: meta.syndication.unwrap_or_default(),
+        topic_pack,
+    };
+    item.hydrate_topic_pack_if_set()?;
+    Ok(item)
+}
+
+fn parse_channels_csv(raw: Option<&str>) -> Option<Vec<String>> {
+    raw.map(|s| {
+        s.split(',')
+            .map(|v| v.trim().to_lowercase())
+            .filter(|v| !v.is_empty())
+            .collect::<Vec<_>>()
+    })
+    .filter(|v| !v.is_empty())
+}
+
+fn filter_channels(
+    mut item: vox_publisher::types::UnifiedNewsItem,
+    allowed: Option<&[String]>,
+) -> vox_publisher::types::UnifiedNewsItem {
+    let Some(allowed) = allowed else {
+        return item;
+    };
+    let has = |name: &str| allowed.iter().any(|x| x == name);
+    if !has("rss") {
+        item.syndication.rss = false;
+    }
+    if !has("twitter") {
+        item.syndication.twitter = None;
+    }
+    if !has("github") {
+        item.syndication.github = None;
+    }
+    if !has("open_collective") {
+        item.syndication.open_collective = None;
+    }
+    if !has("reddit") {
+        item.syndication.reddit = None;
+    }
+    if !has("hacker_news") {
+        item.syndication.hacker_news = None;
+    }
+    if !has("youtube") {
+        item.syndication.youtube = None;
+    }
+    if !has("crates_io") {
+        item.syndication.crates_io = None;
+    }
+    item
+}
+
+fn publisher_config_from_env(dry_run: bool) -> vox_publisher::PublisherConfig {
+    vox_publisher::PublisherConfig::from_operator_environment(
+        dry_run,
+        Some(vox_repository::resolve_repo_root_for_ci()),
+        vox_publisher::NewsSiteConfig::default(),
+    )
+}
+
+/// Simulate per-channel routing/policy outcomes using an existing DB handle (tests and in-process callers).
+pub async fn publication_route_simulate_with_db(
+    db: &vox_db::VoxDb,
+    publication_id: &str,
+) -> Result<vox_publisher::SyndicationResult> {
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let item = publication_item_from_manifest(&row)?;
+    let publisher = vox_publisher::Publisher::new(publisher_config_from_env(true));
+    publisher.publish_all(&item).await
+}
+
+/// Simulate per-channel routing/policy outcomes for one prepared publication id.
+///
+/// When `json` is true, prints one line of compact JSON (stable key order from `serde_json`).
+pub async fn publication_route_simulate(publication_id: &str, json: bool) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let result = publication_route_simulate_with_db(&db, publication_id).await?;
+    if json {
+        println!("{}", serde_json::to_string(&result)?);
+    } else {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    }
+    Ok(())
+}
+
+/// Publish one prepared publication to selected channels (default: all configured channels).
+pub async fn publication_publish(
+    publication_id: &str,
+    channels_csv: Option<&str>,
+    dry_run: bool,
+    json: bool,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let allowed = parse_channels_csv(channels_csv);
+    let item = filter_channels(publication_item_from_manifest(&row)?, allowed.as_deref());
+    let digest = row.content_sha3_256.as_str();
+    let publisher = vox_publisher::Publisher::new(publisher_config_from_env(dry_run));
+    let result = publisher.publish_all(&item).await?;
+    let result_json = serde_json::to_string(&result)?;
+    db.record_publication_attempt(publication_id, digest, "manual_cli", &result_json)
+        .await?;
+    if json {
+        println!("{}", result_json);
+    } else {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    }
+    Ok(())
+}
+
+/// Retry failed channels from the latest publication attempt.
+pub async fn publication_retry_failed(
+    publication_id: &str,
+    channel: Option<&str>,
+    dry_run: bool,
+    json: bool,
+) -> Result<()> {
+    if let Some(ch) = channel {
+        return publication_publish(publication_id, Some(ch), dry_run, json).await;
+    }
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let digest = row.content_sha3_256.as_str();
+    let attempts = db.list_publication_attempts(publication_id).await?;
+    let last = attempts
+        .iter()
+        .filter(|a| a.content_sha3_256 == digest)
+        .find_map(|a| {
+            serde_json::from_str::<vox_publisher::SyndicationResult>(&a.outcome_json).ok()
+        });
+    let Some(result) = last else {
+        anyhow::bail!(
+            "no syndication attempt outcome for current manifest digest; run `vox db publication-publish` first"
+        );
+    };
+    let mut failed: Vec<String> = Vec::new();
+    let mut maybe_push = |name: &str, out: &vox_publisher::ChannelOutcome| {
+        if matches!(out, vox_publisher::ChannelOutcome::Failed { .. }) {
+            failed.push(name.to_string());
+        }
+    };
+    maybe_push("rss", &result.rss);
+    maybe_push("twitter", &result.twitter);
+    maybe_push("github", &result.github);
+    maybe_push("open_collective", &result.open_collective);
+    maybe_push("reddit", &result.reddit);
+    maybe_push("hacker_news", &result.hacker_news);
+    maybe_push("youtube", &result.youtube);
+    if failed.is_empty() {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(
+                &serde_json::json!({"publication_id": publication_id, "retried": false, "reason": "no_failed_channels"})
+            )?
+        );
+        return Ok(());
+    }
+    let csv = failed.join(",");
+    publication_publish(publication_id, Some(csv.as_str()), dry_run, json).await
+}
+
 pub use super::db_research::*;
+
+#[cfg(test)]
+mod tests {
+    use super::{filter_channels, parse_channels_csv};
+    use chrono::Utc;
+    use vox_publisher::types::{SyndicationConfig, TwitterConfig, UnifiedNewsItem};
+
+    fn sample_item() -> UnifiedNewsItem {
+        UnifiedNewsItem {
+            id: "x".to_string(),
+            title: "t".to_string(),
+            author: "a".to_string(),
+            published_at: Utc::now(),
+            tags: vec![],
+            content_markdown: "body".to_string(),
+            syndication: SyndicationConfig {
+                twitter: Some(TwitterConfig {
+                    short_text: Some("s".to_string()),
+                    thread: false,
+                }),
+                rss: true,
+                ..Default::default()
+            },
+            topic_pack: None,
+        }
+    }
+
+    #[test]
+    fn parse_channels_csv_normalizes() {
+        let out = parse_channels_csv(Some(" twitter, reddit ,YOUTUBE "));
+        assert_eq!(
+            out,
+            Some(vec![
+                "twitter".to_string(),
+                "reddit".to_string(),
+                "youtube".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn filter_channels_keeps_only_allowed() {
+        let item = sample_item();
+        let allowed = vec!["twitter".to_string()];
+        let out = filter_channels(item, Some(allowed.as_slice()));
+        assert!(!out.syndication.rss);
+        assert!(out.syndication.twitter.is_some());
+    }
+}

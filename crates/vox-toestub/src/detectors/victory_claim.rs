@@ -1,7 +1,7 @@
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use regex::Regex;
 
-/// Detects suspicious "victory claim" comments near stub or incomplete code.
+/// Detects suspicious "victory claim" comments near incomplete or provisional code.
 ///
 /// AI agents love to say "Done!", "Complete!", "All set!" in comments right next
 /// to code that is clearly not finished. This detector finds those patterns.

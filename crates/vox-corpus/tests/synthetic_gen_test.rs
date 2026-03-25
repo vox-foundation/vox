@@ -3,6 +3,7 @@
 #![allow(missing_docs)]
 
 use tempfile::NamedTempFile;
+use vox_corpus::bounded_fs::read_utf8_path_capped;
 use vox_corpus::corpus::coverage::analyse_str_with_taxonomy;
 use vox_corpus::synthetic_gen::{
     A2A_MESSAGE_TYPES, ORCHESTRATOR_TOOLS, SKILL_TOOLS, SyntheticGenConfig, TOOL_REGISTRY_SLIM,
@@ -16,7 +17,7 @@ fn default_cfg() -> SyntheticGenConfig {
 fn run_to_string(cfg: &SyntheticGenConfig) -> String {
     let tmp = NamedTempFile::new().unwrap();
     generate_all(cfg, tmp.path()).unwrap();
-    std::fs::read_to_string(tmp.path()).unwrap()
+    read_utf8_path_capped(tmp.path()).unwrap()
 }
 
 #[test]
@@ -149,7 +150,7 @@ fn min_phrasings_produces_at_least_that_many_pairs_per_tool() {
     };
     let tmp = NamedTempFile::new().unwrap();
     generate_all(&cfg, tmp.path()).unwrap();
-    let out = std::fs::read_to_string(tmp.path()).unwrap();
+    let out = read_utf8_path_capped(tmp.path()).unwrap();
     let count = out
         .lines()
         .filter(|l| l.contains("vox_submit_task"))

@@ -1,8 +1,9 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
 
 pub(super) async fn run_generate(
     output: std::path::PathBuf,
@@ -82,7 +83,7 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
     let output_owned = output.to_path_buf();
     let existing_hashes: std::collections::HashSet<String> = if output_owned.exists() {
         let p = output_owned.clone();
-        let content = match tokio::task::spawn_blocking(move || std::fs::read_to_string(&p)).await {
+        let content = match tokio::task::spawn_blocking(move || read_utf8_path_capped(&p)).await {
             Ok(Ok(s)) => s,
             Ok(Err(_)) | Err(_) => String::new(),
         };
@@ -209,11 +210,11 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
 }
 
 pub(super) async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Result<()> {
-    if !input.exists() {
+    if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
 
-    let content = std::fs::read_to_string(input)?;
+    let content = read_utf8_path_capped_async(input).await?;
     let mut all_pairs: Vec<serde_json::Value> = Vec::new();
     let mut pair_hashes: HashSet<String> = HashSet::new();
 
@@ -300,9 +301,11 @@ pub(super) async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Pat
         }
     }
 
-    // Extract documentation pairs
     if let Some(docs) = docs_dir {
-        let doc_pairs = extract_doc_pairs(docs);
+        let docs = docs.to_path_buf();
+        let doc_pairs = tokio::task::spawn_blocking(move || extract_doc_pairs(&docs))
+            .await
+            .map_err(|e| anyhow::anyhow!("extract_doc_pairs join: {e}"))?;
         println!("  Extracted {} pairs from documentation", doc_pairs.len());
         all_pairs.extend(doc_pairs);
     }
@@ -316,14 +319,15 @@ pub(super) async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Pat
         diff_a.cmp(&diff_b)
     });
 
-    // Write output
     if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
-    let mut f = std::fs::File::create(output)?;
+    let mut body = String::new();
     for pair in &all_pairs {
-        writeln!(f, "{}", serde_json::to_string(pair)?)?;
+        body.push_str(&serde_json::to_string(pair)?);
+        body.push('\n');
     }
+    tokio::fs::write(output, body).await?;
 
     // Stats
     let mut cats: HashMap<String, u32> = HashMap::new();
@@ -364,7 +368,7 @@ pub(super) async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Pat
         "generated_by": "vox corpus pairs",
         "compiler_version": env!("CARGO_PKG_VERSION"),
     });
-    std::fs::write(&meta_path, serde_json::to_string_pretty(&meta)?)?;
+    tokio::fs::write(&meta_path, serde_json::to_string_pretty(&meta)?).await?;
 
     println!(
         "\n✓ Wrote {} pairs to {} (curriculum-ordered)",
@@ -405,7 +409,7 @@ fn extract_doc_pairs(docs_dir: &Path) -> Vec<serde_json::Value> {
     let entries = walk_md_files(docs_dir);
 
     for md_file in &entries {
-        let content = match std::fs::read_to_string(md_file) {
+        let content = match read_utf8_path_capped(md_file) {
             Ok(c) => c,
             Err(_) => continue,
         };
@@ -457,13 +461,13 @@ fn extract_doc_pairs(docs_dir: &Path) -> Vec<serde_json::Value> {
     pairs
 }
 
-pub(super) fn run_prompt(output: &Path) -> Result<()> {
+pub(super) async fn run_prompt(output: &Path) -> Result<()> {
     let prompt = crate::training::generate_system_prompt();
 
     if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
-    std::fs::write(output, &prompt)?;
+    tokio::fs::write(output, &prompt).await?;
 
     println!("✓ System prompt written to {}", output.display());
     println!(

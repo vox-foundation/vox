@@ -13,6 +13,14 @@ pub fn store_secret(service: &str, account: &str, secret: &str) -> Result<(), St
         .map_err(|err| StoreError::Db(format!("keyring set_password: {err}")))
 }
 
+/// Read a secret from the OS keyring (`service` / `account` namespace).
+pub fn get_secret(service: &str, account: &str) -> Result<String, StoreError> {
+    let e = keyring::Entry::new(service, account)
+        .map_err(|err| StoreError::Db(format!("keyring entry: {err}")))?;
+    e.get_password()
+        .map_err(|err| StoreError::Db(format!("keyring get_password: {err}")))
+}
+
 /// Remove a secret from the OS keyring.
 pub fn delete_secret(service: &str, account: &str) -> Result<(), StoreError> {
     let e = keyring::Entry::new(service, account)

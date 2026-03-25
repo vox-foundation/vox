@@ -64,6 +64,8 @@ struct IndexedDocument {
 /// Search engine combining local file BM25 and DB vector search.
 pub struct MemorySearchEngine {
     docs: Vec<IndexedDocument>,
+    /// Path (as indexed) → position in `docs` for O(1) lookup during hybrid merge.
+    doc_index_by_path: HashMap<String, usize>,
     avg_doc_len: f64,
     df: HashMap<String, usize>, // Document frequency
     total_docs: usize,
@@ -82,6 +84,7 @@ impl MemorySearchEngine {
     pub fn new() -> Self {
         Self {
             docs: Vec::new(),
+            doc_index_by_path: HashMap::new(),
             avg_doc_len: 0.0,
             df: HashMap::new(),
             total_docs: 0,
@@ -114,7 +117,7 @@ impl MemorySearchEngine {
 
     /// Index a single file.
     pub fn index_file(&mut self, path: &Path) {
-        let content = match fs::read_to_string(path) {
+        let content = match crate::bounded_fs::read_utf8_path_capped(path) {
             Ok(c) => c,
             Err(_) => return,
         };
@@ -155,10 +158,17 @@ impl MemorySearchEngine {
     fn recompute_stats(&mut self) {
         if self.total_docs == 0 {
             self.avg_doc_len = 0.0;
+            self.doc_index_by_path.clear();
             return;
         }
         let total_len: usize = self.docs.iter().map(|d| d.length).sum();
         self.avg_doc_len = total_len as f64 / self.total_docs as f64;
+        self.doc_index_by_path = self
+            .docs
+            .iter()
+            .enumerate()
+            .map(|(i, d)| (d.path.clone(), i))
+            .collect();
     }
 
     fn idf(&self, term: &str) -> f64 {
@@ -233,7 +243,8 @@ impl MemorySearchEngine {
         query_tokens: &[String],
     ) -> HybridSearchHit {
         let path = r.chunk_id.clone();
-        let (title, snippet) = if let Some(doc) = self.docs.iter().find(|d| d.path == r.chunk_id) {
+        let (title, snippet) = if let Some(&idx) = self.doc_index_by_path.get(&r.chunk_id) {
+            let doc = &self.docs[idx];
             let sn = if r.snippet.is_empty() {
                 Self::extract_snippet(&doc.content, query_tokens)
             } else {

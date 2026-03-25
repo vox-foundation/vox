@@ -38,6 +38,15 @@ pub async fn run(args: Args) -> Result<()> {
         qlora_max_skip_rate,
         qlora_proxy_max_layers,
         qlora_ce_last_k,
+        base_model_family,
+        upstream_model_id,
+        license_class,
+        attribution_required,
+        trajectory_weighting_enabled,
+        trajectory_tool_trace_boost,
+        trajectory_failure_category_boost,
+        trajectory_quality_floor,
+        trajectory_quality_boost,
     } = args.cmd
     else {
         unreachable!()
@@ -79,6 +88,26 @@ pub async fn run(args: Args) -> Result<()> {
     }
     if qlora_require_full_proxy_stack && qlora_lm_head_only {
         anyhow::bail!("--qlora-require-full-proxy-stack conflicts with --qlora-lm-head-only");
+    }
+    if !trajectory_tool_trace_boost.is_finite() || trajectory_tool_trace_boost < 0.0 {
+        anyhow::bail!(
+            "--trajectory-tool-trace-boost must be finite and non-negative (got {trajectory_tool_trace_boost})"
+        );
+    }
+    if !trajectory_failure_category_boost.is_finite() || trajectory_failure_category_boost < 0.0 {
+        anyhow::bail!(
+            "--trajectory-failure-category-boost must be finite and non-negative (got {trajectory_failure_category_boost})"
+        );
+    }
+    if !trajectory_quality_boost.is_finite() || trajectory_quality_boost < 0.0 {
+        anyhow::bail!(
+            "--trajectory-quality-boost must be finite and non-negative (got {trajectory_quality_boost})"
+        );
+    }
+    if let Some(q) = trajectory_quality_floor
+        && !(1..=5).contains(&q)
+    {
+        anyhow::bail!("--trajectory-quality-floor must be between 1 and 5 (got {q})");
     }
 
     // ── Device / VRAM diagnostics ─────────────────────────────────────────────
@@ -244,6 +273,10 @@ pub async fn run(args: Args) -> Result<()> {
 
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
+        base_model_family,
+        upstream_model_id,
+        license_class,
+        attribution_required,
         base_model_paths,
         tokenizer_path,
         train_file: Some(resolved.path),
@@ -277,6 +310,12 @@ pub async fn run(args: Args) -> Result<()> {
         deployment_target: vox_populi::mens::TrainingDeploymentTarget::Workstation,
         validation_split_ratio: Some(0.05),
         curriculum: false,
+        optimizer_experiment_mode: vox_populi::mens::tensor::training_config::OptimizerExperimentMode::Off,
+        trajectory_weighting_enabled,
+        trajectory_tool_trace_boost,
+        trajectory_failure_category_boost,
+        trajectory_quality_floor,
+        trajectory_quality_boost,
         require_gpu: false,
         allow_cpu_fallback: true,
     };

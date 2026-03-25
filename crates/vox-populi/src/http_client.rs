@@ -62,9 +62,14 @@ impl PopuliHttpClient {
     /// If **`VOX_MESH_TOKEN`** is set and non-empty, same as [`Self::with_bearer`] with that value.
     #[must_use]
     pub fn with_env_token(self) -> Self {
-        match std::env::var("VOX_MESH_TOKEN") {
-            Ok(t) if !t.trim().is_empty() => self.with_bearer(t),
-            _ => self,
+        if let Some(token) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+            .expose()
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+        {
+            self.with_bearer(token.to_string())
+        } else {
+            self
         }
     }
 

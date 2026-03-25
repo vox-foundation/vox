@@ -12,6 +12,7 @@ pub mod hir;
 pub mod lexer;
 pub mod parser;
 pub mod react_bridge;
+pub mod serialization;
 pub mod ssg;
 pub mod typeck;
 pub mod web_prefixes;
@@ -23,3 +24,5 @@ pub use typeck::checker::Checker;
 
 /// Re-export the canonical formatter so callers use `vox_compiler::format(src)`.
 pub use fmt::format;
+/// Re-export canonical compact serializer for deterministic `.vox` output.
+pub use serialization::canonicalize_vox;

@@ -22,6 +22,9 @@ pub struct PopuliAdapterManifestV3 {
     pub d_model: usize,
     pub rank: usize,
     pub alpha: usize,
+    /// Optional lineage metadata preserved with exported adapters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<AdapterProvenanceFields>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +37,18 @@ pub struct QuantFields {
     pub base_quant: BaseQuantMode,
     #[serde(default = "default_true")]
     pub double_quant: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AdapterProvenanceFields {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_model_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license_class: Option<String>,
+    #[serde(default)]
+    pub attribution_required: bool,
 }
 
 fn default_true() -> bool {
@@ -55,6 +70,7 @@ impl PopuliAdapterManifestV3 {
         d_model: usize,
         rank: usize,
         alpha: usize,
+        provenance: Option<AdapterProvenanceFields>,
     ) -> Self {
         Self {
             format: Self::FORMAT.to_string(),
@@ -72,6 +88,7 @@ impl PopuliAdapterManifestV3 {
             d_model,
             rank,
             alpha,
+            provenance,
         }
     }
 }
@@ -114,6 +131,7 @@ pub fn from_qlora_meta_v2(
         v2.d_model,
         v2.rank,
         v2.alpha,
+        None,
     )
 }
 
@@ -138,6 +156,7 @@ mod tests {
             32,
             4,
             8,
+            None,
         );
         let json = serde_json::to_string(&m).expect("ser");
         let back: PopuliAdapterManifestV3 = serde_json::from_str(&json).expect("de");
@@ -161,10 +180,38 @@ mod tests {
             8,
             4,
             8,
+            None,
         );
         m.quant.double_quant = false;
         let json = serde_json::to_string(&m).expect("ser");
         let back: PopuliAdapterManifestV3 = serde_json::from_str(&json).expect("de");
         assert!(!back.quant.double_quant);
+    }
+
+    #[test]
+    fn v3_provenance_roundtrips() {
+        let mut map = HashMap::new();
+        map.insert("lm_head".into(), "wte.weight".into());
+        let provenance = AdapterProvenanceFields {
+            base_family: Some("kimi-k2.5".into()),
+            upstream_model_id: Some("moonshotai/Kimi-K2.5".into()),
+            license_class: Some("modified-mit".into()),
+            attribution_required: true,
+        };
+        let m = PopuliAdapterManifestV3::new(
+            AdapterMethod::Qlora,
+            BaseQuantMode::Nf4,
+            true,
+            map,
+            vec!["lm_head".into()],
+            10,
+            8,
+            4,
+            8,
+            Some(provenance.clone()),
+        );
+        let json = serde_json::to_string(&m).expect("ser");
+        let back: PopuliAdapterManifestV3 = serde_json::from_str(&json).expect("de");
+        assert_eq!(back.provenance, Some(provenance));
     }
 }

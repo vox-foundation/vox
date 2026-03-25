@@ -95,16 +95,16 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
         });
     }
 
-    if let Some(raw) = manifest.metadata_json.as_deref() {
-        if !raw.trim().is_empty() {
-            match serde_json::from_str::<serde_json::Value>(raw) {
-                Ok(_) => {}
-                Err(e) => findings.push(PreflightFinding {
-                    code: "metadata_json_invalid",
-                    severity: PreflightSeverity::Error,
-                    message: format!("metadata_json is not valid JSON: {e}"),
-                }),
-            }
+    if let Some(raw) = manifest.metadata_json.as_deref()
+        && !raw.trim().is_empty()
+    {
+        match serde_json::from_str::<serde_json::Value>(raw) {
+            Ok(_) => {}
+            Err(e) => findings.push(PreflightFinding {
+                code: "metadata_json_invalid",
+                severity: PreflightSeverity::Error,
+                message: format!("metadata_json is not valid JSON: {e}"),
+            }),
         }
     }
 
@@ -136,7 +136,7 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
             if sci
                 .license_spdx
                 .as_ref()
-                .map_or(true, |s| s.trim().is_empty())
+                .is_none_or(|s| s.trim().is_empty())
             {
                 findings.push(PreflightFinding {
                     code: "license_missing",
@@ -144,16 +144,16 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
                     message: "scientific_publication.license_spdx is unset (recommended for self-archiving and journals)".to_string(),
                 });
             }
-            let repro_empty = sci.reproducibility.as_ref().map_or(true, |r| {
+            let repro_empty = sci.reproducibility.as_ref().is_none_or(|r| {
                 r.code_repository_url
                     .as_ref()
-                    .map_or(true, |s| s.trim().is_empty())
+                    .is_none_or(|s| s.trim().is_empty())
                     && r.data_repository_url
                         .as_ref()
-                        .map_or(true, |s| s.trim().is_empty())
+                        .is_none_or(|s| s.trim().is_empty())
                     && r.artifact_checksum_note
                         .as_ref()
-                        .map_or(true, |s| s.trim().is_empty())
+                        .is_none_or(|s| s.trim().is_empty())
             });
             if repro_empty {
                 findings.push(PreflightFinding {
@@ -182,7 +182,7 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
     if manifest
         .abstract_text
         .as_deref()
-        .map_or(true, |s| s.trim().is_empty())
+        .is_none_or(|s| s.trim().is_empty())
     {
         findings.push(PreflightFinding {
             code: "abstract_missing",

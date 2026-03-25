@@ -71,7 +71,13 @@ OUTPUT RULES:
         Ok(pair) => pair,
         Err(e) => return ToolResult::<String>::err(e).to_json(),
     };
-    let pref = state.mcp_chat_model_override.read().unwrap().clone();
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
     let max_tokens = clamp_http_max_output_tokens(model.max_tokens);
     let temperature = 0.3_f32;
     let routing = McpInferRouting {

@@ -1,5 +1,6 @@
-use std::fs;
 use std::path::Path;
+
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 use super::docs_sync::{ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::mcp_wiring::{check_mcp_tool_wiring, extract_mcp_handler_tools};
@@ -83,10 +84,10 @@ fn mcp_extract_matches_workspace_vox_mcp_mod_rs() {
         .and_then(|p| p.parent())
         .expect("vox-cli lives at crates/vox-cli");
     let base = repo_root.join("crates/vox-mcp/src/tools");
-    let mcp_mod = fs::read_to_string(base.join("mod.rs")).expect("read vox-mcp tools/mod.rs");
-    let dispatch =
-        fs::read_to_string(base.join("dispatch.rs")).expect("read vox-mcp tools/dispatch.rs");
-    let aliases = fs::read_to_string(base.join("tool_aliases.rs"))
+    let mcp_mod = read_utf8_path_capped(&base.join("mod.rs")).expect("read vox-mcp tools/mod.rs");
+    let dispatch = read_utf8_path_capped(&base.join("dispatch.rs"))
+        .expect("read vox-mcp tools/dispatch.rs");
+    let aliases = read_utf8_path_capped(&base.join("tool_aliases.rs"))
         .expect("read vox-mcp tools/tool_aliases.rs");
     let reg = extract_mcp_registry_tool_names(repo_root).expect("registry tools");
     let han = extract_mcp_handler_tools(&dispatch).expect("handler tools");

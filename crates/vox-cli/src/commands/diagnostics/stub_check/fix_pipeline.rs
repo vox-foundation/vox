@@ -2,11 +2,12 @@
 
 use std::path::Path;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use vox_toestub::Finding;
 
 /// Verify frontmatter parses and body is unchanged; restore original on failure.
 fn verify_and_restore_on_failure(full: &Path, original: &str, op: &str) -> anyhow::Result<()> {
-    let written = std::fs::read_to_string(full)?;
+    let written = read_utf8_path_capped(full)?;
     let (_, body) = parse_frontmatter(&written);
     let (_, orig_body) = parse_frontmatter(original);
     if body.trim_start() != orig_body.trim_start() {
@@ -84,7 +85,7 @@ pub(crate) fn run_fix_pipeline(
             if seen.insert(path_str.to_string()) {
                 let full = root.join(&f.file);
                 if full.exists() && apply_pass_a {
-                    let content = std::fs::read_to_string(&full)?;
+                    let content = read_utf8_path_capped(&full)?;
                     let trimmed = content.trim_start();
                     if !trimmed.starts_with("---") {
                         let title = f

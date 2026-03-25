@@ -42,6 +42,15 @@ pub async fn run_train(
     force_restart: bool,
     require_gpu: bool,
     allow_cpu_fallback: bool,
+    base_model_family: Option<String>,
+    upstream_model_id: Option<String>,
+    license_class: Option<String>,
+    attribution_required: bool,
+    trajectory_weighting_enabled: bool,
+    trajectory_tool_trace_boost: f32,
+    trajectory_failure_category_boost: f32,
+    trajectory_quality_floor: Option<u8>,
+    trajectory_quality_boost: f32,
     cloud: String,
     _max_budget: Option<f64>,
     _train_data_hf: Option<String>,
@@ -49,6 +58,7 @@ pub async fn run_train(
     _max_runtime_secs: Option<u64>,
     validation_split_ratio: f64,
     curriculum: bool,
+    optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
@@ -231,8 +241,18 @@ pub async fn run_train(
         checkpoint_every,
         force_restart,
         curriculum,
+        optimizer_experiment_mode,
         require_gpu,
         allow_cpu_fallback,
+        base_model_family,
+        upstream_model_id,
+        license_class,
+        attribution_required,
+        trajectory_weighting_enabled,
+        trajectory_tool_trace_boost,
+        trajectory_failure_category_boost,
+        trajectory_quality_floor,
+        trajectory_quality_boost,
     )
     .await
 }

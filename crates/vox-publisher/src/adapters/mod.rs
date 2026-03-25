@@ -1,4 +1,9 @@
 pub mod github;
+pub mod hacker_news;
 pub mod opencollective;
+#[cfg(feature = "scientia-reddit")]
+pub mod reddit;
 pub mod rss;
 pub mod twitter;
+#[cfg(feature = "scientia-youtube")]
+pub mod youtube;

@@ -11,8 +11,8 @@ use crate::rules::{Finding, Language, Severity, SourceFile};
 
 pub(super) fn recent_line_starts_for_loop(lines: &[String], idx: usize, window: usize) -> bool {
     let start = idx.saturating_sub(window);
-    for prev in start..idx {
-        let t = lines[prev].trim_start();
+    for line in lines.iter().take(idx).skip(start) {
+        let t = line.trim_start();
         if t.starts_with("//") {
             continue;
         }
@@ -75,9 +75,8 @@ pub(super) fn env_unwrap_or_duplicate_findings(file: &SourceFile, re: &Regex) ->
                 file: file.path.clone(),
                 line: ln,
                 column: 0,
-                message: format!(
-                    "Same `unwrap_or(\"…\")` default repeated on multiple `std::env::var` lines — centralize (const / policy / SSOT)"
-                ),
+                message: "Same `unwrap_or(\"…\")` default repeated on multiple `std::env::var` lines — centralize (const / policy / SSOT)"
+                    .to_string(),
                 suggestion: Some(format!("Literal default appears {}×: `{lit}`", lines.len())),
                 context: file.context_around(ln, 1),
             });
@@ -142,55 +141,57 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
     }
 
     fn visit_item(&mut self, node: &'ast Item) {
-        if let Item::Fn(f) = node {
-            if !is_test_fn(&f.attrs) {
-                let was = self.in_async;
-                self.in_async = f.sig.asyncness.is_some();
-                visit::visit_item_fn(self, f);
-                self.in_async = was;
-                return;
-            }
+        if let Item::Fn(f) = node
+            && !is_test_fn(&f.attrs)
+        {
+            let was = self.in_async;
+            self.in_async = f.sig.asyncness.is_some();
+            visit::visit_item_fn(self, f);
+            self.in_async = was;
+            return;
         }
         visit::visit_item(self, node);
     }
 
     fn visit_expr(&mut self, node: &'ast Expr) {
-        if self.in_async && !self.crate_allow_blocking_fs && !self.in_test_module {
-            if let Expr::Call(call) = node {
-                if call_looks_like_std_fs_blocking(&call.func) {
-                    let span = call.span();
-                    let line = span.start().line;
-                    self.findings.push(Finding {
-                        rule_id: "scaling/blocking-in-async".to_string(),
-                        rule_name: "Scaling — blocking fs in async".to_string(),
-                        severity: Severity::Info,
-                        file: self.file.path.clone(),
-                        line,
-                        column: span.start().column,
-                        message: "`std::fs` (or known blocking) call inside `async` — use `tokio::fs` or offload via `spawn_blocking`"
+        if self.in_async
+            && !self.crate_allow_blocking_fs
+            && !self.in_test_module
+            && let Expr::Call(call) = node
+        {
+            if call_looks_like_std_fs_blocking(&call.func) {
+                let span = call.span();
+                let line = span.start().line;
+                self.findings.push(Finding {
+                    rule_id: "scaling/blocking-in-async".to_string(),
+                    rule_name: "Scaling — blocking fs in async".to_string(),
+                    severity: Severity::Info,
+                    file: self.file.path.clone(),
+                    line,
+                    column: span.start().column,
+                    message: "`std::fs` (or known blocking) call inside `async` — use `tokio::fs` or offload via `spawn_blocking`"
+                        .to_string(),
+                    suggestion: Some(
+                        "Policy: `contracts/scaling/policy.yaml` per-crate overrides if intentional."
                             .to_string(),
-                        suggestion: Some(
-                            "Policy: `contracts/scaling/policy.yaml` per-crate overrides if intentional."
-                                .to_string(),
-                        ),
-                        context: self.file.context_around(line, 2),
-                    });
-                }
-                if call_looks_like_thread_sleep(&call.func) {
-                    let span = call.span();
-                    let line = span.start().line;
-                    self.findings.push(Finding {
-                        rule_id: "scaling/thread-sleep-async".to_string(),
-                        rule_name: "Scaling — thread sleep".to_string(),
-                        severity: Severity::Info,
-                        file: self.file.path.clone(),
-                        line,
-                        column: span.start().column,
-                        message: "`thread::sleep` in async context blocks the executor".to_string(),
-                        suggestion: Some("`tokio::time::sleep` or structured backoff".to_string()),
-                        context: self.file.context_around(line, 2),
-                    });
-                }
+                    ),
+                    context: self.file.context_around(line, 2),
+                });
+            }
+            if call_looks_like_thread_sleep(&call.func) {
+                let span = call.span();
+                let line = span.start().line;
+                self.findings.push(Finding {
+                    rule_id: "scaling/thread-sleep-async".to_string(),
+                    rule_name: "Scaling — thread sleep".to_string(),
+                    severity: Severity::Info,
+                    file: self.file.path.clone(),
+                    line,
+                    column: span.start().column,
+                    message: "`thread::sleep` in async context blocks the executor".to_string(),
+                    suggestion: Some("`tokio::time::sleep` or structured backoff".to_string()),
+                    context: self.file.context_around(line, 2),
+                });
             }
         }
         visit::visit_expr(self, node);

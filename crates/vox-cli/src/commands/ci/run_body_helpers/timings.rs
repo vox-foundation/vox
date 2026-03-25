@@ -1,10 +1,10 @@
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
-use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
+use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::{cargo_bin, nvcc_available};
 
 #[derive(serde::Serialize)]
@@ -24,7 +24,7 @@ struct BuildTimingBudgetsFile {
 
 fn load_build_timing_budgets(root: &Path) -> Result<std::collections::HashMap<String, u128>> {
     let p = root.join("docs/ci/build-timings/budgets.json");
-    let raw = fs::read_to_string(&p)
+    let raw = read_utf8_path_capped(&p)
         .with_context(|| format!("read build timing budgets {}", p.display()))?;
     let parsed: BuildTimingBudgetsFile =
         serde_json::from_str(&raw).context("parse docs/ci/build-timings/budgets.json")?;

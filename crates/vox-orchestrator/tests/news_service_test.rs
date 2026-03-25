@@ -88,3 +88,39 @@ async fn news_tick_publishes_when_armed_and_digest_has_dual_approval() {
     let published = db.is_news_published(id).await.expect("query");
     assert!(published);
 }
+
+#[tokio::test]
+async fn news_tick_blocks_when_worthiness_enforced_and_below_floor() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let news_dir = tmp.path().join("news");
+    fs::create_dir_all(&news_dir).expect("mkdir");
+    let id = "2026-03-25-worthiness-block";
+    let path = write_news_file(&news_dir, id);
+    let feed_path = tmp.path().join("feed.xml");
+
+    let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
+    let content = fs::read_to_string(path).expect("read");
+    let item = UnifiedNewsItem::parse(&content, id).expect("parse");
+    let digest = item.content_sha3_256();
+    db.record_news_approval_for_digest(id, &digest, "alice")
+        .await
+        .expect("approve alice");
+    db.record_news_approval_for_digest(id, &digest, "bob")
+        .await
+        .expect("approve bob");
+    db.record_publication_approval_for_digest(id, &digest, "alice")
+        .await
+        .expect("approve publication alice");
+    db.record_publication_approval_for_digest(id, &digest, "bob")
+        .await
+        .expect("approve publication bob");
+
+    let mut cfg = build_config(&news_dir, &feed_path, true);
+    cfg.news.worthiness_enforce = true;
+    cfg.news.worthiness_score_min = Some(0.99);
+    let orch = Orchestrator::new(cfg).with_db(db.clone());
+    NewsService::tick(&orch).await.expect("tick");
+
+    let published = db.is_news_published(id).await.expect("query");
+    assert!(!published);
+}
