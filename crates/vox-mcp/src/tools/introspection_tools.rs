@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::path::PathBuf;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::lexer::token::Token;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 
 /// `vox_language_surface` — returns all primary keywords, decorators, and builtins.
 pub fn language_surface() -> Value {

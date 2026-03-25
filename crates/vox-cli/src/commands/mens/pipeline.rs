@@ -1,7 +1,7 @@
+use super::{PipelineProgress, PipelineStage};
 use anyhow::Result;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use super::{PipelineProgress, PipelineStage};
 
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
@@ -30,7 +30,7 @@ pub async fn run(
     }
 
     let run_id = vox_corpus::training::timestamp_string();
-    
+
     let all_possible_stages = [
         PipelineStage::Generate,
         PipelineStage::Extract,
@@ -83,9 +83,7 @@ pub async fn run(
         std::fs::create_dir_all("mens/data/mix_sources")?;
     }
 
-    let mut completed_stages = 0;
-
-    for stage in planned_stages {
+    for (completed_stages, stage) in planned_stages.into_iter().enumerate() {
         let progress = PipelineProgress {
             run_id: run_id.clone(),
             current_stage: stage,
@@ -93,12 +91,12 @@ pub async fn run(
             completed_stages,
             progress_pct: (completed_stages as f64 / total_stages as f64) * 100.0,
         };
-        
+
         // Report progress to telemetry/logs
         tracing::info!(
             stage = stage.as_str(),
             progress = %format!("{:.0}%", progress.progress_pct),
-            "--- Pipeline Stage: {} ---", 
+            "--- Pipeline Stage: {} ---",
             stage.as_str().to_uppercase()
         );
 
@@ -118,30 +116,36 @@ pub async fn run(
                     // Extract from .vox examples
                     let examples_dir = PathBuf::from("examples");
                     if examples_dir.is_dir() {
-                        let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
-                            dir: examples_dir,
-                            output: validated.clone(),
-                        })
+                        let _ = crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::Extract {
+                                dir: examples_dir,
+                                output: validated.clone(),
+                            },
+                        )
                         .await;
                     }
-                    
+
                     // Extract from Rust source
                     let crates_dir = PathBuf::from("crates");
                     if crates_dir.is_dir() {
-                        let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::ExtractRs {
-                            dir: crates_dir,
-                            output: PathBuf::from("mens/data/mix_sources/rust_source.jsonl"),
-                        })
+                        let _ = crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::ExtractRs {
+                                dir: crates_dir,
+                                output: PathBuf::from("mens/data/mix_sources/rust_source.jsonl"),
+                            },
+                        )
                         .await;
                     }
 
                     // Extract from documentation
                     let docs_dir = PathBuf::from("docs/src");
                     if docs_dir.is_dir() {
-                        let _ = crate::commands::corpus::run(crate::commands::corpus::CorpusAction::ExtractDocs {
-                            dir: docs_dir,
-                            output: PathBuf::from("mens/data/mix_sources/docs.jsonl"),
-                        })
+                        let _ = crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::ExtractDocs {
+                                dir: docs_dir,
+                                output: PathBuf::from("mens/data/mix_sources/docs.jsonl"),
+                            },
+                        )
                         .await;
                     }
                 }
@@ -149,11 +153,13 @@ pub async fn run(
             PipelineStage::Validate => {
                 if !dry_run {
                     if validated.is_file() {
-                        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
-                            input: validated.clone(),
-                            output: Some(validated.clone()),
-                            no_recheck: true,
-                        })
+                        crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::Validate {
+                                input: validated.clone(),
+                                output: Some(validated.clone()),
+                                no_recheck: true,
+                            },
+                        )
                         .await?;
                     }
                 }
@@ -172,11 +178,13 @@ pub async fn run(
             PipelineStage::Pairs => {
                 if !dry_run {
                     if validated.is_file() {
-                        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
-                            input: validated.clone(),
-                            output: train_jsonl.clone(),
-                            docs: Some(PathBuf::from("docs/src")),
-                        })
+                        crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::Pairs {
+                                input: validated.clone(),
+                                output: train_jsonl.clone(),
+                                docs: Some(PathBuf::from("docs/src")),
+                            },
+                        )
                         .await?;
                     }
                 }
@@ -209,7 +217,9 @@ pub async fn run(
                     #[cfg(feature = "gpu")]
                     {
                         let device = device.clone().unwrap_or_else(|| "best".into());
-                        let target_model = model.clone().unwrap_or_else(|| "Qwen/Qwen2.5-Coder-3B-Instruct".into());
+                        let target_model = model
+                            .clone()
+                            .unwrap_or_else(|| "Qwen/Qwen2.5-Coder-3B-Instruct".into());
                         let target_preset = preset.clone().or_else(|| Some("qwen_4080_16g".into()));
 
                         // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
@@ -231,24 +241,24 @@ pub async fn run(
                             device,
                             data_dir.clone(),
                             output_dir.clone(),
-                            None,  // rank (auto from preset)
-                            None,  // alpha
-                            None,  // seq_len
-                            None,  // batch_size
-                            None,  // grad_accum
-                            None,  // resume
+                            None, // rank (auto from preset)
+                            None, // alpha
+                            None, // seq_len
+                            None, // batch_size
+                            None, // grad_accum
+                            None, // resume
                             epochs,
-                            None,  // lr
-                            None,  // warmup
-                            42,    // seed
-                            None,  // min_rating
+                            None, // lr
+                            None, // warmup
+                            42,   // seed
+                            None, // min_rating
                             target_preset,
                             vox_mens::TrainingDeploymentTarget::Workstation,
                             "normal".into(),
-                            None,  // vram_limit_fraction
-                            None,  // adapter_tag
-                            None,  // context_filter
-                            None,  // validation_split_ratio (use default 5%)
+                            None, // vram_limit_fraction
+                            None, // adapter_tag
+                            None, // context_filter
+                            None, // validation_split_ratio (use default 5%)
                             crate::commands::mens::MensTokenizerCli::Hf.into(),
                             false, // qlora_no_double_quant
                             false, // qlora_require_full_proxy_stack
@@ -261,7 +271,8 @@ pub async fn run(
                             curriculum,
                             false, // require_gpu
                             true,  // allow_cpu_fallback
-                        ).await?;
+                        )
+                        .await?;
                     }
 
                     #[cfg(not(feature = "gpu"))]
@@ -273,8 +284,6 @@ pub async fn run(
                 }
             }
         }
-        
-        completed_stages += 1;
     }
 
     tracing::info!(

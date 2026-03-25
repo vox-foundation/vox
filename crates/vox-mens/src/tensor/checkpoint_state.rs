@@ -168,7 +168,7 @@ mod tests {
             shuffled_indices: vec![4, 1, 3, 2, 0],
             rng_seed: 42,
             adapter_path: "/tmp/adapter.safetensors".to_string(),
-            last_loss: 3.14,
+            last_loss: 1.25,
             wall_seconds_elapsed: 120.5,
             saved_at_utc: CheckpointState::now_utc(),
         };

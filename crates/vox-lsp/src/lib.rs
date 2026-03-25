@@ -7,7 +7,7 @@ use vox_compiler::ast::decl::Decl;
 use vox_compiler::ast::expr::Expr;
 use vox_compiler::ast::stmt::Stmt;
 use vox_compiler::lexer::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_ast_module;
 

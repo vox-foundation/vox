@@ -71,7 +71,7 @@ fn b090_vox_init_creates_expected_scaffold() {
 fn b091_vox_build_invalid_file_produces_error() {
     let invalid_src = "fn broken((\n    ret 0\n";
     let tokens = vox_compiler::lexer::cursor::lex(invalid_src);
-    let result = vox_compiler::parser::parser::parse(tokens);
+    let result = vox_compiler::parser::parse(tokens);
     assert!(result.is_err(), "Parsing invalid syntax should return Err");
     let errors = result.unwrap_err();
     assert!(!errors.is_empty(), "Should have at least one parse error");
@@ -99,7 +99,7 @@ routes {
 }
 "#;
     let tokens = vox_compiler::lexer::lex(chatbot_src);
-    let result = vox_compiler::parser::parser::parse(tokens);
+    let result = vox_compiler::parser::parse(tokens);
     assert!(
         result.is_ok(),
         "Chatbot template should parse cleanly; errors: {:?}",
@@ -128,7 +128,7 @@ routes {
 }
 "#;
     let tokens = vox_compiler::lexer::lex(dashboard_src);
-    let result = vox_compiler::parser::parser::parse(tokens);
+    let result = vox_compiler::parser::parse(tokens);
     assert!(
         result.is_ok(),
         "Dashboard template should parse cleanly; errors: {:?}",
@@ -155,7 +155,7 @@ http post "/items" to str {
 }
 "#;
     let tokens = vox_compiler::lexer::lex(api_src);
-    let result = vox_compiler::parser::parser::parse(tokens);
+    let result = vox_compiler::parser::parse(tokens);
     assert!(
         result.is_ok(),
         "API template should parse cleanly; errors: {:?}",

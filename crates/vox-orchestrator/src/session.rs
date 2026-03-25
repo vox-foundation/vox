@@ -331,28 +331,14 @@ fn run_session_db_io(
     use tokio::runtime::Handle;
     use tokio::task::block_in_place;
     match Handle::try_current() {
-        Ok(handle) => block_in_place(|| handle.block_on(fut)).map_err(|e| {
-            SessionError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        }),
+        Ok(handle) => block_in_place(|| handle.block_on(fut))
+            .map_err(|e| SessionError::Io(std::io::Error::other(e.to_string()))),
         Err(_) => tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .map_err(|e| {
-                SessionError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("tokio runtime: {e}"),
-                ))
-            })?
+            .map_err(|e| SessionError::Io(std::io::Error::other(format!("tokio runtime: {e}"))))?
             .block_on(fut)
-            .map_err(|e| {
-                SessionError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    e.to_string(),
-                ))
-            }),
+            .map_err(|e| SessionError::Io(std::io::Error::other(e.to_string()))),
     }
 }
 
@@ -413,7 +399,8 @@ impl SessionManager {
             let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
             let meta = format!("{{\"agent_id\":\"{aid_str}\",\"state\":\"active\"}}");
             run_session_db_io(async move {
-                db.create_session(&sid, &aid_str, Some(meta.as_str())).await?;
+                db.create_session(&sid, &aid_str, Some(meta.as_str()))
+                    .await?;
                 db.append_session_event(&sid, "created", &payload).await?;
                 Ok(())
             })?;
@@ -503,7 +490,8 @@ impl SessionManager {
             let sid = session_id.to_string();
             let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
             run_session_db_io(async move {
-                db.append_session_event(&sid, "meta_updated", &payload).await
+                db.append_session_event(&sid, "meta_updated", &payload)
+                    .await
             })?;
         }
 
@@ -661,9 +649,9 @@ impl SessionManager {
             if let Some(db) = &self.db {
                 let db_clone = db.clone();
                 let sid = id.clone();
-                let _ = run_session_db_io(async move {
-                    db_clone.close_session(&sid, "archived").await
-                });
+                let _ = run_session_db_io(
+                    async move { db_clone.close_session(&sid, "archived").await },
+                );
             }
         }
         Ok(count)
@@ -789,10 +777,7 @@ impl SessionManager {
                 db.list_active_sessions()
                     .await
                     .map_err(|e: vox_db::StoreError| {
-                        SessionError::Io(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            e.to_string(),
-                        ))
+                        SessionError::Io(std::io::Error::other(e.to_string()))
                     })?;
 
             if let Some((_, agent_id_str, _)) =
@@ -817,10 +802,7 @@ impl SessionManager {
                     db.load_session_events(session_id)
                         .await
                         .map_err(|e: vox_db::StoreError| {
-                            SessionError::Io(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                e.to_string(),
-                            ))
+                            SessionError::Io(std::io::Error::other(e.to_string()))
                         })?;
 
                 for (_etype, payload_json) in events {

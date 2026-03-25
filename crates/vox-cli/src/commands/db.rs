@@ -149,7 +149,7 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
         }
     }
 
-    let migrator = vox_db::AutoMigrator::new(&db.connection());
+    let migrator = vox_db::AutoMigrator::new(db.connection());
     let plan = migrator
         .sync_schema(&tables, &collections, &indexes)
         .await?;
@@ -223,15 +223,15 @@ pub async fn import(path: &PathBuf) -> Result<()> {
             let importance = m["importance"].as_f64().unwrap_or(1.0);
             if !content.is_empty() {
                 db.save_memory(vox_db::MemoryParams {
-                        agent_id: user_id,
-                        session_id: "import",
-                        memory_type: mtype,
-                        content,
-                        metadata: None,
-                        importance,
-                        vcs_snapshot_id: None,
-                    })
-                    .await?;
+                    agent_id: user_id,
+                    session_id: "import",
+                    memory_type: mtype,
+                    content,
+                    metadata: None,
+                    importance,
+                    vcs_snapshot_id: None,
+                })
+                .await?;
                 mem_count += 1;
             }
         }
@@ -384,7 +384,8 @@ pub async fn publication_approve(publication_id: &str, approver: &str) -> Result
         .count_publication_approvers_for_digest(publication_id, &manifest.content_sha3_256)
         .await?;
     if count >= 2 {
-        db.set_publication_state(publication_id, "approved", None).await?;
+        db.set_publication_state(publication_id, "approved", None)
+            .await?;
     }
     println!(
         "Recorded approval for '{}' digest={} distinct_approvers={}",

@@ -111,7 +111,8 @@ pub fn build_training_record(
     let content_hash = vox_runtime::builtins::vox_hash_fast(&result.source);
 
     let constructs = extract_constructs(&result.module);
-    let difficulty = constructs.iter()
+    let difficulty = constructs
+        .iter()
         .map(|c| construct_difficulty(c))
         .max()
         .unwrap_or(5);

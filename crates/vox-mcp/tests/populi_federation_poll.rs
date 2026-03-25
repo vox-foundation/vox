@@ -38,10 +38,12 @@ async fn populi_federation_poller_fills_snapshot() {
     let node = vox_populi::node_record_for_current_process("poll-test-node".into(), None);
     client.join(&node).await.unwrap();
 
-    let mut cfg = OrchestratorConfig::default();
-    cfg.populi_control_url = Some(base);
-    cfg.mesh_poll_interval_secs = 1; // Must be >= 1; 0 disables the poller (see server.rs).
-    cfg.mesh_http_timeout_ms = 5000;
+    let cfg = OrchestratorConfig {
+        populi_control_url: Some(base),
+        mesh_poll_interval_secs: 1, // Must be >= 1; 0 disables the poller (see server.rs).
+        mesh_http_timeout_ms: 5000,
+        ..Default::default()
+    };
 
     let st = ServerState::new(cfg);
 

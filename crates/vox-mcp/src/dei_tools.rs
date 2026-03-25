@@ -389,10 +389,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         Some(comp)
     };
 
-    let scaling_line = match (
-        scaling_profile.as_ref().map(|s: &String| s.as_str()),
-        effective_scale_up_threshold,
-    ) {
+    let scaling_line = match (scaling_profile.as_deref(), effective_scale_up_threshold) {
         (Some(prof), Some(eff)) => format!(
             "**Scaling:** profile={}, effective scale-up threshold={:.1}\n\n",
             prof, eff

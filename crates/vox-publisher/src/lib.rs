@@ -59,7 +59,9 @@ pub struct SyndicationResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "status", rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ChannelOutcome {
+    #[default]
     Disabled,
     DryRun {
         external_id: Option<String>,
@@ -72,12 +74,6 @@ pub enum ChannelOutcome {
         message: String,
         retryable: bool,
     },
-}
-
-impl Default for ChannelOutcome {
-    fn default() -> Self {
-        Self::Disabled
-    }
 }
 
 impl SyndicationResult {
@@ -98,7 +94,9 @@ impl SyndicationResult {
         fn ok(outcome: &ChannelOutcome) -> bool {
             matches!(
                 outcome,
-                ChannelOutcome::Success { .. } | ChannelOutcome::Disabled | ChannelOutcome::DryRun { .. }
+                ChannelOutcome::Success { .. }
+                    | ChannelOutcome::Disabled
+                    | ChannelOutcome::DryRun { .. }
             )
         }
 

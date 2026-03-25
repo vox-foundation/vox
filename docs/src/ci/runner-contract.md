@@ -60,6 +60,20 @@ Workflow jobs that run **`vox ci cuda-features`** or compile with **`nvcc`** sho
 
 Set **`VOX_EXAMPLES_STRICT_PARSE=1`** when running **`cargo test -p vox-parser --test parity_test`** to require every `examples/**/*.vox` to parse. Default CI keeps the **golden-only** gate. Status: [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). Delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/verify_workspace_manifest.sh), [`scripts/examples_strict_parse.ps1`](../../../scripts/check_docs_ssot.ps1).
 
+## Test hangs: `cargo test` vs `cargo nextest`
+
+Rust’s built-in harness (**`cargo test`**) does **not** enforce per-test timeouts. After ~60 seconds it may print *“has been running for over 60 seconds”* — that is only a **warning**; the test keeps running until it finishes or you interrupt it.
+
+**`cargo nextest run`** (used in GitHub `ci.yml` and `.gitlab-ci.yml`) reads **`.config/nextest.toml`**. There, **`slow-timeout`** marks slow tests and, with **`terminate-after`**, ends a stuck test after roughly **`terminate-after × period`** wall time (see [nextest slow tests](https://nexte.st/docs/features/slow-tests/)). The **`global-timeout`** setting caps the **entire** test run duration for a binary, not each case.
+
+For local debugging of a single crate, prefer:
+
+```bash
+cargo nextest run -p vox-mcp --profile ci
+```
+
+Individual async tests can still wrap work in **`tokio::time::timeout`** so plain **`cargo test`** fails instead of hanging indefinitely.
+
 ## Workflow list
 
 See [workflow enumeration](workflow-enumeration.md).

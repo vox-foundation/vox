@@ -208,7 +208,7 @@ pub fn push_baseline_from_origin(
     let push_sha = if empty {
         // Create an empty tree
         let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"; // git mktree < NUL
-        
+
         let commit_out = Command::new("git")
             .args([
                 "commit-tree",
@@ -216,19 +216,21 @@ pub fn push_baseline_from_origin(
                 "-p",
                 &sha,
                 "-m",
-                "Empty baseline for full-repo review"
+                "Empty baseline for full-repo review",
             ])
             .current_dir(repo)
             .output()
             .context("git commit-tree")?;
-        
+
         if !commit_out.status.success() {
             anyhow::bail!(
                 "commit-tree: {}",
                 String::from_utf8_lossy(&commit_out.stderr)
             );
         }
-        String::from_utf8_lossy(&commit_out.stdout).trim().to_string()
+        String::from_utf8_lossy(&commit_out.stdout)
+            .trim()
+            .to_string()
     } else {
         sha.clone()
     };
@@ -328,7 +330,6 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     }
     Ok(())
 }
-
 
 /// Create a review PR from an isolated worktree: baseline → worktree, overlay files from `source_tree`, push, open PR.
 ///

@@ -21,9 +21,11 @@ pub mod bench_completion;
 pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
+mod eval_local_prompt;
 #[cfg(feature = "gpu")]
 mod merge_weights;
-mod eval_local_prompt;
+#[cfg(feature = "gpu")]
+pub mod models;
 #[cfg(feature = "mens-base")]
 mod pipeline;
 /// AI-agent planning sessions and task decomposition.
@@ -32,8 +34,6 @@ pub mod plan;
 mod probe;
 mod status;
 mod system_prompt_template;
-#[cfg(feature = "gpu")]
-pub mod models;
 
 use anyhow::Result;
 
@@ -657,7 +657,6 @@ pub enum PopuliAction {
         #[arg(long, default_value = "text")]
         format: String,
     },
-
 }
 
 /// Dispatch `vox mens` subcommands to their feature-gated implementations.
@@ -712,44 +711,45 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             force_restart,
         } => {
             let data_dir = PathBuf::from(vox_corpus::training::CANONICAL_TRAIN_DATA_DIR);
-            
+
             crate::commands::schola::train::run_train(
                 PopuliTrainBackendCli::Qlora.into(),
                 Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
                 "cuda".into(),
                 data_dir,
                 output_dir,
-                None, // rank
-                None, // alpha
-                None, // seq_len
-                None, // batch_size
-                None, // grad_accum
-                None, // resume
-                None, // epochs
-                None, // lr
-                None, // warmup
-                42, // seed
-                None, // min_rating
+                None,                         // rank
+                None,                         // alpha
+                None,                         // seq_len
+                None,                         // batch_size
+                None,                         // grad_accum
+                None,                         // resume
+                None,                         // epochs
+                None,                         // lr
+                None,                         // warmup
+                42,                           // seed
+                None,                         // min_rating
                 Some("qwen_4080_16g".into()), // preset
                 TrainingDeploymentTargetCli::Workstation.into(),
-                "normal".into(), // process_priority
-                None, // vram_limit_fraction
+                "normal".into(),                   // process_priority
+                None,                              // vram_limit_fraction
                 Some("vox_dogfood_gpu_v1".into()), // adapter_tag
-                Some("vox".into()), // context_filter
-                Some(0.05), // validation_split_ratio
+                Some("vox".into()),                // context_filter
+                Some(0.05),                        // validation_split_ratio
                 MensTokenizerCli::Hf.into(),
                 false, // qlora_no_double_quant
                 false, // qlora_require_full_proxy_stack
-                None, // qlora_max_skip_rate
+                None,  // qlora_max_skip_rate
                 false, // qlora_lm_head_only
-                None, // qlora_proxy_max_layers
-                16, // qlora_ce_last_k
+                None,  // qlora_proxy_max_layers
+                16,    // qlora_ce_last_k
                 Some(checkpoint_every),
                 force_restart,
                 false, // curriculum (dogfood default: off)
-                true, // require_gpu
+                true,  // require_gpu
                 false, // allow_cpu_fallback
-            ).await?;
+            )
+            .await?;
             Ok(())
         }
         #[cfg(feature = "gpu")]
@@ -800,7 +800,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
                 {
-                    use vox_mens::cloud::{CloudResolver, CloudJobSpec, JobKind};
+                    use vox_mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
                     let config = vox_mens::cloud::CloudProviderConfig::default();
                     let mut spec = CloudJobSpec::new_train(&config);
                     spec.model_id = model.unwrap_or_else(|| vox_mens::DEFAULT_MODEL_ID.to_string());
@@ -812,16 +812,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     spec.seq_len = seq_len;
                     spec.batch_size = batch_size.unwrap_or(4);
                     spec.epochs = epochs.unwrap_or(3);
-                    // estimating num_samples is hard without the data, 
+                    // estimating num_samples is hard without the data,
                     // but we can pass a hint if we want.
-                    spec.num_samples = 5000; 
+                    spec.num_samples = 5000;
 
                     let resolver = vox_mens::cloud::CloudResolver::new_from_env().await?;
                     return resolver.dispatch(spec, &cloud).await;
                 }
                 #[cfg(not(feature = "cloud"))]
                 {
-                    anyhow::bail!("Cloud dispatch requires the 'cloud' feature. Rebuild with: cargo build -p vox-cli --features cloud");
+                    anyhow::bail!(
+                        "Cloud dispatch requires the 'cloud' feature. Rebuild with: cargo build -p vox-cli --features cloud"
+                    );
                 }
             }
             let process_priority = if background {
@@ -840,7 +842,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if let Some(ref root) = workspace_root {
                 use owo_colors::OwoColorize;
                 let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
-                
+
                 let is_fresh = if let Ok(db) = vox_db::VoxDb::connect_default().await {
                     db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
                 } else {
@@ -848,11 +850,17 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     vox_corpus::corpus::preflight::corpus_is_fresh(root, &fp_file)
                 };
 
-                let skip_regen = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX").map(|v| v == "1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
+                let skip_regen = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX")
+                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false);
                 if !is_fresh && !skip_regen {
-                    eprintln!("  {} Stale corpus detected (fingerprint: {}). Regenerating...", "🔄".cyan(), current_fp);
+                    eprintln!(
+                        "  {} Stale corpus detected (fingerprint: {}). Regenerating...",
+                        "🔄".cyan(),
+                        current_fp
+                    );
                     let _ = vox_corpus::corpus::preflight::clean_corpus_targets(root);
-                    
+
                     let cfg = vox_corpus::synthetic_gen::SyntheticGenConfig::default();
                     let out_path = root.join("mens/data/synthetic.jsonl");
                     let mut pairs = 0;
@@ -860,44 +868,59 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                         eprintln!("  {} Regenerated {} synthetic pairs", "✓".green(), count);
                         pairs = count;
                     }
-                    
+
                     eprintln!("  {} Running corpus extraction pipeline...", "🔄".cyan());
                     if let Err(e) = crate::commands::mens::pipeline::run(
                         data_dir.clone(),
                         output_dir.clone(),
-                        true, // skip_train
+                        true,  // skip_train
                         false, // strict_gate
-                        None, // device
-                        None, // model
-                        None, // epochs
-                        None, // preset
-                        None, // stages
+                        None,  // device
+                        None,  // model
+                        None,  // epochs
+                        None,  // preset
+                        None,  // stages
                         false, // dry_run
                         false, // curriculum
-                    ).await {
+                    )
+                    .await
+                    {
                         eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
                     } else {
                         eprintln!("  {} Corpus extraction pipeline completed.", "✓".green());
                     }
-                    
+
                     let mix_yaml = root.join("mens/config/mix.yaml");
                     if mix_yaml.exists() {
                         eprintln!("  {} Running corpus mix...", "🔄".cyan());
                         if let Err(e) = vox_corpus::corpus::run_mix(&mix_yaml) {
                             eprintln!("  {} Mix failed: {}", "⚠️".yellow(), e);
                         } else {
-                            if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_yaml) {
+                            if let Ok(mix_cfg) =
+                                vox_corpus::corpus::MixConfigSchema::load(&mix_yaml)
+                            {
                                 let mixed_path = root.join(&mix_cfg.output);
                                 let final_train_path = data_dir.join("train.jsonl");
                                 if mixed_path.exists() {
                                     if let Err(e) = std::fs::copy(&mixed_path, &final_train_path) {
-                                        eprintln!("  {} Failed to copy mix to {}: {}", "⚠️".yellow(), final_train_path.display(), e);
+                                        eprintln!(
+                                            "  {} Failed to copy mix to {}: {}",
+                                            "⚠️".yellow(),
+                                            final_train_path.display(),
+                                            e
+                                        );
                                     } else {
-                                        eprintln!("  {} Mixed data ready at: {}", "✓".green(), final_train_path.display());
+                                        eprintln!(
+                                            "  {} Mixed data ready at: {}",
+                                            "✓".green(),
+                                            final_train_path.display()
+                                        );
                                         // Signal run_train to skip its own mix pass — we just ran it.
                                         // SAFETY: single-threaded CLI dispatch; no concurrent env readers at this point.
                                         #[allow(unsafe_code)]
-                                        unsafe { std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1"); }
+                                        unsafe {
+                                            std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
+                                        }
                                     }
                                 }
                             }
@@ -905,10 +928,19 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     }
 
                     if let Ok(db) = vox_db::VoxDb::connect_default().await {
-                        let _ = db.record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), pairs as i64, None).await;
+                        let _ = db
+                            .record_corpus_snapshot(
+                                &current_fp,
+                                env!("CARGO_PKG_VERSION"),
+                                pairs as i64,
+                                None,
+                            )
+                            .await;
                     } else {
                         let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
-                        let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                        let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(
+                            root, &fp_file,
+                        );
                     }
                 }
             }
@@ -960,7 +992,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 curriculum,
                 require_gpu,
                 allow_cpu_fallback,
-            ).await
+            )
+            .await
         }
 
         #[cfg(feature = "gpu")]
@@ -978,27 +1011,33 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
                 {
-                    use vox_mens::cloud::{CloudResolver, CloudJobSpec, JobKind};
+                    use vox_mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
                     let config = vox_mens::cloud::CloudProviderConfig::default();
-                    let rt = _max_runtime_secs.ok_or_else(|| anyhow::anyhow!("--max-runtime-secs is REQUIRED for cloud serve"))?;
+                    let rt = _max_runtime_secs.ok_or_else(|| {
+                        anyhow::anyhow!("--max-runtime-secs is REQUIRED for cloud serve")
+                    })?;
                     let mut spec = CloudJobSpec::new_serve(&config, rt);
-                    spec.model_id = _model_hf.unwrap_or_else(|| vox_mens::DEFAULT_MODEL_ID.to_string());
+                    spec.model_id =
+                        _model_hf.unwrap_or_else(|| vox_mens::DEFAULT_MODEL_ID.to_string());
                     spec.max_budget_usd = _max_budget;
                     spec.serve_port = port;
-                    
+
                     let resolver = vox_mens::cloud::CloudResolver::new_from_env().await?;
                     return resolver.dispatch(spec, &cloud).await;
                 }
                 #[cfg(not(feature = "cloud"))]
                 {
-                    anyhow::bail!("Cloud dispatch requires the 'cloud' feature. Rebuild with: cargo build -p vox-cli --features cloud");
+                    anyhow::bail!(
+                        "Cloud dispatch requires the 'cloud' feature. Rebuild with: cargo build -p vox-cli --features cloud"
+                    );
                 }
             }
 
-            let model = model.ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
+            let model = model
+                .ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
             // Serve delegates directly to the lightweight vox-schola binary inference mode
             println!("Delegating to vox-schola serve...");
-            
+
             let mut cmd = std::process::Command::new("vox-schola");
             cmd.arg("serve");
             cmd.arg("--model").arg(model);
@@ -1006,8 +1045,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             cmd.arg("--host").arg(host);
             cmd.arg("--max-tokens").arg(max_tokens.to_string());
             cmd.arg("--temperature").arg(temperature.to_string());
-            
-            let status = cmd.status().map_err(|e| anyhow::anyhow!("Failed to spawn vox-schola: {}", e))?;
+
+            let status = cmd
+                .status()
+                .map_err(|e| anyhow::anyhow!("Failed to spawn vox-schola: {}", e))?;
             if !status.success() {
                 anyhow::bail!("vox-schola serve exited with status: {}", status);
             }
@@ -1015,7 +1056,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         }
 
         PopuliAction::Corpus(action) => crate::commands::corpus::run(action).await,
-        
+
         #[cfg(feature = "gpu")]
         PopuliAction::Models => crate::commands::mens::models::run_models(_global_verbose),
 
@@ -1037,12 +1078,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     use owo_colors::OwoColorize;
                     let db = vox_db::VoxDb::connect_default().await?;
                     let summary = db.cloud_cost_summary().await?;
-                    
+
                     println!("\n  {}", "Cloud GPU Dispatch Summary".bold().cyan());
-                    println!("  Jobs:      {}", summary.running_jobs + summary.completed_jobs);
+                    println!(
+                        "  Jobs:      {}",
+                        summary.running_jobs + summary.completed_jobs
+                    );
                     println!("  Spent:     ${:.2}", summary.total_spent_usd);
                     println!("  Accruing:  ${:.2}", summary.accrued_usd);
-                    println!("  Efficiency: {:.0} tokens/$", summary.avg_tokens_per_dollar);
+                    println!(
+                        "  Efficiency: {:.0} tokens/$",
+                        summary.avg_tokens_per_dollar
+                    );
                     return Ok(());
                 }
                 #[cfg(not(feature = "codex"))]
@@ -1053,8 +1100,6 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             let _ = _global_json;
             status::run_status(run_dir, _global_json, quotas, config).await
         }
-
-
 
         #[cfg(feature = "gpu")]
         PopuliAction::MergeQlora {
@@ -1208,7 +1253,6 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         PopuliAction::SystemPromptTemplate { output, format } => {
             crate::commands::mens::system_prompt_template::run(output, &format).await
         }
-
     }
 }
 

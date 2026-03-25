@@ -43,9 +43,9 @@ fn classify_intent(transcript: &str) -> (IntentKind, f32) {
 
     // Token-density hint: "status" near "oratio" / "vox"
     let tokens: Vec<&str> = lower.split_whitespace().collect();
-    let has_status = tokens.iter().any(|w| *w == "status");
+    let has_status = tokens.contains(&"status");
     let has_oratio = tokens.iter().any(|w| w.contains("oratio"));
-    let has_vox = tokens.iter().any(|w| *w == "vox");
+    let has_vox = tokens.contains(&"vox");
     if has_status && has_oratio {
         return (IntentKind::OratioStatus, 0.72);
     }
@@ -119,18 +119,19 @@ pub fn route_transcript_with_options(
     }
 
     if let Ok(mut last) = last_user_transcript().lock() {
-        if let Some(prev) = last.get(session_id) {
-            if !transcript.trim().is_empty() && prev == transcript {
-                return RouteResponse {
-                    mode: RouteMode::None,
-                    action: "none".to_string(),
-                    status: "repetition_breaker".to_string(),
-                    payload: serde_json::json!({
-                        "note": "Identical consecutive transcript for session",
-                        "session_id": session_id,
-                    }),
-                };
-            }
+        if let Some(prev) = last.get(session_id)
+            && !transcript.trim().is_empty()
+            && prev == transcript
+        {
+            return RouteResponse {
+                mode: RouteMode::None,
+                action: "none".to_string(),
+                status: "repetition_breaker".to_string(),
+                payload: serde_json::json!({
+                    "note": "Identical consecutive transcript for session",
+                    "session_id": session_id,
+                }),
+            };
         }
         if !transcript.trim().is_empty() {
             last.insert(session_id.to_string(), transcript.to_string());
@@ -198,9 +199,7 @@ pub fn route_transcript_with_options(
         RouteMode::Chat => {
             let cap = runtime.routing.chat_max_messages.max(4);
             let max_turns = runtime.routing.route_max_user_turns.max(1);
-            let mut turns = user_turn_counts()
-                .lock()
-                .expect("user turn mutex poisoned");
+            let mut turns = user_turn_counts().lock().expect("user turn mutex poisoned");
             let n = turns.entry(session_id.to_string()).or_insert(0);
             *n += 1;
             if *n > max_turns {
@@ -242,10 +241,7 @@ pub fn route_transcript_with_options(
             }
         }
         RouteMode::Orchestrator => {
-            let min_o = runtime
-                .routing
-                .orchestrator_min_confidence
-                .clamp(0.0, 1.0);
+            let min_o = runtime.routing.orchestrator_min_confidence.clamp(0.0, 1.0);
             let low = transcript_confidence < min_o;
             RouteResponse {
                 mode,
@@ -289,21 +285,10 @@ mod tests {
     #[test]
     fn tool_mode_matches_status_with_confidence() {
         let rt = OratioRuntimeConfig::default();
-        let out = route_transcript_with_options(
-            RouteMode::Tool,
-            "s1",
-            "oratio status",
-            0.9,
-            &rt,
-        );
+        let out = route_transcript_with_options(RouteMode::Tool, "s1", "oratio status", 0.9, &rt);
         assert_eq!(out.action, "oratio.status");
-        let out_low = route_transcript_with_options(
-            RouteMode::Tool,
-            "s2",
-            "oratio status",
-            0.1,
-            &rt,
-        );
+        let out_low =
+            route_transcript_with_options(RouteMode::Tool, "s2", "oratio status", 0.1, &rt);
         assert_eq!(out_low.status, "below_tool_confidence");
     }
 

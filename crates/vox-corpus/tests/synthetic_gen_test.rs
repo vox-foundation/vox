@@ -206,7 +206,7 @@ fn workflow_pairs_contain_vox_snippet_in_response() {
 fn tool_registry_slim_all_entries_in_orchestrator_tools_are_subset() {
     for &name in ORCHESTRATOR_TOOLS {
         assert!(
-            TOOL_REGISTRY_SLIM.iter().any(|n| *n == name),
+            TOOL_REGISTRY_SLIM.contains(&name),
             "ORCHESTRATOR_TOOLS entry {name} not in TOOL_REGISTRY_SLIM"
         );
     }

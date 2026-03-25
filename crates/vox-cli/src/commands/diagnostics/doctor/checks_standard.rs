@@ -570,10 +570,7 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
         if let Ok(path) = db.get_object_metadata("vox-workspace", &key).await {
             reg_pass = true;
             reg_detail = format!("registered at {}", path);
-        } else if let Ok(path) = db
-            .get_object_metadata("vox-workspace", "path")
-            .await
-        {
+        } else if let Ok(path) = db.get_object_metadata("vox-workspace", "path").await {
             reg_pass = true;
             reg_detail = format!("registered at {}", path);
         } else if let Ok(mut rows) = db
@@ -599,5 +596,3 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
         detail: reg_detail,
     });
 }
-
-

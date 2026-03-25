@@ -4,7 +4,7 @@
 //! `context_fill_ratio` is unset, it is filled from the global MCP LLM budget agent (`AgentId(0)`).
 
 use crate::llm_bridge::{
-    McpChatModelResolution, mcp_global_llm_context_fill_ratio, resolve_mcp_chat_model_sync,
+    McpChatModelResolution, mcp_global_llm_context_fill_ratio, resolve_mcp_chat_model,
 };
 use crate::server::ServerState;
 use vox_orchestrator::models::ModelSpec;
@@ -14,11 +14,12 @@ pub async fn resolve_chat_llm_model(
     state: &ServerState,
     user_prompt: &str,
     mut resolution: McpChatModelResolution,
+    user_id: Option<&str>,
 ) -> Result<(ModelSpec, bool), String> {
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let orch = &state.orchestrator;
     if resolution.context_fill_ratio.is_none() {
-        resolution.context_fill_ratio = mcp_global_llm_context_fill_ratio(&*orch);
+        resolution.context_fill_ratio = mcp_global_llm_context_fill_ratio(orch);
     }
-    resolve_mcp_chat_model_sync(&*orch, user_prompt, pref.as_deref(), resolution)
+    resolve_mcp_chat_model(state, user_prompt, pref.as_deref(), resolution, user_id).await
 }

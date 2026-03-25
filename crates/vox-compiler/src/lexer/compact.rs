@@ -29,10 +29,10 @@ pub fn compact(source: &str) -> String {
         }
 
         // Handle spacing between tokens
-        if let Some(last) = &last_token {
-            if needs_space(last, &token) {
-                output.push(' ');
-            }
+        if let Some(last) = &last_token
+            && needs_space(last, &token)
+        {
+            output.push(' ');
         }
 
         output.push_str(&token.to_string());

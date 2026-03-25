@@ -82,7 +82,7 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
     let tokens = vox_compiler::lexer::lex(source);
 
     // 2. Parse
-    let module = match vox_compiler::parser::parser::parse(tokens) {
+    let module = match vox_compiler::parser::parse(tokens) {
         Ok(m) => m,
         Err(errors) => {
             if json {
@@ -158,7 +158,11 @@ pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
 }
 
 /// Print parse errors to stderr in rustc style.
-pub fn print_parse_errors_to_stderr(errors: &[vox_compiler::parser::ParseError], source: &str, file: &Path) {
+pub fn print_parse_errors_to_stderr(
+    errors: &[vox_compiler::parser::ParseError],
+    source: &str,
+    file: &Path,
+) {
     print_parse_errors(errors, source, file);
 }
 

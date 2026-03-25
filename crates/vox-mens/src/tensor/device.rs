@@ -344,6 +344,12 @@ pub fn recommend_config_for_profile(preset_name: &str) -> TrainProfile {
     }
 }
 
+#[cfg(feature = "gpu")]
+#[must_use]
+pub fn make_wgpu_device() -> burn::backend::wgpu::WgpuDevice {
+    burn::backend::wgpu::WgpuDevice::default()
+}
+
 #[cfg(test)]
 mod vram_estimate_tests {
     use super::*;
@@ -355,10 +361,4 @@ mod vram_estimate_tests {
         assert!(ql < fp, "ql={ql} fp={fp}");
         assert!(ql >= 256);
     }
-}
-
-#[cfg(feature = "gpu")]
-#[must_use]
-pub fn make_wgpu_device() -> burn::backend::wgpu::WgpuDevice {
-    burn::backend::wgpu::WgpuDevice::default()
 }

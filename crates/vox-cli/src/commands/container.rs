@@ -13,7 +13,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 .await
                 .with_context(|| format!("Failed to read source file: {}", file.display()))?;
             let tokens = vox_compiler::lexer::cursor::lex(&source);
-            let module = vox_compiler::parser::parser::parse(tokens)
+            let module = vox_compiler::parser::parse(tokens)
                 .map_err(|e| anyhow::anyhow!("Parse errors in {}: {:?}", file.display(), e))?;
 
             let py_imports: Vec<String> = module

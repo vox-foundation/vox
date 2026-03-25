@@ -65,6 +65,11 @@ Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates
 |----------|------|
 | `VOX_CANDLE_DEVICE` | Forces Candle device (e.g. `cpu`); see Mens training SSOT. |
 | `VOX_INFERENCE_PROFILE` | `desktop_ollama` (default), `cloud_openai_compatible`, `mobile_litert`, `mobile_coreml`, `lan_gateway`; gates **vox-mcp** local Ollama + Ollama fallback to `desktop_ollama` / `lan_gateway` only; see [`vox_config::inference`](../../../crates/vox-config/src/inference.rs) and [mobile-edge-ai.md](mobile-edge-ai.md). |
+| `VOX_AUTO_MODEL_STRATEGY` | OpenRouter strategy for auto model ids: `provider_auto` or `preferred_model`; see [`vox_config::routing_policy`](../../../crates/vox-config/src/routing_policy.rs). |
+| `VOX_AUTO_ROUTING_PRIORITY` | Weighted MCP auto-routing priorities (`efficiency,precision,latency,availability,balance,mobile`) as `k=v` CSV. |
+| `VOX_GEMINI_ROUTE_POLICY` | Gemini routing policy: `openrouter_first` (default), `google_direct_only`, or `registry_default`. |
+| `OPENROUTER_GEMINI_MODEL` / `GEMINI_DIRECT_MODEL` | Explicit OpenRouter/GoogleDirect Gemini model pair for policy routing/fallback. |
+| `VOX_PROVIDER_DAILY_LIMIT_DEFAULT` / `VOX_PROVIDER_LIMIT_PROVIDERS` | Dynamic provider quota defaults before JSON/file overrides in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs). |
 
 ## Mens (`vox-populi`, orchestrator probe)
 

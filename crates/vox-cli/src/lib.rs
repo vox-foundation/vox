@@ -30,11 +30,15 @@ mod island_paths;
 mod isolation;
 mod latin_cmd;
 /// Lock-wait JSONL metrics (`vox lock-report`, recursive script guard).
-#[cfg(any(feature = "codex", feature = "stub-check", feature = "script-execution"))]
+#[cfg(any(
+    feature = "codex",
+    feature = "stub-check",
+    feature = "script-execution"
+))]
 mod lock_telemetry;
+pub mod pipeline;
 #[cfg(feature = "populi")]
 mod populi_codex_telemetry;
-pub mod pipeline;
 #[cfg(feature = "island")]
 mod table;
 pub mod templates;

@@ -70,10 +70,10 @@ pub async fn run(args: Args) -> Result<()> {
     vox_mens::apply_backend_env(device_kind);
 
     // ── Validation ────────────────────────────────────────────────────────────
-    if let Some(r) = qlora_max_skip_rate {
-        if !r.is_finite() || !(0.0..=1.0).contains(&r) {
-            anyhow::bail!("--qlora-max-skip-rate must be 0.0–1.0 (got {r})");
-        }
+    if let Some(r) = qlora_max_skip_rate
+        && (!r.is_finite() || !(0.0..=1.0).contains(&r))
+    {
+        anyhow::bail!("--qlora-max-skip-rate must be 0.0–1.0 (got {r})");
     }
     if qlora_require_full_proxy_stack && qlora_lm_head_only {
         anyhow::bail!("--qlora-require-full-proxy-stack conflicts with --qlora-lm-head-only");
@@ -104,19 +104,18 @@ pub async fn run(args: Args) -> Result<()> {
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
 
-    if !skip_mix {
-        if let Some(ref cfg_path) = mix_config {
-            if cfg_path.exists() {
-                eprintln!("  🔄 Running corpus mix to refresh training data...");
-                if let Err(e) = vox_corpus::corpus::run_mix(cfg_path) {
-                    eprintln!("  ⚠ Mix failed ({e}); continuing with existing corpus");
-                } else if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(cfg_path) {
-                    let cwd = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
-                    let mix_output = cwd.join(&mix_cfg.output);
-                    if mix_output.exists() {
-                        contract_override = Some(mix_output);
-                    }
-                }
+    if !skip_mix
+        && let Some(ref cfg_path) = mix_config
+        && cfg_path.exists()
+    {
+        eprintln!("  🔄 Running corpus mix to refresh training data...");
+        if let Err(e) = vox_corpus::corpus::run_mix(cfg_path) {
+            eprintln!("  ⚠ Mix failed ({e}); continuing with existing corpus");
+        } else if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(cfg_path) {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
+            let mix_output = cwd.join(&mix_cfg.output);
+            if mix_output.exists() {
+                contract_override = Some(mix_output);
             }
         }
     }

@@ -2,14 +2,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum PublicationApprovalMode {
+    #[default]
     DigestBound,
-}
-
-impl Default for PublicationApprovalMode {
-    fn default() -> Self {
-        Self::DigestBound
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,7 +139,11 @@ mod tests {
             db_present: false,
             dual_approval_met: false,
         });
-        let codes: Vec<String> = out.blocking_reasons.iter().map(|r| r.code.clone()).collect();
+        let codes: Vec<String> = out
+            .blocking_reasons
+            .iter()
+            .map(|r| r.code.clone())
+            .collect();
         assert!(codes.contains(&"missing_db".to_string()));
         assert!(codes.contains(&"missing_dual_approval".to_string()));
         assert!(codes.contains(&"publish_not_armed".to_string()));

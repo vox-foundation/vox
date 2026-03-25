@@ -13,6 +13,7 @@
 pub mod config;
 pub mod git;
 pub mod github;
+pub mod historical_planner;
 pub mod ingest;
 pub mod limits;
 pub mod path_policy;
@@ -21,7 +22,6 @@ pub mod run_state;
 pub mod semantic_planner;
 pub mod stack_planner;
 pub mod tasks;
-pub mod historical_planner;
 
 use std::path::{Path, PathBuf};
 
@@ -246,7 +246,9 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
                 }
             }
             if let Some(t) = tier {
-                cfg.tier = t.parse::<limits::CodeRabbitTier>().map_err(|e| anyhow::anyhow!(e))?;
+                cfg.tier = t
+                    .parse::<limits::CodeRabbitTier>()
+                    .map_err(|e| anyhow::anyhow!(e))?;
             }
             if let Some(d) = vox.delay_between_prs_secs {
                 cfg.delay_secs = d;

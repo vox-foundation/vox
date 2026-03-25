@@ -86,10 +86,11 @@ pub fn hf_chat_model_preference() -> Option<String> {
 ///
 /// Falls back to [`crate::bootstrap_inference::OPENROUTER_AUTO`] when unset.
 pub fn openrouter_chat_model_preference() -> String {
-    std::env::var("OPENROUTER_CHAT_MODEL")
+    let preferred = std::env::var("OPENROUTER_CHAT_MODEL")
         .ok()
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| crate::bootstrap_inference::OPENROUTER_AUTO.to_string())
+        .or_else(|| std::env::var("OPENROUTER_GEMINI_MODEL").ok());
+    crate::routing_policy::resolve_openrouter_model(preferred)
 }
 
 /// OpenAI-compatible chat completions URL for a **pinned** Hugging Face Inference Endpoint

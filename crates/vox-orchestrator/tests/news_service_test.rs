@@ -24,7 +24,11 @@ Hello world.
     path
 }
 
-fn build_config(news_dir: &std::path::Path, feed_path: &std::path::Path, armed: bool) -> OrchestratorConfig {
+fn build_config(
+    news_dir: &std::path::Path,
+    feed_path: &std::path::Path,
+    armed: bool,
+) -> OrchestratorConfig {
     let mut cfg = OrchestratorConfig::for_testing();
     cfg.news.enabled = true;
     cfg.news.dry_run = false;

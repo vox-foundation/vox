@@ -83,7 +83,10 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
     let orch = &state.orchestrator;
 
     let handle = orch.models_handle();
-    if let Some(_) = vox_orchestrator::sync_lock::rw_read(&*handle).get(&params.model_id) {
+    if vox_orchestrator::sync_lock::rw_read(&*handle)
+        .get(&params.model_id)
+        .is_some()
+    {
         vox_orchestrator::sync_lock::rw_write(&*handle)
             .set_override(params.agent_id, params.model_id.clone());
         ToolResult::ok(format!(

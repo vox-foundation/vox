@@ -206,9 +206,7 @@ fn resolve_vox_repo_root() -> io::Result<PathBuf> {
     }
     let mut dir = std::env::current_dir()?;
     loop {
-        if dir.join("crates/vox-cli/Cargo.toml").is_file()
-            && dir.join("Cargo.toml").is_file()
-        {
+        if dir.join("crates/vox-cli/Cargo.toml").is_file() && dir.join("Cargo.toml").is_file() {
             return Ok(dir);
         }
         if !dir.pop() {
@@ -455,9 +453,9 @@ fn extract_tar_binary(archive: &[u8], destination: &Path) -> io::Result<()> {
 }
 
 fn write_reader_to_path(reader: &mut impl Read, destination: &Path) -> io::Result<()> {
-    let parent = destination.parent().ok_or_else(|| {
-        io::Error::other("install destination has no parent directory")
-    })?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| io::Error::other("install destination has no parent directory"))?;
     let name = destination
         .file_name()
         .ok_or_else(|| io::Error::other("install destination has no file name"))?;

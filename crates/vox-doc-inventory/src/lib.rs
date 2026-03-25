@@ -604,7 +604,8 @@ pub fn verify_fresh(root: &Path, committed_path: &Path) -> Result<()> {
 /// Docs retrieval ranking helper (WS10): combines doc-line density, hotspot tier, and mild size signal.
 #[must_use]
 pub fn relevance_score(entry: &FileEntry) -> f64 {
-    let doc_lines = (entry.lines_triple_slash + entry.lines_inner_doc + entry.lines_other_doc_signal) as f64;
+    let doc_lines =
+        (entry.lines_triple_slash + entry.lines_inner_doc + entry.lines_other_doc_signal) as f64;
     let plain = entry.lines_plain_comment as f64;
     let hotspot_mul = match entry.hotspot_tier {
         1 => 2.75_f64,

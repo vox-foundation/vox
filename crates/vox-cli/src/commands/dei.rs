@@ -1,7 +1,9 @@
 #![cfg(feature = "dei")]
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_orchestrator::{AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskId, TaskPriority};
+use vox_orchestrator::{
+    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskId, TaskPriority,
+};
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
 pub async fn status() -> Result<()> {
@@ -107,7 +109,10 @@ pub async fn submit(description: &str, files: &[String], priority: Option<&str>)
         _ => None,
     };
 
-    match orch.submit_task(description, file_manifest, priority, None).await {
+    match orch
+        .submit_task(description, file_manifest, priority, None)
+        .await
+    {
         Ok(task_id) => {
             let id_str = task_id.to_string();
             println!(
@@ -137,11 +142,7 @@ pub async fn queue(agent_id: u64) -> Result<()> {
         }
         None => {
             let id_str = id.to_string();
-            println!(
-                "  {} Agent {} not found",
-                "✗".red().bold(),
-                id_str.bold()
-            );
+            println!("  {} Agent {} not found", "✗".red().bold(), id_str.bold());
         }
     }
 
@@ -248,10 +249,7 @@ pub async fn save() -> Result<()> {
     let state = vox_orchestrator::state::OrchestratorState::from_status(&orch.status(), &config);
 
     match state.save(std::path::Path::new(".vox_orch_state.json")) {
-        Ok(_) => println!(
-            "  {} DEI state saved successfully",
-            "✓".green().bold()
-        ),
+        Ok(_) => println!("  {} DEI state saved successfully", "✓".green().bold()),
         Err(e) => println!("  {} Failed to save state: {}", "✗".red().bold(), e),
     }
 
@@ -266,10 +264,7 @@ pub async fn load() -> Result<()> {
     match vox_orchestrator::state::OrchestratorState::load(std::path::Path::new(
         ".vox_orch_state.json",
     )) {
-        Ok(Some(_)) => println!(
-            "  {} DEI state loaded successfully",
-            "✓".green().bold()
-        ),
+        Ok(Some(_)) => println!("  {} DEI state loaded successfully", "✓".green().bold()),
         Ok(None) => println!("  {} No saved state found", "ℹ".blue().bold()),
         Err(e) => println!("  {} Failed to load state: {}", "✗".red().bold(), e),
     }
@@ -305,7 +300,12 @@ pub async fn undo(count: usize) -> Result<()> {
                     );
                 }
                 Err(e) => {
-                    println!("  {} Failed to undo operation {}: {}", "✗".red().bold(), id, e);
+                    println!(
+                        "  {} Failed to undo operation {}: {}",
+                        "✗".red().bold(),
+                        id,
+                        e
+                    );
                     break;
                 }
             }
@@ -316,7 +316,11 @@ pub async fn undo(count: usize) -> Result<()> {
     }
 
     if successful > 0 {
-        println!("\n  {} successfully undid {} operations", "✓".green(), successful);
+        println!(
+            "\n  {} successfully undid {} operations",
+            "✓".green(),
+            successful
+        );
     }
 
     Ok(())
@@ -349,7 +353,12 @@ pub async fn redo(count: usize) -> Result<()> {
                     );
                 }
                 Err(e) => {
-                    println!("  {} Failed to redo operation {}: {}", "✗".red().bold(), id, e);
+                    println!(
+                        "  {} Failed to redo operation {}: {}",
+                        "✗".red().bold(),
+                        id,
+                        e
+                    );
                     break;
                 }
             }
@@ -360,7 +369,11 @@ pub async fn redo(count: usize) -> Result<()> {
     }
 
     if successful > 0 {
-        println!("\n  {} successfully redid {} operations", "✓".green(), successful);
+        println!(
+            "\n  {} successfully redid {} operations",
+            "✓".green(),
+            successful
+        );
     }
 
     Ok(())
@@ -453,4 +466,3 @@ fn load_config() -> OrchestratorConfig {
     config.merge_env_overrides();
     config
 }
-

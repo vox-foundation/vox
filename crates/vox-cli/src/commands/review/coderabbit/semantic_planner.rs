@@ -41,8 +41,8 @@ const DEFAULT_MAX_FILES_PER_PR: usize = 250;
 /// target-ci/, etc.), mirroring the `.gitignore` `target-*/` rule.
 static IGNORED_DIRS: &[&str] = &[
     "target/",
-    "target-",   // catches target-agent/, target-doc-inv2/, target-ci/, target-toestub/, etc.
-    "target_",   // catches target_debug/, target_release/, etc.
+    "target-", // catches target-agent/, target-doc-inv2/, target-ci/, target-toestub/, etc.
+    "target_", // catches target_debug/, target_release/, etc.
     ".cargo-targets/",
     "docs/book/",          // generated mdBook HTML (in .gitignore but sometimes tracked)
     ".vox-research-data/", // local SQLite cache
@@ -53,7 +53,7 @@ static IGNORED_DIRS: &[&str] = &[
     "dist/",
     "dist1/",
     ".next/",
-    "tmp_tools/",      // temporary scaffolding directories
+    "tmp_tools/", // temporary scaffolding directories
     "vendor/",
     "vox-vscode/out/",
     // CodeRabbit tooling — worktrees, run-state, manifests.
@@ -62,7 +62,6 @@ static IGNORED_DIRS: &[&str] = &[
     ".coderabbit/",
     ".coderabbit",
 ];
-
 
 static IGNORED_EXTENSIONS: &[&str] = &[
     ".db", ".db-wal", ".db-shm", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so",
@@ -539,7 +538,13 @@ pub async fn collect_all_files(repo: &Path) -> Result<Vec<String>> {
 
     // 2. Untracked new files (same as collect_changed_files).
     let status_out = tokio::process::Command::new("git")
-        .args(["-c", "core.autocrlf=false", "status", "--short", "--porcelain"])
+        .args([
+            "-c",
+            "core.autocrlf=false",
+            "status",
+            "--short",
+            "--porcelain",
+        ])
         .current_dir(repo)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
@@ -890,7 +895,7 @@ async fn run_semantic_submit_core(
     }
     run_state.save(repo).context("write initial run-state")?;
 
-    // Drift check is obsolete: WorkspaceGuard safely wraps the user's local state 
+    // Drift check is obsolete: WorkspaceGuard safely wraps the user's local state
     // in a `wip:` commit. No uncommitted modifications can alter our tracked files mid-flight.
 
     // ── 6. Isolated worktree PRs (independent base = baseline) ─────────────
@@ -993,8 +998,12 @@ mod tests {
         assert!(SemanticPlanner::is_ignored("target-toestub/x"));
         assert!(SemanticPlanner::is_ignored("target-agent/debug/vox-cli"));
         assert!(SemanticPlanner::is_ignored("target-agent2/debug/foo.exe"));
-        assert!(SemanticPlanner::is_ignored("target-doc-inv2/.rustc_info.json"));
-        assert!(SemanticPlanner::is_ignored("target-ci/debug/build/addr2line/output"));
+        assert!(SemanticPlanner::is_ignored(
+            "target-doc-inv2/.rustc_info.json"
+        ));
+        assert!(SemanticPlanner::is_ignored(
+            "target-ci/debug/build/addr2line/output"
+        ));
         assert!(SemanticPlanner::is_ignored("target_debug/vox"));
         assert!(SemanticPlanner::is_ignored("docs/book/index.html"));
         assert!(SemanticPlanner::is_ignored(".vox-research-data/vox.db"));

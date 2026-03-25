@@ -129,11 +129,8 @@ mod tests {
     #[test]
     fn prepare_includes_context_files_and_primary_template() {
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::write(
-            dir.path().join("lib.vox"),
-            "fn helper() to int { ret 1 }\n",
-        )
-        .expect("write lib");
+        std::fs::write(dir.path().join("lib.vox"), "fn helper() to int { ret 1 }\n")
+            .expect("write lib");
         std::fs::write(dir.path().join("app.vox"), "fn main() to int { ret 0 }\n")
             .expect("write app");
         let item = json!({

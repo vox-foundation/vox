@@ -74,7 +74,9 @@ pub fn post_task_validate(task: &AgentTask) -> ValidationResult {
         }
     }
 
-    // Cargo Test failures (if touching Rust source code)
+    // Cargo workspace check when the task touches Rust — keep behind `toestub_gate` only.
+    // This is synchronous and can run for minutes; unit tests that need fast `complete_task` should
+    // use an `OrchestratorConfig` with `toestub_gate: false` (see `vox-mcp::ServerState::new_test`).
     let touches_rust = write_files.iter().any(|p| {
         p.extension().and_then(|e| e.to_str()) == Some("rs")
             || p.file_name().and_then(|n| n.to_str()) == Some("Cargo.toml")

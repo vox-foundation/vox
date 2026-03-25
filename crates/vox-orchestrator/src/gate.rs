@@ -128,6 +128,41 @@ impl<'a> BudgetGate<'a> {
             GateResult::Allowed
         }
     }
+
+    /// Record usage with provider reconciliation metadata.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn record_usage_detailed(
+        &self,
+        agent_id: AgentId,
+        usage: &LlmUsageKey,
+        tokens_in: u64,
+        tokens_out: u64,
+        cost_usd: f64,
+        provider_request_id: Option<&str>,
+        provider_reported_cost_usd: Option<f64>,
+        estimated_cost_usd: Option<f64>,
+        reconciled_cost_usd: Option<f64>,
+        cost_source: Option<&str>,
+    ) {
+        self.budget_manager
+            .record_usage(agent_id, (tokens_in + tokens_out) as usize);
+        self.budget_manager.record_cost(agent_id, cost_usd);
+        let _ = self
+            .usage_tracker
+            .record_call_detailed(
+                &usage.provider,
+                &usage.model,
+                tokens_in,
+                tokens_out,
+                cost_usd,
+                provider_request_id,
+                provider_reported_cost_usd,
+                estimated_cost_usd,
+                reconciled_cost_usd,
+                cost_source,
+            )
+            .await;
+    }
 }
 
 #[async_trait]
@@ -154,10 +189,12 @@ impl<'a> Gate for BudgetGate<'a> {
             Err(_) => return GateResult::Allowed, // Fail open if DB is down
         };
 
-        if let Some(b) = budgets
-            .iter()
-            .find(|b| b.provider == usage.provider && b.model == usage.model)
-        {
+        if let Some(b) = budgets.iter().find(|b| {
+            b.provider == usage.provider
+                && (b.model == usage.model
+                    || b.model == "*"
+                    || (b.model == ":free" && usage.model == ":free"))
+        }) {
             if b.rate_limited {
                 return GateResult::RateLimited {
                     retry_after_secs: Some(DEFAULT_RATE_LIMIT_RETRY_SECS),
@@ -189,12 +226,17 @@ impl<'a> Gate for BudgetGate<'a> {
         // Record in DB (usage tracker) using the same keys as [`LIMITS`].
         let _ = self
             .usage_tracker
-            .record_call(
+            .record_call_detailed(
                 &usage.provider,
                 &usage.model,
                 tokens_in,
                 tokens_out,
                 cost_usd,
+                None,
+                None,
+                Some(cost_usd),
+                Some(cost_usd),
+                Some("estimated"),
             )
             .await;
     }

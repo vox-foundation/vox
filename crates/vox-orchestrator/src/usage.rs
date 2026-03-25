@@ -5,46 +5,12 @@
 //! - Cost tracking for paid models
 //! - Shared budget awareness across agents (via Turso sync)
 
+use crate::usage_policy::resolve_provider_limits;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Default `retry_after_secs` when a provider row is marked rate-limited ([`BudgetGate`](crate::gate::BudgetGate)).
 pub const DEFAULT_RATE_LIMIT_RETRY_SECS: u64 = 60;
-
-/// Known daily rate limits per provider (free tier, March 2026).
-const LIMITS: &[ProviderLimit] = &[
-    ProviderLimit {
-        provider: "google",
-        model: "gemini-2.0-flash-lite",
-        daily_limit: 1000,
-    },
-    ProviderLimit {
-        provider: "google",
-        model: "gemini-2.5-flash-preview",
-        daily_limit: 250,
-    },
-    ProviderLimit {
-        provider: "google",
-        model: "gemini-2.5-pro",
-        daily_limit: 100,
-    },
-    ProviderLimit {
-        provider: "openrouter",
-        model: ":free",
-        daily_limit: 50,
-    },
-    ProviderLimit {
-        provider: "ollama",
-        model: "*",
-        daily_limit: u32::MAX,
-    },
-];
-
-struct ProviderLimit {
-    provider: &'static str,
-    model: &'static str,
-    daily_limit: u32,
-}
 
 /// Keys rows in `provider_usage` / [`LIMITS`] for gating and accounting (not the API model slug).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -74,6 +40,21 @@ pub struct UsageRecord {
     pub tokens_out: u64,
     /// Running cost in USD for the day.
     pub cost_usd: f64,
+    /// Last provider request id seen for this row (when available).
+    #[serde(default)]
+    pub provider_request_id: Option<String>,
+    /// Last provider-reported cost seen (if the upstream API returns explicit billing).
+    #[serde(default)]
+    pub provider_reported_cost_usd: Option<f64>,
+    /// Last estimated cost computed from model pricing.
+    #[serde(default)]
+    pub estimated_cost_usd: Option<f64>,
+    /// Last reconciled cost used for budgeting/dashboarding.
+    #[serde(default)]
+    pub reconciled_cost_usd: Option<f64>,
+    /// Cost source marker (`estimated`, `provider_reported`, `reconciled`).
+    #[serde(default)]
+    pub cost_source: Option<String>,
     /// True after a provider returns HTTP 429.
     pub is_rate_limited: bool,
     /// Unix seconds of the most recent 429, if any.
@@ -186,6 +167,36 @@ impl<'a> UsageTracker<'a> {
         tokens_out: u64,
         cost_usd: f64,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.record_call_detailed(
+            provider,
+            model,
+            tokens_in,
+            tokens_out,
+            cost_usd,
+            None,
+            None,
+            Some(cost_usd),
+            Some(cost_usd),
+            Some("estimated"),
+        )
+        .await
+    }
+
+    /// Record a successful API call with detailed reconciliation metadata.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn record_call_detailed(
+        &self,
+        provider: &str,
+        model: &str,
+        tokens_in: u64,
+        tokens_out: u64,
+        cost_usd: f64,
+        provider_request_id: Option<&str>,
+        provider_reported_cost_usd: Option<f64>,
+        estimated_cost_usd: Option<f64>,
+        reconciled_cost_usd: Option<f64>,
+        cost_source: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let col = self.db.collection("provider_usage");
         col.ensure_table().await?;
 
@@ -210,6 +221,11 @@ impl<'a> UsageTracker<'a> {
                     "tokens_in": tin,
                     "tokens_out": tout,
                     "cost_usd": cost,
+                    "provider_request_id": provider_request_id,
+                    "provider_reported_cost_usd": provider_reported_cost_usd,
+                    "estimated_cost_usd": estimated_cost_usd,
+                    "reconciled_cost_usd": reconciled_cost_usd,
+                    "cost_source": cost_source,
                 }),
             )
             .await?;
@@ -223,6 +239,11 @@ impl<'a> UsageTracker<'a> {
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
                 "cost_usd": cost_usd,
+                "provider_request_id": provider_request_id,
+                "provider_reported_cost_usd": provider_reported_cost_usd,
+                "estimated_cost_usd": estimated_cost_usd,
+                "reconciled_cost_usd": reconciled_cost_usd,
+                "cost_source": cost_source,
                 "is_rate_limited": false,
                 "last_429": Value::Null,
             }))
@@ -311,12 +332,18 @@ impl<'a> UsageTracker<'a> {
 
         let date = Self::today();
         let mut results = Vec::new();
+        let limits = resolve_provider_limits();
 
-        for limit in LIMITS {
+        fn model_limit_matches(limit_model: &str, usage_model: &str) -> bool {
+            limit_model == usage_model
+                || limit_model == "*"
+                || (limit_model == ":free" && usage_model.ends_with(":free"))
+        }
+
+        for limit in &limits {
             let filter = json!({
                 "user_id": self.user_id,
                 "provider": limit.provider,
-                "model": limit.model,
                 "date": date
             });
             let records = col.find(&filter).await?;
@@ -326,6 +353,10 @@ impl<'a> UsageTracker<'a> {
             let mut was_rate_limited = false;
 
             for (_id, doc) in &records {
+                let usage_model = doc["model"].as_str().unwrap_or("");
+                if !model_limit_matches(&limit.model, usage_model) {
+                    continue;
+                }
                 total_calls += doc["calls"].as_u64().unwrap_or(0) as u32;
                 total_cost += doc["cost_usd"].as_f64().unwrap_or(0.0);
                 if doc["is_rate_limited"].as_bool().unwrap_or(false) {
@@ -335,8 +366,8 @@ impl<'a> UsageTracker<'a> {
 
             let remaining = limit.daily_limit.saturating_sub(total_calls);
             results.push(RemainingBudget {
-                provider: limit.provider.to_string(),
-                model: limit.model.to_string(),
+                provider: limit.provider.clone(),
+                model: limit.model.clone(),
                 calls_used: total_calls,
                 daily_limit: limit.daily_limit,
                 remaining,
@@ -356,14 +387,30 @@ impl<'a> UsageTracker<'a> {
     ) -> Result<ProviderRecommendation, Box<dyn std::error::Error + Send + Sync>> {
         let budgets = self.remaining_all().await?;
 
-        let mut candidates: Vec<(&RemainingBudget, bool)> = Vec::new();
-        for b in &budgets {
-            let has_key = match b.provider.as_str() {
+        fn provider_has_key(
+            provider: &str,
+            has_google_key: bool,
+            has_openrouter_key: bool,
+            has_ollama: bool,
+        ) -> bool {
+            match provider {
                 "google" => has_google_key,
                 "openrouter" => has_openrouter_key,
                 "ollama" => has_ollama,
+                "groq" => std::env::var("GROQ_API_KEY").ok().is_some(),
+                "cerebras" => std::env::var("CEREBRAS_API_KEY").ok().is_some(),
+                "mistral" => std::env::var("MISTRAL_API_KEY").ok().is_some(),
+                "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok().is_some(),
+                "sambanova" => std::env::var("SAMBANOVA_API_KEY").ok().is_some(),
+                "custom" => std::env::var("CUSTOM_OPENAI_API_KEY").ok().is_some(),
                 _ => false,
-            };
+            }
+        }
+
+        let mut candidates: Vec<(&RemainingBudget, bool)> = Vec::new();
+        for b in &budgets {
+            let has_key =
+                provider_has_key(&b.provider, has_google_key, has_openrouter_key, has_ollama);
             if has_key && b.remaining > 0 && !b.rate_limited {
                 candidates.push((b, has_key));
             }
@@ -373,21 +420,27 @@ impl<'a> UsageTracker<'a> {
 
         if let Some((best, _)) = candidates.first() {
             let default_model = match best.provider.as_str() {
-                "google" => "gemini-2.0-flash-lite",
-                "openrouter" => "mistral/devstral-2-2512:free",
-                "ollama" => "llama3.2",
-                _ => "unknown",
+                "google" => "google/auto".to_string(),
+                "openrouter" => vox_config::OPENROUTER_AUTO.to_string(),
+                "ollama" => std::env::var("POPULI_MODEL")
+                    .ok()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or_else(|| "default-model".to_string()),
+                _ => "provider-default".to_string(),
             };
             Ok(ProviderRecommendation {
                 provider: best.provider.clone(),
-                model: default_model.to_string(),
+                model: default_model,
                 remaining: best.remaining,
                 reason: format!("{} calls remaining today", best.remaining),
             })
         } else if has_ollama {
             Ok(ProviderRecommendation {
                 provider: "ollama".to_string(),
-                model: "llama3.2".to_string(),
+                model: std::env::var("POPULI_MODEL")
+                    .ok()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or_else(|| "default-model".to_string()),
                 remaining: u32::MAX,
                 reason: "local inference, unlimited".to_string(),
             })
@@ -449,10 +502,11 @@ mod tests {
 
     #[test]
     fn known_limits_cover_all_providers() {
-        let providers: Vec<&str> = LIMITS.iter().map(|l| l.provider).collect();
-        assert!(providers.contains(&"google"));
-        assert!(providers.contains(&"openrouter"));
-        assert!(providers.contains(&"ollama"));
+        let limits = resolve_provider_limits();
+        let providers: Vec<String> = limits.into_iter().map(|l| l.provider).collect();
+        assert!(providers.contains(&"google".to_string()));
+        assert!(providers.contains(&"openrouter".to_string()));
+        assert!(providers.contains(&"ollama".to_string()));
     }
 
     #[test]
@@ -473,6 +527,11 @@ mod tests {
             tokens_in: 1200,
             tokens_out: 800,
             cost_usd: 0.0,
+            provider_request_id: None,
+            provider_reported_cost_usd: None,
+            estimated_cost_usd: Some(0.0),
+            reconciled_cost_usd: Some(0.0),
+            cost_source: Some("estimated".to_string()),
             is_rate_limited: false,
             last_429: None,
         };

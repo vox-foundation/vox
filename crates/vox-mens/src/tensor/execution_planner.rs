@@ -204,13 +204,13 @@ pub fn preflight_model_bundle(
         PopuliTrainBackend::CandleQlora => {
             // Light-weight token presence check only: verify tokenizer file exists before
             // the heavy safetensors scan deferred to `candle_qlora_train`.
-            if let Some(ref p) = model.tokenizer_json {
-                if !p.is_file() {
-                    anyhow::bail!(
-                        "{}",
-                        super::operator_messages::tokenizer_not_a_file(&p.display().to_string())
-                    );
-                }
+            if let Some(ref p) = model.tokenizer_json
+                && !p.is_file()
+            {
+                anyhow::bail!(
+                    "{}",
+                    super::operator_messages::tokenizer_not_a_file(&p.display().to_string())
+                );
             }
             // Weight shards check: ensure at least one shard file exists.
             if let Some(ref shards) = model.weight_shards {

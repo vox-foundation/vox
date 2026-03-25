@@ -67,7 +67,7 @@ impl WorkspaceGuard {
             .output()
             .await
             .context("git status --porcelain")?;
-        
+
         let was_dirty = !status_out.stdout.is_empty();
 
         if was_dirty {
@@ -82,7 +82,12 @@ impl WorkspaceGuard {
             }
 
             let commit_out = tokio::process::Command::new("git")
-                .args(["commit", "-m", "wip: coderabbit safeguard snapshot", "--no-verify"])
+                .args([
+                    "commit",
+                    "-m",
+                    "wip: coderabbit safeguard snapshot",
+                    "--no-verify",
+                ])
                 .current_dir(repo)
                 .status()
                 .await
@@ -117,7 +122,9 @@ impl WorkspaceGuard {
                 .await
                 .context("git reset HEAD~1")?;
             if !reset_out.success() {
-                eprintln!("[warn] WorkspaceGuard failed to reset HEAD~1. Your uncommitted changes are safely committed as 'wip: coderabbit safeguard snapshot'.");
+                eprintln!(
+                    "[warn] WorkspaceGuard failed to reset HEAD~1. Your uncommitted changes are safely committed as 'wip: coderabbit safeguard snapshot'."
+                );
             }
         }
         Ok(())

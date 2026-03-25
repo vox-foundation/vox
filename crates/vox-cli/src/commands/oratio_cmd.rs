@@ -58,7 +58,11 @@ fn wait_for_enter_or_timeout(timeout_ms: u64, heartbeat_ms: u64) -> Result<bool>
     }
 }
 
-fn append_asr_refine_pair(path: &std::path::Path, noisy_text: &str, corrected_text: &str) -> Result<()> {
+fn append_asr_refine_pair(
+    path: &std::path::Path,
+    noisy_text: &str,
+    corrected_text: &str,
+) -> Result<()> {
     let parent = path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("invalid asr_refine output path: {}", path.display()))?;
@@ -223,7 +227,9 @@ pub fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 );
                 let route_confirmed = wait_for_enter_or_timeout(timeout_ms, heartbeat_ms)?;
                 if !route_confirmed {
-                    anyhow::bail!("oratio_capture_timeout: route confirm gate timed out after {timeout_ms} ms");
+                    anyhow::bail!(
+                        "oratio_capture_timeout: route confirm gate timed out after {timeout_ms} ms"
+                    );
                 }
             }
             let route_payload = vox_oratio::route_transcript_with_options(

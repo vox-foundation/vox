@@ -6,7 +6,9 @@
 
 use std::time::Duration;
 
-use crate::transport::{A2ADeliverRequest, LeaveRequest};
+use crate::transport::{
+    A2AAckRequest, A2ADeliverRequest, A2AInboxRequest, A2AInboxResponse, LeaveRequest,
+};
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
 /// Call the populi HTTP API (join / list / heartbeat / leave).
@@ -151,5 +153,49 @@ impl MeshHttpClient {
             .error_for_status()
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
         Ok(())
+    }
+
+    /// `POST /v1/populi/a2a/inbox` — fetch undelivered messages for a receiver id.
+    pub async fn relay_a2a_inbox(
+        &self,
+        receiver_agent_id: &str,
+    ) -> Result<A2AInboxResponse, PopuliRegistryError> {
+        let url = format!("{}/v1/populi/a2a/inbox", self.base);
+        self.auth(self.client.post(url).json(&A2AInboxRequest {
+            receiver_agent_id: receiver_agent_id.to_string(),
+        }))
+        .send()
+        .await
+        .map_err(|e| PopuliRegistryError::Http(e.to_string()))?
+        .error_for_status()
+        .map_err(|e| PopuliRegistryError::Http(e.to_string()))?
+        .json()
+        .await
+        .map_err(|e| PopuliRegistryError::Http(e.to_string()))
+    }
+
+    /// `POST /v1/populi/a2a/ack` — acknowledge one delivered message.
+    pub async fn relay_a2a_ack(
+        &self,
+        receiver_agent_id: &str,
+        message_id: u64,
+    ) -> Result<bool, PopuliRegistryError> {
+        let url = format!("{}/v1/populi/a2a/ack", self.base);
+        let resp = self
+            .auth(self.client.post(url).json(&A2AAckRequest {
+                receiver_agent_id: receiver_agent_id.to_string(),
+                message_id,
+            }))
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        match resp.status() {
+            reqwest::StatusCode::NO_CONTENT => Ok(true),
+            reqwest::StatusCode::NOT_FOUND => Ok(false),
+            _ => Err(PopuliRegistryError::Http(format!(
+                "a2a ack: unexpected status {}",
+                resp.status()
+            ))),
+        }
     }
 }

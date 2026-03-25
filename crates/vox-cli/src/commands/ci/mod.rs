@@ -1,10 +1,10 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
+pub mod build_timings;
+mod check_links;
 mod command_compliance;
 mod eval_matrix;
 mod line_endings;
-pub mod build_timings;
-mod check_links;
 mod release_build;
 
 use anyhow::{Context, Result, anyhow};
@@ -221,7 +221,6 @@ pub enum EvalMatrixCmd {
 }
 
 const DOCS_SSOT_FILES: &[&str] = &[
-
     "docs/src/architecture/forward-migration-charter.md",
     "docs/src/architecture/codex-arca-compatibility-boundaries.md",
     "docs/src/architecture/codex-arca-import-policy.md",
@@ -321,7 +320,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 .args(["run", "-p", "vox-doc-pipeline", "--", "--check"])
                 .status()?;
             if !st.success() {
-                return Err(anyhow!("SUMMARY.md is out of sync with docs/src. Run 'cargo run -p vox-doc-pipeline' to fix."));
+                return Err(anyhow!(
+                    "SUMMARY.md is out of sync with docs/src. Run 'cargo run -p vox-doc-pipeline' to fix."
+                ));
             }
             println!("SUMMARY.md is up to date.");
             Ok(())
@@ -373,9 +374,17 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PopuliGate { profile } => run_mens_gate(&root, &profile),
         CiCmd::ToestubScoped { root: scan_root } => run_toestub_scoped(&root, &scan_root),
         CiCmd::CudaFeatures => run_cuda_features(),
-        CiCmd::BuildTimings { json, crates, deep, persist, name, profile } => {
+        CiCmd::BuildTimings {
+            json,
+            crates,
+            deep,
+            persist,
+            name,
+            profile,
+        } => {
             if deep {
-                build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile)).await?;
+                build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile))
+                    .await?;
                 Ok(())
             } else {
                 run_build_timings(&root, json, crates)

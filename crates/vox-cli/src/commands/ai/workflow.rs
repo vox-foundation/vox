@@ -182,7 +182,7 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
     #[cfg(feature = "workflow-runtime")]
     {
         use crate::workflow_journal_codex;
-        
+
         struct CliTracker {
             db: Option<vox_db::VoxDb>,
         }
@@ -200,7 +200,12 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
                 }
                 Ok(())
             }
-            async fn on_activity_started(&mut self, wf: &str, act: &str, act_id: &str) -> anyhow::Result<()> {
+            async fn on_activity_started(
+                &mut self,
+                wf: &str,
+                act: &str,
+                act_id: &str,
+            ) -> anyhow::Result<()> {
                 if let Some(db) = &self.db {
                     let p = vox_pm::LogExecutionParams {
                         workflow_id: wf,
@@ -220,7 +225,13 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
                 }
                 Ok(())
             }
-            async fn on_activity_completed(&mut self, wf: &str, act: &str, act_id: &str, res: &serde_json::Value) -> anyhow::Result<()> {
+            async fn on_activity_completed(
+                &mut self,
+                wf: &str,
+                act: &str,
+                act_id: &str,
+                res: &serde_json::Value,
+            ) -> anyhow::Result<()> {
                 if let Some(db) = &self.db {
                     let out_json = res.to_string();
                     let p = vox_pm::LogExecutionParams {
@@ -253,11 +264,15 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
             .await
             .context("Failed to connect to VoxDB for workflow tracking")?;
         let mut tracker = CliTracker { db: Some(db) };
-        
-        let journal = vox_workflow_runtime::interpret_workflow_durable(&result.hir, workflow_name, &mut tracker).await?;
+
+        let journal = vox_workflow_runtime::interpret_workflow_durable(
+            &result.hir,
+            workflow_name,
+            &mut tracker,
+        )
+        .await?;
         for entry in &journal {
-            workflow_journal_codex::persist_workflow_journal_entry_opt(workflow_name, entry)
-                .await;
+            workflow_journal_codex::persist_workflow_journal_entry_opt(workflow_name, entry).await;
         }
         println!(
             "{}",

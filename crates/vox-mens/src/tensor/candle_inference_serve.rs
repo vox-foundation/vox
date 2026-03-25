@@ -285,7 +285,7 @@ impl InferenceEngine {
 
             tokens.push(next_token);
 
-            if let Some(txt) = self.tokenizer.decode(&[next_token], false).ok() {
+            if let Ok(txt) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&txt);
             }
 

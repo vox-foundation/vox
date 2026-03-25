@@ -127,11 +127,12 @@ impl crate::VoxDb {
 
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            let mut cols = Vec::new();
-            cols.push(row.get::<String>(0)?);
-            cols.push(row.get::<String>(1)?);
-            cols.push(row.get::<String>(2)?);
-            cols.push(row.get::<String>(3)?);
+            let cols = vec![
+                row.get::<String>(0)?,
+                row.get::<String>(1)?,
+                row.get::<String>(2)?,
+                row.get::<String>(3)?,
+            ];
             out.push(cols);
         }
         Ok(out)

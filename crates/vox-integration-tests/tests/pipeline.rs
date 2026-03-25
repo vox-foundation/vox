@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use vox_compiler::codegen_ts::{CodegenOptions, generate, generate_with_options};
 use vox_compiler::lexer::cursor::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 use vox_compiler::typeck::typecheck_module;
 
 /// Serializes all tests that read or write `VOX_EMIT_EXPRESS_SERVER`.
@@ -732,7 +732,7 @@ fn chatbot_full_pipeline_e2e() {
     });
 
     let tokens = vox_compiler::lexer::cursor::lex(&src);
-    let module = vox_compiler::parser::parser::parse(tokens).expect("Chatbot should parse");
+    let module = vox_compiler::parser::parse(tokens).expect("Chatbot should parse");
 
     let diagnostics = vox_compiler::typeck::typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics

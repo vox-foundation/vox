@@ -104,7 +104,9 @@ fn merge_agent_event(stats: &mut LiveStats, event: &AgentEvent) {
                 a = agent_id.0
             ));
         }
-        AgentEventKind::TaskCompleted { task_id, agent_id, .. } => {
+        AgentEventKind::TaskCompleted {
+            task_id, agent_id, ..
+        } => {
             stats.tasks_completed += 1;
             stats.push_event(format!(
                 "{GREEN}✓ completed{RESET}  #{task_id}  agent={}",

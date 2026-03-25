@@ -106,18 +106,39 @@ async fn fetch_all_pr_comments(
     pr_number: u64,
 ) -> Result<Vec<GhReviewComment>> {
     let client = reqwest::Client::new();
-    
+
     // 1. Inline review comments
-    let mut all = fetch_github_paginated(&client, token, owner, repo, &format!("pulls/{pr_number}/comments")).await?;
-    
+    let mut all = fetch_github_paginated(
+        &client,
+        token,
+        owner,
+        repo,
+        &format!("pulls/{pr_number}/comments"),
+    )
+    .await?;
+
     // 2. Issue comments (Main PR discussions)
-    let issues = fetch_github_paginated(&client, token, owner, repo, &format!("issues/{pr_number}/comments")).await?;
+    let issues = fetch_github_paginated(
+        &client,
+        token,
+        owner,
+        repo,
+        &format!("issues/{pr_number}/comments"),
+    )
+    .await?;
     all.extend(issues);
-    
+
     // 3. Top-level submitted reviews (Body content)
-    let reviews = fetch_github_paginated(&client, token, owner, repo, &format!("pulls/{pr_number}/reviews")).await?;
+    let reviews = fetch_github_paginated(
+        &client,
+        token,
+        owner,
+        repo,
+        &format!("pulls/{pr_number}/reviews"),
+    )
+    .await?;
     all.extend(reviews);
-    
+
     Ok(all)
 }
 
@@ -332,7 +353,12 @@ pub async fn ingest_pr(pr_number: u64, path: &Path) -> Result<Vec<NormalizedRevi
 
         // 2. Global walkthroughs / PR Summaries
         if file_path == "global" && body.contains("## Walkthrough") {
-            let hash = dedup_hash(&file_path, line, "Walkthrough", "Walkthrough summary included");
+            let hash = dedup_hash(
+                &file_path,
+                line,
+                "Walkthrough",
+                "Walkthrough summary included",
+            );
             items.push(NormalizedReviewItem {
                 source_pr: pr_number,
                 comment_id: c.id,
@@ -406,8 +432,13 @@ pub async fn run_ingest(
         let cr_dir = path.join(".coderabbit");
         std::fs::create_dir_all(&cr_dir).ok();
         let cache_path = cr_dir.join("ingested_findings.json");
-        std::fs::write(&cache_path, &json).with_context(|| format!("Write local cache {}", cache_path.display()))?;
-        eprintln!("Persisted {} items to {}", items.len(), cache_path.display());
+        std::fs::write(&cache_path, &json)
+            .with_context(|| format!("Write local cache {}", cache_path.display()))?;
+        eprintln!(
+            "Persisted {} items to {}",
+            items.len(),
+            cache_path.display()
+        );
     }
 
     Ok(())

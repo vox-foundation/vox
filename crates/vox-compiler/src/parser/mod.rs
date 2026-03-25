@@ -39,10 +39,10 @@
 //! advisory; the brace tokens are authoritative. Grammar and construct names
 //! mirror `docs/src/reference/lexicon.md`.
 
+/// Recursive-descent parser implementation.
+pub mod descent;
 /// Parse errors and recovery hints.
 pub mod error;
-/// Recursive-descent parser implementation.
-pub mod parser;
 
+pub use descent::parse;
 pub use error::ParseError;
-pub use parser::parse;

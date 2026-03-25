@@ -527,8 +527,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 results.push(GateResult {
                     name: format!("per_context[{}]", ctx_name),
                     passed: false,
-                    message: "eval_results.json not found — run `vox mens eval` first"
-                        .to_string(),
+                    message: "eval_results.json not found — run `vox mens eval` first".to_string(),
                     block: gate.block,
                 });
             }

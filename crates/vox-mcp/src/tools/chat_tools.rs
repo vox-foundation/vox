@@ -123,6 +123,9 @@ pub struct InlineEditParams {
     /// If true, enforces strict JSON output from the LLM (rarely used for raw code edits).
     #[serde(default)]
     pub json_mode: bool,
+    /// Optional tenant/session partition key for usage attribution.
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 /// Successful inline edit payload returned to the editor host.
@@ -152,6 +155,9 @@ pub struct PlanParams {
     /// Maximum number of tasks to generate (default: 30)
     #[serde(default)]
     pub max_tasks: Option<usize>,
+    /// Optional tenant/session partition key for usage attribution.
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-dei-d` is available.
@@ -443,8 +449,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             (c.text, Some((hash, conflict_count, objective_count)))
         }
         Err(e) => {
-            return ToolResult::<String>::err(format!("Prompt rejected by safety canonicalizer: {e}"))
-                .to_json();
+            return ToolResult::<String>::err(format!(
+                "Prompt rejected by safety canonicalizer: {e}"
+            ))
+            .to_json();
         }
     };
     let mention_count = mention_files.len();
@@ -599,7 +607,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             } else {
                 0.3_f32
             };
-            match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
+            match resolve_chat_llm_model(
+                state,
+                &user_prompt,
+                resolution_template.clone(),
+                Some(session_id),
+            )
+            .await
+            {
                 Ok((model, free_only)) => {
                     let pref = state.mcp_chat_model_override.read().unwrap().clone();
                     let max_tokens =
@@ -610,6 +625,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         resolution_template,
                         free_only,
                         allow_cloud_ollama_fallback: true,
+                        user_id: Some(session_id),
                     };
                     match crate::llm_bridge::mcp_infer_completion(
                         state,
@@ -636,7 +652,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         error = %e,
                         "cognitive profile model resolution failed — using standard routing"
                     );
-                    match call_llm(state, &system_prompt, &user_prompt).await {
+                    match call_llm(state, &system_prompt, &user_prompt, Some(session_id)).await {
                         Ok(r) => r,
                         Err(e2) => {
                             return ToolResult::<String>::err(format!("LLM error: {e2}")).to_json();
@@ -645,7 +661,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
             }
         }
-        None => match call_llm(state, &system_prompt, &user_prompt).await {
+        None => match call_llm(state, &system_prompt, &user_prompt, Some(session_id)).await {
             Ok(r) => r,
             Err(e) => {
                 return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
@@ -893,11 +909,17 @@ OUTPUT RULES:
         allow_cheapest_fallback: true,
         ..Default::default()
     };
-    let (model, free_only) =
-        match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
-            Ok(pair) => pair,
-            Err(e) => return ToolResult::<String>::err(e).to_json(),
-        };
+    let (model, free_only) = match resolve_chat_llm_model(
+        state,
+        &user_prompt,
+        resolution_template.clone(),
+        params.session_id.as_deref(),
+    )
+    .await
+    {
+        Ok(pair) => pair,
+        Err(e) => return ToolResult::<String>::err(e).to_json(),
+    };
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let max_tokens = clamp_http_max_output_tokens(model.max_tokens);
     let temperature = 0.3_f32;
@@ -907,6 +929,7 @@ OUTPUT RULES:
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        user_id: params.session_id.as_deref(),
     };
 
     let (replacement, model_used, tokens) = match crate::llm_bridge::mcp_infer_completion(
@@ -1003,13 +1026,19 @@ Rules:
         ..Default::default()
     };
 
-    let (model, free_only) =
-        match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
-            Ok(pair) => pair,
-            Err(e) => {
-                return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json();
-            }
-        };
+    let (model, free_only) = match resolve_chat_llm_model(
+        state,
+        &user_prompt,
+        resolution_template.clone(),
+        params.session_id.as_deref(),
+    )
+    .await
+    {
+        Ok(pair) => pair,
+        Err(e) => {
+            return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json();
+        }
+    };
 
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let routing = McpInferRouting {
@@ -1018,6 +1047,7 @@ Rules:
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        user_id: params.session_id.as_deref(),
     };
 
     let (response_json, model_used, tokens) = match crate::llm_bridge::mcp_infer_completion(
@@ -1204,6 +1234,9 @@ pub struct GhostTextParams {
     /// Maximum tokens to generate. Defaults to 128 for low latency.
     #[serde(default)]
     pub max_tokens: Option<u64>,
+    /// Optional tenant/session partition key for usage attribution.
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 /// Response from `vox_ghost_text`.
@@ -1259,11 +1292,17 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         enforce_free_tier_only: true,
         ..Default::default()
     };
-    let (model, free_only) =
-        match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
-            Ok(pair) => pair,
-            Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
-        };
+    let (model, free_only) = match resolve_chat_llm_model(
+        state,
+        &user_prompt,
+        resolution_template.clone(),
+        params.session_id.as_deref(),
+    )
+    .await
+    {
+        Ok(pair) => pair,
+        Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+    };
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let temperature = 0.2_f32;
     let routing = McpInferRouting {
@@ -1272,6 +1311,7 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        user_id: params.session_id.as_deref(),
     };
 
     let (mut completion, model_used, tokens) = match mcp_infer_completion(
@@ -1529,6 +1569,7 @@ mod routing_tests {
             language: None,
             file_path: None,
             max_tokens: None,
+            session_id: None,
         };
         let rich = GhostTextParams {
             prefix: "fn main() {\n    let x = 1;\n".into(),
@@ -1536,6 +1577,7 @@ mod routing_tests {
             language: Some("rust".into()),
             file_path: Some("src/main.rs".into()),
             max_tokens: None,
+            session_id: None,
         };
         assert!(ghost_grounding_score(&rich) > ghost_grounding_score(&thin));
     }

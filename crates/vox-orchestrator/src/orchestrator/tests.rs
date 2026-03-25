@@ -3,7 +3,7 @@ use crate::config::OrchestratorConfig;
 use crate::types::{AgentTask, FileAffinity, TaskId, TaskPriority};
 
 #[cfg(test)]
-mod tests {
+mod orch_smoke {
     use super::*;
 
     fn test_orchestrator() -> Orchestrator {

@@ -1,17 +1,25 @@
-use std::path::Path;
-use std::fs;
-use anyhow::{Result, Context};
-use regex::Regex;
+use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
+use regex::Regex;
+use std::fs;
+use std::path::Path;
 
 pub fn run(repo_root: &Path) -> Result<()> {
     let docs_src = repo_root.join("docs").join("src");
     if !docs_src.exists() {
-        println!("{} Docs source not found at {:?}", "SKIP".yellow(), docs_src);
+        println!(
+            "{} Docs source not found at {:?}",
+            "SKIP".yellow(),
+            docs_src
+        );
         return Ok(());
     }
 
-    println!("{} Checking internal links in {:?}...", "INIT".bright_blue(), docs_src.strip_prefix(repo_root).unwrap_or(&docs_src));
+    println!(
+        "{} Checking internal links in {:?}...",
+        "INIT".bright_blue(),
+        docs_src.strip_prefix(repo_root).unwrap_or(&docs_src)
+    );
 
     let mut total_links = 0;
     let mut broken_links = Vec::new();
@@ -22,18 +30,21 @@ pub fn run(repo_root: &Path) -> Result<()> {
     use walkdir::WalkDir;
 
     for entry in WalkDir::new(&docs_src).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() && entry.path().extension().map_or(false, |ext| ext == "md") {
+        if entry.file_type().is_file() && entry.path().extension().is_some_and(|ext| ext == "md") {
             let path = entry.path();
-            let content = fs::read_to_string(path)
-                .with_context(|| format!("Failed to read {:?}", path))?;
+            let content =
+                fs::read_to_string(path).with_context(|| format!("Failed to read {:?}", path))?;
 
             let parent_dir = path.parent().unwrap();
 
             for cap in link_re.captures_iter(&content) {
                 let target_full = &cap[1];
-                
+
                 // Skip external links and local anchors
-                if target_full.starts_with("http") || target_full.starts_with("#") || target_full.starts_with("mailto:") {
+                if target_full.starts_with("http")
+                    || target_full.starts_with("#")
+                    || target_full.starts_with("mailto:")
+                {
                     continue;
                 }
 
@@ -55,11 +66,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
                 // Normalize and check existence
                 if !target_path.exists() {
-                    broken_links.push((
-                        path.to_path_buf(),
-                        target_full.to_string(),
-                        target_path
-                    ));
+                    broken_links.push((path.to_path_buf(), target_full.to_string(), target_path));
                 }
             }
         }
@@ -71,10 +78,19 @@ pub fn run(repo_root: &Path) -> Result<()> {
         println!("{} All internal links are valid!", "PASS".green().bold());
         Ok(())
     } else {
-        println!("{} Found {} broken links:", "FAIL".red().bold(), broken_links.len());
+        println!(
+            "{} Found {} broken links:",
+            "FAIL".red().bold(),
+            broken_links.len()
+        );
         for (source, target_str, resolved) in &broken_links {
             let rel_source = source.strip_prefix(repo_root).unwrap_or(source);
-            println!("  {} -> {} (resolved: {:?})", rel_source.display().cyan(), target_str.yellow(), resolved.display().dimmed());
+            println!(
+                "  {} -> {} (resolved: {:?})",
+                rel_source.display().cyan(),
+                target_str.yellow(),
+                resolved.display().dimmed()
+            );
         }
         Err(anyhow::anyhow!("Documentation link check failed"))
     }

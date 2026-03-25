@@ -151,7 +151,9 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         ScientiaCmd::PublicationSubmitLocal { publication_id } => {
             DbCli::PublicationSubmitLocal { publication_id }
         }
-        ScientiaCmd::PublicationStatus { publication_id } => DbCli::PublicationStatus { publication_id },
+        ScientiaCmd::PublicationStatus { publication_id } => {
+            DbCli::PublicationStatus { publication_id }
+        }
     };
     db_cli::run(db_cmd).await
 }

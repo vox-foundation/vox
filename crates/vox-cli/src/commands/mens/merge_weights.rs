@@ -73,8 +73,8 @@ pub fn run_merge_weights(
         m.rank,
         m.alpha,
     );
-    let loaded: LoraVoxTransformer<B> =
-        Checkpoint::load(fresh, &checkpoint).map_err(|e| anyhow::anyhow!("Checkpoint load: {e}"))?;
+    let loaded: LoraVoxTransformer<B> = Checkpoint::load(fresh, &checkpoint)
+        .map_err(|e| anyhow::anyhow!("Checkpoint load: {e}"))?;
     let merged = loaded.merge();
     let out = output.unwrap_or_else(|| run_dir.join("model_merged.bin"));
     Checkpoint::save(&merged, &out).map_err(|e| anyhow::anyhow!("save merged checkpoint: {e}"))?;

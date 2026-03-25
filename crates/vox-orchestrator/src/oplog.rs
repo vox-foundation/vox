@@ -26,7 +26,7 @@ pub async fn append_to_db_with_breaker(
     db.breaker()
         .call(|| async {
             append_to_db(
-                &db,
+                db,
                 agent_id,
                 op_id_str,
                 kind,

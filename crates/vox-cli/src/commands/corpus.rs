@@ -92,7 +92,11 @@ pub enum CorpusAction {
         #[arg(long, default_value = "0.0")]
         min_score: f64,
         /// Output JSONL path (auto-picked by `vox mens mix`)
-        #[arg(short, long, default_value = "mens/data/mix_sources/autofeedback.jsonl")]
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/autofeedback.jsonl"
+        )]
         output: std::path::PathBuf,
         /// Max session/event rows to query
         #[arg(long, default_value = "500")]
@@ -137,13 +141,17 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             }
             Ok(())
         }
-        CorpusAction::Generate { output, force_regen, dry_run } => {
+        CorpusAction::Generate {
+            output,
+            force_regen,
+            dry_run,
+        } => {
             let workspace_root = vox_corpus::training::contract::find_workspace_root();
             let mut current_fp = String::new();
             if let Some(ref root) = workspace_root {
                 current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
             }
-            
+
             let is_fresh = if !force_regen && !current_fp.is_empty() {
                 if let Ok(db) = vox_db::VoxDb::connect_default().await {
                     db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
@@ -158,7 +166,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             };
 
             if is_fresh && !force_regen {
-                eprintln!("  {} Corpus is fresh (fingerprint: {}). Use --force-regen to rebuild.", "✓".green(), current_fp);
+                eprintln!(
+                    "  {} Corpus is fresh (fingerprint: {}). Use --force-regen to rebuild.",
+                    "✓".green(),
+                    current_fp
+                );
                 return Ok(());
             }
 
@@ -179,11 +191,19 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             // Record snapshot in Arca and local file
             if !current_fp.is_empty() {
                 if let Ok(db) = vox_db::VoxDb::connect_default().await {
-                    let _ = db.record_corpus_snapshot(&current_fp, env!("CARGO_PKG_VERSION"), count as i64, None).await;
+                    let _ = db
+                        .record_corpus_snapshot(
+                            &current_fp,
+                            env!("CARGO_PKG_VERSION"),
+                            count as i64,
+                            None,
+                        )
+                        .await;
                 }
                 if let Some(ref root) = workspace_root {
                     let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
-                    let _ = vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
+                    let _ =
+                        vox_corpus::corpus::preflight::write_fingerprint_snapshot(root, &fp_file);
                 }
             }
 
@@ -197,7 +217,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             };
             let pairs = vox_corpus::corpus::extract_rs::walk_and_extract(&config)?;
             let count = vox_corpus::corpus::extract_rs::write_to_jsonl(&pairs, &output)?;
-            println!("✓ Extracted {} Rust source pairs → {}", count, output.display());
+            println!(
+                "✓ Extracted {} Rust source pairs → {}",
+                count,
+                output.display()
+            );
             Ok(())
         }
         CorpusAction::ExtractDocs { dir, output } => {
@@ -207,7 +231,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             };
             let pairs = vox_corpus::corpus::extract_docs::walk_and_extract_docs(&config)?;
             let count = vox_corpus::corpus::extract_docs::write_docs_to_jsonl(&pairs, &output)?;
-            println!("✓ Extracted {} documentation pairs → {}", count, output.display());
+            println!(
+                "✓ Extracted {} documentation pairs → {}",
+                count,
+                output.display()
+            );
             Ok(())
         }
         CorpusAction::Validate {
@@ -241,9 +269,10 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 let db = vox_db::VoxDb::connect_default()
                     .await
                     .expect("Replay requires a database connection (set VOX_DB_URL)");
-                let rows = vox_corpus::arca_replay::extract_arca_pairs(&db, _limit, _chatml, _min_score)
-                    .await
-                    .expect("Failed to extract Arca replay pairs");
+                let rows =
+                    vox_corpus::arca_replay::extract_arca_pairs(&db, _limit, _chatml, _min_score)
+                        .await
+                        .expect("Failed to extract Arca replay pairs");
                 let parent = _output.parent().unwrap_or(std::path::Path::new("."));
                 std::fs::create_dir_all(parent)?;
                 let mut f = std::fs::File::create(&_output)
@@ -251,7 +280,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 for row in &rows {
                     writeln!(f, "{}", serde_json::to_string(row)?)?;
                 }
-                println!("✓ Wrote {} replay pairs → {}", rows.len(), _output.display());
+                println!(
+                    "✓ Wrote {} replay pairs → {}",
+                    rows.len(),
+                    _output.display()
+                );
             }
             #[cfg(not(feature = "database"))]
             {
@@ -613,12 +646,16 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
         let mut record = record;
         if record.get("difficulty").is_none() {
             if let Some(constructs) = record.get("constructs").and_then(|v| v.as_array()) {
-                let diff = constructs.iter()
+                let diff = constructs
+                    .iter()
                     .filter_map(|v| v.as_str())
-                    .map(|s| crate::training::construct_difficulty(s))
+                    .map(crate::training::construct_difficulty)
                     .max()
                     .unwrap_or(5);
-                record.as_object_mut().unwrap().insert("difficulty".to_string(), serde_json::json!(diff));
+                record
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("difficulty".to_string(), serde_json::json!(diff));
             }
         }
 

@@ -304,6 +304,11 @@ pub async fn coverage_report(state: &ServerState, crate_name: Option<&str>) -> S
 /// Generate validated Vox code from a prompt using the native LLM bridge.
 pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> String {
     let prompt = args.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
+    let session_id = args
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(str::to_string);
     let validate_flag = args
         .get("validate")
         .and_then(|v| v.as_bool())
@@ -341,6 +346,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             state,
             &current_prompt,
             resolution_template.clone(),
+            session_id.as_deref(),
         )
         .await
         {
@@ -354,6 +360,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             resolution_template,
             free_only,
             allow_cloud_ollama_fallback: true,
+            user_id: session_id.as_deref(),
         };
 
         let (mut completion, _, _) = match crate::llm_bridge::mcp_infer_completion(

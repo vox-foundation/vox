@@ -23,7 +23,10 @@ pub async fn vox_scientia_publication_prepare(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let citations_json = params.citations_json.as_ref().map(serde_json::Value::to_string);
+    let citations_json = params
+        .citations_json
+        .as_ref()
+        .map(serde_json::Value::to_string);
     let manifest = PublicationManifest {
         publication_id: params.publication_id.clone(),
         content_type: "scientia".to_string(),
@@ -150,7 +153,8 @@ pub async fn vox_scientia_publication_submit_local(
     };
     if !dual {
         return ToolResult::<String>::err(
-            "publication requires two distinct digest-bound approvals before submission".to_string(),
+            "publication requires two distinct digest-bound approvals before submission"
+                .to_string(),
         )
         .to_json();
     }

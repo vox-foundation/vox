@@ -38,7 +38,7 @@ pub fn build_catalog() -> CommandCatalog {
     let root = crate::VoxCliRoot::command();
     let mut entries = Vec::new();
     for sub in root.get_subcommands() {
-        walk_command(sub, &mut Vec::new(), &mut entries);
+        walk_command(sub, &[], &mut entries);
     }
     entries.sort_by(|a, b| a.path.cmp(&b.path));
     CommandCatalog {
@@ -80,8 +80,8 @@ pub fn select_entries(
         .collect()
 }
 
-fn walk_command(cmd: &Command, prefix: &mut Vec<String>, out: &mut Vec<CommandCatalogEntry>) {
-    let mut path = prefix.clone();
+fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEntry>) {
+    let mut path = prefix.to_vec();
     path.push(cmd.get_name().to_string());
     let feature_gate = feature_gate_for_path(&path);
     let tier = tier_for_path(&path, feature_gate.is_some());
@@ -99,9 +99,8 @@ fn walk_command(cmd: &Command, prefix: &mut Vec<String>, out: &mut Vec<CommandCa
         path: path.clone(),
         tier,
     });
-    let mut next_prefix = path;
     for sub in cmd.get_subcommands() {
-        walk_command(sub, &mut next_prefix, out);
+        walk_command(sub, &path, out);
     }
 }
 
@@ -222,7 +221,15 @@ mod tests {
             assert_eq!(e.path.len(), 1, "{} should be top-level only", e.command);
         }
         let names: Vec<&str> = selected.iter().map(|e| e.path[0].as_str()).collect();
-        for starter in ["build", "check", "run", "bundle", "dev", "doctor", "completions"] {
+        for starter in [
+            "build",
+            "check",
+            "run",
+            "bundle",
+            "dev",
+            "doctor",
+            "completions",
+        ] {
             assert!(
                 names.contains(&starter),
                 "recommended set should include `{starter}`; got {names:?}"

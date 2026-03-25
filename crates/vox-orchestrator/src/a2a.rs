@@ -56,7 +56,7 @@ pub async fn send_to_db_with_breaker(
     db.breaker()
         .call(|| async {
             send_to_db(
-                &db,
+                db,
                 sender,
                 receiver,
                 msg_type,
@@ -185,6 +185,8 @@ pub struct MessageBus {
     id_gen: AtomicU64,
     /// Maximum inbox size per agent before oldest messages are dropped.
     max_inbox_size: usize,
+    /// Number of messages dropped due to inbox overflow.
+    dropped_messages: AtomicU64,
 }
 
 impl MessageBus {
@@ -195,6 +197,7 @@ impl MessageBus {
             audit_trail: std::sync::RwLock::new(Vec::new()),
             id_gen: AtomicU64::new(1),
             max_inbox_size,
+            dropped_messages: AtomicU64::new(0),
         }
     }
 
@@ -232,6 +235,7 @@ impl MessageBus {
                 let mut inbox = crate::sync_lock::rw_write(inbox_lock);
                 if inbox.len() >= self.max_inbox_size {
                     inbox.pop_front(); // Drop oldest
+                    self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                 }
                 inbox.push_back(msg.clone());
             } else {
@@ -243,6 +247,7 @@ impl MessageBus {
                 let mut inbox = crate::sync_lock::rw_write(inbox_lock);
                 if inbox.len() >= self.max_inbox_size {
                     inbox.pop_front();
+                    self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                 }
                 inbox.push_back(msg.clone());
             }
@@ -284,6 +289,7 @@ impl MessageBus {
                     let mut inbox = crate::sync_lock::rw_write(inbox_lock);
                     if inbox.len() >= self.max_inbox_size {
                         inbox.pop_front();
+                        self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                     }
                     inbox.push_back(msg.clone());
                 }
@@ -312,6 +318,7 @@ impl MessageBus {
                 let mut inbox = crate::sync_lock::rw_write(inbox_lock);
                 if inbox.len() >= self.max_inbox_size {
                     inbox.pop_front();
+                    self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                 }
                 inbox.push_back(msg);
             }
@@ -417,6 +424,7 @@ impl MessageBus {
                 let mut inbox = crate::sync_lock::rw_write(inbox_lock);
                 if inbox.len() >= self.max_inbox_size {
                     inbox.pop_front();
+                    self.dropped_messages.fetch_add(1, Ordering::Relaxed);
                 }
                 inbox.push_back(msg.clone());
             }
@@ -494,6 +502,11 @@ impl MessageBus {
     /// Total messages in the audit trail.
     pub fn total_messages(&self) -> usize {
         crate::sync_lock::rw_read(&self.audit_trail).len()
+    }
+
+    /// Total count of dropped inbox messages due to per-agent inbox capacity.
+    pub fn dropped_messages(&self) -> u64 {
+        self.dropped_messages.load(Ordering::Relaxed)
     }
 }
 

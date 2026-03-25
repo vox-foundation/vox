@@ -1,7 +1,7 @@
-//! HIR type Checker aligned with `crate::hir::hir` (current lowered AST).
+//! HIR type Checker aligned with `crate::hir` HIR nodes (lowered AST).
 
 use crate::ast::span::Span;
-use crate::hir::hir::*;
+use crate::hir::*;
 use crate::typeck::builtins::BuiltinTypes;
 use crate::typeck::diagnostics::{Diagnostic, Severity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};

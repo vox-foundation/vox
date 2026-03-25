@@ -1441,7 +1441,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/hir/hir.rs",
+      "path": "crates/vox-compiler/src/hir/nodes.rs",
       "kind": "rust",
       "lines_total": 635,
       "lines_triple_slash": 230,
@@ -4455,7 +4455,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/parser/parser.rs",
+      "path": "crates/vox-compiler/src/parser/descent.rs",
       "kind": "rust",
       "lines_total": 2142,
       "lines_triple_slash": 8,

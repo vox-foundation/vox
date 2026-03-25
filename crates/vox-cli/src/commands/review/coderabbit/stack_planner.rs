@@ -339,7 +339,15 @@ pub async fn run_stack_submit(
     }
 
     let guard = super::git::WorkspaceGuard::new(path).await?;
-    let res = run_stack_submit_core(path, max_files_per_pr, tier, delay_between_prs_secs, dry_run, all_files).await;
+    let res = run_stack_submit_core(
+        path,
+        max_files_per_pr,
+        tier,
+        delay_between_prs_secs,
+        dry_run,
+        all_files,
+    )
+    .await;
     guard.restore().await?;
     res
 }

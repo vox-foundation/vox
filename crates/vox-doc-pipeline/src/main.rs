@@ -301,10 +301,10 @@ fn build_date_rfc822() -> String {
             return format!("{dow}, {day:02} {month_str} {year} {h:02}:{mins:02}:{s:02} GMT");
         }
         // ISO 8601 timestamp from GitHub Actions (e.g. "2026-03-24T19:00:00Z")
-        if let Some(date_part) = epoch_str.trim().split('T').next() {
-            if let Some(rfc) = iso_to_rfc822(date_part) {
-                return rfc;
-            }
+        if let Some(date_part) = epoch_str.trim().split('T').next()
+            && let Some(rfc) = iso_to_rfc822(date_part)
+        {
+            return rfc;
         }
     }
     // Fallback: current system time expressed as a fixed-format string.
@@ -388,7 +388,7 @@ fn generate_feed(docs_src: &Path, pages: &[Page]) {
          <rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n\
          <channel>\n",
     );
-    xml.push_str(&format!("  <title>Vox Language Updates</title>\n"));
+    xml.push_str("  <title>Vox Language Updates</title>\n");
     xml.push_str(&format!("  <link>{BASE_URL}/</link>\n"));
     xml.push_str("  <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>\n");
     xml.push_str("  <language>en-us</language>\n");
@@ -519,7 +519,7 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             && (trimmed == "`".repeat(backtick_count)
                 || trimmed.starts_with(&"`".repeat(backtick_count)))
         {
-            if backtick_count < 3 && backtick_count >= 1 {
+            if (1..3).contains(&backtick_count) {
                 // This looks like it's trying to be a code fence but isn't valid
                 if !fence_open {
                     errors.push(LintError {
@@ -618,15 +618,13 @@ fn parse_frontmatter(
         .unwrap()
         .to_str()
         .unwrap()
-        .replace('-', " ")
-        .replace('_', " ");
+        .replace(['-', '_'], " ");
     let mut category = None;
     let mut sort_order = 100i32;
     let mut description: Option<String> = None;
     let mut last_updated: Option<String> = None;
 
-    if content.starts_with("---") {
-        let after_dash = &content[3..];
+    if let Some(after_dash) = content.strip_prefix("---") {
         if let Some(end) = after_dash.find("---") {
             let yaml = &after_dash[..end];
             for line in yaml.lines() {

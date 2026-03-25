@@ -154,7 +154,11 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     println!("  Press Ctrl+C to stop\n");
 
     let mut cargo_cmd = Command::new("cargo");
-    cargo_cmd.arg("run").arg("--").args(args).current_dir(&generated_dir);
+    cargo_cmd
+        .arg("run")
+        .arg("--")
+        .args(args)
+        .current_dir(&generated_dir);
     if let Some((k, v)) = ssr_env {
         cargo_cmd.env(k, v);
     }

@@ -31,6 +31,7 @@ pub struct Args {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)] // Clap CLI subcommands carry many path/buf fields by design.
 pub enum Cmd {
     /// Fine-tune a HuggingFace model with Candle QLoRA (NF4).
     Train {

@@ -52,7 +52,10 @@ async fn oratio_status_includes_runtime_diagnostic_object() {
         .await
         .expect("oratio status");
     let val: serde_json::Value = serde_json::from_str(&result).expect("Valid JSON");
-    assert!(val.get("runtime").is_some(), "status should embed runtime config snapshot");
+    assert!(
+        val.get("runtime").is_some(),
+        "status should embed runtime config snapshot"
+    );
     assert!(val.get("candle").is_some());
 }
 

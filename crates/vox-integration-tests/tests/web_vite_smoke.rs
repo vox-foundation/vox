@@ -29,14 +29,14 @@ async fn full_stack_minimal_vite_production_build() {
     frontend::scaffold_react_app(&app, &ts_out, false).expect("scaffold");
 
     let pnpm = frontend::pnpm_executable();
-    let st = Command::new(&pnpm)
+    let st = Command::new(pnpm)
         .args(["install", "--prefer-offline"])
         .current_dir(&app)
         .status()
         .unwrap_or_else(|e| panic!("pnpm install failed to spawn ({pnpm:?}): {e}"));
     assert!(st.success(), "pnpm install failed");
 
-    let st = Command::new(&pnpm)
+    let st = Command::new(pnpm)
         .args(["run", "build"])
         .current_dir(&app)
         .status()

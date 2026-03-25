@@ -142,7 +142,7 @@ pub use store::{
     LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
     PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationManifestParams,
     PublicationManifestRow, PublishArtifactParams, QuestionRow, RegisterAgentParams, RegressionRow,
-    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScholarlySubmissionRow, ScheduledEntry,
+    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
     SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
     SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
     TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
@@ -340,11 +340,6 @@ impl VoxDb {
         })
     }
 
-    /// Access the underlying [`VoxDb`] (Arca / `vox_pm`) for CRUD not wrapped here.
-    ///
-    /// Naming: this method is spelled like the type; the content-addressed write API is
-    /// [`VoxDb::store`].
-
     /// Access the circuit breaker for this database.
     pub fn breaker(&self) -> &DbCircuitBreaker {
         &self.breaker
@@ -361,7 +356,6 @@ impl VoxDb {
     pub fn data_dir() -> Option<std::path::PathBuf> {
         paths::data_dir()
     }
-    /// Pull remote changes for sync-backed stores; no-op for pure local file or memory.
 
     // ── Collection & Schema Methods ─────────────────────
 
@@ -403,8 +397,6 @@ impl VoxDb {
         self.save_memory(params).await
     }
 
-    /// Load recent memories for an agent, optionally filtered by `memory_type`.
-
     /// Full-text-ish search over knowledge nodes (delegates to `VoxDb::query_knowledge_nodes`).
     ///
     /// Returns `(id, title, snippet)` tuples as produced by the store layer.
@@ -429,7 +421,7 @@ impl VoxDb {
 
     /// Return a behavioral learner for this database.
     pub fn learner(&self) -> learning::BehavioralLearner<'_> {
-        learning::BehavioralLearner::new(&self)
+        learning::BehavioralLearner::new(self)
     }
 
     /// Run a parameterized `SELECT` and collect all rows (for small result sets).
@@ -445,14 +437,6 @@ impl VoxDb {
         }
         Ok(rows)
     }
-
-    /// Highest `schema_version` row from built-in `vox_pm` migrations (baseline Codex uses **1**).
-
-    /// Append a **Codex** change-log row (`codex_change_log`) for reactive invalidation / SSE. Schema V8+.
-
-    /// Read `codex_change_log` rows with `id > after_id`, optionally filtered by `topic`.
-
-    /// Record schema lineage for a greenfield baseline or import. Schema V8+.
 
     /// Apply ordered migrations that have not yet been executed (same `schema_version` table as Arca).
     ///
@@ -491,10 +475,6 @@ impl VoxDb {
         }
         Ok(applied)
     }
-
-    /// Record an eval run row (`eval_runs`, schema V3+) for regression / RLHF-style tracking.
-
-    /// Record a generated corpus snapshot (fingerprint) into `corpus_snapshots`.
 
     /// Append a training telemetry event to `agent_events` for orchestrator visibility.
     ///
@@ -538,8 +518,6 @@ impl VoxDb {
         )
         .await
     }
-
-    /// Return true if the given fingerprint is already recorded in Arca `corpus_snapshots`.
 
     /// Run `f` between `BEGIN` and `COMMIT` on this connection; `ROLLBACK` on error.
     ///

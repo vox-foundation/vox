@@ -296,7 +296,7 @@ fn extract_construct_blocks(source: &str) -> Vec<(&'static str, String, String)>
             // Also stop if we hit a new top-level construct (no braces found after 2 lines)
             if !found_open
                 && i > block_start + 2
-                && !lines.get(i).map_or(true, |l| {
+                && !lines.get(i).is_none_or(|l| {
                     l.starts_with(' ') || l.starts_with('\t') || l.trim().is_empty()
                 })
             {

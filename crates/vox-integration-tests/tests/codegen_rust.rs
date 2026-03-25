@@ -4,7 +4,7 @@ use vox_compiler::codegen_rust::emit::emit_lib;
 use vox_compiler::hir::lower_module;
 /// Integration tests for Rust code generation of durable execution features.
 use vox_compiler::lexer::cursor::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 
 fn codegen_rust(src: &str) -> String {
     let tokens = lex(src);

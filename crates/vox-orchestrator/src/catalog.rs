@@ -75,8 +75,10 @@ impl ModelCatalog for OpenRouterCatalog {
 
             let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
 
-            let mut capabilities = ModelCapabilities::default();
-            capabilities.max_context = m.context_length;
+            let capabilities = ModelCapabilities {
+                max_context: m.context_length,
+                ..Default::default()
+            };
 
             models.push(ModelSpec {
                 id: m.id.clone(),

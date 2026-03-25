@@ -43,7 +43,6 @@ impl NewsService {
             opencollective_graphql_url: config.news.opencollective_graphql_url.clone(),
             twitter_text_chunk_max: config.news.twitter_text_chunk_max,
             twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
-            ..Default::default()
         };
         let publisher = Publisher::new(publisher_config);
 
@@ -167,20 +166,33 @@ impl NewsService {
                         .record_news_publish_attempt(id, &content_digest, &result_json)
                         .await;
                     let _ = db
-                        .record_publication_attempt(id, &content_digest, "community_syndication", &result_json)
+                        .record_publication_attempt(
+                            id,
+                            &content_digest,
+                            "community_syndication",
+                            &result_json,
+                        )
                         .await;
                 }
                 if gate.live_publish_allowed && result.all_enabled_channels_succeeded(&item) {
                     let _ = db
-                        .mark_news_published(id, result.github_id(), result.twitter_id(), result.oc_id())
+                        .mark_news_published(
+                            id,
+                            result.github_id(),
+                            result.twitter_id(),
+                            result.oc_id(),
+                        )
                         .await;
                     let _ = db
                         .set_publication_state(
                             id,
                             "published",
-                            Some(&serde_json::json!({
-                                "channel_group": "community_syndication"
-                            }).to_string()),
+                            Some(
+                                &serde_json::json!({
+                                    "channel_group": "community_syndication"
+                                })
+                                .to_string(),
+                            ),
                         )
                         .await;
                 } else if result.has_failures() {
@@ -192,9 +204,12 @@ impl NewsService {
                         .set_publication_state(
                             id,
                             "publish_failed",
-                            Some(&serde_json::json!({
-                                "channel_group": "community_syndication"
-                            }).to_string()),
+                            Some(
+                                &serde_json::json!({
+                                    "channel_group": "community_syndication"
+                                })
+                                .to_string(),
+                            ),
                         )
                         .await;
                 }

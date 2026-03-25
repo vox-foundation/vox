@@ -1,4 +1,4 @@
-use crate::hir::hir::{
+use crate::hir::{
     HirActivity, HirActor, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
 };
 use crate::typeck::env::{
@@ -149,7 +149,7 @@ pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn) {
 
 fn register_fn_like(
     env: &mut TypeEnv,
-    params: &[crate::hir::hir::HirParam],
+    params: &[crate::hir::HirParam],
     ret: Option<&HirType>,
     name: &str,
 ) {

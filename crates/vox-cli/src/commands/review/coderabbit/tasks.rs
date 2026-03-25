@@ -97,7 +97,10 @@ pub async fn run_tasks(
         if let Err(e) = std::fs::write(&tasks_path, &json) {
             eprintln!("[persist] Failed to write tasks.json: {}", e);
         } else {
-            eprintln!("[persist] Saved actionable Toestub tasks to: {}", tasks_path.display());
+            eprintln!(
+                "[persist] Saved actionable Toestub tasks to: {}",
+                tasks_path.display()
+            );
         }
     }
 

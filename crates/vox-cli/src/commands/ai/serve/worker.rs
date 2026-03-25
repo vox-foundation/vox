@@ -5,7 +5,6 @@ use super::config::ServeConfig;
 #[cfg(feature = "execution-api")]
 use anyhow::Result;
 #[cfg(feature = "execution-api")]
-
 #[cfg(feature = "execution-api")]
 use std::sync::mpsc::SyncSender;
 

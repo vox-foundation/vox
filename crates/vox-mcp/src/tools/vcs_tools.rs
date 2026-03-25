@@ -530,27 +530,30 @@ mod conflict_diff_contract_tests {
     use super::conflict_diff;
     use crate::server::ServerState;
     use serde_json::json;
-    use vox_orchestrator::FileAffinity;
-
     #[tokio::test]
     async fn conflict_diff_success_payload_has_expected_keys() {
         let state = ServerState::new_test().await;
-        let conflict_id = {
-            let orch = &state.orchestrator;
-            let task_id = orch
-                .submit_task("setup", vec![FileAffinity::write("src/lib.rs")], None, None)
-                .await
-                .expect("submit");
-            let agent_a = *orch.agent_ids().first().expect("agent");
-            orch.complete_task(task_id).await.expect("complete");
-            let ss_lock = orch.snapshot_store_handle();
-            let snap_id = ss_lock.write().unwrap().take_snapshot(
+        let orch = &state.orchestrator;
+        // Exercise `conflict_diff` without `complete_task`: post-task TOESTUB / snapshot / oplog work
+        // can run nested `cargo check --workspace` when `toestub_gate` is on, which is inappropriate
+        // for a fast shape contract test (minutes + target-dir lock contention on Windows).
+        let agent_a = orch
+            .spawn_agent("conflict-diff-contract")
+            .expect("spawn agent");
+        let snap_id = {
+            let ss = orch.snapshot_store_handle();
+            ss.write().unwrap().take_snapshot_in_memory(
                 agent_a,
-                &[std::path::PathBuf::from("src/lib.rs")],
-                "initial".to_string(),
-            );
-            let cm_lock = orch.conflict_manager_handle();
-            cm_lock.write().unwrap().record_conflict(
+                vec![(
+                    std::path::PathBuf::from("shared.rs"),
+                    b"contract-bytes".to_vec(),
+                )],
+                "conflict-diff-contract",
+            )
+        };
+        let conflict_id = {
+            let cm = orch.conflict_manager_handle();
+            cm.write().unwrap().record_conflict(
                 "shared.rs",
                 Some(snap_id),
                 vec![

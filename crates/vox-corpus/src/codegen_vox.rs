@@ -35,7 +35,7 @@ impl Rng {
         self.next() as usize % max.max(1)
     }
     fn coin(&mut self) -> bool {
-        self.next() % 2 == 0
+        self.next().is_multiple_of(2)
     }
 }
 

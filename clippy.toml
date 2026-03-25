@@ -1,0 +1,5 @@
+# Workspace Clippy configuration (see `cargo clippy -- -D warnings` in CI).
+# Store layers and RPC facades legitimately take more positional parameters than the default.
+
+too-many-arguments-threshold = 12
+type-complexity-threshold = 600

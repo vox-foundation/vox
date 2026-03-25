@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use hf_hub::api::tokio::Api;
 
 fn normalize_hf_token_env() {
-    let hf_token = std::env::var("HF_TOKEN").ok().filter(|v| !v.trim().is_empty());
+    let hf_token = std::env::var("HF_TOKEN")
+        .ok()
+        .filter(|v| !v.trim().is_empty());
     let hub_token = std::env::var("HUGGING_FACE_HUB_TOKEN")
         .ok()
         .filter(|v| !v.trim().is_empty());
@@ -142,7 +144,10 @@ mod tests {
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", "from-hub-only");
         }
         super::normalize_hf_token_env();
-        assert_eq!(std::env::var("HF_TOKEN").expect("hf token"), "from-hub-only");
+        assert_eq!(
+            std::env::var("HF_TOKEN").expect("hf token"),
+            "from-hub-only"
+        );
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");

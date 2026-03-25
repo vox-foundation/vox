@@ -56,12 +56,12 @@ pub fn load_from_dir(path: &Path) -> CodeRabbitConfig {
     // Auto-populate delay and max_files from the tier default when absent.
     let resolved_tier: Option<super::limits::CodeRabbitTier> =
         cr.tier.as_deref().and_then(|t| t.parse().ok());
-    let delay = cr.delay_between_prs_secs.or_else(|| {
-        resolved_tier.map(|t| t.min_delay_between_prs_secs())
-    });
-    let max_files = cr.max_files_per_pr.or_else(|| {
-        resolved_tier.map(|t| t.recommended_max_files_per_pr() as u32)
-    });
+    let delay = cr
+        .delay_between_prs_secs
+        .or_else(|| resolved_tier.map(|t| t.min_delay_between_prs_secs()));
+    let max_files = cr
+        .max_files_per_pr
+        .or_else(|| resolved_tier.map(|t| t.recommended_max_files_per_pr() as u32));
 
     CodeRabbitConfig {
         tier: cr.tier,
@@ -70,7 +70,6 @@ pub fn load_from_dir(path: &Path) -> CodeRabbitConfig {
         exclude_prefixes: cr.exclude_prefixes.unwrap_or_default(),
     }
 }
-
 
 #[cfg(test)]
 mod tests {

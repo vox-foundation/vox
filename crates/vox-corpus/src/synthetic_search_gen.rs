@@ -74,7 +74,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         ),
         ("Show me an example of `vox {cmd}`", "vox {cmd} example"),
     ];
-    for &(ref cmd, ref desc) in CLI_COMMANDS {
+    for (cmd, desc) in CLI_COMMANDS {
         let tmpl = &cli_templates[count % cli_templates.len()];
         let query = tmpl.0.replace("{cmd}", cmd);
         let search_query = tmpl.1.replace("{cmd}", cmd);

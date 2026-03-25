@@ -144,15 +144,13 @@ pub fn scaffold_react_app(
         .context("Failed to write index.css")?;
 
     if tanstack_start {
-        std::fs::create_dir_all(src_dir.join("routes"))
-            .context("Failed to create src/routes")?;
+        std::fs::create_dir_all(src_dir.join("routes")).context("Failed to create src/routes")?;
         std::fs::write(
             src_dir.join("routes/__root.tsx"),
             templates::tanstack_start_root_tsx(),
         )
         .context("Failed to write routes/__root.tsx")?;
-        let has_vox_programmatic_router =
-            generated_ts_dir.join("VoxTanStackRouter.tsx").is_file();
+        let has_vox_programmatic_router = generated_ts_dir.join("VoxTanStackRouter.tsx").is_file();
         if has_vox_programmatic_router {
             // `routes:` + TanStack Start: single router from codegen (`voxRouteTree`); no file-route index.
             std::fs::write(

@@ -169,7 +169,10 @@ pub fn session_config_with_runtime(
 }
 
 /// Run an end-to-end transcription session from a provided file path.
-pub fn transcribe_path_session(path: &Path, cfg: &OratioSessionConfig) -> Result<OratioSessionResult> {
+pub fn transcribe_path_session(
+    path: &Path,
+    cfg: &OratioSessionConfig,
+) -> Result<OratioSessionResult> {
     let runtime = OratioRuntimeConfig::resolve();
     transcribe_path_session_with_runtime(path, cfg, &runtime)
 }
@@ -197,11 +200,8 @@ pub fn transcribe_path_session_with_runtime(
     let transcribe_started = Instant::now();
     let (language_diagnostics, language_for_whisper) =
         crate::language::prepare_language_hint(cfg.language_hint.as_deref());
-    let ctx = CorrectionContext::from_runtime(
-        runtime,
-        cfg.correction_profile,
-        cfg.debug_parser_payload,
-    );
+    let ctx =
+        CorrectionContext::from_runtime(runtime, cfg.correction_profile, cfg.debug_parser_payload);
     let detail = transcribe_path_detailed(path, &ctx, language_for_whisper.as_deref())?;
     let transcribe_ms = transcribe_started.elapsed().as_millis();
 
@@ -308,5 +308,4 @@ mod tests {
                 .any(|d| d.taxonomy == OratioDeadlineTaxonomy::Ok)
         );
     }
-
 }

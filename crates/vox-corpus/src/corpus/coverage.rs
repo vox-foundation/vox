@@ -302,7 +302,7 @@ mod tests {
         // Repeat each 5 times so threshold of 5 is met
         let rows: Vec<&str> = all
             .iter()
-            .flat_map(|t| std::iter::repeat(*t).take(5))
+            .flat_map(|t| std::iter::repeat_n(*t, 5))
             .collect();
         let jsonl = make_jsonl(&rows);
         let report = analyse_str_with_taxonomy(&jsonl, 5, &all);

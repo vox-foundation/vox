@@ -3,6 +3,7 @@
 //! [`ModelRegistry`](crate::models::ModelRegistry) picks the best [`ModelSpec`](crate::models::ModelSpec) for a task category and records
 //! sticky overrides used by the runtime scheduler.
 
+use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
 use crate::types::TaskCategory;
 use crate::usage::LlmUsageKey;
@@ -139,20 +140,7 @@ impl ModelSpec {
 
 /// Default [`ModelConfig::premium_alias`] entries (portable defaults; override in `models.toml`).
 fn built_in_premium_alias() -> HashMap<String, String> {
-    [
-        (
-            "codegen".to_string(),
-            "anthropic/claude-sonnet-4.5".to_string(),
-        ),
-        ("testing".to_string(), "deepseek/deepseek-v3.2".to_string()),
-        ("debugging".to_string(), "openai/o3".to_string()),
-        ("logic".to_string(), "openai/o3".to_string()),
-        ("research".to_string(), "openai/gpt-5".to_string()),
-        ("parsing".to_string(), "openai/gpt-5".to_string()),
-        ("review".to_string(), "openai/gpt-5".to_string()),
-    ]
-    .into_iter()
-    .collect()
+    HashMap::new()
 }
 
 fn premium_alias_toml_default() -> HashMap<String, String> {
@@ -171,190 +159,16 @@ pub struct ModelConfig {
 
 impl Default for ModelConfig {
     fn default() -> Self {
+        let local_model = std::env::var("POPULI_MODEL")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "default-model".to_string());
         Self {
             models: vec![
-                // ── Free Tier (Google AI Studio direct, no credit card) ──
-                ModelSpec {
-                    id: "gemini-2.0-flash-lite".to_string(),
-                    canonical_slug: "google/gemini-2.0-flash-lite".to_string(),
-                    provider: "google".to_string(),
-                    provider_type: ProviderType::GoogleDirect,
-                    max_tokens: 1_000_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "gemini-2.5-flash-preview".to_string(),
-                    canonical_slug: "google/gemini-2.5-flash-preview".to_string(),
-                    provider: "google".to_string(),
-                    provider_type: ProviderType::GoogleDirect,
-                    max_tokens: 1_000_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec![
-                        "codegen".to_string(),
-                        "review".to_string(),
-                        "parsing".to_string(),
-                    ],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "gemini-2.5-pro".to_string(),
-                    canonical_slug: "google/gemini-2.5-pro".to_string(),
-                    provider: "google".to_string(),
-                    provider_type: ProviderType::GoogleDirect,
-                    max_tokens: 2_000_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec![
-                        "codegen".to_string(),
-                        "debugging".to_string(),
-                        "review".to_string(),
-                        "research".to_string(),
-                    ],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                // ── Free Tier (OpenRouter :free, requires free API key) ──
-                ModelSpec {
-                    id: "mistral/devstral-2-2512:free".to_string(),
-                    canonical_slug: "mistral/devstral-2-2512:free".to_string(),
-                    provider: "mistral".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 262_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string(), "refactoring".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "qwen/qwen3-coder:free".to_string(),
-                    canonical_slug: "qwen/qwen3-coder:free".to_string(),
-                    provider: "qwen".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 262_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "meta-llama/llama-4-scout:free".to_string(),
-                    canonical_slug: "meta/llama-4-scout:free".to_string(),
-                    provider: "meta".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 512_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["review".to_string(), "parsing".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "moonshotai/kimi-k2:free".to_string(),
-                    canonical_slug: "moonshot/kimi-k2:free".to_string(),
-                    provider: "moonshot".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 200_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string(), "research".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                // ── Paid Tier (OpenRouter, auto-selected when budget allows) ──
-                ModelSpec {
-                    id: "deepseek/deepseek-v3.2".to_string(),
-                    canonical_slug: "deepseek/deepseek-v3.2".to_string(),
-                    provider: "deepseek".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.00027,
-                    cost_per_1k_input: 0.0001,
-                    cost_per_1k_output: 0.0004,
-                    is_free: false,
-                    strengths: vec![
-                        "codegen".to_string(),
-                        "debugging".to_string(),
-                        "logic".to_string(),
-                    ],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "anthropic/claude-sonnet-4.5".to_string(),
-                    canonical_slug: "anthropic/claude-sonnet".to_string(),
-                    provider: "anthropic".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 200_000,
-                    cost_per_1k: 0.003,
-                    cost_per_1k_input: 0.003,
-                    cost_per_1k_output: 0.015,
-                    is_free: false,
-                    strengths: vec![
-                        "codegen".to_string(),
-                        "refactoring".to_string(),
-                        "review".to_string(),
-                    ],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "openai/gpt-5".to_string(),
-                    canonical_slug: "openai/gpt-5".to_string(),
-                    provider: "openai".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 256_000,
-                    cost_per_1k: 0.005,
-                    cost_per_1k_input: 0.005,
-                    cost_per_1k_output: 0.015,
-                    is_free: false,
-                    strengths: vec![
-                        "review".to_string(),
-                        "parsing".to_string(),
-                        "research".to_string(),
-                    ],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-                ModelSpec {
-                    id: "openai/o3".to_string(),
-                    canonical_slug: "openai/o3".to_string(),
-                    provider: "openai".to_string(),
-                    provider_type: ProviderType::OpenRouter,
-                    max_tokens: 200_000,
-                    cost_per_1k: 0.010,
-                    cost_per_1k_input: 0.01,
-                    cost_per_1k_output: 0.03,
-                    is_free: false,
-                    strengths: vec!["debugging".to_string(), "logic".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
                 // ── Local Ollama / Mens (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
                 ModelSpec {
-                    id: "llama3.2".to_string(),
-                    canonical_slug: "local/llama3.2".to_string(),
+                    id: local_model.clone(),
+                    canonical_slug: format!("local/{local_model}"),
                     provider: "ollama".to_string(),
                     provider_type: ProviderType::Ollama,
                     max_tokens: 128_000,
@@ -407,6 +221,58 @@ pub struct ModelRegistry {
 }
 
 impl ModelRegistry {
+    fn maybe_refresh_openrouter_models(&mut self) {
+        // Avoid `block_on` on a thread that already drives a Tokio runtime (e.g. `#[tokio::test]`,
+        // `cargo nextest`): that panics with "Cannot start a runtime from within a runtime". Run the
+        // ephemeral runtime on a fresh OS thread instead.
+        enum RefreshFail {
+            Runtime(String),
+            Fetch(String),
+        }
+
+        let joined = std::thread::spawn(|| -> Result<Vec<ModelSpec>, RefreshFail> {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| RefreshFail::Runtime(e.to_string()))?;
+            rt.block_on(async { OpenRouterCatalog::new().refresh().await })
+                .map_err(|e| RefreshFail::Fetch(e.to_string()))
+        })
+        .join();
+
+        let models = match joined {
+            Ok(Ok(models)) => models,
+            Ok(Err(RefreshFail::Runtime(msg))) => {
+                tracing::warn!(
+                    target: "vox.orchestrator.models",
+                    error = %msg,
+                    "openrouter catalog runtime init failed"
+                );
+                return;
+            }
+            Ok(Err(RefreshFail::Fetch(msg))) => {
+                tracing::warn!(
+                    target: "vox.orchestrator.models",
+                    error = %msg,
+                    "openrouter model catalog refresh failed; keeping static model registry"
+                );
+                return;
+            }
+            Err(_) => {
+                tracing::warn!(
+                    target: "vox.orchestrator.models",
+                    "openrouter catalog refresh panicked; keeping static model registry"
+                );
+                return;
+            }
+        };
+        let count = models.len();
+        for m in models {
+            self.register(m);
+        }
+        tracing::info!(target: "vox.orchestrator.models", count, "openrouter catalog refresh merged into model registry");
+    }
+
     /// Create a new model registry, loading from the configuration file or falling back to defaults.
     pub fn new() -> Self {
         let mut registry = Self {
@@ -448,6 +314,7 @@ impl ModelRegistry {
         for model in model_config.models {
             registry.register(model);
         }
+        registry.maybe_refresh_openrouter_models();
 
         registry
     }
@@ -507,6 +374,14 @@ impl ModelRegistry {
             .filter(|m| !m.is_free && m.strengths.iter().any(|s| s == strength))
             .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
             .cloned()
+            .or_else(|| {
+                self.models
+                    .values()
+                    .filter(|m| !m.is_free)
+                    .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+                    .cloned()
+            })
+            .or_else(|| self.cheapest())
     }
 
     /// Like [`Self::best_for`] but only considers models for which `pred` returns true.
@@ -558,6 +433,14 @@ impl ModelRegistry {
             .filter(|m| !m.is_free && m.strengths.iter().any(|s| s == strength) && pred(m))
             .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
             .cloned()
+            .or_else(|| {
+                self.models
+                    .values()
+                    .filter(|m| !m.is_free && pred(m))
+                    .min_by(|a, b| a.cost_per_1k.total_cmp(&b.cost_per_1k))
+                    .cloned()
+            })
+            .or_else(|| self.cheapest_with_filter(pred))
     }
 
     /// Return the best free model for a given task category.

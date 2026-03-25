@@ -13,7 +13,7 @@ pub async fn persist_heartbeat_with_breaker(
     repository_id: &str,
 ) -> Result<(), String> {
     db.breaker()
-        .call(|| async { persist_heartbeat(&db, node_id, agent_id, activity, repository_id).await })
+        .call(|| async { persist_heartbeat(db, node_id, agent_id, activity, repository_id).await })
         .await
 }
 
@@ -282,7 +282,7 @@ impl HeartbeatMonitor {
     /// Checks if a recheck is warranted based on the gap since the last heartbeat.
     pub fn should_recheck_workspace(&self, agent_id: AgentId, min_gap_secs: u64) -> bool {
         self.seconds_since_last_seen(agent_id)
-            .map_or(true, |secs| secs > min_gap_secs)
+            .is_none_or(|secs| secs > min_gap_secs)
     }
 
     /// True if the agent has exceeded the stale interval right now.

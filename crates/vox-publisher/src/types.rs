@@ -156,10 +156,10 @@ impl UnifiedNewsItem {
                 }
             }
         }
-        if let Some(ref oc) = self.syndication.open_collective {
-            if oc.collective_slug.trim().is_empty() {
-                anyhow::bail!("open_collective.collective_slug must not be empty");
-            }
+        if let Some(ref oc) = self.syndication.open_collective
+            && oc.collective_slug.trim().is_empty()
+        {
+            anyhow::bail!("open_collective.collective_slug must not be empty");
         }
         Ok(())
     }

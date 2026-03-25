@@ -279,10 +279,15 @@ impl ServerState {
         self
     }
 
-    /// Minimal `ServerState` for integration tests.
+    /// Minimal `ServerState` for integration and unit tests.
+    ///
+    /// Sets **`OrchestratorConfig::toestub_gate`** to **false** so completing a task that touches `*.rs`
+    /// does not run post-task validation’s nested **`cargo check --workspace`** (large wall time, nested
+    /// file locks on Windows). [`Self::new`] leaves the default gate **on** for real runs.
     pub async fn new_test() -> Self {
-        let config = OrchestratorConfig::default();
-        Self::new(config)
+        // `for_testing()` disables `toestub_gate` and tightens limits; avoids nested `cargo check --workspace`
+        // in `complete_task` when tasks touch `*.rs` (see `vox_orchestrator::validation::post_task_validate`).
+        Self::new(OrchestratorConfig::for_testing())
     }
 
     /// Assemble state for unit tests without running repository discovery.

@@ -1,6 +1,6 @@
 //! Language hint normalization and diagnostics for Whisper backends.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Normalize `language_hint` for Candle Whisper (ISO-ish codes) and return JSON diagnostics.
 ///

@@ -1,6 +1,6 @@
 //! `vox install` — **not implemented** in the shipped binary; registry flows belong in `vox-pm`.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 /// Refuse with a clear message until registry install is wired.
 pub async fn run(package_name: Option<&str>, _offline: bool) -> Result<()> {

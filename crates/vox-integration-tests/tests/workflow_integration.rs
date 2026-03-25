@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use vox_compiler::lexer::cursor::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_module;
 
@@ -159,7 +159,7 @@ workflow pipeline() to Result[str] {
 }
 "#;
     let tokens = vox_compiler::lexer::cursor::lex(src);
-    let module = vox_compiler::parser::parser::parse(tokens).expect("Should parse");
+    let module = vox_compiler::parser::parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
     assert_eq!(hir.activities.len(), 1, "Should have 1 activity");
     assert_eq!(hir.activities[0].name, "process_data");
@@ -266,7 +266,7 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
 }
 "#;
     let tokens = vox_compiler::lexer::cursor::lex(src);
-    let module = vox_compiler::parser::parser::parse(tokens).expect("Example should parse");
+    let module = vox_compiler::parser::parse(tokens).expect("Example should parse");
 
     let diags = vox_compiler::typeck::typecheck_module(&module, src);
     let type_errors: Vec<_> = diags

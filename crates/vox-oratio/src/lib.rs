@@ -20,25 +20,21 @@ pub mod traits;
 
 #[cfg(feature = "stt-candle")]
 pub use backends::candle_whisper::{
-    ENV_CUDA, ENV_MODEL, ENV_REVISION, candle_backend_status_json, transcribe_audio_file,
-    transcribe_audio_file_with_language, LanguageEnvOverride,
+    ENV_CUDA, ENV_MODEL, ENV_REVISION, LanguageEnvOverride, candle_backend_status_json,
+    transcribe_audio_file, transcribe_audio_file_with_language,
 };
 
+pub use routing::{RouteMode, RouteResponse, route_transcript, route_transcript_with_options};
 pub use runtime_config::{
-    resolved_runtime_config, runtime_config_diagnostic_json, tool_route_min_confidence,
     HfTunables, LlmPolicyTunables, OratioRuntimeConfig, RefineTunables, RoutingTunables,
-    SessionTimingDefaults,
+    SessionTimingDefaults, resolved_runtime_config, runtime_config_diagnostic_json,
+    tool_route_min_confidence,
 };
-pub use traits::{transcribe_path, transcribe_path_detailed, transcript_status, TranscribeDetail, Transcript};
 pub use session::{
-    session_config_with_runtime,
+    CaptureState, DeadlineDiagnostics, OratioDeadlineTaxonomy, OratioSessionConfig,
+    OratioSessionResult, OratioTimings, session_config_with_runtime, transcribe_path_session,
     transcribe_path_session_with_runtime,
-    CaptureState,
-    DeadlineDiagnostics,
-    OratioDeadlineTaxonomy,
-    OratioSessionConfig,
-    OratioSessionResult,
-    OratioTimings,
-    transcribe_path_session,
 };
-pub use routing::{route_transcript, route_transcript_with_options, RouteMode, RouteResponse};
+pub use traits::{
+    TranscribeDetail, Transcript, transcribe_path, transcribe_path_detailed, transcript_status,
+};

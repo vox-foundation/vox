@@ -2,17 +2,22 @@
 #![allow(unsafe_code)]
 
 //! `publish_mesh_on_mcp_start` performs HTTP `join` when orchestrator mens URL points at a live control plane.
+//! `a2a_inbox_merges_remote_mesh_control_plane_and_ack` covers MCP A2A inbox merge + remote ack against the same Axum router.
 
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Mutex;
+use std::sync::LazyLock;
 
+use serde_json::json;
+
+use vox_mcp::tools;
 use vox_mcp::ServerState;
 use vox_orchestrator::OrchestratorConfig;
 use vox_populi::http_client::MeshHttpClient;
-use vox_populi::transport::{MeshHttpAuth, MeshTransportState, mesh_http_app_with_auth};
+use vox_populi::transport::{A2ADeliverRequest, MeshHttpAuth, MeshTransportState, mesh_http_app_with_auth};
 
-static MESH_ENV_MUTEX: Mutex<()> = Mutex::new(());
+static MESH_ENV_MUTEX: LazyLock<tokio::sync::Mutex<()>> =
+    LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 /// Poll TCP connectivity until Axum is ready to serve requests, bounded to avoid hangs.
 async fn wait_for_tcp(addr: std::net::SocketAddr) {
@@ -39,7 +44,7 @@ fn restore_env(key: &str, previous: Option<String>) {
 
 #[tokio::test]
 async fn populi_startup_registers_on_http_control_plane() {
-    let _lock = MESH_ENV_MUTEX.lock().expect("mens env mutex poisoned");
+    let _lock = MESH_ENV_MUTEX.lock().await;
 
     const KEYS: &[&str] = &[
         "VOX_MESH_ENABLED",
@@ -107,4 +112,148 @@ async fn populi_startup_registers_on_http_control_plane() {
         }
     }
     let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// Exercises [`vox_mcp::a2a::a2a_inbox`] / [`vox_mcp::a2a::a2a_ack`] against a real in-process Populi
+/// HTTP control plane (remote poll + ack), not only the in-memory orchestrator bus.
+#[tokio::test]
+async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
+    let _lock = MESH_ENV_MUTEX.lock().await;
+
+    const KEYS: &[&str] = &[
+        "VOX_ORCHESTRATOR_MESH_CONTROL_URL",
+        "VOX_MESH_CONTROL_ADDR",
+        "VOX_MESH_TOKEN",
+    ];
+
+    let mut saved: HashMap<String, Option<String>> = HashMap::new();
+    for k in KEYS {
+        saved.insert((*k).to_string(), std::env::var(k).ok());
+    }
+
+    let state_reg = MeshTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = mesh_http_app_with_auth(state_reg, MeshHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    wait_for_tcp(bound).await;
+
+    let base = format!("http://{}", bound);
+
+    unsafe {
+        std::env::remove_var("VOX_MESH_CONTROL_ADDR");
+        std::env::set_var("VOX_ORCHESTRATOR_MESH_CONTROL_URL", &base);
+        std::env::remove_var("VOX_MESH_TOKEN");
+    }
+
+    let mesh = MeshHttpClient::new(&base);
+    const AGENT: u64 = 42;
+    mesh.relay_a2a(&A2ADeliverRequest {
+        sender_agent_id: "7".into(),
+        receiver_agent_id: AGENT.to_string(),
+        message_type: "free_form".into(),
+        payload: "mesh-early".into(),
+    })
+    .await
+    .expect("relay first A2A to mock control plane");
+    mesh.relay_a2a(&A2ADeliverRequest {
+        sender_agent_id: "8".into(),
+        receiver_agent_id: AGENT.to_string(),
+        message_type: "free_form".into(),
+        payload: "mesh-late".into(),
+    })
+    .await
+    .expect("relay second A2A to mock control plane");
+
+    let mcp = ServerState::new_test().await;
+
+    tools::handle_tool_call(
+        &mcp,
+        "vox_a2a_send",
+        json!({
+            "sender_id": 1,
+            "receiver_id": AGENT,
+            "msg_type": "free_form",
+            "payload": "local-only",
+        }),
+    )
+    .await
+    .expect("local A2A send");
+
+    let inbox_raw = tools::handle_tool_call(
+        &mcp,
+        "vox_a2a_inbox",
+        json!({ "agent_id": AGENT }),
+    )
+    .await
+    .expect("vox_a2a_inbox");
+    let inbox: serde_json::Value = serde_json::from_str(&inbox_raw).expect("inbox JSON");
+    assert_eq!(inbox["success"], true, "{inbox_raw}");
+    assert_eq!(
+        inbox["data"]["remote_ok"],
+        true,
+        "expected remote mesh inbox poll to succeed: {inbox_raw}"
+    );
+
+    let messages = inbox["data"]["messages"].as_array().expect("messages array");
+    let payload_strs: Vec<&str> = messages
+        .iter()
+        .filter_map(|m| m["payload"].as_str())
+        .collect();
+    assert!(
+        payload_strs.iter().any(|p| p.contains("local-only")),
+        "expected local bus entry in {:?}",
+        payload_strs
+    );
+    assert!(
+        payload_strs.iter().any(|p| *p == "mesh-late"),
+        "mesh id 2 should merge after local id 1 collides with mesh id 1: {:?}",
+        payload_strs
+    );
+    assert!(
+        !payload_strs.iter().any(|p| *p == "mesh-early"),
+        "duplicate message ids across planes should not duplicate rows: {:?}",
+        payload_strs
+    );
+
+    let late_id = messages
+        .iter()
+        .find(|m| m["payload"].as_str() == Some("mesh-late"))
+        .and_then(|m| m["id"].as_u64())
+        .expect("mesh-late row id");
+
+    let ack_raw = tools::handle_tool_call(
+        &mcp,
+        "vox_a2a_ack",
+        json!({ "agent_id": AGENT, "message_id": late_id }),
+    )
+    .await
+    .expect("vox_a2a_ack");
+    let ack: serde_json::Value = serde_json::from_str(&ack_raw).expect("ack JSON");
+    assert_eq!(ack["success"], true, "{ack_raw}");
+    assert_eq!(ack["data"]["remote_acknowledged"], true, "{ack_raw}");
+
+    let inbox2_raw = tools::handle_tool_call(
+        &mcp,
+        "vox_a2a_inbox",
+        json!({ "agent_id": AGENT }),
+    )
+    .await
+    .expect("second inbox");
+    let inbox2: serde_json::Value = serde_json::from_str(&inbox2_raw).expect("inbox2 JSON");
+    let after = inbox2["data"]["messages"].as_array().expect("messages");
+    assert!(
+        !after.iter().any(|m| m["payload"].as_str() == Some("mesh-late")),
+        "acked mesh row should disappear from remote poll: {inbox2_raw}"
+    );
+
+    server.abort();
+    for k in KEYS {
+        if let Some(prev) = saved.remove(*k) {
+            restore_env(k, prev);
+        }
+    }
 }

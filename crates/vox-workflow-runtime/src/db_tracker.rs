@@ -98,6 +98,6 @@ impl WorkflowTracker for VoxDbTracker {
         &mut self,
         _workflow_name: &str,
     ) -> impl Future<Output = Result<()>> + Send {
-        async move { Ok(()) }
+        std::future::ready(Ok(()))
     }
 }

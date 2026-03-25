@@ -18,7 +18,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     tracing::info!("Lexed {} tokens", tokens.len());
 
     // 2. Parse
-    let module = vox_compiler::parser::parser::parse(tokens).map_err(|errors| {
+    let module = vox_compiler::parser::parse(tokens).map_err(|errors| {
         for e in &errors {
             eprintln!("Parse error: {} at {:?}", e.message, e.span);
         }
@@ -76,10 +76,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         .files
         .iter()
         .any(|(n, _)| n == "VoxTanStackRouter.tsx");
-    let emitted_app_tsx = ts_output
-        .files
-        .iter()
-        .any(|(n, _)| n == "App.tsx");
+    let emitted_app_tsx = ts_output.files.iter().any(|(n, _)| n == "App.tsx");
     if emitted_vox_router {
         let stale = out_dir.join("App.tsx");
         if stale.is_file() {
@@ -241,8 +238,7 @@ fn verify_ts_relative_imports_from_file(ts_file: &Path) -> Result<()> {
         .with_context(|| format!("No parent for {}", ts_file.display()))?;
     let content = fs::read_to_string(ts_file)
         .with_context(|| format!("Failed to read {}", ts_file.display()))?;
-    let re = regex::Regex::new(r#"from\s+["']([^"']+)["']"#)
-        .expect("static regex for TS imports");
+    let re = regex::Regex::new(r#"from\s+["']([^"']+)["']"#).expect("static regex for TS imports");
     for cap in re.captures_iter(&content) {
         let raw = cap.get(1).expect("capture group 1").as_str();
         if !(raw.starts_with("./") || raw.starts_with("../")) {
@@ -322,7 +318,11 @@ mod route_import_tests {
         let dir = tempdir().unwrap();
         let src = dir.path().join("src");
         fs::create_dir_all(src.join("generated")).unwrap();
-        fs::write(src.join("generated/Home.tsx"), "export function Home() {}\n").unwrap();
+        fs::write(
+            src.join("generated/Home.tsx"),
+            "export function Home() {}\n",
+        )
+        .unwrap();
         fs::write(
             src.join("main.tsx"),
             "import { Home } from \"./generated/Home\";\n",

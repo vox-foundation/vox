@@ -180,6 +180,11 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
 /// Use LLM to explain a query/mutation in plain English.
 pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) -> String {
     let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
+    let session_id = args
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(str::to_string);
     let schema_path = args
         .get("schema_path")
         .and_then(|v| v.as_str())
@@ -216,6 +221,7 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         state,
         &prompt,
         resolution_template.clone(),
+        session_id.as_deref(),
     )
     .await
     {
@@ -229,6 +235,7 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        user_id: session_id.as_deref(),
     };
 
     match crate::llm_bridge::mcp_infer_completion(

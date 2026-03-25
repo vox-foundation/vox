@@ -9,9 +9,6 @@
 pub mod ai;
 /// Building and codegen orchestration endpoints.
 pub mod build;
-/// DEI decision engine commands (requires `--features dei`).
-#[cfg(feature = "dei")]
-pub mod dei;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
 /// Validation and static checking (`vox check`).
@@ -26,6 +23,9 @@ pub mod corpus;
 pub mod db;
 /// Clap entrypoints for `vox db`.
 pub mod db_cli;
+/// DEI decision engine commands (requires `--features dei`).
+#[cfg(feature = "dei")]
+pub mod dei;
 /// Auto-reloading compilation daemon runner (`vox dev`).
 pub mod dev;
 /// Submodules for `architect`, `doctor`, `clean`, etc.
@@ -51,12 +51,12 @@ pub mod island;
 pub mod live;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
-/// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
-#[cfg(feature = "populi")]
-pub mod populi_cli;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;
+/// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
+#[cfg(feature = "populi")]
+pub mod populi_cli;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;
@@ -75,7 +75,6 @@ pub mod scientia;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
 
-
 /// Speech-to-text and transcript refinement (`vox oratio`).
 #[cfg(feature = "oratio")]
 pub mod oratio_cmd;
@@ -87,4 +86,3 @@ pub mod mens;
 /// Training tools (`vox schola`).
 #[cfg(feature = "gpu")]
 pub mod schola;
-

@@ -29,8 +29,7 @@ pub async fn acquire_distributed_lock_with_breaker(
 ) -> Result<Result<i64, String>, String> {
     db.breaker()
         .call(|| async {
-            acquire_distributed_lock(&db, lock_key, node_id, agent_id, ttl_secs, repository_id)
-                .await
+            acquire_distributed_lock(db, lock_key, node_id, agent_id, ttl_secs, repository_id).await
         })
         .await
 }
@@ -43,14 +42,14 @@ pub async fn release_distributed_lock_with_breaker(
     repository_id: &str,
 ) -> Result<(), String> {
     db.breaker()
-        .call(|| async { release_distributed_lock(&db, lock_key, node_id, repository_id).await })
+        .call(|| async { release_distributed_lock(db, lock_key, node_id, repository_id).await })
         .await
 }
 
 /// Remove all locks that have passed their `expires_at` with circuit breaker protection.
 pub async fn prune_stale_distributed_locks_with_breaker(db: &vox_db::VoxDb) -> Result<u64, String> {
     db.breaker()
-        .call(|| async { prune_stale_distributed_locks(&db).await })
+        .call(|| async { prune_stale_distributed_locks(db).await })
         .await
 }
 

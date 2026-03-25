@@ -634,7 +634,7 @@ fn generate_orchestrator_pairs(
                 || name.starts_with("vox_lock")
                 || name.starts_with("vox_budget")
         })
-        .map(|s| *s)
+        .copied()
         .collect();
 
     let prompts = orchestrator_prompt_templates();
@@ -879,7 +879,7 @@ fn generate_cli_pairs(out: &mut impl Write, _cfg: &SyntheticGenConfig) -> anyhow
         "I want to {desc_lower}. What Vox command should I use?",
     ];
 
-    for &(ref cmd, ref desc) in CLI_COMMANDS {
+    for (cmd, desc) in CLI_COMMANDS {
         let desc_lower = desc.to_lowercase();
         for (i, tmpl) in templates.iter().enumerate() {
             let prompt = tmpl
@@ -2125,7 +2125,7 @@ mod tests {
         // Every entry in ORCHESTRATOR_TOOLS must appear in TOOL_REGISTRY_SLIM
         for &name in ORCHESTRATOR_TOOLS {
             assert!(
-                TOOL_REGISTRY_SLIM.iter().any(|n| *n == name),
+                TOOL_REGISTRY_SLIM.contains(&name),
                 "ORCHESTRATOR_TOOLS entry {name} not in TOOL_REGISTRY_SLIM"
             );
         }

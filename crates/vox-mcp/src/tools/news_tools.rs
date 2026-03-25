@@ -89,8 +89,9 @@ pub async fn vox_news_draft_research(
         &params.abstract_text,
     );
 
-    let draft_path =
-        PathBuf::from(&state.orchestrator_config.news.news_dir).join("drafts").join(format!("{}.md", params.news_id));
+    let draft_path = PathBuf::from(&state.orchestrator_config.news.news_dir)
+        .join("drafts")
+        .join(format!("{}.md", params.news_id));
     if let Some(parent) = draft_path.parent() {
         let _ = fs::create_dir_all(parent);
     }

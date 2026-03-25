@@ -8,8 +8,8 @@ use vox_populi::http_lifecycle::{MeshHttpJoinSpawnOutcome, mesh_http_join_best_e
 /// **`VOX_MESH_CODEX_TELEMETRY`** is set (uses [`vox_db::populi_registry_telemetry`]).
 ///
 /// When **`VOX_MESH_HTTP_JOIN`** is not disabled and a URL from **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`**
-/// or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base, also **`POST /v1/mens/join`**
-/// and (unless **`VOX_MESH_HTTP_HEARTBEAT_SECS=0`**) a background **`POST /v1/mens/heartbeat`** loop.
+/// or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base, also **`POST /v1/populi/join`**
+/// and (unless **`VOX_MESH_HTTP_HEARTBEAT_SECS=0`**) a background **`POST /v1/populi/heartbeat`** loop.
 pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
     if !vox_populi::mesh_enabled_from_env() {
         return;

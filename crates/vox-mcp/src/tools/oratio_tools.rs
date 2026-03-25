@@ -3,7 +3,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::llm_bridge::{McpInferRouting, mcp_infer_completion};
 use crate::server::ServerState;
@@ -59,11 +59,8 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
         .unwrap_or(false);
     let profile = parse_profile(&args);
     let rtc = vox_oratio::OratioRuntimeConfig::resolve();
-    let ctx = vox_oratio::refine::CorrectionContext::from_runtime(
-        &rtc,
-        profile,
-        debug_parser_payload,
-    );
+    let ctx =
+        vox_oratio::refine::CorrectionContext::from_runtime(&rtc, profile, debug_parser_payload);
     let detail = vox_oratio::transcribe_path_detailed(&full, &ctx, language_hint.as_deref())?;
     let mut out = json!({
         "path": full,
@@ -137,18 +134,14 @@ fn llm_changes_well_formed(v: &Value) -> bool {
 fn llm_confidence_field_ok(v: &Value) -> bool {
     match v.get("confidence") {
         None => true,
-        Some(c) => c
-            .as_f64()
-            .is_some_and(|x| (0.0..=1.0).contains(&x)),
+        Some(c) => c.as_f64().is_some_and(|x| (0.0..=1.0).contains(&x)),
     }
 }
 
 fn strip_json_fence(s: &str) -> String {
     let block = s.trim();
     if let Some(rest) = block.strip_prefix("```json") {
-        let mut inner = rest
-            .trim_start_matches(|c| c == '\n' || c == '\r')
-            .trim();
+        let mut inner = rest.trim_start_matches(['\n', '\r']).trim();
         if let Some(pos) = inner.rfind("```") {
             inner = inner[..pos].trim();
         }
@@ -183,9 +176,8 @@ async fn maybe_llm_polish(
         vox_oratio::RouteMode::Tool | vox_oratio::RouteMode::Orchestrator
     );
     let entropy_high = session.correction_trace.len() > 8;
-    let should_llm = session.confidence < llm_min_det_confidence
-        || entropy_high
-        || route_requires_clarity;
+    let should_llm =
+        session.confidence < llm_min_det_confidence || entropy_high || route_requires_clarity;
     if !should_llm {
         return json!({
             "skipped": true,
@@ -201,9 +193,7 @@ Raw ASR:\n{}\n\n\
 Deterministic confidence: {}\n\n\
 Reply with ONLY compact JSON (no markdown) matching this shape:\n\
 {{\"corrected_text\":string,\"confidence\":number between 0 and 1,\"changes\":[{{\"before\":string,\"after\":string}}],\"keep_original\":boolean}}\n",
-        session.text,
-        session.raw_text,
-        session.confidence
+        session.text, session.raw_text, session.confidence
     );
     let system_prompt = "You correct ASR transcripts. Output JSON only; booleans lowercase; confidence between 0 and 1 inclusive.";
 
@@ -212,24 +202,24 @@ Reply with ONLY compact JSON (no markdown) matching this shape:\n\
         ..Default::default()
     };
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
-    let (model, free_only) =
-        match crate::tools::chat_model_resolve::resolve_chat_llm_model(
-            state,
-            &user_prompt,
-            resolution_template.clone(),
-        )
-        .await
-        {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!(target: "vox_mcp_oratio", stage = "llm_pass", "llm model resolve: {e}");
-                return json!({
-                    "applied": false,
-                    "reason": "model_resolve_failed",
-                    "error": format!("{e}"),
-                });
-            }
-        };
+    let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
+        state,
+        &user_prompt,
+        resolution_template.clone(),
+        Some(session.session_id.as_str()),
+    )
+    .await
+    {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(target: "vox_mcp_oratio", stage = "llm_pass", "llm model resolve: {e}");
+            return json!({
+                "applied": false,
+                "reason": "model_resolve_failed",
+                "error": format!("{e}"),
+            });
+        }
+    };
 
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
@@ -237,6 +227,7 @@ Reply with ONLY compact JSON (no markdown) matching this shape:\n\
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        user_id: Some(session.session_id.as_str()),
     };
 
     let raw = match mcp_infer_completion(

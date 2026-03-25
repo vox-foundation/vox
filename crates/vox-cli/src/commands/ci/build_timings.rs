@@ -9,9 +9,9 @@
 //! All records land in the V34 `build_run / build_crate_sample / build_warning` tables.
 //! Falls back to the old `research_metrics` row if the DB is unavailable.
 
+use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
-use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -59,10 +59,11 @@ fn dep_graph_fingerprint() -> Option<String> {
     }
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
     let packages = json["packages"].as_array()?;
-    let mut entries: Vec<String> = packages.iter()
+    let mut entries: Vec<String> = packages
+        .iter()
         .filter_map(|p| {
             let name = p["name"].as_str()?;
-            let ver  = p["version"].as_str()?;
+            let ver = p["version"].as_str()?;
             Some(format!("{name}@{ver}"))
         })
         .collect();
@@ -85,23 +86,36 @@ fn dep_graph_fingerprint() -> Option<String> {
 
 fn rustc_version() -> Option<String> {
     let out = Command::new("rustc").args(["--version"]).output().ok()?;
-    String::from_utf8(out.stdout).ok().map(|s| s.trim().to_string())
+    String::from_utf8(out.stdout)
+        .ok()
+        .map(|s| s.trim().to_string())
 }
 
 // ── Main collector ───────────────────────────────────────────────────────────
 
 /// Run `cargo build --message-format=json` on the given package (or the whole workspace),
 /// collect per-crate timings and warnings, persist to Arca, and print a concise summary.
-pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: Option<String>) -> Result<()> {
+pub async fn bench_build_run(
+    persist: bool,
+    run_name: Option<String>,
+    profile: Option<String>,
+) -> Result<()> {
     let target_pkg = "vox-corpus"; // never self — avoids Access Denied on Windows
     let profile = profile.unwrap_or_else(|| "dev".to_string());
-    
+
     let mut args = vec!["build", "--message-format=json", "-p", target_pkg];
     if profile == "release" {
         args.push("--release");
     }
 
-    println!("vox ci build-timings → cargo build {} -p {target_pkg} --message-format=json", if profile == "release" { "--release" } else { "" });
+    println!(
+        "vox ci build-timings → cargo build {} -p {target_pkg} --message-format=json",
+        if profile == "release" {
+            "--release"
+        } else {
+            ""
+        }
+    );
 
     let dep_fp = dep_graph_fingerprint();
     let rustc_ver = rustc_version();
@@ -133,11 +147,17 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
     let mut raw_warnings = Vec::new();
 
     for line in String::from_utf8_lossy(&output.stdout).lines() {
-        let Ok(val) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+        let Ok(val) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
         match val["reason"].as_str() {
             Some("compiler-artifact") => {
                 let pkg_id = val["package_id"].as_str().unwrap_or("");
-                let name = pkg_id.split_whitespace().next().unwrap_or(pkg_id).to_string();
+                let name = pkg_id
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(pkg_id)
+                    .to_string();
                 let version = pkg_id.split_whitespace().nth(1).map(|v| v.to_string());
                 let fresh = val["fresh"].as_bool().unwrap_or(false);
                 let features = val["features"].as_array().map(|a| {
@@ -165,17 +185,19 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
                 let msg = &val["message"];
                 if let Some(level) = msg["level"].as_str() {
                     if level == "warning" || level == "error" {
-                        let code = msg["code"].as_object()
+                        let code = msg["code"]
+                            .as_object()
                             .and_then(|c| c.get("code"))
                             .and_then(|c| c.as_str())
                             .map(str::to_string);
                         let message = msg["message"].as_str().unwrap_or("").to_string();
-                        
+
                         // Fix 13: robust crate extraction using target name if path guess fails
                         let mut crate_name = val["target"]["name"].as_str().map(|s| s.to_string());
-                        
+
                         if crate_name.is_none() {
-                             crate_name = msg["spans"].as_array()
+                            crate_name = msg["spans"]
+                                .as_array()
                                 .and_then(|s| s.first())
                                 .and_then(|s| s["file_name"].as_str())
                                 .map(|f| {
@@ -215,7 +237,8 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
     let fresh_count = summary.crates.iter().filter(|c| c.fresh).count() as i64;
 
     // ── Print concise summary ───────────────────────────────────────────────
-    println!("✓ Build complete ({}) — {:.2}s  ({} compiled, {} cached, {} warnings)",
+    println!(
+        "✓ Build complete ({}) — {:.2}s  ({} compiled, {} cached, {} warnings)",
         profile,
         total_ms as f64 / 1000.0,
         crate_count - fresh_count,
@@ -224,7 +247,9 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
     );
 
     // Slowest 5 non-fresh crates
-    let mut compiled: Vec<_> = summary.crates.iter()
+    let mut compiled: Vec<_> = summary
+        .crates
+        .iter()
         .filter(|c| !c.fresh && c.elapsed_ms.is_some())
         .collect();
     compiled.sort_by_key(|c| std::cmp::Reverse(c.elapsed_ms.unwrap_or(0)));
@@ -238,8 +263,12 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
     // ── Persist ─────────────────────────────────────────────────────────────
     if persist {
         // Fix 4: Resolve real repository_id instead of hardcoded "local"
-        let repo = vox_repository::discover_repository(&std::env::current_dir().unwrap_or_default());
-        let repo_id = repo.as_ref().map(|r| r.repository_id.clone()).unwrap_or_else(|_| "local".into());
+        let repo =
+            vox_repository::discover_repository(&std::env::current_dir().unwrap_or_default());
+        let repo_id = repo
+            .as_ref()
+            .map(|r| r.repository_id.clone())
+            .unwrap_or_else(|_| "local".into());
 
         // Try new Arca tables first
         let persisted = try_persist_to_arca(
@@ -250,7 +279,8 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
             &rustc_ver,
             &dep_fp,
             &run_name,
-        ).await;
+        )
+        .await;
 
         if persisted {
             println!("Recorded metrics to VoxDB (V34 build tables).");
@@ -260,12 +290,14 @@ pub async fn bench_build_run(persist: bool, run_name: Option<String>, profile: O
             if let Ok(config) = DbConfig::from_env() {
                 if let Ok(db) = VoxDb::connect(config).await {
                     let details = serde_json::to_value(&summary).unwrap_or_default();
-                    let _ = db.record_benchmark_event(
-                        &repo_id,
-                        "cargo_build_metrics",
-                        Some(total_ms as f64 / 1000.0),
-                        Some(details),
-                    ).await;
+                    let _ = db
+                        .record_benchmark_event(
+                            &repo_id,
+                            "cargo_build_metrics",
+                            Some(total_ms as f64 / 1000.0),
+                            Some(details),
+                        )
+                        .await;
                     println!("Recorded fallback metrics to research_metrics.");
                 }
             }
@@ -290,39 +322,56 @@ async fn try_persist_to_arca(
         Ok(c) => c,
         Err(_) => return false,
     };
-    let Ok(db) = VoxDb::connect(config).await else { return false };
+    let Ok(db) = VoxDb::connect(config).await else {
+        return false;
+    };
 
-    let run_id = match db.insert_build_run(
-        repo_id,
-        run_name.as_deref(),
-        rustc_ver.as_deref(),
-        &summary.profile,
-        summary.total_ms,
-        crate_count,
-        fresh_count,
-        dep_fp.as_deref(),
-    ).await {
+    let run_id = match db
+        .insert_build_run(
+            repo_id,
+            run_name.as_deref(),
+            rustc_ver.as_deref(),
+            &summary.profile,
+            summary.total_ms,
+            crate_count,
+            fresh_count,
+            dep_fp.as_deref(),
+        )
+        .await
+    {
         Ok(id) => id,
         Err(_) => return false,
     };
 
     // Samples
-    let samples: Vec<_> = summary.crates.iter().map(|c| (
-        c.name.as_str(),
-        c.version.as_deref(),
-        c.elapsed_ms,
-        c.fresh,
-        c.features.as_deref(),
-    )).collect();
+    let samples: Vec<_> = summary
+        .crates
+        .iter()
+        .map(|c| {
+            (
+                c.name.as_str(),
+                c.version.as_deref(),
+                c.elapsed_ms,
+                c.fresh,
+                c.features.as_deref(),
+            )
+        })
+        .collect();
     let _ = db.insert_crate_samples(run_id, &samples).await;
 
     // Warnings
-    let warns: Vec<_> = summary.warnings.iter().map(|w| (
-        w.crate_name.as_str(),
-        w.level.as_str(),
-        w.code.as_deref(),
-        w.message.as_str(),
-    )).collect();
+    let warns: Vec<_> = summary
+        .warnings
+        .iter()
+        .map(|w| {
+            (
+                w.crate_name.as_str(),
+                w.level.as_str(),
+                w.code.as_deref(),
+                w.message.as_str(),
+            )
+        })
+        .collect();
     let _ = db.insert_build_warnings(run_id, &warns).await;
 
     true

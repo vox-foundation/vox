@@ -61,10 +61,7 @@ async fn record_agent_event_round_trip_matches_list_gamify_events() {
     db.record_agent_event("agent-a", "test_evt", r#"{"k":1}"#, "9.9.9")
         .await
         .expect("insert");
-    let rows = db
-        .list_gamify_events("agent-a", 10)
-        .await
-        .expect("list");
+    let rows = db.list_gamify_events("agent-a", 10).await.expect("list");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].event_type, "test_evt");
     assert_eq!(rows[0].payload_json.as_deref(), Some(r#"{"k":1}"#));

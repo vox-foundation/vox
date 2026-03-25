@@ -27,9 +27,10 @@ pub async fn post(
         .as_deref()
         .unwrap_or("...");
 
-    let primary_text = config.short_text.clone().unwrap_or_else(|| {
-        truncate_chars(&item.content_markdown, chunk_max, truncation_suffix)
-    });
+    let primary_text = config
+        .short_text
+        .clone()
+        .unwrap_or_else(|| truncate_chars(&item.content_markdown, chunk_max, truncation_suffix));
 
     let mut texts = if config.thread {
         let full = config

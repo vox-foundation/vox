@@ -423,7 +423,9 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             metric_type,
         } => db::research_metrics(session_id, metric_type.as_deref()).await,
         DbCli::ReliabilityList { domain, limit } => db::reliability_list(&domain, limit).await,
-        DbCli::ReliabilityAgents { limit, min_score } => db::reliability_agents(limit, min_score).await,
+        DbCli::ReliabilityAgents { limit, min_score } => {
+            db::reliability_agents(limit, min_score).await
+        }
         DbCli::PublicationPrepare {
             publication_id,
             content_type,
@@ -451,6 +453,8 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         DbCli::PublicationSubmitLocal { publication_id } => {
             db::publication_submit_local(&publication_id).await
         }
-        DbCli::PublicationStatus { publication_id } => db::publication_status(&publication_id).await,
+        DbCli::PublicationStatus { publication_id } => {
+            db::publication_status(&publication_id).await
+        }
     }
 }

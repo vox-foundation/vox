@@ -125,6 +125,8 @@ pub mod summary;
 pub mod types;
 /// Aggregated LLM usage, quotas, and cost accounting.
 pub mod usage;
+/// Provider daily quota policy (dynamic + defaults).
+pub mod usage_policy;
 /// Per-agent workspace views and pending change tracking.
 pub mod workspace;
 

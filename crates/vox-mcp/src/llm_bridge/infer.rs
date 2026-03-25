@@ -10,8 +10,8 @@ use crate::server::ServerState;
 use super::MCP_GLOBAL_LLM_AGENT;
 use super::error::HttpInferError;
 use super::limits::HTTP_MAX_OUTPUT_TOKENS_CAP;
-use super::model_route_policy::{McpChatModelResolution, resolve_mcp_chat_model_sync};
-use super::providers::{http_gemini, http_ollama, http_openai_compatible, probe_ollama_tags};
+use super::model_route_policy::{McpChatModelResolution, resolve_mcp_chat_model};
+use super::provider_adapter::{ProviderInferResult, infer_via_provider_adapter};
 
 /// Routing context for [`mcp_infer_completion`] (sticky override, free-tier policy, Ollama fallback).
 #[derive(Clone)]
@@ -27,6 +27,8 @@ pub struct McpInferRouting<'a> {
     /// When cloud gate denies (daily cap, in-memory budget) or HTTP fails, try local Ollama.
     /// Effective only if **`VOX_INFERENCE_PROFILE`** allows local Ollama HTTP (`desktop_ollama` or `lan_gateway`).
     pub allow_cloud_ollama_fallback: bool,
+    /// Optional tenant/session usage partition key for centralized accounting.
+    pub user_id: Option<&'a str>,
 }
 
 fn should_emit_llm_cost_events(state: &ServerState) -> bool {
@@ -45,80 +47,14 @@ fn should_emit_llm_cost_events(state: &ServerState) -> bool {
     }
 }
 
-async fn http_infer_model(
-    client: &reqwest::Client,
-    model: &ModelSpec,
-    system_prompt: &str,
-    user_prompt: &str,
-    max_t: u64,
-    temperature: f32,
-    json_mode: bool,
-) -> Result<(String, u32, u32), HttpInferError> {
-    match model.provider_type {
-        ProviderType::GoogleDirect => {
-            let key = std::env::var("GEMINI_API_KEY").map_err(|_| HttpInferError {
-                status: 0,
-                message: "GEMINI_API_KEY is not set (required for Google-direct models)".into(),
-            })?;
-            http_gemini(
-                client,
-                &model.id,
-                &key,
-                system_prompt,
-                user_prompt,
-                max_t,
-                temperature,
-                json_mode,
-            )
-            .await
-        }
-        ProviderType::Ollama => {
-            probe_ollama_tags(client).await?;
-            http_ollama(
-                client,
-                &model.id,
-                system_prompt,
-                user_prompt,
-                max_t,
-                temperature,
-                json_mode,
-            )
-            .await
-        }
-        ProviderType::OpenRouter => {
-            let key = vox_config::inference::openrouter_api_key().unwrap_or_default();
-            if key.is_empty() {
-                return Err(HttpInferError {
-                    status: 0,
-                    message: "OPENROUTER_API_KEY is not set (required for OpenRouter models)"
-                        .into(),
-                });
-            }
-            http_openai_compatible(
-                client,
-                vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL,
-                &key,
-                &model.id,
-                system_prompt,
-                user_prompt,
-                max_t,
-                temperature,
-                json_mode,
-            )
-            .await
-        }
-        ProviderType::Groq
-        | ProviderType::Cerebras
-        | ProviderType::Mistral
-        | ProviderType::DeepSeek
-        | ProviderType::SambaNova
-        | ProviderType::Custom(_) => Err(HttpInferError {
-            status: 0,
-            message: format!(
-                "Provider {:?} not yet fully supported via MCP infer bridge",
-                model.provider_type
-            ),
-        }),
+fn estimated_cost_usd(model: &ModelSpec, prompt_tokens: u32, completion_tokens: u32) -> f64 {
+    let in_cost = model.cost_per_1k_input;
+    let out_cost = model.cost_per_1k_output;
+    if in_cost > 0.0 || out_cost > 0.0 {
+        ((prompt_tokens as f64 / 1000.0) * in_cost)
+            + ((completion_tokens as f64 / 1000.0) * out_cost)
+    } else {
+        (((prompt_tokens + completion_tokens) as f64) / 1000.0) * model.cost_per_1k
     }
 }
 
@@ -141,6 +77,51 @@ async fn best_ollama_model(state: &ServerState) -> Option<ModelSpec> {
     v.into_iter().next()
 }
 
+async fn best_non_ollama_model_except(
+    state: &ServerState,
+    exclude_model_id: &str,
+) -> Option<ModelSpec> {
+    let orch = &state.orchestrator;
+    let mut v: Vec<ModelSpec> = crate::sync_lock::rw_read(&*orch.models_handle())
+        .list_models()
+        .into_iter()
+        .filter(|m| {
+            !matches!(m.provider_type, ProviderType::Ollama)
+                && m.id != exclude_model_id
+                && !matches!(m.provider_type, ProviderType::Custom(_))
+        })
+        .collect();
+    v.sort_by(|a, b| {
+        a.cost_per_1k
+            .total_cmp(&b.cost_per_1k)
+            .then_with(|| b.max_tokens.cmp(&a.max_tokens))
+    });
+    v.into_iter().next()
+}
+
+fn is_openrouter_gemini_model(model: &ModelSpec) -> bool {
+    matches!(model.provider_type, ProviderType::OpenRouter)
+        && model.id.to_ascii_lowercase().contains("gemini")
+}
+
+fn google_direct_fallback_for_gemini(
+    state: &ServerState,
+    current: &ModelSpec,
+) -> Option<ModelSpec> {
+    if !is_openrouter_gemini_model(current) {
+        return None;
+    }
+    if vox_config::GeminiRoutePolicy::from_env() != vox_config::GeminiRoutePolicy::OpenRouterFirst {
+        return None;
+    }
+    std::env::var("GEMINI_API_KEY")
+        .ok()
+        .filter(|s| !s.trim().is_empty())?;
+    let targets = vox_config::gemini_route_targets_from_env();
+    crate::sync_lock::rw_read(&*state.orchestrator.models_handle())
+        .get(&targets.google_direct_model)
+}
+
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).
 pub async fn mcp_infer_completion(
     state: &ServerState,
@@ -156,6 +137,9 @@ pub async fn mcp_infer_completion(
     let client = &state.http_client;
     let allow_ollama_fallback =
         routing.allow_cloud_ollama_fallback && inference_profile_allows_local_ollama_http();
+    let mut tried_local_fallback = false;
+    let mut tried_google_direct_fallback = false;
+    let mut tried_secondary_cloud = false;
 
     let mut first_pass = true;
 
@@ -163,15 +147,17 @@ pub async fn mcp_infer_completion(
         if first_pass {
             first_pass = false;
             if routing.free_only && !model.is_free {
-                let orch = &state.orchestrator;
                 let mut res = routing.resolution_template.clone();
                 res.enforce_free_tier_only = true;
-                match resolve_mcp_chat_model_sync(
-                    &*orch,
+                match resolve_mcp_chat_model(
+                    state,
                     routing.user_prompt,
                     routing.sticky_model_pref,
                     res,
-                ) {
+                    routing.user_id,
+                )
+                .await
+                {
                     Ok((m, _)) => model = m,
                     Err(e) => return Err(e),
                 }
@@ -189,7 +175,11 @@ pub async fn mcp_infer_completion(
         let usage = model.llm_usage_key();
 
         if let Some(db) = state.db.as_ref() {
-            let tracker = UsageTracker::new_ref(db.as_ref());
+            let tracker = if let Some(user_id) = routing.user_id {
+                UsageTracker::with_user(db.as_ref(), user_id)
+            } else {
+                UsageTracker::new_ref(db.as_ref())
+            };
             let gate = BudgetGate::new(state.budget_manager.as_ref(), &tracker);
             match gate.allow(MCP_GLOBAL_LLM_AGENT, &usage, 0).await {
                 GateResult::Allowed => {}
@@ -198,6 +188,15 @@ pub async fn mcp_infer_completion(
                     {
                         if let Some(fb) = best_ollama_model(state).await {
                             model = fb;
+                            tried_local_fallback = true;
+                            continue;
+                        }
+                    }
+                    if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud
+                    {
+                        if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                            model = fb;
+                            tried_secondary_cloud = true;
                             continue;
                         }
                     }
@@ -208,6 +207,15 @@ pub async fn mcp_infer_completion(
                     {
                         if let Some(fb) = best_ollama_model(state).await {
                             model = fb;
+                            tried_local_fallback = true;
+                            continue;
+                        }
+                    }
+                    if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud
+                    {
+                        if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                            model = fb;
+                            tried_secondary_cloud = true;
                             continue;
                         }
                     }
@@ -242,7 +250,7 @@ pub async fn mcp_infer_completion(
             (system_prompt, routing.user_prompt)
         };
 
-        let infer_result = http_infer_model(
+        let infer_result = infer_via_provider_adapter(
             client,
             &model,
             final_system,
@@ -254,14 +262,46 @@ pub async fn mcp_infer_completion(
         .await;
 
         match infer_result {
-            Ok((text, pt, ct)) => {
+            Ok(ProviderInferResult {
+                text,
+                prompt_tokens: pt,
+                completion_tokens: ct,
+                provider_request_id,
+                provider_reported_cost_usd,
+            }) => {
                 let total_tok = (pt + ct) as u64;
-                let cost_usd = (total_tok as f64 / 1000.0) * model.cost_per_1k;
+                let estimated_usd = estimated_cost_usd(&model, pt, ct);
+                let (reconciled_usd, cost_source) = match provider_reported_cost_usd {
+                    Some(provider_usd) if estimated_usd > 0.0 => {
+                        if (provider_usd - estimated_usd).abs() > 0.000_001 {
+                            ((provider_usd + estimated_usd) / 2.0, "reconciled")
+                        } else {
+                            (provider_usd, "provider_reported")
+                        }
+                    }
+                    Some(provider_usd) => (provider_usd, "provider_reported"),
+                    None => (estimated_usd, "estimated"),
+                };
                 if let Some(db) = state.db.as_ref() {
-                    let tracker = UsageTracker::new_ref(db.as_ref());
+                    let tracker = if let Some(user_id) = routing.user_id {
+                        UsageTracker::with_user(db.as_ref(), user_id)
+                    } else {
+                        UsageTracker::new_ref(db.as_ref())
+                    };
                     let gate = BudgetGate::new(state.budget_manager.as_ref(), &tracker);
-                    gate.record_usage(MCP_GLOBAL_LLM_AGENT, &usage, pt as u64, ct as u64, cost_usd)
-                        .await;
+                    gate.record_usage_detailed(
+                        MCP_GLOBAL_LLM_AGENT,
+                        &usage,
+                        pt as u64,
+                        ct as u64,
+                        reconciled_usd,
+                        provider_request_id.as_deref(),
+                        provider_reported_cost_usd,
+                        Some(estimated_usd),
+                        Some(reconciled_usd),
+                        Some(cost_source),
+                    )
+                    .await;
                 }
 
                 if should_emit_llm_cost_events(state) {
@@ -272,8 +312,13 @@ pub async fn mcp_infer_completion(
                         model: model.id.clone(),
                         input_tokens: pt,
                         output_tokens: ct,
-                        cost_usd,
-                        temporal_context: None,
+                        cost_usd: reconciled_usd,
+                        temporal_context: Some(serde_json::json!({
+                            "tool": _tool,
+                            "provider_request_id": provider_request_id,
+                            "user_id": routing.user_id,
+                            "cost_source": cost_source,
+                        })),
                     });
                 }
 
@@ -282,15 +327,37 @@ pub async fn mcp_infer_completion(
             Err(e) => {
                 if e.status == 429 {
                     if let Some(db) = state.db.as_ref() {
-                        let tracker = UsageTracker::new_ref(db.as_ref());
+                        let tracker = if let Some(user_id) = routing.user_id {
+                            UsageTracker::with_user(db.as_ref(), user_id)
+                        } else {
+                            UsageTracker::new_ref(db.as_ref())
+                        };
                         let _ = tracker
                             .mark_rate_limited(&usage.provider, &usage.model)
                             .await;
                     }
                 }
-                if allow_ollama_fallback && !matches!(model.provider_type, ProviderType::Ollama) {
+                if !tried_google_direct_fallback {
+                    if let Some(fb) = google_direct_fallback_for_gemini(state, &model) {
+                        model = fb;
+                        tried_google_direct_fallback = true;
+                        continue;
+                    }
+                }
+                if allow_ollama_fallback
+                    && !tried_local_fallback
+                    && !matches!(model.provider_type, ProviderType::Ollama)
+                {
                     if let Some(fb) = best_ollama_model(state).await {
                         model = fb;
+                        tried_local_fallback = true;
+                        continue;
+                    }
+                }
+                if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud {
+                    if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                        model = fb;
+                        tried_secondary_cloud = true;
                         continue;
                     }
                 }
@@ -305,23 +372,25 @@ pub async fn call_llm(
     state: &ServerState,
     system_prompt: &str,
     user_prompt: &str,
+    user_id: Option<&str>,
 ) -> Result<(String, String, u64), String> {
     let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let (model, free_only, resolution_template) = {
         let orch = &state.orchestrator;
-        let context_fill_ratio =
-            super::model_route_policy::mcp_global_llm_context_fill_ratio(&*orch);
+        let context_fill_ratio = super::model_route_policy::mcp_global_llm_context_fill_ratio(orch);
         let resolution_template = McpChatModelResolution {
             allow_cheapest_fallback: true,
             context_fill_ratio,
             ..Default::default()
         };
-        let (model, free_only) = resolve_mcp_chat_model_sync(
-            &*orch,
+        let (model, free_only) = resolve_mcp_chat_model(
+            state,
             user_prompt,
             pref.as_deref(),
             resolution_template.clone(),
-        )?;
+            user_id,
+        )
+        .await?;
         (model, free_only, resolution_template)
     };
 
@@ -332,6 +401,7 @@ pub async fn call_llm(
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        user_id,
     };
     mcp_infer_completion(
         state,

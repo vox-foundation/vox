@@ -556,10 +556,12 @@ mod tests {
     fn initial_manifest_run_from_lora_config_grad_accum_clamped() {
         use super::super::training_config::LoraTrainingConfig;
 
-        let mut c = LoraTrainingConfig::default();
-        c.base_model = Some("hf/model".into());
-        c.rank = 11;
-        c.grad_accum = 0;
+        let c = LoraTrainingConfig {
+            base_model: Some("hf/model".into()),
+            rank: 11,
+            grad_accum: 0,
+            ..Default::default()
+        };
         let snap = InitialManifestRun::from_lora_config(&c);
         assert_eq!(snap.grad_accum, 1);
         assert_eq!(snap.rank, 11);
@@ -579,8 +581,10 @@ mod tests {
     fn initial_manifest_run_mobile_edge_sets_deployment_fields() {
         use super::super::training_config::{LoraTrainingConfig, TrainingDeploymentTarget};
 
-        let mut c = LoraTrainingConfig::default();
-        c.deployment_target = TrainingDeploymentTarget::MobileEdge;
+        let c = LoraTrainingConfig {
+            deployment_target: TrainingDeploymentTarget::MobileEdge,
+            ..Default::default()
+        };
         let snap = InitialManifestRun::from_lora_config(&c);
         assert_eq!(
             snap.training_deployment_target.as_deref(),

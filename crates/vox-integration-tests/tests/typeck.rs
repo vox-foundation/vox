@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 //! Integration tests for the Vox type checker — v0.3 brace syntax.
 use vox_compiler::lexer::cursor::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_module;
 

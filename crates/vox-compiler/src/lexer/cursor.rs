@@ -186,18 +186,14 @@ mod tests {
         let source = "fn foo() to int { ret 5 }";
         let tokens = lex_tokens(source);
         assert!(
-            !tokens.contains(&Token::Eof) || true, // Eof always present
-            "Should not contain synthetic indent tokens"
+            tokens.contains(&Token::Eof),
+            "lexer output must include trailing Eof"
         );
         // The token stream for a brace block should be:
         // Fn, Ident(foo), LParen, RParen, To, Ident(int), LBrace, Ret, IntLit(5), RBrace, Eof
         assert!(tokens.contains(&Token::LBrace), "Should have LBrace");
         assert!(tokens.contains(&Token::RBrace), "Should have RBrace");
         assert!(tokens.contains(&Token::Ret), "Should have Ret");
-        assert!(
-            !tokens.iter().any(|t| matches!(t, _) && false),
-            "Sanity check"
-        );
     }
 
     /// Newlines are now cosmetic — they are emitted but not structurally significant.

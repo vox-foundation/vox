@@ -136,6 +136,7 @@ impl Default for SessionTimingDefaults {
 /// Merged Oratio runtime configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct OratioRuntimeConfig {
     /// Session timing defaults (capture vs inference vs wall cap).
     pub session_timing: SessionTimingDefaults,
@@ -147,18 +148,6 @@ pub struct OratioRuntimeConfig {
     pub hf: HfTunables,
     /// Default LLM polish policy (MCP; deterministic path remains primary).
     pub llm: LlmPolicyTunables,
-}
-
-impl Default for OratioRuntimeConfig {
-    fn default() -> Self {
-        Self {
-            session_timing: SessionTimingDefaults::default(),
-            refine: RefineTunables::default(),
-            routing: RoutingTunables::default(),
-            hf: HfTunables::default(),
-            llm: LlmPolicyTunables::default(),
-        }
-    }
 }
 
 /// Top-level TOML keys (all optional).
@@ -301,10 +290,7 @@ impl OratioRuntimeConfig {
             "VOX_ORATIO_INFERENCE_DEADLINE_MS",
             self.session_timing.inference_deadline_ms
         );
-        env_u64!(
-            "VOX_ORATIO_HEARTBEAT_MS",
-            self.session_timing.heartbeat_ms
-        );
+        env_u64!("VOX_ORATIO_HEARTBEAT_MS", self.session_timing.heartbeat_ms);
 
         env_f32!(
             "VOX_ORATIO_REFINE_CONSERVATIVE_BASE",
@@ -320,42 +306,34 @@ impl OratioRuntimeConfig {
             self.refine.penalty_per_trace
         );
         env_f32!("VOX_ORATIO_REFINE_PENALTY_CAP", self.refine.penalty_cap);
-        env_f32!(
-            "VOX_ORATIO_REFINE_CONFIDENCE_MIN",
-            self.refine.conf_min
-        );
-        env_f32!(
-            "VOX_ORATIO_REFINE_CONFIDENCE_MAX",
-            self.refine.conf_max
-        );
+        env_f32!("VOX_ORATIO_REFINE_CONFIDENCE_MIN", self.refine.conf_min);
+        env_f32!("VOX_ORATIO_REFINE_CONFIDENCE_MAX", self.refine.conf_max);
 
         env_f32!(
             "VOX_ORATIO_TOOL_ROUTE_MIN_CONFIDENCE",
             self.routing.tool_route_min_confidence
         );
-        if let Ok(s) = var("VOX_ORATIO_CHAT_MAX_MESSAGES") {
-            if let Ok(v) = s.parse::<usize>() {
-                if v >= 4 {
-                    self.routing.chat_max_messages = v;
-                }
-            }
+        if let Ok(s) = var("VOX_ORATIO_CHAT_MAX_MESSAGES")
+            && let Ok(v) = s.parse::<usize>()
+            && v >= 4
+        {
+            self.routing.chat_max_messages = v;
         }
-        if let Ok(s) = var("VOX_ORATIO_ROUTE_MAX_USER_TURNS") {
-            if let Ok(v) = s.parse::<usize>() {
-                if v >= 1 {
-                    self.routing.route_max_user_turns = v;
-                }
-            }
+        if let Ok(s) = var("VOX_ORATIO_ROUTE_MAX_USER_TURNS")
+            && let Ok(v) = s.parse::<usize>()
+            && v >= 1
+        {
+            self.routing.route_max_user_turns = v;
         }
         env_f32!(
             "VOX_ORATIO_ORCHESTRATOR_MIN_CONFIDENCE",
             self.routing.orchestrator_min_confidence
         );
 
-        if let Ok(s) = var("VOX_ORATIO_HF_RETRY_ATTEMPTS") {
-            if let Ok(v) = s.parse::<usize>() {
-                self.hf.retry_attempts = v.max(1);
-            }
+        if let Ok(s) = var("VOX_ORATIO_HF_RETRY_ATTEMPTS")
+            && let Ok(v) = s.parse::<usize>()
+        {
+            self.hf.retry_attempts = v.max(1);
         }
         env_u64!("VOX_ORATIO_HF_RETRY_DELAY_MS", self.hf.retry_delay_ms);
 
@@ -367,25 +345,25 @@ impl OratioRuntimeConfig {
             "VOX_ORATIO_LLM_MIN_CONFIDENCE",
             self.llm.llm_min_det_confidence
         );
-        if let Ok(s) = var("VOX_ORATIO_LLM_MAX_OUTPUT_TOKENS") {
-            if let Ok(v) = s.parse::<u64>() {
-                self.llm.llm_max_output_tokens = v.max(64);
-            }
+        if let Ok(s) = var("VOX_ORATIO_LLM_MAX_OUTPUT_TOKENS")
+            && let Ok(v) = s.parse::<u64>()
+        {
+            self.llm.llm_max_output_tokens = v.max(64);
         }
     }
 
     /// `defaults` → optional `VOX_ORATIO_CONFIG` file → env.
     pub fn resolve() -> Self {
         let mut c = Self::default();
-        if let Ok(p) = std::env::var("VOX_ORATIO_CONFIG") {
-            if let Err(e) = c.merge_file(Path::new(&p)) {
-                tracing::warn!(
-                    target: "vox_oratio_config",
-                    path = %p,
-                    error = %e,
-                    "failed to load Oratio config file"
-                );
-            }
+        if let Ok(p) = std::env::var("VOX_ORATIO_CONFIG")
+            && let Err(e) = c.merge_file(Path::new(&p))
+        {
+            tracing::warn!(
+                target: "vox_oratio_config",
+                path = %p,
+                error = %e,
+                "failed to load Oratio config file"
+            );
         }
         c.merge_env();
         c

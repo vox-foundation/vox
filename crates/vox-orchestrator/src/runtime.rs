@@ -384,7 +384,7 @@ impl AgentFleet {
             &config,
             &load_history,
             &idle_dynamic,
-            &*crate::sync_lock::rw_read(&budget_manager),
+            &crate::sync_lock::rw_read(&budget_manager),
         );
 
         let orch = self.orchestrator.lock().await;

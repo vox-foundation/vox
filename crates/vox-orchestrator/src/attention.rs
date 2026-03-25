@@ -589,15 +589,19 @@ mod tests {
 
     #[test]
     fn focus_depth_escalates_at_8_per_hour() {
-        let mut budget = AttentionBudget::default();
-        budget.interrupt_freq_per_hour = 8.0;
+        let budget = AttentionBudget {
+            interrupt_freq_per_hour: 8.0,
+            ..Default::default()
+        };
         assert_eq!(budget.focus_depth(), FocusDepth::Deep);
     }
 
     #[test]
     fn focus_depth_focused_between_3_and_8() {
-        let mut budget = AttentionBudget::default();
-        budget.interrupt_freq_per_hour = 5.0;
+        let budget = AttentionBudget {
+            interrupt_freq_per_hour: 5.0,
+            ..Default::default()
+        };
         assert_eq!(budget.focus_depth(), FocusDepth::Focused);
     }
 

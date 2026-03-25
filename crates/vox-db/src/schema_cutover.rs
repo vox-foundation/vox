@@ -8,7 +8,10 @@ use turso::Connection;
 
 use crate::store::types::StoreError;
 
-async fn table_column_names(conn: &Connection, pragma_sql: &'static str) -> Result<Vec<String>, StoreError> {
+async fn table_column_names(
+    conn: &Connection,
+    pragma_sql: &'static str,
+) -> Result<Vec<String>, StoreError> {
     let mut rows = conn.query(pragma_sql, ()).await?;
     let mut out = Vec::new();
     while let Some(row) = rows.next().await? {

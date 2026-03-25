@@ -308,7 +308,7 @@ pub async fn list_quests(db: &Codex, user_id: &str) -> Result<Vec<Quest>> {
         quests.push(Quest {
             id: row[0].clone().unwrap_or_default(),
             user_id: user_id.to_string(),
-            quest_type: parse_quest_type(&row[1].as_deref().unwrap_or("build").to_string()), // Reverted to use parse_quest_type
+            quest_type: parse_quest_type(row[1].as_deref().unwrap_or("build")), // Reverted to use parse_quest_type
             description: row[2].clone().unwrap_or_default(),
             target: row[3]
                 .as_deref()

@@ -121,16 +121,16 @@ pub async fn run(
                 let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
                     .unwrap_or_else(|_| "[]".to_string());
                 db.block_on(async {
-                        save_task_queue(
-                            &db,
-                            &user_id,
-                            &run_scope,
-                            task_queue.total_findings as i64,
-                            &fix_suggestions_json,
-                        )
-                        .await
-                    })
-                    .map_err(|e| anyhow::anyhow!("save_task_queue: {:?}", e))?;
+                    save_task_queue(
+                        &db,
+                        &user_id,
+                        &run_scope,
+                        task_queue.total_findings as i64,
+                        &fix_suggestions_json,
+                    )
+                    .await
+                })
+                .map_err(|e| anyhow::anyhow!("save_task_queue: {:?}", e))?;
                 println!(
                     "Ingested {} findings from {} into VoxDB task queue (user_id={}).",
                     total,

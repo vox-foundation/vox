@@ -261,15 +261,17 @@ pub fn run_candle_qlora_train(
         .warmup_steps
         .min((total_steps_planned / 10).max(1) as usize);
 
-    let mut train_cfg = QLoraTrainingConfig::default();
-    train_cfg.adapter_config = AdapterTrainingConfig {
-        learning_rate: config.learning_rate,
-        lr_schedule: LrSchedule::LinearWarmup { warmup_steps },
-        weight_decay: 0.01,
-        gradient_accumulation_steps: config.grad_accum.max(1),
-        max_grad_norm: Some(1.0), // gradient clipping
+    let train_cfg = QLoraTrainingConfig {
+        adapter_config: AdapterTrainingConfig {
+            learning_rate: config.learning_rate,
+            lr_schedule: LrSchedule::LinearWarmup { warmup_steps },
+            weight_decay: 0.01,
+            gradient_accumulation_steps: config.grad_accum.max(1),
+            max_grad_norm: Some(1.0), // gradient clipping
+        },
+        num_epochs: config.epochs,
+        ..Default::default()
     };
-    train_cfg.num_epochs = config.epochs;
 
     let mut trainer = QLoraTrainer::new(train_cfg, device.clone());
 
@@ -636,22 +638,21 @@ fn run_training_loop(
     let mut resume_pair_offset = 0usize;
     let mut resume_shuffled_indices: Option<Vec<usize>> = None;
 
-    if !config.force_restart {
-        if let Some(ckpt) = CheckpointState::load(out) {
-            train_log::info(&format!(
-                "Checkpoint found — resuming from epoch={} global_step={} pair_offset={}",
-                ckpt.epoch, ckpt.global_step, ckpt.pair_offset
-            ));
-            // Attempt to warm-start LoRA weights
-            if std::path::Path::new(&ckpt.adapter_path).exists() {
-                let _ =
-                    load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path));
-            }
-            start_epoch = ckpt.epoch as usize;
-            global_step = ckpt.global_step;
-            resume_pair_offset = ckpt.pair_offset;
-            resume_shuffled_indices = Some(ckpt.shuffled_indices);
+    if !config.force_restart
+        && let Some(ckpt) = CheckpointState::load(out)
+    {
+        train_log::info(&format!(
+            "Checkpoint found — resuming from epoch={} global_step={} pair_offset={}",
+            ckpt.epoch, ckpt.global_step, ckpt.pair_offset
+        ));
+        // Attempt to warm-start LoRA weights
+        if std::path::Path::new(&ckpt.adapter_path).exists() {
+            let _ = load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path));
         }
+        start_epoch = ckpt.epoch as usize;
+        global_step = ckpt.global_step;
+        resume_pair_offset = ckpt.pair_offset;
+        resume_shuffled_indices = Some(ckpt.shuffled_indices);
     }
 
     // ── Training manifest ─────────────────────────────────────────────────────
@@ -964,36 +965,37 @@ fn run_training_loop(
             }
 
             // ── Mid-epoch checkpoint ──────────────────────────────────────────
-            if let Some(every) = config.checkpoint_every {
-                if every > 0 && (pair_loop_idx + 1) % every == 0 {
-                    let ckpt_path = out.join(format!("checkpoint_step_{global_step}.safetensors"));
-                    trainer
-                        .save_adapter(&ckpt_path)
-                        .context("save mid-epoch adapter")?;
+            if let Some(every) = config.checkpoint_every
+                && every > 0
+                && (pair_loop_idx + 1) % every == 0
+            {
+                let ckpt_path = out.join(format!("checkpoint_step_{global_step}.safetensors"));
+                trainer
+                    .save_adapter(&ckpt_path)
+                    .context("save mid-epoch adapter")?;
 
-                    let state = CheckpointState {
-                        schema: super::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
-                        run_id: run_id.to_string(),
-                        epoch: epoch as u32,
-                        global_step,
-                        pair_offset: pair_loop_idx + 1,
-                        shuffled_indices: shuffled_indices.clone(),
-                        rng_seed: config.seed,
-                        adapter_path: ckpt_path.display().to_string(),
-                        last_loss: last_loss_val,
-                        wall_seconds_elapsed: progress_anchor_time.elapsed().as_secs_f64(),
-                        saved_at_utc: CheckpointState::now_utc(),
-                    };
-                    state.save(out).context("save CheckpointState mid-epoch")?;
+                let state = CheckpointState {
+                    schema: super::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
+                    run_id: run_id.to_string(),
+                    epoch: epoch as u32,
+                    global_step,
+                    pair_offset: pair_loop_idx + 1,
+                    shuffled_indices: shuffled_indices.clone(),
+                    rng_seed: config.seed,
+                    adapter_path: ckpt_path.display().to_string(),
+                    last_loss: last_loss_val,
+                    wall_seconds_elapsed: progress_anchor_time.elapsed().as_secs_f64(),
+                    saved_at_utc: CheckpointState::now_utc(),
+                };
+                state.save(out).context("save CheckpointState mid-epoch")?;
 
-                    let _ = db_tx.send(TrainingDbEvent::Checkpoint {
-                        run_id: run_id.to_string(),
-                        epoch: epoch as u32,
-                        global_step,
-                        last_loss: Some(last_loss_val),
-                        adapter_path: ckpt_path.display().to_string(),
-                    });
-                }
+                let _ = db_tx.send(TrainingDbEvent::Checkpoint {
+                    run_id: run_id.to_string(),
+                    epoch: epoch as u32,
+                    global_step,
+                    last_loss: Some(last_loss_val),
+                    adapter_path: ckpt_path.display().to_string(),
+                });
             }
         }
 
@@ -1014,64 +1016,40 @@ fn run_training_loop(
                         let start = ids.len() - config.seq_len;
                         ids = ids[start..].to_vec();
                     }
-                    if ids.len() >= 2 {
-                        if let Ok(input_ids) =
+                    if ids.len() >= 2
+                        && let Ok(input_ids) =
                             candle_core::Tensor::new(&ids[..ids.len() - 1], device)
                                 .and_then(|t| t.unsqueeze(0))
+                        && let Ok(targets) =
+                            candle_core::Tensor::new(&ids[1..], device).and_then(|t| t.unsqueeze(0))
+                        && let Ok(logits) = model.forward(&input_ids)
+                        && let Ok(logits) = logits.flatten_to(1)
+                        && let Ok(targets_flat) = targets.flatten_all()
+                        && let Ok(prompt_only) = tokenizer.encode(pair.prompt.clone(), false)
+                    {
+                        let prompt_len = prompt_only.get_ids().len();
+                        let ids_len = ids.len();
+                        let mask_vec: Vec<f32> = (0..ids_len - 1)
+                            .map(|i| if (i + 1) >= prompt_len { 1.0f32 } else { 0.0 })
+                            .collect();
+                        if let Ok(mask) =
+                            candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device)
+                            && let Ok(log_sm) = candle_nn::ops::log_softmax(&logits, 1)
+                            && let Ok(tgt_uns) = targets_flat.unsqueeze(1)
+                            && let Ok(logprobs) =
+                                log_sm.gather(&tgt_uns, 1).and_then(|t| t.flatten_all())
+                            && let Ok(loss) = logprobs
+                                .broadcast_mul(&mask)
+                                .and_then(|m| m.sum_all())
+                                .and_then(|sum_m| {
+                                    sum_m.broadcast_div(&mask.sum_all().unwrap_or_else(|_| {
+                                        candle_core::Tensor::new(1f32, device).unwrap()
+                                    }))
+                                })
+                            && let Ok(loss_val) = loss.to_scalar::<f32>()
                         {
-                            if let Ok(targets) = candle_core::Tensor::new(&ids[1..], device)
-                                .and_then(|t| t.unsqueeze(0))
-                            {
-                                if let Ok(logits) = model.forward(&input_ids) {
-                                    if let Ok(logits) = logits.flatten_to(1) {
-                                        if let Ok(targets_flat) = targets.flatten_all() {
-                                            if let Ok(prompt_only) =
-                                                tokenizer.encode(pair.prompt.clone(), false)
-                                            {
-                                                let prompt_len = prompt_only.get_ids().len();
-                                                let ids_len = ids.len();
-                                                let mask_vec: Vec<f32> = (0..ids_len - 1)
-                                                    .map(|i| {
-                                                        if (i + 1) >= prompt_len {
-                                                            1.0f32
-                                                        } else {
-                                                            0.0
-                                                        }
-                                                    })
-                                                    .collect();
-                                                if let Ok(mask) = candle_core::Tensor::from_vec(
-                                                    mask_vec,
-                                                    ids_len - 1,
-                                                    device,
-                                                ) {
-                                                    if let Ok(log_sm) =
-                                                        candle_nn::ops::log_softmax(&logits, 1)
-                                                    {
-                                                        if let Ok(tgt_uns) =
-                                                            targets_flat.unsqueeze(1)
-                                                        {
-                                                            if let Ok(logprobs) = log_sm
-                                                                .gather(&tgt_uns, 1)
-                                                                .and_then(|t| t.flatten_all())
-                                                            {
-                                                                if let Ok(loss) = logprobs.broadcast_mul(&mask)
-                                                                    .and_then(|m| m.sum_all())
-                                                                    .and_then(|sum_m| sum_m.broadcast_div(&mask.sum_all().unwrap_or_else(|_| candle_core::Tensor::new(1f32, device).unwrap()))) 
-                                                                {
-                                                                    if let Ok(loss_val) = loss.to_scalar::<f32>() {
-                                                                        val_loss_sum += (loss_val * -1.0) as f64;
-                                                                        val_steps += 1;
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            val_loss_sum += -loss_val as f64;
+                            val_steps += 1;
                         }
                     }
                 }

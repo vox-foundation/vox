@@ -63,9 +63,9 @@ pub struct SocratesSurfaceAggregate {
 }
 
 impl VoxDb {
-    /// Low-level append to `research_metrics`.
-
     /// Record one Socrates tool turn under session `mcp:<repository_id>`, metric type `socrates_surface`.
+    ///
+    /// Low-level append to `research_metrics`.
     pub async fn record_socrates_surface_event(
         &self,
         repository_id: &str,

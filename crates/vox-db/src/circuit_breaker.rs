@@ -163,9 +163,7 @@ mod tests {
         let cb = DbCircuitBreaker::new(3, Duration::from_secs(60), true);
         for _ in 0..3 {
             let _: Result<(), String> = cb
-                .call(|| async {
-                    Err::<(), _>(String::from(CircuitBreakerError::Open.to_string()))
-                })
+                .call(|| async { Err::<(), _>(CircuitBreakerError::Open.to_string()) })
                 .await;
         }
         assert_eq!(cb.state(), CircuitState::Open);

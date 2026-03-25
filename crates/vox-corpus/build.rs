@@ -98,22 +98,20 @@ impl<'ast> Visit<'ast> for CliVisitor {
                 let snake = to_snake(&v.ident.to_string());
                 let mut desc = String::new();
                 for attr in &v.attrs {
-                    if attr.path().is_ident("doc") {
-                        if let syn::Meta::NameValue(nv) = &attr.meta {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(s),
-                                ..
-                            }) = &nv.value
-                            {
-                                let text = s.value();
-                                let text = text.trim();
-                                if !text.is_empty() {
-                                    if !desc.is_empty() {
-                                        desc.push(' ');
-                                    }
-                                    desc.push_str(text);
-                                }
+                    if attr.path().is_ident("doc")
+                        && let syn::Meta::NameValue(nv) = &attr.meta
+                        && let syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Str(s),
+                            ..
+                        }) = &nv.value
+                    {
+                        let text = s.value();
+                        let text = text.trim();
+                        if !text.is_empty() {
+                            if !desc.is_empty() {
+                                desc.push(' ');
                             }
+                            desc.push_str(text);
                         }
                     }
                 }
@@ -155,7 +153,7 @@ impl<'ast> Visit<'ast> for A2AVisitor {
                             }
                         }
                     }
-                    if name == v.ident.to_string() {
+                    if v.ident == name {
                         name = to_snake(&name);
                     }
                     self.variants.push(name);

@@ -42,10 +42,10 @@ impl<'a> AttentionTracker<'a> {
         col.insert(&json!({
             "agent_id": event.agent_id.0,
             "task_id": event.task_id.map(|t| t.0),
-            "event_type": serde_json::to_value(&event.event_type)?,
-            "tier": serde_json::to_value(&event.tier)?,
+            "event_type": serde_json::to_value(event.event_type)?,
+            "tier": serde_json::to_value(event.tier)?,
             "cost_ms": event.cost_ms,
-            "outcome": serde_json::to_value(&event.outcome)?,
+            "outcome": serde_json::to_value(event.outcome)?,
             "trust_score_at_time": event.trust_score_at_time,
             "effective_complexity": event.effective_complexity,
             "decision_entropy_bits": event.decision_entropy_bits,
@@ -125,7 +125,7 @@ impl<'a> AttentionTracker<'a> {
         let payload = json!({
             "agent_id": trust.agent_id.0,
             "trust_score": trust.trust_score,
-            "tier": serde_json::to_value(&trust.tier)?,
+            "tier": serde_json::to_value(trust.tier)?,
             "total_outcomes": trust.total_outcomes,
             "successful_outcomes": trust.successful_outcomes,
             "below_tier_streak": trust.below_tier_streak,

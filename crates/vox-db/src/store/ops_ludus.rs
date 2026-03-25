@@ -1016,14 +1016,17 @@ impl crate::VoxDb {
         agent_id: &str,
         repository_id: &str,
     ) -> Result<Vec<A2AMessageRow>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload,
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload,
                     priority, thread_id, acknowledged, created_at, repository_id
              FROM a2a_messages
              WHERE receiver_agent=?1 AND acknowledged=0 AND repository_id=?2
              ORDER BY priority DESC, created_at ASC",
-            params![agent_id, repository_id],
-        ).await?;
+                params![agent_id, repository_id],
+            )
+            .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             let ack: i64 = row.get(8).unwrap_or(0);

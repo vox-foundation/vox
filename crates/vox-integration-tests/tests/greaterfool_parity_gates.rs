@@ -3,7 +3,7 @@
 use vox_compiler::codegen_rust::{emit::emit_api_client, generate as generate_rust};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_module;
 

@@ -57,7 +57,10 @@ pub async fn update_feed(item: &UnifiedNewsItem, site: &NewsSiteConfig) -> Resul
 
     let existing = fs::read_to_string(&feed_path).context("Failed to read feed.xml")?;
     if existing.contains(&format!("<guid isPermaLink=\"true\">{link}</guid>")) {
-        tracing::info!("RSS item already exists for {}; skipping duplicate insert.", item.id);
+        tracing::info!(
+            "RSS item already exists for {}; skipping duplicate insert.",
+            item.id
+        );
         return Ok(());
     }
 
@@ -151,10 +154,9 @@ fn acquire_feed_lock(path: &std::path::Path) -> Result<FeedLock> {
         .open(&lock_path)
     {
         Ok(_) => Ok(FeedLock { lock_path }),
-        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err(anyhow::anyhow!(
-            "RSS feed lock already held for {:?}",
-            path
-        )),
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => {
+            Err(anyhow::anyhow!("RSS feed lock already held for {:?}", path))
+        }
         Err(e) => Err(anyhow::anyhow!("Failed to acquire RSS feed lock: {e}")),
     }
 }

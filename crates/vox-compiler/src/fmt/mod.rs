@@ -8,7 +8,7 @@ use crate::ast::pattern::*;
 use crate::ast::stmt::*;
 use crate::ast::types::*;
 use crate::lexer::lex;
-use crate::parser::parser::parse;
+use crate::parser::parse;
 
 /// Format `source` when it parses cleanly; otherwise return `source` unchanged.
 pub fn format(source: &str) -> String {

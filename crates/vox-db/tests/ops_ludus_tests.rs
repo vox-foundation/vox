@@ -1,7 +1,5 @@
-use turso;
-/// Integration tests for `CodeStore` gamification CRUD (`ops_ludus`).
+//! Integration tests for `CodeStore` gamification CRUD (`ops_ludus`).
 
-#[allow(missing_docs)]
 use vox_db::VoxDb;
 
 /// Gamification DDL not included in the vox-pm baseline or coordination schema.

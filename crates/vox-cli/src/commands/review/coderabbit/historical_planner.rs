@@ -10,7 +10,10 @@ use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
 use vox_git::GitBridge;
 
-use super::{github, limits, path_policy, semantic_planner::{SemanticPlanner, SemanticSubmitConfig, SemanticManifest}};
+use super::{
+    github, limits, path_policy,
+    semantic_planner::{SemanticManifest, SemanticPlanner, SemanticSubmitConfig},
+};
 
 /// Run historical submit: stash local state in a WIP commit, get diff against `hist_sha`,
 /// generate semantic chunks, create worktree PRs against a baseline at `hist_sha`, and reset the WIP commit.
@@ -19,13 +22,19 @@ pub async fn run_historical_submit(
     commit_id: &str,
     cfg: &SemanticSubmitConfig,
 ) -> Result<()> {
-    eprintln!("[historical-submit] Preparing historical review against {}...", commit_id);
+    eprintln!(
+        "[historical-submit] Preparing historical review against {}...",
+        commit_id
+    );
 
     let guard = super::git::WorkspaceGuard::new(repo).await?;
     let local_sha = guard.local_sha.clone();
 
     // 2. Discover diff between `commit_id` and `local_sha`.
-    eprintln!("[historical-submit] Resolving diff: {}...{}", commit_id, local_sha);
+    eprintln!(
+        "[historical-submit] Resolving diff: {}...{}",
+        commit_id, local_sha
+    );
     let diff_out = tokio::process::Command::new("git")
         .args([
             "-c",
@@ -40,7 +49,7 @@ pub async fn run_historical_submit(
         .output()
         .await
         .context("git diff --name-only")?;
-    
+
     if !diff_out.status.success() {
         guard.restore().await?;
         anyhow::bail!("Failed to collect diff against {}.", commit_id);
@@ -52,14 +61,17 @@ pub async fn run_historical_submit(
     // Filter tools and exclusions.
     let dropped_tool = path_policy::retain_non_coderabbit_tool_paths(&mut files);
     if dropped_tool > 0 {
-        eprintln!("[historical-submit] Dropped {} path(s) under `.coderabbit/`.", dropped_tool);
+        eprintln!(
+            "[historical-submit] Dropped {} path(s) under `.coderabbit/`.",
+            dropped_tool
+        );
     }
-    
+
     let vox_cfg = super::config::load_from_dir(repo);
     if !vox_cfg.exclude_prefixes.is_empty() {
         files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
     }
-    
+
     files.retain(|f| !SemanticPlanner::is_ignored(f));
 
     if files.is_empty() {
@@ -68,7 +80,10 @@ pub async fn run_historical_submit(
         anyhow::bail!("No changed files found in the historical diff.");
     }
 
-    eprintln!("[historical-submit] Processable file count: {}", files.len());
+    eprintln!(
+        "[historical-submit] Processable file count: {}",
+        files.len()
+    );
     files.sort();
 
     // 3. Plan groups.
@@ -86,7 +101,10 @@ pub async fn run_historical_submit(
     eprintln!("  HISTORICAL-SUBMIT plan");
     eprintln!("══════════════════════════════════════════════");
     eprintln!("  Historical : {}", commit_id);
-    eprintln!("  Mode       : {}", if cfg.execute { "EXECUTE" } else { "PLAN ONLY" });
+    eprintln!(
+        "  Mode       : {}",
+        if cfg.execute { "EXECUTE" } else { "PLAN ONLY" }
+    );
     eprintln!("  Files      : {}", manifest.total_files);
     eprintln!("  Chunks     : {}", manifest.chunks.len());
     eprintln!("──────────────────────────────────────────────");
@@ -109,14 +127,22 @@ pub async fn run_historical_submit(
     }
 
     // 4. Push baseline branch from the historical commit.
-    eprintln!("\n[historical-submit] Pushing historical baseline {} -> origin/{}", commit_id, baseline_branch);
+    eprintln!(
+        "\n[historical-submit] Pushing historical baseline {} -> origin/{}",
+        commit_id, baseline_branch
+    );
     let push_base_out = tokio::process::Command::new("git")
-        .args(["push", "-f", "origin", &format!("{}:refs/heads/{}", commit_id, baseline_branch)])
+        .args([
+            "push",
+            "-f",
+            "origin",
+            &format!("{}:refs/heads/{}", commit_id, baseline_branch),
+        ])
         .current_dir(repo)
         .status()
         .await
         .context("git push historical baseline")?;
-    
+
     if !push_base_out.success() {
         guard.restore().await?;
         anyhow::bail!("Failed to push baseline branch.");
@@ -139,7 +165,13 @@ pub async fn run_historical_submit(
     let delay = cfg.delay_secs;
     for (i, chunk) in manifest.chunks.iter().enumerate() {
         let review_branch = format!("cr-review-hist-{}", chunk.name);
-        eprintln!("\n[historical-submit] Chunk {}/{}: {} ({} files)", i + 1, manifest.chunks.len(), chunk.name, chunk.files.len());
+        eprintln!(
+            "\n[historical-submit] Chunk {}/{}: {} ({} files)",
+            i + 1,
+            manifest.chunks.len(),
+            chunk.name,
+            chunk.files.len()
+        );
 
         let res = super::github::create_chunk_pr_via_worktree(
             repo,
@@ -149,14 +181,21 @@ pub async fn run_historical_submit(
             &review_branch,
             &chunk.files,
             false,
-        ).await;
+        )
+        .await;
 
         match res {
             Ok(pr) => {
-                eprintln!("[historical-submit] Created PR #{} for chunk {}", pr, chunk.name);
+                eprintln!(
+                    "[historical-submit] Created PR #{} for chunk {}",
+                    pr, chunk.name
+                );
             }
             Err(e) => {
-                eprintln!("[warn] Failed to create PR for chunk {}: {}. Continuing.", chunk.name, e);
+                eprintln!(
+                    "[warn] Failed to create PR for chunk {}: {}. Continuing.",
+                    chunk.name, e
+                );
             }
         }
 
@@ -167,7 +206,9 @@ pub async fn run_historical_submit(
     }
 
     // 6. Restore Local State.
-    eprintln!("\n[historical-submit] Finished execution. Restoring WIP state back to outstanding changes...");
+    eprintln!(
+        "\n[historical-submit] Finished execution. Restoring WIP state back to outstanding changes..."
+    );
     guard.restore().await?;
 
     Ok(())

@@ -5,9 +5,16 @@ use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 
 use super::error::HttpInferError;
 use super::limits::{OLLAMA_PROBE_CACHE_TTL_SECS, OLLAMA_PROBE_TIMEOUT_SECS};
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct HttpCallMetadata {
+    pub provider_request_id: Option<String>,
+    pub provider_reported_cost_usd: Option<f64>,
+}
 
 /// Base URL for Ollama (`OLLAMA_HOST` or Mens local default).
 pub(crate) fn ollama_base_url() -> String {
@@ -74,6 +81,8 @@ pub(crate) async fn probe_ollama_tags(client: &reqwest::Client) -> Result<(), Ht
 struct OpenAiChatResponse {
     choices: Vec<OpenAiChoice>,
     usage: Option<OpenAiUsage>,
+    #[serde(default)]
+    id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,6 +101,10 @@ struct OpenAiUsage {
     prompt_tokens: u32,
     #[serde(default)]
     completion_tokens: u32,
+    #[serde(default)]
+    cost: Option<f64>,
+    #[serde(default)]
+    total_cost: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -224,6 +237,34 @@ pub(crate) async fn http_openai_compatible(
     temperature: f32,
     json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
+    let (text, in_tok, out_tok, _) = http_openai_compatible_with_headers(
+        client,
+        url,
+        bearer,
+        model,
+        system,
+        user,
+        max_tokens,
+        temperature,
+        json_mode,
+        &HashMap::new(),
+    )
+    .await?;
+    Ok((text, in_tok, out_tok))
+}
+
+pub(crate) async fn http_openai_compatible_with_headers(
+    client: &reqwest::Client,
+    url: &str,
+    bearer: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: u64,
+    temperature: f32,
+    json_mode: bool,
+    extra_headers: &HashMap<String, String>,
+) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let mut messages = Vec::new();
     if !system.is_empty() {
         messages.push(OpenAiMsg {
@@ -255,6 +296,9 @@ pub(crate) async fn http_openai_compatible(
     if !bearer.is_empty() {
         req = req.bearer_auth(bearer);
     }
+    for (k, v) in extra_headers {
+        req = req.header(k, v);
+    }
 
     let res = req.send().await.map_err(|e| HttpInferError {
         status: 0,
@@ -262,6 +306,11 @@ pub(crate) async fn http_openai_compatible(
     })?;
     let status = res.status();
     let code = status.as_u16();
+    let provider_request_id = res
+        .headers()
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(ToString::to_string);
 
     if !status.is_success() {
         let t = res.text().await.unwrap_or_default();
@@ -287,9 +336,19 @@ pub(crate) async fn http_openai_compatible(
     let u = parsed.usage.unwrap_or(OpenAiUsage {
         prompt_tokens: 0,
         completion_tokens: 0,
+        cost: None,
+        total_cost: None,
     });
-
-    Ok((text, u.prompt_tokens, u.completion_tokens))
+    let provider_reported_cost_usd = u.total_cost.or(u.cost);
+    Ok((
+        text,
+        u.prompt_tokens,
+        u.completion_tokens,
+        HttpCallMetadata {
+            provider_request_id: provider_request_id.or(parsed.id),
+            provider_reported_cost_usd,
+        },
+    ))
 }
 
 pub(crate) async fn http_gemini(
@@ -302,6 +361,30 @@ pub(crate) async fn http_gemini(
     temperature: f32,
     json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
+    let (text, in_tok, out_tok, _) = http_gemini_with_metadata(
+        client,
+        model_id,
+        api_key,
+        system,
+        user,
+        max_tokens,
+        temperature,
+        json_mode,
+    )
+    .await?;
+    Ok((text, in_tok, out_tok))
+}
+
+pub(crate) async fn http_gemini_with_metadata(
+    client: &reqwest::Client,
+    model_id: &str,
+    api_key: &str,
+    system: &str,
+    user: &str,
+    max_tokens: u64,
+    temperature: f32,
+    json_mode: bool,
+) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
     );
@@ -344,6 +427,11 @@ pub(crate) async fn http_gemini(
         })?;
     let status = res.status();
     let code = status.as_u16();
+    let provider_request_id = res
+        .headers()
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(ToString::to_string);
 
     if !status.is_success() {
         let t = res.text().await.unwrap_or_default();
@@ -382,7 +470,15 @@ pub(crate) async fn http_gemini(
         .and_then(|u| u.candidates_token_count)
         .unwrap_or(0);
 
-    Ok((text, prompt_t, out_t))
+    Ok((
+        text,
+        prompt_t,
+        out_t,
+        HttpCallMetadata {
+            provider_request_id,
+            provider_reported_cost_usd: None,
+        },
+    ))
 }
 
 pub(crate) async fn http_ollama(
@@ -394,6 +490,28 @@ pub(crate) async fn http_ollama(
     temperature: f32,
     json_mode: bool,
 ) -> Result<(String, u32, u32), HttpInferError> {
+    let (text, in_tok, out_tok, _) = http_ollama_with_metadata(
+        client,
+        model,
+        system,
+        user,
+        max_tokens,
+        temperature,
+        json_mode,
+    )
+    .await?;
+    Ok((text, in_tok, out_tok))
+}
+
+pub(crate) async fn http_ollama_with_metadata(
+    client: &reqwest::Client,
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: u64,
+    temperature: f32,
+    json_mode: bool,
+) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let base = ollama_base_url();
     let url = format!("{}/api/chat", base.trim_end_matches('/'));
 
@@ -437,6 +555,11 @@ pub(crate) async fn http_ollama(
         })?;
     let status = res.status();
     let code = status.as_u16();
+    let provider_request_id = res
+        .headers()
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(ToString::to_string);
 
     if !status.is_success() {
         let t = res.text().await.unwrap_or_default();
@@ -452,5 +575,13 @@ pub(crate) async fn http_ollama(
     })?;
 
     let text = parsed.message.and_then(|m| m.content).unwrap_or_default();
-    Ok((text, parsed.prompt_eval_count, parsed.eval_count))
+    Ok((
+        text,
+        parsed.prompt_eval_count,
+        parsed.eval_count,
+        HttpCallMetadata {
+            provider_request_id,
+            provider_reported_cost_usd: None,
+        },
+    ))
 }

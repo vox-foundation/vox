@@ -23,14 +23,14 @@ pub mod git_tools;
 pub mod introspection_tools;
 /// Unified News Publishing System tools
 pub mod news_tools;
-/// Scientia publication lifecycle tools (manifest, approval, submission).
-pub mod scientia_tools;
 /// Oratio speech-to-text (Candle Whisper).
 pub mod oratio_tools;
 /// Local mens registry status (`vox_populi_local_status`).
 pub mod populi_tools;
 /// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
 pub mod repo_index;
+/// Scientia publication lifecycle tools (manifest, approval, submission).
+pub mod scientia_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
@@ -815,13 +815,13 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )
         .await),
-        "vox_scientia_publication_submit_local" => Ok(
-            scientia_tools::vox_scientia_publication_submit_local(
+        "vox_scientia_publication_submit_local" => {
+            Ok(scientia_tools::vox_scientia_publication_submit_local(
                 state,
                 serde_json::from_value(args)?,
             )
-            .await,
-        ),
+            .await)
+        }
         "vox_scientia_publication_status" => Ok(scientia_tools::vox_scientia_publication_status(
             state,
             serde_json::from_value(args)?,

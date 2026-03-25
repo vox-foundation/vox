@@ -18,7 +18,7 @@ pub use types::{
     LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
     PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationManifestParams, PublicationManifestRow,
     PublishArtifactParams, QuestionRow, RegisterAgentParams, ReviewEntry, SaveMemoryParams,
-    SaveSnippetParams, ScholarlySubmissionRow, ScheduledEntry, SessionEventRow, SessionRow,
+    SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow,
     SessionTurnEntry, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry,
     SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair,
     TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,

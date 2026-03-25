@@ -1,6 +1,6 @@
 //! `vox fmt` — **not implemented** in the shipped binary. `vox-fmt` is out of sync with the current AST.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::{fs, path};
 
 /// Read `file` and validate paths; formatting is not applied until `vox-fmt` is rewired.

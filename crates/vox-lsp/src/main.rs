@@ -11,7 +11,7 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::info;
 
 use vox_compiler::lexer::lex;
-use vox_compiler::parser::parser::parse;
+use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_module;
 

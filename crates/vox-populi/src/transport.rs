@@ -8,7 +8,9 @@
 //! **`POST /v1/populi/heartbeat`** require the JSON [`crate::NodeRecord::scope_id`] to match.
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::body::Body;
 use axum::extract::State;
@@ -46,10 +48,64 @@ pub struct A2ADeliverRequest {
     pub payload: String,
 }
 
+/// Persisted A2A delivery envelope in the control plane.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2AStoredMessage {
+    /// Monotonic message row id.
+    pub id: u64,
+    /// Sender agent ID.
+    pub sender_agent_id: String,
+    /// Receiver agent ID.
+    pub receiver_agent_id: String,
+    /// Message type / schema name.
+    pub message_type: String,
+    /// JSON or raw payload.
+    pub payload: String,
+    /// Control-plane wall time when stored (unix ms).
+    pub created_unix_ms: u64,
+    /// Whether the receiver has acked delivery.
+    pub acknowledged: bool,
+}
+
+/// Reply from the control plane after an A2A deliver attempt.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2ADeliverResponse {
+    /// Whether the message was accepted for storage/delivery.
+    pub accepted: bool,
+    /// Assigned [`A2AStoredMessage::id`] when accepted.
+    pub message_id: u64,
+}
+
+/// Inbox poll: identify the receiving agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2AInboxRequest {
+    /// Receiver agent ID.
+    pub receiver_agent_id: String,
+}
+
+/// Inbox poll: queued messages for the receiver.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2AInboxResponse {
+    /// Pending messages (order is transport-defined).
+    pub messages: Vec<A2AStoredMessage>,
+}
+
+/// Ack a delivered inbox message.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct A2AAckRequest {
+    /// Receiver agent ID.
+    pub receiver_agent_id: String,
+    /// [`A2AStoredMessage::id`] to acknowledge.
+    pub message_id: u64,
+}
+
 /// Shared registry state for the HTTP server (in-memory; optionally persisted by callers).
 #[derive(Clone)]
 pub struct MeshTransportState {
     inner: Arc<RwLock<PopuliRegistryFile>>,
+    a2a_messages: Arc<RwLock<Vec<A2AStoredMessage>>>,
+    a2a_id_gen: Arc<AtomicU64>,
+    a2a_store_path: Option<PathBuf>,
     /// When set, join/heartbeat must send the same [`NodeRecord::scope_id`].
     pub required_scope: Option<Arc<str>>,
 }
@@ -73,6 +129,9 @@ impl MeshTransportState {
                 schema_version: 1,
                 nodes: Vec::new(),
             })),
+            a2a_messages: Arc::new(RwLock::new(Vec::new())),
+            a2a_id_gen: Arc::new(AtomicU64::new(1)),
+            a2a_store_path: None,
             required_scope,
         }
     }
@@ -80,7 +139,22 @@ impl MeshTransportState {
     /// Same as [`Self::new`] but sets [`Self::required_scope`] from **`VOX_MESH_SCOPE_ID`** when set.
     #[must_use]
     pub fn new_for_serve() -> Self {
-        Self::with_required_scope(crate::mesh_scope_id_from_env())
+        let mut s = Self::with_required_scope(crate::mesh_scope_id_from_env());
+        let store_path = a2a_store_path_from_env();
+        if let Some(path) = &store_path
+            && let Ok(existing) = load_a2a_store(path)
+        {
+            let next_id = existing
+                .iter()
+                .map(|m| m.id)
+                .max()
+                .unwrap_or(0)
+                .saturating_add(1);
+            s.a2a_messages = Arc::new(RwLock::new(existing));
+            s.a2a_id_gen = Arc::new(AtomicU64::new(next_id));
+        }
+        s.a2a_store_path = store_path;
+        s
     }
 
     /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
@@ -94,11 +168,61 @@ impl MeshTransportState {
                 nodes: Vec::new(),
             }
         };
+        let store_path = a2a_store_path_from_env();
+        let rows = if let Some(sp) = &store_path {
+            load_a2a_store(sp).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let next_id = rows
+            .iter()
+            .map(|m| m.id)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
         Ok(Self {
             inner: Arc::new(RwLock::new(reg)),
+            a2a_messages: Arc::new(RwLock::new(rows)),
+            a2a_id_gen: Arc::new(AtomicU64::new(next_id)),
+            a2a_store_path: store_path,
             required_scope: crate::mesh_scope_id_from_env().map(|s| Arc::from(s.into_boxed_str())),
         })
     }
+}
+
+fn a2a_store_path_from_env() -> Option<PathBuf> {
+    if let Ok(v) = std::env::var("VOX_MESH_A2A_STORE_PATH") {
+        let trimmed = v.trim();
+        if !trimmed.is_empty() {
+            return Some(PathBuf::from(trimmed));
+        }
+    }
+    let mut p = crate::local_registry_path();
+    p.set_file_name("a2a-store.json");
+    Some(p)
+}
+
+fn load_a2a_store(path: &std::path::Path) -> Result<Vec<A2AStoredMessage>, PopuliRegistryError> {
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let raw = std::fs::read_to_string(path).map_err(PopuliRegistryError::Io)?;
+    serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))
+}
+
+fn persist_a2a_store(
+    path: &std::path::Path,
+    rows: &[A2AStoredMessage],
+) -> Result<(), PopuliRegistryError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(PopuliRegistryError::Io)?;
+    }
+    let payload =
+        serde_json::to_string_pretty(rows).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, payload.as_bytes()).map_err(PopuliRegistryError::Io)?;
+    std::fs::rename(&tmp, path).map_err(PopuliRegistryError::Io)?;
+    Ok(())
 }
 
 impl Default for MeshTransportState {
@@ -193,12 +317,60 @@ async fn leave_node(
 }
 
 async fn deliver_a2a(
-    State(_st): State<MeshTransportState>,
-    Json(_req): Json<A2ADeliverRequest>,
+    State(st): State<MeshTransportState>,
+    Json(req): Json<A2ADeliverRequest>,
+) -> Json<A2ADeliverResponse> {
+    let id = st.a2a_id_gen.fetch_add(1, Ordering::Relaxed);
+    let msg = A2AStoredMessage {
+        id,
+        sender_agent_id: req.sender_agent_id,
+        receiver_agent_id: req.receiver_agent_id,
+        message_type: req.message_type,
+        payload: req.payload,
+        created_unix_ms: crate::now_ms(),
+        acknowledged: false,
+    };
+    let mut g = st.a2a_messages.write().await;
+    g.push(msg);
+    if let Some(path) = st.a2a_store_path.as_ref() {
+        let _ = persist_a2a_store(path, &g);
+    }
+    Json(A2ADeliverResponse {
+        accepted: true,
+        message_id: id,
+    })
+}
+
+async fn a2a_inbox(
+    State(st): State<MeshTransportState>,
+    Json(req): Json<A2AInboxRequest>,
+) -> Json<A2AInboxResponse> {
+    let g = st.a2a_messages.read().await;
+    let messages = g
+        .iter()
+        .filter(|m| m.receiver_agent_id == req.receiver_agent_id && !m.acknowledged)
+        .cloned()
+        .collect();
+    Json(A2AInboxResponse { messages })
+}
+
+async fn a2a_ack(
+    State(st): State<MeshTransportState>,
+    Json(req): Json<A2AAckRequest>,
 ) -> StatusCode {
-    // This route is a stub in the control plane itself;
-    // real delivery happens in the local node's proxy or orchestrator.
-    StatusCode::ACCEPTED
+    let mut g = st.a2a_messages.write().await;
+    if let Some(msg) = g
+        .iter_mut()
+        .find(|m| m.id == req.message_id && m.receiver_agent_id == req.receiver_agent_id)
+    {
+        msg.acknowledged = true;
+        if let Some(path) = st.a2a_store_path.as_ref() {
+            let _ = persist_a2a_store(path, &g);
+        }
+        StatusCode::NO_CONTENT
+    } else {
+        StatusCode::NOT_FOUND
+    }
 }
 
 fn populi_control_token_from_env() -> Option<String> {
@@ -238,6 +410,8 @@ pub fn router(state: MeshTransportState) -> Router {
         .route("/v1/populi/heartbeat", post(heartbeat))
         .route("/v1/populi/leave", post(leave_node))
         .route("/v1/populi/a2a/deliver", post(deliver_a2a))
+        .route("/v1/populi/a2a/inbox", post(a2a_inbox))
+        .route("/v1/populi/a2a/ack", post(a2a_ack))
         .with_state(state)
 }
 

@@ -753,7 +753,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
 mod tests {
     use super::*;
     use crate::lexer::cursor::lex;
-    use crate::parser::parser::parse;
+    use crate::parser::parse;
     use crate::web_prefixes::SERVER_FN_API_PREFIX;
 
     fn lower_str(source: &str) -> HirModule {

@@ -4,7 +4,6 @@
 //! `contracts/dei/rpc-methods.schema.json` (JSON Schema `$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
 //! No `vox-cli` dependency here; keep structs in sync.
 
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -13,55 +12,7 @@ use tokio::process::Command;
 const DAEMON_BINARY: &str = "vox-dei-d";
 const SPAWN_ERR: &str = "Failed to spawn daemon";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DispatchRequest {
-    id: String,
-    method: String,
-    params: Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DispatchResponse {
-    #[allow(dead_code)]
-    id: String,
-    payload: DispatchPayload,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum DispatchPayload {
-    Result {
-        value: Value,
-    },
-    Error {
-        message: String,
-        code: i32,
-    },
-    Chunk {
-        text: String,
-    },
-    Progress {
-        percent: f32,
-        status: String,
-    },
-    Log {
-        level: String,
-        msg: String,
-    },
-    Diag {
-        severity: String,
-        message: String,
-        file: String,
-        line: u32,
-        col: u32,
-    },
-    Artifact {
-        path: String,
-    },
-    Done {
-        exit: i32,
-    },
-}
+use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 fn resolve_daemon_path(daemon: &str) -> std::path::PathBuf {
     if let Ok(p) = std::env::current_exe() {

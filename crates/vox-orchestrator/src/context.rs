@@ -128,7 +128,7 @@ impl ContextStore {
 
     /// Check if the context entry is fresh (age <= max_age_secs).
     pub fn is_fresh(&self, key: &str, max_age_secs: u64) -> bool {
-        self.age_secs(key).map_or(false, |a| a <= max_age_secs)
+        self.age_secs(key).is_some_and(|a| a <= max_age_secs)
     }
 
     /// Clear out items that have expired their TTL.
@@ -196,7 +196,7 @@ mod tests {
 
         let entry = store.get_entry("vcs_key").unwrap();
         assert_eq!(entry.value, "data");
-        assert_eq!(entry.set_at > 0, true);
+        assert!(entry.set_at > 0);
         let vcs = entry.vcs_context.unwrap();
         assert_eq!(vcs.snapshot_before, Some(10));
         assert_eq!(vcs.touched_paths.len(), 1);

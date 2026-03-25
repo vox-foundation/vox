@@ -273,8 +273,8 @@ fn apply_word_shuffle(prompt: &str, rng: &mut impl Rng) -> String {
     let suffix = &words[pivot..];
     let combined: Vec<&str> = prefix
         .iter()
-        .map(|s| *s)
-        .chain(suffix.iter().map(|s| *s))
+        .copied()
+        .chain(suffix.iter().copied())
         .collect();
     combined.join(" ")
 }
@@ -302,11 +302,11 @@ pub fn augment_prompt(prompt: &str, config: &AugmentConfig, seed: u64) -> Vec<St
         // Substitution (arm 1 typo injection, arm 4 combined) is the most common error.
         // Giving arms 1 and 4 extra weight produces more naturalistic training variety.
         let strategy = match rng.gen_range(0u8..=7) {
-            0 => 0,         // synonym swap
-            1 | 2 => 1,     // typo injection — 2× weight (QWERTY substitution via typo_mutate)
-            3 => 2,         // word shuffle
-            4 => 3,         // lowercase
-            5 | 6 | 7 => 4, // combined synonym+typo — 3× weight
+            0 => 0,     // synonym swap
+            1 | 2 => 1, // typo injection — 2× weight (QWERTY substitution via typo_mutate)
+            3 => 2,     // word shuffle
+            4 => 3,     // lowercase
+            5..=7 => 4, // combined synonym+typo — 3× weight
             _ => unreachable!(),
         };
         let variant = match strategy {

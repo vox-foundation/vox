@@ -4,12 +4,16 @@
 //! as training pairs, plus section-level Q&A pairs from architecture docs.
 
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use anyhow::Context;
 use chrono::{NaiveDate, Utc};
 use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
+
+static VOX_DOC_LINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)").expect("vox doc link regex"));
 
 #[derive(Deserialize, Debug)]
 #[serde(default)]
@@ -120,15 +124,15 @@ fn parse_frontmatter(content: &str) -> (bool, u8) {
     }
 
     let mut penalty = 0;
-    if let Some(date_str) = fm.last_updated {
-        if let Ok(last_updated) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-            let now = Utc::now().date_naive();
-            let days_old = now.signed_duration_since(last_updated).num_days();
+    if let Some(date_str) = fm.last_updated
+        && let Ok(last_updated) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+    {
+        let now = Utc::now().date_naive();
+        let days_old = now.signed_duration_since(last_updated).num_days();
 
-            // Penalize by 1 for every 90 days (approx 3 months), max penalty of 3
-            if days_old > 0 {
-                penalty = (days_old / 90).min(3) as u8;
-            }
+        // Penalize by 1 for every 90 days (approx 3 months), max penalty of 3
+        if days_old > 0 {
+            penalty = (days_old / 90).min(3) as u8;
         }
     }
 
@@ -261,18 +265,18 @@ fn extract_qa_sections(
                 let mut response = current_body.trim().to_string();
 
                 // Relational Chunking: Inject linked .vox examples directly into the training response
-                if let Ok(link_re) = Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)") {
+                {
                     let mut extra_context = String::new();
-                    for cap in link_re.captures_iter(&response.clone()) {
+                    for cap in VOX_DOC_LINK_RE.captures_iter(&response) {
                         let target_path_str = &cap[1];
                         let abs_target =
                             path.parent().unwrap_or(Path::new("")).join(target_path_str);
-                        if let Ok(can) = std::fs::canonicalize(&abs_target) {
-                            if let Ok(vox_code) = std::fs::read_to_string(&can) {
-                                extra_context.push_str("\n\n```vox\n");
-                                extra_context.push_str(vox_code.trim());
-                                extra_context.push_str("\n```\n");
-                            }
+                        if let Ok(can) = std::fs::canonicalize(&abs_target)
+                            && let Ok(vox_code) = std::fs::read_to_string(&can)
+                        {
+                            extra_context.push_str("\n\n```vox\n");
+                            extra_context.push_str(vox_code.trim());
+                            extra_context.push_str("\n```\n");
                         }
                     }
                     response.push_str(&extra_context);
@@ -310,12 +314,12 @@ fn extract_qa_sections(
             for cap in link_re.captures_iter(&response.clone()) {
                 let target_path_str = &cap[1];
                 let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
-                if let Ok(can) = std::fs::canonicalize(&abs_target) {
-                    if let Ok(vox_code) = std::fs::read_to_string(&can) {
-                        extra_context.push_str("\n\n```vox\n");
-                        extra_context.push_str(vox_code.trim());
-                        extra_context.push_str("\n```\n");
-                    }
+                if let Ok(can) = std::fs::canonicalize(&abs_target)
+                    && let Ok(vox_code) = std::fs::read_to_string(&can)
+                {
+                    extra_context.push_str("\n\n```vox\n");
+                    extra_context.push_str(vox_code.trim());
+                    extra_context.push_str("\n```\n");
                 }
             }
             response.push_str(&extra_context);

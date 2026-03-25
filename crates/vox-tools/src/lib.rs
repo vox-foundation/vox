@@ -35,7 +35,11 @@ impl DirectToolExecutor {
     /// Tool names this executor implements (keep in sync with `vox-mcp` + capability registry).
     #[must_use]
     pub fn supported_tools() -> &'static [&'static str] {
-        &["vox_oratio_transcribe", "vox_oratio_status", "vox_oratio_listen"]
+        &[
+            "vox_oratio_transcribe",
+            "vox_oratio_status",
+            "vox_oratio_listen",
+        ]
     }
 
     /// Whether `name` is implemented here.
@@ -120,7 +124,8 @@ impl DirectToolExecutor {
                     .get("max_duration_ms")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(rtc.session_timing.max_duration_ms);
-                let inference_deadline_ms = args.get("inference_deadline_ms").and_then(|v| v.as_u64());
+                let inference_deadline_ms =
+                    args.get("inference_deadline_ms").and_then(|v| v.as_u64());
                 let heartbeat_ms = args
                     .get("heartbeat_ms")
                     .and_then(|v| v.as_u64())

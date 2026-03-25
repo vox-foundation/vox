@@ -13,21 +13,20 @@
 /// 4. `None` — caller should fall back to user preset
 pub fn get_system_vram_gb() -> Option<f32> {
     // Priority 1: env override
-    if let Ok(v) = std::env::var("VOX_VRAM_OVERRIDE_GB") {
-        if let Ok(gb) = v.parse::<f32>() {
-            if gb > 0.0 {
-                return Some(gb);
-            }
-        }
+    if let Ok(v) = std::env::var("VOX_VRAM_OVERRIDE_GB")
+        && let Ok(gb) = v.parse::<f32>()
+        && gb > 0.0
+    {
+        return Some(gb);
     }
 
     // Priority 2: Linux sysfs
     if cfg!(target_os = "linux") {
         let sysfs_path = "/sys/class/drm/card0/device/mem_info_vram_total";
-        if let Ok(raw) = std::fs::read_to_string(sysfs_path) {
-            if let Ok(bytes) = raw.trim().parse::<u64>() {
-                return Some(bytes as f32 / (1024.0 * 1024.0 * 1024.0));
-            }
+        if let Ok(raw) = std::fs::read_to_string(sysfs_path)
+            && let Ok(bytes) = raw.trim().parse::<u64>()
+        {
+            return Some(bytes as f32 / (1024.0 * 1024.0 * 1024.0));
         }
     }
 
@@ -35,15 +34,14 @@ pub fn get_system_vram_gb() -> Option<f32> {
     if let Ok(out) = std::process::Command::new("nvidia-smi")
         .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
         .output()
+        && out.status.success()
     {
-        if out.status.success() {
-            let raw = String::from_utf8_lossy(&out.stdout);
-            // May return multiple lines for multi-GPU; take the first.
-            if let Some(line) = raw.lines().next() {
-                if let Ok(mib) = line.trim().parse::<f32>() {
-                    return Some(mib / 1024.0);
-                }
-            }
+        let raw = String::from_utf8_lossy(&out.stdout);
+        // May return multiple lines for multi-GPU; take the first.
+        if let Some(line) = raw.lines().next()
+            && let Ok(mib) = line.trim().parse::<f32>()
+        {
+            return Some(mib / 1024.0);
         }
     }
 

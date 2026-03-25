@@ -27,28 +27,28 @@ pub fn run(run_dir: Option<PathBuf>) -> Result<()> {
     let mut last_lr = None::<f64>;
 
     for line in &lines {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-            if let Some(e) = v.get("event").and_then(|x| x.as_str()) {
-                match e {
-                    "train_start" => status = "running",
-                    "train_complete" => status = "complete ✓",
-                    "train_failed" => status = "FAILED ✗",
-                    "train_step" | "checkpoint" => {
-                        if let Some(s) = v.get("step").and_then(|x| x.as_u64()) {
-                            last_step = Some(s);
-                        }
-                        if let Some(l) = v.get("loss").and_then(|x| x.as_f64()) {
-                            last_loss = Some(l);
-                        }
-                        if let Some(ep) = v.get("epoch").and_then(|x| x.as_u64()) {
-                            last_epoch = Some(ep);
-                        }
-                        if let Some(lr) = v.get("lr").and_then(|x| x.as_f64()) {
-                            last_lr = Some(lr);
-                        }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
+            && let Some(e) = v.get("event").and_then(|x| x.as_str())
+        {
+            match e {
+                "train_start" => status = "running",
+                "train_complete" => status = "complete ✓",
+                "train_failed" => status = "FAILED ✗",
+                "train_step" | "checkpoint" => {
+                    if let Some(s) = v.get("step").and_then(|x| x.as_u64()) {
+                        last_step = Some(s);
                     }
-                    _ => {}
+                    if let Some(l) = v.get("loss").and_then(|x| x.as_f64()) {
+                        last_loss = Some(l);
+                    }
+                    if let Some(ep) = v.get("epoch").and_then(|x| x.as_u64()) {
+                        last_epoch = Some(ep);
+                    }
+                    if let Some(lr) = v.get("lr").and_then(|x| x.as_f64()) {
+                        last_lr = Some(lr);
+                    }
                 }
+                _ => {}
             }
         }
     }

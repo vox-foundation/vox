@@ -50,6 +50,7 @@ vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-pm                    = { path = "crates/vox-pm" }
+vox-protocol              = { path = "crates/vox-protocol" }
 vox-mens                = { path = "crates/vox-mens", default-features = false }
 vox-repository            = { path = "crates/vox-repository" }
 vox-runtime               = { path = "crates/vox-runtime" }

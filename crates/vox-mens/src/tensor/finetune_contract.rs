@@ -314,12 +314,16 @@ mod digest_tests {
 
     #[test]
     fn finetune_contract_digest_changes_with_strict_proxy_flag() {
-        let mut cfg_off = LoraTrainingConfig::default();
-        cfg_off.qlora_require_full_proxy_stack = false;
+        let cfg_off = LoraTrainingConfig {
+            qlora_require_full_proxy_stack: false,
+            ..Default::default()
+        };
         let c_off =
             FineTuneContract::from_training_config(&cfg_off, PopuliTrainBackend::CandleQlora);
-        let mut cfg_on = LoraTrainingConfig::default();
-        cfg_on.qlora_require_full_proxy_stack = true;
+        let cfg_on = LoraTrainingConfig {
+            qlora_require_full_proxy_stack: true,
+            ..Default::default()
+        };
         let c_on = FineTuneContract::from_training_config(&cfg_on, PopuliTrainBackend::CandleQlora);
         assert_ne!(
             finetune_contract_digest(&c_off),
@@ -329,12 +333,16 @@ mod digest_tests {
 
     #[test]
     fn finetune_contract_digest_changes_with_lm_head_only_flag() {
-        let mut cfg_off = LoraTrainingConfig::default();
-        cfg_off.qlora_lm_head_only = false;
+        let cfg_off = LoraTrainingConfig {
+            qlora_lm_head_only: false,
+            ..Default::default()
+        };
         let c_off =
             FineTuneContract::from_training_config(&cfg_off, PopuliTrainBackend::CandleQlora);
-        let mut cfg_on = LoraTrainingConfig::default();
-        cfg_on.qlora_lm_head_only = true;
+        let cfg_on = LoraTrainingConfig {
+            qlora_lm_head_only: true,
+            ..Default::default()
+        };
         let c_on = FineTuneContract::from_training_config(&cfg_on, PopuliTrainBackend::CandleQlora);
         assert_ne!(
             finetune_contract_digest(&c_off),
@@ -344,12 +352,16 @@ mod digest_tests {
 
     #[test]
     fn finetune_contract_digest_changes_with_proxy_max_layers() {
-        let mut cfg_full = LoraTrainingConfig::default();
-        cfg_full.qlora_proxy_max_layers = None;
+        let cfg_full = LoraTrainingConfig {
+            qlora_proxy_max_layers: None,
+            ..Default::default()
+        };
         let c_full =
             FineTuneContract::from_training_config(&cfg_full, PopuliTrainBackend::CandleQlora);
-        let mut cfg_cap = LoraTrainingConfig::default();
-        cfg_cap.qlora_proxy_max_layers = Some(4);
+        let cfg_cap = LoraTrainingConfig {
+            qlora_proxy_max_layers: Some(4),
+            ..Default::default()
+        };
         let c_cap =
             FineTuneContract::from_training_config(&cfg_cap, PopuliTrainBackend::CandleQlora);
         assert_ne!(
@@ -360,22 +372,30 @@ mod digest_tests {
 
     #[test]
     fn finetune_contract_digest_changes_with_ce_last_k() {
-        let mut cfg1 = LoraTrainingConfig::default();
-        cfg1.qlora_ce_last_k = 1;
+        let cfg1 = LoraTrainingConfig {
+            qlora_ce_last_k: 1,
+            ..Default::default()
+        };
         let c1 = FineTuneContract::from_training_config(&cfg1, PopuliTrainBackend::CandleQlora);
-        let mut cfg4 = LoraTrainingConfig::default();
-        cfg4.qlora_ce_last_k = 4;
+        let cfg4 = LoraTrainingConfig {
+            qlora_ce_last_k: 4,
+            ..Default::default()
+        };
         let c4 = FineTuneContract::from_training_config(&cfg4, PopuliTrainBackend::CandleQlora);
         assert_ne!(finetune_contract_digest(&c1), finetune_contract_digest(&c4));
     }
 
     #[test]
     fn finetune_contract_digest_changes_with_deployment_target() {
-        let mut cfg_w = LoraTrainingConfig::default();
-        cfg_w.deployment_target = TrainingDeploymentTarget::Workstation;
+        let cfg_w = LoraTrainingConfig {
+            deployment_target: TrainingDeploymentTarget::Workstation,
+            ..Default::default()
+        };
         let c_w = FineTuneContract::from_training_config(&cfg_w, PopuliTrainBackend::BurnLora);
-        let mut cfg_m = LoraTrainingConfig::default();
-        cfg_m.deployment_target = TrainingDeploymentTarget::MobileEdge;
+        let cfg_m = LoraTrainingConfig {
+            deployment_target: TrainingDeploymentTarget::MobileEdge,
+            ..Default::default()
+        };
         let c_m = FineTuneContract::from_training_config(&cfg_m, PopuliTrainBackend::BurnLora);
         assert_ne!(
             finetune_contract_digest(&c_w),

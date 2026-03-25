@@ -120,10 +120,7 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
     }
     current = rewritten.join(" ");
 
-    for (from, to) in [
-        ("vox mens oratio", "vox oratio"),
-        ("mens oratio", "oratio"),
-    ] {
+    for (from, to) in [("vox mens oratio", "vox oratio"), ("mens oratio", "oratio")] {
         if current.contains(from) {
             let after = current.replacen(from, to, 100);
             if after != current {

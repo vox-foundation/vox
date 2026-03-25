@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::scalar_mapping::VoxScalar;
-use crate::hir::hir::{
+use crate::hir::{
     HirActivity, HirActor, HirBinOp, HirExpr, HirFn, HirHttpMethod, HirIndex, HirModule,
     HirPattern, HirRoute, HirServerFn, HirStmt, HirTable, HirType, HirWorkflow,
 };
@@ -1540,8 +1540,8 @@ pub fn emit_expr(expr: &HirExpr) -> String {
 
         HirExpr::Unary(op, expr, _) => {
             let op_str = match op {
-                crate::hir::hir::HirUnOp::Not => "!",
-                crate::hir::hir::HirUnOp::Neg => "-",
+                crate::hir::HirUnOp::Not => "!",
+                crate::hir::HirUnOp::Neg => "-",
             };
             format!("{}({})", op_str, emit_expr(expr))
         }

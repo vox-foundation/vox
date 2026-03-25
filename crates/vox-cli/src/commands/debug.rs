@@ -88,7 +88,7 @@ async fn run_direct_script(abs: &Path, _mode: &str, _stop_on_entry: bool) -> Res
         .with_context(|| format!("cannot read {}", abs.display()))?;
 
     let tokens = vox_compiler::lexer::lex(&source);
-    let module = vox_compiler::parser::parser::parse(tokens)
+    let module = vox_compiler::parser::parse(tokens)
         .map_err(|errs| {
             let msgs: Vec<_> = errs.iter().map(|e| e.message.clone()).collect();
             anyhow::anyhow!("parse errors:\n{}", msgs.join("\n"))

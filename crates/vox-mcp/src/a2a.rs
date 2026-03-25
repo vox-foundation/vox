@@ -21,6 +21,10 @@ pub struct A2ASendParams {
     pub msg_type: String,
     /// Opaque UTF-8 payload stored in the message record.
     pub payload: String,
+    /// Optional end-to-end correlation id for tracing.
+    pub correlation_id: Option<String>,
+    /// Optional tenant/session id for tracing and dashboards.
+    pub tenant_id: Option<String>,
 }
 
 /// MCP tool arguments: fetch unacknowledged inbox entries for one agent.
@@ -122,12 +126,34 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
     let receiver = AgentId(params.receiver_id);
     let msg_type = parse_msg_type(&params.msg_type);
 
-    let msg_id = orch.send_a2a(sender, receiver, msg_type, params.payload);
+    let msg_id = orch.send_a2a(sender, receiver, msg_type.clone(), params.payload.clone());
+    let mut relay_attempted = false;
+    let mut relay_ok = false;
+    if let Some(base) = vox_populi::http_lifecycle::mesh_http_control_base_from_env() {
+        if !base.trim().is_empty() {
+            relay_attempted = true;
+            let client = vox_populi::http_client::MeshHttpClient::new(base).with_env_token();
+            relay_ok = client
+                .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+                    sender_agent_id: params.sender_id.to_string(),
+                    receiver_agent_id: params.receiver_id.to_string(),
+                    message_type: msg_type_wire(&msg_type),
+                    payload: params.payload.clone(),
+                })
+                .await
+                .is_ok();
+        }
+    }
 
     ToolResult::ok(serde_json::json!({
         "message_id": msg_id.0,
         "sender": params.sender_id,
         "receiver": params.receiver_id,
+        "correlation_id": params.correlation_id,
+        "tenant_id": params.tenant_id,
+        "relay_attempted": relay_attempted,
+        "relay_ok": relay_ok,
+        "dropped_messages": orch.message_bus().dropped_messages(),
     }))
     .to_json()
 }
@@ -137,7 +163,7 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
     let orch = &state.orchestrator;
 
     let agent_id = AgentId(params.agent_id);
-    let messages: Vec<A2AMessageInfo> = orch
+    let mut messages: Vec<A2AMessageInfo> = orch
         .message_bus()
         .inbox(agent_id)
         .into_iter()
@@ -151,10 +177,42 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
             acknowledged: m.acknowledged,
         })
         .collect();
+    let mut remote_attempted = false;
+    let mut remote_ok = false;
+    if let Some(base) = vox_populi::http_lifecycle::mesh_http_control_base_from_env() {
+        if !base.trim().is_empty() {
+            remote_attempted = true;
+            let client = vox_populi::http_client::MeshHttpClient::new(base).with_env_token();
+            if let Ok(remote) = client.relay_a2a_inbox(&params.agent_id.to_string()).await {
+                remote_ok = true;
+                let mut seen = std::collections::HashSet::new();
+                for m in &messages {
+                    seen.insert(m.id);
+                }
+                for m in remote.messages {
+                    if seen.insert(m.id) {
+                        messages.push(A2AMessageInfo {
+                            id: m.id,
+                            sender: m.sender_agent_id.parse::<u64>().unwrap_or(0),
+                            receiver: m.receiver_agent_id.parse::<u64>().ok(),
+                            msg_type: m.message_type,
+                            payload: m.payload,
+                            timestamp_ms: m.created_unix_ms,
+                            acknowledged: m.acknowledged,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    messages.sort_by_key(|m| m.timestamp_ms);
 
     ToolResult::ok(serde_json::json!({
         "agent_id": params.agent_id,
         "unread_count": messages.len(),
+        "remote_attempted": remote_attempted,
+        "remote_ok": remote_ok,
+        "dropped_messages": orch.message_bus().dropped_messages(),
         "messages": messages,
     }))
     .to_json()
@@ -168,12 +226,28 @@ pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String {
     let message_id = vox_orchestrator::types::MessageId(params.message_id);
 
     // Need mutable access to message_bus for ack
-    let success = orch.message_bus_mut().acknowledge(agent_id, message_id);
+    let local_success = orch.message_bus_mut().acknowledge(agent_id, message_id);
+    let mut remote_attempted = false;
+    let mut remote_success = false;
+    if let Some(base) = vox_populi::http_lifecycle::mesh_http_control_base_from_env() {
+        if !base.trim().is_empty() {
+            remote_attempted = true;
+            let client = vox_populi::http_client::MeshHttpClient::new(base).with_env_token();
+            remote_success = client
+                .relay_a2a_ack(&params.agent_id.to_string(), params.message_id)
+                .await
+                .unwrap_or(false);
+        }
+    }
+    let success = local_success || remote_success;
 
     if success {
         ToolResult::ok(serde_json::json!({
             "acknowledged": true,
             "message_id": params.message_id,
+            "local_acknowledged": local_success,
+            "remote_attempted": remote_attempted,
+            "remote_acknowledged": remote_success,
         }))
         .to_json()
     } else {
@@ -200,6 +274,7 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
         "message_id": msg_id.0,
         "sender": params.sender_id,
         "delivered_to": agent_count,
+        "dropped_messages": orch.message_bus().dropped_messages(),
     }))
     .to_json()
 }
@@ -246,6 +321,7 @@ pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> Strin
 
     ToolResult::ok(serde_json::json!({
         "total_messages": orch.message_bus().total_messages(),
+        "dropped_messages": orch.message_bus().dropped_messages(),
         "returned": messages.len(),
         "messages": messages,
     }))

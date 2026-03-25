@@ -101,20 +101,21 @@ fn download_artifacts(
     let hf_retry_delay_ms = hf_cfg.retry_delay_ms;
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 1..=hf_retry_attempts {
-        let outcome: Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> = (|| {
-            let api = Api::new().context("hf-hub Api::new")?;
-            let repo = api.repo(Repo::with_revision(
-                model_id.to_string(),
-                RepoType::Model,
-                revision.to_string(),
-            ));
-            let config = repo.get("config.json").context("fetch config.json")?;
-            let tokenizer = repo.get("tokenizer.json").context("fetch tokenizer.json")?;
-            let weights = repo
-                .get("model.safetensors")
-                .context("fetch model.safetensors")?;
-            Ok((config, tokenizer, weights))
-        })();
+        let outcome: Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> =
+            (|| {
+                let api = Api::new().context("hf-hub Api::new")?;
+                let repo = api.repo(Repo::with_revision(
+                    model_id.to_string(),
+                    RepoType::Model,
+                    revision.to_string(),
+                ));
+                let config = repo.get("config.json").context("fetch config.json")?;
+                let tokenizer = repo.get("tokenizer.json").context("fetch tokenizer.json")?;
+                let weights = repo
+                    .get("model.safetensors")
+                    .context("fetch model.safetensors")?;
+                Ok((config, tokenizer, weights))
+            })();
         match outcome {
             Ok(paths) => return Ok(paths),
             Err(e) => {
@@ -392,7 +393,10 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
 /// Like [`transcribe_audio_file`], but honors an per-call language hint (Whisper token id / ISO code).
 ///
 /// This does **not** mutate process-wide env after return: `VOX_ORATIO_LANGUAGE` is restored on drop.
-pub fn transcribe_audio_file_with_language(path: &Path, language_override: Option<&str>) -> Result<String> {
+pub fn transcribe_audio_file_with_language(
+    path: &Path,
+    language_override: Option<&str>,
+) -> Result<String> {
     let _lang = LanguageEnvOverride::set(language_override);
     transcribe_audio_file(path)
 }

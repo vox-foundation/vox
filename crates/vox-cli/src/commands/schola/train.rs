@@ -123,8 +123,7 @@ pub async fn run_train(
 
     super::process_priority::apply(&process_priority);
 
-    let device_kind =
-        vox_mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let device_kind = vox_mens::normalize_device(&device).map_err(|e| anyhow::anyhow!("{}", e))?;
     vox_mens::apply_backend_env(device_kind);
 
     if matches!(
@@ -326,7 +325,7 @@ pub async fn run_train(
             workspace_root.as_deref(),
         )?;
         tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
-        
+
         // VRAM Auto-Detect: Select 16g preset if CUDA is active and no preset is provided.
         let mut final_preset = preset.clone();
         if final_preset.is_none() && device.to_lowercase() == "cuda" {
@@ -340,7 +339,11 @@ pub async fn run_train(
                 vox_mens::tensor::vram_autodetect::get_system_vram_gb(),
             );
             if let Some(ap) = auto_preset {
-                eprintln!("  {} Auto-detected 16 GB VRAM → using preset '{}'", "⚙".cyan(), ap);
+                eprintln!(
+                    "  {} Auto-detected 16 GB VRAM → using preset '{}'",
+                    "⚙".cyan(),
+                    ap
+                );
                 final_preset = Some(ap.to_string());
             }
         }
@@ -412,8 +415,7 @@ pub async fn run_train(
                             .unwrap_or_else(|| "Vox (built-in)".to_string());
                         eprintln!("  {} Tokenizer: {}", "🔤".cyan(), tokenizer_src);
                         let est_mb =
-                            if matches!(train_backend, vox_mens::PopuliTrainBackend::CandleQlora)
-                            {
+                            if matches!(train_backend, vox_mens::PopuliTrainBackend::CandleQlora) {
                                 vox_mens::estimate_training_vram_mb_qlora(
                                     cfg.n_embd,
                                     cfg.n_head,
@@ -506,13 +508,16 @@ pub async fn run_train(
             require_gpu,
             allow_cpu_fallback,
         };
-        let model_name_for_stats = config.base_model.clone().unwrap_or_else(|| "scratch".to_string());
+        let model_name_for_stats = config
+            .base_model
+            .clone()
+            .unwrap_or_else(|| "scratch".to_string());
         let preset_for_stats = preset.clone().unwrap_or_else(|| "unknown".to_string());
 
         let system_prompt = vox_corpus::training::generate_training_system_prompt();
-        
-        // Note: `data_dir` is passed here as a fallback root. 
-        // The trainer relies on `config.train_file` (resolved during preflight) 
+
+        // Note: `data_dir` is passed here as a fallback root.
+        // The trainer relies on `config.train_file` (resolved during preflight)
         // as the single source of truth for the JSONL path.
         let summary = vox_mens::run_mens_training(
             train_backend,
@@ -525,15 +530,17 @@ pub async fn run_train(
 
         // Wave 2: Local training telemetry write-back (4080 parity)
         if let Ok(db) = vox_db::VoxDb::connect_default().await {
-            let _ = db.local_log_train_run(
-                &device_profile_str,
-                &model_name_for_stats,
-                &preset_for_stats,
-                summary.wall_secs,
-                summary.total_steps as i64,
-                summary.total_tokens as i64,
-                Some(summary.ms_per_step),
-            ).await;
+            let _ = db
+                .local_log_train_run(
+                    &device_profile_str,
+                    &model_name_for_stats,
+                    &preset_for_stats,
+                    summary.wall_secs,
+                    summary.total_steps as i64,
+                    summary.total_tokens as i64,
+                    Some(summary.ms_per_step),
+                )
+                .await;
         }
 
         Ok(())

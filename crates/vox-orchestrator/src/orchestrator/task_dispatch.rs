@@ -122,7 +122,6 @@ impl Orchestrator {
         .await
     }
 
-    /// Create a new orchestrator with the given configuration.
     // ORCH-01 SPLIT TARGET:
     //   new() / with_groups() / init_db() → orchestrator/core.rs
     //   submit_task*() / submit_batch() / resolve_route() / spawn_agent*() → orchestrator/task_dispatch.rs
@@ -614,7 +613,7 @@ impl Orchestrator {
                 manifest,
                 &self.affinity_map,
                 &groups,
-                &*agents,
+                &agents,
                 &config,
                 reliability_map.as_ref(),
                 task_capability_requirements,

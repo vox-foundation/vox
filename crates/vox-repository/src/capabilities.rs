@@ -95,46 +95,6 @@ pub fn probe_capabilities(root: &Path, in_git_work_tree: bool) -> RepoCapabiliti
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn task_capability_hints_deserialize_omitted_fields() {
-        let j = r#"{"gpu_cuda":true}"#;
-        let h: TaskCapabilityHints = serde_json::from_str(j).unwrap();
-        assert!(h.gpu_cuda);
-        assert!(!h.gpu_metal);
-        assert!(!h.gpu_vulkan);
-        assert!(!h.gpu_webgpu);
-        assert!(!h.npu);
-        assert!(h.device_class.is_none());
-        assert!(h.cpu_cores.is_none());
-        assert!(h.labels.is_empty());
-    }
-
-    #[test]
-    fn merge_prefers_probed_cpu_and_keeps_config_gpu() {
-        let cfg = TaskCapabilityHints {
-            gpu_cuda: true,
-            labels: vec!["pool=a".into()],
-            ..Default::default()
-        };
-        let p = TaskCapabilityHints {
-            cpu_cores: Some(8),
-            arch: Some("aarch64".into()),
-            labels: vec!["pool=b".into()],
-            ..Default::default()
-        };
-        let m = merge_agent_capabilities(&cfg, p);
-        assert_eq!(m.cpu_cores, Some(8));
-        assert_eq!(m.arch.as_deref(), Some("aarch64"));
-        assert!(m.gpu_cuda);
-        assert!(m.labels.contains(&"pool=a".into()));
-        assert!(m.labels.contains(&"pool=b".into()));
-    }
-}
-
 /// Snapshot of the current process host (best-effort, no extra crates required on the default build).
 #[must_use]
 pub fn probe_host_capabilities() -> TaskCapabilityHints {
@@ -237,5 +197,45 @@ fn apply_mesh_capability_env(h: &mut TaskCapabilityHints) {
         if !t.is_empty() {
             h.device_class = Some(t.to_string());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_capability_hints_deserialize_omitted_fields() {
+        let j = r#"{"gpu_cuda":true}"#;
+        let h: TaskCapabilityHints = serde_json::from_str(j).unwrap();
+        assert!(h.gpu_cuda);
+        assert!(!h.gpu_metal);
+        assert!(!h.gpu_vulkan);
+        assert!(!h.gpu_webgpu);
+        assert!(!h.npu);
+        assert!(h.device_class.is_none());
+        assert!(h.cpu_cores.is_none());
+        assert!(h.labels.is_empty());
+    }
+
+    #[test]
+    fn merge_prefers_probed_cpu_and_keeps_config_gpu() {
+        let cfg = TaskCapabilityHints {
+            gpu_cuda: true,
+            labels: vec!["pool=a".into()],
+            ..Default::default()
+        };
+        let p = TaskCapabilityHints {
+            cpu_cores: Some(8),
+            arch: Some("aarch64".into()),
+            labels: vec!["pool=b".into()],
+            ..Default::default()
+        };
+        let m = merge_agent_capabilities(&cfg, p);
+        assert_eq!(m.cpu_cores, Some(8));
+        assert_eq!(m.arch.as_deref(), Some("aarch64"));
+        assert!(m.gpu_cuda);
+        assert!(m.labels.contains(&"pool=a".into()));
+        assert!(m.labels.contains(&"pool=b".into()));
     }
 }

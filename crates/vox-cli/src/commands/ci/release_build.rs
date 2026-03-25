@@ -355,7 +355,8 @@ mod tests {
         }
 
         assert_eq!(
-            from_workflow, from_ssot,
+            from_workflow,
+            from_ssot,
             "release-binaries.yml matrix targets must match `SUPPORTED_RELEASE_TARGETS` in release_build.rs (workflow files: {})",
             wf.display()
         );

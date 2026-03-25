@@ -172,7 +172,7 @@ pub fn resolve_effective_profile(
     let mut p = if name == "auto" {
         if let Some(specs) = load_gpu_specs() {
             if let Some((_name, preset_spec)) =
-                TrainingPreset::best_for_vram(&specs.presets, device.vram_mb as u64)
+                TrainingPreset::best_for_vram(&specs.presets, device.vram_mb)
             {
                 TrainPresetProfile {
                     rank: 16,
@@ -275,10 +275,10 @@ pub struct TrainingPreset {
 
 impl TrainingPreset {
     /// Select the best preset for the given VRAM amount.
-    pub fn best_for_vram<'a>(
-        presets: &'a HashMap<String, TrainingPreset>,
+    pub fn best_for_vram(
+        presets: &HashMap<String, TrainingPreset>,
         vram_mb: u64,
-    ) -> Option<(&'a str, &'a TrainingPreset)> {
+    ) -> Option<(&str, &TrainingPreset)> {
         presets
             .iter()
             .filter(|(_, p)| p.max_vram_mb <= vram_mb)

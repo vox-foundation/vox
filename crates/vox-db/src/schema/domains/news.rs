@@ -1,4 +1,4 @@
-pub const SCHEMA_NEWS: &'static str = "
+pub const SCHEMA_NEWS: &str = "
 -- Table of published news items to prevent duplicate syndication.
 CREATE TABLE IF NOT EXISTS published_news (
     news_id TEXT PRIMARY KEY,

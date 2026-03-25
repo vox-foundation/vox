@@ -72,15 +72,14 @@ pub fn run_verify(repo_root: &Path) -> Result<()> {
     let data_path = repo_root.join(DATA_REL);
     let schema_src = std::fs::read_to_string(&schema_path)
         .with_context(|| format!("read {}", schema_path.display()))?;
-    let data_src =
-        std::fs::read_to_string(&data_path).with_context(|| format!("read {}", data_path.display()))?;
-    let schema_val: serde_json::Value =
-        serde_json::from_str(&schema_src).with_context(|| format!("parse {}", schema_path.display()))?;
-    let data_val: serde_json::Value =
-        serde_json::from_str(&data_src).with_context(|| format!("parse {}", data_path.display()))?;
-    let validator = jsonschema::validator_for(&schema_val).with_context(|| {
-        format!("compile JSON Schema {}", schema_path.display())
-    })?;
+    let data_src = std::fs::read_to_string(&data_path)
+        .with_context(|| format!("read {}", data_path.display()))?;
+    let schema_val: serde_json::Value = serde_json::from_str(&schema_src)
+        .with_context(|| format!("parse {}", schema_path.display()))?;
+    let data_val: serde_json::Value = serde_json::from_str(&data_src)
+        .with_context(|| format!("parse {}", data_path.display()))?;
+    let validator = jsonschema::validator_for(&schema_val)
+        .with_context(|| format!("compile JSON Schema {}", schema_path.display()))?;
     validator.validate(&data_val).map_err(|e| {
         anyhow::anyhow!(
             "{} failed validation against {}: {e}",
@@ -88,7 +87,11 @@ pub fn run_verify(repo_root: &Path) -> Result<()> {
             schema_path.display()
         )
     })?;
-    println!("OK: {} matches {}", data_path.display(), schema_path.display());
+    println!(
+        "OK: {} matches {}",
+        data_path.display(),
+        schema_path.display()
+    );
     Ok(())
 }
 
@@ -188,12 +191,19 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
                 FILTER_MENS_HUB_TESTS,
             ],
         ),
-        "vox_mcp_route_telemetry_parity" => {
-            cargo_test_nocapture(repo_root, &["test", "-p", PKG_VOX_MCP, FILTER_MCP_ROUTE_TESTS])
-        }
+        "vox_mcp_route_telemetry_parity" => cargo_test_nocapture(
+            repo_root,
+            &["test", "-p", PKG_VOX_MCP, FILTER_MCP_ROUTE_TESTS],
+        ),
         "vox_runtime_model_resolution_tests" => cargo_test_nocapture(
             repo_root,
-            &["test", "-p", PKG_VOX_RUNTIME, "--lib", FILTER_RUNTIME_MODEL_RESOLUTION],
+            &[
+                "test",
+                "-p",
+                PKG_VOX_RUNTIME,
+                "--lib",
+                FILTER_RUNTIME_MODEL_RESOLUTION,
+            ],
         ),
         "vox_cli_dispatch_dei_schema" => cargo_test_nocapture(
             repo_root,
@@ -212,12 +222,18 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
             repo_root,
             &["test", "-p", PKG_VOX_MCP, FILTER_MCP_LANGUAGE_SURFACE],
         ),
-        "vox_mcp_tool_dispatch_smoke" => {
-            cargo_test_nocapture(repo_root, &["test", "-p", PKG_VOX_MCP, FILTER_MCP_TOOL_DISPATCH])
-        }
+        "vox_mcp_tool_dispatch_smoke" => cargo_test_nocapture(
+            repo_root,
+            &["test", "-p", PKG_VOX_MCP, FILTER_MCP_TOOL_DISPATCH],
+        ),
         "vox_doc_inventory_relevance_score" => cargo_test_nocapture(
             repo_root,
-            &["test", "-p", PKG_VOX_DOC_INVENTORY, FILTER_DOC_INVENTORY_RELEVANCE],
+            &[
+                "test",
+                "-p",
+                PKG_VOX_DOC_INVENTORY,
+                FILTER_DOC_INVENTORY_RELEVANCE,
+            ],
         ),
         "contracts_eval_benchmark_matrix_schema" => run_verify(repo_root),
         // In-process: avoids `cargo run -p vox-cli` replacing `vox.exe` (Windows file-lock errors).
@@ -248,7 +264,10 @@ mod tests {
     fn benchmark_class_ids_sorted_and_unique() {
         let mut prev = "";
         for &id in BENCHMARK_CLASS_IDS {
-            assert!(id > prev, "BENCHMARK_CLASS_IDS must be sorted, violation: {id} after {prev}");
+            assert!(
+                id > prev,
+                "BENCHMARK_CLASS_IDS must be sorted, violation: {id} after {prev}"
+            );
             prev = id;
         }
         let mut set = HashSet::new();
@@ -280,7 +299,8 @@ mod tests {
 
         let schema_path = root.join(SCHEMA_REL);
         let schema_src = std::fs::read_to_string(&schema_path).expect("read schema");
-        let schema_val: serde_json::Value = serde_json::from_str(&schema_src).expect("parse schema");
+        let schema_val: serde_json::Value =
+            serde_json::from_str(&schema_src).expect("parse schema");
         let enum_vals = schema_val
             .pointer("/properties/milestones/items/properties/benchmark_classes/items/enum")
             .and_then(|v| v.as_array())
@@ -289,7 +309,10 @@ mod tests {
             .iter()
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect();
-        let ssot_strings: HashSet<String> = BENCHMARK_CLASS_IDS.iter().map(|s| (*s).to_string()).collect();
+        let ssot_strings: HashSet<String> = BENCHMARK_CLASS_IDS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
         assert_eq!(
             from_schema, ssot_strings,
             "JSON Schema enum for benchmark_classes must match BENCHMARK_CLASS_IDS"
