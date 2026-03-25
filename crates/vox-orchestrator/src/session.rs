@@ -1,10 +1,11 @@
 //! Session lifecycle management for Vox agents.
 //!
 //! Inspired by OpenClaw's session model:
-//! - Sessions are persisted as append-only JSONL files
+//! - Sessions are persisted in [`vox_db::VoxDb`] (primary SSOT)
+//! - Historical JSONL file persistence is supported as a secondary fallback
 //! - Each session has its own context, permissions, and state
 //! - Supports reset, cleanup, idle timeout, and daily reset policies
-//! - Sessions survive restarts via replay from JSONL
+//! - Sessions survive restarts via replay from VoxDb (preferred) or JSONL
 
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -365,12 +366,17 @@ impl SessionManager {
         if let Some(db) = &self.db {
             let db = db.clone();
             let sid = id.clone();
-            let aid = agent_id.0.to_string();
+            let aid_str = agent_id.0.to_string();
+            let event = SessionEvent::Created {
+                session_id: id.clone(),
+                agent_id: agent_id.0,
+                created_at: session.created_at,
+            };
+            let payload = serde_json::to_string(&event).unwrap_or_default();
             tokio::spawn(async move {
-                let meta = format!("{{\"agent_id\":\"{aid}\",\"state\":\"active\"}}");
-                let _ = db
-                    .create_session(&sid, &aid, Some(meta.as_str()))
-                    .await;
+                let meta = format!("{{\"agent_id\":\"{aid_str}\",\"state\":\"active\"}}");
+                let _ = db.create_session(&sid, &aid_str, Some(meta.as_str())).await;
+                let _ = db.append_session_event(&sid, "created", &payload).await;
             });
         }
 
@@ -414,6 +420,7 @@ impl SessionManager {
                 at: now_secs(),
             };
             self.append_event(session_id, &event)?;
+            self.dual_write_event(session_id, "turn_added", &event);
         }
         Ok(())
     }
@@ -442,6 +449,7 @@ impl SessionManager {
                 at: now_secs(),
             };
             self.append_event(session_id, &event)?;
+            self.dual_write_event(session_id, "meta_updated", &event);
         }
         Ok(())
     }
@@ -595,8 +603,9 @@ impl SessionManager {
         Ok(count)
     }
 
-    /// Load a session from its JSONL file by replaying events.
-    pub fn load(&mut self, session_id: &str) -> Result<(), SessionError> {
+    /// Load a session by replaying events from JSONL.
+    #[deprecated(note = "JSONL persistence is being replaced by VoxDb SSOT")]
+    pub fn load_from_jsonl(&mut self, session_id: &str) -> Result<(), SessionError> {
         let path = self.session_path(session_id);
         if !path.exists() {
             return Err(SessionError::NotFound(session_id.to_string()));
@@ -704,6 +713,108 @@ impl SessionManager {
             self.sessions.insert(s.id.clone(), s);
         }
         Ok(())
+    }
+
+    /// Load a session by ID. Checks VoxDb first, falls back to JSONL.
+    pub async fn load(&mut self, session_id: &str) -> Result<(), SessionError> {
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let session_rows = db.list_active_sessions().await
+                .map_err(|e: vox_db::StoreError| SessionError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            
+            if let Some((_, agent_id_str, _)) = session_rows.iter().find(|(sid, _, _)| sid == session_id) {
+                let aid = agent_id_str.parse::<AgentId>().unwrap_or(AgentId(0));
+                let mut session = Session {
+                    id: session_id.to_string(),
+                    agent_id: aid,
+                    state: SessionState::Active,
+                    created_at: now_secs(), // Replaced by Create event if found
+                    last_active: now_secs(),
+                    last_expensive_op_at: None,
+                    turns: Vec::new(),
+                    meta: HashMap::new(),
+                    plugin_state: HashMap::new(),
+                    turn_count: 0,
+                    total_tokens: 0,
+                };
+
+                let events = db.load_session_events(session_id).await
+                    .map_err(|e: vox_db::StoreError| SessionError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+                
+                for (_etype, payload_json) in events {
+                    let event: SessionEvent = serde_json::from_str(&payload_json).map_err(SessionError::Serialize)?;
+                    self.apply_event_to_session(&mut session, event);
+                }
+
+                self.sessions.insert(session_id.to_string(), session);
+                return Ok(());
+            }
+        }
+
+        #[allow(deprecated)]
+        self.load_from_jsonl(session_id)
+    }
+
+    /// Helper to apply an event to a session object.
+    fn apply_event_to_session(&self, s: &mut Session, event: SessionEvent) {
+        match event {
+            SessionEvent::Created { created_at, agent_id, .. } => {
+                s.created_at = created_at;
+                s.agent_id = AgentId(agent_id);
+            }
+            SessionEvent::TurnAdded { role, content, tokens, at } => {
+                s.turns.push(SessionTurn { role, content, tokens, at });
+                s.turn_count += 1;
+                s.total_tokens += tokens;
+                s.last_active = at;
+            }
+            SessionEvent::StateChanged { to, at, .. } => {
+                s.state = to;
+                s.last_active = at;
+            }
+            SessionEvent::MetaUpdated { key, value, at } => {
+                s.meta.insert(key, value);
+                s.last_active = at;
+            }
+            SessionEvent::PluginStateUpdated { plugin_id, state, at } => {
+                s.plugin_state.insert(plugin_id, state);
+                s.last_active = at;
+            }
+            SessionEvent::Reset { at } => {
+                s.turns.clear();
+                s.state = SessionState::Active;
+                s.last_active = at;
+            }
+            SessionEvent::Compacted { summary, at, .. } => {
+                let tokens = crate::compaction::CompactionEngine::estimate_tokens(&summary);
+                s.turns.clear();
+                s.turns.push(SessionTurn {
+                    role: "system".to_string(),
+                    content: format!("[compacted summary]\n{summary}"),
+                    tokens,
+                    at,
+                });
+                s.state = SessionState::Compacted;
+                s.last_active = at;
+            }
+            SessionEvent::ExpensiveOpRecorded { at } => {
+                s.last_expensive_op_at = Some(at);
+                s.last_active = at;
+            }
+        }
+    }
+
+    /// Dual-write an event to VoxDb session history.
+    fn dual_write_event(&self, session_id: &str, event_type: &str, event: &SessionEvent) {
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let etype = event_type.to_string();
+            let payload = serde_json::to_string(event).unwrap_or_default();
+            tokio::spawn(async move {
+                let _ = db.append_session_event(&sid, &etype, &payload).await;
+            });
+        }
     }
 
     /// Scan the sessions directory and load all JSONL files.
@@ -828,8 +939,8 @@ mod tests {
         assert_eq!(val.as_deref(), Some("claude-sonnet-4"));
     }
 
-    #[test]
-    fn session_persistence_roundtrip() {
+    #[tokio::test]
+    async fn session_persistence_roundtrip() {
         let cfg = test_config();
         let dir = cfg.sessions_dir.clone();
         let session_id;
@@ -849,7 +960,7 @@ mod tests {
             ..cfg
         })
         .expect("create");
-        mgr2.load(&session_id).expect("load");
+        mgr2.load(&session_id).await.expect("load");
         let s = mgr2.get(&session_id).expect("get");
         assert_eq!(s.agent_id, AgentId(2));
         assert_eq!(s.turns.len(), 1);
@@ -909,8 +1020,8 @@ mod tests {
         assert!(mgr.get(&id).is_none());
     }
 
-    #[test]
-    fn plugin_state_persistence_roundtrip() {
+    #[tokio::test]
+    async fn plugin_state_persistence_roundtrip() {
         let cfg = test_config();
         let dir = cfg.sessions_dir.clone();
         let session_id;
@@ -931,7 +1042,7 @@ mod tests {
             ..cfg
         })
         .expect("create");
-        mgr2.load(&session_id).expect("load");
+        mgr2.load(&session_id).await.expect("load");
         let s = mgr2.get(&session_id).expect("get");
         assert_eq!(s.plugin_state.get("weather").unwrap()["city"], "London");
     }

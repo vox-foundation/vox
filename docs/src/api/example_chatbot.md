@@ -1,3 +1,10 @@
+---
+title: "Example: Vox Chatbot Demo"
+description: "Official documentation for Example: Vox Chatbot Demo for the Vox language. Detailed technical reference, architecture guides, and impleme"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Vox Chatbot Demo
 
 ```vox

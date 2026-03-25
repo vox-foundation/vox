@@ -38,9 +38,11 @@ mod status;
 mod system_prompt_template;
 #[cfg(feature = "gpu")]
 mod train;
+#[cfg(feature = "gpu")]
+pub mod models;
 
 use anyhow::Result;
-use clap::Parser;
+
 use std::path::PathBuf;
 
 use crate::commands::corpus::CorpusAction;
@@ -108,8 +110,61 @@ impl From<TrainingDeploymentTargetCli> for vox_populi::TrainingDeploymentTarget 
     }
 }
 
+/// Structured stages for the dogfood pipeline (`vox populi pipeline`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineStage {
+    /// Synthetic data generation (`vox populi corpus generate`).
+    Generate,
+    /// Extracting training pairs from source files (`vox populi corpus extract`).
+    Extract,
+    /// Validating and deduplicating the corpus (`vox populi corpus validate`).
+    Validate,
+    /// Generating instruction-response pairs (`vox populi corpus pairs`).
+    Pairs,
+    /// Evaluating training data quality metrics (`vox populi corpus eval`).
+    Eval,
+    /// Merging corpus sources per `mix.yaml` (`vox populi corpus mix`).
+    Mix,
+    /// Replaying Arca telemetry into training pairs (`vox populi corpus replay`).
+    Replay,
+    /// Native model training (`vox populi train`).
+    Train,
+}
+
+impl PipelineStage {
+    /// Human-readable label for the stage.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Generate => "generate",
+            Self::Extract => "extract",
+            Self::Validate => "validate",
+            Self::Pairs => "pairs",
+            Self::Eval => "eval",
+            Self::Mix => "mix",
+            Self::Replay => "replay",
+            Self::Train => "train",
+        }
+    }
+}
+
+/// Progress snapshot for a pipeline run, used for telemetry and dashboard reporting.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PipelineProgress {
+    /// Unique run ID (timestamp-based).
+    pub run_id: String,
+    /// Current active stage.
+    pub current_stage: PipelineStage,
+    /// Total number of stages planned.
+    pub total_stages: usize,
+    /// Number of stages completed so far.
+    pub completed_stages: usize,
+    /// Percentage complete (0.0 - 100.0).
+    pub progress_pct: f64,
+}
+
 /// Top-level subcommand enum for `vox populi` (AI/ML surfaces).
-#[derive(Parser)]
+#[derive(clap::Subcommand)]
 #[allow(clippy::large_enum_variant)]
 #[command(
     name = "populi",
@@ -143,7 +198,26 @@ pub enum PopuliAction {
         /// Passed to `vox populi train --device` when training runs (default `best` in the pipeline runner).
         #[arg(long)]
         device: Option<String>,
+        /// HuggingFace model repo override (e.g. Qwen/Qwen2.5-Coder-3B-Instruct).
+        #[arg(long)]
+        model: Option<String>,
+        /// Number of training epochs (default: 3).
+        #[arg(long)]
+        epochs: Option<usize>,
+        /// Configuration preset override (e.g. qwen_4080_16g).
+        #[arg(long)]
+        preset: Option<String>,
+        /// Comma-separated list of stages to run (e.g. "extract,validate,pairs").
+        #[arg(long)]
+        stages: Option<String>,
+        /// Dry-run mode: show what would happen without modifying files or starting training.
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        /// Enable curriculum learning: epoch-gated difficulty sampling.
+        #[arg(long, default_value_t = false)]
+        curriculum: bool,
     },
+
     /// Fine-tune: Burn LoRA (`--backend lora`) or Candle HF-embed adapter (`--backend qlora` + `--tokenizer hf`).
     #[cfg(feature = "gpu")]
     Train {
@@ -255,6 +329,9 @@ pub enum PopuliAction {
         /// Ignore existing resume state and force a fresh run from step 0.
         #[arg(long)]
         force_restart: bool,
+        /// Enable curriculum learning: epoch-gated difficulty sampling (Candle QLoRA).
+        #[arg(long, default_value_t = false)]
+        curriculum: bool,
 
         /// Cloud provider (auto, vast, runpod, local)
         #[arg(long, default_value = "local")]
@@ -375,7 +452,9 @@ pub enum PopuliAction {
         cloud: bool,
     },
 
-
+    #[cfg(feature = "gpu")]
+    /// List all trained models in the local registry
+    Models,
 
     /// Merge Candle QLoRA adapter v2 (`candle_qlora_adapter*.safetensors`) into base f32 weights (writes merged keys only).
     /// Canonical: `merge-qlora`. Alias: `merge-adapter` (same flags).
@@ -581,7 +660,28 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             skip_train,
             strict_gate,
             device,
-        } => pipeline::run(data_dir, output_dir, skip_train, strict_gate, device).await,
+            model,
+            epochs,
+            preset,
+            stages,
+            dry_run,
+            curriculum,
+        } => {
+            pipeline::run(
+                data_dir,
+                output_dir,
+                skip_train,
+                strict_gate,
+                device,
+                model,
+                epochs,
+                preset,
+                stages,
+                dry_run,
+                curriculum,
+            )
+            .await
+        }
         PopuliAction::TrainUv {
             model: _,
             data_dir: _,
@@ -636,6 +736,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 16, // qlora_ce_last_k
                 Some(checkpoint_every),
                 force_restart,
+                false, // curriculum (dogfood default: off)
             ).await?;
             Ok(())
         }
@@ -835,6 +936,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 qlora_ce_last_k,
                 checkpoint_every,
                 force_restart,
+                curriculum,
             ).await
         }
 
@@ -890,6 +992,9 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         }
 
         PopuliAction::Corpus(action) => crate::commands::corpus::run(action).await,
+        
+        #[cfg(feature = "gpu")]
+        PopuliAction::Models => crate::commands::populi::models::run_models(_global_verbose),
 
         #[cfg(feature = "gpu")]
         PopuliAction::Probe => {

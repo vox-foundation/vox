@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex as SyncMutex;
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
 
 use vox_db::VoxDb;
 use vox_orchestrator::{
@@ -198,12 +198,12 @@ impl ServerState {
                         
                         orch.set_remote_mesh_routing_hints(routing_hints);
                         
-                        let mut w = snap.write().await;
+                        let mut w = snap.write().unwrap();
                         *w = RemoteMeshSnapshot::success(now, f.schema_version, brief);
                     }
                     Err(e) => {
                         orch.set_remote_mesh_routing_hints(Vec::new());
-                        let mut w = snap.write().await;
+                        let mut w = snap.write().unwrap();
                         *w = RemoteMeshSnapshot::failure(now, e.to_string());
                     }
                 }

@@ -544,10 +544,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
     let session_id = params.session_id.as_deref().unwrap_or("default");
-    let session_ts = state.orchestrator
-        .context()
+    let ctx_handle = state.orchestrator.context_handle();
+    let session_ts = ctx_handle.read().unwrap()
         .age_secs(&format!("chat_history:{session_id}"))
-        .map(|a| format!(" Session last active: {a}s ago."))
+        .map(|a: u64| format!(" Session last active: {a}s ago."))
         .unwrap_or_default();
     let system_prompt = format!(
         "{}{}\n\n{}",
@@ -571,7 +571,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             let temperature = if profile == "creative" { 0.8_f32 } else { 0.3_f32 };
             match resolve_chat_llm_model(state, &user_prompt, resolution_template.clone()).await {
                 Ok((model, free_only)) => {
-                    let pref = state.mcp_chat_model_override.read().await.clone();
+                    let pref = state.mcp_chat_model_override.read().unwrap().clone();
                     let max_tokens =
                         crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
                     let routing = McpInferRouting {
@@ -660,10 +660,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         tokens: Some(tokens),
     };
 
-    let existing_history: Vec<ChatTranscriptEntry> = state.orchestrator
-        .context()
+    let ctx_handle = state.orchestrator.context_handle();
+    let existing_history: Vec<ChatTranscriptEntry> = ctx_handle.read().unwrap()
         .get(&history_key)
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|s: String| serde_json::from_str(&s).ok())
         .unwrap_or_default();
 
     let mut history = existing_history;
@@ -677,8 +677,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
     match serde_json::to_string(&history) {
         Ok(history_json) => {
-            state.orchestrator.context()
-                .set(AgentId(0), &history_key, &history_json, 0);
+            let ctx_handle = state.orchestrator.context_handle();
+            ctx_handle.write().unwrap()
+                .set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
         }
         Err(e) => {
             tracing::warn!(
@@ -732,7 +733,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let now_s = now_ts();
         let date_str = ts_to_date_str(now_s);
         let server_idle_secs = now_s.saturating_sub(state.orchestrator.last_activity_ms() / 1000);
-        let session_age_secs = state.orchestrator.context().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0);
+        let ctx_handle = state.orchestrator.context_handle();
+        let session_age_secs = ctx_handle.read().unwrap().age_secs(&format!("chat_history:{session_id}")).unwrap_or(0);
 
         // Record high-quality LLM turn in agent_events for Populi replay/SFT
         let mut payload = serde_json::json!({
@@ -789,10 +791,10 @@ pub async fn chat_history(state: &ServerState, params: ChatHistoryParams) -> Str
     let session_id = &params.session_id;
     let history_key = format!("chat_history:{session_id}");
     let orch = &state.orchestrator;
-    let history: Vec<ChatTranscriptEntry> = orch
-        .context()
+    let ctx_handle = orch.context_handle();
+    let history: Vec<ChatTranscriptEntry> = ctx_handle.read().unwrap()
         .get(&history_key)
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|s: String| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     ToolResult::ok(history).to_json()
 }
@@ -853,7 +855,7 @@ OUTPUT RULES:
             Ok(pair) => pair,
             Err(e) => return ToolResult::<String>::err(e).to_json(),
         };
-    let pref = state.mcp_chat_model_override.read().await.clone();
+    let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let max_tokens = clamp_http_max_output_tokens(model.max_tokens);
     let temperature = 0.3_f32;
     let routing = McpInferRouting {
@@ -963,7 +965,7 @@ Rules:
         Err(e) => return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json(),
     };
 
-    let pref = state.mcp_chat_model_override.read().await.clone();
+    let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
         sticky_model_pref: pref.as_deref(),
@@ -1201,7 +1203,7 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
             Ok(pair) => pair,
             Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
         };
-    let pref = state.mcp_chat_model_override.read().await.clone();
+    let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let temperature = 0.2_f32;
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
@@ -1347,7 +1349,10 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
     }
 
     // 2. Active conflicts → Conflict decorations
-    for conflict in orch.conflict_manager().active_conflicts() {
+    let handle = orch.conflict_manager_handle();
+    let guard = handle.read().unwrap();
+    let conflicts = guard.active_conflicts();
+    for conflict in conflicts {
         let path_str = conflict.path.to_string_lossy().to_string();
         if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
             continue;
@@ -1374,7 +1379,8 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
         let Some(queue) = orch.agent_queue(agent_id) else {
             continue;
         };
-        if let Some(task) = queue.current_task() {
+        let guard = queue.read().unwrap();
+        if let Some(task) = guard.current_task() {
             for fa in &task.file_manifest {
                 let path_str = fa.path.to_string_lossy().to_string();
                 if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {

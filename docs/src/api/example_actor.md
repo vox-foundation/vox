@@ -1,3 +1,10 @@
+---
+title: "Example: Vox Actor Example"
+description: "Official documentation for Example: Vox Actor Example for the Vox language. Detailed technical reference, architecture guides, and implem"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Vox Actor Example
 
 ```vox

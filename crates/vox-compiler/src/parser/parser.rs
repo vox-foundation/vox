@@ -51,18 +51,16 @@ impl Parser {
             .unwrap_or(Span::new(0, 0))
     }
 
-    fn advance(&mut self) -> Token {
-        let t = self
-            .tokens
-            .get(self.pos)
-            .map(|s| s.token.clone())
-            .unwrap_or(Token::Eof);
-        self.pos += 1;
+    fn advance(&mut self) -> &Token {
+        let t = &self.tokens[self.pos].token;
+        if self.pos < self.tokens.len() - 1 {
+            self.pos += 1;
+        }
         t
     }
 
     fn expect(&mut self, expected: &Token) -> Result<Span, ()> {
-        if std::mem::discriminant(self.peek()) == std::mem::discriminant(expected) {
+        if self.peek() == expected {
             let sp = self.span();
             self.advance();
             Ok(sp)
@@ -78,7 +76,7 @@ impl Parser {
     }
 
     fn eat(&mut self, expected: &Token) -> bool {
-        if std::mem::discriminant(self.peek()) == std::mem::discriminant(expected) {
+        if self.peek() == expected {
             self.advance();
             true
         } else {
@@ -129,6 +127,7 @@ impl Parser {
                 | Token::Http
                 | Token::AtTest
                 | Token::AtServer
+                | Token::Component
                 | Token::AtV0 => break,
                 Token::RBrace => {
                     self.advance();
@@ -150,6 +149,7 @@ impl Parser {
         match self.peek().clone() {
             Token::Import => self.parse_import(),
             Token::AtComponent => self.parse_component(),
+            Token::Component => self.parse_reactive_component(),
             Token::AtIsland => self.parse_island(),
             Token::AtTest => self.parse_test(),
             Token::AtServer => self.parse_server_fn(),
@@ -376,6 +376,14 @@ impl Parser {
                 self.advance();
                 Ok(n)
             }
+            Token::On => { self.advance(); Ok("on".to_string()) }
+            Token::State => { self.advance(); Ok("state".to_string()) }
+            Token::Derived => { self.advance(); Ok("derived".to_string()) }
+            Token::Effect => { self.advance(); Ok("effect".to_string()) }
+            Token::Mount => { self.advance(); Ok("mount".to_string()) }
+            Token::Cleanup => { self.advance(); Ok("cleanup".to_string()) }
+            Token::View => { self.advance(); Ok("view".to_string()) }
+            Token::Component => { self.advance(); Ok("component".to_string()) }
             _ => {
                 self.errors.push(ParseError::new(
                     self.span(),
@@ -455,7 +463,8 @@ impl Parser {
             stmts.push(self.parse_stmt()?);
             self.skip_newlines();
         }
-        self.eat(&Token::RBrace);
+        self.skip_newlines();
+        self.expect(&Token::RBrace)?;
         Ok(stmts)
     }
 
@@ -607,6 +616,7 @@ impl Parser {
 
     // Pratt parser for expressions
     fn parse_expr(&mut self) -> Result<Expr, ()> {
+        self.skip_newlines();
         self.parse_expr_bp(0)
     }
 
@@ -731,6 +741,7 @@ impl Parser {
                 if self.eat(&Token::Comma) {
                     let mut elems = vec![e];
                     loop {
+                        self.skip_newlines();
                         if matches!(self.peek(), Token::RParen) {
                             break;
                         }
@@ -739,12 +750,14 @@ impl Parser {
                             break;
                         }
                     }
+                    self.skip_newlines();
                     self.expect(&Token::RParen)?;
                     Expr::TupleLit {
                         elements: elems,
                         span: start.merge(self.span()),
                     }
                 } else {
+                    self.skip_newlines();
                     self.expect(&Token::RParen)?;
                     e
                 }
@@ -764,7 +777,7 @@ impl Parser {
                     span: start.merge(self.span()),
                 }
             }
-            Token::LBrace => self.parse_object_lit()?,
+            Token::LBrace => self.parse_brace_expr()?,
             Token::Match => self.parse_match()?,
             Token::If => self.parse_if()?,
             Token::For => self.parse_for()?,
@@ -866,11 +879,56 @@ impl Parser {
         Ok(args)
     }
 
+    fn parse_brace_expr(&mut self) -> Result<Expr, ()> {
+        let start = self.span();
+        
+        // Peek past { and newlines
+        let mut i = self.pos + 1;
+        while i < self.tokens.len() && matches!(self.tokens[i].token, Token::Newline) {
+            i += 1;
+        }
+        
+        if matches!(self.tokens.get(i).map(|t| &t.token), Some(Token::RBrace)) {
+            self.advance(); // {
+            self.skip_newlines();
+            self.advance(); // }
+            return Ok(Expr::ObjectLit {
+                fields: Vec::new(),
+                span: start.merge(self.span()),
+            });
+        }
+
+        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_)) = self.tokens.get(i).map(|t| &t.token) {
+            let mut j = i + 1;
+            while j < self.tokens.len() && matches!(self.tokens[j].token, Token::Newline) {
+                j += 1;
+            }
+            matches!(self.tokens.get(j).map(|t| &t.token), Some(Token::Colon))
+        } else {
+            false
+        };
+
+        if is_object {
+            self.parse_object_lit()
+        } else {
+            self.advance(); // {
+            let stmts = self.parse_block()?;
+            Ok(Expr::Block {
+                stmts,
+                span: start.merge(self.span()),
+            })
+        }
+    }
+
     fn parse_object_lit(&mut self) -> Result<Expr, ()> {
         let start = self.span();
-        self.advance(); // eat '{'
+        self.advance(); // {
         let mut fields = Vec::new();
         while !matches!(self.peek(), Token::RBrace | Token::Eof) {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
             let key = self.parse_ident_name()?;
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
@@ -988,12 +1046,17 @@ impl Parser {
             match self.peek() {
                 Token::Gt | Token::JsxSelfClose | Token::Eof => break,
                 _ => {
-                    let attr_name = self.parse_ident_name()?;
+                    let mut attr_name = self.parse_ident_name()?;
+                    if self.eat(&Token::Colon) {
+                        attr_name.push(':');
+                        attr_name.push_str(&self.parse_ident_name()?);
+                    } else if self.eat(&Token::Minus) {
+                        attr_name.push('-');
+                        attr_name.push_str(&self.parse_ident_name()?);
+                    }
                     self.expect(&Token::Eq)?;
-                    let value = if self.eat(&Token::LBrace) {
-                        let e = self.parse_expr()?;
-                        self.expect(&Token::RBrace)?;
-                        e
+                    let value = if matches!(self.peek(), Token::LBrace) {
+                        self.parse_brace_expr()?
                     } else if let Token::StringLit(s) = self.peek().clone() {
                         self.advance();
                         Expr::StringLit {
@@ -1020,25 +1083,23 @@ impl Parser {
         self.expect(&Token::Gt)?;
         // Children
         let mut children = Vec::new();
-        self.skip_newlines();
         loop {
             self.skip_newlines();
-            match self.peek() {
-                Token::JsxCloseStart | Token::Eof => break,
+            if matches!(self.peek(), Token::JsxCloseStart | Token::Eof) {
+                break;
+            }
+            
+            match self.peek().clone() {
                 Token::Lt => {
                     children.push(self.parse_jsx()?);
                 }
                 Token::LBrace => {
-                    self.advance();
-                    let e = self.parse_expr()?;
-                    self.expect(&Token::RBrace)?;
-                    children.push(e);
+                    children.push(self.parse_brace_expr()?);
                 }
                 Token::For => {
                     children.push(self.parse_for()?);
                 }
-                Token::StringLit(s) => {
-                    let s = s.clone();
+                Token::StringLit(s) | Token::SingleQuoteStringLit(s) => {
                     let sp = self.span();
                     self.advance();
                     children.push(Expr::StringLit { value: s, span: sp });
@@ -1047,14 +1108,13 @@ impl Parser {
                     children.push(self.parse_expr()?);
                 }
             }
-            self.skip_newlines();
         }
-        // Close tag: </tag>
-        self.skip_newlines();
+        
         if self.eat(&Token::JsxCloseStart) {
-            let _ = self.parse_ident_name(); // tag name
+            let _ = self.parse_ident_name()?; 
             self.expect(&Token::Gt)?;
         }
+
         Ok(Expr::Jsx(JsxElement {
             tag,
             attributes: attrs,
@@ -1411,6 +1471,135 @@ impl Parser {
     }
 
     /// Parse optional `style { .selector { property: "value" } }` blocks.
+    fn parse_reactive_component(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // component
+        let name = self.parse_ident_name()?;
+
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+
+        self.expect(&Token::LBrace)?;
+        let mut members = Vec::new();
+        let mut view = None;
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::RBrace | Token::Eof => break,
+                Token::State => members.push(ReactiveMemberDecl::State(self.parse_state_decl()?)),
+                Token::Derived => members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?)),
+                Token::Effect => {
+                    let start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::Effect(EffectDecl {
+                        body,
+                        span: start.merge(self.span()),
+                    }));
+                }
+                Token::Mount => {
+                    let start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
+                        body,
+                        span: start.merge(self.span()),
+                    }));
+                }
+                Token::Cleanup => {
+                    let start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
+                        body,
+                        span: start.merge(self.span()),
+                    }));
+                }
+                Token::View => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    view = Some(self.parse_expr()?);
+                }
+                _ => {
+                    self.errors.push(ParseError::new(
+                        self.span(),
+                        format!("Unexpected token in component block: {}", self.peek()),
+                        vec![],
+                        Some(self.peek().to_string()),
+                    ));
+                    return Err(());
+                }
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+
+        Ok(Decl::ReactiveComponent(ReactiveComponentDecl {
+            name,
+            params,
+            members,
+            view,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    fn parse_state_decl(&mut self) -> Result<StateDecl, ()> {
+        let start = self.span();
+        self.advance(); // state
+        let name = self.parse_ident_name()?;
+        let ty = if self.eat(&Token::Colon) {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::Eq)?;
+        let init = self.parse_expr()?;
+        Ok(StateDecl {
+            name,
+            ty,
+            init,
+            span: start.merge(self.span()),
+        })
+    }
+
+    fn parse_derived_decl(&mut self) -> Result<DerivedDecl, ()> {
+        let start = self.span();
+        self.advance(); // derived
+        let name = self.parse_ident_name()?;
+        let ty = if self.eat(&Token::Colon) {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::Eq)?;
+        let expr = self.parse_expr()?;
+        Ok(DerivedDecl {
+            name,
+            ty,
+            expr,
+            span: start.merge(self.span()),
+        })
+    }
+
+
+
+    fn parse_reactive_block(&mut self) -> Result<Expr, ()> {
+        let _start = self.span();
+        self.advance(); // keyword
+        self.expect(&Token::Colon)?;
+        
+        if matches!(self.peek(), Token::LBrace) {
+            let b_start = self.span();
+            self.advance(); // {
+            let stmts = self.parse_block()?;
+            Ok(Expr::Block {
+                stmts,
+                span: b_start.merge(self.span()),
+            })
+        } else {
+            self.parse_expr()
+        }
+    }
+
     fn parse_style_blocks(&mut self) -> Vec<StyleBlock> {
         let mut styles = Vec::new();
         self.skip_newlines();

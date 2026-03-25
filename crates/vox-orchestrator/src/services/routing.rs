@@ -5,6 +5,8 @@
 
 use std::collections::HashMap;
 
+use std::sync::Arc;
+
 use crate::affinity::FileAffinityMap;
 use crate::config::OrchestratorConfig;
 use crate::contract::TaskCapabilityHints;
@@ -34,7 +36,7 @@ impl RoutingService {
         manifest: &[FileAffinity],
         affinity_map: &FileAffinityMap,
         groups: &AffinityGroupRegistry,
-        agents: &HashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         config: &OrchestratorConfig,
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
@@ -61,7 +63,8 @@ impl RoutingService {
                         *scores.entry(default_agent).or_insert(0.0) += 15.0;
                     }
                 }
-                for (agent_id, queue) in agents {
+                for (agent_id, queue_lock) in agents {
+                    let queue = crate::sync_lock::rw_read(queue_lock);
                     if queue.name == group.name {
                         *scores.entry(*agent_id).or_insert(0.0) += 5.0;
                     }
@@ -71,7 +74,8 @@ impl RoutingService {
 
         // 3. Weight by load (prefer emptier agents on ties)
         for (agent_id, score) in scores.iter_mut() {
-            if let Some(queue) = agents.get(agent_id) {
+            if let Some(queue_lock) = agents.get(agent_id) {
+                let queue = crate::sync_lock::rw_read(queue_lock);
                 *score -= queue.weighted_load() * 0.1;
             }
         }
@@ -104,7 +108,8 @@ impl RoutingService {
                 *score += agent_base * rep_w;
 
                 // Blend in skill & workflow EWMA scores if present
-                if let Some(queue) = agents.get(agent_id) {
+                if let Some(queue_lock) = agents.get(agent_id) {
+                    let queue = crate::sync_lock::rw_read(queue_lock);
                     let mut skill_rel_sum = 0.0;
                     let mut skill_count = 0;
                     for rel in queue.active_skills.values() {
@@ -148,13 +153,14 @@ impl RoutingService {
 
     fn apply_capability_penalties(
         scores: &mut HashMap<AgentId, f64>,
-        agents: &HashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         req: &TaskCapabilityHints,
     ) {
         const PENALTY: f64 = 10_000.0;
         if req.gpu_cuda {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     if !q.capabilities.gpu_cuda {
                         *score -= PENALTY;
                     }
@@ -163,7 +169,8 @@ impl RoutingService {
         }
         if req.gpu_metal {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     if !q.capabilities.gpu_metal {
                         *score -= PENALTY;
                     }
@@ -172,7 +179,8 @@ impl RoutingService {
         }
         if req.gpu_vulkan {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     if !q.capabilities.gpu_vulkan {
                         *score -= PENALTY;
                     }
@@ -181,7 +189,8 @@ impl RoutingService {
         }
         if req.gpu_webgpu {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     if !q.capabilities.gpu_webgpu {
                         *score -= PENALTY;
                     }
@@ -190,7 +199,8 @@ impl RoutingService {
         }
         if req.npu {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     if !q.capabilities.npu {
                         *score -= PENALTY;
                     }
@@ -199,7 +209,8 @@ impl RoutingService {
         }
         if let Some(min_v) = req.min_vram_mb {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     let ok = q
                         .capabilities
                         .min_vram_mb
@@ -213,7 +224,8 @@ impl RoutingService {
         }
         if let Some(min_c) = req.min_cpu_cores {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     let have = q.capabilities.cpu_cores.unwrap_or(0);
                     if have < min_c {
                         *score -= PENALTY * 0.5;
@@ -223,7 +235,8 @@ impl RoutingService {
         }
         if req.prefer_gpu_compute {
             for (agent_id, score) in scores.iter_mut() {
-                if let Some(q) = agents.get(agent_id) {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
                     let has_gpu = q.capabilities.gpu_cuda
                         || q.capabilities.gpu_metal
                         || q.capabilities.gpu_vulkan
@@ -254,7 +267,7 @@ impl RoutingService {
     /// Soft score bump + tracing when cached remote mesh nodes align with task labels (no remote execute).
     fn apply_experimental_mesh_routing_signals(
         scores: &mut HashMap<AgentId, f64>,
-        agents: &HashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
         remote_mesh_hints: Option<&[RemoteMeshRoutingHint]>,
     ) {
@@ -268,7 +281,7 @@ impl RoutingService {
         if !req.labels.is_empty() {
             let local_matches = agents
                 .values()
-                .any(|q| Self::labels_cover(&q.capabilities.labels, &req.labels));
+                .any(|q_lock| Self::labels_cover(&crate::sync_lock::rw_read(q_lock).capabilities.labels, &req.labels));
             let remote_candidates = remote
                 .iter()
                 .filter(|r| Self::remote_hint_matches_task(r, req))
@@ -290,8 +303,8 @@ impl RoutingService {
             }
             if local_matches {
                 for (agent_id, score) in scores.iter_mut() {
-                    if let Some(q) = agents.get(agent_id) {
-                        if Self::labels_cover(&q.capabilities.labels, &req.labels) {
+                    if let Some(q_lock) = agents.get(agent_id) {
+                        if Self::labels_cover(&crate::sync_lock::rw_read(q_lock).capabilities.labels, &req.labels) {
                             *score += LABEL_BUMP;
                         }
                     }
@@ -312,7 +325,7 @@ impl RoutingService {
 
     /// Choose least-loaded existing agent or request spawn of "default".
     pub fn least_loaded_or_spawn(
-        agents: &HashMap<AgentId, AgentQueue>,
+        agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         _config: &OrchestratorConfig,
     ) -> RouteResult {
         if agents.is_empty() {
@@ -320,7 +333,9 @@ impl RoutingService {
         }
         let least_loaded = agents
             .iter()
-            .min_by(|(_, q_a), (_, q_b)| {
+            .min_by(|(_, q_a_lock), (_, q_b_lock)| {
+                let q_a = crate::sync_lock::rw_read(q_a_lock);
+                let q_b = crate::sync_lock::rw_read(q_b_lock);
                 q_a.weighted_load()
                     .partial_cmp(&q_b.weighted_load())
                     .unwrap_or(std::cmp::Ordering::Equal)
@@ -353,8 +368,8 @@ mod tests {
         let mut agents = HashMap::new();
         let a1 = AgentId(1);
         let a2 = AgentId(2);
-        agents.insert(a1, AgentQueue::new(a1, "core-group"));
-        agents.insert(a2, AgentQueue::new(a2, "core-group"));
+        agents.insert(a1, Arc::new(std::sync::RwLock::new(AgentQueue::new(a1, "core-group"))));
+        agents.insert(a2, Arc::new(std::sync::RwLock::new(AgentQueue::new(a2, "core-group"))));
 
         let mut config = OrchestratorConfig::for_testing();
         config.socrates_reputation_routing = true;
@@ -395,8 +410,8 @@ mod tests {
             TaskPriority::Normal,
             vec![],
         ));
-        agents.insert(a1, q1);
-        agents.insert(a2, q2);
+        agents.insert(a1, Arc::new(std::sync::RwLock::new(q1)));
+        agents.insert(a2, Arc::new(std::sync::RwLock::new(q2)));
 
         let route = RoutingService::least_loaded_or_spawn(&agents, &OrchestratorConfig::default());
         assert_eq!(route, RouteResult::Existing(a2));
@@ -419,8 +434,8 @@ mod tests {
         q_cpu.capabilities.gpu_cuda = false;
         let mut q_gpu = AgentQueue::new(gpu, "core-group");
         q_gpu.capabilities.gpu_cuda = true;
-        agents.insert(cpu, q_cpu);
-        agents.insert(gpu, q_gpu);
+        agents.insert(cpu, Arc::new(std::sync::RwLock::new(q_cpu)));
+        agents.insert(gpu, Arc::new(std::sync::RwLock::new(q_gpu)));
 
         let hints = TaskCapabilityHints {
             prefer_gpu_compute: true,
@@ -456,8 +471,8 @@ mod tests {
         q1.capabilities.labels = vec!["pool=a".to_string()];
         let mut q2 = AgentQueue::new(a2, "core-group");
         q2.capabilities.labels = vec!["pool=b".to_string()];
-        agents.insert(a1, q1);
-        agents.insert(a2, q2);
+        agents.insert(a1, Arc::new(std::sync::RwLock::new(q1)));
+        agents.insert(a2, Arc::new(std::sync::RwLock::new(q2)));
 
         let mut config = OrchestratorConfig::for_testing();
         config.mesh_routing_experimental = true;

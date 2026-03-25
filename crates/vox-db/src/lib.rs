@@ -63,7 +63,7 @@ pub mod circuit_breaker;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 /// Legacy import/export planning and verification for greenfield Codex releases.
-pub mod arca_store;
+pub mod store;
 pub mod schema;
 pub mod build_hints;
 
@@ -121,7 +121,7 @@ pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
-pub use project_store::open_project_code_store;
+pub use project_store::open_project_db;
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,
     RetrievalDiagnostics, retrieval_diagnostics,
@@ -138,7 +138,7 @@ pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
 };
-pub use arca_store::{
+pub use store::{
     A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
     CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample, CrateSampleRow,
     EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
@@ -499,7 +499,7 @@ impl VoxDb {
         run_id: &str,
         event_kind: &str,
         payload: serde_json::Value,
-    ) -> Result<(), arca_store::StoreError> {
+    ) -> Result<(), store::StoreError> {
         let store = self;
         store.record_agent_event(
             &format!("populi_train:{run_id}"),
@@ -517,7 +517,7 @@ impl VoxDb {
         epoch: u32,
         global_step: u32,
         adapter_path: &str,
-    ) -> Result<(), arca_store::StoreError> {
+    ) -> Result<(), store::StoreError> {
         self.record_training_event(run_id, "checkpoint_saved", serde_json::json!({
             "run_id": run_id,
             "epoch": epoch,

@@ -3,8 +3,8 @@ use serde::{de::DeserializeOwned, Serialize};
 /// A SQLite-backed KV store for Actor state.
 ///
 /// When the `database` crate feature is enabled and the global `VoxDb` is initialised,
-/// persists to `actor_state` via [`vox_db::CodeStore::save_actor_state`]/
-/// [`load_actor_state`]/[`delete_actor_state`] (schema V22).
+/// persists to `actor_state` via [`VoxDb::save_actor_state`],
+/// [`load_actor_state`], and [`delete_actor_state`] (schema V22).
 pub struct StateStore;
 
 impl StateStore {

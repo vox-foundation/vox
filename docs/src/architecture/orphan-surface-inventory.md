@@ -1,7 +1,9 @@
 ---
-title: "Orphan and stale surface inventory (Codex greenfield)"
-category: architecture
-last_updated: 2026-03-21
+title: "Orphan surface inventory"
+description: "Official documentation for Orphan surface inventory for the Vox language. Detailed technical reference, architecture guides, and implemen"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Orphan surface inventory
@@ -19,8 +21,8 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 
 ## Automation / CI SSOT
 
-- Prefer **`vox ci …`** for registry-backed checks over one-off shell copies where a subcommand exists — [runner contract](../ci/runner-contract.md), [command compliance](../ci/command-compliance-ssot.md).
-- **`VOX_*` / Turso env naming:** [Environment variables (SSOT)](../reference/env-vars-ssot.md).
+- Prefer **`vox ci …`** for registry-backed checks over one-off shell copies where a subcommand exists — [runner contract](../ci/runner-contract.md), [command compliance](../reference/command-compliance.md).
+- **`VOX_*` / Turso env naming:** [Environment variables (SSOT)](../reference/env-vars.md).
 
 ## Inventory (surfaces)
 
@@ -29,7 +31,7 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 | Minimal `vox` CLI | `crates/vox-cli/src/main.rs`, `commands/mod.rs` | Maintainers | low | keep | ongoing | 2026-03-20 | `ref-cli.md` | SSOT for shipped commands |
 | Extended CLI subtree | `crates/vox-cli/src/commands/**` (beyond `commands/mod.rs`) | Maintainers | high | port | TBD | 2026-03-21 | `cli-scope-policy.md` | Unwired until explicitly added to minimal binary; `vox-ars` is a workspace member; `vox-cli` optional feature **`ars`** pulls the dep when OpenClaw/skill modules are reattached |
 | Canonical `vox db` helpers | `crates/vox-cli/src/commands/db.rs`, `db_research_impl.rs` | Maintainers | medium | keep | ongoing | 2026-03-21 | `commands/db.rs` | `commands::ops` tree removed (unwired; duplicated `vox_dei`); DB helpers live under `commands::db` |
-| `vox scientia` CLI facade | `crates/vox-cli/src/commands/scientia.rs` | Maintainers | low | keep | ongoing | 2026-03-21 | `ref-cli.md`, `orchestration-unified-ssot.md` | Research / capability-map aliases over `commands::db_cli` (same DB + `repository_id` resolution as `vox db`) |
+| `vox scientia` CLI facade | `crates/vox-cli/src/commands/scientia.rs` | Maintainers | low | keep | ongoing | 2026-03-21 | `ref-cli.md`, `orchestration-unified.md` | Research / capability-map aliases over `commands::db_cli` (same DB + `repository_id` resolution as `vox db`) |
 | Unwired `vox_dei` CLI sources (removed) | _(deleted)_ `commands/chat/`, `commands/ops/`, `commands/quaero/`, `ai/{agent,dei,hud,learn}.rs` | Maintainers | low | delete | 2026-03-21 | `check_vox_cli_no_vox_dei.sh` | Daemon-only DeI: use `crate::dei_daemon` + external `vox-dei-d` |
 | `vox-runtime` DB helper | `crates/vox-runtime/src/db.rs` | Maintainers | medium | port | ongoing | 2026-03-20 | feature `database` | Align with Codex env policy |
 | `vox-mcp`, `vox-git` | workspace members | Maintainers | low | keep | ongoing | 2026-03-20 | `ci.yml` smoke | Core agent/tooling |

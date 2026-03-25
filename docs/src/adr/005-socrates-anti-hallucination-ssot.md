@@ -1,7 +1,9 @@
 ---
 title: "ADR 005: Socrates anti-hallucination SSOT"
-category: adr
-last_updated: 2026-03-20
+description: "Official documentation for ADR 005: Socrates anti-hallucination SSOT for the Vox language. Detailed technical reference, architecture gui"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # ADR 005: Socrates anti-hallucination SSOT
@@ -36,6 +38,6 @@ LLM surfaces (MCP chat, planning, TOESTUB review, research-style flows) each use
 
 ## References
 
-- [Socrates protocol SSOT](../architecture/socrates-protocol-ssot.md)
+- [Socrates protocol SSOT](../reference/socrates-protocol.md)
 - `crates/vox-socrates-policy`
 - `crates/vox-orchestrator/src/socrates.rs`

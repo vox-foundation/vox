@@ -18,8 +18,8 @@ pub struct MessageGateway;
 impl MessageGateway {
     /// Publish task completion to bulletin, A2A audit, and event stream.
     pub fn publish_task_completed(
-        bulletin: &mut BulletinBoard,
-        message_bus: &mut MessageBus,
+        bulletin: &BulletinBoard,
+        message_bus: &MessageBus,
         event_bus: &EventBus,
         task_id: TaskId,
         agent_id: AgentId,
@@ -40,7 +40,7 @@ impl MessageGateway {
 
     /// Publish task failure to bulletin and event stream.
     pub fn publish_task_failed(
-        bulletin: &mut BulletinBoard,
+        bulletin: &BulletinBoard,
         event_bus: &EventBus,
         task_id: TaskId,
         agent_id: AgentId,
@@ -62,7 +62,7 @@ impl MessageGateway {
 
     /// Publish agent spawned to bulletin and event stream.
     pub fn publish_agent_spawned(
-        bulletin: &mut BulletinBoard,
+        bulletin: &BulletinBoard,
         event_bus: &EventBus,
         agent_id: AgentId,
         name: String,
@@ -81,7 +81,7 @@ impl MessageGateway {
 
     /// Publish Q&A or broadcast [`AgentMessage`] to the bulletin and mirror a short summary on the event bus.
     pub fn publish_bulletin_inter_agent(
-        bulletin: &mut BulletinBoard,
+        bulletin: &BulletinBoard,
         event_bus: &EventBus,
         msg: AgentMessage,
     ) {

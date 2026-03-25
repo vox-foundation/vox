@@ -1,7 +1,9 @@
 ---
 title: "Command surface duals (intentional)"
-category: ci
-last_updated: 2026-03-21
+description: "Official documentation for Command surface duals (intentional) for the Vox language. Detailed technical reference, architecture guides, a"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Command surface duals (intentional)
@@ -16,7 +18,7 @@ Some behaviors exist in more than one place by design:
 | **`vox run --mode script`** vs **`vox script`** | Same script runner; `vox script` exposes sandbox / cache / isolation flags explicitly. |
 | **`vox populi train`** vs **`vox train`** | Canonical native training is **`vox populi train`**. **`vox train --provider local`** bails with the exact **`vox populi train --backend qlora …`** command (no `train_qlora.vox`). **`vox train --native`** remains a legacy Burn scratch path when built with **`populi-dei`**. |
 | **`vox populi train-uv`** vs **`vox populi train --backend qlora`** | **`train-uv`** is **retired** (bails). Canonical QLoRA is **`vox populi train`**. |
-| **`vox fabrica` / `vox mens` / `vox ars` / `vox recensio`** vs flat **`build`**, **`doctor`**, **`snippet`**, **`review`**, … | Same dispatch as the legacy top-level verbs; Latin names are **discoverability aliases** (see [`cli-design-rules-ssot.md`](../architecture/cli-design-rules-ssot.md)). |
+| **`vox fabrica` / `vox mens` / `vox ars` / `vox recensio`** vs flat **`build`**, **`doctor`**, **`snippet`**, **`review`**, … | Same dispatch as the legacy top-level verbs; Latin names are **discoverability aliases** (see [`cli-design-rules.md`](../reference/cli.md)). |
 | **`vox completions <shell>`** | Shell completion output (bash/zsh/fish/powershell/elvish); no script dual required. |
 
 There is **no** `vox clean` subcommand; benchmarks and docs must not assume one — clear caches by deleting the relevant dirs (e.g. `~/.vox/script-cache*`) or use feature-specific tooling.

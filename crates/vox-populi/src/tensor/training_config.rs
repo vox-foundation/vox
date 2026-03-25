@@ -83,6 +83,8 @@ pub struct LoraTrainingConfig {
     pub force_restart: bool,
     /// Intended deployment surface for trained artifacts (planner gates + manifest).
     pub deployment_target: TrainingDeploymentTarget,
+    /// Whether to use curriculum learning (epoch-gated difficulty sampling).
+    pub curriculum: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -121,6 +123,7 @@ impl Default for LoraTrainingConfig {
             checkpoint_every: Some(500),
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),
+            curriculum: false,
         }
     }
 }

@@ -1,3 +1,10 @@
+---
+title: "Feasibility: full-graph Candle training (qlora-rs)"
+description: "Official documentation for Feasibility: full-graph Candle training (qlora-rs) for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Feasibility: full-graph Candle training (qlora-rs)
 
 **Decision (2026-03):** keep **Candle** on the **proxy stack** (`o_proj` / GPT-2 `c_proj` + LM head) using public **qlora-rs** `QLoraTrainer::training_step_lm` over `&[&QuantizedLinear]` (ADR 007).

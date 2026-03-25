@@ -228,6 +228,7 @@ pub async fn run(args: Args) -> Result<()> {
         force_restart,
         deployment_target: vox_populi::TrainingDeploymentTarget::Workstation,
         validation_split_ratio: Some(0.05),
+        curriculum: false,
     };
 
     let system_prompt = vox_corpus::training::generate_training_system_prompt();

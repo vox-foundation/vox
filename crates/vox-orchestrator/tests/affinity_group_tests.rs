@@ -1,5 +1,5 @@
-use vox_orchestrator::{AffinityGroup, AffinityGroupRegistry, load_from_config};
-use std::path::{Path, PathBuf};
+use vox_orchestrator::{AffinityGroupRegistry, load_from_config};
+use std::path::Path;
 use std::fs;
 use tempfile::tempdir;
 

@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS workflow_activity_log (
     workflow_name   TEXT NOT NULL,
     activity_name   TEXT NOT NULL,
     activity_id     TEXT NOT NULL,
-    status          TEXT NOT NULL CHECK(status IN ('started', 'completed')),
+    status          TEXT NOT NULL,
     recorded_at_ms  INTEGER NOT NULL,
     PRIMARY KEY (run_id, workflow_name, activity_id, status)
 );
@@ -67,4 +67,9 @@ CREATE TABLE IF NOT EXISTS workflow_activity_log (
 CREATE INDEX IF NOT EXISTS idx_workflow_activity_run ON workflow_activity_log(run_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_activity_workflow ON workflow_activity_log(workflow_name);
 
+CREATE TABLE IF NOT EXISTS actor_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 ";

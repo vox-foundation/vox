@@ -3,6 +3,7 @@
 mod command_compliance;
 mod line_endings;
 pub mod build_timings;
+mod check_links;
 
 use anyhow::{Context, Result, anyhow};
 use clap::{Subcommand, ValueEnum};
@@ -154,6 +155,9 @@ pub enum CiCmd {
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,
+    /// Fail if internal Markdown links are broken in `docs/src` or root-level guides.
+    #[command(name = "check-links")]
+    CheckLinks,
 }
 
 /// Output channel for [`CiCmd::GrammarDrift`].
@@ -335,6 +339,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
+        CiCmd::CheckLinks => check_links::run(&root),
     }
 }
 

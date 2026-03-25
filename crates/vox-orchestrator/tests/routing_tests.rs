@@ -1,6 +1,6 @@
 use vox_orchestrator::{
     services::{RoutingService, RouteResult},
-    OrchestratorConfig, AgentTask, AgentId, TaskId, TaskPriority,
+    OrchestratorConfig, AgentId,
     affinity::FileAffinityMap,
     groups::AffinityGroupRegistry,
     queue::AgentQueue,
@@ -21,7 +21,7 @@ async fn test_routing_service_affinity_assignment() {
     let a1 = AgentId(1);
     let mut q1 = AgentQueue::new(a1, "pm-group");
     q1.capabilities.labels.push("research".to_string());
-    agents.insert(a1, q1);
+    agents.insert(a1, std::sync::Arc::new(std::sync::RwLock::new(q1)));
 
     let task_manifest = vec![FileAffinity::write("crates/vox-pm/src/lib.rs")];
     let caps = TaskCapabilityHints {
@@ -60,8 +60,8 @@ async fn test_routing_service_load_balancing() {
     let q1 = AgentQueue::new(a1, "a1");
     let q2 = AgentQueue::new(a2, "a2");
     
-    agents.insert(a1, q1);
-    agents.insert(a2, q2);
+    agents.insert(a1, std::sync::Arc::new(std::sync::RwLock::new(q1)));
+    agents.insert(a2, std::sync::Arc::new(std::sync::RwLock::new(q2)));
     
     let task_manifest = vec![]; // No file affinity
     

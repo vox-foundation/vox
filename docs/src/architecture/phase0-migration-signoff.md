@@ -1,7 +1,9 @@
 ---
 title: "Phase 0 documentation baseline — signoff"
-category: architecture
-last_updated: 2026-03-20
+description: "Official documentation for Phase 0 documentation baseline — signoff for the Vox language. Detailed technical reference, architecture guid"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Phase 0 documentation baseline — signoff

@@ -15,6 +15,8 @@ pub struct ReplayRow {
     pub chatml: bool,
     /// Source repository for partitioned training set weighting.
     pub repository_id: String,
+    /// Optional difficulty level (1-10) for curriculum learning.
+    pub difficulty: Option<u8>,
 }
 
 #[cfg(feature = "database")]
@@ -51,6 +53,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                         record_type: "a2a_trace".to_string(),
                         chatml: false,
                         repository_id: "unknown".to_string(), // A2A table needs repository_id column in V33+
+                        difficulty: Some(crate::training::construct_difficulty(&msg_type, "a2a_trace")),
                     });
                 }
             }
@@ -100,6 +103,7 @@ pub async fn extract_arca_pairs(db: &VoxDb, limit: i64, chatml: bool, _min_score
                                 record_type: "tool_trace".to_string(),
                                 chatml: false,
                                 repository_id: repo_id.to_string(),
+                                difficulty: Some(crate::training::construct_difficulty(tool_name, "tool_trace")),
                             });
                         } else if event_type == "llm_turn" {
                             // Fallback for flat LLM turns
@@ -239,6 +243,7 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
         record_type: "chatml_trace".to_string(),
         chatml: true,
         repository_id: repo_id,
+        difficulty: Some(crate::training::construct_difficulty("multi_turn_session", "chatml_trace")),
     })
 }
 

@@ -69,8 +69,7 @@ CREATE TABLE IF NOT EXISTS conversation_edges (
     edge_kind TEXT NOT NULL DEFAULT 'related',
     weight REAL NOT NULL DEFAULT 1.0,
     metadata_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    CHECK(from_conversation_id != to_conversation_id)
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS topic_evolution_events (

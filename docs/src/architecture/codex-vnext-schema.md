@@ -1,12 +1,14 @@
 ---
-title: "Codex vNext — schema domains (greenfield)"
-category: architecture
-last_updated: 2026-03-21
+title: "Codex vNext — schema domains"
+description: "Official documentation for Codex vNext — schema domains for the Vox language. Detailed technical reference, architecture guides, and impl"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Codex vNext — schema domains
 
-This document is the **design SSOT** for how relational tables are grouped after the greenfield cut. Implementation lives in [`crates/vox-pm/src/schema/`](../../../crates/vox-pm/src/schema/mod.rs) as ordered **manifest fragments** (`v1`…`v17` sources) concatenated into one baseline DDL; the database records a single `schema_version` row (**1**). Notable slices: **v11–v15** (chat, tool calls, usage, topics, search ingest), **v16** (processing runs + audit), **v17** (research sessions, conversation versions/edges, topic evolution).
+This document is the **design SSOT** for how relational tables are grouped after the greenfield cut. Implementation lives in [`crates/vox-pm/src/schema/`](../../../crates/vox-db/src/schema/mod.rs) as ordered **manifest fragments** (`v1`…`v17` sources) concatenated into one baseline DDL; the database records a single `schema_version` row (**1**). Notable slices: **v11–v15** (chat, tool calls, usage, topics, search ingest), **v16** (processing runs + audit), **v17** (research sessions, conversation versions/edges, topic evolution).
 
 **Naming:** **Codex** = public platform DB. **Arca** = internal schema/CAS owner (`CodeStore`). Engine = **Turso** only.
 
@@ -43,7 +45,7 @@ This document is the **design SSOT** for how relational tables are grouped after
 
 ## Adding schema slices (baseline V1)
 
-- New DDL belongs in a **new fragment file** under `crates/vox-pm/src/schema/` and a matching entry in [`SCHEMA_FRAGMENTS`](../../../crates/vox-pm/src/schema/manifest.rs) (append-only order). Do **not** introduce new `schema_version` integers for Arca — the live DB stays at baseline **1**.
+- New DDL belongs in a **new fragment file** under `crates/vox-pm/src/schema/` and a matching entry in [`SCHEMA_FRAGMENTS`](../../../crates/vox-db/src/schema/manifest.rs) (append-only order). Do **not** introduce new `schema_version` integers for Arca — the live DB stays at baseline **1**.
 - **Digest:** `vox_pm::schema::schema_baseline_digest_hex` hashes the concatenated baseline SQL; HTTP `/ready` and operators can compare **required tables** + digest (see `vox_db::codex_schema`, `vox-codex-api`).
 - **v1–v7:** Historical slice layout; **v7** remains an empty fragment (no-op).
 - **v8:** Codex reactivity + schema lineage (append-only).

@@ -5,7 +5,7 @@ use vox_orchestrator::{Orchestrator, OrchestratorConfig};
 #[tokio::test]
 async fn agent_session_lifecycle_tracks_session_id() {
     let config = OrchestratorConfig::default();
-    let mut orchestrator = Orchestrator::new(config);
+    let orchestrator = Orchestrator::new(config);
 
     // Map session to a new agent.
     let agent_id = orchestrator.spawn_agent("TestAgentSession").unwrap();

@@ -4,8 +4,8 @@ use vox_db::{VoxDb, DbConfig, Migration, validate_migrations};
 async fn test_migration_application() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     
-    // Baseline should be 1
-    assert_eq!(db.schema_version().await.unwrap(), 1);
+    // Baseline should match manifest
+    assert_eq!(db.schema_version().await.unwrap(), vox_db::schema::BASELINE_VERSION);
     
     let migrations = vec![
         Migration {

@@ -50,6 +50,20 @@ pub enum Token {
     With,
     #[token("on")]
     On,
+    #[token("state")]
+    State,
+    #[token("derived")]
+    Derived,
+    #[token("effect")]
+    Effect,
+    #[token("mount")]
+    Mount,
+    #[token("cleanup")]
+    Cleanup,
+    #[token("view")]
+    View,
+    #[token("component")]
+    Component,
 
     // ── Phonetic Operators ────────────────────────────────────
     #[token("and")]
@@ -220,6 +234,13 @@ impl std::fmt::Display for Token {
             Token::Pub => write!(f, "pub"),
             Token::With => write!(f, "with"),
             Token::On => write!(f, "on"),
+            Token::State => write!(f, "state"),
+            Token::Derived => write!(f, "derived"),
+            Token::Effect => write!(f, "effect"),
+            Token::Mount => write!(f, "mount"),
+            Token::Cleanup => write!(f, "cleanup"),
+            Token::View => write!(f, "view"),
+            Token::Component => write!(f, "component"),
             Token::And => write!(f, "and"),
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),

@@ -1,10 +1,17 @@
+---
+title: "Populi / HF fine-tune — LLM PR checklist"
+description: "Official documentation for Populi / HF fine-tune — LLM PR checklist for the Vox language. Detailed technical reference, architecture guid"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Populi / HF fine-tune — LLM PR checklist
 
 Use this when agents or humans touch **`vox-populi` training**, **merge commands**, **LoRA/QLoRA**, or **parity tests**. Goal: avoid typical **context-blind** mistakes (wrong crate, wrong layout, doc drift).
 
 ## Duplication and ownership
 
-- [ ] **Two `lora.rs` trees:** `crates/vox-tensor/src/lora.rs` (primitives) vs `crates/vox-populi/src/tensor/lora.rs` (transformer + merge). Fixes to **linear LoRA math** may need **both** or a deliberate consolidation. Canonical split: [`populi-lora-ownership-ssot.md`](populi-lora-ownership-ssot.md).
+- [ ] **Two `lora.rs` trees:** `crates/vox-tensor/src/lora.rs` (primitives) vs `crates/vox-populi/src/tensor/lora.rs` (transformer + merge). Fixes to **linear LoRA math** may need **both** or a deliberate consolidation. Canonical split: [`populi-lora-ownership.md`](../reference/populi-lora-ownership.md).
 - [ ] **CLI / operator strings:** user-facing merge errors should stay aligned with `MERGE_QLORA_REJECTS_BURN_BIN` in `tensor/artifact_bridge.rs`; grep SSOT markdown when changing wording. Planner / QLoRA preflight gates share `tensor/operator_messages.rs` — update there when changing tokenizer or weight-path errors.
 
 ## Feature flags and API
@@ -28,13 +35,13 @@ Use this when agents or humans touch **`vox-populi` training**, **merge commands
 
 ## Documentation
 
-- [ ] **Same change, two docs:** behavior visible to users should match **`AGENTS.md`** (Populi subsection) and **`docs/src/architecture/populi-training-ssot.md`** where applicable.
+- [ ] **Same change, two docs:** behavior visible to users should match **`AGENTS.md`** (Populi subsection) and **`docs/src/reference/populi-training.md`** where applicable.
 - [ ] **NF4 wording:** Burn path is **f32 LoRA**; Candle **`--backend qlora`** is **qlora-rs NF4** — do not conflate in CLI blurbs.
 
 ## Vox web / training corpus
 
-- [ ] **Express / `server.ts`:** treat **`VOX_EMIT_EXPRESS_SERVER=1`** as **legacy / opt-in** in training text; default story is **Axum + `api.ts`** (see [`vox-fullstack-artifacts-ssot.md`](vox-fullstack-artifacts-ssot.md)).
-- [ ] **Examples:** prefer **golden** `examples/*.vox` from [`examples/README.md`](../../../examples/README.md); avoid ingesting `examples/archive/**` unless the pipeline explicitly opts in.
+- [ ] **Express / `server.ts`:** treat **`VOX_EMIT_EXPRESS_SERVER=1`** as **legacy / opt-in** in training text; default story is **Axum + `api.ts`** (see [`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md)).
+- [ ] **Examples:** prefer **golden** `examples/*.vox` from [`examples/README.md`](../adr/README.md); avoid ingesting `examples/archive/**` unless the pipeline explicitly opts in.
 
 ## Merge / attention
 
@@ -50,6 +57,6 @@ Use this when agents or humans touch **`vox-populi` training**, **merge commands
 
 ## Related
 
-- [HF fine-tune gap matrix](hf-finetune-gap-matrix-ssot.md)
-- [Populi training SSOT](populi-training-ssot.md)
+- [HF fine-tune gap matrix](../reference/hf-finetune-gap-matrix.md)
+- [Populi training SSOT](../reference/populi-training.md)
 - [HF fine-tune capability matrix](hf-finetune-capability-matrix.md)

@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-gamify"
+description: "Official documentation for Crate API: vox-gamify for the Vox language. Detailed technical reference, architecture guides, and implementat"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-gamify
 
 ## Overview

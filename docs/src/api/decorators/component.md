@@ -1,3 +1,10 @@
+---
+title: "@component"
+description: "Official documentation for @component for the Vox language. Detailed technical reference, architecture guides, and implementation pattern"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # @component
 
 **Category:** ui

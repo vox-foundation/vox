@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-parser"
+description: "Official documentation for Crate API: vox-parser for the Vox language. Detailed technical reference, architecture guides, and implementat"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-parser
 
 ## Overview

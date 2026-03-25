@@ -458,6 +458,12 @@ fn generate_for_taxonomy_entry(
             (format!("component fn {type_name}View({params}) to Element {{\n{jsx}\n}}"),
              format!("Create a Vox UI component called `{type_name}View`"))
         }
+        "reactive_component" => {
+            tags.push("expr:jsx".into());
+            let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
+            (format!("component {type_name}({params}) {{\n    state {sf}: {st} = {}\n    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n        <p>{{{sf}}}</p>\n    </div>\n}}", gen_literal_for_type(rng, st)),
+             format!("Create a modern reactive Vox component called `{type_name}`"))
+        }
         "actor" => {
             let handler_count = 1 + variant % 3;
             let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
@@ -694,7 +700,7 @@ fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
         // Template 1: Agent pipeline
         format!("message {tn}Event {{\n    id: int\n    data: str\n}}\n\nactor {tn}Worker {{\n    state count: int = 0\n    on {verb}() to str {{\n        count = count + 1\n        ret \"processed\"\n    }}\n}}\n\nworkflow {noun}_pipeline(input: str) to str {{\n    let worker = spawn({tn}Worker)\n    let result = {verb}(input)\n    ret result\n}}"),
         // Template 2: UI app
-        format!("type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent fn {tn}View() to Element {{\n    let status = \"ready\"\n    ret <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    ret <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" -> {tn}View\n}}"),
+        format!("type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    ret <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" -> {tn}View\n}}"),
     ];
 
     OrganicPair {

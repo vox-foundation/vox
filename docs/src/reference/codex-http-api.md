@@ -1,12 +1,14 @@
 ---
-title: "Codex HTTP API (reference)"
-category: reference
-last_updated: 2026-03-21
+title: "Codex HTTP API"
+description: "Official documentation for Codex HTTP API for the Vox language. Detailed technical reference, architecture guides, and implementation pat"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Codex HTTP API
 
-Rust implementation: [`vox-codex-api`](../../../crates/vox-codex-api/src/lib.rs) (`codex_router`, `run_dashboard`).
+Rust implementation: [`vox-codex-api`](../../../crates/vox-db/src/lib.rs) (`codex_router`, `run_dashboard`).
 
 ## SSOT
 
@@ -14,7 +16,7 @@ Rust implementation: [`vox-codex-api`](../../../crates/vox-codex-api/src/lib.rs)
 
 ## Tests
 
-- `cargo test -p vox-codex-api` — Tower `oneshot` integration tests in [`crates/vox-codex-api/tests/http_smoke.rs`](../../../crates/vox-codex-api/tests/http_smoke.rs).
+- `cargo test -p vox-codex-api` — Tower `oneshot` integration tests in [`crates/vox-codex-api/tests/http_smoke.rs`](../../../crates/vox-db/tests/ops_codex_tests.rs).
 
 ## Defaults
 
@@ -25,6 +27,6 @@ Rust implementation: [`vox-codex-api`](../../../crates/vox-codex-api/src/lib.rs)
 
 ## Related
 
-- [Environment variables (SSOT)](env-vars-ssot.md) — `VOX_DASH_*`, Codex DB envs
+- [Environment variables (SSOT)](env-vars.md) — `VOX_DASH_*`, Codex DB envs
 - [Codex BaaS scaffolding](../architecture/codex-baas.md)
 - [Codex vNext schema](../architecture/codex-vnext-schema.md)

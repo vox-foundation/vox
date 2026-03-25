@@ -1,0 +1,29 @@
+// ---
+// title: "Test Suite Example"
+// description: "@fixture/@mock setup with @test assertions and pipe operator for functional composition."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [@fixture, @mock, @test, assert, pipe]
+// last_validated: 2026-03-24
+// training_eligible: true
+// training_weight: 1.0
+// ---
+# @training_prompt: Write a Vox test suite with a fixture, mock, and assertions
+@fixture
+fn setup_user() to list[str] {
+    ret ["alice", "bob"]
+}
+
+@mock
+fn mock_db_read() to str {
+    ret "mock_data"
+}
+
+@test
+fn test_user_count() to Unit {
+    let users = setup_user()
+    assert(users |> len > 0)
+    let db_val = mock_db_read()
+    assert(db_val == "mock_data")
+}

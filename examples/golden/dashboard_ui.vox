@@ -1,0 +1,36 @@
+// ---
+// title: "Dashboard Ui Example"
+// description: "Full-stack UI with @island hydration, DashboardStatus ADT, layout wrapper, and route mapping."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [@island, component, layout, routes, type]
+// last_validated: 2026-03-24
+// training_eligible: true
+// training_weight: 1.0
+// ---
+# @training_prompt: Create a Vox full-stack UI for a Dashboard with a Layout and an Island
+type DashboardStatus = Loading | Ready(data: str)
+
+@island
+fn DataChart(data: list[int]) to Element {
+    ret <div className="chart">Interactive Chart</div>
+}
+
+component fn DashboardView() to Element {
+    ret <div className="dashboard">
+        <h1>Dashboard</h1>
+        <DataChart data=[1, 2, 3] />
+    </div>
+}
+
+layout fn MainLayout(children: Element) to Element {
+    ret <main>
+        <nav>Menu</nav>
+        {children}
+    </main>
+}
+
+routes {
+    "/" -> DashboardView
+}

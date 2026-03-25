@@ -20,7 +20,7 @@ pub struct DefId(
 ///
 /// Empty vectors mean the construct was absent in source; there is no implicit ordering across
 /// categories—only within each `Vec` matches source order for that kind.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HirModule {
     /// Resolved `import` entries.
     pub imports: Vec<HirImport>,
@@ -46,7 +46,81 @@ pub struct HirModule {
     pub indexes: Vec<HirIndex>,
     /// MCP tool handlers.
     pub mcp_tools: Vec<HirMcpTool>,
+    
+    // UI & TanStack specific structures (AST-retained for TS codegen migration)
+    /// UI Components.
+    pub components: Vec<HirComponent>,
+    /// Extracted v0 components.
+    pub v0_components: Vec<HirV0Component>,
+    /// Client-side Routes declaration.
+    pub client_routes: Vec<HirRoutes>,
+    /// Standalone islands.
+    pub islands: Vec<HirIsland>,
+    /// Route layouts.
+    pub layouts: Vec<HirLayout>,
+    /// Route pages.
+    pub pages: Vec<HirPage>,
+    /// React context wrappers.
+    pub contexts: Vec<HirContext>,
+    /// React hooks.
+    pub hooks: Vec<HirHook>,
+    /// Error boundaries.
+    pub error_boundaries: Vec<HirErrorBoundary>,
+    /// Loading/Suspense fallbacks.
+    pub loadings: Vec<HirLoading>,
+    /// Not Found views.
+    pub not_founds: Vec<HirNotFound>,
+    /// Reactive components (Path C).
+    pub reactive_components: Vec<HirReactiveComponent>,
+
+    /// TEMPORARY: Unmigrated AST declarations used specifically to bridge the codegen_ts schism without rewriting all of jsx.rs today.
+    pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
+
+/// A component lowered to HIR (currently retaining AST for TS codegen until full HirExpr migration).
+#[derive(Debug, Clone)]
+pub struct HirComponent(pub crate::ast::decl::ComponentDecl);
+
+/// A v0 component lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirV0Component(pub crate::ast::decl::V0ComponentDecl);
+
+/// Routes layout lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirRoutes(pub crate::ast::decl::RoutesDecl);
+
+/// Island component lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirIsland(pub crate::ast::decl::IslandDecl);
+
+/// Route layout component lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirLayout(pub crate::ast::decl::LayoutDecl);
+
+/// Route page component lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirPage(pub crate::ast::decl::PageDecl);
+
+/// Context component lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirContext(pub crate::ast::decl::ContextDecl);
+
+/// Hook component lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirHook(pub crate::ast::decl::HookDecl);
+
+/// Errorboundary lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirErrorBoundary(pub crate::ast::decl::ErrorBoundaryDecl);
+
+/// Loading route lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirLoading(pub crate::ast::decl::LoadingDecl);
+
+/// Not Found view lowered to HIR.
+#[derive(Debug, Clone)]
+pub struct HirNotFound(pub crate::ast::decl::NotFoundDecl);
+
 
 /// A resolved import.
 #[derive(Debug, Clone)]
@@ -133,6 +207,8 @@ pub enum HirExpr {
     ObjectLit(Vec<(String, HirExpr)>, Span),
     /// List literal.
     ListLit(Vec<HirExpr>, Span),
+    /// Tuple literal.
+    TupleLit(Vec<HirExpr>, Span),
     /// Binary operator application.
     Binary(HirBinOp, Box<HirExpr>, Box<HirExpr>, Span),
     /// Unary operator application.
@@ -499,4 +575,60 @@ pub struct HirMcpTool {
     pub description: String,
     /// Underlying implementation.
     pub func: HirFn,
+}
+
+/// Reactive component lowered to HIR (Path C).
+#[derive(Debug, Clone)]
+pub struct HirReactiveComponent {
+    pub id: DefId,
+    pub name: String,
+    pub params: Vec<HirParam>,
+    pub members: Vec<HirReactiveMember>,
+    pub view: Option<HirExpr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum HirReactiveMember {
+    State(HirState),
+    Derived(HirDerived),
+    Effect(HirEffect),
+    OnMount(HirOnMount),
+    OnCleanup(HirOnCleanup),
+}
+
+#[derive(Debug, Clone)]
+pub struct HirState {
+    pub id: DefId,
+    pub name: String,
+    pub ty: Option<HirType>,
+    pub init: HirExpr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirDerived {
+    pub id: DefId,
+    pub name: String,
+    pub ty: Option<HirType>,
+    pub expr: HirExpr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirEffect {
+    pub body: HirExpr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirOnMount {
+    pub body: HirExpr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirOnCleanup {
+    pub body: HirExpr,
+    pub span: Span,
 }

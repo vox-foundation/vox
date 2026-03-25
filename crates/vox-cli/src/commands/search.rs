@@ -71,3 +71,5 @@ pub async fn run(query: &str, registry_url: Option<&str>) -> Result<()> {
 
     Ok(())
 }
+
+

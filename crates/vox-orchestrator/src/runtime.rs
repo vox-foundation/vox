@@ -123,7 +123,7 @@ impl TaskProcessor for AiTaskProcessor {
         let cost_usd = (input_tokens + output_tokens) as f64 * 0.000_001;
 
         // Record usage through the unified pipeline (event bus + budget + oplog)
-        if let Ok(mut orch) = self.orchestrator.try_lock() {
+        if let Ok(orch) = self.orchestrator.try_lock() {
             orch.record_ai_usage(
                 agent_id,
                 &self.provider,
@@ -194,9 +194,10 @@ impl ActorAgent {
         match cmd {
             AgentCommand::ProcessQueue => {
                 let task_to_run = {
-                    let mut orch = orchestrator_ref.lock().await;
+                    let orch = orchestrator_ref.lock().await;
                     // Extract task (mutable borrow) first in a nested scope.
-                    let dequeued = if let Some(queue) = orch.get_agent_queue_mut(agent_id) {
+                    let dequeued = if let Some(queue_lock) = orch.agent_queue(agent_id) {
+                        let mut queue = crate::sync_lock::rw_write(&queue_lock);
                         if !queue.is_paused() {
                             let t = queue.dequeue();
                             if t.is_some() {
@@ -228,13 +229,13 @@ impl ActorAgent {
 
                     match processor.process(agent_id, task).await {
                         Ok(completed_id) => {
-                            let mut o2 = orchestrator_ref.lock().await;
+                            let o2 = orchestrator_ref.lock().await;
                             let _ = o2.complete_task(completed_id).await;
                             o2.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                         }
                         Err(e) => {
                             tracing::error!("Agent {} failed task {}: {}", agent_id, task_id, e);
-                            let mut o2 = orchestrator_ref.lock().await;
+                            let o2 = orchestrator_ref.lock().await;
                             if let Err(err) = o2.fail_task(task_id, e.to_string()).await {
                                 tracing::error!(
                                     "fail_task after processor error: {} (task {})",
@@ -248,20 +249,20 @@ impl ActorAgent {
                 }
             }
             AgentCommand::Pause => {
-                let mut orch = orchestrator_ref.lock().await;
+                let orch = orchestrator_ref.lock().await;
                 orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                 let _ = orch.pause_agent(agent_id);
             }
             AgentCommand::Resume => {
-                let mut orch = orchestrator_ref.lock().await;
+                let orch = orchestrator_ref.lock().await;
                 orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
                 let _ = orch.resume_agent(agent_id);
             }
             AgentCommand::CancelTask(task_id) => {
-                let mut orch = orchestrator_ref.lock().await;
+                let orch = orchestrator_ref.lock().await;
                 orch.heartbeat(agent_id, crate::events::AgentActivity::Idle);
-                if let Some(q) = orch.get_agent_queue_mut(agent_id) {
-                    q.cancel(task_id);
+                if let Some(q_lock) = orch.agent_queue(agent_id) {
+                    crate::sync_lock::rw_write(&q_lock).cancel(task_id);
                 }
             }
         }
@@ -306,7 +307,7 @@ impl AgentFleet {
             let orch: tokio::sync::MutexGuard<'_, Orchestrator> = self.orchestrator.lock().await;
             let ids = orch.agent_ids();
             ids.iter()
-                .map(|id| (*id, orch.agent_queue(*id).unwrap().name.clone()))
+                .map(|id| (*id, crate::sync_lock::rw_read(&*orch.agent_queue(*id).unwrap()).name.clone()))
                 .collect()
         };
 
@@ -351,7 +352,9 @@ impl AgentFleet {
     pub async fn check_scaling(&self) {
         let (status, idle_dynamic, config, budget_manager) = {
             let orch = self.orchestrator.lock().await;
-            if !orch.config().scaling_enabled {
+            let config_arc = orch.config_handle();
+            let config = crate::sync_lock::rw_read(&config_arc).clone();
+            if !config.scaling_enabled {
                 return;
             }
             let status = orch.status();
@@ -359,10 +362,9 @@ impl AgentFleet {
                 .agents
                 .iter()
                 .filter(|a| a.dynamic && a.queued == 0 && !a.in_progress)
-                .filter_map(|a| orch.agent_queue(a.id).map(|q| (a.id, q.last_active)))
+                .filter_map(|a| orch.agent_queue(a.id).map(|q| (a.id, crate::sync_lock::rw_read(&*q).last_active)))
                 .collect();
-            let config = orch.config().clone();
-            let budget_manager = orch.budget_manager().clone();
+            let budget_manager = orch.budget_manager_handle();
             (status, idle_dynamic, config, budget_manager)
         };
 
@@ -372,10 +374,10 @@ impl AgentFleet {
             &config,
             &load_history,
             &idle_dynamic,
-            &budget_manager,
+            &*crate::sync_lock::rw_read(&budget_manager),
         );
 
-        let mut orch = self.orchestrator.lock().await;
+        let orch = self.orchestrator.lock().await;
         match action {
             ScalingAction::NoOp => {}
             ScalingAction::ScaleUp { name } => {
@@ -384,10 +386,7 @@ impl AgentFleet {
                 let spawns = self
                     .spawns_this_tick
                     .load(std::sync::atomic::Ordering::Relaxed);
-                let cooldown_ok = self
-                    .last_scale_up
-                    .read()
-                    .unwrap()
+                let cooldown_ok = crate::sync_lock::rw_read(&self.last_scale_up)
                     .as_ref()
                     .map(|t| t.elapsed() >= Duration::from_millis(cooldown_ms))
                     .unwrap_or(true);
@@ -395,7 +394,7 @@ impl AgentFleet {
                     let _ = orch.spawn_dynamic_agent(&name);
                     self.spawns_this_tick
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    *self.last_scale_up.write().unwrap() = Some(Instant::now());
+                    *crate::sync_lock::rw_write(&self.last_scale_up) = Some(Instant::now());
                     tracing::info!(
                         "Scaling up: spawning '{}' (load: {:.2}, profile: {:?})",
                         name,
@@ -432,7 +431,7 @@ impl AgentFleet {
 
             // 3. Perform orchestrator maintenance (rebalance and tick)
             {
-                let mut orch = self.orchestrator.lock().await;
+                let orch = self.orchestrator.lock().await;
                 orch.rebalance();
                 orch.tick().await;
             }

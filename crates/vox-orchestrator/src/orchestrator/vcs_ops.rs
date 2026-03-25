@@ -12,17 +12,18 @@ use crate::types::AgentId;
 
 impl crate::orchestrator::Orchestrator {
     /// Take a filesystem snapshot of `paths` and optionally persist their bytes to
-    /// the CAS (`CodeStore::store`). Returns the new [`SnapshotId`].
+    /// the CAS (`VoxDb::store`). Returns the new [`SnapshotId`].
     pub async fn capture_snapshot(
-        &mut self,
+        &self,
         agent_id: AgentId,
         paths: &[PathBuf],
         description: impl Into<String>,
     ) -> SnapshotId {
         let desc = description.into();
-        let snap_id = self.snapshot_store.take_snapshot(agent_id, paths, &desc);
+        let snap_id = crate::sync_lock::rw_write(&*self.snapshot_store).take_snapshot(agent_id, paths, &desc);
 
-        if let Some(db) = &self.db {
+        let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+        if let Some(db) = db_opt {
             for p in paths {
                 if let Ok(data) = std::fs::read(p) {
                     let _ = db.store("file", &data).await;
@@ -34,9 +35,9 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Record a generic operation in the oplog, capturing a pre-op DB snapshot when
-    /// `db_snapshot_before` is `None` and a CodeStore is attached.
+    /// `db_snapshot_before` is `None` and a VoxDb is attached.
     pub async fn record_operation(
-        &mut self,
+        &self,
         agent_id: AgentId,
         kind: OperationKind,
         description: impl Into<String>,
@@ -54,7 +55,7 @@ impl crate::orchestrator::Orchestrator {
             }
         };
 
-        self.oplog.record(
+        crate::sync_lock::rw_write(&*self.oplog).record(
             agent_id,
             kind,
             desc,
@@ -75,8 +76,9 @@ impl crate::orchestrator::Orchestrator {
         agent_id: AgentId,
         description: impl Into<String>,
     ) -> Option<u64> {
-        if let Some(db) = &self.db {
-            let snap_id = self.oplog.next_db_snapshot_id();
+        let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+        if let Some(db) = db_opt {
+            let snap_id = crate::sync_lock::rw_write(&*self.oplog).next_db_snapshot_id();
             let desc = description.into();
             if db
                 .take_db_snapshot(snap_id, &agent_id.to_string(), &desc)
@@ -90,14 +92,14 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Undo the operation identified by `op_id`: restores the DB snapshot then the FS snapshot.
-    pub async fn undo_operation(&mut self, op_id: OperationId) -> Result<(), OrchestratorError> {
-        let (fs_snap, db_snap) = self
-            .oplog
+    pub async fn undo_operation(&self, op_id: OperationId) -> Result<(), OrchestratorError> {
+        let (fs_snap, db_snap) = crate::sync_lock::rw_write(&*self.oplog)
             .undo(op_id)
             .ok_or(OrchestratorError::OperationNotFound)?;
 
         if let Some(db_id) = db_snap {
-            if let Some(db) = &self.db {
+            let db_opt = crate::sync_lock::rw_read(&self.db).clone();
+            if let Some(db) = db_opt {
                 db.restore_db_snapshot(db_id)
                     .await
                     .map_err(|e| {
@@ -120,14 +122,14 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Re-apply the state after a previously undone operation.
-    pub async fn redo_operation(&mut self, op_id: OperationId) -> Result<(), OrchestratorError> {
-        let (fs_snap, db_snap) = self
-            .oplog
+    pub async fn redo_operation(&self, op_id: OperationId) -> Result<(), OrchestratorError> {
+        let (fs_snap, db_snap) = crate::sync_lock::rw_write(&*self.oplog)
             .redo(op_id)
             .ok_or(OrchestratorError::OperationNotFound)?;
 
         if let Some(db_id) = db_snap {
-            if let Some(db) = &self.db {
+            let db_opt = crate::sync_lock::rw_read(&self.db).clone();
+            if let Some(db) = db_opt {
                 db.restore_db_snapshot(db_id)
                     .await
                     .map_err(|e| {
@@ -154,11 +156,16 @@ impl crate::orchestrator::Orchestrator {
         &self,
         snapshot_id: SnapshotId,
     ) -> Result<(), OrchestratorError> {
-        let snap = self
-            .snapshot_store
-            .get(snapshot_id)
-            .ok_or(OrchestratorError::OperationNotFound)?;
-        let db = self.db.as_ref().ok_or_else(|| {
+        let snap = {
+            let snap_store = crate::sync_lock::rw_read(&*self.snapshot_store);
+            snap_store
+                .get(snapshot_id)
+                .ok_or(OrchestratorError::OperationNotFound)?
+                .clone()
+        };
+
+        let db_opt = crate::sync_lock::rw_read(&self.db).clone();
+        let db = db_opt.ok_or_else(|| {
             OrchestratorError::DatabaseError("Database not initialized for restore".into())
         })?;
 

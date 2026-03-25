@@ -26,7 +26,7 @@ impl Orchestrator {
     /// 3. Acquire file locks
     /// 4. Enqueue the task
     pub async fn submit_task(
-        &mut self,
+        &self,
         description: impl Into<String>,
         file_manifest: Vec<FileAffinity>,
         priority: Option<TaskPriority>,
@@ -45,7 +45,7 @@ impl Orchestrator {
 
     /// Submit a new task to the orchestrator, potentially targeting a specific agent name (async).
     pub async fn submit_task_with_agent(
-        &mut self,
+        &self,
         description: impl Into<String>,
         file_manifest: Vec<FileAffinity>,
         priority: Option<TaskPriority>,
@@ -53,12 +53,16 @@ impl Orchestrator {
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
         session_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
-        if !self.config.enabled {
-            return Err(OrchestratorError::Disabled);
-        }
+        let (default_priority, scope_enforcement) = {
+            let config_guard = crate::sync_lock::rw_read(&*self.config);
+            if !config_guard.enabled {
+                return Err(OrchestratorError::Disabled);
+            }
+            (config_guard.default_priority, config_guard.scope_enforcement)
+        };
 
         let task_id = self.task_id_gen.next();
-        let priority = priority.unwrap_or(self.config.default_priority);
+        let priority = priority.unwrap_or(default_priority);
 
         let mut task = AgentTask::new(task_id, description, priority, file_manifest.clone());
         task.capability_requirements = capability_requirements.clone();
@@ -75,38 +79,41 @@ impl Orchestrator {
             .await?;
 
         // Pre-queue policy check (locks; scope when enforcement enabled)
-        let scope_guard = (self.config.scope_enforcement != ScopeEnforcement::Disabled)
-            .then_some(&self.scope_guard);
-        match PolicyEngine::check_before_queue(
-            &self.lock_manager,
-            scope_guard,
-            &self.event_bus,
-            &file_manifest,
-            agent_id,
-        ) {
-            PolicyCheckResult::Allowed => {}
-            PolicyCheckResult::LockConflict(e) => return Err(OrchestratorError::LockConflict(e)),
-            PolicyCheckResult::ScopeDenied(msg) => return Err(OrchestratorError::ScopeDenied(msg)),
-        }
+        {
+            let scope_guard_lock = (scope_enforcement != ScopeEnforcement::Disabled)
+                .then_some(crate::sync_lock::rw_read(&*self.scope_guard));
+            let scope_guard_ref = scope_guard_lock.as_deref();
+            match PolicyEngine::check_before_queue(
+                &self.lock_manager,
+                scope_guard_ref,
+                &self.event_bus,
+                &file_manifest,
+                agent_id,
+            ) {
+                PolicyCheckResult::Allowed => {}
+                PolicyCheckResult::LockConflict(e) => return Err(OrchestratorError::LockConflict(e)),
+                PolicyCheckResult::ScopeDenied(msg) => return Err(OrchestratorError::ScopeDenied(msg)),
+            }
 
-        // Try to acquire locks for write files
-        for fa in &file_manifest {
-            if fa.access == AccessKind::Write {
-                let lock_kind = LockKind::Exclusive;
-                // If lock fails, we still enqueue (the agent will retry when it picks up the task)
-                let _ = self.lock_manager.try_acquire(&fa.path, agent_id, lock_kind);
+            // Try to acquire locks for write files
+            for fa in &file_manifest {
+                if fa.access == AccessKind::Write {
+                    let lock_kind = LockKind::Exclusive;
+                    // If lock fails, we still enqueue (the agent will retry when it picks up the task)
+                    let _ = self.lock_manager.try_acquire(&fa.path, agent_id, lock_kind);
+                }
+            }
+
+            // Assign files to the agent in the affinity map and scope guard
+            for fa in &file_manifest {
+                if fa.access == AccessKind::Write {
+                    self.affinity_map.assign(&fa.path, agent_id);
+                    crate::sync_lock::rw_write(&*self.scope_guard).assign_file(agent_id, fa.path.clone());
+                }
             }
         }
 
-        // Assign files to the agent in the affinity map and scope guard
-        for fa in &file_manifest {
-            if fa.access == AccessKind::Write {
-                self.affinity_map.assign(&fa.path, agent_id);
-                self.scope_guard.assign_file(agent_id, fa.path.clone());
-            }
-        }
-
-        // Capture pre-task snapshot for version control (persisted to CodeStore)
+        // Capture pre-task snapshot for version control (persisted to VoxDb)
         let snapshot_before = {
             let paths: Vec<PathBuf> = file_manifest.iter().map(|f| f.path.clone()).collect();
             let desc_str = task.description.clone();
@@ -138,72 +145,86 @@ impl Orchestrator {
 
         self.record_activity();
         // Enqueue the task
-        if let Some(queue) = self.agents.get_mut(&agent_id) {
-            self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
-                task_id,
-                agent_id,
-                description: task.description.clone(),
-                session_id: task.session_id.clone(),
-            });
-            queue.enqueue(task);
-            self.task_assignments.insert(task_id, agent_id);
-
-            // Notify the agent process to wake up and process
-            if let Some(handle) = self.agent_handles.get(&agent_id) {
-                let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
-                    .unwrap_or_else(|e| {
-                        tracing::warn!("serialize ProcessQueue: {e}");
-                        "{}".to_string()
-                    });
-                let env = vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
-                    from: vox_runtime::Pid::new(),
-                    payload: vox_runtime::mailbox::MessagePayload::Json(json),
+        let handle = {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            if let Some(queue_lock) = agents.get(&agent_id) {
+                let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+                self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
+                    task_id,
+                    agent_id,
+                    description: task.description.clone(),
+                    session_id: task.session_id.clone(),
                 });
-                let _ = handle.send(env).await;
-            }
+                let q_len = queue.len();
+                queue.enqueue(task);
+                crate::sync_lock::rw_write(&*self.task_assignments).insert(task_id, agent_id);
 
-            tracing::info!(
-                "Task {} routed to agent {} (queue len: {})",
-                task_id,
-                agent_id,
-                queue.len()
-            );
+                tracing::info!(
+                    "Task {} routed to agent {} (queue len: {})",
+                    task_id,
+                    agent_id,
+                    q_len + 1
+                );
+            }
+            // Capture handle while we have the lock, to use it outside
+            crate::sync_lock::rw_read(&*self.agent_handles).get(&agent_id).cloned()
+        };
+
+        // Notify the agent process to wake up and process (outside the locks)
+        if let Some(handle) = handle {
+            let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
+                .unwrap_or_else(|e| {
+                    tracing::warn!("serialize ProcessQueue: {e}");
+                    "{}".to_string()
+                });
+            let env = vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
+                from: vox_runtime::Pid::new(),
+                payload: vox_runtime::mailbox::MessagePayload::Json(json),
+            });
+            let _ = handle.send(env).await;
         }
 
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        if self.task_traces.len() >= MAX_TASK_TRACES {
-            if let Some(min_id) = self.task_traces.keys().min().copied() {
-                self.task_traces.remove(&min_id);
+        {
+            let mut traces = crate::sync_lock::rw_write(&*self.task_traces);
+            if traces.len() >= MAX_TASK_TRACES {
+                if let Some(min_id) = traces.keys().min().copied() {
+                    traces.remove(&min_id);
+                }
             }
+            traces.insert(
+                task_id,
+                vec![
+                    TaskTraceStep {
+                        stage: "ingress".to_string(),
+                        timestamp_ms: now_ms,
+                        detail: None,
+                    },
+                    TaskTraceStep {
+                        stage: "routed".to_string(),
+                        timestamp_ms: now_ms,
+                        detail: Some(format!("agent {}", agent_id)),
+                    },
+                ],
+            );
         }
-        self.task_traces.insert(
-            task_id,
-            vec![
-                TaskTraceStep {
-                    stage: "ingress".to_string(),
-                    timestamp_ms: now_ms,
-                    detail: None,
-                },
-                TaskTraceStep {
-                    stage: "routed".to_string(),
-                    timestamp_ms: now_ms,
-                    detail: Some(format!("agent {}", agent_id)),
-                },
-            ],
-        );
 
         Ok(task_id)
     }
 
     /// Submit a batch of interdependent tasks (async).
     pub async fn submit_batch(
-        &mut self,
+        &self,
         descriptors: Vec<crate::types::TaskDescriptor>,
     ) -> Result<Vec<TaskId>, OrchestratorError> {
-        if !self.config.enabled {
+        let (enabled, default_priority, scope_enforcement) = {
+            let config = crate::sync_lock::rw_read(&*self.config);
+            (config.enabled, config.default_priority, config.scope_enforcement)
+        };
+        if !enabled {
             return Err(OrchestratorError::Disabled);
         }
 
@@ -233,7 +254,7 @@ impl Orchestrator {
                 }
             }
 
-            let priority = desc.priority.unwrap_or(self.config.default_priority);
+            let priority = desc.priority.unwrap_or(default_priority);
             let mut task = AgentTask::new(
                 my_id,
                 desc.description.clone(),
@@ -258,32 +279,35 @@ impl Orchestrator {
                 )
                 .await?;
 
-            let scope_guard = (self.config.scope_enforcement != ScopeEnforcement::Disabled)
-                .then_some(&self.scope_guard);
-            match PolicyEngine::check_before_queue(
-                &self.lock_manager,
-                scope_guard,
-                &self.event_bus,
-                &desc.file_manifest,
-                agent_id,
-            ) {
-                PolicyCheckResult::Allowed => {}
-                PolicyCheckResult::LockConflict(e) => {
-                    return Err(OrchestratorError::LockConflict(e));
+            {
+                let scope_guard_lock = (scope_enforcement != ScopeEnforcement::Disabled)
+                    .then_some(crate::sync_lock::rw_read(&*self.scope_guard));
+                let scope_guard_ref = scope_guard_lock.as_deref();
+                match PolicyEngine::check_before_queue(
+                    &self.lock_manager,
+                    scope_guard_ref,
+                    &self.event_bus,
+                    &desc.file_manifest,
+                    agent_id,
+                ) {
+                    PolicyCheckResult::Allowed => {}
+                    PolicyCheckResult::LockConflict(e) => {
+                        return Err(OrchestratorError::LockConflict(e));
+                    }
+                    PolicyCheckResult::ScopeDenied(msg) => {
+                        return Err(OrchestratorError::ScopeDenied(msg));
+                    }
                 }
-                PolicyCheckResult::ScopeDenied(msg) => {
-                    return Err(OrchestratorError::ScopeDenied(msg));
-                }
-            }
 
-            // Acquire locks and assign scope
-            for fa in &desc.file_manifest {
-                if fa.access == AccessKind::Write {
-                    let _ = self
-                        .lock_manager
-                        .try_acquire(&fa.path, agent_id, LockKind::Exclusive);
-                    self.affinity_map.assign(&fa.path, agent_id);
-                    self.scope_guard.assign_file(agent_id, fa.path.clone());
+                // Acquire locks and assign scope
+                for fa in &desc.file_manifest {
+                    if fa.access == AccessKind::Write {
+                        let _ = self
+                            .lock_manager
+                            .try_acquire(&fa.path, agent_id, LockKind::Exclusive);
+                        self.affinity_map.assign(&fa.path, agent_id);
+                        crate::sync_lock::rw_write(&*self.scope_guard).assign_file(agent_id, fa.path.clone());
+                    }
                 }
             }
 
@@ -312,56 +336,68 @@ impl Orchestrator {
 
             self.record_activity();
             // Enqueue
-            if let Some(queue) = self.agents.get_mut(&agent_id) {
-                self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
-                    task_id: my_id,
-                    agent_id,
-                    description: task.description.clone(),
-                    session_id: task.session_id.clone(),
-                });
-                queue.enqueue(task);
-                self.task_assignments.insert(my_id, agent_id);
+            let handle_to_notify = {
+                let agents = crate::sync_lock::rw_read(&*self.agents);
+                if let Some(queue_lock) = agents.get(&agent_id) {
+                    let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+                    self.event_bus.emit(crate::events::AgentEventKind::TaskSubmitted {
+                        task_id: my_id,
+                        agent_id,
+                        description: task.description.clone(),
+                        session_id: task.session_id.clone(),
+                    });
+                    queue.enqueue(task);
+                    crate::sync_lock::rw_write(&*self.task_assignments).insert(my_id, agent_id);
 
-                // Notify
-                if let Some(handle) = self.agent_handles.get(&agent_id) {
-                    let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
-                        .unwrap_or_else(|e| {
-                            tracing::warn!("serialize ProcessQueue: {e}");
-                            "{}".to_string()
-                        });
-                    let env =
-                        vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
-                            from: vox_runtime::Pid::new(),
-                            payload: vox_runtime::mailbox::MessagePayload::Json(json),
-                        });
-                    let _ = handle.send(env).await;
+                    // Grab the handle for notification outside the agents lock
+                    crate::sync_lock::rw_read(&*self.agent_handles).get(&agent_id).cloned()
+                } else {
+                    None
                 }
+            };
+
+            // Notify outside all locks
+            if let Some(handle) = handle_to_notify {
+                let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
+                    .unwrap_or_else(|e| {
+                        tracing::warn!("serialize ProcessQueue: {e}");
+                        "{}".to_string()
+                    });
+                let env =
+                    vox_runtime::mailbox::Envelope::Message(vox_runtime::mailbox::Message {
+                        from: vox_runtime::Pid::new(),
+                        payload: vox_runtime::mailbox::MessagePayload::Json(json),
+                    });
+                let _ = handle.send(env).await;
             }
 
             let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64;
-            if self.task_traces.len() >= MAX_TASK_TRACES {
-                if let Some(min_id) = self.task_traces.keys().min().copied() {
-                    self.task_traces.remove(&min_id);
+            {
+                let mut traces = crate::sync_lock::rw_write(&*self.task_traces);
+                if traces.len() >= MAX_TASK_TRACES {
+                    if let Some(min_id) = traces.keys().min().copied() {
+                        traces.remove(&min_id);
+                    }
                 }
+                traces.insert(
+                    my_id,
+                    vec![
+                        TaskTraceStep {
+                            stage: "ingress".to_string(),
+                            timestamp_ms: now_ms,
+                            detail: None,
+                        },
+                        TaskTraceStep {
+                            stage: "routed".to_string(),
+                            timestamp_ms: now_ms,
+                            detail: Some(format!("agent {}", agent_id)),
+                        },
+                    ],
+                );
             }
-            self.task_traces.insert(
-                my_id,
-                vec![
-                    TaskTraceStep {
-                        stage: "ingress".to_string(),
-                        timestamp_ms: now_ms,
-                        detail: None,
-                    },
-                    TaskTraceStep {
-                        stage: "routed".to_string(),
-                        timestamp_ms: now_ms,
-                        detail: Some(format!("agent {}", agent_id)),
-                    },
-                ],
-            );
 
             results.push(my_id);
         }
@@ -372,29 +408,32 @@ impl Orchestrator {
 
     /// Resolve route via RoutingService and spawn if needed.
     async fn resolve_route(
-        &mut self,
+        &self,
         manifest: &[FileAffinity],
         target_agent: Option<&str>,
         task_capability_requirements: Option<&crate::contract::TaskCapabilityHints>,
     ) -> Result<AgentId, OrchestratorError> {
         if let Some(agent_name) = target_agent {
             // First check if an agent with this name exists
-            for (id, queue) in &self.agents {
-                if queue.name == agent_name {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            for (id, queue_lock) in agents.iter() {
+                if crate::sync_lock::rw_read(&**queue_lock).name == agent_name {
                     return Ok(*id);
                 }
             }
+            drop(agents);
             // Otherwise, spawn an agent with this name
             return self.spawn_agent(agent_name);
         }
 
+        let reputation_routing = crate::sync_lock::rw_read(&*self.config).socrates_reputation_routing;
         let reliability_map: Option<HashMap<AgentId, f64>> =
-            if self.config.socrates_reputation_routing {
-                self.db.as_ref().map(|db| {
+            if reputation_routing {
+                crate::sync_lock::rw_read(&*self.db).as_ref().map(|db| {
                     db.block_on(async { db.list_agent_reliability().await })
                         .unwrap_or_default()
                         .into_iter()
-                        .map(|(id, r)| {
+                        .map(|(id, r): (String, f64)| {
                             let numeric_id = id.parse::<u64>().unwrap_or(0);
                             (AgentId(numeric_id), r)
                         })
@@ -404,21 +443,31 @@ impl Orchestrator {
                 None
             };
 
-        let remote = if self.remote_mesh_routing_hints.is_empty() {
+        let remote_hints = crate::sync_lock::rw_read(&*self.remote_mesh_routing_hints);
+        let remote = if remote_hints.is_empty() {
             None
         } else {
-            Some(self.remote_mesh_routing_hints.as_slice())
+            Some(remote_hints.as_slice())
         };
-        let result = RoutingService::route(
-            manifest,
-            &self.affinity_map,
-            &self.groups,
-            &self.agents,
-            &self.config,
-            reliability_map.as_ref(),
-            task_capability_requirements,
-            remote,
-        );
+
+        let result = {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            let groups = crate::sync_lock::rw_read(&*self.groups);
+            let config = crate::sync_lock::rw_read(&*self.config);
+            
+            RoutingService::route(
+                manifest,
+                &self.affinity_map,
+                &groups,
+                &*agents,
+                &config,
+                reliability_map.as_ref(),
+                task_capability_requirements,
+                remote,
+            )
+        };
+        drop(remote_hints);
+
         match result {
             RouteResult::Existing(id) => Ok(id),
             RouteResult::SpawnAgent(name) => self.spawn_agent(&name),
@@ -426,115 +475,123 @@ impl Orchestrator {
     }
 
     /// Mark a task as completed (async).
-    pub async fn complete_task(&mut self, task_id: TaskId) -> Result<(), OrchestratorError> {
-        let agent_id = self
-            .task_assignments
+    pub async fn complete_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
+        let agent_id = crate::sync_lock::rw_read(&*self.task_assignments)
             .get(&task_id)
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
         self.record_activity();
 
-        let queue = self
-            .agents
-            .get_mut(&agent_id)
-            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let (write_files, session_id, desc) = {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            let queue_lock = agents
+                .get(&agent_id)
+                .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+            let mut queue = crate::sync_lock::rw_write(&**queue_lock);
 
-        // Get the task's file manifest before completing
-        let write_files: Vec<PathBuf> = queue
-            .current_task()
-            .map(|t| t.write_files().into_iter().cloned().collect())
-            .unwrap_or_default();
-        let session_id = queue.current_task().and_then(|t| t.session_id.clone());
+            // Get the task's file manifest before completing
+            let write_files: Vec<PathBuf> = queue
+                .current_task()
+                .map(|t| t.write_files().into_iter().cloned().collect())
+                .unwrap_or_default();
+            let session_id = queue.current_task().and_then(|t| t.session_id.clone());
 
-        let mut auto_debug_requeue = None;
+            let mut auto_debug_requeue = None;
+            let max_debug_iterations = crate::sync_lock::rw_read(&*self.config).max_debug_iterations;
 
-        #[cfg(feature = "toestub-gate")]
-        {
-            if self.config.toestub_gate {
-                if let Some(mut task_clone) = queue.current_task().cloned() {
-                    let vr = crate::validation::post_task_validate(&task_clone);
-                    if !crate::validation::quality_gate(&vr)
-                        && task_clone.debug_iterations < self.config.max_debug_iterations
-                    {
-                        task_clone.debug_iterations += 1;
-                        task_clone.description.push_str(&format!("\n\n[AUTO-DEBUG ITERATION {}]\nValidation failed with diagnostic issues. Please fix the following:\n{}", task_clone.debug_iterations, vr.report));
-                        task_clone.status = TaskStatus::Queued;
-                        auto_debug_requeue = Some((task_clone, vr.report.clone()));
+            #[cfg(feature = "toestub-gate")]
+            {
+                if crate::sync_lock::rw_read(&*self.config).toestub_gate {
+                    if let Some(mut task_clone) = queue.current_task().cloned() {
+                        let vr = crate::validation::post_task_validate(&task_clone);
+                        if !crate::validation::quality_gate(&vr)
+                            && task_clone.debug_iterations < max_debug_iterations
+                        {
+                            task_clone.debug_iterations += 1;
+                            task_clone.description.push_str(&format!("\n\n[AUTO-DEBUG ITERATION {}]\nValidation failed with diagnostic issues. Please fix the following:\n{}", task_clone.debug_iterations, vr.report));
+                            task_clone.status = TaskStatus::Queued;
+                            auto_debug_requeue = Some((task_clone, vr.report.clone()));
+                        }
                     }
                 }
             }
-        }
 
-        if let Some((requeue_task, err_report)) = auto_debug_requeue {
-            // Log it
-            tracing::warn!(
-                "Task {} failed validation. Auto-debugging (iteration {}/{})",
-                task_id,
-                requeue_task.debug_iterations,
-                self.config.max_debug_iterations
-            );
-            queue.mark_failed(
-                task_id,
-                format!("Auto-debug validation failure:\n{}", err_report),
-            );
+            if let Some((requeue_task, err_report)) = auto_debug_requeue {
+                // Log it
+                tracing::warn!(
+                    "Task {} failed validation. Auto-debugging (iteration {}/{})",
+                    task_id,
+                    requeue_task.debug_iterations,
+                    max_debug_iterations
+                );
+                queue.mark_failed(
+                    task_id,
+                    format!("Auto-debug validation failure:\n{}", err_report),
+                );
 
-            // Requeue the modified task back to the *same* queue
-            queue.enqueue(requeue_task);
-            return Ok(());
-        }
+                // Requeue the modified task back to the *same* queue
+                queue.enqueue(requeue_task);
+                return Ok(());
+            }
 
-        let mut socrates_requeue: Option<AgentTask> = None;
-        {
-            let policy = self.config.effective_socrates_policy();
-            if let Some(task) = queue.current_task() {
-                if let Some(ref ctx) = task.socrates {
-                    let outcome = crate::socrates::evaluate_socrates_gate(ctx, &policy);
-                    if self.config.socrates_gate_shadow {
-                        tracing::info!(
-                            target: "vox_orchestrator::socrates",
-                            task_id = task_id.0,
-                            agent_id = agent_id.0,
-                            decision = ?outcome.decision,
-                            confidence = outcome.confidence,
-                            contradiction = outcome.contradiction_ratio,
-                            "socrates gate (shadow)"
-                        );
-                    }
-                    if self.config.socrates_gate_enforce
-                        && outcome.decision != vox_socrates_policy::RiskDecision::Answer
-                        && task.debug_iterations < self.config.max_debug_iterations
-                    {
-                        let mut t = task.clone();
-                        t.debug_iterations += 1;
-                        t.description.push_str(&format!(
-                            "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.\n",
-                            outcome.decision, outcome.confidence, outcome.contradiction_ratio
-                        ));
-                        t.status = TaskStatus::Queued;
-                        socrates_requeue = Some(t);
+            let mut socrates_requeue: Option<AgentTask> = None;
+            {
+                let config = crate::sync_lock::rw_read(&*self.config);
+                let policy = config.effective_socrates_policy();
+                if let Some(task) = queue.current_task() {
+                    if let Some(ref ctx) = task.socrates {
+                        let outcome = crate::socrates::evaluate_socrates_gate(ctx, &policy);
+                        if config.socrates_gate_shadow {
+                            tracing::info!(
+                                target: "vox_orchestrator::socrates",
+                                task_id = task_id.0,
+                                agent_id = agent_id.0,
+                                decision = ?outcome.decision,
+                                confidence = outcome.confidence,
+                                contradiction = outcome.contradiction_ratio,
+                                "socrates gate (shadow)"
+                            );
+                        }
+                        if config.socrates_gate_enforce
+                            && outcome.decision != vox_socrates_policy::RiskDecision::Answer
+                            && task.debug_iterations < config.max_debug_iterations
+                        {
+                            let mut t = task.clone();
+                            t.debug_iterations += 1;
+                            t.description.push_str(&format!(
+                                "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.\n",
+                                outcome.decision, outcome.confidence, outcome.contradiction_ratio
+                            ));
+                            t.status = TaskStatus::Queued;
+                            socrates_requeue = Some(t);
+                        }
                     }
                 }
             }
-        }
 
-        if let Some(requeue_task) = socrates_requeue {
-            tracing::warn!(
-                task_id = task_id.0,
-                "Socrates gate blocked completion; requeueing"
-            );
-            queue.mark_failed(task_id, "Socrates risk gate blocked completion".to_string());
-            queue.enqueue(requeue_task);
-            return Ok(());
-        }
+            if let Some(requeue_task) = socrates_requeue {
+                tracing::warn!(
+                    task_id = task_id.0,
+                    "Socrates gate blocked completion; requeueing"
+                );
+                queue.mark_failed(task_id, "Socrates risk gate blocked completion".to_string());
+                queue.enqueue(requeue_task);
+                return Ok(());
+            }
 
-        let desc = queue
-            .current_task()
-            .map(|t| t.description.clone())
-            .unwrap_or_default();
-        queue.mark_complete(task_id);
+            let desc = queue
+                .current_task()
+                .map(|t| t.description.clone())
+                .unwrap_or_default();
+            queue.mark_complete(task_id);
+            (write_files, session_id, desc)
+        };
 
-        // Capture post-task snapshot and record in oplog (persisted to CodeStore)
+        // Find pre-task snapshots from the oplog to link this completion
+        let (snap_before, db_snap_before) = crate::sync_lock::rw_read(&*self.oplog).find_task_snapshots(task_id.0);
+
+        // Capture post-task snapshot and record in oplog (persisted to VoxDb)
         let snap_desc = format!("post-task complete: {:.50}", desc);
         let snapshot_after = self
             .capture_snapshot(agent_id, &write_files, snap_desc.clone())
@@ -549,8 +606,6 @@ impl Orchestrator {
                 session_id: session_id.clone(),
             });
 
-        // Find pre-task snapshots from the oplog to link this completion
-        let (snap_before, db_snap_before) = self.oplog.find_task_snapshots(task_id.0);
         let db_snap_after = self
             .take_db_snapshot(agent_id, format!("post-task-complete: {}", task_id))
             .await;
@@ -567,23 +622,25 @@ impl Orchestrator {
         .await;
 
         // Auto-detect conflicts: check if any other agent's workspace overlaps
-        let other_agents: Vec<AgentId> = self
-            .agents
-            .keys()
-            .filter(|&&id| id != agent_id && self.workspace_manager.has_workspace(id))
-            .copied()
-            .collect();
+        let other_agents: Vec<AgentId> = {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            let wm = crate::sync_lock::rw_read(&*self.workspace_manager);
+            agents.keys()
+                .filter(|&&id| id != agent_id && wm.has_workspace(id))
+                .copied()
+                .collect()
+        };
         for other_id in other_agents {
-            let overlaps = self.workspace_manager.overlapping_paths(agent_id, other_id);
+            let overlaps = crate::sync_lock::rw_read(&*self.workspace_manager).overlapping_paths(agent_id, other_id);
             for overlap_path in overlaps {
-                let conflict_id = self.conflict_manager.record_conflict(
+                let conflict_id = crate::sync_lock::rw_write(&*self.conflict_manager).record_conflict(
                     overlap_path.clone(),
                     Some(snapshot_after),
                     vec![(agent_id, snapshot_after), (other_id, snapshot_after)],
                 );
                 self.event_bus
                     .emit(crate::events::AgentEventKind::ConflictDetected {
-                        path: overlap_path,
+                        path: overlap_path.clone(),
                         agent_ids: vec![agent_id, other_id],
                         conflict_id: conflict_id.to_string(),
                     });
@@ -600,7 +657,7 @@ impl Orchestrator {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        if let Some(steps) = self.task_traces.get_mut(&task_id) {
+        if let Some(steps) = crate::sync_lock::rw_write(&*self.task_traces).get_mut(&task_id) {
             steps.push(TaskTraceStep {
                 stage: "outcome".to_string(),
                 timestamp_ms: now_ms,
@@ -614,8 +671,8 @@ impl Orchestrator {
         }
 
         MessageGateway::publish_task_completed(
-            &mut self.bulletin,
-            &mut self.message_bus,
+            &self.bulletin,
+            &self.message_bus,
             &self.event_bus,
             task_id,
             agent_id,
@@ -623,11 +680,15 @@ impl Orchestrator {
         );
 
         // Unblock dependent tasks across ALL agents
-        for queue in self.agents.values_mut() {
-            queue.unblock(task_id);
+        {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            let _db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+            for queue_lock in agents.values() {
+                crate::sync_lock::rw_write(&**queue_lock).unblock(task_id);
+            }
         }
 
-        if let Some(db) = &self.db {
+        if let Some(db) = crate::sync_lock::rw_read(&*self.db).as_ref() {
             let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
         }
 
@@ -637,25 +698,28 @@ impl Orchestrator {
 
     /// Mark a task as failed (async).
     pub async fn fail_task(
-        &mut self,
+        &self,
         task_id: TaskId,
         reason: String,
     ) -> Result<(), OrchestratorError> {
-        let agent_id = self
-            .task_assignments
+        let agent_id = crate::sync_lock::rw_read(&*self.task_assignments)
             .get(&task_id)
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
-        let queue = self
-            .agents
-            .get_mut(&agent_id)
-            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let session_id = {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            let queue_lock = agents
+                .get(&agent_id)
+                .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+            let mut queue = crate::sync_lock::rw_write(&**queue_lock);
 
-        let session_id = queue.current_task().and_then(|t| t.session_id.clone());
-        queue.mark_failed(task_id, reason.clone());
+            let session_id = queue.current_task().and_then(|t| t.session_id.clone());
+            queue.mark_failed(task_id, reason.clone());
+            session_id
+        };
 
-        if let Some(db) = &self.db {
+        if let Some(db) = crate::sync_lock::rw_read(&*self.db).as_ref() {
             let _ = db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
         }
 
@@ -663,7 +727,7 @@ impl Orchestrator {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        if let Some(steps) = self.task_traces.get_mut(&task_id) {
+        if let Some(steps) = crate::sync_lock::rw_write(&*self.task_traces).get_mut(&task_id) {
             steps.push(TaskTraceStep {
                 stage: "outcome".to_string(),
                 timestamp_ms: now_ms,
@@ -675,7 +739,7 @@ impl Orchestrator {
         self.lock_manager.release_all(agent_id);
 
         // Find pre-task snapshots to link this failure
-        let (snap_before, db_snap_before) = self.oplog.find_task_snapshots(task_id.0);
+        let (snap_before, db_snap_before) = crate::sync_lock::rw_read(&*self.oplog).find_task_snapshots(task_id.0);
 
         // Record failure in oplog (async to support DB snapshot)
         self.record_operation(
@@ -693,7 +757,7 @@ impl Orchestrator {
         .await;
 
         MessageGateway::publish_task_failed(
-            &mut self.bulletin,
+            &self.bulletin,
             &self.event_bus,
             task_id,
             agent_id,

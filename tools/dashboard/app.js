@@ -21,9 +21,9 @@ const state = {
         energy: 100,
         quality: 50,
     },
-    eventFilter: '',
     safetyEvents: [],
     skills: [],
+    trainingRuns: new Map(), // Added for Populi pipeline observation
 };
 
 // Agent accent colors (cycled)
@@ -245,6 +245,43 @@ function handleEvent(event, suppressRender = false) {
         case 'plan_handoff':
             if (!suppressRender) showToast(`Handoff: ${kind.from} → ${kind.to}`, 'info');
             break;
+
+        // --- Populi Training Events ---
+        case 'populi_training_started':
+            state.trainingRuns.set(kind.run_id, {
+                runId: kind.run_id,
+                model: kind.model,
+                status: 'running',
+                startTime: event.timestamp_ms,
+                progressPct: 0,
+                stage: 'initializing'
+            });
+            break;
+        case 'populi_training_progress':
+            if (state.trainingRuns.has(kind.run_id)) {
+                const run = state.trainingRuns.get(kind.run_id);
+                run.progressPct = kind.progress_pct;
+                run.stage = kind.stage;
+            }
+            break;
+        case 'populi_training_completed':
+            if (state.trainingRuns.has(kind.run_id)) {
+                const run = state.trainingRuns.get(kind.run_id);
+                run.status = 'completed';
+                run.progressPct = 100;
+                run.endTime = event.timestamp_ms;
+                run.loss = kind.final_loss;
+            }
+            if (!suppressRender) showToast(`Training run ${kind.run_id} completed`, 'success');
+            break;
+        case 'populi_training_failed':
+            if (state.trainingRuns.has(kind.run_id)) {
+                const run = state.trainingRuns.get(kind.run_id);
+                run.status = 'failed';
+                run.error = kind.error;
+            }
+            if (!suppressRender) showToast(`Training run ${kind.run_id} failed: ${kind.error}`, 'error');
+            break;
     }
 
     if (!suppressRender) renderAll();
@@ -272,10 +309,10 @@ function renderAll() {
     renderEventTimeline();
     renderCostTracker();
     renderLockMap();
-    renderCompanion();
     renderA2AChat();
     renderTrustAndSafety();
     renderSkills();
+    renderTrainingRuns();
 }
 
 function renderGlobalStats() {
@@ -741,6 +778,67 @@ function renderSkills() {
             <span class="skill-version" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-muted);">v${escHtml(manifest.version || skill.version)}</span>
             <span class="skill-category" style="color: var(--accent-primary); font-size: 0.85rem; padding: 2px 8px; background: rgba(99, 102, 241, 0.1); border-radius: 12px;">${escHtml(manifest.category || 'misc')}</span>
             <span class="skill-tools" style="color: var(--text-secondary); font-size: 0.9rem;">${manifest.tools ? manifest.tools.length : 0} tools</span>
+        `;
+        container.appendChild(entry);
+    });
+}
+
+function renderTrainingRuns() {
+    const container = document.getElementById('training-runs-list');
+    const empty = document.getElementById('training-empty');
+    if (!container) return;
+
+    if (state.trainingRuns.size === 0) {
+        if (empty) empty.style.display = 'block';
+        container.querySelectorAll('.training-row').forEach(e => e.remove());
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    container.querySelectorAll('.training-row').forEach(e => e.remove());
+
+    const runs = Array.from(state.trainingRuns.values()).sort((a, b) => b.startTime - a.startTime);
+    
+    runs.forEach(run => {
+        const entry = document.createElement('div');
+        entry.className = 'training-row';
+        entry.style.display = 'grid';
+        entry.style.gridTemplateColumns = '2fr 1fr 2fr 1fr';
+        entry.style.gap = '16px';
+        entry.style.padding = '12px 16px';
+        entry.style.backgroundColor = 'var(--bg-tertiary)';
+        entry.style.borderRadius = 'var(--radius-md)';
+        entry.style.marginBottom = '8px';
+        entry.style.borderLeft = run.status === 'completed' ? '3px solid var(--accent-success)' :
+                                 run.status === 'failed' ? '3px solid var(--accent-danger)' :
+                                 '3px solid var(--accent-primary)';
+
+        const timeStr = run.startTime ? new Date(run.startTime).toLocaleTimeString('en-US', {hour12: false}) : '--';
+        const progressStr = run.status === 'completed' ? '100%' : `${run.progressPct?.toFixed(1) || 0}%`;
+        
+        entry.innerHTML = `
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">${escHtml(run.model || 'Unknown Model')}</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">${escHtml(run.runId)}</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <span style="font-size: 0.85rem; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05); color: var(--text-secondary);">
+                    ${timeStr}
+                </span>
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                    <span style="color: var(--text-secondary);">${escHtml(run.stage || run.status)}</span>
+                    <span style="color: var(--text-primary); font-weight: 500;">${progressStr}</span>
+                </div>
+                <div style="height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; width: ${run.progressPct || 0}%; background: ${run.status === 'failed' ? 'var(--accent-danger)' : 'var(--accent-primary)'}; transition: width 0.3s ease;"></div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: flex-end;">
+                ${run.loss ? `<span style="font-size: 0.85rem; color: var(--accent-success); font-family: monospace;">Loss: ${run.loss.toFixed(4)}</span>` : 
+                 run.status === 'running' ? `<span class="processing-spinner" style="font-size: 14px;">⏳</span>` : ''}
+            </div>
         `;
         container.appendChild(entry);
     });

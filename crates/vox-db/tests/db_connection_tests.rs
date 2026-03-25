@@ -4,7 +4,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn test_db_memory_smoke() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    assert_eq!(db.schema_version().await.unwrap(), 1);
+    assert_eq!(db.schema_version().await.unwrap(), vox_db::schema::BASELINE_VERSION);
     
     let hash = db.store("test", b"hello").await.unwrap();
     assert!(!hash.is_empty());

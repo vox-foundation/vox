@@ -1044,6 +1044,15 @@ pub fn emit_expr(expr: &HirExpr) -> String {
         HirExpr::FloatLit(v, _) => v.to_string(),
         HirExpr::StringLit(v, _) => format!("\"{}\".to_string()", v),
         HirExpr::BoolLit(v, _) => v.to_string(),
+        HirExpr::ListLit(elements, _) => format!(
+            "vec![{}]",
+            elements.iter().map(emit_expr).collect::<Vec<_>>().join(", ")
+        ),
+        HirExpr::TupleLit(elements, _) => format!(
+            "({})",
+            elements.iter().map(emit_expr).collect::<Vec<_>>().join(", ")
+        ),
+
         HirExpr::Ident(n, _) => {
             if n == "request" {
                 "request".into()
@@ -1512,10 +1521,7 @@ pub fn emit_expr(expr: &HirExpr) -> String {
         HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
             "panic!(\"JSX cannot be rendered via the Rust backend yet\")".into()
         }
-        HirExpr::ListLit(items, _) => {
-            let item_strs: Vec<String> = items.iter().map(emit_expr).collect();
-            format!("vec![{}]", item_strs.join(", "))
-        }
+
         HirExpr::Unary(op, expr, _) => {
             let op_str = match op {
                 crate::hir::hir::HirUnOp::Not => "!",

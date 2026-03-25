@@ -52,7 +52,9 @@ fn builtin_system_prompt() -> String {
 - `fn name(p: T) -> U:` — function with arrow return type (required)
 - `actor Name:` — message-passing actor with `state` and `on msg() -> T:`
 - `workflow name() -> Result[T]:` / `activity name() -> Result[T]:` — durable execution
-- `@component fn Name() -> Element:` — UI (JSX)
+- `component Name(p: T) { state x = 0; view: <div>{x}</div> }` — Reactive UI (Path C)
+- `@island fn Name() -> Element:` — React ecosystem escape hatch
+- `state`, `derived`, `effect`, `mount`, `cleanup` — reactive primitives
 - `@table type Name:`, `@query`, `@mutation`, `@action` — data plane
 - `@mcp.tool(...) fn ...` / `@mcp.resource(...) fn ...` — MCP surfaces
 - `type Name = | Variant(field: T)` — tagged unions
@@ -67,4 +69,22 @@ fn builtin_system_prompt() -> String {
 Follow Vox indentation (4 spaces) and always annotate function parameters and return types.
 "#;
     preamble.to_string()
+}
+
+/// Heuristic for curriculum learning difficulty (1-10).
+pub fn construct_difficulty(category: &str, record_type: &str) -> u8 {
+    match record_type {
+        "cli" => 3,
+        "tool_call" | "tool_trace" => 5,
+        "workflow" | "chatml_trace" | "multi_turn_session" => 10,
+        "actor" => 8,
+        "skill" => 7,
+        "a2a" | "a2a_trace" => 6,
+        _ => match category {
+           "boilerplate" => 2,
+           "basic_syntax" => 3,
+           "complex_logic" => 9,
+           _ => 5,
+        }
+    }
 }

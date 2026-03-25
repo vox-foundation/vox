@@ -1,8 +1,9 @@
 ---
-adr: "008"
-title: "Mesh multi-node transport (HTTP control plane, TLS at the edge)"
-status: accepted
-date: 2026-03-21
+title: "ADR 008: Mesh transport"
+description: "Official documentation for ADR 008: Mesh transport for the Vox language. Detailed technical reference, architecture guides, and implement"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # ADR 008: Mesh transport
@@ -14,7 +15,7 @@ Vox needs a **CPU-first** mesh: workers advertise capabilities and can federate 
 ## Decision
 
 1. **In-tree control plane (phase 3 baseline):** **HTTP** (`axum`) on a configurable bind address (`VOX_MESH_CONTROL_ADDR` for clients; `vox mesh serve --bind` for servers) with JSON bodies (`NodeRecord`, `MeshRegistryFile`). Operations: **health** (`GET /health`, unauthenticated), **join**, **heartbeat**, **list**, **leave**.
-2. **Security:** **TLS termination** (mTLS at reverse proxy / sidecar) remains an operator concern. **`VOX_MESH_TOKEN`**: when set, the in-process server requires `Authorization: Bearer <token>` on mesh API routes except **`GET /health`** (never logged); clients use the same env for outbound calls (`MeshHttpClient::with_env_token`). **`VOX_MESH_SCOPE_ID`**: when set on the server, **join** and **heartbeat** require matching `NodeRecord.scope_id` ([mesh SSOT](../architecture/mesh-ssot.md)).
+2. **Security:** **TLS termination** (mTLS at reverse proxy / sidecar) remains an operator concern. **`VOX_MESH_TOKEN`**: when set, the in-process server requires `Authorization: Bearer <token>` on mesh API routes except **`GET /health`** (never logged); clients use the same env for outbound calls (`MeshHttpClient::with_env_token`). **`VOX_MESH_SCOPE_ID`**: when set on the server, **join** and **heartbeat** require matching `NodeRecord.scope_id` ([mesh SSOT](../reference/mesh.md)).
 3. **Future evolution:** If WAN gossip or stream multiplexing requires it, evaluate **QUIC** or **gRPC over TLS** as a **replacement** transport behind the same logical operations (join / heartbeat / list), not an additional default stack.
 
 ## Consequences

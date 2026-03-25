@@ -1,3 +1,10 @@
+---
+title: "spawn"
+description: "Official documentation for spawn for the Vox language. Detailed technical reference, architecture guides, and implementation patterns for"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # spawn
 
 ## Syntax
@@ -21,4 +28,4 @@ spawn(ActorName)
 new ActorName()
 ```
 
-[← Back to API Index](../index.md)
+[← Back to API Index](../decorators/index.md)

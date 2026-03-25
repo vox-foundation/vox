@@ -1,0 +1,22 @@
+// ---
+// title: "Config Deploy Example"
+// description: "Typed config struct and named deployment environment with typed key-value pairs."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [config, environment]
+// last_validated: 2026-03-24
+// training_eligible: true
+// training_weight: 1.0
+// ---
+# @training_prompt: Define a Vox config block and environment setup
+config DatabaseConfig {
+    url: str
+    pool_size: int
+}
+
+environment prod_env {
+    region: "us-west-2"
+    replicas: 3
+    debug: false
+}

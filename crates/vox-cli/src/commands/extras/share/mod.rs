@@ -5,7 +5,7 @@ use vox_db::VoxDb;
 
 /// Get a VoxDb connection (`VOX_DB_*` / Turso aliases / project `.vox/store.db`).
 async fn connect() -> Result<VoxDb> {
-    vox_db::open_project_code_store()
+    vox_db::open_project_db()
         .await
         .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
 }

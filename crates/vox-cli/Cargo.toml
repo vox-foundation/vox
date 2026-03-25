@@ -76,7 +76,6 @@ live = ["dep:vox-orchestrator"]
 # BYOK / config slices in `populi status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = [
     "dep:dirs",
-    "dep:walkdir",
     "dep:vox-eval",
 ]
 # Extended DeI surfaces: generate, review, workflow, check, fix (`vox populi …`).
@@ -87,12 +86,11 @@ coderabbit = [
     "dep:vox-forge",
     "dep:vox-git",
     "dep:blake3",
-    "dep:walkdir",
     "dep:toml",
     "dep:vox-toestub",
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:comfy-table", "dep:dirs", "dep:walkdir", "dep:which"]
+island = ["dep:comfy-table", "dep:dirs", "dep:which"]
 # Local mesh registry + `vox mesh status|serve` (`vox-mesh` / optional HTTP control plane).
 mesh = ["dep:vox-mesh", "vox-mesh/transport"]
 # Interpreted `vox populi workflow run` (journal + mesh activities); implies mesh hooks.
@@ -147,7 +145,7 @@ notify = "7"
 axum = { version = "0.8", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 dirs = { version = "6", optional = true }
-walkdir = { version = "2", optional = true }
+walkdir = "2"
 vox-eval = { workspace = true, optional = true }
 vox-forge = { workspace = true, optional = true, features = ["github"] }
 vox-git = { workspace = true, optional = true }

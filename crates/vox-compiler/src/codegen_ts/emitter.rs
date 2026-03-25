@@ -1,8 +1,9 @@
+use crate::hir::HirModule;
 use crate::codegen_ts::activity::{generate_activity, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 use crate::codegen_ts::component::generate_component;
+use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
-use crate::ast::decl::Module;
 
 /// Output from the TypeScript code generator.
 pub struct CodegenOutput {
@@ -32,49 +33,55 @@ impl CodegenOptions {
 }
 
 /// Generate TypeScript files from a Vox module (options from [`CodegenOptions::from_env`]).
-pub fn generate(module: &Module) -> Result<CodegenOutput, String> {
-    generate_with_options(module, CodegenOptions::from_env())
+pub fn generate(hir: &HirModule) -> Result<CodegenOutput, String> {
+    generate_with_options(hir, CodegenOptions::from_env())
 }
 
 /// Generate TypeScript with explicit options (callers such as `vox build` should pass config here).
-pub fn generate_with_options(module: &Module, options: CodegenOptions) -> Result<CodegenOutput, String> {
+pub fn generate_with_options(hir: &HirModule, options: CodegenOptions) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
 
     // Generate type definitions
-    let types_content = generate_types(module);
+    let types_content = generate_types(hir);
     if !types_content.is_empty() {
         files.push(("types.ts".to_string(), types_content));
     }
 
     // Generate components
-    for decl in &module.declarations {
-        if let crate::ast::decl::Decl::Component(comp) = decl {
-            let (filename, content) = generate_component(&comp.func, !comp.styles.is_empty());
-            files.push((filename, content));
-        }
+    for hir_comp in &hir.components {
+        let comp = &hir_comp.0;
+        let (filename, content) = generate_component(&comp.func, !comp.styles.is_empty());
+        files.push((filename, content));
+    }
+
+    // Generate reactive components (Path C)
+    for rc in &hir.reactive_components {
+        let (filename, content) = generate_reactive_component(rc);
+        files.push((filename, content));
     }
 
     // Generate v0 component placeholders
-    for decl in &module.declarations {
-        if let crate::ast::decl::Decl::V0Component(v0) = decl {
-            let filename = format!("{}.tsx", v0.name);
-            let prompt_comment = if !v0.prompt.is_empty() {
-                format!("Prompt: {}", v0.prompt)
-            } else if let Some(ref img) = v0.image_path {
-                format!("From image: {}", img)
-            } else {
-                "No prompt provided".to_string()
-            };
-            let content = format!(
-                "// @v0 generated component\n// {}\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* AI component definition pending API integration */}}</div>;\n}}\n",
-                prompt_comment, v0.name
-            );
-            files.push((filename, content));
-        }
+    for hir_v0 in &hir.v0_components {
+        let v0 = &hir_v0.0;
+        let filename = format!("{}.tsx", v0.name);
+        
+        let prompt_comment = if !v0.prompt.is_empty() {
+            format!("Prompt: {}", v0.prompt)
+        } else if let Some(ref img) = v0.image_path {
+            format!("From image: {}", img)
+        } else {
+            "No prompt provided".to_string()
+        };
+
+        let content = format!(
+            "// @v0 generated component\n// {}\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* AI component definition pending API integration */}}</div>;\n}}\n",
+            prompt_comment, v0.name
+        );
+        files.push((filename, content));
     }
 
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
-    let routes_content = generate_routes(module);
+    let routes_content = generate_routes(hir);
     if !routes_content.is_empty()
         && std::env::var("VOX_EMIT_EXPRESS_SERVER")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
@@ -84,8 +91,8 @@ pub fn generate_with_options(module: &Module, options: CodegenOptions) -> Result
     }
 
     // Generate activities
-    let activities: Vec<_> = module
-        .declarations
+    let activities: Vec<_> = hir
+        .legacy_ast_nodes
         .iter()
         .filter_map(|d| {
             if let crate::ast::decl::Decl::Activity(a) = d {
@@ -109,8 +116,8 @@ pub fn generate_with_options(module: &Module, options: CodegenOptions) -> Result
     }
 
     // Generate table interfaces + schema
-    let tables: Vec<_> = module
-        .declarations
+    let tables: Vec<_> = hir
+        .legacy_ast_nodes
         .iter()
         .filter_map(|d| {
             if let crate::ast::decl::Decl::Table(t) = d {
@@ -135,130 +142,156 @@ pub fn generate_with_options(module: &Module, options: CodegenOptions) -> Result
         }
         files.push(("schema.ts".to_string(), schema));
     }
+    
+    // Generate TanStack Start Server Functions
+    let mut server_fns: Vec<&crate::ast::decl::ServerFnDecl> = Vec::new();
+    for node in &hir.legacy_ast_nodes {
+        if let crate::ast::decl::Decl::ServerFn(sf) = node {
+            server_fns.push(sf);
+        }
+    }
+    if !server_fns.is_empty() && options.tanstack_start {
+        let mut server_fns_out = String::new();
+        server_fns_out.push_str("// Server Functions generated by Vox compiler for TanStack Start\n");
+        server_fns_out.push_str("import { createServerFn } from \"@tanstack/start\";\n\n");
+        for sf in server_fns {
+            let name = &sf.func.name;
+            let params: Vec<String> = sf.func.params.iter().map(|p| {
+                let ty = p.type_ann.as_ref().map_or("any".to_string(), crate::codegen_ts::component::map_vox_type_to_ts);
+                format!("{}: {}", p.name, ty)
+            }).collect();
+            let return_type = sf.func.return_type.as_ref().map_or("any".to_string(), crate::codegen_ts::component::map_vox_type_to_ts);
+            server_fns_out.push_str(&format!(
+                "export const {name} = createServerFn({{ method: 'POST' }}).handler(async (data: {{ {} }}) => {{\n",
+                params.join(", ")
+            ));
+            server_fns_out.push_str(&format!("  const response = await fetch(\"/api/{}\", {{\n", sf.func.name));
+            server_fns_out.push_str("    method: 'POST',\n");
+            server_fns_out.push_str("    headers: { 'Content-Type': 'application/json' },\n");
+            server_fns_out.push_str("    body: JSON.stringify(data),\n");
+            server_fns_out.push_str("  });\n");
+            server_fns_out.push_str("  if (!response.ok) throw new Error(\"Server function failed\");\n");
+            server_fns_out.push_str(&format!("  return response.json() as Promise<{return_type}>;\n"));
+            server_fns_out.push_str("});\n\n");
+        }
+        files.push(("serverFns.ts".to_string(), server_fns_out));
+    }
 
     // Generate scoped CSS modules for components with style blocks
-    for decl in &module.declarations {
-        if let crate::ast::decl::Decl::Component(comp) = decl {
-            if !comp.styles.is_empty() {
-                let filename = format!("{}.css", comp.func.name);
-                let mut css = String::new();
-                for block in &comp.styles {
-                    css.push_str(&format!("{} {{\n", block.selector));
-                    for (prop, val) in &block.properties {
-                        // Convert Vox camelCase property names to CSS kebab-case
-                        let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
-                            if c.is_uppercase() {
-                                acc.push('-');
-                                acc.push(c.to_ascii_lowercase());
-                            } else {
-                                acc.push(c);
-                            }
-                            acc
-                        });
-                        css.push_str(&format!("  {}: {};\n", css_prop, val));
-                    }
-                    css.push_str("}\n\n");
+    for hir_comp in &hir.components {
+        let comp = &hir_comp.0;
+        if !comp.styles.is_empty() {
+            let filename = format!("{}.css", comp.func.name);
+            let mut css = String::new();
+            for block in &comp.styles {
+                css.push_str(&format!("{} {{\n", block.selector));
+                for (prop, val) in &block.properties {
+                    // Convert Vox camelCase property names to CSS kebab-case
+                    let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
+                        if c.is_uppercase() {
+                            acc.push('-');
+                            acc.push(c.to_ascii_lowercase());
+                        } else {
+                            acc.push(c);
+                        }
+                        acc
+                    });
+                    css.push_str(&format!("  {}: {};\n", css_prop, val));
                 }
-                files.push((filename, css));
+                css.push_str("}\n\n");
             }
+            files.push((filename, css));
         }
     }
 
     // Generate TanStack Router route tree: SPA -> App.tsx + RouterProvider; Start -> VoxTanStackRouter.tsx + voxRouteTree only.
-    for decl in &module.declarations {
-        if let crate::ast::decl::Decl::Routes(routes_decl) = decl {
-            if options.tanstack_start {
-                let mut s = String::new();
-                s.push_str(
-                    "// Programmatic route tree for TanStack Start — export voxRouteTree; SPA shell provides the provider.\n",
-                );
-                s.push_str("import React from \"react\";\n");
-                s.push_str(
-                    "import {\n  Outlet,\n  createRootRoute,\n  createRoute,\n} from \"@tanstack/react-router\";\n",
-                );
-                for entry in &routes_decl.entries {
-                    s.push_str(&format!(
-                        "import {{ {} }} from \"./{}.tsx\";\n",
-                        entry.component_name, entry.component_name
-                    ));
-                }
-                s.push_str("\nconst rootRoute = createRootRoute({\n");
-                s.push_str("  component: () => <Outlet />,\n");
-                s.push_str("});\n\n");
-
-                for (i, entry) in routes_decl.entries.iter().enumerate() {
-                    let id = tanstack_route_var_id(i, &entry.path);
-                    let path_lit = tanstack_path_literal(&entry.path);
-                    s.push_str(&format!(
-                        "const {id} = createRoute({{\n  getParentRoute: () => rootRoute,\n  path: {path_lit},\n  component: {},\n}});\n\n",
-                        entry.component_name
-                    ));
-                }
-
-                let child_ids: Vec<String> = routes_decl
-                    .entries
-                    .iter()
-                    .enumerate()
-                    .map(|(i, e)| tanstack_route_var_id(i, &e.path))
-                    .collect();
-                s.push_str("const routeTree = rootRoute.addChildren([");
-                s.push_str(&child_ids.join(", "));
-                s.push_str("]);\n\n");
-                s.push_str("export const voxRouteTree = routeTree;\n");
-                files.push(("VoxTanStackRouter.tsx".to_string(), s));
-            } else {
-                let mut app = String::new();
-                app.push_str("import React from \"react\";\n");
-                app.push_str(
-                    "import {\n  Outlet,\n  RouterProvider,\n  createRootRoute,\n  createRoute,\n  createRouter,\n} from \"@tanstack/react-router\";\n",
-                );
-                for entry in &routes_decl.entries {
-                    app.push_str(&format!(
-                        "import {{ {} }} from \"./{}.tsx\";\n",
-                        entry.component_name, entry.component_name
-                    ));
-                }
-                app.push_str("\nconst rootRoute = createRootRoute({\n");
-                app.push_str("  component: () => <Outlet />,\n");
-                app.push_str("});\n\n");
-
-                for (i, entry) in routes_decl.entries.iter().enumerate() {
-                    let id = tanstack_route_var_id(i, &entry.path);
-                    let path_lit = tanstack_path_literal(&entry.path);
-                    app.push_str(&format!(
-                        "const {id} = createRoute({{\n  getParentRoute: () => rootRoute,\n  path: {path_lit},\n  component: {},\n}});\n\n",
-                        entry.component_name
-                    ));
-                }
-
-                let child_ids: Vec<String> = routes_decl
-                    .entries
-                    .iter()
-                    .enumerate()
-                    .map(|(i, e)| tanstack_route_var_id(i, &e.path))
-                    .collect();
-                app.push_str("const routeTree = rootRoute.addChildren([");
-                app.push_str(&child_ids.join(", "));
-                app.push_str("]);\n\n");
-                app.push_str("const router = createRouter({ routeTree });\n\n");
-                app.push_str("export default function App(): React.ReactElement {\n");
-                app.push_str("  return <RouterProvider router={router} />;\n");
-                app.push_str("}\n");
-                files.push(("App.tsx".to_string(), app));
+    for hir_routes in &hir.client_routes {
+        let routes_decl = &hir_routes.0;
+        if options.tanstack_start {
+            let mut s = String::new();
+            s.push_str(
+                "// Programmatic route tree for TanStack Start — export voxRouteTree; SPA shell provides the provider.\n",
+            );
+            s.push_str("import React from \"react\";\n");
+            s.push_str(
+                "import {\n  Outlet,\n  createRootRoute,\n  createRoute,\n} from \"@tanstack/react-router\";\n",
+            );
+            for entry in &routes_decl.entries {
+                s.push_str(&format!(
+                    "import {{ {} }} from \"./{}.tsx\";\n",
+                    entry.component_name, entry.component_name
+                ));
             }
+            s.push_str("\nconst rootRoute = createRootRoute({\n");
+            s.push_str("  component: () => <Outlet />,\n");
+            s.push_str("});\n\n");
+
+            for (i, entry) in routes_decl.entries.iter().enumerate() {
+                let id = tanstack_route_var_id(i, &entry.path);
+                let path_lit = tanstack_path_literal(&entry.path);
+                s.push_str(&format!(
+                    "const {id} = createRoute({{\n  getParentRoute: () => rootRoute,\n  path: {path_lit},\n  component: {},\n}});\n\n",
+                    entry.component_name
+                ));
+            }
+
+            let child_ids: Vec<String> = routes_decl
+                .entries
+                .iter()
+                .enumerate()
+                .map(|(i, e)| tanstack_route_var_id(i, &e.path))
+                .collect();
+            s.push_str("const routeTree = rootRoute.addChildren([");
+            s.push_str(&child_ids.join(", "));
+            s.push_str("]);\n\n");
+            s.push_str("export const voxRouteTree = routeTree;\n");
+            files.push(("VoxTanStackRouter.tsx".to_string(), s));
+        } else {
+            let mut app = String::new();
+            app.push_str("import React from \"react\";\n");
+            app.push_str(
+                "import {\n  Outlet,\n  RouterProvider,\n  createRootRoute,\n  createRoute,\n  createRouter,\n} from \"@tanstack/react-router\";\n",
+            );
+            for entry in &routes_decl.entries {
+                app.push_str(&format!(
+                    "import {{ {} }} from \"./{}.tsx\";\n",
+                    entry.component_name, entry.component_name
+                ));
+            }
+            app.push_str("\nconst rootRoute = createRootRoute({\n");
+            app.push_str("  component: () => <Outlet />,\n");
+            app.push_str("});\n\n");
+
+            for (i, entry) in routes_decl.entries.iter().enumerate() {
+                let id = tanstack_route_var_id(i, &entry.path);
+                let path_lit = tanstack_path_literal(&entry.path);
+                app.push_str(&format!(
+                    "const {id} = createRoute({{\n  getParentRoute: () => rootRoute,\n  path: {path_lit},\n  component: {},\n}});\n\n",
+                    entry.component_name
+                ));
+            }
+
+            let child_ids: Vec<String> = routes_decl
+                .entries
+                .iter()
+                .enumerate()
+                .map(|(i, e)| tanstack_route_var_id(i, &e.path))
+                .collect();
+            app.push_str("const routeTree = rootRoute.addChildren([");
+            app.push_str(&child_ids.join(", "));
+            app.push_str("]);\n\n");
+            app.push_str("const router = createRouter({ routeTree });\n\n");
+            app.push_str("export default function App(): React.ReactElement {\n");
+            app.push_str("  return <RouterProvider router={router} />;\n");
+            app.push_str("}\n");
+            files.push(("App.tsx".to_string(), app));
         }
     }
 
-    let island_names: Vec<&str> = module
-        .declarations
+    let island_names: Vec<&str> = hir
+        .islands
         .iter()
-        .filter_map(|d| {
-            if let crate::ast::decl::Decl::Island(i) = d {
-                Some(i.name.as_str())
-            } else {
-                None
-            }
-        })
+        .map(|i| i.0.name.as_str())
         .collect();
     if !island_names.is_empty() {
         let mut meta = String::from(

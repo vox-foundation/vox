@@ -25,7 +25,7 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 1. Initial state: 0 agents (fleet sync will spawn 1 default if needed, or check_scaling will)
     {
-        let mut o = orch.lock().await;
+        let o = orch.lock().await;
         // In this test environment, we might need at least one agent to start
         o.spawn_agent("default").unwrap();
     }
@@ -35,7 +35,7 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 2. Add tasks to trigger scaling
     {
-        let mut o = orch.lock().await;
+        let o = orch.lock().await;
         for i in 0..10 {
             o.submit_task(format!("task-{}", i), vec![], Some(TaskPriority::Normal), None)
                 .await
@@ -57,11 +57,11 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 4. Mark tasks as complete to trigger retirement
     {
-        let mut o = orch.lock().await;
+        let o = orch.lock().await;
         let ids = o.agent_ids();
         for id in ids {
             if let Some(q) = o.get_agent_queue_mut(id) {
-                let tasks = q.drain_tasks();
+                let tasks = q.write().unwrap().drain_tasks();
                 for t in tasks {
                     o.complete_task(t.id).await.ok();
                 }
@@ -95,7 +95,7 @@ async fn test_predictive_scaling_uses_trend() {
     config.idle_retirement_ms = 999_999; // Disable retirement for this test
     config.scaling_lookback_ticks = 3;
 
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     orch.spawn_agent("a").unwrap();
     orch.spawn_agent("b").unwrap();
     orch.spawn_agent("c").unwrap();
@@ -124,7 +124,7 @@ async fn test_predictive_scaling_uses_trend() {
     // After draining all tasks, predicted_load should trend toward 0
     for id in orch.agent_ids() {
         if let Some(q) = orch.get_agent_queue_mut(id) {
-            q.drain_tasks();
+            q.write().unwrap().drain_tasks();
         }
     }
     orch.tick().await;
@@ -139,7 +139,7 @@ async fn test_predictive_scaling_uses_trend() {
 async fn test_group_affinity_voting_routes_correctly() {
     use vox_orchestrator::types::FileAffinity;
 
-    let mut orch = Orchestrator::new(OrchestratorConfig::for_testing());
+    let orch = Orchestrator::new(OrchestratorConfig::for_testing());
 
     // Submit a task to establish group affinity for "src/parser/"
     let t1 = orch
@@ -151,7 +151,7 @@ async fn test_group_affinity_voting_routes_correctly() {
         )
         .await
         .unwrap();
-    let agent1 = *orch.task_assignments().get(&t1).unwrap();
+    let agent1 = *orch.task_assignments.read().unwrap().get(&t1).unwrap();
 
     // Second task on same group path should prefer the same agent (direct file affinity score wins)
     let t2 = orch
@@ -163,7 +163,7 @@ async fn test_group_affinity_voting_routes_correctly() {
         )
         .await
         .unwrap();
-    let agent2 = *orch.task_assignments().get(&t2).unwrap();
+    let agent2 = *orch.task_assignments.read().unwrap().get(&t2).unwrap();
 
     assert_eq!(
         agent1, agent2,
@@ -177,7 +177,7 @@ async fn test_urgent_rebalance_trigger() {
     config.urgent_rebalance_threshold = 2; // Trigger when any agent has > 2 Urgent tasks
     config.scaling_enabled = false;
 
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     let a = orch.spawn_agent("agent-a").unwrap();
     let _b = orch.spawn_agent("agent-b").unwrap();
 
@@ -191,7 +191,7 @@ async fn test_urgent_rebalance_trigger() {
     // All tasks should currently be assigned (some may already route to b via the routing service)
     let a_before = orch
         .agent_queue(a)
-        .map(|q| q.depth_by_priority(TaskPriority::Urgent))
+        .map(|q| vox_orchestrator::sync_lock::rw_read(&*q).depth_by_priority(TaskPriority::Urgent))
         .unwrap_or(0);
 
     // Tick should detect urgency overload and trigger rebalance
@@ -201,12 +201,12 @@ async fn test_urgent_rebalance_trigger() {
     // (or equal if routing already balanced them)
     let a_after = orch
         .agent_queue(a)
-        .map(|q| q.depth_by_priority(TaskPriority::Urgent))
+        .map(|q| vox_orchestrator::sync_lock::rw_read(&*q).depth_by_priority(TaskPriority::Urgent))
         .unwrap_or(0);
     let total_after: usize = orch
         .agent_ids()
         .iter()
-        .map(|id| orch.agent_queue(*id).map(|q| q.len()).unwrap_or(0))
+        .map(|id| orch.agent_queue(*id).map(|q| vox_orchestrator::sync_lock::rw_read(&*q).len()).unwrap_or(0))
         .sum();
 
     // All tasks should still exist (no data loss)

@@ -1,6 +1,6 @@
+use std::sync::Arc;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::sync_lock;
@@ -125,7 +125,7 @@ pub struct FileLock {
     /// When the lock was granted (for debugging and TTL).
     pub acquired_at: Instant,
 }
-
+ 
 /// Error returned when a lock cannot be acquired.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum LockConflict {
@@ -146,7 +146,7 @@ pub enum LockConflict {
         readers: Vec<AgentId>,
     },
 }
-
+ 
 /// Entry tracking all current locks on a single file.
 #[derive(Debug, Clone)]
 enum LockEntry {
@@ -161,26 +161,26 @@ enum LockEntry {
         Vec<FileLock>,
     ),
 }
-
+ 
 /// Thread-safe file-level lock manager.
 ///
 /// Enforces the single-writer principle: at most one agent can hold an
 /// exclusive lock on any file, while multiple agents can hold shared read locks.
 #[derive(Clone)]
 pub struct FileLockManager {
-    locks: Arc<RwLock<HashMap<PathBuf, LockEntry>>>,
-    queue: Arc<RwLock<HashMap<PathBuf, std::collections::VecDeque<AgentId>>>>,
+    locks: Arc<std::sync::RwLock<HashMap<PathBuf, LockEntry>>>,
+    queue: Arc<std::sync::RwLock<HashMap<PathBuf, std::collections::VecDeque<AgentId>>>>,
 }
-
+ 
 impl FileLockManager {
     /// Create a new, empty lock manager.
     pub fn new() -> Self {
         Self {
-            locks: Arc::new(RwLock::new(HashMap::new())),
-            queue: Arc::new(RwLock::new(HashMap::new())),
+            locks: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            queue: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
-
+ 
     /// Try to acquire a lock on a file.
     pub fn try_acquire(
         &self,
@@ -188,8 +188,8 @@ impl FileLockManager {
         agent: AgentId,
         kind: LockKind,
     ) -> Result<(), LockConflict> {
-        let mut locks = sync_lock::rw_write(&self.locks);
-
+        let mut locks = sync_lock::rw_write(&*self.locks);
+ 
         match (kind, locks.get(path)) {
             // No existing lock — acquire freely
             (_, None) => {
@@ -206,7 +206,7 @@ impl FileLockManager {
                 locks.insert(path.to_path_buf(), entry);
                 Ok(())
             }
-
+ 
             // Requesting exclusive, but file already has exclusive lock
             (LockKind::Exclusive, Some(LockEntry::Exclusive(existing))) => {
                 if existing.holder == agent {
@@ -218,7 +218,7 @@ impl FileLockManager {
                     })
                 }
             }
-
+ 
             // Requesting exclusive, but file has shared readers
             (LockKind::Exclusive, Some(LockEntry::SharedRead(readers))) => {
                 // Allow if the only reader is the same agent
@@ -238,7 +238,7 @@ impl FileLockManager {
                     })
                 }
             }
-
+ 
             // Requesting shared read, file has exclusive lock
             (LockKind::SharedRead, Some(LockEntry::Exclusive(existing))) => {
                 if existing.holder == agent {
@@ -250,7 +250,7 @@ impl FileLockManager {
                     })
                 }
             }
-
+ 
             // Requesting shared read, file already has shared readers — append
             (LockKind::SharedRead, Some(LockEntry::SharedRead(readers))) => {
                 if readers.iter().any(|r| r.holder == agent) {
@@ -258,7 +258,7 @@ impl FileLockManager {
                 } else {
                     // Must drop immutable ref before mutating
                     drop(locks);
-                    let mut locks = sync_lock::rw_write(&self.locks);
+                    let mut locks = sync_lock::rw_write(&*self.locks);
                     if let Some(LockEntry::SharedRead(readers)) = locks.get_mut(path) {
                         readers.push(FileLock {
                             path: path.to_path_buf(),
@@ -272,10 +272,10 @@ impl FileLockManager {
             }
         }
     }
-
+ 
     /// Release a lock held by the given agent on the given file.
     pub fn release(&self, path: &Path, agent: AgentId) {
-        let mut locks = sync_lock::rw_write(&self.locks);
+        let mut locks = sync_lock::rw_write(&*self.locks);
         match locks.get(path) {
             Some(LockEntry::Exclusive(lock)) if lock.holder == agent => {
                 locks.remove(path);
@@ -295,13 +295,13 @@ impl FileLockManager {
             _ => {} // No lock held by this agent
         }
     }
-
+ 
     /// Release all locks held by the given agent.
     pub fn release_all(&self, agent: AgentId) {
-        let mut locks = sync_lock::rw_write(&self.locks);
+        let mut locks = sync_lock::rw_write(&*self.locks);
         let mut to_remove = Vec::new();
         let mut to_update = Vec::new();
-
+ 
         for (path, entry) in locks.iter() {
             match entry {
                 LockEntry::Exclusive(lock) if lock.holder == agent => {
@@ -322,7 +322,7 @@ impl FileLockManager {
                 _ => {}
             }
         }
-
+ 
         for path in to_remove {
             locks.remove(&path);
         }
@@ -330,10 +330,10 @@ impl FileLockManager {
             locks.insert(path, LockEntry::SharedRead(remaining));
         }
     }
-
+ 
     /// Check who holds a lock on a file (if any).
     pub fn holder(&self, path: &Path) -> Option<(AgentId, LockKind)> {
-        let locks = sync_lock::rw_read(&self.locks);
+        let locks = sync_lock::rw_read(&*self.locks);
         match locks.get(path) {
             Some(LockEntry::Exclusive(lock)) => Some((lock.holder, LockKind::Exclusive)),
             Some(LockEntry::SharedRead(readers)) => {
@@ -342,16 +342,16 @@ impl FileLockManager {
             None => None,
         }
     }
-
+ 
     /// Check whether a file is locked.
     pub fn is_locked(&self, path: &Path) -> bool {
-        sync_lock::rw_read(&self.locks).contains_key(path)
+        sync_lock::rw_read(&*self.locks).contains_key(path)
     }
-
+ 
     /// List all current locks. Returns (path, holder_agent_id, exclusive).
     /// For shared read locks, one entry per holder with exclusive = false.
     pub fn list_locks(&self) -> Vec<(PathBuf, AgentId, bool)> {
-        let locks = sync_lock::rw_read(&self.locks);
+        let locks = sync_lock::rw_read(&*self.locks);
         let mut out = Vec::with_capacity(locks.len());
         for (path, entry) in locks.iter() {
             match entry {
@@ -367,14 +367,14 @@ impl FileLockManager {
         }
         out
     }
-
+ 
     /// Detect potential deadlocks: agents waiting for each other's files.
     /// Returns a list of `(agent_a, agent_b, contested_path)` triples.
     pub fn deadlock_check(&self) -> Vec<(AgentId, AgentId, PathBuf)> {
         // Simple pairwise check: if agent A holds file X and wants file Y,
         // and agent B holds file Y and wants file X, that's a deadlock.
         // For now we just report all exclusive lock pairs that could conflict.
-        let locks = sync_lock::rw_read(&self.locks);
+        let locks = sync_lock::rw_read(&*self.locks);
         let mut pairs = Vec::new();
         let holders: Vec<(PathBuf, AgentId)> = locks
             .iter()
@@ -383,7 +383,7 @@ impl FileLockManager {
                 _ => None,
             })
             .collect();
-
+ 
         for i in 0..holders.len() {
             for j in (i + 1)..holders.len() {
                 if holders[i].1 != holders[j].1 {
@@ -393,15 +393,15 @@ impl FileLockManager {
         }
         pairs
     }
-
+ 
     /// Count of actively locked files.
     pub fn active_lock_count(&self) -> usize {
-        sync_lock::rw_read(&self.locks).len()
+        sync_lock::rw_read(&*self.locks).len()
     }
-
+ 
     /// Calculate how long a lock has been held (in milliseconds).
     pub fn lock_age(&self, path: &Path) -> Option<u128> {
-        let locks = sync_lock::rw_read(&self.locks);
+        let locks = sync_lock::rw_read(&*self.locks);
         match locks.get(path) {
             Some(LockEntry::Exclusive(lock)) => Some(lock.acquired_at.elapsed().as_millis()),
             Some(LockEntry::SharedRead(readers)) => {
@@ -410,15 +410,15 @@ impl FileLockManager {
             None => None,
         }
     }
-
+ 
     /// Forcefully release any locks held for longer than timeout_ms.
     /// Returns the number of disconnected stale locks.
     pub fn force_release_stale(&self, timeout_ms: u128) -> usize {
-        let mut locks = sync_lock::rw_write(&self.locks);
+        let mut locks = sync_lock::rw_write(&*self.locks);
         let mut stale_count = 0;
         let mut to_remove = Vec::new();
         let mut to_update = Vec::new();
-
+ 
         for (path, entry) in locks.iter() {
             match entry {
                 LockEntry::Exclusive(lock)
@@ -434,9 +434,9 @@ impl FileLockManager {
                         .filter(|r| r.acquired_at.elapsed().as_millis() <= timeout_ms)
                         .cloned()
                         .collect();
-
+ 
                     stale_count += original_len - remaining.len();
-
+ 
                     if remaining.is_empty() {
                         to_remove.push(path.clone());
                     } else if remaining.len() != original_len {
@@ -446,20 +446,20 @@ impl FileLockManager {
                 _ => {}
             }
         }
-
+ 
         for p in to_remove {
             locks.remove(&p);
         }
         for (p, arr) in to_update {
             locks.insert(p, LockEntry::SharedRead(arr));
         }
-
+ 
         stale_count
     }
-
+ 
     /// Upgrade a shared read lock to an exclusive write lock directly.
     pub fn escalate_read_to_write(&self, agent: AgentId, path: &Path) -> Result<(), LockConflict> {
-        let mut locks = sync_lock::rw_write(&self.locks);
+        let mut locks = sync_lock::rw_write(&*self.locks);
         match locks.get(path) {
             Some(LockEntry::SharedRead(readers)) => {
                 // If this agent is the ONLY reader, escalate safely.
@@ -506,29 +506,29 @@ impl FileLockManager {
             }
         }
     }
-
+ 
     /// Add an agent to the wait queue for a file they cannot lock.
     pub fn queue_agent_for_lock(&self, agent: AgentId, path: &Path) {
-        let mut q = sync_lock::rw_write(&self.queue);
+        let mut q = sync_lock::rw_write(&*self.queue);
         let queue = q.entry(path.to_path_buf()).or_default();
         if !queue.contains(&agent) {
             queue.push_back(agent);
         }
     }
-
+ 
     /// Dequeue the next agent waiting for a lock, if any.
     pub fn dequeue_waiter(&self, path: &Path) -> Option<AgentId> {
-        let mut q = self.queue.write().unwrap();
+        let mut q = crate::sync_lock::rw_write(&self.queue);
         if let Some(queue) = q.get_mut(path) {
             queue.pop_front()
         } else {
             None
         }
     }
-
+ 
     /// Total number of agents waiting for any lock.
     pub fn contention_count(&self) -> usize {
-        let q = sync_lock::rw_read(&self.queue);
+        let q = sync_lock::rw_read(&*self.queue);
         q.values().map(|v| v.len()).sum()
     }
 }

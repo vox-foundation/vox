@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS skill_manifests (
     invocation_count INTEGER NOT NULL DEFAULT 0,
     success_count INTEGER NOT NULL DEFAULT 0,
     last_used_at TEXT,
-    published_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (id, version)
 );
 

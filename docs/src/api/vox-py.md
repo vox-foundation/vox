@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-py"
+description: "Official documentation for Crate API: vox-py for the Vox language. Detailed technical reference, architecture guides, and implementation "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-py
 
 ## Internal Developer Guide: PyO3 Bound API Patterns

@@ -253,7 +253,9 @@ pub async fn compaction_status(
 ) -> String {
     let orch = &state.orchestrator;
     let id = vox_orchestrator::AgentId(params.agent_id);
-    if let Some(budget) = orch.budget().check_budget(id) {
+    let handle = orch.budget_handle();
+    let budget_lock = handle.read().unwrap();
+    if let Some(budget) = budget_lock.check_budget(id) {
         let engine = vox_orchestrator::CompactionEngine::default();
         let should = engine.should_compact(budget.tokens_used);
         ToolResult::ok(format!(

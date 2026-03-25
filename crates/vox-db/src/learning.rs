@@ -6,7 +6,7 @@
 //! higher-level analytics.
 
 use std::collections::HashMap;
-use crate::arca_store::{LearnedPatternEntry, StoreError};
+use crate::store::{LearnedPatternEntry, StoreError};
 use crate::VoxDb;
 
 /// Minimum number of observations before a pattern is considered confident.
@@ -421,7 +421,7 @@ impl<'a> BehavioralLearner<'a> {
     pub async fn export_training_data(
         &self,
         limit: i64,
-    ) -> Result<Vec<crate::arca_store::TrainingPair>, StoreError> {
+    ) -> Result<Vec<crate::store::TrainingPair>, StoreError> {
         self.store.get_training_data(limit).await
     }
 

@@ -1,7 +1,9 @@
 ---
-title: "Codex BaaS scaffolding (self-hosted)"
-category: architecture
-last_updated: 2026-03-20
+title: "Codex BaaS scaffolding"
+description: "Official documentation for Codex BaaS scaffolding for the Vox language. Detailed technical reference, architecture guides, and implementa"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Codex BaaS scaffolding
@@ -18,7 +20,7 @@ last_updated: 2026-03-20
 
 ## Deployment
 
-- **Compose hub (profiles, CI, Docker vs Podman):** [Deployment compose SSOT](deployment-compose-ssot.md).
+- **Compose hub (profiles, CI, Docker vs Podman):** [Deployment compose SSOT](../reference/deployment-compose.md).
 - **Coolify / compose:** [`infra/coolify/docker-compose.yml`](../../../infra/coolify/docker-compose.yml) — template; set `VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_DB_PATH` (or embedded replica trio) per [ADR 004](../adr/004-codex-arca-turso-ssot.md).
 - **Static frontends:** GitHub Pages or CDN; point to hosted Codex API.
 
@@ -39,6 +41,6 @@ Optional object storage: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_
 
 ## Related
 
-- [Environment variables (SSOT)](../reference/env-vars-ssot.md) — full `VOX_*` / Turso precedence
+- [Environment variables (SSOT)](../reference/env-vars.md) — full `VOX_*` / Turso precedence
 - [Codex vNext schema](codex-vnext-schema.md)
 - Roadmap tasks: `.cursor/plans/vox_context_baas_deployment_roadmap.md` (internal backlog)

@@ -1,3 +1,10 @@
+---
+title: "Example: Data layer example — typed record store with Convex-inspired API."
+description: "Official documentation for Example: Data layer example — typed record store with Convex-inspired API. for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Data layer example — typed record store with Convex-inspired API.
 
 ```vox

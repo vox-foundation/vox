@@ -3,7 +3,7 @@ use vox_orchestrator::a2a::{A2AMessageType, MessageBus};
 
 #[test]
 fn test_a2a_communication() {
-    let mut bus = MessageBus::new(10);
+    let bus = MessageBus::new(10);
     let agent1 = AgentId(1);
     let agent2 = AgentId(2);
 

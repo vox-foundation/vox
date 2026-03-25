@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-codegen-rust"
+description: "Official documentation for Crate API: vox-codegen-rust for the Vox language. Detailed technical reference, architecture guides, and imple"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-codegen-rust
 
 ## Overview

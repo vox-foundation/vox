@@ -20,6 +20,19 @@ CREATE TABLE IF NOT EXISTS knowledge_edges (
     PRIMARY KEY (src_id, dst_id, relation)
 );
 
+CREATE TABLE IF NOT EXISTS snippets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    language TEXT NOT NULL,
+    title TEXT NOT NULL,
+    code TEXT NOT NULL,
+    description TEXT,
+    tags TEXT,
+    author_id TEXT,
+    source_ref TEXT,
+    embedding_ref TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS embeddings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_type TEXT,

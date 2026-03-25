@@ -3,9 +3,10 @@
 //! > **NOTE: This module is used only for metrics/observation.**
 //! > Vox handles context compaction natively via the `SummaryManager`.
 //! > This module should not be used for actual agent task memory.
+use std::sync::Arc;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+
 
 use crate::sync_lock;
 use crate::types::AgentId;
@@ -81,14 +82,14 @@ impl SummaryChain {
 /// Manager tracking summary chains for all agents globally.
 #[derive(Debug, Clone, Default)]
 pub struct SummaryManager {
-    inner: Arc<RwLock<HashMap<AgentId, SummaryChain>>>,
+    inner: Arc<std::sync::RwLock<HashMap<AgentId, SummaryChain>>>,
 }
 
 impl SummaryManager {
     /// Creates an empty manager; chains are created lazily per agent.
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(RwLock::new(HashMap::new())),
+            inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 

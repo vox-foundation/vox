@@ -1,3 +1,10 @@
+---
+title: "@require"
+description: "Official documentation for @require for the Vox language. Detailed technical reference, architecture guides, and implementation patterns "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # @require
 
 **Category:** function

@@ -60,3 +60,5 @@ The extension highlights all Vox language constructs:
 - **Types**: `int`, `str`, `bool`, `Unit`, `Element`, `List`, `Map`, `Set`, `Result`, `Option`, `Id`
 - **Comments**: `#` line comments
 - **JSX**: Inline JSX tags within `@component` functions
+
+

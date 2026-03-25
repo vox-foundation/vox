@@ -1,7 +1,9 @@
 ---
-title: "Codex legacy migration (importers)"
-category: architecture
-last_updated: 2026-03-20
+title: "Codex legacy migration"
+description: "Official documentation for Codex legacy migration for the Vox language. Detailed technical reference, architecture guides, and implementa"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Codex legacy migration
@@ -21,7 +23,7 @@ Greenfield **Codex** releases do not rely on an unbounded chain of old SQL migra
 - `vox codex export-legacy` — dump portable JSONL artifact (`LEGACY_EXPORT_TABLES`)
 - `vox codex import-legacy` — apply importers from that JSONL where possible
 
-See [ref-cli.md](../ref-cli.md).
+See [ref-cli.md](../reference/cli.md).
 
 ## Import sources
 

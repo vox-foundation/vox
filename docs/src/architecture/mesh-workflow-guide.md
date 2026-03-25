@@ -1,6 +1,9 @@
 ---
-title: "Mesh Coordination — Workflow Guide"
-last_updated: 2026-03-22
+title: "Mesh Coordination Workflow Guide"
+description: "Official documentation for Mesh Coordination Workflow Guide for the Vox language. Detailed technical reference, architecture guides, and "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Mesh Coordination Workflow Guide
@@ -189,6 +192,6 @@ vox db query "SELECT agent_id, operation_id, kind, description FROM agent_oplog 
 
 ## See Also
 
-- `docs/src/architecture/mesh-coordination-ssot.md` — Architecture SSOT  
-- `docs/src/adr/004-codex-arca-turso-ssot.md` — Turso/Arca naming  
-- `docs/src/architecture/orchestration-unified-ssot.md` — Orchestrator internals  
+- `docs/src/reference/mesh-coordination.md` — Architecture SSOT  
+- `docs/src/adr/004-codex-arca-turso.md` — Turso/Arca naming  
+- `docs/src/reference/orchestration-unified.md` — Orchestrator internals  

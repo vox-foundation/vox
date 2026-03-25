@@ -1,3 +1,7 @@
 # Training contract: points preflight to the mix output.
 # Priority: contract train_path > data_dir/train.jsonl > data_dir/validated.jsonl
 train_path: target/dogfood/train_mixed.jsonl
+# Only include samples tagged as 'vox_source' to prevent generated TSX/TS from
+# polluting Populi with React/TypeScript syntax. The corpus builder must tag
+# .vox files as 'vox_source' and generated output as 'codegen_output'.
+context_filter: vox_source

@@ -9,6 +9,7 @@ fn evaluate_default_options_checks_rustc_and_cargo() {
         dev: false,
         install_clang: false,
         apply: false,
+        install: false,
     };
     let report = evaluate(opts);
 
@@ -35,6 +36,7 @@ fn evaluate_dev_options_checks_rustfmt_and_clippy() {
         dev: true,
         install_clang: false,
         apply: false,
+        install: false,
     };
     let report = evaluate(opts);
 
@@ -54,6 +56,7 @@ fn platform_is_populated() {
         dev: false,
         install_clang: false,
         apply: false,
+        install: false,
     };
     let report = evaluate(opts);
     assert!(!report.platform.is_empty(), "platform string should not be empty");

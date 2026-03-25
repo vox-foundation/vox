@@ -307,6 +307,18 @@ fn construct_prompt(construct_type: &str, name: &str, seed: usize) -> String {
     format!("Write a Vox {construct_type} called `{name}`")
 }
 
+/// Check if content contains frontmatter indicating it should be excluded from training.
+fn is_eligible_for_training(content: &str) -> bool {
+    // Vox golden examples have frontmatter commented out with //
+    if content.contains("training_eligible: false") || content.contains("training_eligible:false") {
+        return false;
+    }
+    if content.contains("status: deprecated") || content.contains("status: \"deprecated\"") || content.contains("status: 'deprecated'") {
+        return false;
+    }
+    true
+}
+
 /// Extract all training pairs from a single `.vox` file.
 pub fn extract_from_vox_file(
     path: &Path,
@@ -314,6 +326,10 @@ pub fn extract_from_vox_file(
 ) -> anyhow::Result<Vec<VoxTrainingPair>> {
     let source = std::fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
+
+    if !is_eligible_for_training(&source) {
+        return Ok(Vec::new());
+    }
 
     let content_lines = source
         .lines()

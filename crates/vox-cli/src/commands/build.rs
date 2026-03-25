@@ -53,8 +53,8 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     let ts_opts = vox_compiler::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
     };
-    let ts_output = vox_compiler::codegen_ts::generate_with_options(&module, ts_opts)
-        .map_err(|e| anyhow::anyhow!("TypeScript code generation failed: {e}"))?;
+    let ts_output = vox_compiler::codegen_ts::generate_with_options(&hir, ts_opts)
+        .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
 
     // 6. Generate Rust (Backend)
     let rust_output = vox_compiler::codegen_rust::generate(&hir, "vox_generated_app")

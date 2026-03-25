@@ -1,7 +1,9 @@
 ---
-title: "TypeScript migration boundary (scripts vs host)"
-category: architecture
-last_updated: 2026-03-21
+title: "TypeScript boundary policy"
+description: "Official documentation for TypeScript boundary policy for the Vox language. Detailed technical reference, architecture guides, and implem"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # TypeScript boundary policy

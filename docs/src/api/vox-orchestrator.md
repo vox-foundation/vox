@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-orchestrator"
+description: "Official documentation for Crate API: vox-orchestrator for the Vox language. Detailed technical reference, architecture guides, and imple"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-orchestrator
 
 ## Overview
@@ -23,9 +30,9 @@ BulletinBoard ◄──── AgentQueue ──► FileLockManager
 | Topic | Location |
 |-------|----------|
 | Architecture SSOT | [`AGENTS.md`](../../../AGENTS.md) (repo root) |
-| Multi-repo layout, `repository_id`, MCP paths | [`architecture/external-repositories-ssot.md`](../architecture/external-repositories-ssot.md) |
+| Multi-repo layout, `repository_id`, MCP paths | [`reference/external-repositories.md`](../reference/external-repositories.md) |
 | Batch doc / comment inventory (LLM tooling) | [`agents/doc-inventory.json`](../../agents/doc-inventory.json) — regenerate with **`cargo run -p vox-cli -- ci doc-inventory generate`** |
-| Doc rewrite rubric and playbook | [`agents/documentation-rubric.md`](../../agents/documentation-rubric.md), [`agents/llm-documentation-playbook.md`](../../agents/llm-documentation-playbook.md) |
+| Doc rewrite rubric and playbook | [`agents/documentation-rubric.md`](../../agents/documentation-rubric.md), [`agents/llm-documentation-playbook.md`](../../../AGENTS.md) |
 
 ## Key Modules
 

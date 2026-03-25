@@ -19,6 +19,8 @@ pub struct TrainingPair {
     pub rating: Option<u8>,
     /// Optional category tag (construct type).
     pub category: Option<String>,
+    /// Optional difficulty level (1-10) for curriculum learning.
+    pub difficulty: Option<u8>,
 }
 
 // ─── Minimal character-level vocabulary ──────────────────────────────────────

@@ -1,7 +1,9 @@
 ---
-title: "Hybrid migration — script / CI metrics"
-category: architecture
-last_updated: 2026-03-21
+title: "Migration metrics (script → `vox ci`)"
+description: "Official documentation for Migration metrics (script → `vox ci`) for the Vox language. Detailed technical reference, architecture guides,"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Migration metrics (script → `vox ci`)

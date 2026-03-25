@@ -44,6 +44,8 @@ pub mod orchestrator_tools;
 pub mod params;
 /// Bulletin-board Q&A between agents (ask, answer, pending, broadcast).
 pub mod qa;
+/// Sync locking helpers (re-exported from vox-orchestrator).
+pub mod sync_lock;
 /// [`ServerState`], MCP initialize/handler, and stdio server wiring.
 pub mod server;
 /// vox-skills marketplace: install, search, parse `SKILL.md`, list installed skills.

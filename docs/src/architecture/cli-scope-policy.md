@@ -1,14 +1,16 @@
 ---
-title: "CLI scope policy (minimal shipped binary)"
-category: architecture
-last_updated: 2026-03-21
+title: "CLI scope policy"
+description: "Official documentation for CLI scope policy for the Vox language. Detailed technical reference, architecture guides, and implementation p"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # CLI scope policy
 
 ## Shipped binary
 
-The **`vox`** executable built from `crates/vox-cli` is the **minimal compiler CLI**. Its command surface is defined in code (`Cli` in `src/lib.rs`, invoked from `src/main.rs`) and documented in [ref-cli.md](../ref-cli.md). The legacy monolithic dispatch source file was removed to avoid drift; extend the shipped surface only via `lib.rs` / `commands/mod.rs` and feature flags.
+The **`vox`** executable built from `crates/vox-cli` is the **minimal compiler CLI**. Its command surface is defined in code (`Cli` in `src/lib.rs`, invoked from `src/main.rs`) and documented in [ref-cli.md](../reference/cli.md). The legacy monolithic dispatch source file was removed to avoid drift; extend the shipped surface only via `lib.rs` / `commands/mod.rs` and feature flags.
 
 **Canonical decision:** The product ships this **minimal** surface by default. A larger command tree under `crates/vox-cli/src/commands/**` exists for future integration; most of it stays **out of** `commands/mod.rs` until wired into `lib.rs` / `main.rs`. **`commands::runtime`** (dev / info / tree / run+test shims / shell) and **`commands::info`** are compiled as **library-visible** modules for reuse; they do **not** add subcommands to the minimal `Cli` until explicitly dispatched.
 
@@ -25,7 +27,7 @@ Some variants exist only when Cargo features are enabled (see `crates/vox-cli/Ca
 ## Documentation
 
 - **Shipped commands** — `ref-cli.md` must match `lib.rs` (`Cli`) / `commands/mod.rs`.
-- **Registry + parity** — `contracts/cli/command-registry.yaml` is the machine SSOT; run **`vox ci command-compliance`** (see [`cli-design-rules-ssot.md`](cli-design-rules-ssot.md), [`command-compliance-ssot.md`](../ci/command-compliance-ssot.md)).
+- **Registry + parity** — `contracts/cli/command-registry.yaml` is the machine SSOT; run **`vox ci command-compliance`** (see [`cli-design-rules.md`](../reference/cli.md), [`command-compliance.md`](../reference/command-compliance.md)).
 - **Broader narrative** — `how-to-cli-ecosystem.md` may describe workspace-wide or planned tooling; it must state clearly when a command is **not** in the minimal binary.
 
 ## Tests and scripts

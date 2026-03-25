@@ -1,3 +1,10 @@
+---
+title: "Example: Full-stack chatbot using server functions"
+description: "Official documentation for Example: Full-stack chatbot using server functions for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Full-stack chatbot using server functions
 
 ```vox

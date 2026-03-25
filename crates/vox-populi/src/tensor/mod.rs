@@ -20,7 +20,7 @@ pub mod train_log;
 pub mod training_text;
 
 pub mod lora;
-
+pub mod vram_autodetect;
 
 #[cfg(feature = "gpu")]
 pub mod burn_stack;

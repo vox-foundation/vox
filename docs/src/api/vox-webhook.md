@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-webhook"
+description: "Official documentation for Crate API: vox-webhook for the Vox language. Detailed technical reference, architecture guides, and implementa"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-webhook
 
 ## Module: `vox-webhook\src\channel.rs`

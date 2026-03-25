@@ -37,6 +37,19 @@ impl LowerCtx {
             tables: Vec::new(),
             indexes: Vec::new(),
             mcp_tools: Vec::new(),
+            components: Vec::new(),
+            v0_components: Vec::new(),
+            client_routes: Vec::new(),
+            islands: Vec::new(),
+            layouts: Vec::new(),
+            pages: Vec::new(),
+            contexts: Vec::new(),
+            hooks: Vec::new(),
+            error_boundaries: Vec::new(),
+            loadings: Vec::new(),
+            not_founds: Vec::new(),
+            reactive_components: Vec::new(),
+            legacy_ast_nodes: Vec::new(),
         };
 
         for decl in &module.declarations {
@@ -62,12 +75,14 @@ impl LowerCtx {
                 }
                 Decl::Component(c) => {
                     hir.functions.push(self.lower_fn(&c.func, true));
+                    hir.components.push(HirComponent(c.clone()));
                 }
                 Decl::TypeDef(t) => {
                     hir.types.push(self.lower_typedef(t));
                 }
                 Decl::HttpRoute(r) => {
                     hir.routes.push(self.lower_route(r));
+                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::Actor(a) => {
                     hir.actors.push(self.lower_actor(a));
@@ -77,6 +92,7 @@ impl LowerCtx {
                 }
                 Decl::Activity(a) => {
                     hir.activities.push(self.lower_activity(a));
+                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func, false);
@@ -100,9 +116,11 @@ impl LowerCtx {
                         route_path,
                         span: lowered.span,
                     });
+                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::Table(t) => {
                     hir.tables.push(self.lower_table(t));
+                    hir.legacy_ast_nodes.push(decl.clone());
                 }
                 Decl::Index(idx) => {
                     hir.indexes.push(HirIndex {
@@ -112,18 +130,42 @@ impl LowerCtx {
                         span: idx.span,
                     });
                 }
-                Decl::V0Component(_) => {
-                    // V0 design-from-image components have no body to lower;
-                    // they are processed externally (e.g. by an AI design pipeline).
+                Decl::V0Component(decl) => {
+                    hir.v0_components.push(HirV0Component(decl.clone()));
                 }
-                Decl::Routes(_) => {
-                    // Client-side routing is handled by the TS codegen directly from AST.
+                Decl::Routes(decl) => {
+                    hir.client_routes.push(HirRoutes(decl.clone()));
                 }
-                Decl::Island(_) => {
-                    // Props-only island contract; implementation ships in `islands/` and hydrates via
-                    // `island-mount.js` (see `vox-cli` templates).
+                Decl::Island(decl) => {
+                    hir.islands.push(HirIsland(decl.clone()));
                 }
-                _ => {}
+                Decl::Layout(decl) => {
+                    hir.layouts.push(HirLayout(decl.clone()));
+                }
+                Decl::Page(decl) => {
+                    hir.pages.push(HirPage(decl.clone()));
+                }
+                Decl::Context(decl) => {
+                    hir.contexts.push(HirContext(decl.clone()));
+                }
+                Decl::Hook(decl) => {
+                    hir.hooks.push(HirHook(decl.clone()));
+                }
+                Decl::ErrorBoundary(decl) => {
+                    hir.error_boundaries.push(HirErrorBoundary(decl.clone()));
+                }
+                Decl::Loading(decl) => {
+                    hir.loadings.push(HirLoading(decl.clone()));
+                }
+                Decl::NotFound(decl) => {
+                    hir.not_founds.push(HirNotFound(decl.clone()));
+                }
+                Decl::ReactiveComponent(decl) => {
+                    hir.reactive_components.push(self.lower_reactive_component(decl));
+                }
+                _ => {
+                    hir.legacy_ast_nodes.push(decl.clone());
+                }
             }
         }
 
@@ -221,7 +263,7 @@ impl LowerCtx {
                 HirExpr::ListLit(elements.iter().map(|e| self.lower_expr(e)).collect(), *span)
             }
             Expr::TupleLit { elements, span } => {
-                HirExpr::ListLit(elements.iter().map(|e| self.lower_expr(e)).collect(), *span)
+                HirExpr::TupleLit(elements.iter().map(|e| self.lower_expr(e)).collect(), *span)
             }
             Expr::Binary {
                 op,
@@ -599,6 +641,55 @@ impl LowerCtx {
             span: t.span,
         }
     }
+
+    fn lower_reactive_component(&mut self, r: &ReactiveComponentDecl) -> HirReactiveComponent {
+        let id = self.def_map.define(r.name.clone());
+        self.def_map.push_scope();
+        let params = r.params.iter().map(|p| self.lower_param(p)).collect();
+        let members = r
+            .members
+            .iter()
+            .map(|m| match m {
+                ReactiveMemberDecl::State(s) => HirReactiveMember::State(HirState {
+                    id: self.def_map.define(s.name.clone()),
+                    name: s.name.clone(),
+                    ty: s.ty.as_ref().map(|t| self.lower_type(t)),
+                    init: self.lower_expr(&s.init),
+                    span: s.span,
+                }),
+                ReactiveMemberDecl::Derived(d) => HirReactiveMember::Derived(HirDerived {
+                    id: self.def_map.define(d.name.clone()),
+                    name: d.name.clone(),
+                    ty: d.ty.as_ref().map(|t| self.lower_type(t)),
+                    expr: self.lower_expr(&d.expr),
+                    span: d.span,
+                }),
+                ReactiveMemberDecl::Effect(e) => HirReactiveMember::Effect(HirEffect {
+                    body: self.lower_expr(&e.body),
+                    span: e.span,
+                }),
+                ReactiveMemberDecl::OnMount(m) => HirReactiveMember::OnMount(HirOnMount {
+                    body: self.lower_expr(&m.body),
+                    span: m.span,
+                }),
+                ReactiveMemberDecl::OnCleanup(c) => HirReactiveMember::OnCleanup(HirOnCleanup {
+                    body: self.lower_expr(&c.body),
+                    span: c.span,
+                }),
+            })
+            .collect();
+        let view = r.view.as_ref().map(|v| self.lower_expr(v));
+        self.def_map.pop_scope();
+
+        HirReactiveComponent {
+            id,
+            name: r.name.clone(),
+            params,
+            members,
+            view,
+            span: r.span,
+        }
+    }
 }
 
 fn has_async_stmts(stmts: &[HirStmt]) -> bool {
@@ -624,7 +715,9 @@ fn has_async_expr(e: &HirExpr) -> bool {
         | HirExpr::Spawn(..)
         | HirExpr::Jsx(..)
         | HirExpr::JsxSelfClosing(..) => false,
-        HirExpr::ListLit(elements, _) => elements.iter().any(has_async_expr),
+        HirExpr::ListLit(elements, _) | HirExpr::TupleLit(elements, _) => {
+            elements.iter().any(has_async_expr)
+        }
         HirExpr::ObjectLit(fields, _) => fields.iter().map(|(_, v)| v).any(has_async_expr),
         HirExpr::Binary(_, l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::Unary(_, e, _) => has_async_expr(e),

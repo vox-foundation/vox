@@ -94,6 +94,7 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::Mock(_) => "mock",
             Decl::Environment(_) => "environment",
             Decl::Page(_) => "page",
+            Decl::ReactiveComponent(_) => "reactive_component",
         };
         constructs.push(tag.to_string());
     }
@@ -110,11 +111,16 @@ pub fn build_training_record(
     let content_hash = vox_runtime::builtins::vox_hash_fast(&result.source);
 
     let constructs = extract_constructs(&result.module);
+    let difficulty = constructs.iter()
+        .map(|c| construct_difficulty(c))
+        .max()
+        .unwrap_or(5);
 
     let record = serde_json::json!({
         "source": file.to_string_lossy(),
         "code": result.source,
         "constructs": constructs,
+        "difficulty": difficulty,
         "ast_hash": content_hash,
         "compiler_version": env!("CARGO_PKG_VERSION"),
     });

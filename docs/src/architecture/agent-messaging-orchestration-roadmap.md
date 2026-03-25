@@ -1,7 +1,9 @@
 ---
 title: "Agent Messaging & Orchestration Roadmap (Aspirational)"
-category: architecture
-last_updated: 2026-03-22
+description: "Official documentation for Agent Messaging & Orchestration Roadmap (Aspirational) for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Agent Messaging & Orchestration Roadmap (Aspirational)

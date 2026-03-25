@@ -66,15 +66,19 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
 
     let orch = &state.orchestrator;
 
-    if let Some(queue) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
+    if let Some(queue_arc) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let hp_bar = companion.render_status_bar(10);
+        let (q_len, q_done, q_empty) = {
+            let q = queue_arc.read().unwrap();
+            (q.len(), q.completed_count(), q.is_empty())
+        };
         let markdown = format!(
             "### 🤖 Agent {} Status\n\n**{}**\n\n**Stats:**\n- Queue Depth: `{}`\n- Tasks Done: `{}`\n\n**Activity:** {}",
             params.agent_id,
             hp_bar,
-            queue.len(),
-            queue.completed_count(),
-            if !queue.is_empty() {
+            q_len,
+            q_done,
+            if !q_empty {
                 "Processing tasks... ⚙️"
             } else {
                 "Idle 💤"
@@ -129,9 +133,11 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
 
     let orch = &state.orchestrator;
 
-    if let Some(queue) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
-        let active = queue.len();
-        let completed = queue.completed_count();
+    if let Some(queue_arc) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
+        let (active, completed) = {
+            let q = queue_arc.read().unwrap();
+            (q.len(), q.completed_count())
+        };
 
         let estimate_s = (active * ms_per_task) / 1000;
         ToolResult::ok(format!(

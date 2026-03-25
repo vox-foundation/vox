@@ -96,6 +96,7 @@ pub fn to_qlora_meta_v2_for_merge(
         alpha: m.alpha,
         layer_order: m.layer_order.clone(),
         base_key_map: m.base_key_map.clone(),
+        base_model: None,
     })
 }
 

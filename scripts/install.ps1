@@ -11,6 +11,7 @@ param(
     [switch] $Dev,
     [switch] $InstallClang,
     [switch] $Apply,
+    [switch] $Install,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $Remaining
 )
@@ -23,6 +24,7 @@ $pass = [System.Collections.Generic.List[string]]::new()
 if ($Dev) { $pass.Add('--dev') }
 if ($InstallClang) { $pass.Add('--install-clang') }
 if ($Apply) { $pass.Add('--apply') }
+if ($Install) { $pass.Add('--install') }
 foreach ($r in $Remaining) { $pass.Add($r) }
 
 function Ensure-Cargo {

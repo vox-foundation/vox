@@ -1,7 +1,9 @@
 ---
-title: "Out-of-scope external script boundary (archive)"
-category: architecture
-last_updated: 2026-03-21
+title: "Explicitly out of scope for Rust migration"
+description: "Official documentation for Explicitly out of scope for Rust migration for the Vox language. Detailed technical reference, architecture gu"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Explicitly out of scope for Rust migration

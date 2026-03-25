@@ -9,6 +9,8 @@ pub mod activity;
 pub mod adt;
 /// `@component` and related React component codegen.
 pub mod component;
+/// Reactive components codegen (Path C).
+pub mod reactive;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
 /// JSX lowering and attribute handling.

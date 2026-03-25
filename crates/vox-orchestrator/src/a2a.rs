@@ -175,12 +175,11 @@ pub enum A2ARoute {
 ///
 /// Provides inbox-based messaging with support for unicast,
 /// broadcast, and multicast delivery.
-#[derive(Debug)]
 pub struct MessageBus {
     /// Per-agent inboxes.
-    pub(crate) inboxes: HashMap<AgentId, VecDeque<A2AMessage>>,
+    pub(crate) inboxes: std::sync::RwLock<HashMap<AgentId, std::sync::RwLock<VecDeque<A2AMessage>>>>,
     /// Audit trail of all messages (most recent at back).
-    audit_trail: Vec<A2AMessage>,
+    audit_trail: std::sync::RwLock<Vec<A2AMessage>>,
     /// ID generator.
     id_gen: AtomicU64,
     /// Maximum inbox size per agent before oldest messages are dropped.
@@ -191,8 +190,8 @@ impl MessageBus {
     /// Create a new message bus.
     pub fn new(max_inbox_size: usize) -> Self {
         Self {
-            inboxes: HashMap::new(),
-            audit_trail: Vec::new(),
+            inboxes: std::sync::RwLock::new(HashMap::new()),
+            audit_trail: std::sync::RwLock::new(Vec::new()),
             id_gen: AtomicU64::new(1),
             max_inbox_size,
         }
@@ -203,13 +202,18 @@ impl MessageBus {
     }
 
     /// Register an agent (creates their inbox).
-    pub fn register_agent(&mut self, agent_id: AgentId) {
-        self.inboxes.entry(agent_id).or_default();
+    pub fn register_agent(&self, agent_id: AgentId) {
+        let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+        if !inboxes.contains_key(&agent_id) {
+            drop(inboxes);
+            let mut inboxes = crate::sync_lock::rw_write(&self.inboxes);
+            inboxes.entry(agent_id).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+        }
     }
 
     /// Send a message to a specific agent.
     pub fn send(
-        &mut self,
+        &self,
         sender: AgentId,
         receiver: AgentId,
         msg_type: A2AMessageType,
@@ -219,14 +223,28 @@ impl MessageBus {
         let msg = A2AMessage::new(id, sender, Some(receiver), msg_type, payload);
 
         // Deliver to receiver's inbox
-        let inbox = self.inboxes.entry(receiver).or_default();
-        if inbox.len() >= self.max_inbox_size {
-            inbox.pop_front(); // Drop oldest
+        {
+            let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+            if let Some(inbox_lock) = inboxes.get(&receiver) {
+                let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                if inbox.len() >= self.max_inbox_size {
+                    inbox.pop_front(); // Drop oldest
+                }
+                inbox.push_back(msg.clone());
+            } else {
+                drop(inboxes);
+                let mut inboxes = crate::sync_lock::rw_write(&self.inboxes);
+                let inbox_lock = inboxes.entry(receiver).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+                let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                if inbox.len() >= self.max_inbox_size {
+                    inbox.pop_front();
+                }
+                inbox.push_back(msg.clone());
+            }
         }
-        inbox.push_back(msg.clone());
 
         // Audit trail
-        self.audit_trail.push(msg);
+        crate::sync_lock::rw_write(&self.audit_trail).push(msg);
 
         tracing::debug!(
             from = %sender,
@@ -240,7 +258,7 @@ impl MessageBus {
 
     /// Broadcast a message to all registered agents (except sender).
     pub fn broadcast(
-        &mut self,
+        &self,
         sender: AgentId,
         msg_type: A2AMessageType,
         payload: impl Into<String>,
@@ -250,24 +268,30 @@ impl MessageBus {
         let msg = A2AMessage::new(id, sender, None, msg_type, payload);
 
         // Deliver to all inboxes except sender
-        let agents: Vec<AgentId> = self.inboxes.keys().copied().collect();
+        let agents: Vec<AgentId> = {
+            let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+            inboxes.keys().copied().collect()
+        };
         for agent_id in agents {
             if agent_id != sender {
-                let inbox = self.inboxes.entry(agent_id).or_default();
-                if inbox.len() >= self.max_inbox_size {
-                    inbox.pop_front();
+                let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+                if let Some(inbox_lock) = inboxes.get(&agent_id) {
+                    let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                    if inbox.len() >= self.max_inbox_size {
+                        inbox.pop_front();
+                    }
+                    inbox.push_back(msg.clone());
                 }
-                inbox.push_back(msg.clone());
             }
         }
 
-        self.audit_trail.push(msg);
+        crate::sync_lock::rw_write(&self.audit_trail).push(msg);
         id
     }
 
     /// Send to a group of agents.
     pub fn send_to_group(
-        &mut self,
+        &self,
         sender: AgentId,
         receivers: &[AgentId],
         msg_type: A2AMessageType,
@@ -278,35 +302,37 @@ impl MessageBus {
 
         for &receiver in receivers {
             let msg = A2AMessage::new(id, sender, Some(receiver), msg_type.clone(), &payload);
-            let inbox = self.inboxes.entry(receiver).or_default();
-            if inbox.len() >= self.max_inbox_size {
-                inbox.pop_front();
+            let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+            if let Some(inbox_lock) = inboxes.get(&receiver) {
+                let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                if inbox.len() >= self.max_inbox_size {
+                    inbox.pop_front();
+                }
+                inbox.push_back(msg);
             }
-            inbox.push_back(msg);
         }
 
         let audit_msg = A2AMessage::new(id, sender, None, msg_type, payload);
-        self.audit_trail.push(audit_msg);
+        crate::sync_lock::rw_write(&self.audit_trail).push(audit_msg);
         id
     }
 
     /// Get unacknowledged messages for an agent, sorted by priority (highest first).
-    pub fn inbox(&self, agent_id: AgentId) -> Vec<&A2AMessage> {
-        let mut msgs: Vec<_> = self
-            .inboxes
+    pub fn inbox(&self, agent_id: AgentId) -> Vec<A2AMessage> {
+        let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+        let mut msgs: Vec<_> = inboxes
             .get(&agent_id)
-            .map(|inbox| {
+            .map(|inbox_lock| {
+                let inbox = crate::sync_lock::rw_read(inbox_lock);
                 inbox.iter().filter(|m| {
                     if m.acknowledged {
                         return false;
                     }
                     if m.is_expired() {
-                        // Message is stale; skip silently — callers rely on freshness filtering.
-                        let _ = m.id; // acknowledge the drop without tracing dep
                         return false;
                     }
                     true
-                }).collect()
+                }).cloned().collect()
             })
             .unwrap_or_default();
         // Sort descending by priority (Critical=3 > High=2 > Normal=1 > Low=0).
@@ -315,32 +341,40 @@ impl MessageBus {
     }
 
     /// Get all messages for an agent (including acknowledged).
-    pub fn inbox_all(&self, agent_id: AgentId) -> Vec<&A2AMessage> {
-        self.inboxes
+    pub fn inbox_all(&self, agent_id: AgentId) -> Vec<A2AMessage> {
+        let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+        inboxes
             .get(&agent_id)
-            .map(|inbox| inbox.iter().collect())
+            .map(|inbox_lock| {
+                let inbox = crate::sync_lock::rw_read(inbox_lock);
+                inbox.iter().cloned().collect()
+            })
             .unwrap_or_default()
     }
 
     /// Retrieve all messages in a specific thread, across all agents.
-    pub fn messages_in_thread(&self, thread_id: &ThreadId) -> Vec<&A2AMessage> {
-        let mut msgs: Vec<_> = self
-            .audit_trail
+    pub fn messages_in_thread(&self, thread_id: &ThreadId) -> Vec<A2AMessage> {
+        let audit = crate::sync_lock::rw_read(&self.audit_trail);
+        let mut msgs: Vec<_> = audit
             .iter()
             .filter(|m| m.thread_id.as_ref() == Some(thread_id))
+            .cloned()
             .collect();
         msgs.sort_by_key(|m| m.timestamp_ms);
         msgs
     }
 
     /// Retrieve an agent's inbox filtered to a specific thread.
-    pub fn inbox_for_thread(&self, agent_id: AgentId, thread_id: &ThreadId) -> Vec<&A2AMessage> {
-        self.inboxes
+    pub fn inbox_for_thread(&self, agent_id: AgentId, thread_id: &ThreadId) -> Vec<A2AMessage> {
+        let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+        inboxes
             .get(&agent_id)
-            .map(|inbox| {
+            .map(|inbox_lock| {
+                let inbox = crate::sync_lock::rw_read(inbox_lock);
                 inbox
                     .iter()
                     .filter(|m| m.thread_id.as_ref() == Some(thread_id) && !m.acknowledged)
+                    .cloned()
                     .collect()
             })
             .unwrap_or_default()
@@ -349,7 +383,7 @@ impl MessageBus {
     /// Send a VCS-context-annotated message to an agent.
     /// This is the primary Phase 3A mechanism for sharing exact code state.
     pub fn send_with_vcs_context(
-        &mut self,
+        &self,
         sender: AgentId,
         receiver: AgentId,
         msg_type: A2AMessageType,
@@ -368,18 +402,23 @@ impl MessageBus {
             msg
         };
 
-        let inbox = self.inboxes.entry(receiver).or_default();
-        if inbox.len() >= self.max_inbox_size {
-            inbox.pop_front();
+        {
+            let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+            if let Some(inbox_lock) = inboxes.get(&receiver) {
+                let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+                if inbox.len() >= self.max_inbox_size {
+                    inbox.pop_front();
+                }
+                inbox.push_back(msg.clone());
+            }
         }
-        inbox.push_back(msg.clone());
-        self.audit_trail.push(msg);
+        crate::sync_lock::rw_write(&self.audit_trail).push(msg);
         id
     }
 
     /// Send a conflict-detected notice (Critical priority, auto-annotated).
     pub fn send_conflict_notice(
-        &mut self,
+        &self,
         sender: AgentId,
         receiver: AgentId,
         path: &str,
@@ -405,8 +444,10 @@ impl MessageBus {
     }
 
     /// Acknowledge a message in an agent's inbox.
-    pub fn acknowledge(&mut self, agent_id: AgentId, message_id: MessageId) -> bool {
-        if let Some(inbox) = self.inboxes.get_mut(&agent_id) {
+    pub fn acknowledge(&self, agent_id: AgentId, message_id: MessageId) -> bool {
+        let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+        if let Some(inbox_lock) = inboxes.get(&agent_id) {
+            let mut inbox = crate::sync_lock::rw_write(inbox_lock);
             if let Some(msg) = inbox.iter_mut().find(|m| m.id == message_id) {
                 msg.acknowledged = true;
                 return true;
@@ -416,29 +457,34 @@ impl MessageBus {
     }
 
     /// Get the audit trail (all messages ever sent).
-    pub fn audit_trail(&self) -> &[A2AMessage] {
-        &self.audit_trail
+    pub fn audit_trail(&self) -> Vec<A2AMessage> {
+        crate::sync_lock::rw_read(&self.audit_trail).clone()
     }
 
     /// Get audit trail messages since a given timestamp.
-    pub fn audit_since(&self, since_ms: u64) -> Vec<&A2AMessage> {
-        self.audit_trail
+    pub fn audit_since(&self, since_ms: u64) -> Vec<A2AMessage> {
+        crate::sync_lock::rw_read(&self.audit_trail)
             .iter()
             .filter(|m| m.timestamp_ms >= since_ms)
+            .cloned()
             .collect()
     }
 
     /// Count unacknowledged messages for an agent.
     pub fn unread_count(&self, agent_id: AgentId) -> usize {
-        self.inboxes
+        let inboxes = crate::sync_lock::rw_read(&self.inboxes);
+        inboxes
             .get(&agent_id)
-            .map(|inbox| inbox.iter().filter(|m| !m.acknowledged).count())
+            .map(|inbox_lock| {
+                let inbox = crate::sync_lock::rw_read(inbox_lock);
+                inbox.iter().filter(|m| !m.acknowledged).count()
+            })
             .unwrap_or(0)
     }
 
     /// Total messages in the audit trail.
     pub fn total_messages(&self) -> usize {
-        self.audit_trail.len()
+        crate::sync_lock::rw_read(&self.audit_trail).len()
     }
 }
 
@@ -458,7 +504,7 @@ mod tests {
 
     #[test]
     fn send_and_receive() {
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
 
@@ -478,7 +524,7 @@ mod tests {
 
     #[test]
     fn broadcast_reaches_all() {
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         let a3 = AgentId(3);
@@ -498,7 +544,7 @@ mod tests {
 
     #[test]
     fn acknowledge_marks_read() {
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
 
@@ -516,7 +562,7 @@ mod tests {
 
     #[test]
     fn audit_trail() {
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
 
@@ -532,7 +578,7 @@ mod tests {
 
     #[test]
     fn inbox_overflow() {
-        let mut bus = MessageBus::new(2); // very small inbox
+        let bus = MessageBus::new(2); // very small inbox
         let a1 = AgentId(1);
         let a2 = AgentId(2);
 
@@ -552,7 +598,7 @@ mod tests {
     #[test]
     fn priority_sorted_inbox() {
         use crate::types::MessagePriority;
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         bus.register_agent(a1);
@@ -562,11 +608,12 @@ mod tests {
         let id_low = bus.next_id();
         let low_msg = A2AMessage::new(id_low, a1, Some(a2), A2AMessageType::FreeForm, "low")
             .with_priority(MessagePriority::Low);
-        bus.inboxes
-            .entry(a2)
-            .or_default()
-            .push_back(low_msg.clone());
-        bus.audit_trail.push(low_msg);
+        {
+            let mut inboxes = crate::sync_lock::rw_write(&bus.inboxes);
+            let inbox_lock = inboxes.entry(a2).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+            crate::sync_lock::rw_write(inbox_lock).push_back(low_msg.clone());
+        }
+        crate::sync_lock::rw_write(&bus.audit_trail).push(low_msg);
 
         let id_crit = bus.next_id();
         let crit_msg = A2AMessage::new(
@@ -577,11 +624,12 @@ mod tests {
             "critical!",
         )
         .with_priority(MessagePriority::Critical);
-        bus.inboxes
-            .entry(a2)
-            .or_default()
-            .push_back(crit_msg.clone());
-        bus.audit_trail.push(crit_msg);
+        {
+            let mut inboxes = crate::sync_lock::rw_write(&bus.inboxes);
+            let inbox_lock = inboxes.entry(a2).or_insert_with(|| std::sync::RwLock::new(VecDeque::new()));
+            crate::sync_lock::rw_write(inbox_lock).push_back(crit_msg.clone());
+        }
+        crate::sync_lock::rw_write(&bus.audit_trail).push(crit_msg);
 
         let inbox = bus.inbox(a2);
         assert_eq!(inbox.len(), 2);
@@ -593,7 +641,7 @@ mod tests {
     #[test]
     fn thread_message_grouping() {
         use crate::types::{MessagePriority, ThreadId, VcsContext};
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         bus.register_agent(a1);
@@ -630,7 +678,7 @@ mod tests {
 
     #[test]
     fn conflict_notice_is_critical_priority() {
-        let mut bus = MessageBus::new(100);
+        let bus = MessageBus::new(100);
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         bus.register_agent(a1);

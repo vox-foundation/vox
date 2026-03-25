@@ -1,3 +1,10 @@
+---
+title: "Decorators"
+description: "Official documentation for Decorators for the Vox language. Detailed technical reference, architecture guides, and implementation pattern"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Decorators
 
 Vox decorators provide metadata for the compiler and runtime.

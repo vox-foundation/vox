@@ -194,3 +194,5 @@ pub fn probe_ollama(url: &str) -> bool {
         })
         .unwrap_or(false)
 }
+
+

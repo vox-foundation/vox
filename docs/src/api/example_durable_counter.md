@@ -1,3 +1,10 @@
+---
+title: "Example: Vox Durable Actor Demo"
+description: "Official documentation for Example: Vox Durable Actor Demo for the Vox language. Detailed technical reference, architecture guides, and i"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Vox Durable Actor Demo
 
 ```vox

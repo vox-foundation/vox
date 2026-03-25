@@ -5,7 +5,7 @@
 use turso::params;
 
 use crate::VoxDb;
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 
 impl VoxDb {
     /// Insert a `conversations` row (V11+). Returns SQLite `rowid` / `id`.

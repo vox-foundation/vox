@@ -141,7 +141,8 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
     let status = orch.status();
     let task_id = TaskId(params.task_id);
     for agent_summary in &status.agents {
-        if let Some(queue) = orch.agent_queue(AgentId(agent_summary.id.0)) {
+        if let Some(queue_lock) = orch.agent_queue(AgentId(agent_summary.id.0)) {
+            let queue = queue_lock.read().unwrap();
             if queue.completed_ids().contains(&task_id) {
                 return ToolResult::ok("Completed".to_string()).to_json();
             }

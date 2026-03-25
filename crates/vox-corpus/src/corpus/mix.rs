@@ -184,8 +184,12 @@ pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
             if src.optional {
                 tracing::trace!("[mix] skip optional missing source {}", p.display());
             } else {
-                eprintln!("  [mix] ⚠ missing required source {}", p.display());
+                eprintln!("  [mix] ⚠ Missing required source: {}. Run 'vox populi corpus generate' first, or add 'optional: true' to mix.yaml.", p.display());
             }
+            continue;
+        }
+        if src.weight <= 0.0 {
+            eprintln!("  [mix] source '{}' has weight 0.0 — it will be ignored", p.display());
             continue;
         }
         let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;

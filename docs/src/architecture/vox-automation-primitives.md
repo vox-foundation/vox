@@ -1,7 +1,9 @@
 ---
-title: "Vox script automation primitives (MVP)"
-category: architecture
-last_updated: 2026-03-21
+title: "Automation primitives"
+description: "Official documentation for Automation primitives for the Vox language. Detailed technical reference, architecture guides, and implementat"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Automation primitives

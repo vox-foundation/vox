@@ -1,3 +1,10 @@
+---
+title: "HF fine-tuning capability matrix (code-grounded)"
+description: "Official documentation for HF fine-tuning capability matrix (code-grounded) for the Vox language. Detailed technical reference, architect"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # HF fine-tuning capability matrix (code-grounded)
 
 Single control plane: `crates/vox-populi/src/tensor/finetune_contract.rs` (`FineTuneContract`) + `execution_planner.rs` (`ExecutionPlanner`). Execution kernels: **Burn (wgpu LoRA)** vs **Candle (qlora-rs NF4)**.
@@ -27,8 +34,8 @@ Single control plane: `crates/vox-populi/src/tensor/finetune_contract.rs` (`Fine
 
 ## Related
 
-- [Mobile edge AI SSOT](mobile-edge-ai-ssot.md) — off-device training vs on-device inference (LiteRT / Core ML), mesh hints, `VOX_INFERENCE_PROFILE`.
-- [Populi training SSOT](populi-training-ssot.md) — CLI entrypoints and regression tests.
-- [HF fine-tune gap matrix](hf-finetune-gap-matrix-ssot.md) — remaining risks vs resolved items (SSOT ↔ code).
+- [Mobile edge AI SSOT](../reference/mobile-edge-ai.md) — off-device training vs on-device inference (LiteRT / Core ML), mesh hints, `VOX_INFERENCE_PROFILE`.
+- [Populi training SSOT](../reference/populi-training.md) — CLI entrypoints and regression tests.
+- [HF fine-tune gap matrix](../reference/hf-finetune-gap-matrix.md) — remaining risks vs resolved items (SSOT ↔ code).
 - [Populi LLM PR checklist](populi-llm-pr-checklist.md) — PR gate for LoRA duplication, layouts, parity tiers.
 - ADR 006 / 007 — QLoRA graph scope and qlora-rs API gate.

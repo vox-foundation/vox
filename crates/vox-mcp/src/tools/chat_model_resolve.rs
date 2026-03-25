@@ -15,7 +15,7 @@ pub async fn resolve_chat_llm_model(
     user_prompt: &str,
     mut resolution: McpChatModelResolution,
 ) -> Result<(ModelSpec, bool), String> {
-    let pref = state.mcp_chat_model_override.read().await.clone();
+    let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let orch = &state.orchestrator;
     if resolution.context_fill_ratio.is_none() {
         resolution.context_fill_ratio = mcp_global_llm_context_fill_ratio(&*orch);

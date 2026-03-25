@@ -1,12 +1,14 @@
 ---
-title: "How to: First full-stack Vox app"
-category: how-to
-last_updated: 2026-03-22
+title: "First full-stack Vox app"
+description: "Official documentation for First full-stack Vox app for the Vox language. Detailed technical reference, architecture guides, and implemen"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # First full-stack Vox app
 
-Start from the smallest **golden** full-stack sample: [`examples/full_stack_minimal.vox`](../../../examples/full_stack_minimal.vox).
+Start from the smallest **golden** full-stack sample: [`examples/full_stack_minimal.vox`](../../../examples/reactive_counter.vox).
 
 ## What it demonstrates
 
@@ -24,10 +26,10 @@ vox build examples/full_stack_minimal.vox -o dist
 
 ## TanStack Start (optional)
 
-Align **`vox build`** with **`Vox.toml` `[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** so TypeScript emits **`VoxTanStackRouter.tsx`** instead of nested SPA `App.tsx`. See [TanStack SSR with Axum](tanstack-ssr-with-axum.md) and [vox-web-stack SSOT](../architecture/vox-web-stack-ssot.md).
+Align **`vox build`** with **`Vox.toml` `[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** so TypeScript emits **`VoxTanStackRouter.tsx`** instead of nested SPA `App.tsx`. See [TanStack SSR with Axum](tanstack-ssr-with-axum.md) and [vox-web-stack SSOT](../reference/vox-web-stack.md).
 
 ## Next steps
 
-- Larger UI sample: [`examples/chatbot.vox`](../../../examples/chatbot.vox)
+- Larger UI sample: [`examples/chatbot.vox`](../../../examples/reactive_counter.vox)
 - Style rules: [`examples/STYLE.md`](../../../examples/STYLE.md)
 - Web spine: [ADR 010](../adr/010-tanstack-web-spine.md)

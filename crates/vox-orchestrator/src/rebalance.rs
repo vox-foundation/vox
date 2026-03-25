@@ -54,13 +54,14 @@ impl LoadBalancer {
     /// Determine which agent should receive a new task.
     pub fn pick_agent(
         &self,
-        queues: &HashMap<AgentId, AgentQueue>,
+        queues: &HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>,
         budgets: &BudgetManager,
         _required_model_tags: &[String],
     ) -> Option<AgentId> {
         let mut candidates: Vec<(AgentId, f64)> = Vec::new();
 
-        for (id, queue) in queues {
+        for (id, queue_lock) in queues {
+            let queue = crate::sync_lock::rw_read(queue_lock);
             let queue_size = queue.len() as f64;
             let cost_score = budgets.cost_usd(*id) * 1000.0; // weighting
 
@@ -80,10 +81,14 @@ impl LoadBalancer {
     /// Evaluate if we need to scale up or down.
     pub fn evaluate_scaling(
         &self,
-        queues: &HashMap<AgentId, AgentQueue>,
+        queues: &HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>,
         dynamic_agents: &[AgentId],
     ) -> ScalingAction {
-        let total_queued: usize = queues.values().map(|q| q.len()).sum();
+        let mut total_queued = 0;
+        for q_lock in queues.values() {
+            total_queued += crate::sync_lock::rw_read(q_lock).len();
+        }
+
         let avg_load = if queues.is_empty() {
             0.0
         } else {
@@ -99,7 +104,8 @@ impl LoadBalancer {
 
         // Check if any dynamic agent is totally idle
         for id in dynamic_agents {
-            if let Some(q) = queues.get(id) {
+            if let Some(q_lock) = queues.get(id) {
+                let q = crate::sync_lock::rw_read(q_lock);
                 if q.is_empty() && q.in_progress_count() == 0 {
                     return ScalingAction::ScaleDown { agent_id: *id };
                 }
@@ -125,8 +131,8 @@ mod tests {
     fn pick_agent_shortest_queue() {
         let lb = LoadBalancer::new(RebalanceStrategy::ShortestQueue);
         let mut queues = HashMap::new();
-        queues.insert(AgentId(1), AgentQueue::new(AgentId(1), "a"));
-        queues.insert(AgentId(2), AgentQueue::new(AgentId(2), "b"));
+        queues.insert(AgentId(1), std::sync::Arc::new(std::sync::RwLock::new(AgentQueue::new(AgentId(1), "a"))));
+        queues.insert(AgentId(2), std::sync::Arc::new(std::sync::RwLock::new(AgentQueue::new(AgentId(2), "b"))));
 
         // Add task to agent 1
         let mut q1 = AgentQueue::new(AgentId(1), "a");
@@ -136,7 +142,7 @@ mod tests {
             crate::types::TaskPriority::Normal,
             vec![],
         ));
-        queues.insert(AgentId(1), q1);
+        queues.insert(AgentId(1), std::sync::Arc::new(std::sync::RwLock::new(q1)));
 
         let budgets = BudgetManager::new();
         let picked = lb.pick_agent(&queues, &budgets, &[]);
@@ -156,7 +162,7 @@ mod tests {
                 vec![],
             ));
         }
-        queues.insert(AgentId(1), q);
+        queues.insert(AgentId(1), std::sync::Arc::new(std::sync::RwLock::new(q)));
 
         let action = lb.evaluate_scaling(&queues, &[]);
         assert!(matches!(action, ScalingAction::ScaleUp { .. }));

@@ -599,3 +599,5 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
         detail: reg_detail,
     });
 }
+
+

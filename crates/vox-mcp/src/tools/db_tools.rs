@@ -211,7 +211,7 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         ..Default::default()
     };
 
-    let pref = state.mcp_chat_model_override.read().await.clone();
+    let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
         state,
         &prompt,

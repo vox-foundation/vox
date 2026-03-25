@@ -112,8 +112,10 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
 pub async fn repo_index_status(state: &ServerState) -> String {
     let orch = &state.orchestrator;
     let fresh_check = {
-        if orch.context_store().is_fresh("workspace_index_status", 30) {
-            let entry = orch.context_store().get_entry("workspace_index_status");
+        let handle = orch.context_handle();
+        let ctx = handle.read().unwrap();
+        if ctx.is_fresh("workspace_index_status", 30) {
+            let entry = ctx.get_entry("workspace_index_status");
             entry.map(|e| e.value)
         } else {
             None
@@ -128,7 +130,7 @@ pub async fn repo_index_status(state: &ServerState) -> String {
         Err(e) => ToolResult::<RepoIndexSummary>::err(e).to_json(),
     };
     
-    state.orchestrator.context_store().set(
+    state.orchestrator.context_handle().write().unwrap().set(
         vox_orchestrator::AgentId(0),
         "workspace_index_status",
         summary.clone(),
@@ -141,8 +143,10 @@ pub async fn repo_index_status(state: &ServerState) -> String {
 pub async fn repo_index_refresh(state: &ServerState) -> String {
     let orch = &state.orchestrator;
     let fresh_check = {
-        if orch.context_store().is_fresh("workspace_index_refresh", 30) {
-            let entry = orch.context_store().get_entry("workspace_index_refresh");
+        let handle = orch.context_handle();
+        let ctx = handle.read().unwrap();
+        if ctx.is_fresh("workspace_index_refresh", 30) {
+            let entry = ctx.get_entry("workspace_index_refresh");
             entry.map(|e| e.value)
         } else {
             None
@@ -171,7 +175,8 @@ pub async fn repo_index_refresh(state: &ServerState) -> String {
         Err(e) => ToolResult::<String>::err(format!("write {}: {e}", path.display())).to_json(),
     };
     
-    state.orchestrator.context_store().set(
+    let ctx_handle = state.orchestrator.context_handle();
+    crate::sync_lock::rw_write(&*ctx_handle).set(
         vox_orchestrator::AgentId(0),
         "workspace_index_refresh",
         res.clone(),

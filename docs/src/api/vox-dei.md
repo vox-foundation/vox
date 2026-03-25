@@ -1,7 +1,9 @@
 ---
-title: "Crate: vox-dei"
-category: api
-last_updated: 2026-03-23
+title: "vox-dei (workspace-excluded)"
+description: "Official documentation for vox-dei (workspace-excluded) for the Vox language. Detailed technical reference, architecture guides, and impl"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # vox-dei (workspace-excluded)

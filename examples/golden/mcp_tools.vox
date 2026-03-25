@@ -1,0 +1,21 @@
+// ---
+// title: "Mcp Tools Example"
+// description: "@mcp.tool auto-generates MCP JSON schema for AI agent discovery and invocation."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [@mcp.tool, @mcp.resource, fn]
+// last_validated: 2026-03-24
+// training_eligible: true
+// training_weight: 1.0
+// ---
+# @training_prompt: Define Vox MCP tools and resources for reading files
+@mcp.tool "read_file: Reads a file from disk"
+fn read_file(path: str) to str {
+    ret "file contents"
+}
+
+@mcp.resource "file://{path}"
+fn file_resource(path: str) to str {
+    ret path
+}

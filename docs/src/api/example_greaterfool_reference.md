@@ -1,3 +1,10 @@
+---
+title: "Example: greaterFool Reference Target in Vox"
+description: "Official documentation for Example: greaterFool Reference Target in Vox for the Vox language. Detailed technical reference, architecture "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: greaterFool Reference Target in Vox
 
 ```vox

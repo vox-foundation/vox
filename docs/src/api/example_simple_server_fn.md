@@ -1,3 +1,10 @@
+---
+title: "Example: Simple server function demo"
+description: "Official documentation for Example: Simple server function demo for the Vox language. Detailed technical reference, architecture guides, "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Simple server function demo
 
 ```vox

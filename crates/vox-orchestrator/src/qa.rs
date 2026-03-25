@@ -4,7 +4,7 @@
 //! replies can find the original asker without a global mailbox.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::sync_lock;
@@ -25,7 +25,7 @@ pub struct PendingQuestion {
 /// In-memory ask queue with monotonic correlation ids.
 #[derive(Clone)]
 pub struct QARouter {
-    pending: Arc<RwLock<HashMap<CorrelationId, PendingQuestion>>>,
+    pending: Arc<std::sync::RwLock<HashMap<CorrelationId, PendingQuestion>>>,
     correlator: Arc<CorrelationIdGenerator>,
 }
 
@@ -33,7 +33,7 @@ impl QARouter {
     /// Empty router; correlations start from a fresh generator.
     pub fn new() -> Self {
         Self {
-            pending: Arc::new(RwLock::new(HashMap::new())),
+            pending: Arc::new(std::sync::RwLock::new(HashMap::new())),
             correlator: Arc::new(CorrelationIdGenerator::new()),
         }
     }

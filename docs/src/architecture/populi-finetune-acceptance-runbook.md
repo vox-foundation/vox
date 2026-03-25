@@ -1,3 +1,10 @@
+---
+title: "Acceptance runbook — Populi HF fine-tune convergence"
+description: "Official documentation for Acceptance runbook — Populi HF fine-tune convergence for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Acceptance runbook — Populi HF fine-tune convergence
 
 ## Preconditions

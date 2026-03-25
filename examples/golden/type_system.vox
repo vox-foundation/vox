@@ -1,0 +1,26 @@
+// ---
+// title: "Type System Example"
+// description: "Generic ADT AppResult[T] with trait implementation and match-based serialization."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [type, trait, impl, match, generic]
+// last_validated: 2026-03-24
+// training_eligible: true
+// training_weight: 1.0
+// ---
+# @training_prompt: Define a Vox union type and a trait with an implementation
+type AppResult[T] = Success(value: T) | Failure(err: str)
+
+trait Serializable {
+    fn serialize(self) to str
+}
+
+impl Serializable for AppResult[int] {
+    fn serialize(self) to str {
+        match self {
+            Success(val) -> "num:" + val,
+            Failure(err) -> "err:" + err
+        }
+    }
+}

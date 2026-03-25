@@ -1,7 +1,9 @@
 ---
-title: "Crate: vox-wasm"
-category: api
-last_updated: 2026-03-23
+title: "vox-wasm"
+description: "Official documentation for vox-wasm for the Vox language. Detailed technical reference, architecture guides, and implementation patterns "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # vox-wasm

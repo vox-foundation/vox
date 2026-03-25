@@ -12,24 +12,27 @@ use crate::types::{AgentId, AgentTask};
 impl crate::orchestrator::Orchestrator {
     /// Spawn a new named agent, probe host capabilities, and register it with the
     /// heartbeat monitor and event bus.
-    pub fn spawn_agent(&mut self, name: &str) -> Result<AgentId, OrchestratorError> {
-        if self.agents.len() >= self.config.max_agents {
+    pub fn spawn_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
+        let config = crate::sync_lock::rw_read(&*self.config);
+        if crate::sync_lock::rw_read(&*self.agents).len() >= config.max_agents {
             return Err(OrchestratorError::MaxAgentsReached {
-                max: self.config.max_agents,
+                max: config.max_agents,
             });
         }
+        let default_caps = config.default_agent_capabilities.clone();
+        drop(config);
 
         let agent_id = self.agent_id_gen.next();
         let mut queue = crate::queue::AgentQueue::new(agent_id, name);
         let probed = crate::capability_probe::probe_host_capabilities();
         queue.capabilities = crate::capability_probe::merge_agent_capabilities(
-            &self.config.default_agent_capabilities,
+            &default_caps,
             probed,
         );
-        self.agents.insert(agent_id, queue);
-        self.heartbeat_monitor.register(agent_id);
+        crate::sync_lock::rw_write(&*self.agents).insert(agent_id, std::sync::Arc::new(std::sync::RwLock::new(queue)));
+        crate::sync_lock::rw_write(&*self.heartbeat_monitor).register(agent_id);
         MessageGateway::publish_agent_spawned(
-            &mut self.bulletin,
+            &self.bulletin,
             &self.event_bus,
             agent_id,
             name.to_string(),
@@ -39,10 +42,10 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Spawn a transient (dynamic) agent, marking it for automatic retirement when idle.
-    pub fn spawn_dynamic_agent(&mut self, name: &str) -> Result<AgentId, OrchestratorError> {
+    pub fn spawn_dynamic_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
         let agent_id = self.spawn_agent(name)?;
-        self.dynamic_agents.insert(agent_id);
-        tracing::info!("Agent {} marked as dynamic", agent_id);
+        crate::sync_lock::rw_write(&*self.dynamic_agents).insert(agent_id);
+        tracing::info!("Agent {} marked as dynamic", agent_id,);
         Ok(agent_id)
     }
 
@@ -51,50 +54,53 @@ impl crate::orchestrator::Orchestrator {
     /// Does **not** enable remote task execution; see
     /// `OrchestratorConfig::mesh_routing_experimental`.
     pub fn set_remote_mesh_routing_hints(
-        &mut self,
+        &self,
         hints: Vec<crate::mesh_federation::RemoteMeshRoutingHint>,
     ) {
-        self.remote_mesh_routing_hints = hints;
+        *crate::sync_lock::rw_write(&*self.remote_mesh_routing_hints) = hints;
     }
 
     /// Map an AI agent session ID to an existing orchestrator agent queue.
     pub fn map_agent_session(
-        &mut self,
+        &self,
         agent_id: AgentId,
         session_id: String,
     ) -> Result<(), OrchestratorError> {
-        let queue = self
-            .agents
-            .get_mut(&agent_id)
+        let agents = crate::sync_lock::rw_read(&*self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(&**queue_lock);
         queue.set_agent_session(session_id.clone());
         tracing::info!("Mapped agent session {} to agent {}", session_id, agent_id);
         Ok(())
     }
 
     /// Bind a provider/model endpoint key to an agent for reliability tracking.
-    pub fn set_agent_endpoint(&mut self, agent_id: AgentId, provider: &str, model: &str) {
-        if let Some(queue) = self.agents.get_mut(&agent_id) {
+    pub fn set_agent_endpoint(&self, agent_id: AgentId, provider: &str, model: &str) {
+        let agents = crate::sync_lock::rw_read(&*self.agents);
+        if let Some(queue_lock) = agents.get(&agent_id) {
+            let mut queue = crate::sync_lock::rw_write(&**queue_lock);
             queue.endpoint_reliability_key = Some(format!("{}:{}", provider, model));
         }
     }
 
     /// Retire an agent: release all locks/affinity/scope, drain its queue, and return remaining tasks.
     pub fn retire_agent(
-        &mut self,
+        &self,
         agent_id: AgentId,
     ) -> Result<Vec<AgentTask>, OrchestratorError> {
-        let mut queue = self
-            .agents
+        let queue_lock = crate::sync_lock::rw_write(&*self.agents)
             .remove(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(&*queue_lock);
 
         self.lock_manager.release_all(agent_id);
         self.affinity_map.release_all(agent_id);
-        self.scope_guard.clear_scope(agent_id);
-        self.dynamic_agents.remove(&agent_id);
-        self.agent_handles.remove(&agent_id);
-        self.heartbeat_monitor.unregister(agent_id);
+        crate::sync_lock::rw_write(&*self.scope_guard).clear_scope(agent_id);
+        crate::sync_lock::rw_write(&*self.dynamic_agents).remove(&agent_id);
+        crate::sync_lock::rw_write(&*self.agent_handles).remove(&agent_id);
+        crate::sync_lock::rw_write(&*self.heartbeat_monitor).unregister(agent_id);
 
         let remaining = queue.drain_tasks();
         MessageGateway::publish_agent_retired(&self.event_bus, agent_id);
@@ -108,22 +114,22 @@ impl crate::orchestrator::Orchestrator {
 
     /// Cancel a queued task. Returns an error if the task is in-progress or not found.
     pub fn cancel_task(
-        &mut self,
+        &self,
         task_id: crate::types::TaskId,
     ) -> Result<(), OrchestratorError> {
-        let agent_id = self
-            .task_assignments
+        let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
             .get(&task_id)
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
-        let queue = self
-            .agents
-            .get_mut(&agent_id)
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(queue_lock);
 
         if let Some(_task) = queue.cancel(task_id) {
-            self.task_assignments.remove(&task_id);
+            crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
             tracing::info!("Cancelled task {} from agent {}", task_id, agent_id);
             Ok(())
         } else {
@@ -133,16 +139,16 @@ impl crate::orchestrator::Orchestrator {
 
     /// Register a `vox-runtime` process handle for an agent.
     pub fn register_agent_handle(
-        &mut self,
+        &self,
         agent_id: AgentId,
         handle: vox_runtime::ProcessHandle,
     ) {
-        self.agent_handles.insert(agent_id, handle);
+        crate::sync_lock::rw_write(&*self.agent_handles).insert(agent_id, handle);
     }
 
     /// Accept a structured handoff payload from another agent, spawning a target agent if needed.
     pub fn accept_handoff(
-        &mut self,
+        &self,
         payload: crate::handoff::HandoffPayload,
     ) -> Result<AgentId, OrchestratorError> {
         let from_agent = payload.from_agent;
@@ -172,9 +178,11 @@ impl crate::orchestrator::Orchestrator {
         }
 
         let target_id = if let Some(id) = payload.to_agent {
-            if self.agents.contains_key(&id) {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            if agents.contains_key(&id) {
                 id
             } else {
+                drop(agents);
                 match self.spawn_agent(&format!("ResumingAgent-{}", id.0)) {
                     Ok(new_id) => new_id,
                     Err(e) => {
@@ -203,7 +211,7 @@ impl crate::orchestrator::Orchestrator {
 
         for path in &payload.owned_files {
             self.affinity_map.assign(path, target_id);
-            self.scope_guard.assign_file(target_id, path.clone());
+            crate::sync_lock::rw_write(&self.scope_guard).assign_file(target_id, path.clone());
             let _ = self
                 .lock_manager
                 .try_acquire(path, target_id, LockKind::Exclusive);
@@ -230,20 +238,20 @@ impl crate::orchestrator::Orchestrator {
 
     /// Reorder a queued task with a new priority.
     pub fn reorder_task(
-        &mut self,
+        &self,
         task_id: crate::types::TaskId,
         new_priority: crate::types::TaskPriority,
     ) -> Result<(), OrchestratorError> {
-        let agent_id = self
-            .task_assignments
+        let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
             .get(&task_id)
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
-        let queue = self
-            .agents
-            .get_mut(&agent_id)
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(queue_lock);
 
         if queue.reorder(task_id, new_priority) {
             tracing::info!(
@@ -260,17 +268,19 @@ impl crate::orchestrator::Orchestrator {
 
     /// Drain all queued tasks from an agent without retiring it.
     pub fn drain_agent(
-        &mut self,
+        &self,
         agent_id: AgentId,
     ) -> Result<Vec<AgentTask>, OrchestratorError> {
-        let queue = self
-            .agents
-            .get_mut(&agent_id)
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
             .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        let mut queue = crate::sync_lock::rw_write(queue_lock);
 
         let remaining = queue.drain_tasks();
+        let mut assignments = crate::sync_lock::rw_write(&self.task_assignments);
         for task in &remaining {
-            self.task_assignments.remove(&task.id);
+            assignments.remove(&task.id);
         }
 
         tracing::info!("Drained {} tasks from agent {}", remaining.len(), agent_id);
@@ -278,26 +288,28 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Pause an agent's queue (new tasks are held, not dispatched).
-    pub fn pause_agent(&mut self, agent_id: AgentId) -> Result<(), OrchestratorError> {
-        self.agents
-            .get_mut(&agent_id)
-            .ok_or(OrchestratorError::AgentNotFound(agent_id))?
-            .pause();
+    pub fn pause_agent(&self, agent_id: AgentId) -> Result<(), OrchestratorError> {
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
+            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        crate::sync_lock::rw_write(queue_lock).pause();
         Ok(())
     }
 
     /// Resume a previously paused agent queue.
-    pub fn resume_agent(&mut self, agent_id: AgentId) -> Result<(), OrchestratorError> {
-        self.agents
-            .get_mut(&agent_id)
-            .ok_or(OrchestratorError::AgentNotFound(agent_id))?
-            .resume();
+    pub fn resume_agent(&self, agent_id: AgentId) -> Result<(), OrchestratorError> {
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let queue_lock = agents
+            .get(&agent_id)
+            .ok_or(OrchestratorError::AgentNotFound(agent_id))?;
+        crate::sync_lock::rw_write(queue_lock).resume();
         Ok(())
     }
 
     /// Record a heartbeat from an agent and update the continuation monitor.
-    pub fn heartbeat(&mut self, agent_id: AgentId, activity: crate::events::AgentActivity) {
-        self.heartbeat_monitor.heartbeat(agent_id, activity);
-        self.monitor.record_activity(agent_id);
+    pub fn heartbeat(&self, agent_id: AgentId, activity: crate::events::AgentActivity) {
+        crate::sync_lock::rw_write(&self.heartbeat_monitor).heartbeat(agent_id, activity);
+        crate::sync_lock::rw_write(&self.monitor).record_activity(agent_id);
     }
 }

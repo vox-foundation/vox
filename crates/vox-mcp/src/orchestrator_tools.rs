@@ -21,8 +21,9 @@ pub struct QueueStatusParams {
 /// Return the queue snapshot for `params.agent_id`.
 pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> String {
     let orch = &state.orchestrator;
-    if let Some(queue) = orch.agent_queue(AgentId(params.agent_id)) {
-        ToolResult::ok(queue.to_json()).to_json()
+    if let Some(queue_lock) = orch.agent_queue(AgentId(params.agent_id)) {
+        let json = queue_lock.read().unwrap().to_json();
+        ToolResult::ok(json).to_json()
     } else {
         ToolResult::<String>::err(format!("Agent {} not found", params.agent_id)).to_json()
     }
@@ -43,8 +44,9 @@ pub async fn budget_status(state: &ServerState) -> String {
     let mut total_tokens = 0;
     let mut total_cost = 0.0;
 
+    let bh = orch.budget_handle();
     for agent_id in orch.agent_ids() {
-        if let Some(budget) = orch.budget().check_budget(agent_id) {
+        if let Some(budget) = bh.read().unwrap().check_budget(agent_id) {
             total_tokens += budget.tokens_used;
             total_cost += budget.cost_usd;
         }
@@ -213,7 +215,11 @@ pub async fn file_graph(state: &ServerState) -> String {
 /// Return merged JSON: live `OrchestratorConfig` plus `VoxConfig` toolchain map from disk.
 pub async fn config_get(state: &ServerState) -> String {
     let orch = &state.orchestrator;
-    let orch_cfg = serde_json::to_value(orch.config().clone()).unwrap_or_default();
+    let orch_cfg = {
+        let handle = orch.config_handle();
+        let cfg = handle.read().unwrap();
+        serde_json::to_value(&*cfg).unwrap_or_default()
+    };
 
     // Load VoxConfig SSOT (toolchain settings) and merge on top
     let vox_cfg = vox_config::VoxConfig::load();
@@ -234,8 +240,11 @@ pub async fn config_get(state: &ServerState) -> String {
 pub async fn config_set(state: &ServerState, params: serde_json::Value) -> String {
     let orch = &state.orchestrator;
 
-    let config = orch.config().clone();
-    let mut current_json = serde_json::to_value(&config).unwrap_or_default();
+    let mut current_json = {
+        let handle = orch.config_handle();
+        let cfg = handle.read().unwrap();
+        serde_json::to_value(&*cfg).unwrap_or_default()
+    };
 
     if let (serde_json::Value::Object(current), serde_json::Value::Object(patch)) =
         (&mut current_json, params)
@@ -247,7 +256,7 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
 
     match serde_json::from_value::<vox_orchestrator::config::OrchestratorConfig>(current_json) {
         Ok(new_config) => {
-            *orch.config_mut() = new_config.clone();
+            *orch.config_handle().write().unwrap() = new_config.clone();
             ToolResult::ok(new_config).to_json()
         }
         Err(e) => ToolResult::<String>::err(format!("invalid config fields: {e}")).to_json(),
@@ -285,17 +294,18 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         mesh_http_timeout_ms,
     ) = {
         let orch = &state.orchestrator;
-        let cfg = orch.config();
+        let handle = orch.config_handle();
+        let cfg = handle.read().unwrap();
         let effective = cfg.scaling_threshold as f64 * cfg.scaling_profile.threshold_multiplier();
         (
             orch.status(),
             Some(format!("{:?}", cfg.scaling_profile).to_lowercase()),
             Some(effective),
-            orch.snapshot_store().count(),
-            orch.oplog().count(),
-            orch.conflict_manager().active_count(),
-            orch.workspace_manager().list_workspaces().len(),
-            orch.workspace_manager()
+            orch.snapshot_store_handle().read().unwrap().count(),
+            orch.oplog_handle().read().unwrap().count(),
+            orch.conflict_manager_handle().read().unwrap().active_count(),
+            orch.workspace_manager_handle().read().unwrap().list_workspaces().len(),
+            orch.workspace_manager_handle().read().unwrap()
                 .list_changes(None, usize::MAX)
                 .len(),
             cfg.mesh_control_url.clone(),
@@ -304,15 +314,15 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
     };
 
     let mesh_federation_cache =
-        serde_json::to_value(state.mesh_remote_snapshot.read().await.clone()).ok();
+        serde_json::to_value(state.mesh_remote_snapshot.read().unwrap().clone()).ok();
 
     let max_stale_ms: Option<u64> = std::env::var("VOX_MESH_MAX_STALE_MS")
         .ok()
         .and_then(|s| s.trim().parse().ok())
         .filter(|n| *n > 0);
 
-    let mesh_snapshot = if let Some(url) = mesh_control_url.filter(|s| !s.trim().is_empty()) {
-        let timeout = std::time::Duration::from_millis(mesh_http_timeout_ms.max(500));
+    let mesh_snapshot = if let Some(url) = mesh_control_url.as_ref().filter(|s: &&String| !s.trim().is_empty()) {
+        let timeout = std::time::Duration::from_millis(mesh_http_timeout_ms.max(500_u64));
         let client =
             vox_mesh::http_client::MeshHttpClient::new_with_timeout(url, timeout).with_env_token();
         match client.list_nodes().await {
@@ -369,7 +379,7 @@ pub async fn orchestrator_status(state: &ServerState) -> String {
         Some(comp)
     };
 
-    let scaling_line = match (scaling_profile.as_ref(), effective_scale_up_threshold) {
+    let scaling_line = match (scaling_profile.as_ref().map(|s: &String| s.as_str()), effective_scale_up_threshold) {
         (Some(prof), Some(eff)) => format!(
             "**Scaling:** profile={}, effective scale-up threshold={:.1}\n\n",
             prof, eff
@@ -484,19 +494,17 @@ pub async fn check_file_owner(state: &ServerState, path: &str) -> String {
 pub async fn vcs_status(state: &ServerState) -> String {
     let orch = &state.orchestrator;
 
-    let snapshot_count = orch.snapshot_store().count();
-    let oplog_count = orch.oplog().count();
-    let active_conflicts = orch.conflict_manager().active_count();
-    let total_conflicts = orch.conflict_manager().total_count();
-    let active_workspaces = orch.workspace_manager().list_workspaces().len();
-    let active_changes = orch
-        .workspace_manager()
+    let snapshot_count = crate::sync_lock::rw_read(&*orch.snapshot_store_handle()).count();
+    let oplog_count = crate::sync_lock::rw_read(&*orch.oplog_handle()).count();
+    let active_conflicts = crate::sync_lock::rw_read(&*orch.conflict_manager_handle()).active_count();
+    let total_conflicts = crate::sync_lock::rw_read(&*orch.conflict_manager_handle()).total_count();
+    let active_workspaces = crate::sync_lock::rw_read(&*orch.workspace_manager_handle()).list_workspaces().len();
+    let active_changes = crate::sync_lock::rw_read(&*orch.workspace_manager_handle())
         .list_changes(None, usize::MAX)
         .len();
 
     // Build workspace details
-    let workspace_details: Vec<serde_json::Value> = orch
-        .workspace_manager()
+    let workspace_details: Vec<serde_json::Value> = crate::sync_lock::rw_read(&*orch.workspace_manager_handle())
         .list_workspaces()
         .iter()
         .map(|ws| {
@@ -510,8 +518,7 @@ pub async fn vcs_status(state: &ServerState) -> String {
         .collect();
 
     // Build recent oplog entries (last 10)
-    let recent_ops: Vec<serde_json::Value> = orch
-        .oplog()
+    let recent_ops: Vec<serde_json::Value> = crate::sync_lock::rw_read(&*orch.oplog_handle())
         .list(None, 10)
         .iter()
         .map(|op| {
@@ -526,8 +533,7 @@ pub async fn vcs_status(state: &ServerState) -> String {
         .collect();
 
     // Build active conflict details
-    let conflict_details: Vec<serde_json::Value> = orch
-        .conflict_manager()
+    let conflict_details: Vec<serde_json::Value> = crate::sync_lock::rw_read(&*orch.conflict_manager_handle())
         .active_conflicts()
         .iter()
         .map(|c| {

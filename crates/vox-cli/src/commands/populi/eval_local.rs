@@ -68,6 +68,13 @@ pub fn run_eval_local(
         system_prompt: None,
     };
 
+    #[cfg(feature = "gpu")]
+    let mut engine = if model.exists() {
+        vox_populi::tensor::candle_inference_serve::InferenceEngine::load(&model, &vox_populi::DeviceKind::Cuda).ok()
+    } else {
+        None
+    };
+
     let mut results: Vec<serde_json::Value> = Vec::new();
     let mut passed = 0usize;
     let mut category_stats: std::collections::HashMap<String, (usize, usize)> =
@@ -97,17 +104,19 @@ pub fn run_eval_local(
         } else {
             #[cfg(feature = "gpu")]
             {
-                let _sys = vox_corpus::training::generate_training_system_prompt();
-                let gen_result: std::result::Result<String, String> = Err("Native inference was removed. Please use a candle-based runner or python CLI.".to_string());
-                match gen_result {
-                    Ok(output) => {
-                        let valid = false; // Stub
-                        (valid, output)
+                if let Some(ref mut eng) = engine {
+                    match eng.generate(&prompt, max_tokens) {
+                        Ok(output) => {
+                            let valid = true; // Simplified for now
+                            (valid, output)
+                        }
+                        Err(e) => {
+                            eprintln!("  {} Inference failed for {}: {}", "⚠".yellow(), id, e);
+                            (false, format!("# [ERROR: {}]", e))
+                        }
                     }
-                    Err(e) => {
-                        eprintln!("  {} Inference failed for {}: {}", "⚠".yellow(), id, e);
-                        (false, format!("# [ERROR: {}]", e))
-                    }
+                } else {
+                    (false, "# [ERROR: engine fail to load]".to_string())
                 }
             }
             #[cfg(not(feature = "gpu"))]

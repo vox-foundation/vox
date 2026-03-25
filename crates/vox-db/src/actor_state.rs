@@ -1,6 +1,6 @@
 //! Actor KV state persistence through the Codex pipeline.
 
-use crate::arca_store::types::StoreError;
+use crate::store::types::StoreError;
 use serde::{Deserialize, Serialize};
 
 impl super::VoxDb {

@@ -1,3 +1,10 @@
+---
+title: "@action"
+description: "Official documentation for @action for the Vox language. Detailed technical reference, architecture guides, and implementation patterns f"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # @action
 
 **Category:** data

@@ -100,7 +100,7 @@ pub struct OrchestratorConfig {
     /// When true, a non-answer Socrates risk decision requeues the task for remediation (default: false).
     #[serde(default = "default_false")]
     pub socrates_gate_enforce: bool,
-    /// Blend `agent_reliability` (Arca V10) into routing when a CodeStore is attached (default: false).
+    /// Blend `agent_reliability` (Arca V10) into routing when a VoxDb is attached (default: false).
     #[serde(default = "default_false")]
     pub socrates_reputation_routing: bool,
     /// Optional Socrates confidence thresholds merged onto [`ConfidencePolicy::workspace_default`].

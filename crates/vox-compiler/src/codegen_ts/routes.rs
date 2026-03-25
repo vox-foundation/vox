@@ -1,10 +1,11 @@
+use crate::ast::decl::{Decl, HttpMethod, HttpRouteDecl, ServerFnDecl};
 use crate::codegen_ts::jsx::emit_expr;
-use crate::ast::decl::{Decl, HttpMethod, HttpRouteDecl, Module, ServerFnDecl};
+use crate::hir::HirModule;
 
 /// Generate Express.js route handlers from Vox http route and @server fn declarations.
-pub fn generate_routes(module: &Module) -> String {
-    let routes: Vec<&HttpRouteDecl> = module
-        .declarations
+pub fn generate_routes(hir: &HirModule) -> String {
+    let routes: Vec<&HttpRouteDecl> = hir
+        .legacy_ast_nodes
         .iter()
         .filter_map(|d| {
             if let Decl::HttpRoute(r) = d {
@@ -15,8 +16,8 @@ pub fn generate_routes(module: &Module) -> String {
         })
         .collect();
 
-    let server_fns: Vec<&ServerFnDecl> = module
-        .declarations
+    let server_fns: Vec<&ServerFnDecl> = hir
+        .legacy_ast_nodes
         .iter()
         .filter_map(|d| {
             if let Decl::ServerFn(sf) = d {

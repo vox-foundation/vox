@@ -3,7 +3,7 @@ use super::Orchestrator;
 
 impl Orchestrator {
     pub fn send_a2a(
-        &mut self,
+        &self,
         sender: AgentId,
         receiver: AgentId,
         msg_type: crate::types::A2AMessageType,
@@ -14,7 +14,7 @@ impl Orchestrator {
         // Native VCS integration: When an agent hands off a plan to another, automatically
         // start tracking a logical Change in the workspace manager for provenance visibility.
         if msg_type == crate::types::A2AMessageType::PlanHandoff {
-            self.workspace_manager.create_change(
+            crate::sync_lock::rw_write(&*self.workspace_manager).create_change(
                 receiver,
                 format!("Plan handoff from {}: {:.100}", sender, payload_str),
             );
@@ -39,7 +39,7 @@ impl Orchestrator {
 
     /// Broadcast a structured A2A message to all and publish to bulletin.
     pub fn broadcast_a2a(
-        &mut self,
+        &self,
         sender: AgentId,
         msg_type: crate::types::A2AMessageType,
         payload: impl Into<String>,

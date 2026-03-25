@@ -1,7 +1,9 @@
 ---
 title: "Codex, Arca, and Rust import policy"
-category: architecture
-last_updated: 2026-03-21
+description: "Official documentation for Codex, Arca, and Rust import policy for the Vox language. Detailed technical reference, architecture guides, a"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Codex, Arca, and Rust import policy

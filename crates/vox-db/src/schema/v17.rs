@@ -37,8 +37,7 @@ CREATE TABLE IF NOT EXISTS conversation_edges (
     edge_kind TEXT NOT NULL DEFAULT 'related',
     weight REAL NOT NULL DEFAULT 1.0,
     metadata_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    CHECK(from_conversation_id != to_conversation_id)
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversation_edges_from ON conversation_edges(from_conversation_id);

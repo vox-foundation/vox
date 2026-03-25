@@ -1,7 +1,9 @@
 ---
 title: "Crate hardening matrix (rolling)"
-category: ci
-last_updated: 2026-03-21
+description: "Official documentation for Crate hardening matrix (rolling) for the Vox language. Detailed technical reference, architecture guides, and "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Crate hardening matrix (rolling)
@@ -19,8 +21,8 @@ Minimal **four-check** row per critical crate: compile, unit tests, lint (when e
 | `vox-typeck` | default | integration + unit | same | Pipeline / `examples/*.vox` fixtures |
 | `vox-parser` | default | `parity_test` + unit | same | Golden parse list for `examples/` |
 | `vox-integration-tests` | N/A (integration) | full crate; env tests serialized | same | `venv_detection` mutex for `VIRTUAL_ENV` |
-| `vox-cli` | default + `--bins` (`vox` + `vox-compilerd` + `vox-populi` when `populi-base`) + `--features gpu` for Populi train/merge tests + `script-execution` / `execution-api` when touching serve | targeted (`--lib` / `merge_` Populi tests incl. `merge_qlora_cli_roundtrip_lm_head_subset`, needs `--features gpu`) | `clippy -p vox-cli --features execution-api -- -D warnings` for HTTP path | [ref-cli.md](../ref-cli.md), [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md), [api/vox-cli.md](../api/vox-cli.md) |
-| `vox-populi` | `cargo check -p vox-populi --features train` (pulls `candle-qlora` + `qlora-rs`) | `execution_planner`; `hf_keymap`; `training_text`; `preflight_strict_rejects_missing_o_proj`; `burn_full_graph_smoke`; `merge_v2` (see CI + [acceptance runbook](../architecture/populi-finetune-acceptance-runbook.md)) | workspace clippy when touched | [populi-training-ssot.md](../architecture/populi-training-ssot.md), [populi-lora-ownership-ssot.md](../architecture/populi-lora-ownership-ssot.md), ADR 006/007 |
+| `vox-cli` | default + `--bins` (`vox` + `vox-compilerd` + `vox-populi` when `populi-base`) + `--features gpu` for Populi train/merge tests + `script-execution` / `execution-api` when touching serve | targeted (`--lib` / `merge_` Populi tests incl. `merge_qlora_cli_roundtrip_lm_head_subset`, needs `--features gpu`) | `clippy -p vox-cli --features execution-api -- -D warnings` for HTTP path | [ref-cli.md](../reference/cli.md), [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md), [api/vox-cli.md](../reference/cli.md) |
+| `vox-populi` | `cargo check -p vox-populi --features train` (pulls `candle-qlora` + `qlora-rs`) | `execution_planner`; `hf_keymap`; `training_text`; `preflight_strict_rejects_missing_o_proj`; `burn_full_graph_smoke`; `merge_v2` (see CI + [acceptance runbook](../architecture/populi-finetune-acceptance-runbook.md)) | workspace clippy when touched | [populi-training.md](../reference/populi-training.md), [populi-lora-ownership.md](../reference/populi-lora-ownership.md), ADR 006/007 |
 | `vox-mcp` | default | `cargo test -p vox-mcp` (`input_schemas` ↔ `TOOL_REGISTRY` parity) | same | MCP tool registry in crate `//!` |
 
 **Runner labels** for CI: see [runner contract](runner-contract.md).

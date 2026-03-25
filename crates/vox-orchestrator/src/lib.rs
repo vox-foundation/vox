@@ -28,7 +28,7 @@
 //! for the orchestrator binary and integration tests.
 //!
 //! **Embedding:** the usual MCP host is the `vox-mcp` crate (stdio server), which
-//! holds `Orchestrator` plus optional Turso `CodeStore` for Codex/Arca. Training and model SSOT for
+//! holds `Orchestrator` plus optional Turso `VoxDb` for Codex/Arca. Training and model SSOT for
 //! Populi live in mdBook [`populi-training-ssot.md`](../../../docs/src/architecture/populi-training-ssot.md)
 //! (three levels up from `src/` to repo root).
 #![allow(clippy::collapsible_if)]
@@ -37,7 +37,7 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::let_underscore_future)]
 
-mod sync_lock;
+pub mod sync_lock;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
@@ -83,6 +83,8 @@ pub mod memory_search;
 pub mod mesh_federation;
 /// LLM model registry and provider configuration.
 pub mod models;
+/// Dynamic model catalogs.
+pub mod catalog;
 /// Lightweight AI usage / behavior monitor hooks.
 pub mod monitor;
 /// Append-only operation log for durable orchestration history.

@@ -1,3 +1,10 @@
+---
+title: "Example: sharing.vox"
+description: "Official documentation for Example: sharing.vox for the Vox language. Detailed technical reference, architecture guides, and implementati"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: sharing.vox
 
 ```vox

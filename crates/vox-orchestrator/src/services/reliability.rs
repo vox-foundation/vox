@@ -8,12 +8,12 @@ use crate::types::AgentId;
 
 /// Service for persisting reliability observations to Codex.
 pub struct ReliabilityService<'a> {
-    store: &'a CodeStore,
+    store: &'a VoxDb,
 }
 
 impl<'a> ReliabilityService<'a> {
     /// Create a new service bound to the given store.
-    pub fn new(store: &'a CodeStore) -> Self {
+    pub fn new(store: &'a VoxDb) -> Self {
         Self { store }
     }
 

@@ -116,3 +116,56 @@ pub struct IslandProp {
     pub ty: TypeExpr,
     pub is_optional: bool,
 }
+
+/// Reactive component declaration (Path C).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReactiveComponentDecl {
+    pub name: String,
+    pub params: Vec<crate::ast::fundecl::FnParam>,
+    pub members: Vec<ReactiveMember>,
+    pub view: Option<crate::ast::expr::Expr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ReactiveMember {
+    State(StateDecl),
+    Derived(DerivedDecl),
+    Effect(EffectDecl),
+    OnMount(OnMountDecl),
+    OnCleanup(OnCleanupDecl),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct StateDecl {
+    pub name: String,
+    pub ty: Option<TypeExpr>,
+    pub init: crate::ast::expr::Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DerivedDecl {
+    pub name: String,
+    pub ty: Option<TypeExpr>,
+    pub expr: crate::ast::expr::Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct EffectDecl {
+    pub body: crate::ast::expr::Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OnMountDecl {
+    pub body: crate::ast::expr::Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OnCleanupDecl {
+    pub body: crate::ast::expr::Expr,
+    pub span: Span,
+}

@@ -1,7 +1,9 @@
 ---
-title: "qlora-rs 1.0.5 training API — multi-layer QLoRA (Phase 2c gate)"
-category: adr
-last_updated: 2026-03-21
+title: "ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate)"
+description: "Official documentation for ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate) for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate)
@@ -57,4 +59,4 @@ Source audit (`qlora-rs` 1.0.5 `src/training.rs`):
 ## References
 
 - Crate: `qlora-rs` 1.0.5 (`training.rs`, `qlora.rs`).
-- SSOT: [`populi-training-ssot.md`](../architecture/populi-training-ssot.md) — § Full-graph QLoRA design.
+- SSOT: [`populi-training.md`](../reference/populi-training.md) — § Full-graph QLoRA design.

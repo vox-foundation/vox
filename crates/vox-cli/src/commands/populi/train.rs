@@ -115,6 +115,7 @@ pub async fn run_train(
     qlora_ce_last_k: usize,
     checkpoint_every: Option<usize>,
     force_restart: bool,
+    curriculum: bool,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -297,8 +298,19 @@ pub async fn run_train(
             workspace_root.as_deref(),
         )?;
         tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
+        
+        // VRAM Auto-Detect: Select 16g preset if CUDA is active and no preset is provided.
+        let mut final_preset = preset.clone();
+        if final_preset.is_none() && device.to_lowercase() == "cuda" {
+            let auto_preset = crate::tensor::vram_autodetect::auto_preset(true, crate::tensor::vram_autodetect::get_system_vram_gb());
+            if let Some(ap) = auto_preset {
+                eprintln!("  {} Auto-detected 16 GB VRAM → using preset '{}'", "⚙".cyan(), ap);
+                final_preset = Some(ap.to_string());
+            }
+        }
+
         let profile = vox_populi::resolve_effective_profile(
-            preset.as_deref(),
+            final_preset.as_deref(),
             device_profile,
             resolved.sample_count,
             cli_overrides,
@@ -457,6 +469,7 @@ pub async fn run_train(
             checkpoint_every,
             force_restart,
             deployment_target,
+            curriculum,
         };
         let model_name_for_stats = config.base_model.clone().unwrap_or_else(|| "scratch".to_string());
         let preset_for_stats = preset.clone().unwrap_or_else(|| "unknown".to_string());

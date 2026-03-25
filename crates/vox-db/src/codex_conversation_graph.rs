@@ -1,7 +1,7 @@
 //! Structured **research sessions**, **conversation version** snapshots, **conversation edges**, and
 //! **topic evolution** events (Arca manifest fragment `v17`).
 
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 
 use crate::VoxDb;
 

@@ -184,7 +184,7 @@ pub struct AutoMigrator<'a> {
 use crate::schema_digest::{IndexKind, SchemaDigest};
 
 impl<'a> AutoMigrator<'a> {
-    /// Create an engine bound to one Turso connection (typically from `VoxDb` / `CodeStore`).
+    /// Create an engine bound to one Turso connection (typically from `VoxDb` / `VoxDb`).
     pub fn new(conn: &'a Connection) -> Self {
         Self { conn }
     }

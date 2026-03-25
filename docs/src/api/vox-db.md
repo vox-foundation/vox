@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-db"
+description: "Official documentation for Crate API: vox-db for the Vox language. Detailed technical reference, architecture guides, and implementation "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-db
 
 ## Overview
@@ -389,7 +396,7 @@ Validate migration ordering and uniqueness.
 ### `fn builtin_migrations`
 
 Returns the canonical Arca baseline as a single migration (**version 1**), sourced from
-`vox_pm::schema::baseline_sql` / [`SCHEMA_FRAGMENTS`](../../../crates/vox-pm/src/schema/manifest.rs).
+`vox_pm::schema::baseline_sql` / [`SCHEMA_FRAGMENTS`](../../../crates/vox-db/src/schema/manifest.rs).
 
 
 ## Module: `vox-db\src\paths.rs`

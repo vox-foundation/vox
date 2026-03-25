@@ -2,7 +2,7 @@
 //! and proxy “hallucination risk” tracking when gold labels are absent.
 
 use serde::{Deserialize, Serialize};
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 use vox_socrates_policy::RiskDecision;
 
 use crate::VoxDb;
@@ -241,7 +241,7 @@ impl VoxDb {
 #[cfg(all(test, feature = "local"))]
 mod db_tests {
     use crate::{DbConfig, VoxDb};
-    use crate::arca_store::StoreError;
+    use crate::store::StoreError;
     use vox_socrates_policy::RiskDecision;
 
     #[tokio::test]
@@ -283,13 +283,12 @@ mod db_tests {
             .record_socrates_eval_summary("empty-snapshot", None, 50)
             .await
             .expect_err("expected empty window");
-        let StoreError::Db(msg) = err else {
-            panic!("expected Db error, got {err:?}");
-        };
-        assert!(
-            msg.contains("no socrates_surface"),
-            "unexpected message: {msg}"
-        );
+        match err {
+            StoreError::Db(msg) => {
+                assert!(msg.contains("no socrates_surface"), "unexpected message: {msg}");
+            }
+            _ => panic!("expected StoreError::Db, got {err:?}"),
+        }
     }
 }
 

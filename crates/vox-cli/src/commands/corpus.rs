@@ -41,6 +41,24 @@ pub enum CorpusAction {
         #[arg(short, long, default_value = "populi/data/validated.jsonl")]
         output: std::path::PathBuf,
     },
+    /// Extract training pairs from Rust source code (.rs)
+    ExtractRs {
+        /// Root directory (usually `crates/`)
+        #[arg(default_value = "crates")]
+        dir: std::path::PathBuf,
+        /// Output JSONL file
+        #[arg(short, long, default_value = "populi/data/mix_sources/rust_source.jsonl")]
+        output: std::path::PathBuf,
+    },
+    /// Extract training pairs from documentation (.md)
+    ExtractDocs {
+        /// Documentation directory (usually `docs/src/`)
+        #[arg(default_value = "docs/src")]
+        dir: std::path::PathBuf,
+        /// Output JSONL file
+        #[arg(short, long, default_value = "populi/data/mix_sources/docs.jsonl")]
+        output: std::path::PathBuf,
+    },
     /// Validate and deduplicate a corpus JSONL file
     Validate {
         /// Input JSONL file
@@ -172,6 +190,26 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             Ok(())
         }
         CorpusAction::Extract { dir, output } => run_extract(&dir, &output).await,
+        CorpusAction::ExtractRs { dir, output } => {
+            let config = vox_corpus::corpus::extract_rs::ExtractRsConfig {
+                root: dir,
+                ..Default::default()
+            };
+            let pairs = vox_corpus::corpus::extract_rs::walk_and_extract(&config)?;
+            let count = vox_corpus::corpus::extract_rs::write_to_jsonl(&pairs, &output)?;
+            println!("✓ Extracted {} Rust source pairs → {}", count, output.display());
+            Ok(())
+        }
+        CorpusAction::ExtractDocs { dir, output } => {
+            let config = vox_corpus::corpus::extract_docs::ExtractDocsConfig {
+                root: dir,
+                ..Default::default()
+            };
+            let pairs = vox_corpus::corpus::extract_docs::walk_and_extract_docs(&config)?;
+            let count = vox_corpus::corpus::extract_docs::write_docs_to_jsonl(&pairs, &output)?;
+            println!("✓ Extracted {} documentation pairs → {}", count, output.display());
+            Ok(())
+        }
         CorpusAction::Validate {
             input,
             output,
@@ -568,6 +606,19 @@ async fn run_validate(input: &Path, output: &Path, recheck: bool) -> Result<()> 
                     rejected += 1;
                     continue;
                 }
+            }
+        }
+
+        // Assign difficulty if missing
+        let mut record = record;
+        if record.get("difficulty").is_none() {
+            if let Some(constructs) = record.get("constructs").and_then(|v| v.as_array()) {
+                let diff = constructs.iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| crate::training::construct_difficulty(s))
+                    .max()
+                    .unwrap_or(5);
+                record.as_object_mut().unwrap().insert("difficulty".to_string(), serde_json::json!(diff));
             }
         }
 

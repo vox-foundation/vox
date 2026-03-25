@@ -1,0 +1,17 @@
+warning: unused import: `PathBuf`
+ --> crates\vox-cli\src\commands\ci\check_links.rs:1:23
+  |
+1 | use std::path::{Path, PathBuf};
+  |                       ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `vox-cli` (lib) generated 1 warning (run `cargo fix --lib -p vox-cli` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.44s
+     Running `target\debug\vox.exe ci check-links`
+[94mINIT[39m Checking internal links in "docs\\src"...
+[32mDONE[39m Checked 699 internal links.
+[1m[31mFAIL[39m[0m Found 1 broken links:
+  [36mdocs\src\how-to\how-to-pytorch.md[39m -> [33m../../../crates/vox-populi/src/tensor/burn_inference_load.rs[39m (resolved: [2m"C:\\Users\\Owner\\vox\\docs\\src\\how-to\\../../../crates/vox-populi/src/tensor/burn_inference_load.rs"[0m)
+Error: Documentation link check failed
+error: process didn't exit successfully: `target\debug\vox.exe ci check-links` (exit code: 1)

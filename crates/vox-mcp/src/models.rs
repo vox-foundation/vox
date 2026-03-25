@@ -20,7 +20,8 @@ pub struct SetModelParams {
 
 pub async fn list_models(state: &ServerState, _params: ListModelsParams) -> String {
     let orch = &state.orchestrator;
-    let models = orch.models().list_models();
+    let handle = orch.models_handle();
+    let models = vox_orchestrator::sync_lock::rw_read(&*handle).list_models();
     ToolResult::ok(models).to_json()
 }
 
@@ -39,9 +40,10 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         _ => TaskCategory::CodeGen, // Default fallback
     };
 
-    let preference = orch.config().cost_preference;
+    let preference = vox_orchestrator::sync_lock::rw_read(&*orch.config_handle()).cost_preference;
     let complexity = 5; // Default for interactive suggestions
-    if let Some(model) = orch.models().best_for(category, complexity, preference) {
+    let handle = orch.models_handle();
+    if let Some(model) = vox_orchestrator::sync_lock::rw_read(&*handle).best_for(category, complexity, preference) {
         ToolResult::ok(model).to_json()
     } else {
         ToolResult::<String>::err("No suitable model found for category").to_json()
@@ -58,7 +60,7 @@ pub async fn set_active_mcp_chat_model(
     state: &ServerState,
     params: SetActiveMcpModelParams,
 ) -> String {
-    let mut lock = state.mcp_chat_model_override.write().await;
+    let mut lock = state.mcp_chat_model_override.write().unwrap();
     if params.model_id.is_empty() {
         *lock = None;
         ToolResult::ok("cleared active MCP chat model override").to_json()
@@ -71,16 +73,16 @@ pub async fn set_active_mcp_chat_model(
 
 /// Return the active MCP chat model override, if any.
 pub async fn get_active_mcp_chat_model(state: &ServerState) -> String {
-    let id = state.mcp_chat_model_override.read().await.clone();
+    let id = state.mcp_chat_model_override.read().unwrap().clone();
     ToolResult::ok(id.unwrap_or_default()).to_json()
 }
 
 pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
     let orch = &state.orchestrator;
 
-    if let Some(_) = orch.models().get(&params.model_id) {
-        let mut guard = orch.models_mut();
-        guard.set_override(params.agent_id, params.model_id.clone());
+    let handle = orch.models_handle();
+    if let Some(_) = vox_orchestrator::sync_lock::rw_read(&*handle).get(&params.model_id) {
+        vox_orchestrator::sync_lock::rw_write(&*handle).set_override(params.agent_id, params.model_id.clone());
         ToolResult::ok(format!(
             "Successfully overridden model to {} for agent {}",
             params.model_id, params.agent_id

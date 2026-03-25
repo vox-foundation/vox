@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-toestub"
+description: "Official documentation for Crate API: vox-toestub for the Vox language. Detailed technical reference, architecture guides, and implementa"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-toestub
 
 ## Overview
@@ -31,7 +38,7 @@ TOESTUB mechanically detects AI coding anti-patterns that are banned by `AGENTS.
 
 ## CLI
 
-**In the minimal `vox` binary**, the subcommand is behind **`--features stub-check`** (see [`ref-cli.md`](../ref-cli.md#vox-stub-check-feature-stub-check)).
+**In the minimal `vox` binary**, the subcommand is behind **`--features stub-check`** (see [`ref-cli.md`](../reference/cli.md#vox-stub-check-feature-stub-check)).
 
 ```bash
 cargo build -p vox-cli --features stub-check
@@ -81,7 +88,7 @@ The AI layer is **entirely optional** — TOESTUB works fully offline with
 just the static detectors. AI analysis enhances detection for subtle patterns
 that regexes miss: semantic dead code, inconsistent naming, logic gaps, etc.
 
-**MCP / orchestrator routing:** Editor and MCP LLM calls use `models.toml` under the Vox config directory for registry + optional `premium_alias` overrides — not this crate’s `AiProvider` enum. See [`vox-mcp.md`](./vox-mcp.md#llm-model-routing-modelstoml).
+**MCP / orchestrator routing:** Editor and MCP LLM calls use `models.toml` under the Vox config directory for registry + optional `premium_alias` overrides — not this crate’s `AiProvider` enum. See [`vox-mcp.md`](vox-mcp.md#llm-model-routing-modelstoml).
 
 
 ### `enum AiProvider`

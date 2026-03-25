@@ -3,7 +3,7 @@
 //! Wraps the Arca `user_preferences` table with higher-level registry scoping.
 //! Key format: `{registry}.{key}`.
 
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 
 /// Set a preference for a specific registry (e.g. `google.api_key`).
 pub async fn set_registry_preference(

@@ -117,7 +117,7 @@ pub async fn workspace_modules(state: &ServerState) -> Result<Value, anyhow::Err
 pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
     let orch = &state.orchestrator;
     let tasks = orch.all_tasks();
-    let assignments = orch.task_assignments();
+    let assignments = orch.task_assignments_copy();
     
     let ui_tasks: Vec<Value> = tasks.into_iter().map(|t| {
         let status_str = match &t.status {
@@ -127,7 +127,7 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
             vox_orchestrator::types::TaskStatus::Failed(e) => format!("Failed: {}", e),
             vox_orchestrator::types::TaskStatus::Blocked(id) => format!("Blocked by {}", id),
             vox_orchestrator::types::TaskStatus::Cancelled => "Cancelled".to_string(),
-            other => format!("Unknown({:?})", other),
+            _other => "Other".to_string(),
         };
 
         let priority_str = match t.priority {
@@ -137,7 +137,7 @@ pub async fn a2a_tasks(state: &ServerState) -> Result<Value, anyhow::Error> {
             _ => "Unknown",
         };
 
-        let agent_id = assignments.get(&t.id).map(|id| id.to_string()).unwrap_or_else(|| "unassigned".to_string());
+        let agent_id = assignments.get(&t.id).map(|id| id.0.to_string()).unwrap_or_else(|| "unassigned".to_string());
 
         json!({
             "id": t.id.to_string(),

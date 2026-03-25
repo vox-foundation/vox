@@ -1,3 +1,10 @@
+---
+title: "Example: Server function demo"
+description: "Official documentation for Example: Server function demo for the Vox language. Detailed technical reference, architecture guides, and imp"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Server function demo
 
 ```vox

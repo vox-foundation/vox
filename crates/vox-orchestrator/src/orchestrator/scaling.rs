@@ -11,11 +11,14 @@ impl crate::orchestrator::Orchestrator {
     ///
     /// Moves tasks from overloaded agents to underloaded ones, respecting file
     /// affinity (only moves tasks whose write-files are not locked by a third agent).
-    pub fn rebalance(&mut self) -> usize {
-        let loads: Vec<(AgentId, f64)> = self
-            .agents
+    pub fn rebalance(&self) -> usize {
+        let agents = crate::sync_lock::rw_read(&*self.agents);
+        let loads: Vec<(AgentId, f64)> = agents
             .iter()
-            .map(|(id, q)| (*id, q.weighted_load()))
+            .map(|(id, queue_lock)| {
+                let queue = crate::sync_lock::rw_read(&**queue_lock);
+                (*id, queue.weighted_load())
+            })
             .collect();
 
         if loads.len() < 2 {
@@ -37,17 +40,18 @@ impl crate::orchestrator::Orchestrator {
             .map(|(id, _)| *id)
             .collect();
 
-        if self.config.cost_preference == crate::config::CostPreference::Economy {
-            let models = &self.models;
+        let config = crate::sync_lock::rw_read(&*self.config);
+        if config.cost_preference == crate::config::CostPreference::Economy {
+            let models_lock = crate::sync_lock::rw_read(&*self.models);
             underloaded.sort_by(|a, b| {
-                let cost_a = models
+                let cost_a = models_lock
                     .get_override(a.0)
-                    .and_then(|id| models.get(&id))
+                    .and_then(|id| models_lock.get(&id))
                     .map(|m| m.cost_per_1k)
                     .unwrap_or(0.003);
-                let cost_b = models
+                let cost_b = models_lock
                     .get_override(b.0)
-                    .and_then(|id| models.get(&id))
+                    .and_then(|id| models_lock.get(&id))
                     .map(|m| m.cost_per_1k)
                     .unwrap_or(0.003);
                 cost_a
@@ -55,10 +59,12 @@ impl crate::orchestrator::Orchestrator {
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
         }
+        drop(config);
 
         for over_id in &overloaded {
             for under_id in &underloaded {
-                if let Some(queue) = self.agents.get_mut(over_id) {
+                if let Some(queue_lock) = agents.get(over_id) {
+                    let mut queue = crate::sync_lock::rw_write(&**queue_lock);
                     let mut tasks = queue.drain_tasks();
                     tasks.sort_by_key(|t| match t.priority {
                         crate::types::TaskPriority::Background => 0u8,
@@ -74,15 +80,17 @@ impl crate::orchestrator::Orchestrator {
                         })
                     });
                     let stolen = steal_idx.map(|i| tasks.remove(i));
-                    if let Some(queue) = self.agents.get_mut(over_id) {
-                        for task in tasks {
-                            queue.enqueue(task);
-                        }
+                    // Re-enqueue the rest
+                    for task in tasks {
+                        queue.enqueue(task);
                     }
+                    drop(queue);
+
                     if let Some(task) = stolen {
-                        if let Some(target) = self.agents.get_mut(under_id) {
-                            self.task_assignments.insert(task.id, *under_id);
-                            target.enqueue(task);
+                        if let Some(target_lock) = agents.get(under_id) {
+                            let task_id = task.id;
+                            crate::sync_lock::rw_write(&**target_lock).enqueue(task);
+                            crate::sync_lock::rw_write(&*self.task_assignments).insert(task_id, *under_id);
                             moved += 1;
                         }
                     }
@@ -92,8 +100,8 @@ impl crate::orchestrator::Orchestrator {
 
         if moved > 0 {
             tracing::info!("Rebalanced: moved {} tasks", moved);
-            self.last_rebalance_at = Some(std::time::Instant::now());
-            self.oplog.record(
+            *crate::sync_lock::rw_write(&*self.last_rebalance_at) = Some(std::time::Instant::now());
+            crate::sync_lock::rw_write(&*self.oplog).record(
                 AgentId(0),
                 crate::oplog::OperationKind::Rebalance,
                 format!("Rebalanced {} tasks", moved),
@@ -116,14 +124,35 @@ impl crate::orchestrator::Orchestrator {
     /// - Checks heartbeats and retires zombie dynamic agents.
     /// - Issues auto-continuation tasks for idle agents.
     /// - Triggers urgent-queue rebalance when a single agent exceeds the threshold.
-    pub async fn tick(&mut self) {
+    pub async fn tick(&self) {
         #[cfg(feature = "system-metrics")]
         {
-            self.sys.refresh_cpu_all();
-            self.sys.refresh_memory();
+            let mut sys = crate::sync_lock::rw_write(&*self.sys);
+            sys.refresh_cpu_all();
+            sys.refresh_memory();
         }
 
-        let timeout = self.config.lock_timeout_ms as u128;
+        let (
+            timeout,
+            auto_continue,
+            urgent_threshold,
+            cooldown_ms,
+            task_timeout_ms,
+            idle_timeout_ms,
+            scaling_lookback,
+        ) = {
+            let config = crate::sync_lock::rw_read(&*self.config);
+            (
+                config.lock_timeout_ms as u128,
+                config.auto_continue_enabled,
+                config.urgent_rebalance_threshold,
+                config.scaling_cooldown_ms,
+                config.task_timeout_ms,
+                config.idle_timeout_ms,
+                config.scaling_lookback_ticks,
+            )
+        };
+
         let released = self.lock_manager.force_release_stale(timeout);
         if released > 0 {
             tracing::warn!(
@@ -134,42 +163,50 @@ impl crate::orchestrator::Orchestrator {
         }
 
         let current_load = self.status().total_weighted_load;
-        self.load_history.push_back(current_load);
-        if self.load_history.len() > self.config.scaling_lookback_ticks {
-            self.load_history.pop_front();
+        {
+            let mut history = crate::sync_lock::rw_write(&*self.load_history);
+            history.push_back(current_load);
+            if history.len() > scaling_lookback {
+                history.pop_front();
+            }
         }
 
         // Global Idle Check
         let now_ms = crate::types::now_unix_ms();
         let global_idle_ms = now_ms.saturating_sub(self.last_activity_ms());
-        if global_idle_ms >= self.config.idle_timeout_ms {
+        if global_idle_ms >= idle_timeout_ms {
             self.event_bus.emit(crate::events::AgentEventKind::OrchestratorIdle {
                 idle_ms: global_idle_ms,
             });
             // We only log once at the threshold to avoid spamming every tick
-            if global_idle_ms < self.config.idle_timeout_ms + 10_000 {
+            if global_idle_ms < idle_timeout_ms + 10_000 {
                 tracing::info!("Orchestrator has been idle for {}ms", global_idle_ms);
             }
         }
 
         // Task Expiration Check
-        let task_timeout = std::time::Duration::from_millis(self.config.task_timeout_ms);
-        for (&agent_id, queue) in self.agents.iter_mut() {
-            let expired = queue.drain_timed_out(task_timeout);
-            for task in expired {
-                let age = now_ms.saturating_sub(task.created_at_ms);
-                self.event_bus.emit(crate::events::AgentEventKind::TaskExpired {
-                    task_id: task.id,
-                    agent_id,
-                    age_ms: age,
-                });
-                tracing::warn!("Task {} on agent {} expired (age: {}ms)", task.id, agent_id, age);
+        let task_timeout = std::time::Duration::from_millis(task_timeout_ms);
+        {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            for (&agent_id, queue_lock) in agents.iter() {
+                let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+                let expired = queue.drain_timed_out(task_timeout);
+                for task in expired {
+                    let age = now_ms.saturating_sub(task.created_at_ms);
+                    self.event_bus.emit(crate::events::AgentEventKind::TaskExpired {
+                        task_id: task.id,
+                        agent_id,
+                        age_ms: age,
+                    });
+                    tracing::warn!("Task {} on agent {} expired (age: {}ms)", task.id, agent_id, age);
+                }
             }
         }
 
-        let stale_ids = self.heartbeat_monitor.check_stale(&self.event_bus);
+        let stale_ids = crate::sync_lock::rw_write(&*self.heartbeat_monitor).check_stale(&self.event_bus);
         for (id, level) in stale_ids {
-            if self.dynamic_agents.contains(&id) {
+            let is_dynamic = crate::sync_lock::rw_read(&*self.dynamic_agents).contains(&id);
+            if is_dynamic {
                 tracing::warn!(
                     "Tick: retiring zombie dynamic agent {} (level: {})",
                     id,
@@ -185,28 +222,28 @@ impl crate::orchestrator::Orchestrator {
             }
         }
 
-        if self.config.auto_continue_enabled {
-            let active_agents: Vec<(AgentId, usize)> = self
-                .agents
-                .iter()
-                .map(|(id, queue)| (*id, queue.len()))
-                .collect();
-            let intents = self
-                .monitor
+        if auto_continue {
+            let active_agents: Vec<(AgentId, usize)> = {
+                let agents = crate::sync_lock::rw_read(&*self.agents);
+                agents
+                    .iter()
+                    .map(|(id, queue_lock)| (*id, crate::sync_lock::rw_read(&**queue_lock).len()))
+                    .collect()
+            };
+            let intents = crate::sync_lock::rw_write(&*self.monitor)
                 .check_idle_agents(&active_agents, &self.event_bus);
 
             for (agent_id, prompt) in intents {
+                let agent_name = {
+                    let agents = crate::sync_lock::rw_read(&*self.agents);
+                    agents.get(&agent_id).map(|q| crate::sync_lock::rw_read(&**q).name.clone()).unwrap_or_default()
+                };
                 let _ = self
                     .submit_task_with_agent(
                         format!("[Auto-Continuation] {}", prompt),
                         vec![],
                         Some(crate::types::TaskPriority::Background),
-                        Some(
-                            self.agents
-                                .get(&agent_id)
-                                .map(|q| q.name.clone())
-                                .unwrap_or_default(),
-                        ),
+                        Some(agent_name),
                         None,
                         None,
                     )
@@ -214,38 +251,42 @@ impl crate::orchestrator::Orchestrator {
             }
         }
 
-        let urgent_threshold = self.config.urgent_rebalance_threshold;
-        if urgent_threshold > 0 && self.agents.len() >= 2 {
-            let cooldown_ms = self.config.scaling_cooldown_ms;
-            let can_rebalance = self
-                .last_rebalance_at
-                .map(|t| t.elapsed().as_millis() >= cooldown_ms as u128)
-                .unwrap_or(true);
+        if urgent_threshold > 0 {
+            let agents_count = crate::sync_lock::rw_read(&*self.agents).len();
+            if agents_count >= 2 {
+                let can_rebalance = {
+                    let last = crate::sync_lock::rw_read(&*self.last_rebalance_at);
+                    last.map(|t| t.elapsed().as_millis() >= cooldown_ms as u128)
+                        .unwrap_or(true)
+                };
 
-            if can_rebalance {
-                let overloaded_urgent: Vec<(AgentId, usize)> = self
-                    .agents
-                    .iter()
-                    .map(|(id, q)| {
-                        (*id, q.depth_by_priority(crate::types::TaskPriority::Urgent))
-                    })
-                    .filter(|(_, depth)| *depth > urgent_threshold)
-                    .collect();
+                if can_rebalance {
+                    let overloaded_urgent: Vec<(AgentId, usize)> = {
+                        let agents = crate::sync_lock::rw_read(&*self.agents);
+                        agents
+                            .iter()
+                            .map(|(id, q_lock)| {
+                                (*id, crate::sync_lock::rw_read(&**q_lock).depth_by_priority(crate::types::TaskPriority::Urgent))
+                            })
+                            .filter(|(_, depth)| *depth > urgent_threshold)
+                            .collect()
+                    };
 
-                if !overloaded_urgent.is_empty() {
-                    for (agent_id, depth) in &overloaded_urgent {
-                        tracing::warn!(
-                            "Tick: agent {} has {} urgent tasks (threshold {}), triggering urgent rebalance",
-                            agent_id,
-                            depth,
-                            urgent_threshold
-                        );
-                    }
-                    let moved = self.rebalance();
-                    if moved > 0 {
-                        self.event_bus.emit(
-                            crate::events::AgentEventKind::UrgentRebalanceTriggered { moved },
-                        );
+                    if !overloaded_urgent.is_empty() {
+                        for (agent_id, depth) in &overloaded_urgent {
+                            tracing::warn!(
+                                "Tick: agent {} has {} urgent tasks (threshold {}), triggering urgent rebalance",
+                                agent_id,
+                                depth,
+                                urgent_threshold
+                            );
+                        }
+                        let moved = self.rebalance();
+                        if moved > 0 {
+                            self.event_bus.emit(
+                                crate::events::AgentEventKind::UrgentRebalanceTriggered { moved },
+                            );
+                        }
                     }
                 }
             }

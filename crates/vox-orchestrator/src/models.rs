@@ -9,11 +9,36 @@ use crate::usage::LlmUsageKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Model tier for routing prioritization
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelTier {
+    #[default]
+    Unknown,
+    Light,
+    Pro,
+    Elite,
+}
+
+/// Rich capabilities for a model, imported from DeI
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ModelCapabilities {
+    pub supports_json: bool,
+    pub supports_vision: bool,
+    pub max_context: u64,
+    pub tier: ModelTier,
+    pub rate_limit_rpm: Option<u32>,
+    pub rate_limit_rpd: Option<u32>,
+}
+
 /// Specification for an LLM model in the registry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModelSpec {
     /// Stable model slug used in APIs and config (e.g. `gemini-2.0-flash-lite`).
     pub id: String,
+    /// The unique system-wide slug
+    #[serde(default)]
+    pub canonical_slug: String,
     /// Provider namespace for billing and routing (`google`, `openrouter`, …).
     pub provider: String,
     /// Which API endpoint to use: "google_direct", "openrouter", or "ollama".
@@ -22,14 +47,22 @@ pub struct ModelSpec {
     pub max_tokens: u64,
     /// Simplified cost metric representing aggregate cost per 1000 tokens.
     pub cost_per_1k: f64,
+    #[serde(default)]
+    pub cost_per_1k_input: f64,
+    #[serde(default)]
+    pub cost_per_1k_output: f64,
     /// Whether this model is free (no per-token cost).
     pub is_free: bool,
     /// Tags describing fit (speed, reasoning, codegen) for heuristic routing.
     pub strengths: Vec<String>,
+    #[serde(default)]
+    pub capabilities: ModelCapabilities,
+    #[serde(default)]
+    pub supported_parameters: Vec<String>,
 }
 
 /// Provider routing type — determines which API endpoint to call.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderType {
     /// Google AI Studio direct (generativelanguage.googleapis.com)
@@ -38,13 +71,25 @@ pub enum ProviderType {
     OpenRouter,
     /// Local Ollama instance (localhost:11434)
     Ollama,
+    /// Groq LPU endpoint
+    Groq,
+    /// Cerebras endpoint
+    Cerebras,
+    /// Mistral direct
+    Mistral,
+    /// DeepSeek direct
+    DeepSeek,
+    /// SambaNova
+    SambaNova,
+    /// Custom third-party endpoint
+    Custom(String),
 }
 
 impl ModelSpec {
     /// Keys for daily quota rows in `provider_usage` (aligned with `usage` module limits; OpenRouter `:free` aggregate, Ollama `*`).
     #[must_use]
     pub fn llm_usage_key(&self) -> LlmUsageKey {
-        match self.provider_type {
+        match &self.provider_type {
             ProviderType::GoogleDirect => LlmUsageKey {
                 provider: "google".to_string(),
                 model: self.id.clone(),
@@ -63,6 +108,30 @@ impl ModelSpec {
             ProviderType::Ollama => LlmUsageKey {
                 provider: "ollama".to_string(),
                 model: "*".to_string(),
+            },
+            ProviderType::Groq => LlmUsageKey {
+                provider: "groq".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::Cerebras => LlmUsageKey {
+                provider: "cerebras".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::Mistral => LlmUsageKey {
+                provider: "mistral".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::DeepSeek => LlmUsageKey {
+                provider: "deepseek".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::SambaNova => LlmUsageKey {
+                provider: "sambanova".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::Custom(_url) => LlmUsageKey {
+                provider: "custom".to_string(),
+                model: self.id.clone(),
             },
         }
     }
@@ -107,32 +176,45 @@ impl Default for ModelConfig {
                 // ── Free Tier (Google AI Studio direct, no credit card) ──
                 ModelSpec {
                     id: "gemini-2.0-flash-lite".to_string(),
+                    canonical_slug: "google/gemini-2.0-flash-lite".to_string(),
                     provider: "google".to_string(),
                     provider_type: ProviderType::GoogleDirect,
                     max_tokens: 1_000_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "parsing".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "gemini-2.5-flash-preview".to_string(),
+                    canonical_slug: "google/gemini-2.5-flash-preview".to_string(),
                     provider: "google".to_string(),
                     provider_type: ProviderType::GoogleDirect,
                     max_tokens: 1_000_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec![
                         "codegen".to_string(),
                         "review".to_string(),
                         "parsing".to_string(),
                     ],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "gemini-2.5-pro".to_string(),
+                    canonical_slug: "google/gemini-2.5-pro".to_string(),
                     provider: "google".to_string(),
                     provider_type: ProviderType::GoogleDirect,
                     max_tokens: 2_000_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec![
                         "codegen".to_string(),
@@ -140,102 +222,149 @@ impl Default for ModelConfig {
                         "review".to_string(),
                         "research".to_string(),
                     ],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 // ── Free Tier (OpenRouter :free, requires free API key) ──
                 ModelSpec {
                     id: "mistral/devstral-2-2512:free".to_string(),
+                    canonical_slug: "mistral/devstral-2-2512:free".to_string(),
                     provider: "mistral".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 262_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "refactoring".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "qwen/qwen3-coder:free".to_string(),
+                    canonical_slug: "qwen/qwen3-coder:free".to_string(),
                     provider: "qwen".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 262_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "meta-llama/llama-4-scout:free".to_string(),
+                    canonical_slug: "meta/llama-4-scout:free".to_string(),
                     provider: "meta".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 512_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["review".to_string(), "parsing".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "moonshotai/kimi-k2:free".to_string(),
+                    canonical_slug: "moonshot/kimi-k2:free".to_string(),
                     provider: "moonshot".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 200_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "research".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 // ── Paid Tier (OpenRouter, auto-selected when budget allows) ──
                 ModelSpec {
                     id: "deepseek/deepseek-v3.2".to_string(),
+                    canonical_slug: "deepseek/deepseek-v3.2".to_string(),
                     provider: "deepseek".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 128_000,
                     cost_per_1k: 0.00027,
+                    cost_per_1k_input: 0.0001,
+                    cost_per_1k_output: 0.0004,
                     is_free: false,
                     strengths: vec![
                         "codegen".to_string(),
                         "debugging".to_string(),
                         "logic".to_string(),
                     ],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "anthropic/claude-sonnet-4.5".to_string(),
+                    canonical_slug: "anthropic/claude-sonnet".to_string(),
                     provider: "anthropic".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 200_000,
                     cost_per_1k: 0.003,
+                    cost_per_1k_input: 0.003,
+                    cost_per_1k_output: 0.015,
                     is_free: false,
                     strengths: vec![
                         "codegen".to_string(),
                         "refactoring".to_string(),
                         "review".to_string(),
                     ],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "openai/gpt-5".to_string(),
+                    canonical_slug: "openai/gpt-5".to_string(),
                     provider: "openai".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 256_000,
                     cost_per_1k: 0.005,
+                    cost_per_1k_input: 0.005,
+                    cost_per_1k_output: 0.015,
                     is_free: false,
                     strengths: vec![
                         "review".to_string(),
                         "parsing".to_string(),
                         "research".to_string(),
                     ],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 ModelSpec {
                     id: "openai/o3".to_string(),
+                    canonical_slug: "openai/o3".to_string(),
                     provider: "openai".to_string(),
                     provider_type: ProviderType::OpenRouter,
                     max_tokens: 200_000,
                     cost_per_1k: 0.010,
+                    cost_per_1k_input: 0.01,
+                    cost_per_1k_output: 0.03,
                     is_free: false,
                     strengths: vec!["debugging".to_string(), "logic".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
                 // ── Local Ollama / Populi (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
                 ModelSpec {
                     id: "llama3.2".to_string(),
+                    canonical_slug: "local/llama3.2".to_string(),
                     provider: "ollama".to_string(),
                     provider_type: ProviderType::Ollama,
                     max_tokens: 128_000,
                     cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
                     is_free: true,
                     strengths: vec!["codegen".to_string(), "parsing".to_string()],
+                    capabilities: ModelCapabilities::default(),
+                    supported_parameters: vec![],
                 },
             ],
             premium_alias: built_in_premium_alias(),
@@ -589,12 +718,17 @@ mod llm_usage_key_tests {
     fn openrouter_free_maps_to_aggregate_free_bucket() {
         let m = ModelSpec {
             id: "qwen/qwen3-coder:free".into(),
+            canonical_slug: "qwen-free".into(),
             provider: "qwen".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec![],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         };
         assert_eq!(
             m.llm_usage_key(),
@@ -609,12 +743,17 @@ mod llm_usage_key_tests {
     fn openrouter_paid_uses_full_model_id() {
         let m = ModelSpec {
             id: "anthropic/claude-sonnet-4.5".into(),
+            canonical_slug: "claude".into(),
             provider: "anthropic".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1,
             cost_per_1k: 0.01,
+            cost_per_1k_input: 0.01,
+            cost_per_1k_output: 0.01,
             is_free: false,
             strengths: vec![],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         };
         assert_eq!(
             m.llm_usage_key(),
@@ -629,12 +768,17 @@ mod llm_usage_key_tests {
     fn ollama_maps_to_star_model() {
         let m = ModelSpec {
             id: "llama3.2".into(),
+            canonical_slug: "llama".into(),
             provider: "ollama".into(),
             provider_type: ProviderType::Ollama,
             max_tokens: 1,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec![],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         };
         assert_eq!(
             m.llm_usage_key(),
@@ -649,12 +793,17 @@ mod llm_usage_key_tests {
     fn google_direct_uses_google_provider_and_model_id() {
         let m = ModelSpec {
             id: "gemini-2.0-flash-lite".into(),
+            canonical_slug: "gemini".into(),
             provider: "google".into(),
             provider_type: ProviderType::GoogleDirect,
             max_tokens: 1,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec![],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         };
         assert_eq!(
             m.llm_usage_key(),
@@ -695,21 +844,31 @@ mod registry_filter_tests {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
             id: "llama-local".into(),
+            canonical_slug: "llama-local".into(),
             provider: "ollama".into(),
             provider_type: ProviderType::Ollama,
             max_tokens: 8192,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         });
         r.register(ModelSpec {
             id: "gemini-2.0-flash-lite".into(),
+            canonical_slug: "gemini-2.0-flash-lite".into(),
             provider: "google".into(),
             provider_type: ProviderType::GoogleDirect,
             max_tokens: 1_000_000,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         });
         let picked = r
             .best_for_with_filter(TaskCategory::CodeGen, 2, CostPreference::Performance, |m| {
@@ -724,21 +883,31 @@ mod registry_filter_tests {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
             id: "z-free".into(),
+            canonical_slug: "z-free".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         });
         r.register(ModelSpec {
             id: "a-free".into(),
+            canonical_slug: "a-free".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         });
         let picked = r
             .cheapest_free_with_filter(|_| true)
@@ -751,21 +920,31 @@ mod registry_filter_tests {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
             id: "z-paid".into(),
+            canonical_slug: "z-paid".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.01,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: false,
             strengths: vec!["codegen".into()],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         });
         r.register(ModelSpec {
             id: "a-paid".into(),
+            canonical_slug: "a-paid".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.01,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: false,
             strengths: vec!["codegen".into()],
+            capabilities: Default::default(),
+            supported_parameters: vec![],
         });
         let picked = r.cheapest_with_filter(|_| true).expect("paid model");
         assert_eq!(picked.id, "a-paid");

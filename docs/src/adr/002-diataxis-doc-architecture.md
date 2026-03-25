@@ -1,10 +1,9 @@
 ---
-title: "ADR 002 — Diátaxis Three-Tier Documentation"
-category: adr
-constructs: []
-last_updated: 2026-03-02
-training_eligible: false
-difficulty: beginner
+title: "ADR 002 — Diátaxis Three-Tier Documentation Architecture"
+description: "Official documentation for ADR 002 — Diátaxis Three-Tier Documentation Architecture for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # ADR 002 — Diátaxis Three-Tier Documentation Architecture

@@ -62,7 +62,7 @@ fn mcp_ollama_model_allowed(m: &ModelSpec) -> bool {
 /// Token fill ratio for the global MCP LLM budget agent (`AgentId(0)`), if tracked.
 #[must_use]
 pub fn mcp_global_llm_context_fill_ratio(orch: &Orchestrator) -> Option<f32> {
-    orch.budget()
+    crate::sync_lock::rw_read(&*orch.budget_handle())
         .check_budget(MCP_GLOBAL_LLM_AGENT)
         .map(|b| b.tokens_used as f32 / b.effective_max_tokens().max(1) as f32)
 }
@@ -74,8 +74,12 @@ pub fn resolve_mcp_chat_model_sync(
     pref: Option<&str>,
     res: McpChatModelResolution,
 ) -> Result<(ModelSpec, bool), String> {
-    let registry = orch.models();
-    let preference = orch.config().cost_preference;
+    let models_handle = orch.models_handle();
+    let registry = crate::sync_lock::rw_read(&*models_handle);
+    let preference = {
+        let config_handle = orch.config_handle();
+        crate::sync_lock::rw_read(&*config_handle).cost_preference
+    };
 
     let mut complexity = res.complexity.clamp(1, 10);
     if let Some(r) = res.context_fill_ratio {
@@ -155,24 +159,32 @@ mod tests {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
             id: "free-model".into(),
+            canonical_slug: "test/free-model".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+            capabilities: Default::default(),
+            supported_parameters: vec![],
+        });
         r.register(ModelSpec {
             id: "paid-model".into(),
+            canonical_slug: "test/paid-model".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.01,
+            cost_per_1k_input: 0.01,
+            cost_per_1k_output: 0.01,
             is_free: false,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+            capabilities: Default::default(),
+            supported_parameters: vec![],
+        });
         r
     }
 
@@ -189,7 +201,7 @@ mod tests {
         let mut config = OrchestratorConfig::for_testing();
         config.cost_preference = CostPreference::Performance;
         let mut orch = Orchestrator::new(config);
-        *orch.models_mut() = tiny_registry_with_free_and_paid();
+        *crate::sync_lock::rw_write(&*orch.models_handle()) = tiny_registry_with_free_and_paid();
 
         let resolved = resolve_mcp_chat_model_sync(
             &orch,
@@ -211,14 +223,18 @@ mod tests {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
             id: "llama-local".into(),
+            canonical_slug: "local/llama".into(),
             provider: "ollama".into(),
             provider_type: ProviderType::Ollama,
             max_tokens: 8192,
             cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
             is_free: true,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+            capabilities: Default::default(),
+            supported_parameters: vec![],
+        });
         r
     }
 
@@ -226,14 +242,18 @@ mod tests {
         let mut r = registry_ollama_only();
         r.register(ModelSpec {
             id: "paid-model".into(),
+            canonical_slug: "test/paid-model".into(),
             provider: "test".into(),
             provider_type: ProviderType::OpenRouter,
             max_tokens: 1000,
             cost_per_1k: 0.01,
+            cost_per_1k_input: 0.01,
+            cost_per_1k_output: 0.01,
             is_free: false,
             strengths: vec!["codegen".into()],
-        timeout_ms: None,
-                });
+            capabilities: Default::default(),
+            supported_parameters: vec![],
+        });
         r
     }
 
@@ -247,7 +267,7 @@ mod tests {
         let mut config = OrchestratorConfig::for_testing();
         config.cost_preference = CostPreference::Performance;
         let mut orch = Orchestrator::new(config);
-        *orch.models_mut() = registry_ollama_only();
+        *crate::sync_lock::rw_write(&*orch.models_handle()) = registry_ollama_only();
 
         let err = resolve_mcp_chat_model_sync(
             &orch,
@@ -278,7 +298,7 @@ mod tests {
         let mut config = OrchestratorConfig::for_testing();
         config.cost_preference = CostPreference::Performance;
         let mut orch = Orchestrator::new(config);
-        *orch.models_mut() = registry_paid_plus_ollama_free();
+        *crate::sync_lock::rw_write(&*orch.models_handle()) = registry_paid_plus_ollama_free();
 
         let err = resolve_mcp_chat_model_sync(
             &orch,

@@ -1,11 +1,11 @@
 //! Ingest `mcp-invocables.json` (JSON array) into **Codex** content-addressed storage + `names`.
 //!
-//! Each entry is stored via [`crate::arca_store::CodeStore::store`] under kind `mcp_invocable` and bound with
+//! Each entry is stored via [`crate::VoxDb::store`] under kind `mcp_invocable` and bound with
 //! prefix `invocable.`.
 
 use crate::VoxDb;
 use std::path::Path;
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 
 /// Thin wrapper around [`crate::VoxDb`] for batch invocable import.
 pub struct InvocableSyncEngine<'a> {

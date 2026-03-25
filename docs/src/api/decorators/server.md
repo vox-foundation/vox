@@ -1,3 +1,10 @@
+---
+title: "@server"
+description: "Official documentation for @server for the Vox language. Detailed technical reference, architecture guides, and implementation patterns f"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # @server
 
 **Category:** infrastructure

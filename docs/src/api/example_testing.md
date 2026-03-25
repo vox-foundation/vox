@@ -1,3 +1,10 @@
+---
+title: "Example: TESTING"
+description: "Official documentation for Example: TESTING for the Vox language. Detailed technical reference, architecture guides, and implementation p"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: TESTING
 
 ```vox

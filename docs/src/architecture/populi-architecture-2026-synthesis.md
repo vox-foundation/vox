@@ -1,7 +1,9 @@
 ---
-title: "Populi Architecture 2026 Synthesis: Current State, Mathematical Foundations, and Future Directions"
-last_updated: "2026-03-23"
-description: "A comprehensive synthesis of the Vox Populi native ML training pipeline, its mathematical decisions, strengths, weaknesses, and future paths based on 2026 industry architectural trends."
+title: "Populi Architecture 2026 Synthesis"
+description: "Official documentation for Populi Architecture 2026 Synthesis for the Vox language. Detailed technical reference, architecture guides, an"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Populi Architecture 2026 Synthesis

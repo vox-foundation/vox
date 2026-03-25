@@ -167,12 +167,14 @@ fn emit_line(
     category: &str,
     record_type: &str,
 ) -> anyhow::Result<()> {
+    let difficulty = crate::training::construct_difficulty(category, record_type);
     let row = json!({
         "prompt": prompt,
         "response": response.to_string(),
         "category": category,
         "record_type": record_type,
         "schema_version": "vox_dogfood_v1",
+        "difficulty": difficulty,
     });
     writeln!(out, "{}", serde_json::to_string(&row)?)?;
     Ok(())

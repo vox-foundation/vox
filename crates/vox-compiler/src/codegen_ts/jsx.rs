@@ -73,7 +73,7 @@ pub fn emit_jsx_self_closing(el: &JsxSelfClosingElement, indent: usize) -> Strin
 
 /// Emit a JSX attribute value expression.
 fn emit_jsx_attr_value(expr: &Expr) -> String {
-    match expr {
+    match unwrap_block(expr) {
         Expr::StringLit { value, .. } => {
             // Check if string contains interpolation like {msg.role}
             if value.contains('{') && value.contains('}') {
@@ -99,7 +99,7 @@ fn emit_jsx_attr_value(expr: &Expr) -> String {
 /// - `bind={email}` → `value={email}` + `onChange={(e) => setEmail(e.target.value)}`
 /// - `bind={form.email}` → `value={form.email}` + `onChange={(e) => setForm({...form, email: e.target.value})}`
 fn expand_bind_attribute(expr: &Expr) -> (String, String) {
-    match expr {
+    match unwrap_block(expr) {
         Expr::Ident { name, .. } => {
             let setter = format!("set_{name}");
             (name.clone(), format!("(e) => {setter}(e.target.value)"))
@@ -127,7 +127,8 @@ fn expand_bind_attribute(expr: &Expr) -> (String, String) {
 /// Emit a JSX child expression.
 fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
     let pad = "  ".repeat(indent);
-    match expr {
+    let unwrapped = unwrap_block(expr);
+    match unwrapped {
         Expr::Jsx(el) => emit_jsx_element(el, indent),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent),
         Expr::For {
@@ -142,8 +143,20 @@ fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
         }
         Expr::StringLit { value, .. } => format!("{pad}{value}\n"),
         Expr::Ident { name, .. } => format!("{pad}{name}\n"),
-        _ => format!("{pad}{{{}}}\n", emit_expr(expr)),
+        _ => format!("{pad}{{{}}}\n", emit_expr(unwrapped)),
     }
+}
+
+/// Helper to unwrap a single expression block created by { }. 
+fn unwrap_block(expr: &Expr) -> &Expr {
+    if let Expr::Block { stmts, .. } = expr {
+        if stmts.len() == 1 {
+            if let Stmt::Expr { expr: inner, .. } = &stmts[0] {
+                return inner;
+            }
+        }
+    }
+    expr
 }
 
 /// Emit a Vox expression as TypeScript.

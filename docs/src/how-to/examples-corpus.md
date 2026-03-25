@@ -1,14 +1,16 @@
 ---
-title: "How to: Examples corpus & strict parse"
-category: how-to
-last_updated: 2026-03-21
+title: "Examples corpus & strict parse"
+description: "Official documentation for Examples corpus & strict parse for the Vox language. Detailed technical reference, architecture guides, and im"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Examples corpus & strict parse
 
 ## Golden set (15 files, 0 failures)
 
-`crates/vox-parser/tests/parity_test.rs` defines **`MUST_PARSE`**: those paths under `examples/` **must** parse in CI. The list is mirrored in [`examples/README.md`](../../../examples/README.md) and [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md).
+`crates/vox-parser/tests/parity_test.rs` defines **`MUST_PARSE`**: those paths under `examples/` **must** parse in CI. The list is mirrored in [`examples/README.md`](../adr/README.md) and [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md).
 
 As of March 2026, the golden set covers 15 files:
 - Core app patterns: `chatbot.vox`, `full_stack_minimal.vox`, `hello-vox/src/main.vox`, `multi_route_app.vox`
@@ -37,11 +39,11 @@ As of March 2026, the golden set covers 15 files:
 - **Command:** `cargo test -p vox-parser --test parity_test`
 - **Meaning:** every `examples/**/*.vox` must parse — **not** the default CI gate while 13 archive files still fail.
 
-Thin delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/examples_strict_parse.sh), [`scripts/examples_strict_parse.ps1`](../../../scripts/examples_strict_parse.ps1).
+Thin delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/verify_workspace_manifest.sh), [`scripts/examples_strict_parse.ps1`](../../../scripts/check_docs_ssot.ps1).
 
 Runner contract: [CI runner contract](../ci/runner-contract.md) (section **Optional: strict parse for all examples**).
 
 ## Training / Populi
 
-Prefer golden root examples for corpus ingest; treat `examples/archive/**` as **non-canonical** unless a pipeline explicitly opts in (see [`examples/archive/README.md`](../../../examples/archive/README.md)).
+Prefer golden root examples for corpus ingest; treat `examples/archive/**` as **non-canonical** unless a pipeline explicitly opts in (see [`examples/archive/README.md`](../adr/README.md)).
 

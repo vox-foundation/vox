@@ -2,9 +2,9 @@
 //!
 //! [`BudgetManager`] tracks usage, rollover, and alert thresholds so the
 //! orchestrator can trigger summarization or block work before limits are exceeded.
+use std::sync::Arc;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 
 use crate::sync_lock;
 use crate::types::AgentId;
@@ -147,26 +147,26 @@ impl ContextBudget {
 /// Tracks agent context budgets globally.
 #[derive(Debug, Clone, Default)]
 pub struct BudgetManager {
-    inner: Arc<RwLock<HashMap<AgentId, ContextBudget>>>,
+    inner: Arc<std::sync::RwLock<HashMap<AgentId, ContextBudget>>>,
 }
-
+ 
 impl BudgetManager {
     /// Creates an empty manager; call [`Self::reset`] before tracking an agent.
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(RwLock::new(HashMap::new())),
+            inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 
     /// Register or reset an agent's budget.
     pub fn reset(&self, agent_id: AgentId, max_tokens: usize) {
-        let mut map = sync_lock::rw_write(&self.inner);
+        let mut map = sync_lock::rw_write(&*self.inner);
         map.insert(agent_id, ContextBudget::new(agent_id, max_tokens));
     }
 
     /// Set a per-agent allocation cap (overrides default limits).
     pub fn set_allocation(&self, agent_id: AgentId, allocation: AgentBudgetAllocation) {
-        let mut map = sync_lock::rw_write(&self.inner);
+        let mut map = sync_lock::rw_write(&*self.inner);
         let budget = map
             .entry(agent_id)
             .or_insert_with(|| ContextBudget::new(agent_id, allocation.max_tokens));
@@ -175,7 +175,7 @@ impl BudgetManager {
 
     /// Record token usage for an agent.
     pub fn record_usage(&self, agent_id: AgentId, tokens: usize) {
-        let mut map = sync_lock::rw_write(&self.inner);
+        let mut map = sync_lock::rw_write(&*self.inner);
         if let Some(budget) = map.get_mut(&agent_id) {
             budget.tokens_used = budget.tokens_used.saturating_add(tokens);
         } else {
@@ -187,7 +187,7 @@ impl BudgetManager {
 
     /// Record cost in USD for an agent (e.g., from an OpenRouter API call).
     pub fn record_cost(&self, agent_id: AgentId, cost_usd: f64) {
-        let mut map = sync_lock::rw_write(&self.inner);
+        let mut map = sync_lock::rw_write(&*self.inner);
         if let Some(budget) = map.get_mut(&agent_id) {
             budget.cost_usd += cost_usd;
         } else {
@@ -199,13 +199,13 @@ impl BudgetManager {
 
     /// Check an agent's remaining budget.
     pub fn check_budget(&self, agent_id: AgentId) -> Option<ContextBudget> {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         map.get(&agent_id).cloned()
     }
 
     /// Check if the agent is approaching context limits and should summarize.
     pub fn should_summarize(&self, agent_id: AgentId) -> bool {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         map.get(&agent_id)
             .map(|b| b.should_summarize())
             .unwrap_or(false)
@@ -213,7 +213,7 @@ impl BudgetManager {
 
     /// Get all agents that currently have an active cost or token alert.
     pub fn agents_in_alert(&self) -> Vec<(AgentId, bool, bool)> {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         map.values()
             .filter(|b| b.token_alert() || b.cost_alert())
             .map(|b| (b.agent_id, b.token_alert(), b.cost_alert()))
@@ -223,7 +223,7 @@ impl BudgetManager {
     /// Trigger a period rollover for all agents.
     /// Returns map of agent_id → rollover_tokens_granted.
     pub fn rollover_all(&self) -> HashMap<AgentId, usize> {
-        let mut map = sync_lock::rw_write(&self.inner);
+        let mut map = sync_lock::rw_write(&*self.inner);
         map.values_mut()
             .map(|b| (b.agent_id, b.rollover()))
             .collect()
@@ -231,13 +231,13 @@ impl BudgetManager {
 
     /// Total cost across all agents.
     pub fn total_cost_usd(&self) -> f64 {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         map.values().map(|b| b.cost_usd).sum()
     }
-
+ 
     /// Cumulative cost in USD for a specific agent.
     pub fn cost_usd(&self, agent_id: AgentId) -> f64 {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         map.get(&agent_id).map(|b| b.cost_usd).unwrap_or(0.0)
     }
 }

@@ -1,7 +1,9 @@
 ---
-title: "Crate: vox-bootstrap"
-category: api
-last_updated: 2026-03-23
+title: "vox-bootstrap"
+description: "Official documentation for vox-bootstrap for the Vox language. Detailed technical reference, architecture guides, and implementation patt"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # vox-bootstrap

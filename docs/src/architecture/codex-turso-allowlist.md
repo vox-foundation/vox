@@ -1,7 +1,9 @@
 ---
-title: "Direct Turso usage allowlist"
-category: architecture
-last_updated: 2026-03-20
+title: "Direct `turso::` usage allowlist"
+description: "Official documentation for Direct `turso::` usage allowlist for the Vox language. Detailed technical reference, architecture guides, and "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Direct `turso::` usage allowlist

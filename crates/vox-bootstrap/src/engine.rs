@@ -14,6 +14,8 @@ pub struct BootstrapOptions {
     pub install_clang: bool,
     /// Run safe heals (`rustup component add`, etc.).
     pub apply: bool,
+    /// Install the vox CLI via cargo after successful checks.
+    pub install: bool,
 }
 
 fn platform_str() -> String {
@@ -155,5 +157,17 @@ pub fn run_and_print(opts: BootstrapOptions, w: &mut impl Write) -> io::Result<i
             writeln!(w, "       hint: {h}")?;
         }
     }
-    Ok(if report.required_ok() { 0 } else { 1 })
+    let ok = report.required_ok();
+    if ok && opts.install {
+        writeln!(w, "\nDependencies met. Installing vox-cli...")?;
+        let status = Command::new("cargo")
+            .args(["install", "--path", "crates/vox-cli"])
+            .status()?;
+        if !status.success() {
+            writeln!(w, "Failed to install vox-cli")?;
+            return Ok(1);
+        }
+        writeln!(w, "vox-cli installed successfully!")?;
+    }
+    Ok(if ok { 0 } else { 1 })
 }

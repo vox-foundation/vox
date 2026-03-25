@@ -1,0 +1,44 @@
+/// Golden example: Reactive counter component using Vox rune-like syntax.
+/// This file is tagged `vox_source` for Populi training — it must never contain
+/// generated TSX/React code. The compiler emits the React implementation.
+///
+/// K-complexity: 7 concepts (state, derived, mount, cleanup, effect, view, on:event)
+/// Equivalent React code: ~50 lines. Vox source: ~20 lines.
+
+component Counter(initial: int) {
+    /// Reactive state — maps to useState(initial)
+    state count: int = initial
+
+    /// Derived value — maps to useMemo(() => count * 2, [count])
+    derived double = count * 2
+
+    /// Derived string — maps to useMemo(() => `Count is ${count}`, [count])
+    derived label = "Count is " + count
+
+    /// Lifecycle: runs once on mount — maps to useEffect(() => { ... }, [])
+    mount: {
+        log("Counter mounted with initial=" + initial)
+    }
+
+    /// Lifecycle: cleanup when unmounted — maps to useEffect(() => () => { ... }, [])
+    cleanup: {
+        log("Counter unmounted")
+    }
+
+    /// Reactive effect: runs when count changes — maps to useEffect(() => { ... }, [count])
+    effect: {
+        log("count changed to " + count)
+    }
+
+    /// View: JSX template — attributes use on:event for react event handlers
+    view: (
+        <div class="counter">
+            <h2>"Count: {count}"</h2>
+            <p>"Doubled: {double}"</p>
+            <p>"Label: {label}"</p>
+            <button on:click={count = count + 1}>"Increment"</button>
+            <button on:click={count = count - 1}>"Decrement"</button>
+            <button on:click={count = 0}>"Reset"</button>
+        </div>
+    )
+}

@@ -1,12 +1,14 @@
 ---
 title: "Rust pattern modernization — Wave 0 baseline"
-category: ci
-last_updated: 2026-03-21
+description: "Official documentation for Rust pattern modernization — Wave 0 baseline for the Vox language. Detailed technical reference, architecture "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Rust pattern modernization — Wave 0 baseline
 
-Rolling snapshot for [`.cursor/plans/rust-pattern-modernization-master_d4c4c376.plan.md`](../../../.cursor/plans/rust-pattern-modernization-master_d4c4c376.plan.md). Re-record counts when starting a new wave.
+Rolling snapshot for [`.cursor/plans/rust-pattern-modernization-master_d4c4c376.plan.md`](../../../AGENTS.md). Re-record counts when starting a new wave.
 
 ## Workspace lint manifest (authoritative)
 

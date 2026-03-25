@@ -243,6 +243,8 @@ pub enum TaskStatus {
     Failed(String),
     /// Blocked waiting for another task to complete.
     Blocked(TaskId),
+    /// Explicitly cancelled by user or system.
+    Cancelled,
 }
 
 impl fmt::Display for TaskStatus {
@@ -253,6 +255,7 @@ impl fmt::Display for TaskStatus {
             Self::Completed => write!(f, "completed"),
             Self::Failed(reason) => write!(f, "failed: {}", reason),
             Self::Blocked(dep) => write!(f, "blocked on {}", dep),
+            Self::Cancelled => write!(f, "cancelled"),
         }
     }
 }

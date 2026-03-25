@@ -1,3 +1,10 @@
+---
+title: "Vox Skills Crate API"
+description: "Crate API documentation for vox-skills, providing skill marketplace and plugin architecture."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-skills
 
 ## Module: `vox-skills\src\builtins.rs`

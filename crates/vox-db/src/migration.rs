@@ -4,7 +4,7 @@
 //! migration row (**version 1**). For custom migrations, ensure [`Migration::up_sql`] is compatible with
 //! [`turso::Connection::execute_batch`] (no row-returning statements).
 
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 
 /// One forward migration applied in monotonically increasing [`Self::version`] order.
 #[derive(Debug, Clone)]

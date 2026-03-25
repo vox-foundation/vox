@@ -7,6 +7,25 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use serde_json::json;
+use chrono::{NaiveDate, Utc};
+use serde::Deserialize;
+use regex::Regex;
+
+#[derive(Deserialize, Debug)]
+#[serde(default)]
+struct Frontmatter {
+    training_eligible: bool,
+    last_updated: Option<String>,
+}
+
+impl Default for Frontmatter {
+    fn default() -> Self {
+        Self {
+            training_eligible: true,
+            last_updated: None,
+        }
+    }
+}
 
 /// Configuration for documentation extraction.
 #[derive(Debug, Clone)]
@@ -66,6 +85,51 @@ impl DocTrainingPair {
     }
 }
 
+/// Parse YAML frontmatter to determine eligibility and staleness penalty.
+/// Returns `(is_eligible, penalty)` where penalty increases with age (0-3 scale).
+fn parse_frontmatter(content: &str) -> (bool, u8) {
+    // Explicit deprecation check acts as a hard short-circuit
+    if content.contains("status: deprecated") || content.contains("status: \"deprecated\"") || content.contains("status: 'deprecated'") {
+        return (false, 0);
+    }
+
+    if !content.starts_with("---") {
+        // Fallback for files without frontmatter
+        let eligible = !(content.contains("training_eligible: false") || content.contains("training_eligible:false"));
+        return (eligible, 0);
+    }
+    
+    let parts: Vec<&str> = content.splitn(3, "---").collect();
+    if parts.len() < 3 {
+        let eligible = !(content.contains("training_eligible: false") || content.contains("training_eligible:false"));
+        return (eligible, 0);
+    }
+    
+    let yaml_str = parts[1];
+    
+    // Extract using serde_yaml, fallback to true if malformed
+    let fm: Frontmatter = serde_yaml::from_str(yaml_str).unwrap_or_default();
+    
+    if !fm.training_eligible {
+        return (false, 0);
+    }
+    
+    let mut penalty = 0;
+    if let Some(date_str) = fm.last_updated {
+        if let Ok(last_updated) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
+            let now = Utc::now().date_naive();
+            let days_old = now.signed_duration_since(last_updated).num_days();
+            
+            // Penalize by 1 for every 90 days (approx 3 months), max penalty of 3
+            if days_old > 0 {
+                penalty = (days_old / 90).min(3) as u8;
+            }
+        }
+    }
+    
+    (true, penalty)
+}
+
 /// Extract training pairs from a single markdown file.
 pub fn extract_from_md_file(
     path: &Path,
@@ -74,14 +138,19 @@ pub fn extract_from_md_file(
     let source = std::fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
 
+    let (eligible, staleness_penalty) = parse_frontmatter(&source);
+    if !eligible {
+        return Ok(Vec::new());
+    }
+
     let mut pairs = Vec::new();
 
     if config.extract_code_blocks {
-        extract_code_blocks(&source, path, &mut pairs);
+        extract_code_blocks(&source, path, staleness_penalty, &mut pairs);
     }
 
     if config.extract_qa_pairs {
-        extract_qa_sections(&source, path, config, &mut pairs);
+        extract_qa_sections(&source, path, staleness_penalty, config, &mut pairs);
     }
 
     if config.limit > 0 {
@@ -92,7 +161,7 @@ pub fn extract_from_md_file(
 }
 
 /// Extract fenced code blocks tagged with `vox` language.
-fn extract_code_blocks(source: &str, path: &Path, out: &mut Vec<DocTrainingPair>) {
+fn extract_code_blocks(source: &str, path: &Path, staleness_penalty: u8, out: &mut Vec<DocTrainingPair>) {
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
     let mut preceding_context = String::new();
@@ -147,7 +216,7 @@ fn extract_code_blocks(source: &str, path: &Path, out: &mut Vec<DocTrainingPair>
                     category: "documentation".to_string(),
                     prompt,
                     response: code,
-                    rating: 4,
+                    rating: 4u8.saturating_sub(staleness_penalty).max(1),
                 });
             }
             preceding_context.clear();
@@ -161,6 +230,7 @@ fn extract_code_blocks(source: &str, path: &Path, out: &mut Vec<DocTrainingPair>
 fn extract_qa_sections(
     source: &str,
     path: &Path,
+    staleness_penalty: u8,
     config: &ExtractDocsConfig,
     out: &mut Vec<DocTrainingPair>,
 ) {
@@ -180,12 +250,31 @@ fn extract_qa_sections(
                 && heading_level >= 2
             {
                 let prompt = format!("Explain the Vox concept: {}", current_heading);
+                let mut response = current_body.trim().to_string();
+                
+                // Relational Chunking: Inject linked .vox examples directly into the training response
+                if let Ok(link_re) = Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)") {
+                    let mut extra_context = String::new();
+                    for cap in link_re.captures_iter(&response.clone()) {
+                        let target_path_str = &cap[1];
+                        let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
+                        if let Ok(can) = std::fs::canonicalize(&abs_target) {
+                            if let Ok(vox_code) = std::fs::read_to_string(&can) {
+                                extra_context.push_str("\n\n```vox\n");
+                                extra_context.push_str(vox_code.trim());
+                                extra_context.push_str("\n```\n");
+                            }
+                        }
+                    }
+                    response.push_str(&extra_context);
+                }
+
                 out.push(DocTrainingPair {
                     source_path: path.to_path_buf(),
                     category: "documentation".to_string(),
                     prompt,
-                    response: current_body.trim().to_string(),
-                    rating: 3,
+                    response,
+                    rating: 3u8.saturating_sub(staleness_penalty).max(1),
                 });
             }
 
@@ -207,12 +296,31 @@ fn extract_qa_sections(
         && heading_level >= 2
     {
         let prompt = format!("Explain the Vox concept: {}", current_heading);
+        let mut response = current_body.trim().to_string();
+        
+        // Relational Chunking: Inject linked .vox examples directly into the training response
+        if let Ok(link_re) = Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)") {
+            let mut extra_context = String::new();
+            for cap in link_re.captures_iter(&response.clone()) {
+                let target_path_str = &cap[1];
+                let abs_target = path.parent().unwrap_or(Path::new("")).join(target_path_str);
+                if let Ok(can) = std::fs::canonicalize(&abs_target) {
+                    if let Ok(vox_code) = std::fs::read_to_string(&can) {
+                        extra_context.push_str("\n\n```vox\n");
+                        extra_context.push_str(vox_code.trim());
+                        extra_context.push_str("\n```\n");
+                    }
+                }
+            }
+            response.push_str(&extra_context);
+        }
+
         out.push(DocTrainingPair {
             source_path: path.to_path_buf(),
             category: "documentation".to_string(),
             prompt,
-            response: current_body.trim().to_string(),
-            rating: 3,
+            response,
+            rating: 3u8.saturating_sub(staleness_penalty).max(1),
         });
     }
 }
@@ -310,7 +418,7 @@ Durable execution is a first-class feature.
         let _pairs = extract_from_md_file(Path::new("test.md"), &config);
         // Can't test with real file, test the extraction logic directly
         let mut out = Vec::new();
-        extract_code_blocks(SAMPLE_MD, Path::new("test.md"), &mut out);
+        extract_code_blocks(SAMPLE_MD, Path::new("test.md"), 0, &mut out);
         assert!(!out.is_empty(), "should extract vox code block");
         assert!(out[0].response.contains("actor Counter"));
     }
@@ -322,7 +430,7 @@ Durable execution is a first-class feature.
             ..Default::default()
         };
         let mut out = Vec::new();
-        extract_qa_sections(SAMPLE_MD, Path::new("test.md"), &config, &mut out);
+        extract_qa_sections(SAMPLE_MD, Path::new("test.md"), 0, &config, &mut out);
         assert!(!out.is_empty(), "should extract at least one Q&A pair");
         assert!(out[0].prompt.contains("Actor Model"));
     }

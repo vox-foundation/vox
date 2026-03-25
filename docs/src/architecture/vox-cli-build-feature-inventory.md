@@ -1,7 +1,9 @@
 ---
 title: "vox-cli build and feature inventory"
-category: architecture
-last_updated: 2026-03-21
+description: "Official documentation for vox-cli build and feature inventory for the Vox language. Detailed technical reference, architecture guides, a"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # vox-cli build and feature inventory

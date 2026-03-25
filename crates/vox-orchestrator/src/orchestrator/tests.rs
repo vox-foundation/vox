@@ -12,7 +12,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_agent() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let id = orch.spawn_agent("parser").expect("spawn");
         assert_eq!(orch.status().agent_count, 1);
         assert!(orch.agent_queue(id).is_some());
@@ -20,7 +20,7 @@ mod tests {
 
     #[tokio::test]
     async fn max_agents_enforced() {
-        let mut orch = Orchestrator::new(OrchestratorConfig {
+        let orch = Orchestrator::new(OrchestratorConfig {
             max_agents: 2,
             ..OrchestratorConfig::for_testing()
         });
@@ -35,7 +35,7 @@ mod tests {
 
     #[tokio::test]
     async fn submit_and_route() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let task_id = orch
             .submit_task(
                 "Fix parser bug",
@@ -47,12 +47,12 @@ mod tests {
             .expect("submit");
         assert_eq!(orch.status().total_queued, 1);
         assert_eq!(orch.status().agent_count, 1); // auto-spawned
-        assert!(orch.task_assignments().contains_key(&task_id));
+        assert!(orch.task_assignments.read().unwrap().contains_key(&task_id));
     }
 
     #[tokio::test]
     async fn same_file_routes_to_same_agent() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let t1 = orch
             .submit_task("Task 1", vec![FileAffinity::write("src/lib.rs")], None, None)
             .await
@@ -63,16 +63,17 @@ mod tests {
             .unwrap();
 
         // Both tasks should be assigned to the same agent
+        let assignments = orch.task_assignments.read().unwrap();
         assert_eq!(
-            orch.task_assignments().get(&t1),
-            orch.task_assignments().get(&t2),
+            assignments.get(&t1),
+            assignments.get(&t2),
             "tasks touching the same file should route to the same agent"
         );
     }
 
     #[tokio::test]
     async fn different_files_can_route_to_different_agents() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         orch.submit_task(
             "Parser work",
             vec![FileAffinity::write("crates/vox-parser/src/lib.rs")],
@@ -96,16 +97,16 @@ mod tests {
 
     #[tokio::test]
     async fn complete_task_flow() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let task_id = orch
             .submit_task("Test task", vec![FileAffinity::write("test.rs")], None, None)
             .await
             .unwrap();
 
-        let agent_id = *orch.task_assignments().get(&task_id).unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
 
         // Dequeue the task (simulating an agent picking it up)
-        orch.get_agent_queue_mut(agent_id).unwrap().dequeue();
+        orch.agent_queue(agent_id).unwrap().write().unwrap().dequeue();
 
         // Complete it
         orch.complete_task(task_id).await.expect("complete");
@@ -114,12 +115,12 @@ mod tests {
 
     #[tokio::test]
     async fn retire_agent_returns_tasks() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let agent_id = orch.spawn_agent("temp").unwrap();
 
         // Manually enqueue a task
         let task = AgentTask::new(TaskId(99), "leftover", TaskPriority::Normal, vec![]);
-        orch.get_agent_queue_mut(agent_id).unwrap().enqueue(task);
+        orch.agent_queue(agent_id).unwrap().write().unwrap().enqueue(task);
 
         let remaining = orch.retire_agent(agent_id).unwrap();
         assert_eq!(remaining.len(), 1);
@@ -128,19 +129,19 @@ mod tests {
 
     #[tokio::test]
     async fn pause_resume_agent() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let agent_id = orch.spawn_agent("test").unwrap();
 
         orch.pause_agent(agent_id).unwrap();
-        assert!(orch.agent_queue(agent_id).unwrap().is_paused());
+        assert!(orch.agent_queue(agent_id).unwrap().read().unwrap().is_paused());
 
         orch.resume_agent(agent_id).unwrap();
-        assert!(!orch.agent_queue(agent_id).unwrap().is_paused());
+        assert!(!orch.agent_queue(agent_id).unwrap().read().unwrap().is_paused());
     }
 
     #[tokio::test]
     async fn disabled_orchestrator_rejects_tasks() {
-        let mut orch = Orchestrator::new(OrchestratorConfig {
+        let orch = Orchestrator::new(OrchestratorConfig {
             enabled: false,
             ..OrchestratorConfig::for_testing()
         });
@@ -150,7 +151,7 @@ mod tests {
 
     #[tokio::test]
     async fn status_snapshot() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         orch.submit_task("t1", vec![FileAffinity::write("a.rs")], None, None)
             .await
             .unwrap();
@@ -165,7 +166,7 @@ mod tests {
 
     #[tokio::test]
     async fn task_trace_after_submit() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let task_id = orch
             .submit_task("Trace me", vec![FileAffinity::write("x.rs")], None, None)
             .await
@@ -185,13 +186,13 @@ mod tests {
 
     #[tokio::test]
     async fn task_trace_after_complete() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let task_id = orch
             .submit_task("Complete me", vec![FileAffinity::write("y.rs")], None, None)
             .await
             .unwrap();
-        let agent_id = *orch.task_assignments().get(&task_id).unwrap();
-        orch.get_agent_queue_mut(agent_id).unwrap().dequeue();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+        orch.agent_queue(agent_id).unwrap().write().unwrap().dequeue();
         orch.complete_task(task_id).await.unwrap();
         let steps = orch.task_trace(task_id).expect("trace exists");
         let outcome = steps
@@ -203,13 +204,13 @@ mod tests {
 
     #[tokio::test]
     async fn task_trace_after_fail() {
-        let mut orch = test_orchestrator();
+        let orch = test_orchestrator();
         let task_id = orch
             .submit_task("Fail me", vec![FileAffinity::write("z.rs")], None, None)
             .await
             .unwrap();
-        let agent_id = *orch.task_assignments().get(&task_id).unwrap();
-        orch.get_agent_queue_mut(agent_id).unwrap().dequeue();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+        orch.agent_queue(agent_id).unwrap().write().unwrap().dequeue();
         orch.fail_task(task_id, "timeout".to_string())
             .await
             .unwrap();
@@ -233,7 +234,7 @@ mod tests {
         cfg.socrates_gate_enforce = true;
         cfg.socrates_gate_shadow = true;
         cfg.max_debug_iterations = 2;
-        let mut orch = Orchestrator::new(cfg);
+        let orch = Orchestrator::new(cfg);
         let agent_id = orch.spawn_agent("socrates").expect("spawn");
 
         let task_id = TaskId(9001);
@@ -251,15 +252,17 @@ mod tests {
             risk_budget: "high".to_string(),
         });
         {
-            let queue = orch.get_agent_queue_mut(agent_id).expect("queue");
+            let queue_lock = orch.agent_queue(agent_id).expect("queue");
+            let mut queue = queue_lock.write().unwrap();
             queue.enqueue(task);
             let _ = queue.dequeue();
         }
-        orch.task_assignments.insert(task_id, agent_id);
+        orch.task_assignments.write().unwrap().insert(task_id, agent_id);
 
         orch.complete_task(task_id).await.expect("gate path");
 
-        let q = orch.agent_queue(agent_id).expect("queue snapshot");
+        let q_lock = orch.agent_queue(agent_id).expect("queue snapshot");
+        let q = q_lock.read().unwrap();
         assert_eq!(q.completed_count(), 0);
         assert!(!q.is_empty());
     }

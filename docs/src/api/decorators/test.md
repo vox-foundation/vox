@@ -1,3 +1,10 @@
+---
+title: "@test"
+description: "Official documentation for @test for the Vox language. Detailed technical reference, architecture guides, and implementation patterns for"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # @test
 
 **Category:** function

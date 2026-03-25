@@ -20,6 +20,9 @@ struct Cli {
     /// Perform mutations: rustup components; Windows: winget LLVM; Linux: sudo apt/dnf; macOS: brew llvm.
     #[arg(long)]
     apply: bool,
+    /// Actually install the vox CLI (`cargo install --path crates/vox-cli`) after successful probe.
+    #[arg(long)]
+    install: bool,
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -40,6 +43,7 @@ fn main() {
         dev: cli.dev,
         install_clang: cli.install_clang,
         apply: cli.apply,
+        install: cli.install,
     };
 
     match cli.command {
@@ -48,6 +52,7 @@ fn main() {
                 dev: opts.dev,
                 install_clang: opts.install_clang,
                 apply: false,
+                install: false,
             });
             let stdout = io::stdout();
             let mut lock = stdout.lock();

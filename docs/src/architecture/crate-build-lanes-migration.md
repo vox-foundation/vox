@@ -1,7 +1,9 @@
 ---
-title: "Crate and build-lane migration map (aggressive reorg)"
-category: architecture
-last_updated: 2026-03-21
+title: "Crate and build-lane migration map"
+description: "Official documentation for Crate and build-lane migration map for the Vox language. Detailed technical reference, architecture guides, an"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Crate and build-lane migration map
@@ -83,7 +85,7 @@ Use **`docs/ci/build-timings/snapshot-metadata.json`** with each `latest.jsonl` 
 | `vox-codex` crate | Stay as thin shim over `vox-db` | External crates / legacy paths | `pub use vox_db::*` in `crates/vox-codex/src/lib.rs` | Document-only; no date until downstreams audited |
 | Oratio in default CLI | Feature `populi-oratio` | Candle/Whisper compile cost | `vox-cli` default = `populi-base` only | Done |
 | Native train / QLoRA in default CLI | Feature `gpu` (+ `populi-candle-cuda` for NVIDIA kernels) | Burn/Candle/qlora-rs blast radius | Aliases `populi-qlora` → `gpu` | Done |
-| Ad-hoc repo root walks in new code | `vox_repository::…` | Stable `repository_id`, layout, scopes | N/A | Policy in `external-repositories-ssot.md` |
+| Ad-hoc repo root walks in new code | `vox_repository::…` | Stable `repository_id`, layout, scopes | N/A | Policy in `external-repositories.md` |
 | `vox populi` without `populi-base` | Enable `populi-base` (default) or build `vox-populi` bin | Command surface gate | `vox-populi` binary prepends subcommand | Done |
 | Shell timing scripts as SSOT | `vox ci build-timings` | Reproducible lanes in Rust | Scripts remain optional delegates | Done |
 

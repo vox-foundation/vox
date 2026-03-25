@@ -356,6 +356,36 @@ pub async fn llm_chat(
     .await
 }
 
+/// Exhaustive retry loop over multiple candidate LLM configurations.
+/// Used for robust agent fallback routing. Iterates models sequentially until
+/// one succeeds, skipping specific candidates on 401s or continuing on 429/timeout.
+pub async fn infer_with_retry(
+    options: &ActivityOptions,
+    messages: Vec<ChatMessage>,
+    candidates: Vec<LlmConfig>,
+) -> ActivityResult<Result<(LlmResponse, LlmConfig), String>> {
+    let mut last_error = "No LLM candidates provided".to_string();
+
+    for candidate in candidates {
+        match llm_chat(options, messages.clone(), candidate.clone()).await {
+            ActivityResult::Ok(Ok(response)) => return ActivityResult::Ok(Ok((response, candidate))),
+            ActivityResult::Ok(Err(api_err)) => {
+                // If it's a hard error like invalid key, we should try the next candidate
+                last_error = format!("Candidate {} failed: {}", candidate.model, api_err);
+            }
+            ActivityResult::Failed(activity_err) => {
+                // Activity was aborted or failed
+                last_error = format!("Candidate {} activity error: {:?}", candidate.model, activity_err);
+            }
+            ActivityResult::Cancelled => {
+                return ActivityResult::Cancelled;
+            }
+        }
+    }
+
+    ActivityResult::Ok(Err(last_error))
+}
+
 /// Token-by-token streaming implementation.
 pub async fn llm_stream(
     messages: Vec<ChatMessage>,

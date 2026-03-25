@@ -1,7 +1,9 @@
 ---
-title: "Crate topology buckets (workspace map)"
-category: architecture
-last_updated: 2026-03-21
+title: "Crate topology buckets"
+description: "Official documentation for Crate topology buckets for the Vox language. Detailed technical reference, architecture guides, and implementa"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Crate topology buckets
@@ -32,4 +34,4 @@ Aggressive **like-with-like** map for every workspace member under `crates/*` (e
 
 - [crate-build-lanes-migration.md](crate-build-lanes-migration.md)
 - [vox-cli-build-feature-inventory.md](vox-cli-build-feature-inventory.md)
-- [external-repositories-ssot.md](external-repositories-ssot.md)
+- [external-repositories.md](../reference/external-repositories.md)

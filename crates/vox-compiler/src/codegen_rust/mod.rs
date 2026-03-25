@@ -316,20 +316,7 @@ mod tests {
     use crate::hir::hir::{DefId, HirActor, HirModule, HirTable, HirTableField, HirType, HirWorkflow};
 
     fn empty_module() -> HirModule {
-        HirModule {
-            imports: vec![],
-            functions: vec![],
-            types: vec![],
-            routes: vec![],
-            actors: vec![],
-            workflows: vec![],
-            activities: vec![],
-            tests: vec![],
-            server_fns: vec![],
-            tables: vec![],
-            indexes: vec![],
-            mcp_tools: vec![],
-        }
+        HirModule::default()
     }
 
     fn simple_task_table() -> HirTable {

@@ -1,7 +1,9 @@
 ---
 title: "GitHub-hosted runner exceptions"
-category: ci
-last_updated: 2026-03-21
+description: "Official documentation for GitHub-hosted runner exceptions for the Vox language. Detailed technical reference, architecture guides, and i"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # GitHub-hosted runner exceptions

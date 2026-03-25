@@ -1,3 +1,10 @@
+---
+title: "Example: Vox MCP Tool Example"
+description: "Official documentation for Example: Vox MCP Tool Example for the Vox language. Detailed technical reference, architecture guides, and imp"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Vox MCP Tool Example
 
 ```vox

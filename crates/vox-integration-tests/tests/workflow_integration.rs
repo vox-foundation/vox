@@ -229,7 +229,7 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
     assert!(rust_output.contains("pub async fn process_order("), "Rust: process_order workflow");
     assert!(rust_output.contains("execute_activity"), "Rust: should use execute_activity");
 
-    let ts_output = vox_compiler::codegen_ts::generate(&module).expect("TS codegen should succeed");
+    let ts_output = vox_compiler::codegen_ts::generate(&hir).expect("TS codegen should succeed");
     let ts_filenames: Vec<&str> = ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(ts_filenames.contains(&"activities.ts"), "TS: should produce activities.ts");
     let activities_ts = ts_output.files.iter().find(|(n, _)| n == "activities.ts").unwrap();

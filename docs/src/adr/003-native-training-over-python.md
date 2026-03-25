@@ -1,10 +1,9 @@
 ---
-title: "ADR 003 — Native Training Over Python"
-category: adr
-constructs: []
-last_updated: 2026-03-02
-training_eligible: false
-difficulty: advanced
+title: "ADR 003 — Native Rust Training Over Python"
+description: "Official documentation for ADR 003 — Native Rust Training Over Python for the Vox language. Detailed technical reference, architecture gu"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # ADR 003 — Native Rust Training Over Python

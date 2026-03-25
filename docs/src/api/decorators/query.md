@@ -1,3 +1,10 @@
+---
+title: "@query"
+description: "Official documentation for @query for the Vox language. Detailed technical reference, architecture guides, and implementation patterns fo"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # @query
 
 **Category:** data

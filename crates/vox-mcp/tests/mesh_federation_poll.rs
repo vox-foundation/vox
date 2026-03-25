@@ -47,13 +47,13 @@ async fn mesh_federation_poller_fills_snapshot() {
 
     // Poll until snapshot is populated; poller fires within ~1s. Max 3s total.
     let snap = {
-        let mut result = st.mesh_remote_snapshot.read().await.clone();
+        let mut result = st.mesh_remote_snapshot.read().unwrap().clone();
         for _ in 0..60 {
             if result.ok {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
-            result = st.mesh_remote_snapshot.read().await.clone();
+            result = st.mesh_remote_snapshot.read().unwrap().clone();
         }
         result
     };

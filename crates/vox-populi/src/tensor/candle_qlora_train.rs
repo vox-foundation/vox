@@ -173,7 +173,9 @@ pub fn run_candle_qlora_train(
         PAUSE_FLAG.store(true, Ordering::SeqCst);
     });
 
-    let bundle = preflight_native_qlora(config)?;
+    let bundle = preflight_native_qlora(config).map_err(|e| {
+        anyhow::anyhow!("Model preflight failed: {e}. Ensure you have run 'vox populi download --model <name>' and that tokenizer.json + safetensors are present.")
+    })?;
     let tokenizer = Tokenizer::from_file(&bundle.tokenizer_path)
         .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
@@ -188,7 +190,15 @@ pub fn run_candle_qlora_train(
         anyhow::bail!("No training pairs found in {}", train_path.display());
     }
 
-    let val_count = (pairs.len() as f64 * config.validation_split_ratio.unwrap_or(0.05)) as usize;
+    let val_count = {
+        let pct_count = (pairs.len() as f64 * config.validation_split_ratio.unwrap_or(0.05)) as usize;
+        // Task 4.2 request: 10 hold-out inputs
+        if pairs.len() > 20 {
+            pct_count.max(10).min(pairs.len() / 2)
+        } else {
+            pct_count
+        }
+    };
     let eval_pairs = if val_count > 0 && pairs.len() > val_count {
         pairs.split_off(pairs.len() - val_count)
     } else {
@@ -519,6 +529,7 @@ fn run_training_loop(
     let mut progress_anchor_step = global_step;
     let mut progress_anchor_time = Instant::now();
     let mut last_loss_val: f32 = 0.0;
+    let mut ema_loss_val: Option<f64> = None;
     let mut total_loss_sum = 0.0f64;
     let mut total_step_count: u32 = 0;
     let mut total_tokens: usize = 0;
@@ -541,14 +552,43 @@ fn run_training_loop(
         };
 
         trainer.start_epoch();
+        
+        if config.curriculum {
+            let max_difficulty = if config.epochs > 1 {
+                let progress = (epoch - 1) as f32 / (config.epochs - 1) as f32;
+                (3.0 + progress * 7.0).ceil() as u8
+            } else {
+                10
+            };
+            train_log::info(&format!("Epoch {}/{} curriculum threshold: diff <= {}", epoch, config.epochs, max_difficulty));
+        }
 
         let mut epoch_loss_sum = 0.0f64;
         let mut epoch_steps = 0u32;
 
         let pair_start = if epoch == start_epoch { resume_pair_offset } else { 0 };
 
+        // Curriculum learning: compute max allowed difficulty for this epoch
+        let max_difficulty = if config.curriculum {
+            // Linear ramp-up: epoch 1 -> difficulty 3, final epoch -> difficulty 10
+            if config.epochs > 1 {
+                let progress = (epoch - 1) as f32 / (config.epochs - 1) as f32;
+                (3.0 + progress * 7.0).ceil() as u8
+            } else {
+                10
+            }
+        } else {
+            10
+        };
+
         for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start) {
             let pair = &pairs[pair_real_idx];
+            
+            // Curriculum filter
+            if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
+                continue;
+            }
+
             let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
             let enc = tokenizer.encode(text, true).map_err(|e| anyhow::anyhow!("{e}"))?;
             let mut ids = enc.get_ids().to_vec();
@@ -605,12 +645,22 @@ fn run_training_loop(
                 Ok(loss.to_scalar::<f32>()?)
             })()?;
 
+            if loss_val.is_nan() {
+                train_log::warn(&format!("⚠ NaN loss detected at epoch {} step {} — skipping gradient update. Consider reducing --lr or increasing --warmup.", epoch, global_step));
+                continue;
+            }
+
             global_step += 1;
             epoch_steps += 1;
             epoch_loss_sum += loss_val as f64;
             total_loss_sum += loss_val as f64;
             total_step_count += 1;
             last_loss_val = loss_val;
+            
+            ema_loss_val = Some(match ema_loss_val {
+                None => loss_val as f64,
+                Some(prev) => 0.1 * (loss_val as f64) + 0.9 * prev,
+            });
 
             // ── Progress reporting every 5s ───────────────────────────────────
             let elapsed_since_progress = last_progress.elapsed();
@@ -637,9 +687,11 @@ fn run_training_loop(
                     }
                 });
                 let current_lr = trainer.current_lr();
+                let eff_batch = config.batch_size.max(1) * config.grad_accum.max(1);
+                let ema_str = ema_loss_val.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
-                    "E{:02}/{} step={} loss={:.4} lr={:.2e} {:.1}% {eta_str}",
-                    epoch, config.epochs, global_step, loss_val, current_lr, pct
+                    "E{:02}/{} step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {}",
+                    epoch, config.epochs, global_step, loss_val, ema_str, current_lr, eff_batch, pct, eta_str
                 ));
                 telemetry::append(out, telemetry_schema::events::TRAIN_STEP, serde_json::json!({
                     telemetry_schema::keys::EPOCH: epoch,
@@ -867,6 +919,7 @@ fn run_training_loop(
         alpha: config.alpha as usize,
         layer_order: adapter_layer_order.to_vec(),
         base_key_map: base_key_map.clone(),
+        base_model: config.base_model.clone(),
     };
     std::fs::write(
         out.join("adapter_meta_v2.json"),

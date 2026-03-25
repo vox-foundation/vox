@@ -1,3 +1,10 @@
+---
+title: "import"
+description: "Official documentation for import for the Vox language. Detailed technical reference, architecture guides, and implementation patterns fo"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # import
 
 ## Syntax
@@ -21,4 +28,4 @@ use path::to::module;
 import { ... } from 'path/to/module';
 ```
 
-[← Back to API Index](../index.md)
+[← Back to API Index](../decorators/index.md)

@@ -26,6 +26,7 @@ fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Ident(_, s)
         | HirExpr::ObjectLit(_, s)
         | HirExpr::ListLit(_, s)
+        | HirExpr::TupleLit(_, s)
         | HirExpr::Binary(_, _, _, s)
         | HirExpr::Unary(_, _, s)
         | HirExpr::Call(_, _, _, s)
@@ -356,6 +357,10 @@ impl<'a> Checker<'a> {
             HirExpr::FloatLit(_, _) => Ty::Float,
             HirExpr::StringLit(_, _) => Ty::Str,
             HirExpr::BoolLit(_, _) => Ty::Bool,
+            HirExpr::TupleLit(exprs, _) => {
+                let tys = exprs.iter().map(|e| self.check_expr(e)).collect();
+                Ty::Tuple(tys)
+            }
 
             HirExpr::Ident(name, span) => {
                 if let Some(binding) = self.env.lookup(name) {

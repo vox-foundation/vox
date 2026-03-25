@@ -1,7 +1,9 @@
 ---
-title: "Crate: vox-ludus"
-category: api
-last_updated: 2026-03-23
+title: "vox-ludus"
+description: "Official documentation for vox-ludus for the Vox language. Detailed technical reference, architecture guides, and implementation patterns"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # vox-ludus

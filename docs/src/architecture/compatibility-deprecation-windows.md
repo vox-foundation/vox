@@ -1,7 +1,9 @@
 ---
 title: "Compatibility and deprecation windows"
-category: architecture
-last_updated: 2026-03-20
+description: "Official documentation for Compatibility and deprecation windows for the Vox language. Detailed technical reference, architecture guides,"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Compatibility and deprecation windows
@@ -15,7 +17,7 @@ last_updated: 2026-03-20
 
 New code must read **`VOX_DB_*`** first. Legacy aliases should log a one-time deprecation warning when feasible.
 
-Full registry (orchestrator, repo root, CI knobs): [Environment variables (SSOT)](../reference/env-vars-ssot.md).
+Full registry (orchestrator, repo root, CI knobs): [Environment variables (SSOT)](../reference/env-vars.md).
 
 ## Crates
 
@@ -30,5 +32,5 @@ Full registry (orchestrator, repo root, CI knobs): [Environment variables (SSOT)
 
 ## Process
 
-1. Document deprecation in [changelog.md](../changelog.md) when behavior changes.
+1. Document deprecation in [changelog.md](../reference/changelog.md) when behavior changes.
 2. Keep [codex-legacy-migration.md](codex-legacy-migration.md) aligned with shipped CLI subcommands.

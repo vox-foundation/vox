@@ -1,3 +1,10 @@
+---
+title: "mut"
+description: "Official documentation for mut for the Vox language. Detailed technical reference, architecture guides, and implementation patterns for A"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # mut
 
 ## Syntax
@@ -21,4 +28,4 @@ let mut name = expr;
 let name = expr;
 ```
 
-[← Back to API Index](../index.md)
+[← Back to API Index](../decorators/index.md)

@@ -107,6 +107,15 @@ async fn http_infer_model(
             )
             .await
         }
+        ProviderType::Groq
+        | ProviderType::Cerebras
+        | ProviderType::Mistral
+        | ProviderType::DeepSeek
+        | ProviderType::SambaNova
+        | ProviderType::Custom(_) => Err(HttpInferError {
+            status: 0,
+            message: format!("Provider {:?} not yet fully supported via MCP infer bridge", model.provider_type),
+        }),
     }
 }
 
@@ -116,8 +125,7 @@ async fn best_ollama_model(state: &ServerState) -> Option<ModelSpec> {
         return None;
     }
     let orch = &state.orchestrator;
-    let mut v: Vec<ModelSpec> = orch
-        .models()
+    let mut v: Vec<ModelSpec> = crate::sync_lock::rw_read(&*orch.models_handle())
         .list_models()
         .into_iter()
         .filter(|m| matches!(m.provider_type, ProviderType::Ollama))
@@ -291,7 +299,7 @@ pub async fn call_llm(
     system_prompt: &str,
     user_prompt: &str,
 ) -> Result<(String, String, u64), String> {
-    let pref = state.mcp_chat_model_override.read().await.clone();
+    let pref = state.mcp_chat_model_override.read().unwrap().clone();
     let (model, free_only, resolution_template) = {
         let orch = &state.orchestrator;
         let context_fill_ratio =

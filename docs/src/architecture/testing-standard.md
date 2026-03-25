@@ -1,7 +1,9 @@
 ---
-title: "Testing Standard"
-description: "Single source of truth for test organization across all Vox crates."
-last_updated: 2026-03-21
+title: "Testing Standard — SSOT"
+description: "Official documentation for Testing Standard — SSOT for the Vox language. Detailed technical reference, architecture guides, and implement"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Testing Standard — SSOT

@@ -24,6 +24,8 @@ pub struct QloraAdapterMetaV2 {
     pub layer_order: Vec<String>,
     /// Maps adapter name → base safetensors key for that frozen weight.
     pub base_key_map: HashMap<String, String>,
+    /// Base model repo ID or path (used during inference to auto-resolve shards).
+    pub base_model: Option<String>,
 }
 
 impl QloraAdapterMetaV2 {
@@ -242,6 +244,7 @@ mod tests {
             alpha,
             layer_order: vec!["lm_head".into()],
             base_key_map,
+            base_model: None,
         };
         let meta_path = dir.path().join("meta.json");
         std::fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap()).unwrap();
@@ -322,6 +325,7 @@ mod tests {
             alpha,
             layer_order: vec!["lm_head".into()],
             base_key_map,
+            base_model: None,
         };
         let meta_path = dir.path().join("meta.json");
         std::fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap()).unwrap();

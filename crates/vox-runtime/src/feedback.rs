@@ -5,9 +5,10 @@
 //!
 //! ```no_run
 //! use vox_runtime::feedback::FeedbackCollector;
-//! use vox_db::CodeStore;
+//! use vox_db::VoxDb;
+//! use std::sync::Arc;
 //!
-//! async fn example(store: CodeStore) {
+//! async fn example(store: Arc<VoxDb>) {
 //!     let collector = FeedbackCollector::new(store, "session-1", Some("alice".to_string()));
 //!     let id = collector.log("What is Vox?", "Vox is an AI-native language.", 42, 150).await.unwrap();
 //!     collector.thumbs_up(id).await.unwrap();
@@ -15,7 +16,8 @@
 //! ```
 
 use thiserror::Error;
-use vox_pm::store::{CodeStore, StoreError, TrainingPair};
+use std::sync::Arc;
+use vox_db::{VoxDb, store::{StoreError, TrainingPair}};
 
 #[derive(Debug, Error)]
 pub enum FeedbackError {
@@ -27,7 +29,7 @@ pub enum FeedbackError {
 
 /// Collects LLM interactions and feedback for RLHF training.
 pub struct FeedbackCollector {
-    store: CodeStore,
+    store: Arc<VoxDb>,
     session_id: String,
     user_id: Option<String>,
     model_version: String,
@@ -35,7 +37,7 @@ pub struct FeedbackCollector {
 
 impl FeedbackCollector {
     /// Create a new feedback collector for a session.
-    pub fn new(store: CodeStore, session_id: &str, user_id: Option<String>) -> Self {
+    pub fn new(store: Arc<VoxDb>, session_id: &str, user_id: Option<String>) -> Self {
         Self {
             store,
             session_id: session_id.to_string(),
@@ -163,7 +165,7 @@ impl FeedbackCollector {
 
     /// Export training pairs as JSONL for fine-tuning.
     pub async fn export_jsonl(&self, limit: i64) -> Result<String, FeedbackError> {
-        let pairs = self.store.get_training_data(limit).await?;
+        let pairs = self.store.export_training_pairs(limit).await?;
         let lines: Vec<String> = pairs
             .iter()
             .map(|pair| {
@@ -181,7 +183,7 @@ impl FeedbackCollector {
 
     /// Get training data pairs directly.
     pub async fn get_training_data(&self, limit: i64) -> Result<Vec<TrainingPair>, FeedbackError> {
-        Ok(self.store.get_training_data(limit).await?)
+        Ok(self.store.export_training_pairs(limit).await?)
     }
 }
 
@@ -200,9 +202,8 @@ mod tests {
                 .unwrap()
                 .as_micros()
         ));
-        let store = CodeStore::open(path.to_str().unwrap())
-            .await
-            .expect("temp store");
+        let db_path = path.to_str().unwrap().to_string();
+        let store = Arc::new(VoxDb::connect(vox_db::DbConfig::Local { path: db_path }).await.expect("temp store"));
         let collector = FeedbackCollector::new(store, "test-session", Some("user-1".into()));
 
         // Log an interaction

@@ -1,7 +1,9 @@
 ---
 title: "Doc-to-code acceptance checklist"
-category: architecture
-last_updated: 2026-03-20
+description: "Official documentation for Doc-to-code acceptance checklist for the Vox language. Detailed technical reference, architecture guides, and "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Doc-to-code acceptance checklist

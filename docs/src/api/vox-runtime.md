@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-runtime"
+description: "Official documentation for Crate API: vox-runtime for the Vox language. Detailed technical reference, architecture guides, and implementa"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-runtime
 
 ## Overview
@@ -35,7 +42,7 @@ Reactive subscriptions for real-time data updates:
 Content-addressable file storage:
 
 - Deterministic IDs for identical content
-- Automatic deduplication via BLAKE3 or XXH3 (see [Builtins: Hashing](../ref-builtins-hashing.md))
+- Automatic deduplication via BLAKE3 or XXH3 (see [Builtins: Hashing](../reference/ref-builtins-hashing.md))
 - URL-based access via `/storage/{id}` prefix
 
 ## Key Design Decisions
@@ -485,7 +492,7 @@ Identifies the transport used for a streaming endpoint.
 Native hashing and identity primitives. Compiled Vox programs call these through
 the `std.*` syntax; the codegen emits direct Rust function calls with no intermediary.
 
-See [Builtins: Hashing & Identity](../ref-builtins-hashing.md) for the full reference including
+See [Builtins: Hashing & Identity](../reference/ref-builtins-hashing.md) for the full reference including
 benchmark estimates, collision avoidance design, and when to use each tier.
 
 

@@ -1,3 +1,10 @@
+---
+title: "Example: Dashboard example: full-stack Vox with @v0 + routes + component + http route"
+description: "Official documentation for Example: Dashboard example: full-stack Vox with @v0 + routes + component + http route for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Dashboard example: full-stack Vox with @v0 + routes + component + http route
 
 ```vox

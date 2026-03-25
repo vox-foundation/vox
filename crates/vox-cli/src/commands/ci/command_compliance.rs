@@ -355,7 +355,7 @@ fn tool_registry_array_slice(src: &str) -> Result<&str> {
 fn vox_mcp_tool_string_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r#""(vox_[a-z0-9_]+)""#).expect("vox MCP quoted tool name pattern")
+        Regex::new(r#""(vox_[a-z0-9_:]+)""#).expect("vox MCP quoted tool name pattern")
     })
 }
 

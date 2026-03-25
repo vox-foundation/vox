@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-pm"
+description: "Official documentation for Crate API: vox-pm for the Vox language. Detailed technical reference, architecture guides, and implementation "
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-pm
 
 ## Overview

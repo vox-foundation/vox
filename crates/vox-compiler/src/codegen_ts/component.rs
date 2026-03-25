@@ -3,6 +3,29 @@ use crate::ast::decl::FnDecl;
 use crate::ast::expr::Expr;
 use crate::ast::scalar_mapping::VoxScalar;
 use crate::ast::stmt::Stmt;
+use std::collections::BTreeSet;
+
+/// Mapping from Vox `use_*` snake_case names to React camelCase hook names.
+/// This covers all stable React 18/19 built-in hooks.
+const REACT_HOOK_REGISTRY: &[(&str, &str)] = &[
+    ("use_state", "useState"),
+    ("use_effect", "useEffect"),
+    ("use_memo", "useMemo"),
+    ("use_ref", "useRef"),
+    ("use_callback", "useCallback"),
+    ("use_context", "useContext"),
+    ("use_reducer", "useReducer"),
+    ("use_id", "useId"),
+    ("use_deferred_value", "useDeferredValue"),
+    ("use_transition", "useTransition"),
+    ("use_sync_external_store", "useSyncExternalStore"),
+    ("use_layout_effect", "useLayoutEffect"),
+    ("use_imperative_handle", "useImperativeHandle"),
+    ("use_debug_value", "useDebugValue"),
+    ("use_action_state", "useActionState"),
+    ("use_optimistic", "useOptimistic"),
+    ("use_form_status", "useFormStatus"),
+];
 
 /// Generate a React component from a Vox @component function declaration.
 /// Returns (filename, content) tuple.
@@ -11,45 +34,35 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     let filename = format!("{name}.tsx");
     let mut out = String::new();
 
-    // Imports — detect hooks from AST (not Debug strings).
-    let mut need_state = false;
-    let mut need_effect = false;
-    let mut need_memo = false;
-    let mut need_ref = false;
-    let mut need_callback = false;
+    // Collect hook names referenced in the component body.
+    let mut vox_hooks_used: BTreeSet<String> = BTreeSet::new();
     for stmt in &func.body {
-        scan_stmt_for_hooks(
-            stmt,
-            &mut need_state,
-            &mut need_effect,
-            &mut need_memo,
-            &mut need_ref,
-            &mut need_callback,
-        );
+        collect_hooks_in_stmt(stmt, &mut vox_hooks_used);
     }
-    let mut hooks = Vec::new();
-    if need_state {
-        hooks.push("useState");
+
+    // Map Vox snake_case hook names → React camelCase imports.
+    let mut react_hooks: BTreeSet<&str> = BTreeSet::new();
+    for vox_name in &vox_hooks_used {
+        if let Some((_, react_name)) = REACT_HOOK_REGISTRY
+            .iter()
+            .find(|(vox, _)| *vox == vox_name.as_str())
+        {
+            react_hooks.insert(react_name);
+        }
+        // Custom use_* hooks (not in registry) are not React built-ins;
+        // they are imported separately below if the user imports them.
     }
-    if need_effect {
-        hooks.push("useEffect");
+
+    // Emit React import — only include hooks actually used.
+    if react_hooks.is_empty() {
+        out.push_str("import React from \"react\";\n\n");
+    } else {
+        let hook_list: Vec<&&str> = react_hooks.iter().collect();
+        out.push_str(&format!(
+            "import React, {{ {} }} from \"react\";\n\n",
+            hook_list.iter().map(|s| **s).collect::<Vec<_>>().join(", ")
+        ));
     }
-    if need_memo {
-        hooks.push("useMemo");
-    }
-    if need_ref {
-        hooks.push("useRef");
-    }
-    if need_callback {
-        hooks.push("useCallback");
-    }
-    if hooks.is_empty() {
-        hooks.push("useState");
-    }
-    out.push_str(&format!(
-        "import React, {{ {} }} from \"react\";\n\n",
-        hooks.join(", ")
-    ));
     if has_styles {
         out.push_str(&format!("import \"./{name}.css\";\n\n"));
     }
@@ -136,410 +149,122 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     (filename, out)
 }
 
-fn mark_vox_hook(
-    name: &str,
-    need_state: &mut bool,
-    need_effect: &mut bool,
-    need_memo: &mut bool,
-    need_ref: &mut bool,
-    need_callback: &mut bool,
-) {
-    match name {
-        "use_state" => *need_state = true,
-        "use_effect" => *need_effect = true,
-        "use_memo" => *need_memo = true,
-        "use_ref" => *need_ref = true,
-        "use_callback" => *need_callback = true,
-        _ => {}
+/// Collect every Vox `use_*` call name referenced in a statement tree.
+fn collect_hooks_in_stmt(stmt: &Stmt, out: &mut BTreeSet<String>) {
+    match stmt {
+        Stmt::Let { value, .. } => collect_hooks_in_expr(value, out),
+        Stmt::Assign { target, value, .. } => {
+            collect_hooks_in_expr(target, out);
+            collect_hooks_in_expr(value, out);
+        }
+        Stmt::Return { value, .. } => {
+            if let Some(v) = value {
+                collect_hooks_in_expr(v, out);
+            }
+        }
+        Stmt::Expr { expr, .. } => collect_hooks_in_expr(expr, out),
     }
 }
 
-fn scan_expr_for_hooks(
-    expr: &Expr,
-    need_state: &mut bool,
-    need_effect: &mut bool,
-    need_memo: &mut bool,
-    need_ref: &mut bool,
-    need_callback: &mut bool,
-) {
+/// Collect every Vox `use_*` call name referenced in an expression tree.
+fn collect_hooks_in_expr(expr: &Expr, out: &mut BTreeSet<String>) {
     match expr {
         Expr::Call { callee, args, .. } => {
             if let Expr::Ident { name, .. } = callee.as_ref() {
-                mark_vox_hook(
-                    name.as_str(),
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                if name.starts_with("use_") {
+                    out.insert(name.clone());
+                }
             } else {
-                scan_expr_for_hooks(
-                    callee,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(callee, out);
             }
             for a in args {
-                scan_expr_for_hooks(
-                    &a.value,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(&a.value, out);
             }
         }
         Expr::MethodCall { object, args, .. } => {
-            scan_expr_for_hooks(
-                object,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+            collect_hooks_in_expr(object, out);
             for a in args {
-                scan_expr_for_hooks(
-                    &a.value,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(&a.value, out);
             }
         }
         Expr::Binary { left, right, .. } => {
-            scan_expr_for_hooks(
-                left,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-            scan_expr_for_hooks(
-                right,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+            collect_hooks_in_expr(left, out);
+            collect_hooks_in_expr(right, out);
         }
-        Expr::Unary { operand, .. } => {
-            scan_expr_for_hooks(
-                operand,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+        Expr::Unary { operand, .. } => collect_hooks_in_expr(operand, out),
+        Expr::FieldAccess { object, .. } => collect_hooks_in_expr(object, out),
+        Expr::Lambda { body, .. } => collect_hooks_in_expr(body, out),
+        Expr::Pipe { left, right, .. } => {
+            collect_hooks_in_expr(left, out);
+            collect_hooks_in_expr(right, out);
         }
-        Expr::Block { stmts, .. } => {
-            for s in stmts {
-                scan_stmt_for_hooks(
-                    s,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
-            }
+        Expr::Spawn { target, .. } => collect_hooks_in_expr(target, out),
+        Expr::With { operand, options, .. } => {
+            collect_hooks_in_expr(operand, out);
+            collect_hooks_in_expr(options, out);
         }
-        Expr::If {
-            condition,
-            then_body,
-            else_body,
-            ..
-        } => {
-            scan_expr_for_hooks(
-                condition,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+        Expr::If { condition, then_body, else_body, .. } => {
+            collect_hooks_in_expr(condition, out);
             for s in then_body {
-                scan_stmt_for_hooks(
-                    s,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_stmt(s, out);
             }
-            if let Some(else_stmts) = else_body {
-                for s in else_stmts {
-                    scan_stmt_for_hooks(
-                        s,
-                        need_state,
-                        need_effect,
-                        need_memo,
-                        need_ref,
-                        need_callback,
-                    );
+            if let Some(eb) = else_body {
+                for s in eb {
+                    collect_hooks_in_stmt(s, out);
                 }
             }
         }
         Expr::For { iterable, body, .. } => {
-            scan_expr_for_hooks(
-                iterable,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-            scan_expr_for_hooks(
-                body,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+            collect_hooks_in_expr(iterable, out);
+            collect_hooks_in_expr(body, out);
         }
         Expr::Match { subject, arms, .. } => {
-            scan_expr_for_hooks(
-                subject,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+            collect_hooks_in_expr(subject, out);
             for arm in arms {
-                scan_expr_for_hooks(
-                    &arm.body,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(&arm.body, out);
             }
         }
-        Expr::Lambda { body, .. } => {
-            scan_expr_for_hooks(
-                body,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-        }
-        Expr::Pipe { left, right, .. } => {
-            scan_expr_for_hooks(
-                left,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-            scan_expr_for_hooks(
-                right,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-        }
-        Expr::Spawn { target, .. } => {
-            scan_expr_for_hooks(
-                target,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-        }
-        Expr::With {
-            operand, options, ..
-        } => {
-            scan_expr_for_hooks(
-                operand,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-            scan_expr_for_hooks(
-                options,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-        }
-        Expr::StringInterp { parts, .. } => {
-            for p in parts {
-                if let crate::ast::expr::StringPart::Interpolation(e) = p {
-                    scan_expr_for_hooks(
-                        e,
-                        need_state,
-                        need_effect,
-                        need_memo,
-                        need_ref,
-                        need_callback,
-                    );
-                }
+        Expr::Block { stmts, .. } => {
+            for s in stmts {
+                collect_hooks_in_stmt(s, out);
             }
         }
-        Expr::ListLit { elements, .. } => {
-            for el in elements {
-                scan_expr_for_hooks(
-                    el,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
-            }
-        }
-        Expr::TupleLit { elements, .. } => {
-            for el in elements {
-                scan_expr_for_hooks(
-                    el,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+        Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {
+            for e in elements {
+                collect_hooks_in_expr(e, out);
             }
         }
         Expr::ObjectLit { fields, .. } => {
             for (_, v) in fields {
-                scan_expr_for_hooks(
-                    v,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(v, out);
             }
         }
-        Expr::FieldAccess { object, .. } => {
-            scan_expr_for_hooks(
-                object,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
+        Expr::StringInterp { parts, .. } => {
+            for p in parts {
+                if let crate::ast::expr::StringPart::Interpolation(e) = p {
+                    collect_hooks_in_expr(e, out);
+                }
+            }
         }
         Expr::Jsx(el) => {
             for ch in &el.children {
-                scan_expr_for_hooks(
-                    ch,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(ch, out);
             }
             for attr in &el.attributes {
-                scan_expr_for_hooks(
-                    &attr.value,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(&attr.value, out);
             }
         }
         Expr::JsxSelfClosing(el) => {
             for attr in &el.attributes {
-                scan_expr_for_hooks(
-                    &attr.value,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
+                collect_hooks_in_expr(&attr.value, out);
             }
         }
-        _ => {}
-    }
-}
-
-fn scan_stmt_for_hooks(
-    stmt: &Stmt,
-    need_state: &mut bool,
-    need_effect: &mut bool,
-    need_memo: &mut bool,
-    need_ref: &mut bool,
-    need_callback: &mut bool,
-) {
-    match stmt {
-        Stmt::Let { value, .. } => scan_expr_for_hooks(
-            value,
-            need_state,
-            need_effect,
-            need_memo,
-            need_ref,
-            need_callback,
-        ),
-        Stmt::Assign { target, value, .. } => {
-            scan_expr_for_hooks(
-                target,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-            scan_expr_for_hooks(
-                value,
-                need_state,
-                need_effect,
-                need_memo,
-                need_ref,
-                need_callback,
-            );
-        }
-        Stmt::Return { value, .. } => {
-            if let Some(v) = value {
-                scan_expr_for_hooks(
-                    v,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
-            }
-        }
-        Stmt::Expr { expr, .. } => scan_expr_for_hooks(
-            expr,
-            need_state,
-            need_effect,
-            need_memo,
-            need_ref,
-            need_callback,
-        ),
+        // Leaf expressions
+        Expr::IntLit { .. }
+        | Expr::FloatLit { .. }
+        | Expr::BoolLit { .. }
+        | Expr::StringLit { .. }
+        | Expr::Ident { .. } => {}
     }
 }
 

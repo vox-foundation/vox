@@ -116,3 +116,87 @@ pub struct IslandProp {
     pub ty: TypeExpr,
     pub is_optional: bool,
 }
+
+/// Reactive component declaration (Path C reactive model).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReactiveComponentDecl {
+    /// Component name.
+    pub name: String,
+    /// Props/parameters.
+    pub params: Vec<crate::ast::expr::Param>,
+    /// Body members: state, derived, effect, on_mount, on_cleanup.
+    pub members: Vec<ReactiveMemberDecl>,
+    /// Optional view expression (JSX).
+    pub view: Option<crate::ast::expr::Expr>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// Member of a reactive component body.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ReactiveMemberDecl {
+    /// Reactive state binding.
+    State(StateDecl),
+    /// Derived (computed) value.
+    Derived(DerivedDecl),
+    /// Side-effect hook.
+    Effect(EffectDecl),
+    /// Runs once after first render.
+    OnMount(OnMountDecl),
+    /// Runs on component teardown.
+    OnCleanup(OnCleanupDecl),
+}
+
+/// `state name: Type = init_expr`
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct StateDecl {
+    /// Binding name.
+    pub name: String,
+    /// Optional type annotation.
+    pub ty: Option<TypeExpr>,
+    /// Initial value expression.
+    pub init: crate::ast::expr::Expr,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `derived name: Type = expr`
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DerivedDecl {
+    /// Binding name.
+    pub name: String,
+    /// Optional type annotation.
+    pub ty: Option<TypeExpr>,
+    /// Computation expression.
+    pub expr: crate::ast::expr::Expr,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `effect: { body }`
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct EffectDecl {
+    /// Effect body expression.
+    pub body: crate::ast::expr::Expr,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `mount: { body }` — runs once after first render.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OnMountDecl {
+    /// Mount body expression.
+    pub body: crate::ast::expr::Expr,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `cleanup: { body }` — runs on component teardown.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OnCleanupDecl {
+    /// Cleanup body expression.
+    pub body: crate::ast::expr::Expr,
+    /// Source span.
+    pub span: Span,
+}
+

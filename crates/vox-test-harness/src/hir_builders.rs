@@ -27,6 +27,19 @@ pub fn minimal_hir_module() -> HirModule {
         tables: vec![],
         indexes: vec![],
         mcp_tools: vec![],
+        components: vec![],
+        v0_components: vec![],
+        client_routes: vec![],
+        islands: vec![],
+        layouts: vec![],
+        pages: vec![],
+        contexts: vec![],
+        hooks: vec![],
+        error_boundaries: vec![],
+        loadings: vec![],
+        not_founds: vec![],
+        reactive_components: vec![],
+        legacy_ast_nodes: vec![],
     }
 }
 

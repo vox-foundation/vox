@@ -1,3 +1,10 @@
+---
+title: "Example: Durable Execution Example"
+description: "Official documentation for Example: Durable Execution Example for the Vox language. Detailed technical reference, architecture guides, an"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: Durable Execution Example
 
 ```vox

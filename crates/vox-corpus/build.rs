@@ -170,11 +170,11 @@ fn main() {
 
     // ── Watch triggers ────────────────────────────────────────────────────────
     for rel in &[
-        "../vox-ast/src/expr.rs",
-        "../vox-ast/src/types.rs",
-        "../vox-ast/src/pattern.rs",
-        "../vox-ast/src/stmt.rs",
-        "../vox-ast/src/decl/mod.rs",
+        "../vox-compiler/src/ast/expr.rs",
+        "../vox-compiler/src/ast/types.rs",
+        "../vox-compiler/src/ast/pattern.rs",
+        "../vox-compiler/src/ast/stmt.rs",
+        "../vox-compiler/src/ast/decl/mod.rs",
         "../vox-cli/src/lib.rs",
         "../vox-orchestrator/src/types.rs",
         "../vox-mcp-meta/src/lib.rs",
@@ -186,25 +186,25 @@ fn main() {
     // ── 1. Walk vox-ast enum files ────────────────────────────────────────────
 
     // expr.rs contains: Expr (snake), BinOp (as-is), UnOp (as-is)
-    let expr_file = manifest_dir.join("../vox-ast/src/expr.rs");
+    let expr_file = manifest_dir.join("../vox-compiler/src/ast/expr.rs");
     let expr_variants = walk_enum(&expr_file, "Expr", true); // snake_case names
     let binop_variants = walk_enum(&expr_file, "BinOp", false); // keep original
     let unop_variants = walk_enum(&expr_file, "UnOp", false);
 
     // types.rs: TypeExpr
-    let types_file = manifest_dir.join("../vox-ast/src/types.rs");
+    let types_file = manifest_dir.join("../vox-compiler/src/ast/types.rs");
     let type_variants = walk_enum(&types_file, "TypeExpr", false);
 
     // pattern.rs: Pattern
-    let pattern_file = manifest_dir.join("../vox-ast/src/pattern.rs");
+    let pattern_file = manifest_dir.join("../vox-compiler/src/ast/pattern.rs");
     let pattern_variants = walk_enum(&pattern_file, "Pattern", false);
 
     // stmt.rs: Stmt
-    let stmt_file = manifest_dir.join("../vox-ast/src/stmt.rs");
+    let stmt_file = manifest_dir.join("../vox-compiler/src/ast/stmt.rs");
     let stmt_variants = walk_enum(&stmt_file, "Stmt", false);
 
     // decl/mod.rs: Decl → snake_case TAXONOMY
-    let decl_file = manifest_dir.join("../vox-ast/src/decl/mod.rs");
+    let decl_file = manifest_dir.join("../vox-compiler/src/ast/decl/mod.rs");
     let taxonomy = walk_enum(&decl_file, "Decl", true);
 
     // ── 2. Walk CLI enum ──────────────────────────────────────────────────────

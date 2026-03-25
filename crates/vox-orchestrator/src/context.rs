@@ -2,9 +2,9 @@
 //!
 //! [`ContextStore`] is snapshot-friendly and backs cross-agent coordination without
 //! hitting the database for ephemeral coordination state.
+use std::sync::Arc;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 
 use crate::sync_lock;
 use crate::types::{AgentId, VcsContext};
@@ -31,27 +31,27 @@ pub struct ContextEntry {
 /// State is designed to be serialized alongside the Orchestrator via state.rs.
 #[derive(Debug, Clone, Default)]
 pub struct ContextStore {
-    inner: Arc<RwLock<HashMap<String, ContextEntry>>>,
+    inner: Arc<std::sync::RwLock<HashMap<String, ContextEntry>>>,
 }
 
 impl ContextStore {
     /// Create a new, empty context store.
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(RwLock::new(HashMap::new())),
+            inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 
     /// Load from an existing map of entries (e.g. from state loader).
     pub fn from_entries(entries: HashMap<String, ContextEntry>) -> Self {
         Self {
-            inner: Arc::new(RwLock::new(entries)),
+            inner: Arc::new(std::sync::RwLock::new(entries)),
         }
     }
 
     /// Dump all current entries (e.g. for state saving).
     pub fn entries(&self) -> HashMap<String, ContextEntry> {
-        sync_lock::rw_read(&self.inner).clone()
+        sync_lock::rw_read(&*self.inner).clone()
     }
 
     /// Set a context value.
@@ -89,10 +89,8 @@ impl ContextStore {
             set_at: now,
             vcs_context,
         };
-
-        self.inner
-            .write()
-            .expect("context lock poisoned")
+ 
+        crate::sync_lock::rw_write(&self.inner)
             .insert(key.into(), entry);
     }
 
@@ -104,7 +102,7 @@ impl ContextStore {
 
     /// Get the full ContextEntry by key.
     pub fn get_entry(&self, key: &str) -> Option<ContextEntry> {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         if let Some(entry) = map.get(key) {
             if entry.expires_at == 0 || entry.expires_at > current_timestamp() {
                 return Some(entry.clone());
@@ -115,7 +113,7 @@ impl ContextStore {
 
     /// Return all keys starting with a specific prefix.
     pub fn list_keys(&self, prefix: &str) -> Vec<String> {
-        let map = sync_lock::rw_read(&self.inner);
+        let map = sync_lock::rw_read(&*self.inner);
         let now = current_timestamp();
         map.iter()
             .filter(|(k, v)| k.starts_with(prefix) && (v.expires_at == 0 || v.expires_at > now))
@@ -136,7 +134,7 @@ impl ContextStore {
     /// Clear out items that have expired their TTL.
     /// Intended to be run periodically by the orchestrator.
     pub fn expire_stale(&self) -> usize {
-        let mut map = sync_lock::rw_write(&self.inner);
+        let mut map = sync_lock::rw_write(&*self.inner);
         let now = current_timestamp();
         let initial_len = map.len();
         map.retain(|_, v| v.expires_at == 0 || v.expires_at > now);
@@ -172,9 +170,9 @@ mod tests {
         // Set with 2 seconds TTL to avoid immediate expiry due to rapid execution,
         // but simulate expiration via modifying the entry.
         store.set(AgentId(1), "exp", "val", 1);
-
+ 
         {
-            let mut map = sync_lock::rw_write(&store.inner);
+            let mut map = sync_lock::rw_write(&*store.inner);
             map.get_mut("exp").unwrap().expires_at = current_timestamp() - 10;
         }
 

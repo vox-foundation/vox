@@ -434,7 +434,7 @@ impl MemoryManager {
                 let fact_line = format!("{k}: {v}");
                 let fact_meta = format!("{{\"key\":\"{k}\"}}");
                 let _ = db
-                    .save_memory(vox_db::arca_store::SaveMemoryParams {
+                    .save_memory(vox_db::SaveMemoryParams {
                         agent_id: &agent_str,
                         session_id: "global",
                         memory_type: "fact",
@@ -521,7 +521,7 @@ impl MemoryManager {
                 let fact_line = format!("{key}: {value}");
                 let fact_meta = format!("{{\"key\":\"{key}\"}}");
                 let _ = db
-                    .save_memory(vox_db::arca_store::SaveMemoryParams {
+                    .save_memory(vox_db::SaveMemoryParams {
                         agent_id: "global",
                         session_id: "sync",
                         memory_type: "fact",

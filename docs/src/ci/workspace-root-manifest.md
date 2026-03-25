@@ -1,7 +1,9 @@
 ---
-title: "Workspace root Cargo.toml (SSOT, fix forward)"
-category: ci
-last_updated: 2026-03-20
+title: "Workspace root `Cargo.toml` (fix forward)"
+description: "Official documentation for Workspace root `Cargo.toml` (fix forward) for the Vox language. Detailed technical reference, architecture gui"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Workspace root `Cargo.toml` (fix forward)

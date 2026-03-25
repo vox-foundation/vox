@@ -1,3 +1,10 @@
+---
+title: "Crate API: vox-config"
+description: "Official documentation for Crate API: vox-config for the Vox language. Detailed technical reference, architecture guides, and implementat"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Crate API: vox-config
 
 ## Module: `vox-config\src\lib.rs`

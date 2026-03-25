@@ -1,7 +1,9 @@
 ---
 title: "CI runner contract"
-category: ci
-last_updated: 2026-03-22
+description: "Official documentation for CI runner contract for the Vox language. Detailed technical reference, architecture guides, and implementation"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # CI runner contract
@@ -24,13 +26,13 @@ Do **not** depend on git history to recover the root `Cargo.toml`. SSOT and repa
 
 ## Canonical `vox ci` vs shell scripts
 
-Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scripts under `scripts/` are **optional thin delegates** for local POSIX ergonomics; **prefer `vox ci …`** when the `vox` binary is on `PATH`. Mapping table: [scripts/README.md](../../../scripts/README.md). Machine-readable registry: [`docs/agents/script-registry.json`](../agents/script-registry.json).
+Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scripts under `scripts/` are **optional thin delegates** for local POSIX ergonomics; **prefer `vox ci …`** when the `vox` binary is on `PATH`. Mapping table: [scripts/README.md](../adr/README.md). Machine-readable registry: [`docs/agents/script-registry.json`](../../agents/script-registry.json).
 
 ## Line endings (cross-platform)
 
 - **Policy:** LF for tracked source/docs/config (see root [`.gitattributes`](../../../.gitattributes) and [`.editorconfig`](../../../.editorconfig)). **`*.ps1`** uses CRLF on checkout / in editors that respect EditorConfig.
 - **CI gate:** **`vox ci line-endings`** — forward-only by default (diff vs `GITHUB_BASE_SHA`…`GITHUB_SHA` in GitHub Actions, else `HEAD~1`…`HEAD` locally). Audit whole tree with **`--all`**. Override base with **`VOX_LINE_ENDINGS_BASE`** or **`--base <ref>`** (optional **`VOX_LINE_ENDINGS_HEAD`**, default `HEAD`).
-- **TOESTUB:** rule id **`cross-platform/line-endings`** / finding **`cross-platform/crlf`** (warning) on scanned languages — see [governance](../agents/governance.md).
+- **TOESTUB:** rule id **`cross-platform/line-endings`** / finding **`cross-platform/crlf`** (warning) on scanned languages — see [governance](../../agents/governance.md).
 
 **ML / repo hygiene (Rust, not shell):**
 
@@ -56,7 +58,7 @@ Workflow jobs that run **`vox ci cuda-features`** or compile with **`nvcc`** sho
 
 ## Optional: strict parse for all examples
 
-Set **`VOX_EXAMPLES_STRICT_PARSE=1`** when running **`cargo test -p vox-parser --test parity_test`** to require every `examples/**/*.vox` to parse. Default CI keeps the **golden-only** gate. Status: [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). Delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/examples_strict_parse.sh), [`scripts/examples_strict_parse.ps1`](../../../scripts/examples_strict_parse.ps1).
+Set **`VOX_EXAMPLES_STRICT_PARSE=1`** when running **`cargo test -p vox-parser --test parity_test`** to require every `examples/**/*.vox` to parse. Default CI keeps the **golden-only** gate. Status: [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). Delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/verify_workspace_manifest.sh), [`scripts/examples_strict_parse.ps1`](../../../scripts/check_docs_ssot.ps1).
 
 ## Workflow list
 

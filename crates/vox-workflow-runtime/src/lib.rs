@@ -561,27 +561,16 @@ mod tests {
     }
 
     fn minimal_wf(body: Vec<HirStmt>) -> HirModule {
-        HirModule {
-            imports: vec![],
-            functions: vec![],
-            types: vec![],
-            routes: vec![],
-            actors: vec![],
-            workflows: vec![HirWorkflow {
-                id: DefId(0),
-                name: "demo".to_string(),
-                params: vec![],
-                return_type: None,
-                body,
-                span: span(),
-            }],
-            activities: vec![],
-            tests: vec![],
-            server_fns: vec![],
-            tables: vec![],
-            indexes: vec![],
-            mcp_tools: vec![],
-        }
+        let mut module = HirModule::default();
+        module.workflows.push(HirWorkflow {
+            id: DefId(0),
+            name: "demo".to_string(),
+            params: vec![],
+            return_type: None,
+            body,
+            span: span(),
+        });
+        module
     }
 
     #[test]

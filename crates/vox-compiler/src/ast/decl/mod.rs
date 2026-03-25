@@ -167,6 +167,8 @@ pub enum Decl {
     Page(PageDecl),
     /// React island stub (props only); implementation lives in `islands/` TSX.
     Island(IslandDecl),
+    /// Reactive component declaration (Path C).
+    ReactiveComponent(ReactiveComponentDecl),
 }
 
 impl Decl {
@@ -722,6 +724,7 @@ impl Decl {
             Decl::Environment(e) => e.span,
             Decl::Page(p) => p.span,
             Decl::Island(i) => i.span,
+            Decl::ReactiveComponent(r) => r.span,
         }
     }
 }

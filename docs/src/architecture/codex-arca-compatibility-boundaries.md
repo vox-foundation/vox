@@ -1,7 +1,9 @@
 ---
 title: "Codex / Arca compatibility boundaries"
-category: architecture
-last_updated: 2026-03-20
+description: "Official documentation for Codex / Arca compatibility boundaries for the Vox language. Detailed technical reference, architecture guides,"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # Codex / Arca compatibility boundaries
@@ -40,7 +42,7 @@ Resolution for CLIs and long-running apps:
 
 ## Migrations and SQL rules (Arca)
 
-- Schema DDL is owned by **`vox-pm`** (`crates/vox-pm/src/schema/`), ordered in [`manifest.rs`](../../../crates/vox-pm/src/schema/manifest.rs) as **`SCHEMA_FRAGMENTS`** and applied once as **baseline V1** (`schema_version` records **1** only). Legacy databases that already ran the historical multi-version chain must be **exported** (`vox codex export-legacy`), moved to a **new file**, then **imported** after baseline — no in-place bridge. Capability checks in `vox-db` / `vox-codex-api` use **required table sets**, not numeric version thresholds (see [codex-vnext-schema](./codex-vnext-schema.md)).
+- Schema DDL is owned by **`vox-pm`** (`crates/vox-pm/src/schema/`), ordered in [`manifest.rs`](../../../crates/vox-db/src/schema/manifest.rs) as **`SCHEMA_FRAGMENTS`** and applied once as **baseline V1** (`schema_version` records **1** only). Legacy databases that already ran the historical multi-version chain must be **exported** (`vox codex export-legacy`), moved to a **new file**, then **imported** after baseline — no in-place bridge. Capability checks in `vox-db` / `vox-codex-api` use **required table sets**, not numeric version thresholds (see [codex-vnext-schema](codex-vnext-schema.md)).
 - Higher-level writes for chat/search domains should go through **`VoxDb`** helpers in [`codex_chat.rs`](../../../crates/vox-db/src/codex_chat.rs) where possible instead of ad-hoc SQL.
 - Bodies use patterns consistent with Turso batch execution: **`execute_batch`** for non-row-returning DDL/DML; pragmas via **`pragma_update`** where applicable. Fragment `v7` remains intentionally empty in the manifest (historical no-op).
 

@@ -1,3 +1,10 @@
+---
+title: "Example: agent.vox"
+description: "Official documentation for Example: agent.vox for the Vox language. Detailed technical reference, architecture guides, and implementation"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Example: agent.vox
 
 ```vox

@@ -1,3 +1,10 @@
+---
+title: "Documentation Gaps"
+description: "Official documentation for Documentation Gaps for the Vox language. Detailed technical reference, architecture guides, and implementation"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Documentation Gaps
 
 > **Maintenance:** Hand-curated (not generated). For per-file doc density, hotspot tiers, and `symbol_hints` (schema v3: `containing_symbol`, `quality_tag`, …), regenerate [`agents/doc-inventory.json`](../../agents/doc-inventory.json) with **`cargo run -p vox-cli -- ci doc-inventory generate`**.

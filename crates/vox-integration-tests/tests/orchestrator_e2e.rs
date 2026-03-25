@@ -14,8 +14,8 @@ async fn drain_and_complete_all(orch: &Orchestrator) {
     let ids = orch.agent_ids();
     for id in ids {
         loop {
-            let task_id = if let Some(mut queue) = orch.get_agent_queue_mut(id) {
-                if let Some(task) = queue.dequeue() {
+            let task_id = if let Some(queue_handle) = orch.get_agent_queue_mut(id) {
+                if let Some(task) = queue_handle.write().unwrap().dequeue() {
                     Some(task.id)
                 } else {
                     None
@@ -90,14 +90,13 @@ async fn e2e_task_queue_drain() {
 async fn e2e_context_sharing_across_agents() {
     let orch = Orchestrator::new(test_config());
 
-    orch.context().set(
+    orch.context_store().write().unwrap().set(
         vox_orchestrator::types::AgentId(1),
         "shared_var",
         "secret_value",
         10,
     );
-
-    let val = orch.context().get("shared_var").expect("should exist");
+    let val = orch.context_store().read().unwrap().get("shared_var").expect("should exist").clone();
     assert_eq!(val, "secret_value");
 }
 
@@ -119,8 +118,8 @@ async fn e2e_timeout_and_retry() {
 
     // We don't drain because we want to fail it directly (acting as the agent failing)
     // Actually we need to dequeue it first to fail it!
-    if let Some(mut q) = orch.get_agent_queue_mut(orch.agent_ids()[0]) {
-        q.dequeue();
+    if let Some(q_handle) = orch.get_agent_queue_mut(orch.agent_ids()[0]) {
+        q_handle.write().unwrap().dequeue();
     }
     orch.fail_task(t1, "simulated failure".to_string())
         .await

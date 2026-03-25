@@ -1,21 +1,19 @@
-use crate::ast::decl::{Decl, Module, TypeDefDecl};
+use crate::hir::{HirModule, HirType, HirTypeDef};
 
 /// Generate TypeScript type definitions from Vox ADTs.
-pub fn generate_types(module: &Module) -> String {
+pub fn generate_types(hir: &HirModule) -> String {
     let mut out = String::new();
 
-    for decl in &module.declarations {
-        if let Decl::TypeDef(typedef) = decl {
-            out.push_str(&generate_adt(typedef));
-            out.push('\n');
-        }
+    for typedef in &hir.types {
+        out.push_str(&generate_adt(typedef));
+        out.push('\n');
     }
 
     out
 }
 
 /// Generate a TypeScript discriminated union from a Vox ADT.
-fn generate_adt(typedef: &TypeDefDecl) -> String {
+fn generate_adt(typedef: &HirTypeDef) -> String {
     let mut out = String::new();
     let name = &typedef.name;
 
@@ -36,9 +34,9 @@ fn generate_adt(typedef: &TypeDefDecl) -> String {
             let fields: Vec<String> = variant
                 .fields
                 .iter()
-                .map(|f| {
-                    let ts_type = map_type_to_ts(&f.type_ann);
-                    format!("readonly {}: {ts_type}", f.name)
+                .map(|(fname, ftype)| {
+                    let ts_type = map_type_to_ts(ftype);
+                    format!("readonly {}: {ts_type}", fname)
                 })
                 .collect();
             out.push_str(&format!(
@@ -61,9 +59,9 @@ fn generate_adt(typedef: &TypeDefDecl) -> String {
             let params: Vec<String> = variant
                 .fields
                 .iter()
-                .map(|f| format!("{}: {}", f.name, map_type_to_ts(&f.type_ann)))
+                .map(|(fname, ftype)| format!("{}: {}", fname, map_type_to_ts(ftype)))
                 .collect();
-            let fields: Vec<String> = variant.fields.iter().map(|f| f.name.clone()).collect();
+            let fields: Vec<String> = variant.fields.iter().map(|(fname, _)| fname.clone()).collect();
             out.push_str(&format!(
                 "export const {} = ({}): {name} => ({{ _tag: \"{}\", {} }});\n",
                 variant.name,
@@ -77,15 +75,15 @@ fn generate_adt(typedef: &TypeDefDecl) -> String {
     out
 }
 
-fn map_type_to_ts(ty: &crate::ast::types::TypeExpr) -> String {
+fn map_type_to_ts(ty: &HirType) -> String {
     match ty {
-        crate::ast::types::TypeExpr::Named { name, .. } => match name.as_str() {
+        HirType::Named(name) => match name.as_str() {
             "int" | "float" => "number".to_string(),
             "str" => "string".to_string(),
             "bool" => "boolean".to_string(),
             other => other.to_string(),
         },
-        crate::ast::types::TypeExpr::Generic { name, args, .. } => {
+        HirType::Generic(name, args) => {
             let args_str: Vec<String> = args.iter().map(map_type_to_ts).collect();
             format!("{}<{}>", name, args_str.join(", "))
         }

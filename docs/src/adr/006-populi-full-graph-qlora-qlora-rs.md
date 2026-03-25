@@ -1,3 +1,10 @@
+---
+title: "ADR 006: Populi full-graph Candle QLoRA with qlora-rs"
+description: "Official documentation for ADR 006: Populi full-graph Candle QLoRA with qlora-rs for the Vox language."
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # ADR 006: Populi full-graph Candle QLoRA with qlora-rs
 
 ## Status
@@ -21,7 +28,7 @@ Product goals (Phase 2c) require **deeper** use of base weights: per-layer atten
    - **Qwen2 / LLaMA-style** (`model_type` / `architectures` containing `Llama`, `Qwen`, `Mistral`, etc.): `model.layers.{i}.self_attn.o_proj.weight` — shape `[d_model, d_model]`.  
    If no per-layer weights are found, behavior falls back to the **LM-only** path (backward compatible).
 
-   This is **not** a full causal transformer forward (no MHA/FFN block yet); it is the **supported bounded proxy v1** (`candle_qlora_proxy_v1` in manifests / `training_objective_note`), including optional suffix LM via **`--qlora-ce-last-k`** (see [populi-training-ssot.md](../architecture/populi-training-ssot.md)). Naming in telemetry: `trainable_projection_stack` / `candle_qlora_graph_id`.
+   This is **not** a full causal transformer forward (no MHA/FFN block yet); it is the **supported bounded proxy v1** (`candle_qlora_proxy_v1` in manifests / `training_objective_note`), including optional suffix LM via **`--qlora-ce-last-k`** (see [populi-training.md](../reference/populi-training.md)). Naming in telemetry: `trainable_projection_stack` / `candle_qlora_graph_id`.
 
 3. **Double quantization**  
    [`QLoraConfig`](https://docs.rs/qlora-rs/1.0.5/qlora_rs/qlora/struct.QLoraConfig.html) embeds [`QuantizationConfig`](https://docs.rs/qlora-rs/1.0.5/qlora_rs/quantization/struct.QuantizationConfig.html) with `double_quant: bool`. Presets (`preset_qv_bf16`, etc.) default `double_quant: true`. Populi exposes a CLI flag to **disable** double quant for debugging; default remains **on** (paper-style).
@@ -34,8 +41,8 @@ Product goals (Phase 2c) require **deeper** use of base weights: per-layer atten
 
 ## Consequences
 
-- Root [`Cargo.toml`](../../Cargo.toml) must keep `qlora-rs` workspace pin aligned with `vox-populi` optional dep.
-- SSOT: [`populi-training-ssot.md`](../architecture/populi-training-ssot.md) and [`ref-cli.md`](../ref-cli.md) must list `merge-qlora` and `--qlora-no-double-quant`.
+- Root [`Cargo.toml`](../../../Cargo.toml) must keep `qlora-rs` workspace pin aligned with `vox-populi` optional dep.
+- SSOT: [`populi-training.md`](../reference/populi-training.md) and [`ref-cli.md`](../reference/cli.md) must list `merge-qlora` and `--qlora-no-double-quant`.
 - CI: `cargo test -p vox-populi --features train` and targeted `vox-cli` tests cover export/merge smoke paths.
 
 ## References

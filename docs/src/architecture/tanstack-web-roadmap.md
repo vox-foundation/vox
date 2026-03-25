@@ -1,7 +1,9 @@
 ---
-title: "TanStack web roadmap (Router → Start)"
-category: architecture
-last_updated: 2026-03-21
+title: "TanStack web roadmap"
+description: "Official documentation for TanStack web roadmap for the Vox language. Detailed technical reference, architecture guides, and implementati"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # TanStack web roadmap
@@ -31,7 +33,7 @@ This document implements the execution narrative for [ADR 010: TanStack web spin
 The name appears in historical docs and Ludus quests; **no crate** ships under `crates/vox-codegen-html` in this repository. **Canonical** HTML-ish output:
 
 - **`vox-ssg`** — static shells under `target/generated/public/ssg-shells/`
-- **React + Vite** — primary UI surface per [vox-web-stack-ssot.md](vox-web-stack-ssot.md)
+- **React + Vite** — primary UI surface per [vox-web-stack.md](../reference/vox-web-stack.md)
 
 ## v0.dev (main + islands)
 
@@ -42,4 +44,4 @@ The name appears in historical docs and Ludus quests; **no crate** ships under `
 ## Related links
 
 - [TanStack web backlog](tanstack-web-backlog.md) (checkbox task decomposition)
-- [vox-web-stack-ssot.md](vox-web-stack-ssot.md)
+- [vox-web-stack.md](../reference/vox-web-stack.md)

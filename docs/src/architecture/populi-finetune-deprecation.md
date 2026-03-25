@@ -1,3 +1,10 @@
+---
+title: "Deprecation policy — Populi native fine-tuning"
+description: "Official documentation for Deprecation policy — Populi native fine-tuning for the Vox language. Detailed technical reference, architectur"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
+---
 # Deprecation policy — Populi native fine-tuning
 
 ## Stable
@@ -14,4 +21,4 @@
 ## Timeline
 
 - No CLI flags removed in this iteration; aliases added (`merge-adapter`).
-- Future removal of legacy paths will be announced in this doc + `populi-training-ssot.md` with one release notice.
+- Future removal of legacy paths will be announced in this doc + `populi-training.md` with one release notice.

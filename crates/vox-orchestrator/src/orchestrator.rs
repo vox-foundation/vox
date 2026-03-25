@@ -44,53 +44,54 @@ mod tests;
 pub use types::{AgentSummary, OrchestratorError, OrchestratorStatus, TaskTraceStep, MAX_TASK_TRACES};
 
 pub struct Orchestrator {
-    config: OrchestratorConfig,
-    affinity_map: FileAffinityMap,
-    lock_manager: FileLockManager,
-    context_store: crate::context::ContextStore,
-    budget_manager: crate::budget::BudgetManager,
-    summary_manager: crate::summary::SummaryManager,
-    models: crate::models::ModelRegistry,
-    bulletin: BulletinBoard,
-    agents: HashMap<AgentId, AgentQueue>,
-    groups: AffinityGroupRegistry,
-    task_id_gen: TaskIdGenerator,
-    agent_id_gen: AgentIdGenerator,
+    pub config: std::sync::Arc<std::sync::RwLock<OrchestratorConfig>>,
+    pub affinity_map: FileAffinityMap,
+    pub lock_manager: FileLockManager,
+    pub context_store: std::sync::Arc<std::sync::RwLock<crate::context::ContextStore>>,
+    pub budget_manager: std::sync::Arc<std::sync::RwLock<crate::budget::BudgetManager>>,
+    pub summary_manager: std::sync::Arc<std::sync::RwLock<crate::summary::SummaryManager>>,
+    pub models: std::sync::Arc<std::sync::RwLock<crate::models::ModelRegistry>>,
+    pub bulletin: BulletinBoard,
+    pub agents: std::sync::Arc<std::sync::RwLock<HashMap<AgentId, std::sync::Arc<std::sync::RwLock<AgentQueue>>>>>,
+    pub groups: std::sync::Arc<std::sync::RwLock<AffinityGroupRegistry>>,
+    pub task_id_gen: TaskIdGenerator,
+    pub agent_id_gen: AgentIdGenerator,
     /// Maps task IDs to the agent they were assigned to.
-    task_assignments: HashMap<TaskId, AgentId>,
-    qa_router: crate::qa::QARouter,
-    monitor: crate::monitor::AiMonitor,
-    event_bus: crate::events::EventBus,
-    message_bus: crate::a2a::MessageBus,
+    pub task_assignments: std::sync::Arc<std::sync::RwLock<HashMap<TaskId, AgentId>>>,
+    pub qa_router: std::sync::Arc<std::sync::RwLock<crate::qa::QARouter>>,
+    pub monitor: std::sync::Arc<std::sync::RwLock<crate::monitor::AiMonitor>>,
+    pub event_bus: crate::events::EventBus,
+    pub message_bus: crate::a2a::MessageBus,
     /// IDs of agents that were dynamically spawned (transient).
-    dynamic_agents: std::collections::HashSet<AgentId>,
+    pub dynamic_agents: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<AgentId>>>,
     /// Handles to the running agent processes.
-    agent_handles: HashMap<AgentId, vox_runtime::ProcessHandle>,
-    heartbeat_monitor: crate::heartbeat::HeartbeatMonitor,
+    pub agent_handles: std::sync::Arc<std::sync::RwLock<HashMap<AgentId, vox_runtime::ProcessHandle>>>,
+    pub heartbeat_monitor: std::sync::Arc<std::sync::RwLock<crate::heartbeat::HeartbeatMonitor>>,
     /// System resource monitor.
     #[cfg(feature = "system-metrics")]
-    sys: sysinfo::System,
+    pub sys: std::sync::Arc<std::sync::RwLock<sysinfo::System>>,
     /// Historical system load for predictive scaling.
-    load_history: std::collections::VecDeque<f64>,
+    pub load_history: std::sync::Arc<std::sync::RwLock<std::collections::VecDeque<f64>>>,
     /// Scope guard for write boundaries (synced with affinity on assign/retire).
-    scope_guard: ScopeGuard,
+    pub scope_guard: std::sync::Arc<std::sync::RwLock<ScopeGuard>>,
     /// Per-task timeline (ingress → route → outcome), capped at MAX_TASK_TRACES.
-    task_traces: HashMap<TaskId, Vec<TaskTraceStep>>,
+    pub task_traces: std::sync::Arc<std::sync::RwLock<HashMap<TaskId, Vec<TaskTraceStep>>>>,
     /// **Codex** database handle (Turso/libSQL).
-    db: Option<std::sync::Arc<vox_db::VoxDb>>,
+    pub db: std::sync::Arc<std::sync::RwLock<Option<std::sync::Arc<vox_db::VoxDb>>>>,
+ 
     // -- JJ-inspired subsystems --
     /// Auto-snapshot store for tracking file state changes.
-    snapshot_store: crate::snapshot::SnapshotStore,
+    pub snapshot_store: std::sync::Arc<std::sync::RwLock<crate::snapshot::SnapshotStore>>,
     /// Operation log for universal undo/redo.
-    oplog: crate::oplog::OpLog,
+    pub oplog: std::sync::Arc<std::sync::RwLock<crate::oplog::OpLog>>,
     /// First-class conflict tracking.
-    conflict_manager: crate::conflicts::ConflictManager,
+    pub conflict_manager: std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>>,
     /// Per-agent virtual workspaces and change tracking.
-    workspace_manager: crate::workspace::WorkspaceManager,
+    pub workspace_manager: std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>>,
     /// Timestamp of the last rebalance (for cooldown enforcement).
-    last_rebalance_at: Option<std::time::Instant>,
+    pub last_rebalance_at: std::sync::Arc<std::sync::RwLock<Option<std::time::Instant>>>,
     /// Last global activity timestamp (ms) for idle detection.
-    last_activity_ms: std::sync::atomic::AtomicU64,
+    pub last_activity_ms: std::sync::atomic::AtomicU64,
     /// Last remote mesh snapshot hints (from MCP federation poller); read-only placement signals.
-    remote_mesh_routing_hints: Vec<crate::mesh_federation::RemoteMeshRoutingHint>,
+    pub remote_mesh_routing_hints: std::sync::Arc<std::sync::RwLock<Vec<crate::mesh_federation::RemoteMeshRoutingHint>>>,
 }

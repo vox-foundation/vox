@@ -2,7 +2,7 @@
 
 use crate::VoxDb;
 use turso::params;
-use crate::arca_store::StoreError;
+use crate::store::StoreError;
 
 const ENSURE_SQL: &str = "
 CREATE TABLE IF NOT EXISTS toestub_task_queue (

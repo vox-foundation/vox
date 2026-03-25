@@ -1,7 +1,9 @@
 ---
-title: "ADR 004: Codex over Arca over Turso (storage SSOT)"
-category: adr
-last_updated: 2026-03-20
+title: "ADR 004: Codex over Arca over Turso"
+description: "Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a"
+category: "reference"
+last_updated: 2026-03-24
+training_eligible: true
 ---
 
 # ADR 004: Codex over Arca over Turso
@@ -33,7 +35,7 @@ Vox persisted data through `vox-pm` (`CodeStore`), `vox-db` (`VoxDb`), and scatt
 
 ## References
 
-- [Environment variables (SSOT)](../reference/env-vars-ssot.md) — canonical `VOX_DB_*` / Turso alias precedence
+- [Environment variables (SSOT)](../reference/env-vars.md) — canonical `VOX_DB_*` / Turso alias precedence
 - [Codex / Arca compatibility boundaries](../architecture/codex-arca-compatibility-boundaries.md) — API, env, and migration contract
 - [Codex vNext schema domains](../architecture/codex-vnext-schema.md)
 - [Codex BaaS scaffolding](../architecture/codex-baas.md)

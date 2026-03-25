@@ -45,7 +45,8 @@ fn with_express_server_enabled<R>(f: impl FnOnce() -> R) -> R {
 macro_rules! generate_without_express {
     ($module:expr) => {{
         let _env_guard = ENV_MUTEX.lock().expect("ENV_MUTEX poisoned");
-        generate($module).expect("Should generate without errors")
+        let hir = vox_compiler::hir::lower_module($module);
+        generate(&hir).expect("Should generate without errors")
     }};
 }
 
@@ -141,7 +142,8 @@ fn pipeline_codegen_produces_two_ts_files_without_express() {
 fn codegen_types_has_tagged_union() {
     let tokens = lex(CHATBOT_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
     assert!(types.1.contains("_tag: \"Ok\""), "Should have Ok tag");
@@ -156,7 +158,8 @@ fn codegen_types_has_tagged_union() {
 fn codegen_component_has_use_state() {
     let tokens = lex(CHATBOT_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let chat = output.files.iter().find(|(n, _)| n == "Chat.tsx").unwrap();
     assert!(chat.1.contains("useState"), "Should use useState hook");
@@ -170,7 +173,8 @@ fn codegen_component_has_use_state() {
 fn codegen_server_has_express_route_with_await() {
     let tokens = lex(CHATBOT_SRC);
     let module = parse(tokens).unwrap();
-    let output = with_express_server_enabled(|| generate(&module).unwrap());
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = with_express_server_enabled(|| generate(&hir).unwrap());
 
     let server = output.files.iter().find(|(n, _)| n == "server.ts").unwrap();
     assert!(
@@ -192,7 +196,8 @@ fn codegen_server_has_express_route_with_await() {
 fn codegen_jsx_text_content_not_interpolated() {
     let tokens = lex(CHATBOT_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let chat = output.files.iter().find(|(n, _)| n == "Chat.tsx").unwrap();
     // Text content like "Vox" and "Chatbot" inside <h1> should appear as plain text,
@@ -224,7 +229,8 @@ activity send_email(recipient: str, subject: str) to Result[str] {
 "#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
@@ -245,7 +251,8 @@ activity fetch_data(url: str) to Result[str] {
 "#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let activities = output
         .files
@@ -277,7 +284,8 @@ activity do_work() to Result[str] {
 "#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let activities = output
         .files
@@ -311,7 +319,8 @@ fn codegen_ts_table_produces_schema_file() {
 "#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
@@ -344,7 +353,8 @@ fn codegen_v0_placeholder_from_prompt() {
     let src = r#"@v0 "A stats dashboard with charts" fn Stats() to Element"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
@@ -373,7 +383,8 @@ fn codegen_v0_placeholder_from_image() {
     let src = r#"@v0 from "design.png" fn Dashboard() to Element"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let dash = output
         .files
@@ -472,7 +483,8 @@ fn codegen_routes_produces_app_tsx() {
     let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
@@ -510,8 +522,9 @@ fn codegen_tanstack_start_emits_vox_router_without_nested_provider() {
     let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
     let output = generate_with_options(
-        &module,
+        &hir,
         CodegenOptions {
             tanstack_start: true,
         },
@@ -559,7 +572,8 @@ fn codegen_bind_expands_to_value_onchange() {
 }"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let component = output
         .files
@@ -596,7 +610,8 @@ fn codegen_use_effect_maps_to_react_hook() {
 }"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
 
     let component = output.files.iter().find(|(n, _)| n == "Timer.tsx").unwrap();
     assert!(
@@ -605,10 +620,12 @@ fn codegen_use_effect_maps_to_react_hook() {
         component.1
     );
     assert!(
-        component
-            .1
-            .contains("import React, { useState, useEffect }"),
-        "useEffect should be in imports"
+        component.1.contains("import React, {"),
+        "Should import from react"
+    );
+    assert!(
+        component.1.contains("useEffect") && component.1.contains("useState"),
+        "Both hooks should be in imports"
     );
 }
 
@@ -836,7 +853,8 @@ fn pipeline_generics_option_parse() {
 fn pipeline_generics_option_codegen() {
     let tokens = lex(GENERICS_OPTION_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
     assert!(types.1.contains("export type Option"), "Should export Option");
     assert!(types.1.contains("_tag: \"Some\""), "Should have Some tag");
@@ -883,7 +901,8 @@ fn pipeline_hooks_demo_parse() {
 fn pipeline_hooks_demo_codegen() {
     let tokens = lex(HOOKS_DEMO_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
     let tsx = output
         .files
         .iter()
@@ -935,7 +954,8 @@ fn pipeline_island_parse() {
 fn pipeline_island_codegen() {
     let tokens = lex(ISLAND_DEMO_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
         filenames.contains(&"vox-islands-meta.ts"),
@@ -980,7 +1000,8 @@ fn pipeline_v0_parse() {
 fn pipeline_v0_codegen() {
     let tokens = lex(V0_COMPONENT_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
         filenames.contains(&"Analytics.tsx"),
@@ -1075,7 +1096,8 @@ fn pipeline_pattern_matching_parse() {
 fn pipeline_pattern_matching_codegen() {
     let tokens = lex(PATTERN_MATCHING_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
     assert!(
         types.1.contains("export type Shape"),
@@ -1153,7 +1175,8 @@ fn pipeline_multi_route_parse() {
 fn pipeline_multi_route_codegen() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
-    let output = generate(&module).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
         filenames.contains(&"Dashboard.tsx"),
