@@ -55,7 +55,7 @@ impl AutoFixer for StubAutoFixer {
 mod tests {
     use super::*;
     use crate::ast::span::Span;
-    use crate::typeck::diagnostics::Severity;
+    use crate::typeck::diagnostics::{DiagnosticCategory, Severity};
 
     #[test]
     fn stub_autofixer_one_fix_per_diagnostic() {
@@ -68,6 +68,7 @@ mod tests {
             found_type: None,
             context: Some("let x = 1".to_string()),
             suggestions: vec!["let x: int = 1".to_string()],
+            category: DiagnosticCategory::Typecheck,
         }];
         let fixes = fixer.suggest_fixes("let x = 1", &diags);
         assert_eq!(fixes.len(), 1);

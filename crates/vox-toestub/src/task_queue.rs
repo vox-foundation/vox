@@ -198,6 +198,8 @@ mod tests {
             message: "test issue".to_string(),
             suggestion: None,
             context: String::new(),
+            confidence: None,
+            evidence: None,
         }
     }
 

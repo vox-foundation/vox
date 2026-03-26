@@ -4,15 +4,23 @@ use anyhow::Result;
 use std::path::PathBuf;
 use std::process::Stdio;
 
-/// Strip `--log-dir` and its value from argv so the child runs without log-dir (foreground training).
-fn argv_without_log_dir(args: Vec<String>) -> Vec<String> {
+/// Strip background / log-redirection flags so the child runs training in the foreground.
+fn argv_for_background_child(args: Vec<String>) -> Vec<String> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < args.len() {
+        if args[i] == "--background" {
+            i += 1;
+            continue;
+        }
+        if args[i].starts_with("--background=") {
+            i += 1;
+            continue;
+        }
         if args[i] == "--log-dir" {
             i += 1;
             if i < args.len() {
-                i += 1; // skip value
+                i += 1;
             }
             continue;
         }
@@ -39,7 +47,7 @@ pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("create log file {}: {}", log_path.display(), e))?;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let child_args = argv_without_log_dir(args);
+    let child_args = argv_for_background_child(args);
     let exe = std::env::current_exe().map_err(|e| anyhow::anyhow!("current exe: {}", e))?;
 
     let mut cmd = std::process::Command::new(&exe);
@@ -54,7 +62,8 @@ pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB);
     }
 
     let child = cmd

@@ -26,6 +26,7 @@ training_eligible: true
 | `VOX_RUNPOD_API_KEY`, `VOX_VAST_API_KEY` | Cloud GPU infra | Optional cloud GPU | `vox-populi` cloud providers |
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
 | `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
+| `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
 | `VOX_MESH_TOKEN` | Populi control-plane auth | Workflow-specific required | Mesh transport/auth |
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-runtime` auth gate |
@@ -47,7 +48,17 @@ training_eligible: true
 - `HUGGING_FACE_HUB_TOKEN`
 - `GITHUB_TOKEN`
 - `VOX_GITHUB_TOKEN`
+- `VOX_NEWS_GITHUB_TOKEN`
 - `GH_TOKEN`
+- `VOX_NEWS_TWITTER_TOKEN`
+- `VOX_NEWS_OPENCOLLECTIVE_TOKEN`
+- `VOX_SOCIAL_REDDIT_CLIENT_ID`
+- `VOX_SOCIAL_REDDIT_CLIENT_SECRET`
+- `VOX_SOCIAL_REDDIT_REFRESH_TOKEN`
+- `VOX_SOCIAL_REDDIT_USER_AGENT`
+- `VOX_SOCIAL_YOUTUBE_CLIENT_ID`
+- `VOX_SOCIAL_YOUTUBE_CLIENT_SECRET`
+- `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN`
 - `GROQ_API_KEY`
 - `VOX_GROQ_API_KEY`
 - `CEREBRAS_API_KEY`

@@ -32,20 +32,22 @@ pub(crate) fn markdown_section<'a>(doc: &'a str, heading: &str) -> Option<&'a st
     Some(&doc[start..start + heading.len() + rel_end])
 }
 
-/// CLI reference text for `ref_cli_required` needles: `docs/src/ref-cli.md` if present, else canonical `docs/src/reference/cli.md`.
-/// Strict `check_ref_cli` always runs on the resolved body (no silent skip when only the canonical doc exists).
+/// Body used for `check_ref_cli` needles.
+///
+/// When `docs/src/ref-cli.md` exists as a short redirect, its text alone does not satisfy
+/// registry substring checks (e.g. `vox build`). Append the canonical reference so compliance
+/// validates against the real SSOT while keeping stable URLs for legacy links.
 pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<String> {
     let legacy = repo_root.join("docs/src/ref-cli.md");
-    if legacy.is_file() {
-        return read_utf8_path_capped(&legacy).with_context(|| format!("read {}", legacy.display()));
-    }
     let canonical = repo_root.join("docs/src/reference/cli.md");
-    read_utf8_path_capped(&canonical).with_context(|| {
-        format!(
-            "read {} (and docs/src/ref-cli.md is absent)",
-            canonical.display()
-        )
-    })
+    let canonical_text = read_utf8_path_capped(&canonical)
+        .with_context(|| format!("read {}", canonical.display()))?;
+    if legacy.is_file() {
+        let legacy_text = read_utf8_path_capped(&legacy)
+            .with_context(|| format!("read {}", legacy.display()))?;
+        return Ok(format!("{legacy_text}\n\n{canonical_text}"));
+    }
+    Ok(canonical_text)
 }
 
 pub(crate) fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {

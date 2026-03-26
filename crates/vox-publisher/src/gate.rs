@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::types::UnifiedNewsItem;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -46,6 +48,71 @@ fn reason(code: &str, message: &str) -> GateReason {
     GateReason {
         code: code.to_string(),
         message: message.to_string(),
+    }
+}
+
+/// `VOX_NEWS_PUBLISH_ARMED=1` / `true` (same sentinel as orchestrator + MCP news tools).
+#[must_use]
+pub fn env_publish_armed() -> bool {
+    std::env::var("VOX_NEWS_PUBLISH_ARMED")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+/// Build gate inputs for the orchestrator news tick (`config.news`).
+#[must_use]
+pub fn publish_gate_inputs_for_orchestrator(
+    news_dry_run: bool,
+    news_publish_armed: bool,
+    db_present: bool,
+    dual_approval_met: bool,
+    item: &UnifiedNewsItem,
+) -> PublishGateInputs {
+    PublishGateInputs {
+        orchestrator_dry_run: news_dry_run,
+        item_dry_run: item.syndication.dry_run,
+        publish_armed_config: news_publish_armed,
+        publish_armed_env: env_publish_armed(),
+        db_present,
+        dual_approval_met,
+    }
+}
+
+/// Manual CLI / headless operator (`vox db publication-publish`): armed via env only (no orchestrator config loaded).
+#[must_use]
+pub fn publish_gate_inputs_for_cli(
+    cli_dry_run: bool,
+    db_present: bool,
+    dual_approval_met: bool,
+    item: &UnifiedNewsItem,
+) -> PublishGateInputs {
+    PublishGateInputs {
+        orchestrator_dry_run: cli_dry_run,
+        item_dry_run: item.syndication.dry_run,
+        publish_armed_config: false,
+        publish_armed_env: env_publish_armed(),
+        db_present,
+        dual_approval_met,
+    }
+}
+
+/// MCP Scientia tools: combine tool `dry_run`, orchestrator `[news].dry_run`, and manifest `syndication.dry_run`.
+#[must_use]
+pub fn publish_gate_inputs_for_mcp(
+    tool_dry_run: bool,
+    orchestrator_news_dry_run: bool,
+    orchestrator_publish_armed: bool,
+    db_present: bool,
+    dual_approval_met: bool,
+    item: &UnifiedNewsItem,
+) -> PublishGateInputs {
+    PublishGateInputs {
+        orchestrator_dry_run: tool_dry_run || orchestrator_news_dry_run,
+        item_dry_run: item.syndication.dry_run,
+        publish_armed_config: orchestrator_publish_armed,
+        publish_armed_env: env_publish_armed(),
+        db_present,
+        dual_approval_met,
     }
 }
 
@@ -113,7 +180,51 @@ pub fn evaluate_publication_gate(inputs: PublicationGateInputs) -> PublishGateDe
 
 #[cfg(test)]
 mod tests {
-    use super::{PublishGateInputs, evaluate_publish_gate};
+    use chrono::Utc;
+
+    use super::{
+        PublishGateInputs, evaluate_publish_gate, publish_gate_inputs_for_mcp,
+    };
+    use crate::types::{SyndicationConfig, UnifiedNewsItem};
+
+    fn sample_item(syndication: SyndicationConfig) -> UnifiedNewsItem {
+        UnifiedNewsItem {
+            id: "i".into(),
+            title: "t".into(),
+            author: "a".into(),
+            published_at: Utc::now(),
+            tags: vec![],
+            content_markdown: "x".into(),
+            syndication,
+            topic_pack: None,
+        }
+    }
+
+    #[test]
+    fn mcp_tool_and_orchestrator_news_dry_run_combine() {
+        let item = sample_item(SyndicationConfig {
+            dry_run: false,
+            ..Default::default()
+        });
+        let gated = evaluate_publish_gate(publish_gate_inputs_for_mcp(
+            true,
+            false,
+            false,
+            true,
+            true,
+            &item,
+        ));
+        assert!(!gated.would_be_live_without_dry_run);
+        let gated2 = evaluate_publish_gate(publish_gate_inputs_for_mcp(
+            false,
+            true,
+            false,
+            true,
+            true,
+            &item,
+        ));
+        assert!(!gated2.would_be_live_without_dry_run);
+    }
 
     #[test]
     fn live_publish_allowed_when_all_guards_met() {

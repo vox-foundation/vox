@@ -10,4 +10,7 @@ pub mod mix;
 pub mod preflight;
 pub mod structured_eval;
 
-pub use mix::{ASR_REFINE_INSTRUCTION, MixConfigSchema, normalize_training_jsonl_line, run_mix};
+pub use mix::{
+    ASR_REFINE_INSTRUCTION, MixConfigSchema, MixRunOptions, MixRunReport, MixSourceReportRow,
+    normalize_training_jsonl_line, run_mix, run_mix_with_options,
+};

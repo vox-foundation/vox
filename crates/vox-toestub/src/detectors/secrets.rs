@@ -1,4 +1,4 @@
-use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
+use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_comment};
 use regex::Regex;
 
 /// Detects hardcoded secrets, API keys, and credentials.
@@ -54,13 +54,21 @@ impl SecretDetector {
                     .into(),
             ),
             context: file.context_around(line_num, 1),
+            confidence: None,
+            evidence: None,
         }
     }
 
-    fn check_line(&self, file: &SourceFile, line: &str, line_num: usize) -> Vec<Finding> {
+    fn check_line(
+        &self,
+        file: &SourceFile,
+        line: &str,
+        line_num: usize,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Skip comments
+        // Skip whole-line comments (non-Rust / obvious; Rust mixed lines handled below)
         let trimmed = line.trim();
         if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*') {
             return findings;
@@ -81,9 +89,13 @@ impl SecretDetector {
             return findings;
         }
 
+        let skip_if_comment = |col: usize| {
+            file.language == Language::Rust && rust_byte_is_comment(file, line_num, col, rust_ctx)
+        };
+
         if let Some(m) = self.aws_key.find(line) {
             let key = m.as_str();
-            if !Self::aws_key_is_synthetic_placeholder(key) {
+            if !skip_if_comment(m.start()) && !Self::aws_key_is_synthetic_placeholder(key) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -93,22 +105,26 @@ impl SecretDetector {
             }
         }
 
-        if self.generic_secret.is_match(line) {
-            findings.push(self.make_finding(
-                file,
-                line_num,
-                "Potential hardcoded secret or API key detected.".to_string(),
-                Severity::Error,
-            ));
+        if let Some(m) = self.generic_secret.find(line) {
+            if !skip_if_comment(m.start()) {
+                findings.push(self.make_finding(
+                    file,
+                    line_num,
+                    "Potential hardcoded secret or API key detected.".to_string(),
+                    Severity::Error,
+                ));
+            }
         }
 
-        if self.jwt_token.is_match(line) {
-            findings.push(self.make_finding(
-                file,
-                line_num,
-                "Potential hardcoded JWT token detected.".to_string(),
-                Severity::Error,
-            ));
+        if let Some(m) = self.jwt_token.find(line) {
+            if !skip_if_comment(m.start()) {
+                findings.push(self.make_finding(
+                    file,
+                    line_num,
+                    "Potential hardcoded JWT token detected.".to_string(),
+                    Severity::Error,
+                ));
+            }
         }
 
         findings
@@ -131,10 +147,14 @@ impl SecretDetector {
 }
 
 impl DetectionRule for SecretDetector {
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (i, line) in file.lines.iter().enumerate() {
-            findings.extend(self.check_line(file, line, i + 1));
+            findings.extend(self.check_line(file, line, i + 1, rust_ctx));
         }
         findings
     }
@@ -175,7 +195,7 @@ mod tests {
         // Split so repo-wide scan of secrets.rs does not contain a contiguous AKIA+16 match.
         let rs = ["let key = \"AKIA", "1234567890ABCDEF\";"].concat();
         let f = source("rs", &rs);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("AWS"));
     }
@@ -186,7 +206,7 @@ mod tests {
         // Split so the Rust source line does not match the generic-secret regex (repo-wide scan).
         let py = ["DB_PASSWORD = 'super", "-secret-pass-123'"].concat();
         let f = source("py", &py);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("hardcoded secret"));
     }
@@ -196,7 +216,7 @@ mod tests {
         let d = SecretDetector::new();
         // The word EXAMPLE in an AWS key is a common doc pattern — skip it
         let f = source("rs", r#"let k = "AKIAIOSFODNN7EXAMPLE";"#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "example key should be excluded");
     }
 
@@ -205,7 +225,7 @@ mod tests {
         let d = SecretDetector::new();
         let f = source("rs", r#"let key = "AKIAZZZZZZZZZZZZZZ";"#);
         assert!(
-            d.detect(&f).is_empty(),
+            d.detect(&f, None).is_empty(),
             "uniform synthetic AWS keys are treated as fixtures"
         );
     }
@@ -214,7 +234,7 @@ mod tests {
     fn ignores_env_var_reads() {
         let d = SecretDetector::new();
         let f = source("rs", r#"let key = std::env::var("API_KEY").unwrap();"#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "env var reads should not be flagged");
     }
 
@@ -223,7 +243,30 @@ mod tests {
         let d = SecretDetector::new();
         let rs = ["// password: \"super", "-secret-123\""].concat();
         let f = source("rs", &rs);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "comment lines should not be flagged");
+    }
+
+    #[test]
+    fn ignores_secret_patterns_in_trailing_rust_comment() {
+        let d = SecretDetector::new();
+        let f = source(
+            "rs",
+            "fn x() {}\nlet _ = 1; // password: \"aaaaaaaa\" \"bbbbbbbb\"\n",
+        );
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "credential-shaped text only in // comment should not fire"
+        );
+    }
+
+    #[test]
+    fn ignores_aws_key_in_block_comment_on_code_line() {
+        let d = SecretDetector::new();
+        let f = source("rs", "fn y() { let _ = 1; /* AKIA1234567890ABCDEF */ }\n");
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "AWS-shaped id in block comment should not fire"
+        );
     }
 }

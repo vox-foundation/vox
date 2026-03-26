@@ -312,6 +312,6 @@ tools:
   - name: "vox_scientia_publication_route_simulate"
     description: "Simulate per-channel routing outcomes for a prepared publication id (policy + topic filters + template derivation)."
   - name: "vox_scientia_publication_publish"
-    description: "Publish a prepared publication id to selected channels (dry-run by default) and record publication_attempts. Optional json=true returns a single-line compact JSON tool envelope."
+    description: "Publish a prepared publication id to selected channels (dry-run by default) and record publication_attempts. Live publish requires digest dual-approval, armed (orchestrator [news].publish_armed and/or VOX_NEWS_PUBLISH_ARMED), and respects orchestrator [news].dry_run merged with tool dry_run. Optional json=true returns a single-line compact JSON tool envelope."
   - name: "vox_scientia_publication_retry_failed"
     description: "Retry failed channels from the most recent publication attempt, optionally scoped to one channel. Optional json=true returns a single-line compact JSON tool envelope."

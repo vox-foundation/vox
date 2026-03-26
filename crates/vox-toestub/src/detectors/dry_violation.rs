@@ -194,7 +194,11 @@ impl DetectionRule for DryViolationDetector {
         &[Language::Rust, Language::TypeScript, Language::Python]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let blocks = self.extract_blocks(file);
         let mut findings = Vec::new();
         // Track which pairs we've already flagged
@@ -228,6 +232,8 @@ impl DetectionRule for DryViolationDetector {
                                 .to_string(),
                         ),
                         context: file.context_around(blocks[i].start_line, 2),
+                        confidence: None,
+                        evidence: None,
                     });
                 }
             }
@@ -280,7 +286,7 @@ fn process_beta(items: Vec<i32>) -> Vec<i32> {
 }
 "#;
         let f = source("rs", code);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(!findings.is_empty(), "should detect duplicate blocks");
     }
 
@@ -307,7 +313,7 @@ fn multiply(a: i32, b: i32) -> i32 {
 }
 "#;
         let f = source("rs", code);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "unique functions should not flag DRY");
     }
 }

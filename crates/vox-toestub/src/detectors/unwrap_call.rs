@@ -48,6 +48,8 @@ impl UnwrapCallDetector {
                     .into(),
             ),
             context: file.context_around(line, 2),
+            confidence: None,
+            evidence: None,
         }
     }
 }
@@ -103,7 +105,11 @@ impl DetectionRule for UnwrapCallDetector {
         &[Language::Rust]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if Self::should_skip_file(&file.path) {
             return Vec::new();
         }
@@ -196,7 +202,7 @@ mod tests {
         ];
         let file = sf(&lines);
         let d = UnwrapCallDetector::new();
-        let hits: Vec<_> = d.detect(&file).into_iter().map(|f| f.line).collect();
+        let hits: Vec<_> = d.detect(&file, None).into_iter().map(|f| f.line).collect();
         assert_eq!(hits, vec![1, 7]);
     }
 
@@ -208,7 +214,7 @@ mod tests {
         ];
         let file = sf(&lines);
         let d = UnwrapCallDetector::new();
-        let hits: Vec<_> = d.detect(&file).into_iter().map(|f| f.line).collect();
+        let hits: Vec<_> = d.detect(&file, None).into_iter().map(|f| f.line).collect();
         assert_eq!(hits, vec![2]);
     }
 
@@ -222,7 +228,7 @@ mod tests {
         ];
         let file = sf(&lines);
         let d = UnwrapCallDetector::new();
-        assert!(d.detect(&file).is_empty());
+        assert!(d.detect(&file, None).is_empty());
     }
 
     #[test]
@@ -230,7 +236,7 @@ mod tests {
         let lines = vec!["#[cfg(not(test))]", "fn x() { a.unwrap(); }"];
         let file = sf(&lines);
         let d = UnwrapCallDetector::new();
-        assert_eq!(d.detect(&file).len(), 1);
+        assert_eq!(d.detect(&file, None).len(), 1);
     }
 
     #[test]
@@ -243,6 +249,6 @@ mod tests {
         };
         assert!(UnwrapCallDetector::should_skip_file(&file.path));
         let d = UnwrapCallDetector::new();
-        assert!(d.detect(&file).is_empty());
+        assert!(d.detect(&file, None).is_empty());
     }
 }

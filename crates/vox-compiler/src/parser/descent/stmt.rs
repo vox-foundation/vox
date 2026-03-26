@@ -5,7 +5,7 @@ use crate::ast::expr::Expr;
 use crate::ast::pattern::Pattern;
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
-use crate::parser::error::ParseError;
+use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
     pub(crate) fn parse_block(&mut self) -> Result<Vec<Stmt>, ()> {
@@ -159,11 +159,12 @@ impl Parser {
                 })
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     start,
                     "Expected pattern",
                     vec!["identifier".into(), "_".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Statement,
                 ));
                 Err(())
             }

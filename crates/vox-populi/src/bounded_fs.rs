@@ -22,9 +22,6 @@ pub(crate) fn read_utf8_path_capped(path: &Path) -> io::Result<String> {
         )));
     }
     let bytes = fs::read(path)?;
-    String::from_utf8(bytes).map_err(|e| io::Error::other(format!(
-        "{}: invalid UTF-8: {}",
-        path.display(),
-        e
-    )))
+    String::from_utf8(bytes)
+        .map_err(|e| io::Error::other(format!("{}: invalid UTF-8: {}", path.display(), e)))
 }

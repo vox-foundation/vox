@@ -34,6 +34,12 @@ pub struct HirModule {
     pub tables: Vec<HirTable>,
     /// Table indexes.
     pub indexes: Vec<HirIndex>,
+    /// Document collections (schemaless / doc store).
+    pub collections: Vec<HirCollection>,
+    /// Vector / embedding indexes.
+    pub vector_indexes: Vec<HirVectorIndex>,
+    /// Full-text search indexes.
+    pub search_indexes: Vec<HirSearchIndex>,
     /// MCP tool handlers.
     pub mcp_tools: Vec<HirMcpTool>,
 
@@ -324,6 +330,38 @@ pub struct HirIndex {
     /// Indexed columns.
     pub columns: Vec<String>,
     /// Span covering the index decl.
+    pub span: Span,
+}
+
+/// Document collection — fields mirror [`crate::ast::decl::CollectionDecl`].
+#[derive(Debug, Clone)]
+pub struct HirCollection {
+    pub id: DefId,
+    pub name: String,
+    pub fields: Vec<HirTableField>,
+    pub is_pub: bool,
+    pub has_spread: bool,
+    pub span: Span,
+}
+
+/// Vector index metadata lowered from AST.
+#[derive(Debug, Clone)]
+pub struct HirVectorIndex {
+    pub table_name: String,
+    pub index_name: String,
+    pub column: String,
+    pub dimensions: u32,
+    pub filter_fields: Vec<String>,
+    pub span: Span,
+}
+
+/// Full-text search index lowered from AST.
+#[derive(Debug, Clone)]
+pub struct HirSearchIndex {
+    pub table_name: String,
+    pub index_name: String,
+    pub search_field: String,
+    pub filter_fields: Vec<String>,
     pub span: Span,
 }
 

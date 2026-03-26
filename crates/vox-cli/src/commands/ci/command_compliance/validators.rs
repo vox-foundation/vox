@@ -246,7 +246,8 @@ fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {
             if p.is_dir() {
                 walk(&p, needle, found)?;
             } else if p.extension().and_then(|s| s.to_str()) == Some("rs") {
-                let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+                let s =
+                    read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
                 if s.contains(needle) {
                     *found = true;
                 }

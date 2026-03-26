@@ -104,10 +104,15 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
     };
 
     // 3. Type-check (HIR)
-    let diagnostics = vox_compiler::typeck::typecheck_ast_module(source, &module);
+    let mut diagnostics = vox_compiler::typeck::typecheck_ast_module(source, &module);
 
-    // 4. Lower to HIR (structural validation is optional; minimal `vox-hir` builds omit it).
+    // 4. Lower to HIR + structural validation (invariants for codegen consumers).
     let hir = vox_compiler::hir::lower_module(&module);
+    for e in vox_compiler::hir::validate_module(&hir) {
+        diagnostics.push(vox_compiler::typeck::Diagnostic::hir_invariant(
+            e.message, e.span, source,
+        ));
+    }
 
     Ok(FrontendResult {
         module,
@@ -129,6 +134,7 @@ pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
                 serde_json::json!({
                     "code": format!("E{:04}", i + 1),
                     "severity": format!("{:?}", d.severity),
+                    "category": format!("{:?}", d.category),
                     "message": d.message,
                     "file": file.display().to_string(),
                     "line": line,

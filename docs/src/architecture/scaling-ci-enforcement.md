@@ -20,7 +20,9 @@
 ## Commands
 
 - `vox ci scaling-audit verify` — schema + embedded policy parse.
-- `vox ci scaling-audit emit-reports` — per-crate markdown + rollup + TOESTUB JSON snapshot under `contracts/reports/scaling-audit/`.
+- `vox ci scaling-audit emit-reports` — per-crate markdown + rollup + TOESTUB JSON snapshot under `contracts/reports/scaling-audit/`. Honors **`VOX_TOESTUB_MAX_RUST_PARSE_FAILURES`** on the JSON envelope’s `rust_parse_failures` field (see [env-vars SSOT](../reference/env-vars.md)).
+
+**PR CI** additionally runs a full `toestub --format json` scan on `crates/` with the same env cap so `syn::parse_file` regressions fail before merge.
 
 ## SSOT
 

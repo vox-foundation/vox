@@ -58,7 +58,11 @@ impl DetectionRule for LineEndingDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !file.content.contains('\r') {
             return Vec::new();
         }
@@ -77,6 +81,8 @@ impl DetectionRule for LineEndingDetector {
                     .to_string(),
             ),
             context: String::new(),
+            confidence: None,
+            evidence: None,
         }]
     }
 }

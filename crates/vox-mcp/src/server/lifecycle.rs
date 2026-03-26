@@ -200,7 +200,9 @@ impl ServerState {
                             Ok(mut w) => {
                                 *w = RemotePopuliSnapshot::success(now, f.schema_version, brief);
                             }
-                            Err(e) => tracing::error!(error = %e, "populi poll: snapshot lock poisoned"),
+                            Err(e) => {
+                                tracing::error!(error = %e, "populi poll: snapshot lock poisoned")
+                            }
                         }
                     }
                     Err(e) => {
@@ -209,7 +211,9 @@ impl ServerState {
                             Ok(mut w) => {
                                 *w = RemotePopuliSnapshot::failure(now, e.to_string());
                             }
-                            Err(pe) => tracing::error!(error = %pe, "populi poll: snapshot lock poisoned"),
+                            Err(pe) => {
+                                tracing::error!(error = %pe, "populi poll: snapshot lock poisoned")
+                            }
                         }
                     }
                 }

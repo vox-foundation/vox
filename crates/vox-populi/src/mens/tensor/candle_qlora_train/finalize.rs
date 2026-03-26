@@ -9,9 +9,12 @@ use qlora_rs::training::QLoraTrainer;
 use super::{QloraAdapterMetaV2, TrainingDbEvent, TrainingLoopStats};
 use crate::mens::tensor::{
     adapter_schema_v3::{AdapterProvenanceFields, PopuliAdapterManifestV3},
-    backend::TrainingSummary, checkpoint_state::CheckpointState, manifest,
+    backend::TrainingSummary,
+    checkpoint_state::CheckpointState,
     finetune_contract::{AdapterMethod, BaseQuantMode},
-    qlora_preflight::QloraEmbedBundle, telemetry, telemetry_schema, train_log,
+    manifest,
+    qlora_preflight::QloraEmbedBundle,
+    telemetry, telemetry_schema, train_log,
     training_config::LoraTrainingConfig,
 };
 
@@ -237,15 +240,8 @@ mod tests {
 
         let mut key_map = HashMap::new();
         key_map.insert("lm_head".into(), "wte.weight".into());
-        let manifest = build_adapter_manifest_v3(
-            32000,
-            4096,
-            16,
-            32,
-            &cfg,
-            &["lm_head".into()],
-            &key_map,
-        );
+        let manifest =
+            build_adapter_manifest_v3(32000, 4096, 16, 32, &cfg, &["lm_head".into()], &key_map);
         let prov = manifest.provenance.expect("expected provenance");
         assert_eq!(prov.base_family.as_deref(), Some("kimi-k2.5"));
         assert_eq!(

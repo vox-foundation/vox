@@ -1,12 +1,11 @@
 use crate::{ServerState, ToolResult};
-use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::publication_preflight::PreflightProfile;
-use vox_publisher::scholarly::{LocalLedgerAdapter, ScholarlyAdapter};
+use vox_publisher::scholarly::submit_with_configured_adapter;
 use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
-use vox_publisher::types::{SyndicationConfig, UnifiedNewsItem};
+use vox_publisher::types::UnifiedNewsItem;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationPrepareParams {
@@ -43,8 +42,53 @@ impl From<PreflightProfileParam> for PreflightProfile {
     }
 }
 
-fn operator_publisher_config(state: &ServerState, dry_run: bool) -> vox_publisher::PublisherConfig {
-    let base_url = state
+fn publication_manifest_from_row(row: &vox_db::PublicationManifestRow) -> PublicationManifest {
+    PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    }
+}
+
+fn worthiness_score_for_row(row: &vox_db::PublicationManifestRow) -> Option<f64> {
+    let m = publication_manifest_from_row(row);
+    let root = vox_repository::resolve_repo_root_for_ci();
+    vox_publisher::publication_worthiness::worthiness_score_for_publication_manifest(&m, &root).ok()
+}
+
+fn mcp_social_worthiness_enforce(state: &ServerState) -> bool {
+    state.orchestrator_config.news.worthiness_enforce
+        || std::env::var("VOX_SOCIAL_WORTHINESS_ENFORCE")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+}
+
+fn mcp_social_worthiness_score_min(state: &ServerState) -> f64 {
+    state
+        .orchestrator_config
+        .news
+        .worthiness_score_min
+        .or_else(|| {
+            std::env::var("VOX_SOCIAL_WORTHINESS_SCORE_MIN")
+                .ok()
+                .and_then(|v| v.parse().ok())
+        })
+        .unwrap_or(0.85)
+}
+
+fn operator_publisher_config(
+    state: &ServerState,
+    dry_run: bool,
+    worthiness_score: Option<f64>,
+) -> vox_publisher::PublisherConfig {
+    let mut site = vox_publisher::NewsSiteConfig::default();
+    site.base_url = state
         .orchestrator_config
         .news
         .site_base_url
@@ -54,57 +98,77 @@ fn operator_publisher_config(state: &ServerState, dry_run: bool) -> vox_publishe
                 .trim_end_matches('/')
                 .to_string()
         });
-    let site = vox_publisher::NewsSiteConfig {
-        base_url,
-        ..Default::default()
-    };
-    vox_publisher::PublisherConfig::from_operator_environment(
+    if let Some(ref p) = state.orchestrator_config.news.rss_feed_path {
+        let t = p.trim();
+        if !t.is_empty() {
+            site.rss_feed_path = std::path::PathBuf::from(t);
+        }
+    }
+    site.merge_operator_env_overrides();
+    let mut cfg = vox_publisher::PublisherConfig::from_operator_environment(
         dry_run,
         Some(vox_repository::resolve_repo_root_for_ci()),
         site,
-    )
+    );
+    let news = &state.orchestrator_config.news;
+    if cfg.twitter_text_chunk_max.is_none() {
+        cfg.twitter_text_chunk_max = news.twitter_text_chunk_max;
+    }
+    if cfg.twitter_truncation_suffix.is_none() {
+        if let Some(ref s) = news.twitter_truncation_suffix {
+            let t = s.trim();
+            if !t.is_empty() {
+                cfg.twitter_truncation_suffix = Some(t.to_string());
+            }
+        }
+    }
+    if cfg.twitter_api_base.is_none() {
+        if let Some(ref b) = news.twitter_api_base {
+            let t = b.trim();
+            if !t.is_empty() {
+                cfg.twitter_api_base = Some(t.to_string());
+            }
+        }
+    }
+    if cfg.github_rest_base.is_none() {
+        if let Some(ref b) = news.github_rest_base {
+            let t = b.trim();
+            if !t.is_empty() {
+                cfg.github_rest_base = Some(t.to_string());
+            }
+        }
+    }
+    if cfg.github_graphql_url.is_none() {
+        if let Some(ref u) = news.github_graphql_url {
+            let t = u.trim();
+            if !t.is_empty() {
+                cfg.github_graphql_url = Some(t.to_string());
+            }
+        }
+    }
+    if cfg.opencollective_graphql_url.is_none() {
+        if let Some(ref u) = news.opencollective_graphql_url {
+            let t = u.trim();
+            if !t.is_empty() {
+                cfg.opencollective_graphql_url = Some(t.to_string());
+            }
+        }
+    }
+    cfg.worthiness_score = worthiness_score;
+    cfg
 }
 
 fn unified_news_item_from_manifest_row(
     row: &vox_db::PublicationManifestRow,
 ) -> Result<UnifiedNewsItem, String> {
-    #[derive(Deserialize, Default)]
-    struct MetaEnvelope {
-        #[serde(default)]
-        tags: Vec<String>,
-        #[serde(default)]
-        syndication: Option<SyndicationConfig>,
-        #[serde(default)]
-        topic_pack: Option<String>,
-    }
-    let meta: MetaEnvelope = match row
-        .metadata_json
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        None => MetaEnvelope::default(),
-        Some(s) => serde_json::from_str(s).map_err(|e| e.to_string())?,
-    };
-    let topic_pack = meta
-        .topic_pack
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(std::string::ToString::to_string);
-    let mut item = UnifiedNewsItem {
-        id: row.publication_id.clone(),
-        title: row.title.clone(),
-        author: row.author.clone(),
-        published_at: Utc::now(),
-        tags: meta.tags,
-        content_markdown: row.body_markdown.clone(),
-        syndication: meta.syndication.unwrap_or_default(),
-        topic_pack,
-    };
-    item.hydrate_topic_pack_if_set()
-        .map_err(|e| e.to_string())?;
-    Ok(item)
+    vox_publisher::switching::unified_news_item_from_manifest_parts(
+        &row.publication_id,
+        &row.title,
+        &row.author,
+        &row.body_markdown,
+        row.metadata_json.as_deref(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 pub async fn vox_scientia_publication_prepare(
@@ -287,8 +351,7 @@ pub async fn vox_scientia_publication_submit_local(
         citations_json: row.citations_json,
         metadata_json: row.metadata_json,
     };
-    let adapter = LocalLedgerAdapter;
-    let receipt = match adapter.submit(&manifest) {
+    let receipt = match submit_with_configured_adapter(&manifest) {
         Ok(r) => r,
         Err(e) => return ToolResult::<String>::err(format!("submit error: {e}")).to_json(),
     };
@@ -507,7 +570,8 @@ pub async fn vox_scientia_publication_route_simulate(
             return ToolResult::<String>::err(format!("parse metadata_json: {e}")).to_json();
         }
     };
-    let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, true));
+    let worthiness = worthiness_score_for_row(&row);
+    let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, true, worthiness));
     match publisher.publish_all(&item).await {
         Ok(r) => ToolResult::ok(r).to_json(),
         Err(e) => ToolResult::<String>::err(format!("simulate failed: {e}")).to_json(),
@@ -565,34 +629,58 @@ pub async fn vox_scientia_publication_publish(
         }
     };
     if let Some(channels) = params.channels.as_ref() {
-        let norm: Vec<String> = channels.iter().map(|s| s.trim().to_lowercase()).collect();
-        let has = |name: &str| norm.iter().any(|x| x == name);
-        if !has("rss") {
-            item.syndication.rss = false;
+        let normalized = vox_publisher::switching::normalize_channels(channels);
+        vox_publisher::switching::apply_channel_allowlist(&mut item, normalized.as_slice());
+    }
+    let dual = match db
+        .has_dual_publication_approval_for_digest(&params.publication_id, &digest)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<vox_publisher::SyndicationResult>::err(format!("DB error: {e}"))
+                .to_json_styled(compact);
         }
-        if !has("twitter") {
-            item.syndication.twitter = None;
-        }
-        if !has("github") {
-            item.syndication.github = None;
-        }
-        if !has("open_collective") {
-            item.syndication.open_collective = None;
-        }
-        if !has("reddit") {
-            item.syndication.reddit = None;
-        }
-        if !has("hacker_news") {
-            item.syndication.hacker_news = None;
-        }
-        if !has("youtube") {
-            item.syndication.youtube = None;
-        }
-        if !has("crates_io") {
-            item.syndication.crates_io = None;
+    };
+    let gate = vox_publisher::gate::evaluate_publish_gate(
+        vox_publisher::gate::publish_gate_inputs_for_mcp(
+            params.dry_run,
+            state.orchestrator_config.news.dry_run,
+            state.orchestrator_config.news.publish_armed,
+            true,
+            dual,
+            &item,
+        ),
+    );
+    if gate.has_blockers() {
+        let msg = serde_json::json!({
+            "error": "live publish blocked by gate",
+            "blocking_reasons": gate.blocking_reasons,
+        })
+        .to_string();
+        return ToolResult::<vox_publisher::SyndicationResult>::err(msg).to_json_styled(compact);
+    }
+    let worthiness = worthiness_score_for_row(&row);
+    if mcp_social_worthiness_enforce(state)
+        && !params.dry_run
+        && !state.orchestrator_config.news.dry_run
+        && !item.syndication.dry_run
+        && gate.live_publish_allowed
+        && let Some(score) = worthiness
+    {
+        let floor = mcp_social_worthiness_score_min(state);
+        if score < floor {
+            let msg = serde_json::json!({
+                "error": "live publish blocked by worthiness floor",
+                "worthiness_score": score,
+                "floor": floor,
+            })
+            .to_string();
+            return ToolResult::<vox_publisher::SyndicationResult>::err(msg).to_json_styled(compact);
         }
     }
-    let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, params.dry_run));
+    let publisher =
+        vox_publisher::Publisher::new(operator_publisher_config(state, params.dry_run, worthiness));
     let out = match publisher.publish_all(&item).await {
         Ok(r) => r,
         Err(e) => {
@@ -611,6 +699,29 @@ pub async fn vox_scientia_publication_publish(
                 out_json.as_str(),
             )
             .await;
+    }
+    if gate.live_publish_allowed {
+        if out.all_enabled_channels_succeeded(&item) {
+            let _ = db
+                .set_publication_state(
+                    &params.publication_id,
+                    "published",
+                    Some(
+                        &serde_json::json!({ "channel_group": "manual_mcp" }).to_string(),
+                    ),
+                )
+                .await;
+        } else if out.has_failures() {
+            let _ = db
+                .set_publication_state(
+                    &params.publication_id,
+                    "publish_failed",
+                    Some(
+                        &serde_json::json!({ "channel_group": "manual_mcp" }).to_string(),
+                    ),
+                )
+                .await;
+        }
     }
     ToolResult::ok(out).to_json_styled(compact)
 }
@@ -648,6 +759,18 @@ pub async fn vox_scientia_publication_retry_failed(
         return ToolResult::<serde_json::Value>::err("VoxDb is not connected".to_string())
             .to_json_styled(compact);
     };
+    let row = match db.get_publication_manifest(&params.publication_id).await {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("DB error: {e}"))
+                .to_json_styled(compact);
+        }
+    };
+    let Some(row) = row else {
+        return ToolResult::<serde_json::Value>::err("publication not found".to_string())
+            .to_json_styled(compact);
+    };
+    let digest = row.content_sha3_256;
     let attempts = match db.list_publication_attempts(&params.publication_id).await {
         Ok(v) => v,
         Err(e) => {
@@ -655,31 +778,33 @@ pub async fn vox_scientia_publication_retry_failed(
                 .to_json_styled(compact);
         }
     };
-    // `list_publication_attempts` returns newest-first.
-    let Some(last) = attempts.first() else {
+    if attempts.is_empty() {
         return ToolResult::<serde_json::Value>::err("no attempts found".to_string())
             .to_json_styled(compact);
-    };
-    let out: vox_publisher::SyndicationResult = match serde_json::from_str(&last.outcome_json) {
-        Ok(v) => v,
+    }
+    let attempt_refs: Vec<vox_publisher::switching::AttemptOutcome<'_>> = attempts
+        .iter()
+        .map(|a| vox_publisher::switching::AttemptOutcome {
+            content_sha3_256: a.content_sha3_256.as_str(),
+            outcome_json: a.outcome_json.as_str(),
+        })
+        .collect();
+    let failed = match vox_publisher::switching::failed_channels_from_latest_digest_attempt(
+        attempt_refs.as_slice(),
+        digest.as_str(),
+    ) {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            return ToolResult::<serde_json::Value>::err(
+                "no syndication attempt outcome for current manifest digest".to_string(),
+            )
+            .to_json_styled(compact);
+        }
         Err(e) => {
             return ToolResult::<serde_json::Value>::err(format!("attempt parse: {e}"))
                 .to_json_styled(compact);
         }
     };
-    let mut failed = Vec::new();
-    let mut maybe = |name: &str, o: &vox_publisher::ChannelOutcome| {
-        if matches!(o, vox_publisher::ChannelOutcome::Failed { .. }) {
-            failed.push(name.to_string());
-        }
-    };
-    maybe("rss", &out.rss);
-    maybe("twitter", &out.twitter);
-    maybe("github", &out.github);
-    maybe("open_collective", &out.open_collective);
-    maybe("reddit", &out.reddit);
-    maybe("hacker_news", &out.hacker_news);
-    maybe("youtube", &out.youtube);
     if failed.is_empty() {
         return ToolResult::ok(serde_json::json!({
             "publication_id": params.publication_id,
@@ -724,17 +849,7 @@ pub async fn vox_scientia_publication_preflight(
     let Some(row) = row else {
         return ToolResult::<String>::err("publication not found".to_string()).to_json();
     };
-    let mut manifest = PublicationManifest {
-        publication_id: row.publication_id,
-        content_type: row.content_type,
-        source_ref: row.source_ref,
-        title: row.title,
-        author: row.author,
-        abstract_text: row.abstract_text,
-        body_markdown: row.body_markdown,
-        citations_json: row.citations_json,
-        metadata_json: row.metadata_json,
-    };
+    let mut manifest = publication_manifest_from_row(&row);
     let profile: PreflightProfile = params.profile.unwrap_or_default().into();
     let report = if params.with_worthiness {
         let rid = manifest

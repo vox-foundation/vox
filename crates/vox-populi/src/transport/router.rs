@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::body::Body;
+use axum::extract::DefaultBodyLimit;
 use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::IntoResponse;
@@ -17,6 +18,19 @@ use super::handlers::{
     a2a_ack, a2a_inbox, bootstrap_exchange, deliver_a2a, health, heartbeat, join_node, leave_node,
     list_nodes,
 };
+
+/// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
+const POPULI_DEFAULT_MAX_BODY_BYTES: usize = 512 * 1024;
+
+fn populi_max_body_limit_bytes() -> usize {
+    const MIN: usize = 2 * 1024;
+    const MAX: usize = 8 * 1024 * 1024;
+    std::env::var("VOX_MESH_HTTP_MAX_BODY_BYTES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .filter(|&n| (MIN..=MAX).contains(&n))
+        .unwrap_or(POPULI_DEFAULT_MAX_BODY_BYTES)
+}
 
 /// Bearer authentication mode for [`populi_http_app_with_auth`].
 #[derive(Clone, Debug)]
@@ -86,6 +100,8 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
     } else {
         r
     };
+
+    let r = r.layer(DefaultBodyLimit::max(populi_max_body_limit_bytes()));
 
     r.layer(PropagateRequestIdLayer::x_request_id())
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))

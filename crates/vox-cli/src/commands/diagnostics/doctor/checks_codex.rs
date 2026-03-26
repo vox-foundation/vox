@@ -171,9 +171,7 @@ pub async fn run_scope(json: bool) -> Result<()> {
     }
 
     for path in scan_paths {
-        let content = read_utf8_path_capped_async(&path)
-            .await
-            .unwrap_or_default();
+        let content = read_utf8_path_capped_async(&path).await.unwrap_or_default();
 
         let snippets: Vec<String> = if path.extension().is_some_and(|e| e == "md") {
             let mut blocks = vec![];

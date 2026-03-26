@@ -44,7 +44,11 @@ impl DetectionRule for DeprecatedUsageDetector {
         &[Language::Vox]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -62,6 +66,8 @@ impl DetectionRule for DeprecatedUsageDetector {
                         "Refactor dependents and remove this deprecated item.".to_string(),
                     ),
                     context: file.context_around(i + 1, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }
@@ -83,7 +89,7 @@ mod tests {
     fn detects_deprecated_annotation() {
         let d = DeprecatedUsageDetector::new();
         let f = source("@deprecated\nfn old_stuff():\n    pass");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, "deprecated-usage");
     }
@@ -92,7 +98,7 @@ mod tests {
     fn ignores_pure_annotation() {
         let d = DeprecatedUsageDetector::new();
         let f = source("@pure\nfn clean():\n    pass");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
 }

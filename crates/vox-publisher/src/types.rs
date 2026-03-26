@@ -209,6 +209,51 @@ pub struct CratesIoConfig {
     pub crates_to_update: Vec<String>,
 }
 
+fn normalize_channel_key(raw: &str) -> String {
+    raw.trim().to_lowercase()
+}
+
+fn merge_channel_policy(base: &mut ChannelPolicyConfig, incoming: ChannelPolicyConfig) {
+    if incoming.enabled.is_some() {
+        base.enabled = incoming.enabled;
+    }
+    if incoming.topic_filters.is_some() {
+        base.topic_filters = incoming.topic_filters;
+    }
+    if let Some(floor) = incoming.worthiness_floor {
+        base.worthiness_floor = Some(match base.worthiness_floor {
+            Some(existing) => existing.max(floor),
+            None => floor,
+        });
+    }
+    if incoming.template_profile.is_some() {
+        base.template_profile = incoming.template_profile;
+    }
+}
+
+impl SyndicationConfig {
+    /// Canonicalize `distribution_policy.channel_policy` keys to lowercase channel ids.
+    pub fn normalize_channel_policy_keys(&mut self) {
+        if self.distribution_policy.channel_policy.is_empty() {
+            return;
+        }
+        let mut normalized = BTreeMap::new();
+        for (raw, policy) in std::mem::take(&mut self.distribution_policy.channel_policy) {
+            let key = normalize_channel_key(raw.as_str());
+            if key.is_empty() {
+                continue;
+            }
+            match normalized.get_mut(&key) {
+                Some(existing) => merge_channel_policy(existing, policy),
+                None => {
+                    normalized.insert(key, policy);
+                }
+            }
+        }
+        self.distribution_policy.channel_policy = normalized;
+    }
+}
+
 impl UnifiedNewsItem {
     pub fn parse(content: &str, id: &str) -> anyhow::Result<Self> {
         crate::contract::validate_news_id(id)?;
@@ -273,6 +318,7 @@ impl UnifiedNewsItem {
             topic_pack,
         };
         item.hydrate_topic_pack_if_set()?;
+        item.syndication.normalize_channel_policy_keys();
         Ok(item)
     }
 
@@ -287,6 +333,7 @@ impl UnifiedNewsItem {
                 )?;
             }
         }
+        self.syndication.normalize_channel_policy_keys();
         Ok(())
     }
 
@@ -448,5 +495,33 @@ body"#;
         assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
         assert!(item.syndication.twitter.is_none());
         assert!(item.syndication.rss);
+    }
+
+    #[test]
+    fn parse_normalizes_channel_policy_keys_to_lowercase() {
+        let md = r#"---
+title: T
+author: A
+syndication:
+  distribution_policy:
+    channel_policy:
+      Twitter:
+        enabled: false
+---
+body"#;
+        let item = UnifiedNewsItem::parse(md, "nid").expect("parse");
+        assert!(
+            item.syndication
+                .distribution_policy
+                .channel_policy
+                .contains_key("twitter")
+        );
+        assert!(
+            !item
+                .syndication
+                .distribution_policy
+                .channel_policy
+                .contains_key("Twitter")
+        );
     }
 }

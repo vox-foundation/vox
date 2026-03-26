@@ -1,3 +1,22 @@
+# Agents, secrets, and where architecture lives
+
+This file is the **required** SSOT for **secret management (Clavis)**. It does **not** replace language/compiler architecture docs.
+
+## Architecture & compiler pipeline (pointers)
+
+- **End-to-end pipeline (lex → parse → AST → HIR → typecheck → codegen):** [`docs/src/explanation/expl-architecture.md`](docs/src/explanation/expl-architecture.md)
+- **Lowering / HIR:** [`docs/src/explanation/expl-compiler-lowering.md`](docs/src/explanation/expl-compiler-lowering.md)
+- **Runtime / execution context:** [`docs/src/explanation/expl-runtime.md`](docs/src/explanation/expl-runtime.md)
+- **CLI surface:** [`docs/src/reference/cli.md`](docs/src/reference/cli.md)
+- **Cross-platform CI & runners:** [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
+- **Python / shell scripts vs `vox` (migration SSOT):** [`docs/src/architecture/script-surface-audit.md`](docs/src/architecture/script-surface-audit.md)
+- **Contributor governance / TOESTUB:** [`docs/agents/governance.md`](docs/agents/governance.md)
+- **Doc ↔ code acceptance:** [`docs/src/architecture/doc-to-code-acceptance-checklist.md`](docs/src/architecture/doc-to-code-acceptance-checklist.md)
+- **Diagnostic categories (parse / type / HIR / lint):** [`docs/src/reference/diagnostic-taxonomy.md`](docs/src/reference/diagnostic-taxonomy.md)
+- **MENS long runs (train, CUDA build, `mens-gate`):** prefer detached processes + log tails; see **IDE / Cursor timeouts** in [`docs/src/reference/mens-training.md`](docs/src/reference/mens-training.md) and [`scripts/populi/mens_gate_safe.ps1`](scripts/populi/mens_gate_safe.ps1) **`-Detach`**.
+
+---
+
 # Secret Management: Use Clavis (Required)
 
 For API keys, tokens, and credentials, use the Clavis system instead of hard-coded `std::env::var(...)` callsites.

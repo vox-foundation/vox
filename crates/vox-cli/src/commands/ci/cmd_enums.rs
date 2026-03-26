@@ -71,7 +71,22 @@ pub enum CiCmd {
         /// Profile name: `m1m4` or `training`.
         #[arg(long, default_value = "m1m4")]
         profile: String,
+        /// Build `vox-cli` to a side `--target-dir`, copy the `vox` binary to a temp path, then run the gate from that copy (avoids file locks when the workspace `vox` is busy). **Windows + Unix.**
+        #[arg(long)]
+        isolated_runner: bool,
+        /// Back-compat for `--isolated-runner` (older docs / scripts).
+        #[arg(long, hide = true)]
+        windows_isolated_runner: bool,
+        /// Cargo `--target-dir` for the isolated runner build. Default: `target/mens-gate-safe`.
+        #[arg(long)]
+        gate_build_target_dir: Option<PathBuf>,
+        /// With `--isolated-runner`: tee child stdout/stderr to this file while printing to the console.
+        #[arg(long)]
+        gate_log_file: Option<PathBuf>,
     },
+    /// Full-repo TOESTUB: `cargo build -p vox-toestub --release` then `cargo run -p vox-toestub --bin toestub` (replaces `scripts/toestub_self_apply.*`).
+    #[command(name = "toestub-self-apply")]
+    ToestubSelfApply,
     /// Scoped TOESTUB: `cargo run -p vox-toestub --bin toestub -- <ROOT>`.
     #[command(name = "toestub-scoped")]
     ToestubScoped {
@@ -92,6 +107,13 @@ pub enum CiCmd {
     /// Optional CUDA feature compile checks when `nvcc` is on PATH (or skip via env).
     #[command(name = "cuda-features")]
     CudaFeatures,
+    /// Release-build `vox` with `gpu,mens-candle-cuda`, tee output to `mens/runs/logs/cuda_build_<UTC>.log` (same intent as `cargo vox-cuda-release` + `cursor_background_cuda_build.ps1`).
+    #[command(name = "cuda-release-build")]
+    CudaReleaseBuild {
+        /// Log directory (created if missing).
+        #[arg(long, default_value = "mens/runs/logs")]
+        log_dir: PathBuf,
+    },
     /// Wall-clock timings for key `cargo check` lanes (default CLI, GPU+stub, optional CUDA).
     #[command(name = "build-timings")]
     BuildTimings {

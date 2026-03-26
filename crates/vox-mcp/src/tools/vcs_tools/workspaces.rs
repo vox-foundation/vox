@@ -26,9 +26,7 @@ pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> S
         Ok(g) => g,
         Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
     };
-    let ws = mgr
-        .create_workspace(AgentId(agent_id), base_id)
-        .clone();
+    let ws = mgr.create_workspace(AgentId(agent_id), base_id).clone();
 
     ToolResult::ok(serde_json::json!({
         "workspace_created": true,

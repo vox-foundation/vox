@@ -98,7 +98,11 @@ impl DetectionRule for MagicValueDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
         let mut in_test_block = false;
 
@@ -140,6 +144,8 @@ impl DetectionRule for MagicValueDetector {
                             .to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
 
@@ -155,6 +161,8 @@ impl DetectionRule for MagicValueDetector {
                     message: "Hardcoded IP address — use a configuration variable".to_string(),
                     suggestion: Some("Move to a config file or environment variable.".to_string()),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
 
@@ -173,6 +181,8 @@ impl DetectionRule for MagicValueDetector {
                             .to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
 
@@ -192,6 +202,8 @@ impl DetectionRule for MagicValueDetector {
                             .to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }
@@ -213,7 +225,7 @@ mod tests {
     fn detects_hardcoded_port() {
         let d = MagicValueDetector::new();
         let f = source("rs", r#"let addr = "127.0.0.1:3000";"#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(!findings.is_empty(), "should detect hardcoded port");
     }
 
@@ -221,7 +233,7 @@ mod tests {
     fn detects_db_connection_string() {
         let d = MagicValueDetector::new();
         let f = source("py", r#"conn = "postgres://user:pass@localhost/db""#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings.iter().any(|f| f.rule_id == "magic-value/db-conn"),
             "should detect DB connection string"
@@ -232,7 +244,7 @@ mod tests {
     fn skips_const_definitions() {
         let d = MagicValueDetector::new();
         let f = source("rs", r#"pub const DEFAULT_PORT: &str = "127.0.0.1:3000";"#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "const definitions should be allowed");
     }
 
@@ -240,7 +252,7 @@ mod tests {
     fn skips_comments() {
         let d = MagicValueDetector::new();
         let f = source("rs", r#"// connect to "127.0.0.1:5432""#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "comments should be skipped");
     }
 }

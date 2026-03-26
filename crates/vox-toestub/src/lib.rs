@@ -13,8 +13,16 @@ mod bounded_fs;
 
 /// Optional LLM-backed triage: wraps provider-specific clients behind a small `AiAnalyzer` API.
 pub mod ai_analyze;
+/// Token maps, optional `syn` AST, and other shared analysis for detectors.
+pub mod analysis;
 /// Concrete TOESTUB rules (stubs, empty bodies, secrets, DRY, …) registered by [`detectors::all_rules`].
 pub mod detectors;
+/// Per-run canary / rollout flags for detectors (set by [`engine::ToestubEngine`]).
+pub mod run_context;
+
+/// Structured suppression store (`contracts/toestub/suppression.v1.schema.json`).
+pub mod suppression;
+
 /// Runs configured detectors over a [`scanner::Scanner`] snapshot and aggregates [`rules::Finding`]s.
 pub mod engine;
 /// Renders findings to the terminal, JSON, or Markdown for CI and local CLI output.
@@ -29,13 +37,15 @@ pub mod scanner;
 pub mod task_queue;
 
 pub use ai_analyze::{AiAnalyzer, AiProvider};
+pub use analysis::{NonCodeKind, RustFileContext, TokenMap};
 pub use engine::{ToestubConfig, ToestubEngine, ToestubRunMode};
-pub use report::{OutputFormat, Reporter};
+pub use run_context::ToestubTestsMode;
+pub use report::{OutputFormat, Reporter, RunSnapshot, ToestubJsonReportV1};
 pub use review::{
     ReviewCategory, ReviewClient, ReviewConfig, ReviewFinding, ReviewOutputFormat, ReviewProvider,
     ReviewResult, auto_discover_providers, build_diff_review_prompt, build_review_prompt,
     format_markdown, format_sarif, format_terminal, parse_review_response, review_system_prompt,
 };
-pub use rules::{DetectionRule, Finding, Language, Severity};
+pub use rules::{DetectionRule, Finding, FindingConfidence, Language, Severity};
 pub use scanner::Scanner;
 pub use task_queue::TaskQueue;

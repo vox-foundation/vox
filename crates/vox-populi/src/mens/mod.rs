@@ -41,6 +41,6 @@ pub use tensor::{
 };
 #[cfg(feature = "mens-train")]
 pub use tensor::{
-    ExecutionKernel, FineTuneContract, LoraTrainingConfig, MensTokenizerMode, PopuliTrainBackend,
-    OptimizerExperimentMode, TrainingDeploymentTarget, run_mens_training,
+    ExecutionKernel, FineTuneContract, LoraTrainingConfig, MensTokenizerMode,
+    OptimizerExperimentMode, PopuliTrainBackend, TrainingDeploymentTarget, run_mens_training,
 };

@@ -11,7 +11,7 @@ bash scripts/quality/toestub_scoped.sh                    # default root: crates
 cargo run -p vox-toestub --bin toestub -- <PATH>         # explicit scan root
 ```
 
-**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`docs/src/ref-cli.md`](../src/ref-cli.md#vox-stub-check-feature-stub-check)):
+**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`cli.md`](../reference/cli.md#vox-stub-check-feature-stub-check)):
 
 ```bash
 cargo build -p vox-cli --features stub-check

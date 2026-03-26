@@ -29,4 +29,22 @@ fn openapi_paths_match_transport_router() {
         keys, expected,
         "update schemas/populi-control-plane.openapi.yaml or transport::router"
     );
+
+    let ver = y["openapi"].as_str().expect("OpenAPI version");
+    assert!(ver.starts_with("3."), "expected OpenAPI 3.x, got {ver:?}");
+    let info = y["info"].as_mapping().expect("OpenAPI info");
+    assert!(
+        info.get("title").and_then(|t| t.as_str()).is_some(),
+        "OpenAPI info.title required"
+    );
+    for (path_key, path_val) in paths {
+        let path_key = path_key.as_str().expect("path key must be string");
+        let path_obj = path_val
+            .as_mapping()
+            .unwrap_or_else(|| panic!("path {path_key} must be a mapping"));
+        assert!(
+            !path_obj.is_empty(),
+            "path {path_key} must declare at least one operation"
+        );
+    }
 }

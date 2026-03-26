@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "suppressions": [
+    {
+      "rule_id_prefix": "scaling/regex-new-hot",
+      "path_glob": "crates/example/**",
+      "line": 12,
+      "reason": "Example: line-scoped suppression requires path_glob + rule prefix",
+      "owner": "platform-ci"
+    }
+  ]
+}

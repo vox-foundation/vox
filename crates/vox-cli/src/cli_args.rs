@@ -110,6 +110,9 @@ pub struct DoctorArgs {
     pub scope: bool,
     #[arg(long, default_value_t = false)]
     pub json: bool,
+    /// OCI / automation: run default doctor checks and exit with non-zero status if any fail (no banner; stable for HEALTHCHECK).
+    #[arg(long, default_value_t = false)]
+    pub probe: bool,
 }
 
 /// `vox train` (legacy; canonical: `vox schola train`)

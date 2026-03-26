@@ -1,7 +1,10 @@
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+
+use crate::analysis::RustFileContext;
 
 // ---------------------------------------------------------------------------
 // Core types
@@ -150,6 +153,46 @@ pub struct Finding {
     /// Code context (surrounding lines).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub context: String,
+    /// Detector-estimated confidence (e.g. heuristic vs AST-backed); omit when unknown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<FindingConfidence>,
+    /// Optional structured explain payload (per-rule), e.g. import candidates for unresolved-ref.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<serde_json::Value>,
+}
+
+/// Qualitative confidence for a finding (policy / reporting).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FindingConfidence {
+    High,
+    Medium,
+    Low,
+}
+
+impl Finding {
+    /// Stable tie-breaker for deterministic ordering (path, line, rule, message hash).
+    pub fn deterministic_key(&self) -> (PathBuf, usize, String, u64) {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.message.hash(&mut h);
+        (
+            self.file.clone(),
+            self.line,
+            self.rule_id.clone(),
+            h.finish(),
+        )
+    }
+
+    /// Stable fingerprint for dedup / carry-forward caches (path + line + rule + message).
+    pub fn fingerprint(&self) -> u64 {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.file.hash(&mut h);
+        self.line.hash(&mut h);
+        self.column.hash(&mut h);
+        self.rule_id.hash(&mut h);
+        self.message.hash(&mut h);
+        h.finish()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -174,36 +217,63 @@ pub trait DetectionRule: Send + Sync {
     fn languages(&self) -> &[Language];
 
     /// Run the detector on a single source file.
-    fn detect(&self, file: &SourceFile) -> Vec<Finding>;
+    ///
+    /// For Rust, `rust_ctx` is built once per file by the engine.
+    fn detect(&self, file: &SourceFile, rust_ctx: Option<&RustFileContext>) -> Vec<Finding>;
 }
 
 // ---------------------------------------------------------------------------
 // Shared line scanning (detectors)
 // ---------------------------------------------------------------------------
 
-/// True if `byte_idx` falls inside a normal `"…"` string literal (`\"` aware).
-pub(crate) fn byte_index_in_ascii_double_quote_string(s: &str, byte_idx: usize) -> bool {
-    let bytes = s.as_bytes();
-    let mut i = 0usize;
-    let mut in_string = false;
-    let end = byte_idx.min(bytes.len());
-    while i < end {
-        let b = bytes[i];
-        if in_string {
-            if b == b'\\' && i + 1 < bytes.len() {
-                i += 2;
-                continue;
-            }
-            if b == b'"' {
-                in_string = false;
-            }
-            i += 1;
-        } else if b == b'"' {
-            in_string = true;
-            i += 1;
-        } else {
-            i += 1;
-        }
+/// Byte offset in `content` for the start of `line_1_indexed` (1-based), then `column_0` adds
+/// columns within that line (byte offset, not Unicode scalar index).
+pub(crate) fn byte_offset_in_file(content: &str, line_1_indexed: usize, column_0: usize) -> usize {
+    if line_1_indexed == 0 {
+        return column_0.min(content.len());
     }
-    in_string
+    let mut off = 0usize;
+    for (i, line) in content.lines().enumerate() {
+        if i + 1 == line_1_indexed {
+            return (off + column_0).min(content.len());
+        }
+        off = off.saturating_add(line.len()).saturating_add(1);
+    }
+    off.min(content.len())
+}
+
+/// True if the byte at (`line`, `column_0` within line) is inside comment or string (Rust).
+#[inline]
+pub(crate) fn rust_byte_is_non_code(
+    file: &SourceFile,
+    line_1_indexed: usize,
+    column_0: usize,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    if file.language != Language::Rust {
+        return false;
+    }
+    let abs = byte_offset_in_file(&file.content, line_1_indexed, column_0);
+    match rust_ctx {
+        Some(c) => c.token_map.is_non_code_byte(abs),
+        None => crate::analysis::TokenMap::from_rust_source(&file.content).is_non_code_byte(abs),
+    }
+}
+
+/// True if the byte is inside a **comment** only (not a string). Used so secrets still match inside literals.
+#[inline]
+pub(crate) fn rust_byte_is_comment(
+    file: &SourceFile,
+    line_1_indexed: usize,
+    column_0: usize,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    if file.language != Language::Rust {
+        return false;
+    }
+    let abs = byte_offset_in_file(&file.content, line_1_indexed, column_0);
+    match rust_ctx {
+        Some(c) => c.token_map.is_comment_byte(abs),
+        None => crate::analysis::TokenMap::from_rust_source(&file.content).is_comment_byte(abs),
+    }
 }

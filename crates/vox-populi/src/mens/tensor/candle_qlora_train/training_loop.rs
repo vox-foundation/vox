@@ -45,20 +45,18 @@ pub(super) fn run_training_loop(
     warmup_steps: usize,
 ) -> Result<backend::TrainingSummary> {
     if !config.qlora_double_quant {
-        train_log::warn(
-            "qlora_double_quant=false requested, but Candle QLoRA currently uses preset quantization; flag is accepted for compatibility only.",
-        );
-    }
-    if config.qlora_lm_head_only || config.qlora_proxy_max_layers.is_some() {
-        train_log::warn(
-            "qlora_lm_head_only / qlora_proxy_max_layers are not yet wired into the Candle training graph; proceeding with full graph.",
+        train_log::info(
+            "qlora_double_quant=false: Candle QLoRA uses qlora-rs preset quantization; flag is recorded for contract/manifest parity only.",
         );
     }
     if config.qlora_max_skip_rate.is_some() {
-        train_log::warn(
-            "qlora_max_skip_rate is not yet enforced in Candle training; keep this as observability-only until skip accounting lands.",
+        train_log::info(
+            "qlora_max_skip_rate is reserved for future skip accounting; value is stored in config/manifest for observability only.",
         );
     }
+
+    // Partial proxy / LM-head-only requests fail early in `run_candle_qlora_train`; this loop always runs the full graph.
+    let proxy_stack_complete = true;
 
     // ── Resume detection ─────────────────────────────────────────────────────
     let mut start_epoch = 1usize;
@@ -121,7 +119,7 @@ pub(super) fn run_training_loop(
             manifest::InitialManifestRun::from_lora_config(config),
             Some(bundle.tokenizer_path.display().to_string()),
             manifest::InitialTrainingKernel::CandleQlora {
-                proxy_stack_complete: true,
+                proxy_stack_complete,
                 middle_layers_active: bundle.layout.num_hidden_layers,
                 ce_last_k: config.qlora_ce_last_k,
             },
@@ -439,11 +437,7 @@ pub(super) fn run_training_loop(
                     trajectory_clamped_pairs,
                     ema_steps_per_sec,
                 );
-                telemetry::append(
-                    out,
-                    telemetry_schema::events::TRAIN_STEP,
-                    step_payload,
-                )?;
+                telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;
                 progress_anchor_step = optimizer_step_count;
                 progress_anchor_time = now;
                 last_progress = now;
@@ -636,7 +630,9 @@ fn build_train_step_payload(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_epoch_shuffled_indices, build_train_step_payload, trajectory_weight_for_pair};
+    use super::{
+        build_epoch_shuffled_indices, build_train_step_payload, trajectory_weight_for_pair,
+    };
     use rand::SeedableRng;
     use vox_tensor::data::TrainingPair;
 
@@ -718,21 +714,8 @@ mod tests {
 
     #[test]
     fn trajectory_telemetry_payload_reports_clamped_pairs() {
-        let payload = build_train_step_payload(
-            1,
-            10,
-            4,
-            0.55,
-            1e-4,
-            Some(90),
-            25,
-            0,
-            0,
-            0,
-            6,
-            3,
-            Some(2.2),
-        );
+        let payload =
+            build_train_step_payload(1, 10, 4, 0.55, 1e-4, Some(90), 25, 0, 0, 0, 6, 3, Some(2.2));
         assert_eq!(
             payload
                 .get("trajectory_weighted_pairs")

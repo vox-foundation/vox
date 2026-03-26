@@ -38,9 +38,9 @@ VOLUME /root/.vox
 EXPOSE 3000
 EXPOSE 9847
 
-# Health check via vox doctor (non-interactive)
+# Health check via vox doctor --probe (stable exit code; no string-grep on human output)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD vox doctor 2>&1 | grep -Eq "All checks passed|ready to build" || exit 1
+    CMD vox doctor --probe
 
 ENTRYPOINT ["/usr/local/bin/vox-entrypoint.sh"]
 CMD ["vox", "mcp"]

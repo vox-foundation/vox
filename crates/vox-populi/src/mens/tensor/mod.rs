@@ -110,7 +110,9 @@ pub use finetune_contract::FineTuneContract;
 #[cfg(feature = "mens-train")]
 pub use lora_train::run_mens_training;
 #[cfg(feature = "mens-train")]
-pub use preflight_train::preflight_for_contract;
+pub use preflight_train::{
+    TrainingPreflightRecord, preflight_for_contract, write_training_preflight_json,
+};
 #[cfg(feature = "mens-train")]
 pub use preset_schema::{
     CliOverrides, DEFAULT_PRESET, DatasetProfile, DeviceProfile, KNOWN_PRESETS, TrainPresetProfile,

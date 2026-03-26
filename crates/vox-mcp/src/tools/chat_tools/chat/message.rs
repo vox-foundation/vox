@@ -217,17 +217,16 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             .await
             {
                 Ok((model, free_only)) => {
-                    let pref =
-                        match crate::sync_poison::poison_rw_read(
-                            state.mcp_chat_model_override.read(),
-                            "mcp_chat_model_override",
-                        ) {
-                            Ok(g) => g.clone(),
-                            Err(e) => {
-                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                                None
-                            }
-                        };
+                    let pref = match crate::sync_poison::poison_rw_read(
+                        state.mcp_chat_model_override.read(),
+                        "mcp_chat_model_override",
+                    ) {
+                        Ok(g) => g.clone(),
+                        Err(e) => {
+                            tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                            None
+                        }
+                    };
                     let max_tokens =
                         crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
                     let routing = McpInferRouting {
@@ -411,16 +410,18 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let date_str = ts_to_date_str(now_s);
         let server_idle_secs = now_s.saturating_sub(state.orchestrator.last_activity_ms() / 1000);
         let ctx_handle = state.orchestrator.context_handle();
-        let session_age_secs =
-            match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
-                Ok(g) => g
-                    .age_secs(&format!("chat_history:{session_id}"))
-                    .unwrap_or(0),
-                Err(e) => {
-                    tracing::warn!(error = %e, "chat_message: context poisoned for session_age_secs");
-                    0
-                }
-            };
+        let session_age_secs = match crate::sync_poison::poison_rw_read(
+            ctx_handle.read(),
+            "orchestrator context",
+        ) {
+            Ok(g) => g
+                .age_secs(&format!("chat_history:{session_id}"))
+                .unwrap_or(0),
+            Err(e) => {
+                tracing::warn!(error = %e, "chat_message: context poisoned for session_age_secs");
+                0
+            }
+        };
 
         // Record high-quality LLM turn in agent_events for Mens replay/SFT
         let mut payload = serde_json::json!({

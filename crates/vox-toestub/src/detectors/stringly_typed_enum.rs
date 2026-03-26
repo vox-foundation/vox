@@ -56,7 +56,11 @@ impl DetectionRule for StringlyTypedEnumDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -83,6 +87,8 @@ impl DetectionRule for StringlyTypedEnumDetector {
                         capitalize_first(field_name)
                     )),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }
@@ -112,7 +118,7 @@ mod tests {
     fn detects_string_with_pipe_comment() {
         let d = StringlyTypedEnumDetector::new();
         let f = vox_source(r#"  frame: String // "gain" | "loss""#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("frame"));
         assert!(findings[0].message.contains("ADT"));
@@ -122,7 +128,7 @@ mod tests {
     fn detects_str_with_hash_comment() {
         let d = StringlyTypedEnumDetector::new();
         let f = vox_source(r#"  role: str # "user" | "assistant""#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
     }
 
@@ -130,7 +136,7 @@ mod tests {
     fn ignores_string_without_enum_comment() {
         let d = StringlyTypedEnumDetector::new();
         let f = vox_source("  name: String");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
 
@@ -138,7 +144,7 @@ mod tests {
     fn ignores_proper_adt_usage() {
         let d = StringlyTypedEnumDetector::new();
         let f = vox_source("  frame: Frame");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
 
@@ -149,7 +155,7 @@ mod tests {
             PathBuf::from("test.rs"),
             r#"    pub role: String, // "user" | "assistant""#.to_string(),
         );
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
     }
 }

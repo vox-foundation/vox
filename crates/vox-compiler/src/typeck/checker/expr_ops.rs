@@ -156,6 +156,7 @@ impl<'a> Checker<'a> {
                     found_type: Some(format!("{a_ty:?}")),
                     context: Some(Diagnostic::capture_context(self.source, arg_span)),
                     suggestions: vec![],
+                    category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
                 });
             }
         }

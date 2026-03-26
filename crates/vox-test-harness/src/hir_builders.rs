@@ -12,33 +12,7 @@ use crate::spans::dummy_span;
 ///
 /// Prefer this over defining `fn minimal_module()` locally in test files.
 pub fn minimal_hir_module() -> HirModule {
-    HirModule {
-        imports: vec![],
-        functions: vec![],
-        types: vec![],
-        routes: vec![],
-        actors: vec![],
-        workflows: vec![],
-        activities: vec![],
-        tests: vec![],
-        server_fns: vec![],
-        tables: vec![],
-        indexes: vec![],
-        mcp_tools: vec![],
-        components: vec![],
-        v0_components: vec![],
-        client_routes: vec![],
-        islands: vec![],
-        layouts: vec![],
-        pages: vec![],
-        contexts: vec![],
-        hooks: vec![],
-        error_boundaries: vec![],
-        loadings: vec![],
-        not_founds: vec![],
-        reactive_components: vec![],
-        legacy_ast_nodes: vec![],
-    }
+    HirModule::default()
 }
 
 /// Build a minimal [`HirFn`] with the given name and no body.

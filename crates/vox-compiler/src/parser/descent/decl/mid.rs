@@ -3,7 +3,7 @@
 use super::super::Parser;
 use crate::ast::decl::*;
 use crate::lexer::token::Token;
-use crate::parser::error::ParseError;
+use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
     pub(crate) fn parse_typedef(&mut self, is_pub: bool) -> Result<Decl, ()> {
@@ -181,11 +181,12 @@ impl Parser {
                 HttpMethod::Delete
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     "Expected HTTP method",
                     vec!["get".into(), "post".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }
@@ -196,11 +197,12 @@ impl Parser {
                 s
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     "Expected route path string",
                     vec!["\"path\"".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }

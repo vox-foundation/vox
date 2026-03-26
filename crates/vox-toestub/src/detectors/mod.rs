@@ -93,7 +93,7 @@ mod tests {
         let content = "fn main() {}\n".repeat(600);
         let file = SourceFile::new(PathBuf::from("large.rs"), content);
         let detector = god_object::GodObjectDetector::default();
-        let findings = detector.detect(&file);
+        let findings = detector.detect(&file, None);
         assert!(!findings.is_empty());
         assert!(findings[0].message.contains("too large"));
     }
@@ -109,7 +109,7 @@ mod tests {
         content.push_str("fn main() {}\n");
         let file = SourceFile::new(PathBuf::from("padded.rs"), content);
         let detector = god_object::GodObjectDetector::default();
-        let findings = detector.detect(&file);
+        let findings = detector.detect(&file, None);
         let size_findings: Vec<_> = findings
             .iter()
             .filter(|f| f.message.contains("non-blank lines"))
@@ -126,7 +126,7 @@ mod tests {
         use std::path::PathBuf;
         let file = SourceFile::new(PathBuf::from("utils.rs"), "fn helper() {}".to_string());
         let detector = sprawl::SprawlDetector::default();
-        let findings = detector.detect(&file);
+        let findings = detector.detect(&file, None);
         assert!(!findings.is_empty());
         assert!(findings[0].message.contains("forbidden"));
     }
@@ -139,7 +139,7 @@ mod tests {
             "pub struct A; pub struct B; pub struct C; pub struct D;".replace("; ", ";\n");
         let file = SourceFile::new(PathBuf::from("src/lib.rs"), content);
         let detector = file_organization::FileOrganizationDetector::default();
-        let findings = detector.detect(&file);
+        let findings = detector.detect(&file, None);
         assert!(!findings.is_empty());
         assert!(
             findings[0]

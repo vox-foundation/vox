@@ -186,9 +186,8 @@ impl PopuliTransportState {
     /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
     pub async fn load_from_path(path: &std::path::Path) -> Result<Self, PopuliRegistryError> {
         let reg = if path.is_file() {
-            let raw = crate::bounded_fs::read_utf8_path_capped(path).map_err(|e| {
-                PopuliRegistryError::Io(std::io::Error::other(e.to_string()))
-            })?;
+            let raw = crate::bounded_fs::read_utf8_path_capped(path)
+                .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
             serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))?
         } else {
             PopuliRegistryFile {
@@ -220,4 +219,28 @@ impl PopuliTransportState {
                 .map(|s| Arc::from(s.into_boxed_str())),
         })
     }
+}
+
+/// Optional server-side staleness window: hide nodes whose `last_seen_unix_ms` is older than this
+/// many milliseconds from [`crate::now_ms`]. Unset or `0` = no pruning (default).
+#[must_use]
+pub(super) fn server_stale_prune_ms() -> Option<u64> {
+    std::env::var("VOX_MESH_SERVER_STALE_PRUNE_MS")
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .filter(|&n| n > 0)
+}
+
+/// Max in-memory A2A rows before oldest messages are dropped (persisted store is rewritten).
+#[must_use]
+pub(super) fn a2a_in_memory_cap() -> usize {
+    const DEFAULT: usize = 50_000;
+    /// Allow small caps for tests and single-node dev; operators should still use ≥100 in prod.
+    const MIN: usize = 1;
+    const MAX: usize = 500_000;
+    std::env::var("VOX_MESH_A2A_MAX_MESSAGES")
+        .ok()
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .map(|n| n.clamp(MIN, MAX))
+        .unwrap_or(DEFAULT)
 }

@@ -61,13 +61,21 @@ impl UnwiredModuleDetector {
         // Also check for inline `name::` usage patterns
         for (mod_name, line_num) in &declared_mods {
             // Check if `mod_name` appears anywhere in the file as `mod_name::` or in a `use`
-            let is_used = used_mods.contains(mod_name)
+            let mut is_used = used_mods.contains(mod_name)
                 || file.lines.iter().enumerate().any(|(j, line)| {
                     j + 1 != *line_num // skip the declaration line itself
                     && (line.contains(&format!("{}::", mod_name))
                         || line.contains(&format!("use {}", mod_name))
                         || line.contains(&format!("{mod_name} as ")))
                 });
+            if crate::run_context::feature_enabled("unwired-graph") {
+                let z = mod_name.as_str();
+                if file.content.contains(&format!("crate::{z}::"))
+                    || file.content.contains(&format!("crate::{z};"))
+                {
+                    is_used = true;
+                }
+            }
 
             if !is_used {
                 findings.push(Finding {
@@ -86,6 +94,8 @@ impl UnwiredModuleDetector {
                         mod_name
                     )),
                     context: file.context_around(*line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }
@@ -111,7 +121,11 @@ impl DetectionRule for UnwiredModuleDetector {
         &[Language::Rust]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         match file.language {
             Language::Rust => self.detect_rust(file),
             _ => Vec::new(),
@@ -135,7 +149,7 @@ mod tests {
             "rs",
             "mod helpers;\nmod utils;\n\nfn main() {\n    helpers::do_thing();\n}",
         );
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         // `utils` is declared but never used, `helpers` is used via `helpers::do_thing()`
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("utils"));
@@ -148,7 +162,7 @@ mod tests {
             "rs",
             "mod engine;\nmod rules;\n\nuse crate::engine::Engine;\nuse crate::rules::Rule;\n",
         );
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
 
@@ -159,7 +173,7 @@ mod tests {
             "rs",
             "mod helpers;\nuse self::helpers as _;\n\nfn main() {}\n",
         );
-        assert!(d.detect(&f).is_empty());
+        assert!(d.detect(&f, None).is_empty());
     }
 
     #[test]
@@ -170,7 +184,7 @@ mod tests {
             "pub mod alpha;\npub mod beta;\npub(crate) mod gamma;\n",
         );
         assert!(
-            d.detect(&f).is_empty(),
+            d.detect(&f, None).is_empty(),
             "public module declarations are wired from other crates/files"
         );
     }

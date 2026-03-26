@@ -1,12 +1,9 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
-use anyhow::{Context, Result};
-use chrono::Utc;
-use std::path::{Path, PathBuf};
-use vox_publisher::types::SyndicationConfig;
-
 use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
 use crate::commands::db_retention;
+use anyhow::{Context, Result};
+use std::path::{Path, PathBuf};
 
 /// Print current VoxDB schema version and connection path.
 pub async fn status() -> Result<()> {
@@ -328,9 +325,9 @@ pub async fn export(user_id: &str, output: Option<&PathBuf>) -> Result<()> {
 }
 
 /// Import preferences and memory from a JSON file previously exported with `vox db export`.
-pub async fn import(path: &PathBuf) -> Result<()> {
+pub async fn import(path: &Path) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let json_str = read_utf8_path_capped_async(path.as_path()).await?;
+    let json_str = read_utf8_path_capped_async(path).await?;
     let data: serde_json::Value = serde_json::from_str(&json_str)?;
 
     let user_id = data["user_id"].as_str().unwrap_or("default");
@@ -541,10 +538,10 @@ pub async fn publication_prepare(
     content_type: &str,
     author: &str,
     title: &str,
-    path: &PathBuf,
+    path: &Path,
     abstract_text: Option<&str>,
-    citations_json_path: Option<&PathBuf>,
-    scholarly_metadata_json_path: Option<&PathBuf>,
+    citations_json_path: Option<&Path>,
+    scholarly_metadata_json_path: Option<&Path>,
     preflight: bool,
     preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
 ) -> Result<()> {
@@ -761,8 +758,6 @@ pub async fn publication_approve(publication_id: &str, approver: &str) -> Result
 
 /// Submit to the first scholarly adapter integration (`local_ledger`).
 pub async fn publication_submit_local(publication_id: &str) -> Result<()> {
-    use vox_publisher::scholarly::ScholarlyAdapter;
-
     let db = vox_db::VoxDb::connect_default().await?;
     let Some(row) = db.get_publication_manifest(publication_id).await? else {
         anyhow::bail!("publication not found: {publication_id}");
@@ -784,8 +779,7 @@ pub async fn publication_submit_local(publication_id: &str) -> Result<()> {
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let adapter = vox_publisher::scholarly::LocalLedgerAdapter;
-    let receipt = adapter.submit(&manifest)?;
+    let receipt = vox_publisher::scholarly::submit_with_configured_adapter(&manifest)?;
     db.upsert_scholarly_submission(
         publication_id,
         &row.content_sha3_256,
@@ -902,95 +896,53 @@ pub async fn publication_media_delete(publication_id: &str, asset_ref: &str) -> 
 fn publication_item_from_manifest(
     row: &vox_db::PublicationManifestRow,
 ) -> Result<vox_publisher::types::UnifiedNewsItem> {
-    #[derive(serde::Deserialize, Default)]
-    struct MetaEnvelope {
-        #[serde(default)]
-        tags: Vec<String>,
-        #[serde(default)]
-        syndication: Option<SyndicationConfig>,
-        #[serde(default)]
-        topic_pack: Option<String>,
-    }
-    let meta: MetaEnvelope = row
-        .metadata_json
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
-        .transpose()
-        .context("parse metadata_json for route simulation/publish")?
-        .unwrap_or_default();
-    let topic_pack = meta
-        .topic_pack
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(std::string::ToString::to_string);
-    let mut item = vox_publisher::types::UnifiedNewsItem {
-        id: row.publication_id.clone(),
+    vox_publisher::switching::unified_news_item_from_manifest_parts(
+        &row.publication_id,
+        &row.title,
+        &row.author,
+        &row.body_markdown,
+        row.metadata_json.as_deref(),
+    )
+}
+
+fn publication_manifest_from_row(row: &vox_db::PublicationManifestRow) -> vox_publisher::publication::PublicationManifest {
+    vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
         title: row.title.clone(),
         author: row.author.clone(),
-        published_at: Utc::now(),
-        tags: meta.tags,
-        content_markdown: row.body_markdown.clone(),
-        syndication: meta.syndication.unwrap_or_default(),
-        topic_pack,
-    };
-    item.hydrate_topic_pack_if_set()?;
-    Ok(item)
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    }
 }
 
-fn parse_channels_csv(raw: Option<&str>) -> Option<Vec<String>> {
-    raw.map(|s| {
-        s.split(',')
-            .map(|v| v.trim().to_lowercase())
-            .filter(|v| !v.is_empty())
-            .collect::<Vec<_>>()
-    })
-    .filter(|v| !v.is_empty())
+fn cli_social_worthiness_enforce() -> bool {
+    std::env::var("VOX_SOCIAL_WORTHINESS_ENFORCE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
 }
 
-fn filter_channels(
-    mut item: vox_publisher::types::UnifiedNewsItem,
-    allowed: Option<&[String]>,
-) -> vox_publisher::types::UnifiedNewsItem {
-    let Some(allowed) = allowed else {
-        return item;
-    };
-    let has = |name: &str| allowed.iter().any(|x| x == name);
-    if !has("rss") {
-        item.syndication.rss = false;
-    }
-    if !has("twitter") {
-        item.syndication.twitter = None;
-    }
-    if !has("github") {
-        item.syndication.github = None;
-    }
-    if !has("open_collective") {
-        item.syndication.open_collective = None;
-    }
-    if !has("reddit") {
-        item.syndication.reddit = None;
-    }
-    if !has("hacker_news") {
-        item.syndication.hacker_news = None;
-    }
-    if !has("youtube") {
-        item.syndication.youtube = None;
-    }
-    if !has("crates_io") {
-        item.syndication.crates_io = None;
-    }
-    item
+fn cli_social_worthiness_score_min() -> f64 {
+    std::env::var("VOX_SOCIAL_WORTHINESS_SCORE_MIN")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.85)
 }
 
-fn publisher_config_from_env(dry_run: bool) -> vox_publisher::PublisherConfig {
-    vox_publisher::PublisherConfig::from_operator_environment(
+fn publisher_config_from_env(
+    dry_run: bool,
+    worthiness_score: Option<f64>,
+) -> vox_publisher::PublisherConfig {
+    let mut cfg = vox_publisher::PublisherConfig::from_operator_environment(
         dry_run,
         Some(vox_repository::resolve_repo_root_for_ci()),
-        vox_publisher::NewsSiteConfig::default(),
-    )
+        vox_publisher::NewsSiteConfig::from_default_with_operator_env(),
+    );
+    cfg.worthiness_score = worthiness_score;
+    cfg
 }
 
 /// Simulate per-channel routing/policy outcomes using an existing DB handle (tests and in-process callers).
@@ -1002,7 +954,14 @@ pub async fn publication_route_simulate_with_db(
         anyhow::bail!("publication not found: {publication_id}");
     };
     let item = publication_item_from_manifest(&row)?;
-    let publisher = vox_publisher::Publisher::new(publisher_config_from_env(true));
+    let manifest = publication_manifest_from_row(&row);
+    let root = vox_repository::resolve_repo_root_for_ci();
+    let worthiness =
+        vox_publisher::publication_worthiness::worthiness_score_for_publication_manifest(
+            &manifest, &root,
+        )
+        .ok();
+    let publisher = vox_publisher::Publisher::new(publisher_config_from_env(true, worthiness));
     publisher.publish_all(&item).await
 }
 
@@ -1031,14 +990,81 @@ pub async fn publication_publish(
     let Some(row) = db.get_publication_manifest(publication_id).await? else {
         anyhow::bail!("publication not found: {publication_id}");
     };
-    let allowed = parse_channels_csv(channels_csv);
-    let item = filter_channels(publication_item_from_manifest(&row)?, allowed.as_deref());
+    let allowed = channels_csv
+        .map(vox_publisher::switching::parse_channels_csv)
+        .filter(|v| !v.is_empty());
+    let mut item = publication_item_from_manifest(&row)?;
+    if let Some(allowlist) = allowed.as_deref() {
+        vox_publisher::switching::apply_channel_allowlist(&mut item, allowlist);
+    }
     let digest = row.content_sha3_256.as_str();
-    let publisher = vox_publisher::Publisher::new(publisher_config_from_env(dry_run));
+    let dual = db
+        .has_dual_publication_approval_for_digest(publication_id, digest)
+        .await?;
+    let gate = vox_publisher::gate::evaluate_publish_gate(
+        vox_publisher::gate::publish_gate_inputs_for_cli(dry_run, true, dual, &item),
+    );
+    if gate.has_blockers() {
+        let detail = serde_json::json!({ "blocking_reasons": gate.blocking_reasons });
+        anyhow::bail!(
+            "live publish blocked by gate: {}",
+            serde_json::to_string(&detail)?
+        );
+    }
+    let manifest = publication_manifest_from_row(&row);
+    let root = vox_repository::resolve_repo_root_for_ci();
+    let worthiness =
+        vox_publisher::publication_worthiness::worthiness_score_for_publication_manifest(
+            &manifest, &root,
+        )
+        .ok();
+    if cli_social_worthiness_enforce()
+        && !dry_run
+        && !item.syndication.dry_run
+        && gate.live_publish_allowed
+        && let Some(score) = worthiness
+    {
+        let floor = cli_social_worthiness_score_min();
+        if score < floor {
+            let detail = serde_json::json!({
+                "error": "live publish blocked by worthiness floor",
+                "worthiness_score": score,
+                "floor": floor,
+            });
+            anyhow::bail!(
+                "live publish blocked by worthiness: {}",
+                serde_json::to_string(&detail)?
+            );
+        }
+    }
+    let publisher = vox_publisher::Publisher::new(publisher_config_from_env(dry_run, worthiness));
     let result = publisher.publish_all(&item).await?;
     let result_json = serde_json::to_string(&result)?;
     db.record_publication_attempt(publication_id, digest, "manual_cli", &result_json)
         .await?;
+    if gate.live_publish_allowed {
+        if result.all_enabled_channels_succeeded(&item) {
+            let _ = db
+                .set_publication_state(
+                    publication_id,
+                    "published",
+                    Some(
+                        &serde_json::json!({ "channel_group": "manual_cli" }).to_string(),
+                    ),
+                )
+                .await;
+        } else if result.has_failures() {
+            let _ = db
+                .set_publication_state(
+                    publication_id,
+                    "publish_failed",
+                    Some(
+                        &serde_json::json!({ "channel_group": "manual_cli" }).to_string(),
+                    ),
+                )
+                .await;
+        }
+    }
     if json {
         println!("{}", result_json);
     } else {
@@ -1063,30 +1089,22 @@ pub async fn publication_retry_failed(
     };
     let digest = row.content_sha3_256.as_str();
     let attempts = db.list_publication_attempts(publication_id).await?;
-    let last = attempts
+    let attempt_refs: Vec<vox_publisher::switching::AttemptOutcome<'_>> = attempts
         .iter()
-        .filter(|a| a.content_sha3_256 == digest)
-        .find_map(|a| {
-            serde_json::from_str::<vox_publisher::SyndicationResult>(&a.outcome_json).ok()
-        });
-    let Some(result) = last else {
+        .map(|a| vox_publisher::switching::AttemptOutcome {
+            content_sha3_256: a.content_sha3_256.as_str(),
+            outcome_json: a.outcome_json.as_str(),
+        })
+        .collect();
+    let Some(failed) = vox_publisher::switching::failed_channels_from_latest_digest_attempt(
+        attempt_refs.as_slice(),
+        digest,
+    )?
+    else {
         anyhow::bail!(
             "no syndication attempt outcome for current manifest digest; run `vox db publication-publish` first"
         );
     };
-    let mut failed: Vec<String> = Vec::new();
-    let mut maybe_push = |name: &str, out: &vox_publisher::ChannelOutcome| {
-        if matches!(out, vox_publisher::ChannelOutcome::Failed { .. }) {
-            failed.push(name.to_string());
-        }
-    };
-    maybe_push("rss", &result.rss);
-    maybe_push("twitter", &result.twitter);
-    maybe_push("github", &result.github);
-    maybe_push("open_collective", &result.open_collective);
-    maybe_push("reddit", &result.reddit);
-    maybe_push("hacker_news", &result.hacker_news);
-    maybe_push("youtube", &result.youtube);
     if failed.is_empty() {
         println!(
             "{}",
@@ -1104,7 +1122,7 @@ pub use super::db_research::*;
 
 #[cfg(test)]
 mod tests {
-    use super::{filter_channels, parse_channels_csv};
+    use super::publication_item_from_manifest;
     use chrono::Utc;
     use vox_publisher::types::{SyndicationConfig, TwitterConfig, UnifiedNewsItem};
 
@@ -1130,7 +1148,9 @@ mod tests {
 
     #[test]
     fn parse_channels_csv_normalizes() {
-        let out = parse_channels_csv(Some(" twitter, reddit ,YOUTUBE "));
+        let out = Some(vox_publisher::switching::parse_channels_csv(
+            " twitter, reddit ,YOUTUBE ",
+        ));
         assert_eq!(
             out,
             Some(vec![
@@ -1145,8 +1165,39 @@ mod tests {
     fn filter_channels_keeps_only_allowed() {
         let item = sample_item();
         let allowed = vec!["twitter".to_string()];
-        let out = filter_channels(item, Some(allowed.as_slice()));
+        let mut out = item;
+        vox_publisher::switching::apply_channel_allowlist(&mut out, allowed.as_slice());
         assert!(!out.syndication.rss);
         assert!(out.syndication.twitter.is_some());
+    }
+
+    #[test]
+    fn publication_item_from_manifest_hydrates_topic_pack() {
+        let row = vox_db::PublicationManifestRow {
+            publication_id: "p1".to_string(),
+            content_type: "scientia".to_string(),
+            source_ref: None,
+            title: "Title".to_string(),
+            author: "Author".to_string(),
+            abstract_text: None,
+            body_markdown: "Body".to_string(),
+            citations_json: None,
+            metadata_json: Some(
+                r#"{
+                    "tags":["research_breakthrough"],
+                    "topic_pack":"research_breakthrough",
+                    "syndication":{"twitter":{"short_text":null,"thread":false},"rss":true}
+                }"#
+                .to_string(),
+            ),
+            content_sha3_256: "digest".to_string(),
+            state: "draft".to_string(),
+            version: 1,
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        };
+        let item = publication_item_from_manifest(&row).expect("item");
+        assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
+        assert!(item.syndication.twitter.is_none());
     }
 }

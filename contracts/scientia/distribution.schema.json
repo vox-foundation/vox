@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox/contracts/scientia/distribution.schema.json",
   "title": "ScientiaDistribution",
+  "description": "Syndication intent for Scientia items. Runtime: embed this object under the `syndication` key in publication `metadata_json`, or under `syndication` in markdown/DB-derived metadata. Keys match `SyndicationConfig` in `vox-publisher` (not the legacy `scientia_distribution` root name).",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -96,6 +97,7 @@
         },
         "crates_io": {
           "type": "object",
+          "description": "Contract placeholder only: `vox-publisher` does not perform crates.io releases yet. If enabled in routing, outcomes are explicit dry-run or not-implemented failures—never silent success.",
           "additionalProperties": false,
           "properties": {
             "crates_to_update": {
@@ -153,7 +155,10 @@
         "retry_profile": { "type": "string" },
         "rate_limit_profile": { "type": "string" },
         "approval_required": { "type": "boolean" },
-        "dry_run": { "type": "boolean" },
+        "dry_run": {
+          "type": "boolean",
+          "description": "When true, `vox-publisher` forces runtime `syndication.dry_run` during manifest row → UnifiedNewsItem hydration (non-live fan-out regardless of top-level `syndication.dry_run` unless you align both)."
+        },
         "channel_policy": { "$ref": "#/properties/channel_policy" }
       }
     }

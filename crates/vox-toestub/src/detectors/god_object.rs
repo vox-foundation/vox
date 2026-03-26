@@ -43,7 +43,11 @@ impl DetectionRule for GodObjectDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         let nonblank_lines = file.lines.iter().filter(|l| !l.trim().is_empty()).count();
@@ -66,6 +70,8 @@ impl DetectionRule for GodObjectDetector {
                         .to_string(),
                 ),
                 context: file.context_around(1, 2),
+                confidence: None,
+                evidence: None,
             });
         }
 
@@ -101,6 +107,8 @@ impl DetectionRule for GodObjectDetector {
                     "Consider decomposing large structs into multiple traits.".to_string(),
                 ),
                 context: String::new(),
+                confidence: None,
+                evidence: None,
             });
         }
 

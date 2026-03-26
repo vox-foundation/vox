@@ -57,7 +57,11 @@ impl DetectionRule for SchemaComplianceDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
         let schema = match self.load_schema() {
             Some(s) => s,
@@ -100,6 +104,8 @@ impl DetectionRule for SchemaComplianceDetector {
                 ),
                 suggestion: Some("Register the crate in vox-schema.json or move the file to an authorized location.".to_string()),
                 context: String::new(),
+                    confidence: None,
+                    evidence: None,
             });
         }
 

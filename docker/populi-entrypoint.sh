@@ -6,8 +6,8 @@
 #
 # VOX_JOB_KIND controls which mode to run:
 #   train  — download data, run training, optionally upload adapter, self-terminate
-#   serve  — run inference server (vox populi serve), self-terminate when killed
-#   agent  — run agentic chat loop, self-terminate on completion
+#   serve  — HTTP inference (vox mens serve); see script-surface-audit.md for checkpoint path / image caveats
+#   agent  — not mapped to a single vox subcommand yet; fails fast with instructions
 #
 # Termination safety (layered — all must be in place):
 #   1. This script self-terminates on completion (primary)
@@ -86,11 +86,14 @@ train)
 
     # 2. Run training (--preset auto reads gpu-specs.yaml to select config)
     log "Starting training..."
-    vox populi train \
+    vox mens train \
+        --backend qlora \
+        --tokenizer hf \
         --model "$MODEL_ID" \
         --preset auto \
         --data-dir /workspace/data \
         --output-dir /workspace/output \
+        --device cuda \
         ${VOX_TRAIN_EXTRA_ARGS:-}
     log "Training complete — adapter at /workspace/output"
 
@@ -108,19 +111,22 @@ train)
 # ── INFERENCE / SERVE ─────────────────────────────────────────────────────────
 serve)
     log "Mode: SERVE (port=$SERVE_PORT)"
-    # Watchdog terminates this process via provider API when max_runtime expires
-    vox populi serve \
-        --model "$MODEL_ID" \
+    # Local checkpoint after train: /workspace/output. Requires `vox-schola` on PATH (shipped in vox-populi-cuda image).
+    _SERVE_MODEL="${VOX_SERVE_MODEL_PATH:-/workspace/output}"
+    vox mens serve \
+        --host 0.0.0.0 \
         --port "$SERVE_PORT" \
+        --model "$_SERVE_MODEL" \
         ${VOX_SERVE_EXTRA_ARGS:-}
     ;;
 
 # ── AGENT ─────────────────────────────────────────────────────────────────────
 agent)
     log "Mode: AGENT"
-    vox populi agent \
-        --model "$MODEL_ID" \
-        ${VOX_AGENT_EXTRA_ARGS:-}
+    log "ERROR: Cloud agent loop is not wired to a single in-container subcommand in current vox-cli."
+    log "Use cloud dispatch (JobKind::Agent), extend vox-cli, or run a custom command via VOX_JOB_KIND=serve + tooling."
+    log "See: docs/src/architecture/script-surface-audit.md"
+    exit 2
     ;;
 
 *)

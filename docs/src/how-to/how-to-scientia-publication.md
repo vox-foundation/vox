@@ -10,7 +10,7 @@ training_eligible: true
 
 This workflow uses a single publication manifest in Codex (`publication_manifests`) with digest-bound approvals and scholarly submission tracking.
 
-> Note: the current submit path is `publication-submit-local` via the local scholarly ledger adapter. For policy boundaries and automation SSOT, see `docs/src/architecture/scientia-publication-automation-ssot.md` and `docs/src/reference/scientia-publication-worthiness-rules.md`. For implementation roadmap detail, see `docs/src/architecture/scientia-publication-readiness-audit.md`.
+> Note: scholarly submit defaults to `local_ledger` (`VOX_SCHOLARLY_ADAPTER`). For architecture and lingo, see [VoxGiantia publication architecture](../architecture/voxgiantia-publication-architecture.md). For operator inputs vs derived fields, see [operator inputs](scientia-publication-operator-inputs.md). For remediation, see [publication playbook](../reference/scientia-publication-playbook.md). Policy SSOT: [scientia-publication-automation-ssot](../architecture/scientia-publication-automation-ssot.md), [worthiness rules](../reference/scientia-publication-worthiness-rules.md), [readiness audit](../architecture/scientia-publication-readiness-audit.md).
 
 ## 1) Prepare a manifest
 
@@ -41,7 +41,7 @@ Approvals are bound to the current content digest. If content changes, re-approv
 vox scientia publication-submit-local --publication-id ai-research-2026-03
 ```
 
-`publication-submit-local` uses the first scholarly integration (`local_ledger`) and writes a deterministic submission id plus lifecycle state in `scholarly_submissions`.
+`publication-submit-local` uses the scholarly adapter selected by `VOX_SCHOLARLY_ADAPTER` (default `local_ledger`; `echo_ledger` for deterministic/no-network tests) and writes submission metadata to `scholarly_submissions`. Unknown adapter names **error** (no silent fallback).
 
 ## 4) Inspect lifecycle state
 
@@ -65,13 +65,13 @@ To drive Reddit/Hacker News/YouTube planning from the same manifest, embed a
 - `contracts/scientia/distribution.schema.json`
 - `contracts/scientia/distribution.default.yaml`
 
-Optional **`metadata_json.topic_pack`**: set to a pack id from `contracts/scientia/distribution.topic-packs.yaml` (for example `default_social`). At hydrate time the pack **merges** worthiness floors, template profiles, and topic filters into `scientia_distribution`. **Channel allowlists** in the pack **drop** any channel not listed for that pack (after merge), so operators can tighten routing without editing every manifest.
+Optional **`metadata_json.topic_pack`**: set to a pack id from `contracts/scientia/distribution.topic-packs.yaml` (for example `research_breakthrough`). At hydrate time the pack **merges** worthiness floors, template profiles, and topic filters into `scientia_distribution`. **Channel allowlists** in the pack **drop** any channel not listed for that pack (after merge), so operators can tighten routing without editing every manifest.
 
 Example skeleton:
 
 ```json
 {
-  "topic_pack": "default_social",
+  "topic_pack": "research_breakthrough",
   "scientia_distribution": {
     "channels": ["reddit", "hacker_news", "youtube"],
     "channel_payloads": {
@@ -111,6 +111,7 @@ Notes:
 
 - Hacker News support is manual-assist only (official API is read-only).
 - YouTube support uses OAuth refresh + resumable upload and should remain policy-gated by quota and audit readiness.
+- `crates_io` is modeled in routing policy and outcomes; live publish adapter wiring remains intentionally explicit (non-implicit).
 - Configure social credentials via `VOX_SOCIAL_*` environment variables (`docs/src/reference/env-vars.md`).
 - SSOT precedence is: manifest overrides > distribution policy defaults/contracts > runtime env overrides.
 

@@ -145,8 +145,7 @@ pub async fn extract_arca_pairs(
                                         chatml: false,
                                         repository_id: repo_id.to_string(),
                                         difficulty: Some(crate::training::construct_difficulty(
-                                            prompt,
-                                            "llm_turn",
+                                            prompt, "llm_turn",
                                         )),
                                     });
                                 }

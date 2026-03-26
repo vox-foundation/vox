@@ -3,11 +3,15 @@
 use std::collections::HashMap;
 
 use regex::Regex;
+use serde_json::json;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
-use syn::{Expr, ImplItemFn, Item, ItemFn, ItemMod, Meta};
+use syn::{Expr, ExprPath, ImplItemFn, Item, ItemFn, ItemMod, Meta};
 
-use crate::rules::{Finding, Language, Severity, SourceFile};
+use crate::analysis::RustFileContext;
+use crate::rules::{
+    Finding, FindingConfidence, Language, Severity, SourceFile, rust_byte_is_non_code,
+};
 
 pub(super) fn recent_line_starts_for_loop(lines: &[String], idx: usize, window: usize) -> bool {
     let start = idx.saturating_sub(window);
@@ -28,7 +32,106 @@ pub(super) fn parse_rust_usize_literal(s: &str) -> Option<u64> {
     clean.parse().ok()
 }
 
-pub(super) fn env_unwrap_or_duplicate_findings(file: &SourceFile, re: &Regex) -> Vec<Finding> {
+/// Strip `//` comments and normal `"` / `'` literals so SQL keywords inside examples don't trip heuristics.
+pub(super) fn sql_line_for_keyword_scan(line: &str) -> String {
+    let no_line_comment = line
+        .split_once("//")
+        .map(|(a, _)| a)
+        .unwrap_or(line);
+    let mut out = String::with_capacity(no_line_comment.len());
+    let mut it = no_line_comment.chars().peekable();
+    while let Some(c) = it.next() {
+        match c {
+            '"' | '\'' => {
+                let quote = c;
+                out.push(' ');
+                while let Some(nc) = it.next() {
+                    if nc == '\\' {
+                        let _ = it.next();
+                        continue;
+                    }
+                    if nc == quote {
+                        break;
+                    }
+                }
+            }
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+fn path_expr_is_fs_unbounded_read(p: &ExprPath) -> bool {
+    let segs: Vec<String> = p
+        .path
+        .segments
+        .iter()
+        .map(|s| s.ident.to_string())
+        .collect();
+    if segs.is_empty() {
+        return false;
+    }
+    let last = segs.last().map(String::as_str).unwrap_or("");
+    if last != "read_to_string" && last != "read" {
+        return false;
+    }
+    segs.iter().any(|s| s == "fs")
+}
+
+/// AST-backed `std::fs` unbounded reads (`read_to_string` / `read`). Empty when parse fails.
+pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
+    if file.language != Language::Rust {
+        return Vec::new();
+    }
+    let Ok(ast) = syn::parse_file(&file.content) else {
+        return Vec::new();
+    };
+    struct FsReadVisitor<'a> {
+        file: &'a SourceFile,
+        out: Vec<Finding>,
+    }
+    impl<'ast> Visit<'ast> for FsReadVisitor<'_> {
+        fn visit_expr_call(&mut self, c: &'ast syn::ExprCall) {
+            if let Expr::Path(p) = c.func.as_ref() {
+                if path_expr_is_fs_unbounded_read(p) {
+                    let span = c.span();
+                    let line = span.start().line;
+                    let column = span.start().column;
+                    self.out.push(Finding {
+                        rule_id: "scaling/unbounded-read".to_string(),
+                        rule_name: "Scaling — fs read_to_string".to_string(),
+                        severity: Severity::Info,
+                        file: self.file.path.clone(),
+                        line,
+                        column,
+                        message: "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts"
+                            .to_string(),
+                        suggestion: None,
+                        context: self.file.context_around(line, 1),
+                        confidence: Some(FindingConfidence::High),
+                        evidence: Some(json!({
+                            "why": "syn ExprCall to fs::read / read_to_string",
+                            "evidence": ["ast"]
+                        })),
+                    });
+                }
+            }
+            visit::visit_expr_call(self, c);
+        }
+    }
+    let mut v = FsReadVisitor {
+        file,
+        out: Vec::new(),
+    };
+    v.visit_file(&ast);
+    v.out
+}
+
+pub(super) fn env_unwrap_or_duplicate_findings(
+    file: &SourceFile,
+    re: &Regex,
+    rust_ctx: Option<&RustFileContext>,
+) -> Vec<Finding> {
     let mut out = Vec::new();
     let mut map: HashMap<String, Vec<usize>> = HashMap::new();
     let mut in_test_block = false;
@@ -55,6 +158,10 @@ pub(super) fn env_unwrap_or_duplicate_findings(file: &SourceFile, re: &Regex) ->
             continue;
         }
         if let Some(c) = re.captures(line) {
+            let full = c.get(0).expect("regex full match");
+            if rust_byte_is_non_code(file, line_num, full.start(), rust_ctx) {
+                continue;
+            }
             let lit = c.get(1).map(|m| m.as_str()).unwrap_or("");
             if lit.len() < 4 {
                 continue;
@@ -79,6 +186,8 @@ pub(super) fn env_unwrap_or_duplicate_findings(file: &SourceFile, re: &Regex) ->
                     .to_string(),
                 suggestion: Some(format!("Literal default appears {}×: `{lit}`", lines.len())),
                 context: file.context_around(ln, 1),
+                confidence: Some(FindingConfidence::Low),
+                evidence: None,
             });
         }
     }
@@ -176,6 +285,8 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
                             .to_string(),
                     ),
                     context: self.file.context_around(line, 2),
+                    confidence: Some(FindingConfidence::High),
+                    evidence: None,
                 });
             }
             if call_looks_like_thread_sleep(&call.func) {
@@ -191,6 +302,8 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
                     message: "`thread::sleep` in async context blocks the executor".to_string(),
                     suggestion: Some("`tokio::time::sleep` or structured backoff".to_string()),
                     context: self.file.context_around(line, 2),
+                    confidence: Some(FindingConfidence::High),
+                    evidence: None,
                 });
             }
         }

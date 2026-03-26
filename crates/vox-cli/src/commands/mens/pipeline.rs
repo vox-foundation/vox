@@ -207,6 +207,7 @@ pub async fn run(
                     if mix_config.is_file() {
                         crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Mix {
                             config: mix_config,
+                            allow_missing_sources: true,
                         })
                         .await?;
                     }

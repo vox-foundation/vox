@@ -33,8 +33,8 @@ pub fn run(repo_root: &Path) -> Result<()> {
     for entry in WalkDir::new(&docs_src).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() && entry.path().extension().is_some_and(|ext| ext == "md") {
             let path = entry.path();
-            let content =
-                read_utf8_path_capped(path).with_context(|| format!("Failed to read {:?}", path))?;
+            let content = read_utf8_path_capped(path)
+                .with_context(|| format!("Failed to read {:?}", path))?;
 
             let parent_dir = path.parent().unwrap();
 

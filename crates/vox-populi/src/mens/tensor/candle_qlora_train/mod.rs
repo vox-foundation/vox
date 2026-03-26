@@ -157,6 +157,30 @@ pub fn run_candle_qlora_train(
     let bundle = preflight_native_qlora(config).map_err(|e| {
         anyhow::anyhow!("Model preflight failed: {e}. Ensure you have run 'vox mens download --model <name>' and that tokenizer.json + safetensors are present.")
     })?;
+
+    let n_layer = bundle.layout.num_hidden_layers;
+    if config.qlora_lm_head_only {
+        anyhow::bail!(
+            "Candle QLoRA: `--qlora-lm-head-only` (partial adapter stack) is not implemented; \
+             omit the flag to train the full proxy stack (depth {} layers).",
+            n_layer
+        );
+    }
+    if let Some(0) = config.qlora_proxy_max_layers {
+        anyhow::bail!(
+            "Candle QLoRA: `--qlora-proxy-max-layers 0` selects LM-head-only training, which is not implemented; \
+             omit the flag for a full stack."
+        );
+    }
+    if let Some(cap) = config.qlora_proxy_max_layers {
+        if cap < n_layer {
+            anyhow::bail!(
+                "Candle QLoRA: `--qlora-proxy-max-layers={cap}` is less than model depth ({n_layer}); \
+                 partial-stack training is not implemented. Omit the flag or set the cap to at least {n_layer}."
+            );
+        }
+    }
+
     let tokenizer = Tokenizer::from_file(&bundle.tokenizer_path)
         .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 

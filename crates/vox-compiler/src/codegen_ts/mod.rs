@@ -25,4 +25,4 @@ pub mod schema;
 pub mod tanstack_start;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
-pub use schema::generate_voxdb_schema;
+pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};

@@ -1,5 +1,22 @@
 use crate::ast::span::Span;
 
+/// High-level parse failure category (stable for tooling; see `docs/src/reference/parser-ambiguity-inventory.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ParseErrorClass {
+    /// Generic / uncategorized until call sites adopt a finer class.
+    #[default]
+    Other,
+    /// Token mismatch in `Parser::expect`.
+    ExpectToken,
+    /// Unknown or misplaced top-level construct.
+    TopLevel,
+    /// Declaration / attribute head or tail.
+    Declaration,
+    Expression,
+    Statement,
+    TypeExpr,
+}
+
 /// A parse error with detailed context.
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -7,6 +24,7 @@ pub struct ParseError {
     pub span: Span,
     pub expected: Vec<String>,
     pub found: Option<String>,
+    pub class: ParseErrorClass,
 }
 
 impl ParseError {
@@ -18,11 +36,24 @@ impl ParseError {
         expected: Vec<String>,
         found: Option<String>,
     ) -> Self {
+        Self::classified(span, message, expected, found, ParseErrorClass::Other)
+    }
+
+    /// Same as [`ParseError::new`] with an explicit [`ParseErrorClass`].
+    #[must_use]
+    pub fn classified(
+        span: Span,
+        message: impl Into<String>,
+        expected: Vec<String>,
+        found: Option<String>,
+        class: ParseErrorClass,
+    ) -> Self {
         Self {
             message: message.into(),
             span,
             expected,
             found,
+            class,
         }
     }
 }

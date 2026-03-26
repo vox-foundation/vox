@@ -18,9 +18,14 @@ similar = "2"
 globset = "0.4"
 reqwest = { version = "0.13", features = ["json", "rustls"], default-features = false }
 anyhow = { workspace = true }
+tracing = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 vox-scaling-policy = { workspace = true }
 vox-socrates-policy = { workspace = true }
+jsonschema = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

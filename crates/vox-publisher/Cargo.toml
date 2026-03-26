@@ -25,6 +25,7 @@ sha3 = { workspace = true }
 regex = { workspace = true }
 pulldown-cmark = "0.13"
 vox-scaling-policy = { workspace = true }
+vox-clavis = { path = "../vox-clavis" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

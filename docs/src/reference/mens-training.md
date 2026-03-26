@@ -1,16 +1,25 @@
 ---
-title: "Mens native training SSOT (Burn LoRA, Candle qlora-rs QLoRA)"
-description: "Official documentation for Mens native training SSOT (Burn LoRA, Candle qlora-rs QLoRA) for the Vox language."
+title: "Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)"
+description: "Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
-# Mens native training SSOT (Burn LoRA, Candle qlora-rs QLoRA)
+# Mens native training SSOT (Candle QLoRA–first)
+
+> **Code SSOT:** `vox schola train` dispatches through `vox_populi::mens::tensor::run_mens_training` ([`lora_train.rs`](../../../crates/vox-populi/src/mens/tensor/lora_train.rs)). **`PopuliTrainBackend::BurnLora` is rejected at runtime** with an explicit error; the **supported** native trainer is **`CandleQlora`** (`--backend qlora`, `--tokenizer hf` for HF-shaped models). Docs below still describe Burn for **merge-weights / `vox mens serve`** and historical parity—treat **Burn training** as legacy/optional tooling, not an active `schola train` backend.
+
+## Truth tables (train → merge → serve)
+
+| Path | Train (CLI) | Merge | Serve in-tree |
+|------|-------------|-------|----------------|
+| **Candle QLoRA** | `vox schola train --backend qlora --tokenizer hf …` | `vox schola merge-qlora` (alias `merge-adapter`) → f32 subset shards | **No** — use vLLM/Ollama/HF (or external OpenAI-compatible stack); `vox mens serve` does not load QLoRA merge outputs |
+| **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — `vox mens serve` (`execution-api`) loads `*.bin` / merged Burn checkpoints |
 
 ## Why
 
 - **One canonical CLI** for in-repo native fine-tuning: **`vox schola train`**.
-- **Contract-first control plane** (in `vox-populi::mens::tensor`): **`FineTuneContract`** + **`ExecutionPlanner`** + **`preflight_train`** gate impossible combos before kernels run (`finetune_contract.rs`, `execution_planner.rs`, `preflight_train.rs`). Capability table: [hf-finetune-capability-matrix.md](../architecture/hf-finetune-capability-matrix.md). Gap labels: [hf-finetune-gap-matrix.md](hf-finetune-gap-matrix.md).
+- **Contract-first control plane** (in `vox-populi::mens::tensor`): **`FineTuneContract`** + **`ExecutionPlanner`** + **`preflight_train`** gate impossible combos before kernels run (`finetune_contract.rs`, `execution_planner.rs`, `preflight_train.rs`). **Preflight output schema (F04, extend alongside code):** [`contracts/mens/training-preflight.schema.json`](../../../contracts/mens/training-preflight.schema.json). After a successful `preflight_for_contract` inside `run_mens_training`, the trainer writes **`training-preflight.json`** next to run artifacts when an output directory is set (fields: `schema_version`, `contract_digest`, `execution_kernel`, optional `notes`). Capability table: [hf-finetune-capability-matrix.md](../architecture/hf-finetune-capability-matrix.md). Gap labels: [hf-finetune-gap-matrix.md](hf-finetune-gap-matrix.md).
 - **Honest execution-kernel split**:
   - **Burn + wgpu LoRA** (`--backend lora`): default **`VoxTokenizer`** JSONL; optional **`--tokenizer hf`** for **GPT-2-shaped** HF configs + ChatML-supervised HF tokenization + optional **embed warm-start** (`burn_hf_load.rs`). **Not** NF4 QLoRA.
   - **Candle + qlora-rs** (`--backend qlora`, `--tokenizer hf`): **NF4-quantized** trainable stack: when every expected **block output projection** (`o_proj` / GPT-2 `h.{L}.attn.c_proj.weight`) is present in the HF shards, **`training_step_lm`** runs **sequentially** through those layers plus the **tied LM head**; otherwise **LM-head-only** (backward compatible). **Context embeddings** stay **mmap `f32`** (`index_select`). Same **`--device`** story: CUDA / Metal with **`mens-candle-cuda`** / **`mens-candle-metal`**, else CPU; **`VOX_CANDLE_DEVICE=cpu`** forces CPU. Telemetry includes **`execution_kernel`**, **`telemetry_schema`**, and **`candle_compat_mode`** for Candle transitional scope.
@@ -160,9 +169,9 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 2. **CLI/registry drift**: `vox ci command-compliance` (or `cargo run -p vox-cli --features gpu -- ci command-compliance`).
 3. **Training acceptance profile**: `cargo run -p vox-cli -- ci mens-gate --profile training` (see [mens-finetune-acceptance-runbook.md](../architecture/mens-finetune-acceptance-runbook.md)).
 4. **Language/tooling confidence** (orthogonal to trainer): `cargo check --workspace`, `cargo test` for areas you touched; MCP **`vox-mcp`** and orchestrator paths assume a healthy **`vox`** binary and repo root — see [AGENTS.md](../../../AGENTS.md) § orchestration / capability registry.
-5. **Data**: canonical **`train.jsonl`** under **`--data-dir`** (often **`target/dogfood`** after corpus mix); optional **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the JSONL is already final.
+5. **Data**: canonical **`train.jsonl`** under **`--data-dir`** (often **`target/dogfood`** after corpus mix). Operator mix (**`vox mens corpus mix --config mens/config/mix.yaml`**) is **strict by default**: every non-optional `mens/config/mix.yaml` source must exist and emit at least one row. Use **`--allow-missing-sources`** for the old warn-only behavior (automation / first-time trees). A JSON report is written next to the mix output (**`*.mix_report.json`**, same stem as the mixed JSONL) with per-source weights, line counts, and output share. Optional: **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the JSONL is already final.
 6. **Choose artifact + inference**: **Burn** → **`merge-weights`** → **`vox mens serve`**; **QLoRA** → **`merge-qlora`** → external **OpenAI-compatible** or HF runtime (not `serve` today).
-7. **Long runs**: `vox schola train … --log-dir …` + **`--background`** as needed; see RTX 4080 section below.
+7. **Long runs (detached)**: **`--log-dir`** always re-invokes the current binary with logs redirected and the parent exiting immediately. **`--background`** alone does the same using the default log directory (**`<repo>/mens/runs/logs`** when the workspace root is known, else **`mens/runs/logs`** relative to the process cwd). On Windows, spawns use **`CREATE_BREAKAWAY_FROM_JOB`** so IDE/agent job objects are less likely to tear down the trainer when the parent exits. **`vox schola train`** behaves the same (**`--background`** defaults logs to **`mens/runs/logs`**). Monitor with **`Get-Content …\train_*.log -Wait -Tail 25`** or **`tail -f`**. Gate wrappers: **`scripts/populi/release_training_gate.ps1`** (training profile), **`scripts/mens_release_gate.ps1`** (m1m4) — isolated `target` + temp **`vox.exe`** copy to avoid Windows file locks during nested **`cargo`**.
 
 **“Full model build” in practice** means: (a) **data** corpus at quality gate, (b) **trainer** chosen and **manifest** recorded, (c) **merge/export** aligned with **where inference will run** (Vox HTTP vs external LLM), (d) **eval** (`vox mens corpus eval` / `eval-local` where applicable) before promoting artifacts.
 
@@ -175,24 +184,24 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 - **`--device cuda`** without **`mens-candle-cuda`** fails fast at CLI with rebuild instructions.
 - **Local-first safety knobs**: `--require-gpu` fails if runtime resolves to CPU; `--allow-cpu-fallback=false` disables automatic fallback for `--device best`.
 - **CPU smoke**: `VOX_CANDLE_DEVICE=cpu` forces Candle on CPU for debugging.
-- **IDE / Cursor timeouts (long builds + train)**: Agent tools often cap wall time. Prefer **logging + background** instead of blocking:
-  - **Train**: `vox schola train … --log-dir mens/runs/logs` — parent spawns a detached child and exits immediately; monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`). Combine with `--background` for low priority + VRAM cap (see `vox schola train --help`).
-  - **CUDA `cargo` build**: run in a normal terminal or `Tee-Object` to a file, e.g. [`scripts/mens/cursor_background_cuda_build.ps1`](../../../scripts/mens/cursor_background_cuda_build.ps1). To return immediately from an agent while the build continues, use [`scripts/mens/cursor_background_cuda_build_detached.ps1`](../../../scripts/mens/cursor_background_cuda_build_detached.ps1). Example train launcher: [`scripts/mens/cursor_background_train_example.ps1`](../../../scripts/mens/cursor_background_train_example.ps1).
+- **IDE / Cursor timeouts (long builds + train + gates)**: Hosted agent tools often cap wall time (~tens of seconds to a few minutes). Prefer **detach + log** instead of blocking a single tool invocation on **`mens-gate`** (training profile commonly **5–40+ minutes** depending on cold compile and disk):
+  - **Mens gate**: from repo root, **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** or **`pwsh scripts/populi/release_ci_full_gate.ps1 -Detach`** — returns immediately; watch **`target/mens-gate-logs/`**. Same pattern as [`mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1). For quick local signal without the full gate, run a **single** targeted test (examples in **Regression tests** below).
+  - **Train**: `vox mens train … --background` or `vox schola train … --log-dir mens/runs/logs` — parent exits immediately; monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`).
+  - **CUDA `cargo` build**: normal terminal or `Tee-Object`; detached build: [`scripts/populi/cursor_background_cuda_build_detached.ps1`](../../../scripts/populi/cursor_background_cuda_build_detached.ps1) (and `scripts/mens/…` copies if present). Example train launcher: [`scripts/populi/cursor_background_train_example.ps1`](../../../scripts/populi/cursor_background_train_example.ps1).
   - **Skip corpus mix** (optional): `VOX_TRAIN_SKIP_CORPUS_MIX=1` skips the pre-train `mix` refresh when you already have the desired `train.jsonl` or need a shorter path under automation.
 - **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached.
 - **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped.
 - **Bounded proxy forward (supported; in-tree qlora-rs patch)**: `training_step_lm` uses **pre-norm residual** middle blocks `h ← h + (1/√n_mid)·F(RMSNorm(h))` and scales again by **`1/√n_mid`** before the LM head so deep `o_proj` stacks stay **finite** and trainable. Merge and serve paths must use the **same** graph as training (manifest records **`candle_qlora_graph_id`**). This is **not** a full transformer residual path inside attention/FFN — see feasibility doc.
 - **Suffix CE (`--qlora-ce-last-k K`)**: default **`1`** = predict the **last** token from `E[t-1]` only. **`K > 1`** runs one `training_step_lm` per row for each target index `t` in **`max(1, L−K) .. L−1`**, i.e. next-token CE on the **last K positions** of the (trimmed) sequence — closer to standard LM on a suffix, at **~K×** optimizer micro-steps per JSONL row. Capped vs **`seq_len`** at CLI.
-- **Depth ablation**: **`--qlora-proxy-max-layers N`** caps how many ordered middle projections are stacked (`0` = LM-head-only; omit = full stack when keys are complete). Conflicts with **`--qlora-lm-head-only`** when `N > 0`.
+- **Depth ablation (CLI + digest)**: **`--qlora-proxy-max-layers N`** and **`--qlora-lm-head-only`** still feed **contract digest / planner / preflight** (`candle_qlora_proxy_stack_complete`, graph id). **Candle training rejects** LM-head-only, `proxy_max_layers=0`, and any cap **below** model depth; run without those flags (or set the cap **≥** `num_hidden_layers`) so the trainer runs the **full** proxy graph and the manifest matches execution.
 - **Debug**: **`VOX_QLORA_DEBUG_NORMS=1`** prints mean-|activation| after each middle block (stderr; local ablation only).
 - **Stable dogfood (QLoRA)**: if CE is still pathological, keep **`--qlora-lm-head-only`** as the **operator escape hatch** (preferred over env; survives `--log-dir` re-spawn). Env **`VOX_QLORA_LM_HEAD_ONLY=1`** remains for ad-hoc runs.
 
 ## Pre-push release gate (acceptance matrix)
 
-- **Canonical (cross-platform)**: `cargo run -p vox-cli -- ci mens-gate --profile training`  
-  Steps live in [`scripts/mens/gates.yaml`](../../../scripts/mens/gates.yaml) (`training` profile).
-- **Thin shims** (delegate to the same command): `bash scripts/mens/release_training_gate.sh`, `pwsh scripts/mens/release_training_gate.ps1`  
-  Mirrors [`mens-finetune-acceptance-runbook.md`](../architecture/mens-finetune-acceptance-runbook.md) rows 1–10 (planner, keymap, strict preflight, Burn smoke, parity tests, merge, `merge_v2`).
+- **Canonical (cross-platform)**: `cargo run -p vox-cli -- ci mens-gate --profile training` (add `--profile ci_full` for the wider matrix).  
+  Steps live in [`scripts/populi/gates.yaml`](../../../scripts/populi/gates.yaml) (legacy fallback `scripts/mens/gates.yaml`). Nested `cargo` steps use `target/nested-ci` (see flight checklist above).
+- **Thin shims**: `pwsh scripts/populi/release_training_gate.ps1`, `pwsh scripts/populi/release_ci_full_gate.ps1`, `pwsh scripts/mens_release_gate.ps1` (m1m4) — all forward to [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1). **Cursor / agent wall-clock limits:** run **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** (or **`release_ci_full_gate.ps1 -Detach`**) so a **new** PowerShell process owns the multi-minute nested `cargo test` work; tail **`target/mens-gate-logs/mens_gate_*.log`**. Optional **`-LogFile C:\path\to\gate.log`** pins the tee path. Bash peers remain where present — mirrors [`mens-finetune-acceptance-runbook.md`](../architecture/mens-finetune-acceptance-runbook.md) rows 1–10 (planner, keymap, strict preflight, Burn smoke, parity tests, merge, `merge_v2`).
 
 ## Regression tests
 

@@ -12,6 +12,7 @@
 //! vox mens corpus     — Training data pipeline (extract, validate, mix, eval…)
 //! vox mens probe      — Detect GPU capabilities and print recommended LoRA training config
 //! vox mens status     — Show training run status from the latest telemetry log
+//! vox mens watch-telemetry — Periodic tail of train.err.log + JSONL (alias: `watch`)
 //! vox mens eval-local — Evaluate a trained model against the heldout benchmark set
 //! Oratio speech-to-text lives at **`vox oratio`** (top-level), not under `mens`.
 //! ```
@@ -34,6 +35,7 @@ pub mod plan;
 mod probe;
 mod status;
 mod system_prompt_template;
+mod watch_telemetry;
 
 mod populi;
 

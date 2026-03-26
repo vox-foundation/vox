@@ -1,6 +1,6 @@
 use crate::ast::span::Span;
 use crate::hir::*;
-use crate::typeck::diagnostics::{Diagnostic, Severity};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
 use crate::typeck::env::{Binding, BindingKind};
 use crate::typeck::registration::resolve_hir_type;
 use crate::typeck::ty::Ty;
@@ -31,6 +31,7 @@ impl<'a> Checker<'a> {
                             found_type: None,
                             context: Some(Diagnostic::capture_context(self.source, *span)),
                             suggestions: vec![],
+                            category: DiagnosticCategory::Typecheck,
                         });
                     }
                     binding.ty.clone()

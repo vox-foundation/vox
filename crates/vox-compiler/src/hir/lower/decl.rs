@@ -189,6 +189,26 @@ impl LowerCtx {
         }
     }
 
+    pub(crate) fn lower_collection(&mut self, c: &CollectionDecl) -> HirCollection {
+        let id = self.def_map.define(c.name.clone());
+        HirCollection {
+            id,
+            name: c.name.clone(),
+            fields: c
+                .fields
+                .iter()
+                .map(|f| HirTableField {
+                    name: f.name.clone(),
+                    type_ann: self.lower_type(&f.type_ann),
+                    span: f.span,
+                })
+                .collect(),
+            is_pub: c.is_pub,
+            has_spread: c.has_spread,
+            span: c.span,
+        }
+    }
+
     pub(crate) fn lower_reactive_component(
         &mut self,
         r: &ReactiveComponentDecl,

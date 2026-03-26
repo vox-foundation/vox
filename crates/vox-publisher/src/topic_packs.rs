@@ -76,10 +76,14 @@ pub fn merge_topic_pack_into_syndication(
         }
     }
     for (ch, score) in &pack.min_worthiness_score {
+        let key = ch.trim().to_lowercase();
+        if key.is_empty() {
+            continue;
+        }
         let entry = syn
             .distribution_policy
             .channel_policy
-            .entry(ch.clone())
+            .entry(key)
             .or_default();
         entry.worthiness_floor = Some(match entry.worthiness_floor {
             Some(existing) => existing.max(*score),
@@ -87,10 +91,14 @@ pub fn merge_topic_pack_into_syndication(
         });
     }
     for (ch, profile) in &pack.template_profile {
+        let key = ch.trim().to_lowercase();
+        if key.is_empty() {
+            continue;
+        }
         let entry = syn
             .distribution_policy
             .channel_policy
-            .entry(ch.clone())
+            .entry(key)
             .or_default();
         let replace = entry
             .template_profile

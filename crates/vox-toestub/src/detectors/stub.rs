@@ -1,6 +1,4 @@
-use crate::rules::{
-    DetectionRule, Finding, Language, Severity, SourceFile, byte_index_in_ascii_double_quote_string,
-};
+use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_non_code};
 use regex::Regex;
 
 /// Detects `todo!()`, `unimplemented!()`, `panic!("not implemented")`,
@@ -23,13 +21,18 @@ impl Default for StubDetector {
 }
 
 /// True when `stub` appears as its own word but not as the `stub-check` feature name.
-fn bare_stub_word_not_stub_check(line: &str) -> bool {
+fn bare_stub_word_not_stub_check(
+    file: &SourceFile,
+    line_num: usize,
+    line: &str,
+    rust_ctx: Option<&crate::analysis::RustFileContext>,
+) -> bool {
     let lower = line.to_ascii_lowercase();
     let bytes = lower.as_bytes();
     let mut i = 0usize;
     while let Some(rel) = lower[i..].find("stub") {
         let idx = i + rel;
-        if byte_index_in_ascii_double_quote_string(line, idx) {
+        if rust_byte_is_non_code(file, line_num, idx, rust_ctx) {
             i = idx + 1;
             continue;
         }
@@ -77,7 +80,11 @@ impl StubDetector {
         }
     }
 
-    fn detect_rust(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect_rust(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
@@ -121,7 +128,9 @@ impl StubDetector {
                     ),
                 ));
             }
-            if self.generic_placeholder.is_match(line) || bare_stub_word_not_stub_check(line) {
+            if self.generic_placeholder.is_match(line)
+                || bare_stub_word_not_stub_check(file, line_num, line, rust_ctx)
+            {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -250,6 +259,8 @@ impl StubDetector {
             message: message.to_string(),
             suggestion,
             context: file.context_around(line, 2),
+            confidence: None,
+            evidence: None,
         }
     }
 }
@@ -275,9 +286,13 @@ impl DetectionRule for StubDetector {
             Language::GDScript,
         ]
     }
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         match file.language {
-            Language::Rust => self.detect_rust(file),
+            Language::Rust => self.detect_rust(file, rust_ctx),
             Language::Python => self.detect_python(file),
             Language::GDScript => self.detect_gdscript(file),
             Language::TypeScript => self.detect_typescript(file),
@@ -302,7 +317,7 @@ mod tests {
     fn detects_rust_todo() {
         let d = StubDetector::new();
         let f = source("rs", "fn foo() {\n    todo!()\n}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, "stub/todo");
     }
@@ -311,7 +326,7 @@ mod tests {
     fn detects_rust_unimplemented() {
         let d = StubDetector::new();
         let f = source("rs", "fn bar() -> i32 {\n    unimplemented!()\n}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, "stub/unimplemented");
     }
@@ -320,7 +335,7 @@ mod tests {
     fn detects_python_raise() {
         let d = StubDetector::new();
         let f = source("py", "def foo():\n    raise NotImplementedError\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings
                 .iter()
@@ -333,7 +348,7 @@ mod tests {
     fn detects_python_pass_stub() {
         let d = StubDetector::new();
         let f = source("py", "def foo():\n    pass\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings.iter().any(|f| f.rule_id == "stub/pass"),
             "should detect pass stub"
@@ -344,7 +359,7 @@ mod tests {
     fn clean_rust_produces_no_findings() {
         let d = StubDetector::new();
         let f = source("rs", "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "clean code should have no findings");
     }
 
@@ -352,7 +367,7 @@ mod tests {
     fn test_excludes_internal_prompt_text() {
         let d = StubDetector::new();
         let f = source("rs", r#"const P: &str = "DEAD-CODE: todo!()...";"#);
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings.is_empty(),
             "should exclude internal prompt strings"
@@ -366,7 +381,7 @@ mod tests {
             "rs",
             "/// `vox stub-check` / `vox mens stub-check`\n#[cfg(feature = \"stub-check\")]\n",
         );
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             !findings.iter().any(|x| x.rule_id == "stub/placeholder"),
             "stub-check should not trip generic STUB placeholder rule"
@@ -374,13 +389,25 @@ mod tests {
     }
 
     #[test]
-    fn placeholder_still_detects_stub_word() {
+    fn placeholder_ignores_stub_word_in_doc_comment() {
         let d = StubDetector::new();
         let f = source("rs", "/// Run a workflow (stub for future runtime)\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
-            findings.iter().any(|x| x.rule_id == "stub/placeholder"),
-            "plain 'stub' in prose should still be reported"
+            !findings.iter().any(|x| x.rule_id == "stub/placeholder"),
+            "doc comments are non-code spans; narrative 'stub' should not fire placeholder"
+        );
+    }
+
+    #[test]
+    fn placeholder_detects_stub_word_in_code_line() {
+        let d = StubDetector::new();
+        let f = source("rs", "fn foo() { let stub = 1u32; }\n");
+        assert!(
+            d.detect(&f, None)
+                .iter()
+                .any(|x| x.rule_id == "stub/placeholder"),
+            "bare `stub` token in code (not comment/string) should still trip placeholder rule"
         );
     }
 
@@ -391,7 +418,7 @@ mod tests {
             "rs",
             "// This is a placeholder token for documentation only.\nfn ok() {}\n",
         );
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             !findings.iter().any(|x| x.rule_id == "stub/placeholder"),
             "common English 'placeholder' must not match"
@@ -402,7 +429,7 @@ mod tests {
     fn placeholder_detects_shouty_placeholder_marker() {
         let d = StubDetector::new();
         let f = source("rs", "// PLACEHOLDER: wire real API\nfn ok() {}\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.iter().any(|x| x.rule_id == "stub/placeholder"));
     }
 }

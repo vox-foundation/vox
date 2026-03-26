@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use clap::{Parser, ValueEnum};
 use vox_toestub::engine::ToestubRunMode;
 use vox_toestub::rules::Severity;
-use vox_toestub::{OutputFormat, ToestubConfig, ToestubEngine};
+use vox_toestub::{OutputFormat, ToestubConfig, ToestubEngine, ToestubTestsMode};
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum CliMode {
@@ -52,6 +52,39 @@ struct Opt {
     /// Only run rules whose [`DetectionRule::id`] starts with one of these prefixes (repeatable; e.g. `--rules scaling`).
     #[arg(long = "rules", value_name = "PREFIX")]
     rule_prefix: Vec<String>,
+    /// Structured suppressions JSON (`contracts/toestub/suppression.v1.schema.json`).
+    #[arg(long, value_name = "PATH")]
+    suppressions: Option<PathBuf>,
+    /// Comma-separated crates: AST-enhanced unresolved-ref only under `crates/<name>/` (canary rollout).
+    #[arg(long, value_name = "CRATES")]
+    canary_crates: Option<String>,
+    /// How to scan Rust files under `.../tests/...` (`off` skips noisy unresolved-ref there).
+    #[arg(long, value_enum, default_value_t = TestsModeArg::Off)]
+    tests_mode: TestsModeArg,
+    /// Optional `prelude-allowlist.v1.json` path (extra unresolved-fn allow idents).
+    #[arg(long, value_name = "PATH")]
+    prelude_allowlist: Option<PathBuf>,
+    /// Comma-separated feature flags (`unwired-graph`, `unresolved-regex-fallback`, ...).
+    #[arg(long, value_name = "FLAGS")]
+    feature_flags: Option<String>,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, Default)]
+enum TestsModeArg {
+    #[default]
+    Off,
+    Include,
+    Strict,
+}
+
+impl From<TestsModeArg> for ToestubTestsMode {
+    fn from(a: TestsModeArg) -> Self {
+        match a {
+            TestsModeArg::Off => ToestubTestsMode::Off,
+            TestsModeArg::Include => ToestubTestsMode::Include,
+            TestsModeArg::Strict => ToestubTestsMode::Strict,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -103,6 +136,20 @@ fn main() -> anyhow::Result<()> {
     } else {
         Some(opt.rule_prefix)
     };
+    let canary_crates = opt.canary_crates.map(|s| {
+        s.split(',')
+            .map(|x| x.trim().to_string())
+            .filter(|x| !x.is_empty())
+            .collect::<Vec<_>>()
+    });
+    let canary_crates = canary_crates.filter(|v| !v.is_empty());
+    let feature_flags = opt.feature_flags.map(|s| {
+        s.split(',')
+            .map(|x| x.trim().to_string())
+            .filter(|x| !x.is_empty())
+            .collect::<Vec<_>>()
+    });
+    let feature_flags = feature_flags.unwrap_or_default();
     let config = ToestubConfig {
         roots: vec![opt.root],
         min_severity,
@@ -110,6 +157,11 @@ fn main() -> anyhow::Result<()> {
         suggest_fixes: opt.suggest_fixes,
         rule_filter,
         run_mode,
+        suppression_path: opt.suppressions,
+        canary_crates,
+        tests_mode: ToestubTestsMode::from(opt.tests_mode),
+        prelude_allowlist_path: opt.prelude_allowlist,
+        feature_flags,
         ..ToestubConfig::default()
     };
     let run_mode = config.run_mode;

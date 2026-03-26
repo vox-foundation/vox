@@ -249,11 +249,12 @@ cargo vox-cuda-release
 
 Want to dig deeper? We maintain a strictly standardized set of docs:
 
-1. **[Frequently Asked Questions (FAQ)](docs/src/explanation/faq.md)** — Start here for deep answers on architecture, scaling, null safety, and AI integration.
-2. **[Architecture Single Source of Truth](AGENTS.md)** — The definitive guide to the Vox compiler pipeline, repository rules, and core tenets.
-3. **[First Full-Stack App](docs/src/how-to/first-full-stack-app.md)** — Step-by-step tutorial.
-4. **[CLI Reference](docs/src/reference/cli.md)** — All terminal commands and flags.
-5. **[Syntax Reference](examples/STYLE.md)** — The 0.8.0 syntax standard.
+1. **[Contributing](CONTRIBUTING.md)** — First-PR checklist and onboarding links.
+2. **[Frequently Asked Questions (FAQ)](docs/src/explanation/faq.md)** — Start here for deep answers on architecture, scaling, null safety, and AI integration.
+3. **[Agent & secret policy](AGENTS.md)** — Clavis / secret SSOT (required for API keys). **Compiler pipeline & architecture:** [Compiler architecture](docs/src/explanation/expl-architecture.md), [explanation index](docs/src/explanation/), and [governance](docs/agents/governance.md).
+4. **[First Full-Stack App](docs/src/how-to/first-full-stack-app.md)** — Step-by-step tutorial.
+5. **[CLI Reference](docs/src/reference/cli.md)** — All terminal commands and flags.
+6. **[Syntax Reference](examples/STYLE.md)** — The 0.8.0 syntax standard.
 
 ---
 

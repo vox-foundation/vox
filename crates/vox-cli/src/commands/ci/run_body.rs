@@ -21,8 +21,9 @@ mod run_body_helpers;
 
 use run_body_helpers::{
     check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts, run_build_timings,
-    run_clavis_parity, run_cuda_features, run_feature_matrix, run_grammar_drift, run_manifest,
-    run_mens_gate, run_repo_guards, run_secret_env_guard, run_ssot_drift, run_toestub_scoped,
+    run_clavis_parity, run_cuda_features, run_cuda_release_build, run_feature_matrix,
+    run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards, run_secret_env_guard,
+    run_ssot_drift, run_toestub_scoped, run_toestub_self_apply, MensGateOpts,
 };
 
 /// Run `vox ci` subcommand.
@@ -95,7 +96,23 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
-        CiCmd::PopuliGate { profile } => run_mens_gate(&root, &profile),
+        CiCmd::PopuliGate {
+            profile,
+            isolated_runner,
+            windows_isolated_runner,
+            gate_build_target_dir,
+            gate_log_file,
+        } => run_mens_gate(
+            &root,
+            &profile,
+            &MensGateOpts {
+                isolated_runner: isolated_runner || windows_isolated_runner,
+                gate_build_target_dir,
+                gate_log_file,
+            },
+        ),
+        CiCmd::CudaReleaseBuild { log_dir } => run_cuda_release_build(&root, log_dir),
+        CiCmd::ToestubSelfApply => run_toestub_self_apply(&root),
         CiCmd::ToestubScoped {
             root: scan_root,
             mode,
@@ -117,7 +134,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             } else {
                 run_build_timings(&root, json, crates)
             }
-        }
+        },
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),

@@ -12,7 +12,9 @@ use crate::mens::tensor::backend_candle_qlora::CandleQloraBackend;
 use crate::mens::tensor::device::DeviceKind;
 use crate::mens::tensor::execution_planner::ExecutionPlanner;
 use crate::mens::tensor::finetune_contract::FineTuneContract;
-use crate::mens::tensor::preflight_train::preflight_for_contract;
+use crate::mens::tensor::preflight_train::{
+    TrainingPreflightRecord, preflight_for_contract, write_training_preflight_json,
+};
 use crate::mens::tensor::train_backend::PopuliTrainBackend;
 use crate::mens::tensor::training_config::LoraTrainingConfig;
 
@@ -34,6 +36,13 @@ pub fn run_mens_training(
     };
     let plan = planner.plan(&contract)?;
     preflight_for_contract(plan.kernel, &contract)?;
+
+    if let Some(out) = output_dir {
+        let preflight_path = out.join("training-preflight.json");
+        let record =
+            TrainingPreflightRecord::new(plan.contract_digest.clone(), plan.kernel, vec![]);
+        write_training_preflight_json(&preflight_path, &record)?;
+    }
 
     let mut cfg = config.clone();
     cfg.finetune_contract_digest = Some(plan.contract_digest.clone());

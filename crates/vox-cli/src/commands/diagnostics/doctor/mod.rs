@@ -16,6 +16,7 @@ pub async fn run(
     build_perf: bool,
     scope: bool,
     json: bool,
+    probe: bool,
 ) -> Result<()> {
     #[cfg(not(feature = "codex"))]
     if build_perf || scope || json {
@@ -25,15 +26,26 @@ pub async fn run(
         );
     }
 
-    println!(
-        "vox doctor — checking your environment{}",
-        if auto_heal {
-            " (auto-healing enabled)"
-        } else {
-            ""
+    if probe {
+        if build_perf || scope || json {
+            anyhow::bail!("`--probe` cannot be combined with --build-perf, --scope, or --json");
         }
-    );
-    println!();
+        if auto_heal || test_health {
+            anyhow::bail!("`--probe` cannot be combined with --auto-heal or --test-health");
+        }
+    }
+
+    if !probe {
+        println!(
+            "vox doctor — checking your environment{}",
+            if auto_heal {
+                " (auto-healing enabled)"
+            } else {
+                ""
+            }
+        );
+        println!();
+    }
 
     let mut checks: Vec<common::Check> = Vec::new();
 
@@ -51,6 +63,14 @@ pub async fn run(
 
     checks_standard::run_checks(auto_heal, test_health, &mut checks).await;
 
+    let failed = checks.iter().filter(|c| !c.pass).count();
+    if probe {
+        if failed > 0 {
+            anyhow::bail!("health probe: {failed} environment check(s) failed");
+        }
+        return Ok(());
+    }
+
     output::print_results(&checks, test_health, json);
 
     Ok(())
@@ -63,7 +83,7 @@ mod tests {
     #[tokio::test]
     #[cfg(not(feature = "codex"))]
     async fn extended_doctor_flags_require_codex_build() {
-        let err = run(false, false, true, false, false)
+        let err = run(false, false, true, false, false, false)
             .await
             .expect_err("build_perf without codex doctor should error");
         let s = err.to_string();
@@ -76,7 +96,7 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "codex")]
     async fn build_perf_runs_when_codex_enabled() {
-        let r = run(false, false, true, false, false).await;
+        let r = run(false, false, true, false, false, false).await;
         assert!(r.is_ok(), "expected build_perf path to complete: {r:?}");
     }
 }

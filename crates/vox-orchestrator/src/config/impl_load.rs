@@ -22,9 +22,8 @@ impl OrchestratorConfig {
     /// Looks for an `[orchestrator]` section in the given file.
     /// Returns the default config if the section is missing.
     pub fn load_from_toml(path: &Path) -> Result<Self, ConfigError> {
-        let content = crate::bounded_fs::read_utf8_path_capped(path).map_err(|e| {
-            ConfigError::Io(std::io::Error::other(e.to_string()))
-        })?;
+        let content = crate::bounded_fs::read_utf8_path_capped(path)
+            .map_err(|e| ConfigError::Io(std::io::Error::other(e.to_string())))?;
         let table: toml::Table = toml::from_str(&content).map_err(ConfigError::Parse)?;
 
         let mut config = if let Some(section) = table.get("orchestrator") {

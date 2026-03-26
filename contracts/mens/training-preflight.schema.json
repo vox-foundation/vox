@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/mens/training-preflight.schema.json",
+  "title": "Mens training preflight record (stub)",
+  "description": "F04: deterministic machine-readable preflight output — extend alongside FineTuneContract / planner fields.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string", "const": "vox.mens.preflight.v0" },
+    "contract_digest": { "type": "string" },
+    "execution_kernel": { "type": "string" },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["schema_version"]
+}

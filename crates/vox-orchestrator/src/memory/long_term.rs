@@ -31,9 +31,8 @@ impl LongTermMemory {
 
     /// Read all contents.
     pub fn read_all(&self) -> Result<String, MemoryError> {
-        crate::bounded_fs::read_utf8_path_capped(&self.path).map_err(|e| {
-            MemoryError::Io(std::io::Error::other(e.to_string()))
-        })
+        crate::bounded_fs::read_utf8_path_capped(&self.path)
+            .map_err(|e| MemoryError::Io(std::io::Error::other(e.to_string())))
     }
 
     /// Extract the body text under a `## key` heading.

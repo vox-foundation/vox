@@ -32,6 +32,9 @@ Vox **mens** is **opt-in at runtime**: default single-node behaviour is unchange
 | `VOX_MESH_MAX_STALE_MS` | Optional client-side staleness threshold (e.g. MCP mens snapshots); compare with `last_seen_unix_ms` from the control plane (see [orchestration unified SSOT](orchestration-unified.md)). |
 | `VOX_MESH_HTTP_JOIN` | When `0` / `false`, skip MCP **`vox-mcp`** HTTP **`POST /v1/populi/join`** even if a client-suitable control URL is set. Default: join when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all `http(s)://` base. |
 | `VOX_MESH_HTTP_HEARTBEAT_SECS` | Interval for MCP background **`POST /v1/populi/heartbeat`** after a successful join (`0` = join only, no loop). Default **30**. Uses **`VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS`** (min 500ms, default **15000**) for request timeouts. |
+| `VOX_MESH_HTTP_MAX_BODY_BYTES` | Optional cap on JSON request bodies for the HTTP control plane (allowed range per process **2 KiB … 8 MiB**; default **512 KiB**). Oversized bodies get **413 Payload Too Large**. |
+| `VOX_MESH_SERVER_STALE_PRUNE_MS` | Optional server-side filter for **`GET /v1/populi/nodes`**: omit nodes whose `last_seen_unix_ms` is older than this many milliseconds vs server wall clock. `0` / unset = list full registry (backward compatible). |
+| `VOX_MESH_A2A_MAX_MESSAGES` | Max in-memory A2A relay rows before oldest deliveries are dropped and the optional store file is rewritten (default **50 000**, clamped **1 … 500 000**). |
 
 ## Local registry file
 
@@ -56,7 +59,9 @@ For in-process tests or custom hosts, **`populi_http_app_with_auth`** + **`Popul
 
 There is no in-tree gossip TTL yet: treat **`last_seen_unix_ms`** as a hint only. On partition, nodes may disappear from the control-plane view after **`leave`** or process restart; **heartbeats** refresh liveness. For automation, compare `last_seen_unix_ms` to a wall-clock threshold and re-`join` after long gaps. Set **`VOX_MESH_MAX_STALE_MS`** (or rely on MCP snapshot filtering) to drop visibly stale rows client-side.
 
-**Heartbeats:** prefer a **≥ 15–30s** interval per node in steady state; sustained sub-second heartbeats can amplify load on shared control planes — add rate limits at the edge if operators observe abuse (no default middleware in-tree).
+**Heartbeats:** prefer a **≥ 15–30s** interval per node in steady state; sustained sub-second heartbeats can amplify load on shared control planes — add rate limits at the edge if operators observe abuse (no default middleware in-tree). On **429/503** or transport errors, clients should **back off exponentially** (jittered) before retrying join/heartbeat; never tight-loop against the control plane.
+
+**Idempotent joins:** repeating **`POST /v1/populi/join`** with the same `id` upserts the row — safe to retry after timeouts.
 
 ### Orchestrator federation (read-only) + experimental routing
 

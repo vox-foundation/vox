@@ -177,6 +177,137 @@ async fn join_ok_when_scope_matches() {
 
 #[tokio::test]
 #[allow(unsafe_code)]
+async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
+    let _guard = ENV_MUTEX.lock().expect("env lock");
+    let prev = std::env::var("VOX_MESH_SERVER_STALE_PRUNE_MS").ok();
+    unsafe {
+        std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5");
+    }
+
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let base = format!("http://{}", bound);
+    let client = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("stale-a".into(), None);
+    client.join(&node).await.unwrap();
+    assert_eq!(client.list_nodes().await.unwrap().nodes.len(), 1);
+
+    tokio::time::sleep(Duration::from_millis(40)).await;
+    let listed = client.list_nodes().await.unwrap();
+    assert!(
+        listed.nodes.is_empty(),
+        "expected stale node hidden after prune window"
+    );
+
+    server.abort();
+    unsafe {
+        match prev {
+            Some(v) => std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", v),
+            None => std::env::remove_var("VOX_MESH_SERVER_STALE_PRUNE_MS"),
+        }
+    }
+}
+
+#[tokio::test]
+#[allow(unsafe_code)]
+async fn a2a_deliver_respects_in_memory_cap() {
+    let _guard = ENV_MUTEX.lock().expect("env lock");
+    let prev = std::env::var("VOX_MESH_A2A_MAX_MESSAGES").ok();
+    unsafe {
+        std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3");
+    }
+
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let base = format!("http://{}", bound);
+    let http = reqwest::Client::new();
+    for i in 0..5 {
+        let r = http
+            .post(format!("{base}/v1/populi/a2a/deliver"))
+            .json(&serde_json::json!({
+                "sender_agent_id": "s",
+                "receiver_agent_id": "r",
+                "message_type": "t",
+                "payload": format!("{i}")
+            }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status(), reqwest::StatusCode::OK);
+    }
+    let inbox = http
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({ "receiver_agent_id": "r" }))
+        .send()
+        .await
+        .unwrap();
+    let body: serde_json::Value = inbox.json().await.unwrap();
+    let n = body["messages"].as_array().map_or(0, |a| a.len());
+    assert!(n <= 3, "expected cap 3, got {n}: {body:?}");
+
+    server.abort();
+    unsafe {
+        match prev {
+            Some(v) => std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", v),
+            None => std::env::remove_var("VOX_MESH_A2A_MAX_MESSAGES"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn oversized_json_body_returns_413() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let base = format!("http://{}", bound);
+    let pad = "x".repeat(600 * 1024);
+    let http = reqwest::Client::new();
+    let r = http
+        .post(format!("{base}/v1/populi/join"))
+        .json(&serde_json::json!({
+            "id": pad,
+            "capabilities": {},
+            "version": "test",
+            "last_seen_unix_ms": 0
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        r.status(),
+        reqwest::StatusCode::PAYLOAD_TOO_LARGE,
+        "expected 413 for oversized join body"
+    );
+
+    server.abort();
+}
+
+#[tokio::test]
+#[allow(unsafe_code)]
 async fn bootstrap_exchange_works_once() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
     let prev_bootstrap = std::env::var("VOX_MESH_BOOTSTRAP_TOKEN").ok();

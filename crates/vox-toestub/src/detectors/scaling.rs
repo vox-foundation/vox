@@ -2,6 +2,7 @@
 //!
 //! Suppressions: `// toestub-ignore(scaling)` or rule-specific `toestub-ignore(scaling/blocking-in-async)`.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use regex::Regex;
@@ -10,7 +11,33 @@ use vox_scaling_policy::ScalingPolicy;
 #[path = "scaling_support.rs"]
 mod scaling_support;
 
-use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
+use crate::analysis::RustFileContext;
+use crate::rules::{
+    DetectionRule, Finding, FindingConfidence, Language, Severity, SourceFile,
+    rust_byte_is_non_code,
+};
+
+fn substring_match_in_code(
+    file: &SourceFile,
+    line_num: usize,
+    line: &str,
+    needle: &str,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    line.match_indices(needle)
+        .any(|(i, _)| !rust_byte_is_non_code(file, line_num, i, rust_ctx))
+}
+
+fn regex_match_in_code(
+    file: &SourceFile,
+    line_num: usize,
+    line: &str,
+    re: &Regex,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    re.find(line)
+        .is_some_and(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
+}
 
 pub struct ScalingSurfacesDetector {
     policy: ScalingPolicy,
@@ -105,13 +132,19 @@ impl ScalingSurfacesDetector {
         scaling_support::detect_rust_syn_blockings(file, crate_allow)
     }
 
-    fn detect_rust_lines(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect_rust_lines(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&RustFileContext>,
+        fs_unbounded_ast_lines: &HashSet<usize>,
+    ) -> Vec<Finding> {
         if file.language != Language::Rust {
             return Vec::new();
         }
         let mut findings = Vec::new();
         let mut in_test_block = false;
         let test_attr = Regex::new(r"#\[(?:cfg\(test\)|test)\]").expect("valid");
+        let syn_ok = syn::parse_file(&file.content).is_ok();
 
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
@@ -137,7 +170,7 @@ impl ScalingSurfacesDetector {
             }
 
             if !self.line_suppressed(line, "scaling/path-literal")
-                && self.path_literal_re.is_match(line)
+                && regex_match_in_code(file, line_num, line, &self.path_literal_re, rust_ctx)
                 && !line.contains("DEFAULT_MENS_RUNS")
                 && !line.contains("vox_scaling_policy")
             {
@@ -155,10 +188,12 @@ impl ScalingSurfacesDetector {
                             .to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if self.magic_num_re.is_match(line)
+            if regex_match_in_code(file, line_num, line, &self.magic_num_re, rust_ctx)
                 && !self.line_suppressed(line, "scaling/magic-limit")
                 && !line.contains("const ")
                 && !line.contains("pub const")
@@ -179,12 +214,14 @@ impl ScalingSurfacesDetector {
                             .to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if line.contains("Regex::new(")
-                && !line.contains("LazyLock")
-                && !line.contains("OnceLock")
+            if substring_match_in_code(file, line_num, line, "Regex::new(", rust_ctx)
+                && !substring_match_in_code(file, line_num, line, "LazyLock", rust_ctx)
+                && !substring_match_in_code(file, line_num, line, "OnceLock", rust_ctx)
                 && !self.line_suppressed(line, "scaling/regex-new-hot")
             {
                 findings.push(Finding {
@@ -198,10 +235,16 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if line.contains("read_to_string(") && line.contains("std::fs") {
+            if !fs_unbounded_ast_lines.contains(&line_num)
+                && substring_match_in_code(file, line_num, line, "read_to_string(", rust_ctx)
+                && substring_match_in_code(file, line_num, line, "std::fs", rust_ctx)
+                && (!syn_ok || crate::run_context::feature_enabled("scaling-fs-heuristic-fallback"))
+            {
                 findings.push(Finding {
                     rule_id: "scaling/unbounded-read".to_string(),
                     rule_name: "Scaling — fs read_to_string".to_string(),
@@ -213,14 +256,19 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: Some(serde_json::json!({
+                        "why": "line heuristic (parse failed or scaling-fs-heuristic-fallback)",
+                        "evidence": ["line"]
+                    })),
                 });
             }
 
-            if (line.contains("read_to_string(")
-                || line.contains("std::fs::read(")
-                || line.contains("fs::read(")
-                || line.contains("OpenOptions::"))
-                && scaling_support::recent_line_starts_for_loop(&file.lines, i, 12)
+            if (substring_match_in_code(file, line_num, line, "read_to_string(", rust_ctx)
+                || substring_match_in_code(file, line_num, line, "std::fs::read(", rust_ctx)
+                || substring_match_in_code(file, line_num, line, "fs::read(", rust_ctx)
+                || substring_match_in_code(file, line_num, line, "OpenOptions::", rust_ctx))
+                && scaling_support::recent_line_starts_for_loop(&file.lines, i, 20)
                 && !self.line_suppressed(line, "scaling/cache-miss-hot-read")
             {
                 findings.push(Finding {
@@ -234,13 +282,17 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 2),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if let Some(cap) = self.vec_capacity_re.captures(line)
+            if let Some(m) = self.vec_capacity_re.find(line)
+                && !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+                && let Some(cap) = self.vec_capacity_re.captures(line)
                 && let Some(n) = cap
                     .get(1)
-                    .and_then(|m| scaling_support::parse_rust_usize_literal(m.as_str()))
+                    .and_then(|mm| scaling_support::parse_rust_usize_literal(mm.as_str()))
                 && n >= 100_000
                 && !self.line_suppressed(line, "scaling/large-in-memory-accumulator")
             {
@@ -256,10 +308,14 @@ impl ScalingSurfacesDetector {
                     ),
                     suggestion: None,
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if line.contains(".lines()") && line.contains("collect::<Vec") {
+            if substring_match_in_code(file, line_num, line, ".lines()", rust_ctx)
+                && substring_match_in_code(file, line_num, line, "collect::<Vec", rust_ctx)
+            {
                 findings.push(Finding {
                     rule_id: "scaling/lines-collect-vec".to_string(),
                     rule_name: "Scaling — lines().collect heap".to_string(),
@@ -274,13 +330,23 @@ impl ScalingSurfacesDetector {
                         self.policy.thresholds.corpus_validate_batch_lines
                     )),
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if line.contains("serde_json::from_str")
-                && line.contains("for ")
-                && (line.contains(" lines")
-                    || file.lines.get(i + 1).is_some_and(|l| l.contains("for ")))
+            if substring_match_in_code(file, line_num, line, "serde_json::from_str", rust_ctx)
+                && substring_match_in_code(file, line_num, line, "for ", rust_ctx)
+                && (substring_match_in_code(file, line_num, line, " lines", rust_ctx)
+                    || file.lines.get(i + 1).is_some_and(|l| {
+                        substring_match_in_code(
+                            file,
+                            line_num.saturating_add(1),
+                            l,
+                            "for ",
+                            rust_ctx,
+                        )
+                    }))
             {
                 findings.push(Finding {
                     rule_id: "scaling/repeated-json-parse".to_string(),
@@ -293,14 +359,16 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if line.contains(r#"""#)
-                && self.sql_select_re.is_match(line)
-                && self.sql_from_re.is_match(line)
-                && !self.sql_limit_re.is_match(line)
-                && (line.contains("SELECT") || line.contains("select"))
+            let sql_scan = scaling_support::sql_line_for_keyword_scan(line);
+            if substring_match_in_code(file, line_num, line, r#"""#, rust_ctx)
+                && self.sql_select_re.is_match(&sql_scan)
+                && self.sql_from_re.is_match(&sql_scan)
+                && !self.sql_limit_re.is_match(&sql_scan)
                 && !self.line_suppressed(line, "scaling/sql-no-limit")
             {
                 findings.push(Finding {
@@ -314,10 +382,15 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Medium),
+                    evidence: Some(serde_json::json!({
+                        "why": "SQL keyword scan after comment/string strip",
+                        "evidence": ["line", "sql_scan"]
+                    })),
                 });
             }
 
-            if self.client_new_re.is_match(line)
+            if regex_match_in_code(file, line_num, line, &self.client_new_re, rust_ctx)
                 && !self.line_suppressed(line, "scaling/http-client-no-timeout")
             {
                 findings.push(Finding {
@@ -331,13 +404,27 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
 
-            if line.contains("for ")
-                && line.contains(" 0..")
+            if substring_match_in_code(file, line_num, line, "for ", rust_ctx)
+                && substring_match_in_code(file, line_num, line, " 0..", rust_ctx)
                 && let Some(next) = file.lines.get(i + 1)
-                && (next.contains("(i + 1)..") || next.contains("(i+1).."))
+                && (substring_match_in_code(
+                    file,
+                    line_num.saturating_add(1),
+                    next,
+                    "(i + 1)..",
+                    rust_ctx,
+                ) || substring_match_in_code(
+                    file,
+                    line_num.saturating_add(1),
+                    next,
+                    "(i+1)..",
+                    rust_ctx,
+                ))
             {
                 findings.push(Finding {
                     rule_id: "scaling/nested-pairwise-loop".to_string(),
@@ -350,6 +437,8 @@ impl ScalingSurfacesDetector {
                         .to_string(),
                     suggestion: None,
                     context: file.context_around(line_num, 2),
+                    confidence: Some(FindingConfidence::Low),
+                    evidence: None,
                 });
             }
         }
@@ -357,6 +446,7 @@ impl ScalingSurfacesDetector {
         findings.extend(scaling_support::env_unwrap_or_duplicate_findings(
             file,
             &self.env_unwrap_or_re,
+            rust_ctx,
         ));
         findings
     }
@@ -383,9 +473,16 @@ impl DetectionRule for ScalingSurfacesDetector {
         &[Language::Rust]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
+        let fs_reads = scaling_support::fs_unbounded_read_findings(file);
+        let fs_lines: HashSet<usize> = fs_reads.iter().map(|f| f.line).collect();
         let mut out = self.detect_rust_syn(file);
-        out.extend(self.detect_rust_lines(file));
+        out.extend(fs_reads);
+        out.extend(self.detect_rust_lines(file, rust, &fs_lines));
         out
     }
 }

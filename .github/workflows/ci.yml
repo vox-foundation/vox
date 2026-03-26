@@ -58,6 +58,14 @@ jobs:
           cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
 
+      - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
+        env:
+          VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
+        run: |
+          set -euo pipefail
+          cargo run -p vox-toestub -q --bin toestub -- --mode audit --format json --min-severity info crates \
+            | python3 -c "import json,os,sys;m=int(os.environ['VOX_TOESTUB_MAX_RUST_PARSE_FAILURES']);v=json.load(sys.stdin);n=int(v.get('rust_parse_failures',0));((print(f'rust_parse_failures={n} exceeds cap {m}',file=sys.stderr),sys.exit(1)) if n>m else (print(f'rust_parse_failures={n} (cap {m}) OK'),sys.exit(0)))"
+
       - name: Doc inventory matches generator (Rust)
         run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
 
@@ -108,6 +116,11 @@ jobs:
 
       - name: Doc tests (not run by nextest)
         run: cargo test --workspace --doc
+
+      - name: Mens corpus mix (strict required sources)
+        run: |
+          bash scripts/ci/prep_mens_mix_inputs.sh
+          cargo run -p vox-cli --quiet -- mens corpus mix --config mens/config/mix.yaml
 
       - name: Populi CI gate matrix (single manifest)
         run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full

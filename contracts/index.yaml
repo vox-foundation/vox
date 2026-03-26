@@ -171,3 +171,57 @@ contracts:
     kind: json
     description: Incremental SQL write ownership audit placeholder (Rev C).
     enforced_by: []
+
+  - id: toestub-run-json-v1-schema
+    path: contracts/toestub/toestub-run-json.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: TOESTUB CLI JSON v1 envelope (findings + run telemetry).
+    enforced_by: []
+
+  - id: toestub-suppression-v1-schema
+    path: contracts/toestub/suppression.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Draft structured TOESTUB suppressions (owner, reason, expiry).
+    enforced_by: []
+
+  - id: toestub-prelude-allowlist-v1
+    path: contracts/toestub/prelude-allowlist.v1.json
+    owner: platform-ci
+    kind: json
+    description: Optional extra idents merged into unresolved-ref prelude allowlist at engine bootstrap.
+    enforced_by: []
+
+  - id: toestub-gold-dataset-v1-schema
+    path: contracts/toestub/gold-dataset.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Draft labeled cases for precision/recall evaluation.
+    enforced_by:
+      - vox ci scaling-audit verify
+
+  - id: toestub-gold-dataset-v1
+    path: contracts/toestub/gold-dataset.v1.json
+    owner: platform-ci
+    kind: json
+    description: Seed gold cases for TOESTUB harness (`cargo test -p vox-toestub --test gold_dataset`).
+    enforced_by:
+      - vox ci scaling-audit verify
+      - cargo test -p vox-toestub gold_dataset
+
+  - id: scaling-audit-findings-array-v1-schema
+    path: contracts/reports/scaling-audit/findings-array.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for bare findings array (findings-latest.json).
+    enforced_by:
+      - vox ci scaling-audit verify
+
+  - id: toestub-remediation-delta-v1-schema
+    path: contracts/reports/toestub-remediation/delta-after-remediation.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for remediation delta snapshot JSON.
+    enforced_by:
+      - vox ci scaling-audit verify

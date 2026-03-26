@@ -99,7 +99,10 @@ pub async fn upload_video(
             "title": title,
             "description": description,
             "tags": cfg.tags,
-            "categoryId": cfg.category_id.clone().unwrap_or_else(|| "28".to_string())
+            "categoryId": cfg
+                .category_id
+                .clone()
+                .unwrap_or_else(|| crate::contract::YOUTUBE_DEFAULT_CATEGORY_ID.to_string())
         },
         "status": {
             "privacyStatus": privacy_status(cfg)

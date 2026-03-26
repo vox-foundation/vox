@@ -323,6 +323,20 @@ pub enum PopuliAction {
         cloud: bool,
     },
 
+    /// Tail `train.err.log` + training JSONL telemetry (periodic summary; default poll 3s).
+    #[command(name = "watch-telemetry", visible_alias = "watch")]
+    WatchTelemetry {
+        /// Training telemetry JSONL path (`"event":"train"` lines).
+        #[arg(long, default_value = "target/dogfood/telemetry.jsonl")]
+        telemetry: std::path::PathBuf,
+        /// Engine stderr log path (build + runtime banners).
+        #[arg(long, default_value = "target/dogfood/train.err.log")]
+        err_log: std::path::PathBuf,
+        /// Poll interval in milliseconds.
+        #[arg(long, default_value_t = 3000)]
+        interval_ms: u64,
+    },
+
     #[cfg(feature = "gpu")]
     /// List all trained models in the local registry
     Models,

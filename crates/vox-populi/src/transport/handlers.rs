@@ -13,7 +13,7 @@ use super::store::{persist_a2a_store, scope_ok};
 use super::{
     A2AAckRequest, A2ADeliverRequest, A2ADeliverResponse, A2AInboxRequest, A2AInboxResponse,
     A2AStoredMessage, BootstrapExchangeRequest, BootstrapExchangeResponse, LeaveRequest,
-    PopuliRegistryFile, PopuliTransportState,
+    PopuliRegistryFile, PopuliTransportState, a2a_in_memory_cap, server_stale_prune_ms,
 };
 
 pub(super) async fn health() -> impl IntoResponse {
@@ -21,8 +21,13 @@ pub(super) async fn health() -> impl IntoResponse {
 }
 
 pub(super) async fn list_nodes(State(st): State<PopuliTransportState>) -> Json<PopuliRegistryFile> {
-    let g = st.inner.read().await;
-    Json(g.clone())
+    let mut g = st.inner.read().await.clone();
+    if let Some(window) = server_stale_prune_ms() {
+        let now = crate::now_ms();
+        g.nodes
+            .retain(|n| now.saturating_sub(n.last_seen_unix_ms) <= window);
+    }
+    Json(g)
 }
 
 pub(super) async fn join_node(
@@ -153,6 +158,11 @@ pub(super) async fn deliver_a2a(
         acknowledged: false,
     };
     let mut g = st.a2a_messages.write().await;
+    let cap = a2a_in_memory_cap();
+    if g.len() >= cap {
+        let drop = g.len() - cap + 1;
+        g.drain(0..drop);
+    }
     g.push(msg);
     if let Some(path) = st.a2a_store_path.as_ref() {
         let _ = persist_a2a_store(path, &g);

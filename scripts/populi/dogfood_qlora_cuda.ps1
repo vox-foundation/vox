@@ -2,7 +2,7 @@
 # Requires: `target/release/vox.exe` built with gpu,mens-candle-cuda (see cursor_background_cuda_build.ps1).
 #
 # Usage:
-#   pwsh scripts/mens/dogfood_qlora_cuda.ps1
+#   pwsh scripts/populi/dogfood_qlora_cuda.ps1
 #   Get-Content mens/runs/logs/train_*.log -Wait -Tail 25
 
 $ErrorActionPreference = "Stop"
@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 # Optional: $env:VOX_TRAIN_SKIP_CORPUS_MIX = "1"
 
-& $vox populi train `
+& $vox mens train `
     --backend qlora `
     --tokenizer hf `
     --preset qwen_4080_16g `
@@ -26,6 +26,7 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     --output-dir mens/runs/qwen25_qlora_dogfood `
     --device cuda `
     --qlora-require-full-proxy-stack `
+    --background `
     --log-dir $logDir
 
 Write-Host "If parent exited immediately, tail: Get-Content $logDir\train_*.log -Wait -Tail 25"

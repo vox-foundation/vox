@@ -1,7 +1,38 @@
-use serde_json;
+use std::collections::HashMap;
+
+use serde::Serialize;
+use serde_json::{self, json};
 
 use crate::rules::{Finding, Severity};
 use crate::task_queue::TaskQueue;
+
+/// Borrowed snapshot of an engine run (avoids `engine` ↔ `report` cycles).
+#[derive(Debug, Clone, Copy)]
+pub struct RunSnapshot<'a> {
+    pub findings: &'a [Finding],
+    pub files_scanned: usize,
+    pub rules_applied: usize,
+    pub rust_parse_failures: usize,
+    pub unresolved_ref_callee_counts: &'a HashMap<String, usize>,
+    pub suppressions_applied: usize,
+    pub suppression_counts_by_family: &'a HashMap<String, usize>,
+}
+
+/// JSON output wrapper (`format: json`) — includes findings and run telemetry (plan: report provenance).
+#[derive(Debug, Serialize)]
+pub struct ToestubJsonReportV1<'a> {
+    pub schema_version: u32,
+    pub tool_version: &'static str,
+    pub files_scanned: usize,
+    pub rules_applied: usize,
+    pub rust_parse_failures: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unresolved_ref_hot_callers: Option<serde_json::Value>,
+    pub suppressions_applied: usize,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub suppression_counts_by_family: HashMap<String, usize>,
+    pub findings: &'a [Finding],
+}
 
 /// Output format for the report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +66,19 @@ impl Reporter {
             OutputFormat::Terminal => Self::format_terminal(findings),
             OutputFormat::Json => Self::format_json(findings),
             OutputFormat::Markdown => Self::format_markdown(findings, task_queue),
+        }
+    }
+
+    /// Full run formatting (JSON includes telemetry envelope).
+    pub fn format_run(
+        run: RunSnapshot<'_>,
+        format: OutputFormat,
+        task_queue: &TaskQueue,
+    ) -> String {
+        match format {
+            OutputFormat::Terminal => Self::format_terminal(run.findings),
+            OutputFormat::Json => Self::format_json_run(run),
+            OutputFormat::Markdown => Self::format_markdown(run.findings, task_queue),
         }
     }
 
@@ -116,6 +160,38 @@ impl Reporter {
         serde_json::to_string_pretty(findings).unwrap_or_else(|_| "[]".to_string())
     }
 
+    fn format_json_run(run: RunSnapshot<'_>) -> String {
+        let mut pairs: Vec<(String, usize)> = run
+            .unresolved_ref_callee_counts
+            .iter()
+            .map(|(k, v)| (k.clone(), *v))
+            .collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        let hot: Vec<serde_json::Value> = pairs
+            .into_iter()
+            .take(25)
+            .map(|(callee, count)| json!({ "callee": callee, "count": count }))
+            .collect();
+        let unresolved_ref_hot_callers = if hot.is_empty() {
+            None
+        } else {
+            Some(serde_json::Value::Array(hot))
+        };
+        let supfam = run.suppression_counts_by_family.clone();
+        let env = ToestubJsonReportV1 {
+            schema_version: 1,
+            tool_version: env!("CARGO_PKG_VERSION"),
+            files_scanned: run.files_scanned,
+            rules_applied: run.rules_applied,
+            rust_parse_failures: run.rust_parse_failures,
+            unresolved_ref_hot_callers,
+            suppressions_applied: run.suppressions_applied,
+            suppression_counts_by_family: supfam,
+            findings: run.findings,
+        };
+        serde_json::to_string_pretty(&env).unwrap_or_else(|_| "{}".to_string())
+    }
+
     fn format_markdown(findings: &[Finding], task_queue: &TaskQueue) -> String {
         let mut out = String::new();
         out.push_str("## TOESTUB Findings\n\n");
@@ -185,6 +261,8 @@ mod tests {
                 message: "todo!() found".to_string(),
                 suggestion: Some("Implement the function.".to_string()),
                 context: String::new(),
+                confidence: None,
+                evidence: None,
             },
             Finding {
                 rule_id: "magic-value/port".to_string(),
@@ -196,6 +274,8 @@ mod tests {
                 message: "Hardcoded port".to_string(),
                 suggestion: None,
                 context: String::new(),
+                confidence: None,
+                evidence: None,
             },
         ]
     }
@@ -215,6 +295,34 @@ mod tests {
         let output = Reporter::format(&findings, OutputFormat::Json, &TaskQueue::empty());
         let parsed: Vec<Finding> = serde_json::from_str(&output).expect("valid JSON");
         assert_eq!(parsed.len(), 2);
+    }
+
+    #[test]
+    fn json_run_envelope_has_findings_and_telemetry() {
+        let findings = sample_findings();
+        let hot = HashMap::new();
+        let supfam = HashMap::new();
+        let out = Reporter::format_run(
+            RunSnapshot {
+                findings: &findings,
+                files_scanned: 3,
+                rules_applied: 7,
+                rust_parse_failures: 1,
+                unresolved_ref_callee_counts: &hot,
+                suppressions_applied: 0,
+                suppression_counts_by_family: &supfam,
+            },
+            OutputFormat::Json,
+            &TaskQueue::empty(),
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["schema_version"], 1);
+        assert_eq!(v["files_scanned"], 3);
+        assert_eq!(v["rules_applied"], 7);
+        assert_eq!(v["rust_parse_failures"], 1);
+        assert_eq!(v["suppressions_applied"], 0);
+        assert!(v["findings"].is_array());
+        assert_eq!(v["findings"].as_array().unwrap().len(), 2);
     }
 
     #[test]

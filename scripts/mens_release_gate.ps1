@@ -1,26 +1,4 @@
 # Windows-safe delegate for `vox ci mens-gate --profile m1m4`.
-# Uses an isolated target dir and temp-copied vox.exe to avoid file-lock collisions.
+# Pass -Detach for agent-friendly background gate runs (see scripts/populi/mens_gate_safe.ps1).
 $ErrorActionPreference = "Stop"
-Set-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
-
-$cargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe"
-if (-not (Test-Path $cargo)) { $cargo = "cargo" }
-$targetDir = Join-Path (Get-Location) "target\mens-gate-safe"
-
-& $cargo build -p vox-cli --target-dir $targetDir --quiet
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-$vox = Join-Path $targetDir "debug\vox.exe"
-if (-not (Test-Path $vox)) {
-  throw "vox gate binary not found: $vox"
-}
-
-$tmpVox = Join-Path ([System.IO.Path]::GetTempPath()) ("vox-gate-" + [Guid]::NewGuid().ToString("N") + ".exe")
-Copy-Item $vox $tmpVox -Force
-try {
-  & $tmpVox ci mens-gate --profile m1m4
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
-finally {
-  Remove-Item $tmpVox -ErrorAction SilentlyContinue
-}
+& (Join-Path $PSScriptRoot "populi\mens_gate_safe.ps1") -Profile m1m4 @args

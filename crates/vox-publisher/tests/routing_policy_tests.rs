@@ -119,3 +119,64 @@ async fn worthiness_floor_blocks_channel_when_score_too_low() {
         .unwrap_or_default();
     assert!(reason.starts_with("worthiness_below_floor"));
 }
+
+#[tokio::test]
+async fn distribution_retry_and_rate_limit_profiles_surface_in_decision_reasons() {
+    let mut item = base_item();
+    item.syndication.distribution_policy = DistributionPolicyConfig {
+        retry_profile: Some("  expo-backoff  ".to_string()),
+        rate_limit_profile: Some("conservative".to_string()),
+        ..item.syndication.distribution_policy.clone()
+    };
+    let out = Publisher::new(PublisherConfig::default())
+        .publish_all(&item)
+        .await
+        .expect("publish");
+    assert_eq!(
+        out.decision_reasons.get("retry_profile").map(String::as_str),
+        Some("expo-backoff")
+    );
+    assert_eq!(
+        out.decision_reasons
+            .get("rate_limit_profile")
+            .map(String::as_str),
+        Some("conservative")
+    );
+}
+
+#[tokio::test]
+async fn crates_io_modeled_channel_emits_dry_run_when_enabled() {
+    let mut item = base_item();
+    item.syndication.crates_io = Some(vox_publisher::types::CratesIoConfig {
+        crates_to_update: vec!["vox-cli".to_string()],
+    });
+    let out = Publisher::new(PublisherConfig::default())
+        .publish_all(&item)
+        .await
+        .expect("publish");
+    assert!(matches!(out.crates_io, ChannelOutcome::DryRun { .. }));
+}
+
+#[cfg(not(feature = "scientia-youtube"))]
+#[tokio::test]
+async fn youtube_feature_disabled_uses_disabled_reason_not_failure() {
+    let mut item = base_item();
+    item.syndication.youtube = Some(vox_publisher::types::YouTubeConfig {
+        video_asset_ref: "videos/demo.mp4".to_string(),
+        title_override: None,
+        description_override: None,
+        tags: vec![],
+        category_id: None,
+        privacy_status: vox_publisher::types::YouTubePrivacyStatus::Private,
+        notify_subscribers: false,
+    });
+    let out = Publisher::new(PublisherConfig::default())
+        .publish_all(&item)
+        .await
+        .expect("publish");
+    assert!(matches!(out.youtube, ChannelOutcome::Disabled));
+    assert_eq!(
+        out.decision_reasons.get("youtube").map(String::as_str),
+        Some("feature_disabled:scientia-youtube")
+    );
+}

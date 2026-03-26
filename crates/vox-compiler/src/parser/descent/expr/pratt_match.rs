@@ -3,7 +3,7 @@
 use super::super::Parser;
 use crate::ast::expr::{Arg, Expr, MatchArm, UnOp};
 use crate::lexer::token::Token;
-use crate::parser::error::ParseError;
+use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
     pub(crate) fn parse_primary(&mut self) -> Result<Expr, ()> {
@@ -136,11 +136,12 @@ impl Parser {
                 Expr::Ident { name, span: start }
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     start,
                     format!("Unexpected token in expression: {}", self.peek()),
                     vec![],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Expression,
                 ));
                 return Err(());
             }

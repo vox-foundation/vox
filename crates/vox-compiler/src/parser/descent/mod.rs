@@ -10,7 +10,7 @@ use crate::ast::decl::*;
 use crate::ast::span::Span;
 use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
-use crate::parser::error::ParseError;
+use crate::parser::error::{ParseError, ParseErrorClass};
 
 /// Strict parse: returns [`Module`] or **all** accumulated [`ParseError`] values.
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
@@ -61,11 +61,12 @@ impl Parser {
             self.advance();
             Ok(sp)
         } else {
-            self.errors.push(ParseError::new(
+            self.errors.push(ParseError::classified(
                 self.span(),
                 format!("Expected {expected}, found {}", self.peek()),
                 vec![expected.to_string()],
                 Some(self.peek().to_string()),
+                ParseErrorClass::ExpectToken,
             ));
             Err(())
         }
@@ -164,11 +165,12 @@ impl Parser {
                     }
                     Token::TypeKw => self.parse_typedef(true),
                     _ => {
-                        self.errors.push(ParseError::new(
+                        self.errors.push(ParseError::classified(
                             self.span(),
                             "Expected fn or type after pub",
                             vec!["fn".into(), "type".into()],
                             Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
                         ));
                         Err(())
                     }
@@ -183,11 +185,12 @@ impl Parser {
             Token::AtIndex => self.parse_index(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     format!("Unexpected token at top level: {}", self.peek()),
                     vec!["fn".into(), "import".into(), "type".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::TopLevel,
                 ));
                 Err(())
             }

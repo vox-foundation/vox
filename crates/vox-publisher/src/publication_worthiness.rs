@@ -1,5 +1,7 @@
 //! Machine-readable publication-worthiness policy (`contracts/scientia/*.yaml`) and evaluation.
 
+use std::path::Path;
+
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
@@ -299,6 +301,27 @@ fn aggregate_score(c: &PublicationWorthinessContract, inputs: &WorthinessInputs)
         + c.weights.novelty * inputs.novelty
         + c.weights.reliability * inputs.reliability
         + c.weights.metadata_policy * inputs.metadata_policy
+}
+
+/// Aggregate worthiness score for [`crate::PublisherConfig::worthiness_score`] (per-channel policy floors).
+///
+/// Matches the orchestrator news service probe: default contract under `repo_root`, [`PreflightProfile::Default`].
+pub fn worthiness_score_for_publication_manifest(
+    manifest: &crate::publication::PublicationManifest,
+    repo_root: &Path,
+) -> Result<f64> {
+    let path = repo_root.join(DEFAULT_CONTRACT_REL_PATH);
+    let yaml = crate::bounded_fs::read_utf8_path_capped(&path)
+        .with_context(|| format!("read worthiness contract {}", path.display()))?;
+    let contract = load_contract_from_str(&yaml)?;
+    validate_contract_invariants(&contract)?;
+    let preflight = crate::publication_preflight::run_preflight(
+        manifest,
+        crate::publication_preflight::PreflightProfile::Default,
+    );
+    let inputs =
+        crate::publication_preflight::worthiness_inputs_from_manifest_and_preflight(manifest, &preflight);
+    Ok(evaluate_worthiness(&contract, &inputs).worthiness_score)
 }
 
 #[cfg(test)]

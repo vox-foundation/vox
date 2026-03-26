@@ -199,7 +199,17 @@ pub async fn run_train(
     }
 
     let context_filter = context_filter.or_else(|| adapter_tag.clone());
-    if let Some(ref log_dir) = log_dir {
+    let spawn_log_dir = if background {
+        Some(log_dir.clone().unwrap_or_else(|| {
+            workspace_root
+                .as_ref()
+                .map(|r| r.join("mens/runs/logs"))
+                .unwrap_or_else(|| PathBuf::from("mens/runs/logs"))
+        }))
+    } else {
+        log_dir.clone()
+    };
+    if let Some(ref log_dir) = spawn_log_dir {
         return crate::commands::schola::train::spawn_train_with_log(log_dir.clone());
     }
     let deployment_target = if preset.as_deref() == Some("mobile_edge") {

@@ -31,7 +31,7 @@ The **`vox`** executable is built from `crates/vox-cli` (repository root). This 
 
 Design rules and registry parity: [`cli-design-rules.md`](#), [`command-compliance.md`](command-compliance.md).
 
-**Environment variables:** canonical names and precedence — [`reference/env-vars.md`](env-vars.md) (alias: [`ref/env-vars.md`](env-vars.md)).
+**Environment variables:** canonical names and precedence — [`reference/env-vars.md`](env-vars.md) (alias: [`ref/env-vars.md`](../ref/env-vars.md)).
 
 ## Build & run
 
@@ -109,10 +109,12 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `feature-matrix` / `no-vox-dei-import` | `vox-cli` compile matrix + import guard |
 | `workflow-scripts` | Fail if `.github/workflows/*.yml` references `scripts/…` not in `docs/agents/workflow-script-allowlist.txt` |
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
-| `mens-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/mens/gates.yaml` steps |
+| `mens-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/populi/gates.yaml` steps (CLI falls back to `scripts/mens/gates.yaml` if present). **`--isolated-runner`** builds `vox-cli` under `target/mens-gate-safe` (override `--gate-build-target-dir`), copies `vox` to a temp path, and re-invokes the gate (**Windows + Unix**; avoids file locks). Hidden alias: `--windows-isolated-runner`. Optional `--gate-log-file <path>` tees child output. |
+| `toestub-self-apply` | `cargo build -p vox-toestub --release` then full-repo `toestub` scan (replaces `scripts/toestub_self_apply.*`) |
 | `toestub-scoped` | Default scan `crates/vox-repository` |
 | `scaling-audit verify \| emit-reports` | Scaling SSOT: validate `contracts/scaling/policy.yaml`; `emit-reports` regenerates per-crate backlog markdown + rollup + TOESTUB JSON on `crates/` |
 | `cuda-features` | Optional CUDA compile checks when `nvcc` exists |
+| `cuda-release-build` | `cargo build -p vox-cli --bin vox --release --features gpu,mens-candle-cuda` with tee to `mens/runs/logs/cuda_build_<UTC>.log` (same intent as workspace alias **`cargo vox-cuda-release`** / `scripts/populi/cursor_background_cuda_build.ps1`; needs nvcc + MSVC toolchain on Windows) |
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, `vox-cli --features oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
@@ -207,7 +209,7 @@ Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podm
 
 | Build | Flags |
 |-------|--------|
-| **Default** | `--auto-heal`, `--test-health` |
+| **Default** | `--auto-heal`, `--test-health`, **`--probe`** (OCI healthcheck: exit non-zero if any default check fails; no banner) |
 | **`--features codex`** | Also `--build-perf`, `--scope`, `--json` (extended doctor in `commands::diagnostics::doctor`) |
 
 Build: `cargo build -p vox-cli --features codex` for the extended path.
@@ -226,7 +228,7 @@ Local **VoxDB** inspection and research helpers (`crates/vox-cli/src/commands/db
 
 `vox db prune-plan` prints JSON counts for rows older than policy thresholds (`contracts/db/retention-policy.yaml`). `vox db prune-apply --i-understand` runs matching `DELETE`s.
 
-Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` / `import`, `vacuum`, `pref-get` / `pref-set` / `pref-list`, plus research flows (`research-ingest-url`, `research-list`, `capability-list`, …). Publication operator controls: `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. Run `vox db --help` for the full tree.
+Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` / `import`, `vacuum`, `pref-get` / `pref-set` / `pref-list`, plus research flows (`research-ingest-url`, `research-list`, `capability-list`, …). Publication operator controls: `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. **`publication-publish`** enforces the same live gate as other surfaces when `--dry-run` is off: VoxDb with two digest approvers and `VOX_NEWS_PUBLISH_ARMED=1` (or orchestrator publish_armed is not read by this path); successful live runs update manifest state to `published` / `publish_failed` like MCP/orchestrator. Run `vox db --help` for the full tree.
 
 ### `vox scientia`
 
@@ -244,6 +246,7 @@ Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` /
   - `vox scientia publication-status --publication-id <id>`
 
 Connection resolution matches `vox db` (`VOX_DB_*`, …). The publication flow uses digest-bound dual approvals before scholarly submission.
+For architecture/lingo and multi-platform routing internals, see `docs/src/architecture/voxgiantia-publication-architecture.md`.
 
 ### `vox codex`
 
@@ -299,6 +302,8 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 
 **CI / parity:** prefer **`vox ci toestub-scoped`** (default scan root `crates/vox-repository`) — same policy surface as GitHub Actions. Use **`vox stub-check …`** for interactive or repo-wide scans when you need clap flags (format, baselines, Ludus, etc.). Optional thin shell: `scripts/quality/toestub_scoped.sh` delegates to `vox ci toestub-scoped`; the standalone **`toestub`** crate binary remains available for advanced tooling.
 
+**`toestub` binary (crate `vox-toestub`):** besides `--mode`, `--format`, `--canary-crates`, and `--suppressions`, the rollout surface includes **`--tests-mode`** (`off` \| `include` \| `strict`, default `off` — skips noisy unresolved-ref under `.../tests/...` when `off`), **`--prelude-allowlist`** (JSON per `contracts/toestub/prelude-allowlist.v1.json`), and **`--feature-flags`** (comma-separated, e.g. `unwired-graph`, `scaling-fs-heuristic-fallback`).
+
 ### `vox architect` (features `stub-check` or `codex`)
 
 **Not in default builds.** Requires `cargo build -p vox-cli --features stub-check` and/or `--features codex` (same feature gates as `commands::diagnostics`). Subcommands: **`check`** (workspace layout vs `vox-schema.json`), **`fix-sprawl`** (`--apply` to move misplaced crates), **`analyze`** (optional path, default `.` — god-object scan via TOESTUB; **needs `--features stub-check`**; with `codex` only, the command is available but **`analyze` exits with a hint to add `stub-check`**). Implementation: `crates/vox-cli/src/commands/diagnostics/tools/architect.rs`.
@@ -313,7 +318,7 @@ Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited.
 
 ## Mens / DeI (feature-gated)
 
-**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA entry; alias to **`vox schola train`**), **`vox schola train`**, **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`** (alias **`vox schola merge-qlora`**), **`vox schola merge-qlora`**, **`vox mens eval-local`**.
+**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA entry; alias to **`vox schola train`**), **`vox schola train`**, **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`** (alias **`vox schola merge-qlora`**), **`vox schola merge-qlora`**, **`vox mens eval-local`**.
 
 With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox oratio`** (alias **`vox speech`**) requires **`--features oratio`** (STT stack; separate from the **`mens`** command tree). **Native train** / **probe** / **merge-weights** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-mens`** binary inserts the **`mens`** subcommand only — use **`vox oratio`** for speech. `cargo build -p vox-cli --features mens-base`; add **`oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP completions) is **not** in the default feature set — build with **`cargo build -p vox-cli --features execution-api`** (see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 

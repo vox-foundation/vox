@@ -1,4 +1,5 @@
 use super::ScalingSurfacesDetector;
+use crate::analysis::RustFileContext;
 use crate::rules::{DetectionRule, SourceFile};
 use std::path::PathBuf;
 
@@ -12,7 +13,7 @@ fn detects_blocking_fs_in_async() {
         "}\n",
     );
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
-    let findings = d.detect(&f);
+    let findings = d.detect(&f, None);
     assert!(
         findings
             .iter()
@@ -33,7 +34,7 @@ mod tests {
 }
 "#;
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
-    let findings = d.detect(&f);
+    let findings = d.detect(&f, None);
     assert!(
         !findings
             .iter()
@@ -53,7 +54,7 @@ fn detects_read_in_loop_heuristic() {
         "}\n",
     );
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
-    let findings = d.detect(&f);
+    let findings = d.detect(&f, None);
     assert!(
         findings
             .iter()
@@ -67,11 +68,28 @@ fn detects_large_vec_capacity() {
     let d = ScalingSurfacesDetector::new();
     let code = r#"pub fn buf() -> Vec<u8> { Vec::with_capacity(250_000) }"#;
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
-    let findings = d.detect(&f);
+    let findings = d.detect(&f, None);
     assert!(
         findings
             .iter()
             .any(|x| x.rule_id == "scaling/large-in-memory-accumulator"),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn skips_regex_new_inside_string_literal() {
+    let d = ScalingSurfacesDetector::new();
+    let code = r##"fn demo() {
+    let _ = "Regex::new(\".*\") also in docs";
+}"##;
+    let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
+    let ctx = RustFileContext::parse(&f.content);
+    let findings = d.detect(&f, Some(&ctx));
+    assert!(
+        !findings
+            .iter()
+            .any(|x| x.rule_id == "scaling/regex-new-hot"),
         "{findings:?}"
     );
 }
@@ -84,7 +102,7 @@ fn a() { let _ = std::env::var("X").unwrap_or("same_default"); }
 fn b() { let _ = std::env::var("Y").unwrap_or("same_default"); }
 "#;
     let f = SourceFile::new(PathBuf::from("crates/demo/src/lib.rs"), code.to_string());
-    let findings = d.detect(&f);
+    let findings = d.detect(&f, None);
     assert!(
         findings
             .iter()

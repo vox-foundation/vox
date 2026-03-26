@@ -188,6 +188,8 @@ Do not explain your reasoning. Only output findings or CLEAN."#,
                 } else {
                     String::new()
                 },
+                confidence: None,
+                evidence: None,
             });
         }
 

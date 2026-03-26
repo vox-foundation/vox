@@ -31,7 +31,28 @@ pub enum Severity {
     Warning,
 }
 
-/// A structured diagnostic emitted by the type Checker.
+/// Which compiler / pipeline stage produced a diagnostic (taxonomy for tooling and docs).
+///
+/// See `docs/src/reference/diagnostic-taxonomy.md`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticCategory {
+    /// Surface parse failures (typically surfaced before HIR).
+    Parse,
+    /// AST → HIR lowering or IR-shape issues not covered by type rules.
+    Lowering,
+    /// Principal type checker / inference (default for historical diagnostics).
+    #[default]
+    Typecheck,
+    /// Structural HIR invariants ([`crate::hir::validate::validate_module`]).
+    HirInvariant,
+    /// Host / runtime contracts (embed checks, deploy guards).
+    RuntimeContract,
+    /// Optional lints and style rules.
+    Lint,
+}
+
+/// A structured diagnostic emitted by the type checker and related frontend passes.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Diagnostic {
     pub severity: Severity,
@@ -42,6 +63,9 @@ pub struct Diagnostic {
     /// Optional source snippet for autofix / IDE.
     pub context: Option<String>,
     pub suggestions: Vec<String>,
+    /// Origin category for filtering, metrics, and LSP `code` mapping.
+    #[serde(default)]
+    pub category: DiagnosticCategory,
 }
 
 impl Diagnostic {
@@ -56,6 +80,7 @@ impl Diagnostic {
             found_type: None,
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
+            category: DiagnosticCategory::Typecheck,
         }
     }
 
@@ -70,6 +95,22 @@ impl Diagnostic {
             found_type: None,
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
+            category: DiagnosticCategory::Typecheck,
+        }
+    }
+
+    /// HIR structural invariant violation (after lowering).
+    #[must_use]
+    pub fn hir_invariant(message: String, span: Span, source: &str) -> Self {
+        Self {
+            severity: Severity::Error,
+            message,
+            span,
+            expected_type: None,
+            found_type: None,
+            context: Some(Self::capture_context(source, span)),
+            suggestions: vec![],
+            category: DiagnosticCategory::HirInvariant,
         }
     }
 

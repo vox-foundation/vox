@@ -34,6 +34,8 @@ fn to_finding(item: &NormalizedReviewItem) -> Finding {
         message,
         suggestion: item.suggested_fix.clone(),
         context: String::new(),
+        confidence: None,
+        evidence: None,
     }
 }
 

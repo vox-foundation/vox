@@ -2,7 +2,7 @@
 title: "How To: Train Mens on RTX 4080 Super"
 description: "Official documentation for How To: Train Mens on RTX 4080 Super for the Vox language. Detailed technical reference, architecture guides"
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
 
@@ -41,7 +41,7 @@ This runbook covers **two** native paths:
 3. **Corpus**: refresh `train.jsonl` or set **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the mix step is unnecessary.
 4. **Run**: canonical QLoRA command from above with **`--log-dir mens/runs/logs`** (or your path); tail the log.
 5. **Acceptance**: first log lines show **finite** loss; optional **`--qlora-ce-last-k 4`** for a stronger suffix LM signal (see SSOT).
-6. Thin wrapper (optional): [`scripts/mens/dogfood_qlora_cuda.ps1`](../../../scripts/mens/dogfood_qlora_cuda.ps1).
+6. Thin wrapper (optional): [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1).
 
 - **Merge (Candle)**: `vox schola merge-qlora …` produces **f32 safetensors** subsets — not Burn `*.bin`. **`vox mens serve` (Burn)** loads LoRA or merged **Burn** checkpoints; it does **not** load Candle merge-qlora safetensors. For querying merged QLoRA weights, use an external stack (e.g. export to HF/Ollama) or keep the **adapter** path your inference tool supports.
 
@@ -89,11 +89,11 @@ Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny d
    ```
    If this fails, fix `vox-cli` compile errors before training.
 
-2. **Mix** into the default mix output path:
+2. **Mix** into the default mix output path (strict: all non-optional sources must exist and contribute rows):
    ```powershell
    .\target\release\vox.exe mens corpus mix --config mens/config/mix.yaml
    ```
-   Writes `target/dogfood/train_mixed.jsonl` per mix config.
+   Writes `target/dogfood/train_mixed.jsonl` per mix config plus **`target/dogfood/train_mixed.mix_report.json`**. If your tree is missing generated files, use **`--allow-missing-sources`** once (same as legacy warn-only mix) or run the corpus pipeline stages first.
 
 3. **Point training** at that file as `train.jsonl` (preflight requires this exact name inside `--data-dir`):
    ```powershell
@@ -101,7 +101,7 @@ Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny d
    Copy-Item -Force target/dogfood/train_mixed.jsonl target/dogfood/train.jsonl
    ```
 
-4. **Train (Qwen + Candle QLoRA)** with the **`qwen_4080_16g`** preset (16GB-oriented; see [preset_schema.rs](../../../crates/vox-mens/src/tensor/preset_schema.rs)):
+4. **Train (Qwen + Candle QLoRA)** with the **`qwen_4080_16g`** preset (16GB-oriented; see SSOT [mens-training.md](../reference/mens-training.md)):
    ```powershell
    .\target\release\vox.exe mens train `
      --backend qlora --tokenizer hf `
@@ -110,9 +110,11 @@ Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny d
      --data-dir target/dogfood `
      --output-dir mens/runs/rtx4080_full `
      --device cuda `
-     --log-dir mens/runs/logs
+     --background
    ```
-   Tail `mens/runs/logs/train_*.log` until epochs complete. On OOM, use `--preset safe` / `4080_safe`, lower `--seq-len`, raise `--grad-accum`, lower `--rank`, or set `VOX_CANDLE_DEVICE=cpu` (slow).
+   **`--background`** alone attaches logs under **`mens/runs/logs`** (repo root when detected) and returns immediately; equivalent to **`--log-dir mens/runs/logs`**. On Windows the child process is spawned with **breakaway-from-job** flags to reduce IDE teardown killing the trainer. Tail: **`Get-Content mens/runs/logs/train_*.log -Wait -Tail 25`**. Alternatives: **`vox schola train … --background`**, or **`pwsh scripts/populi/release_training_gate.ps1`** only for CI gates (not full training).
+
+   On OOM, use `--preset safe` / `4080_safe`, lower `--seq-len`, raise `--grad-accum`, lower `--rank`, or set `VOX_CANDLE_DEVICE=cpu` (slow).
 
 ## First Training Run (Native)
 
@@ -167,6 +169,8 @@ uv run --project scripts render-model-card --run-dir mens/runs/v1
 ## Dogfood operator checklist (real corpus, 4080 QLoRA)
 
 Use this before claiming a full dogfood run is complete (CI cannot substitute for your GPU box).
+
+**Cursor / agents:** full **`vox ci mens-gate`** can exceed tool timeouts — use **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** and tail **`target/mens-gate-logs/`** (see [mens-training.md](../reference/mens-training.md)).
 
 1. **Corpus**: `mens corpus mix --config mens/config/mix.yaml` → copy/rename to **`target/dogfood/train.jsonl`** (preflight requires that filename in `--data-dir`).
 2. **Build**: **`cargo vox-cuda-release`** natively from a `vcvars64.bat` loaded interactive terminal (`nvcc` relies on absolute discovery and crashes in subshells).

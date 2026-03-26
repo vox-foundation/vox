@@ -13,6 +13,7 @@ async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::Result<()> {
         args.build_perf,
         args.scope,
         args.json,
+        args.probe,
     )
     .await
 }

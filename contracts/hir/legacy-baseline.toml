@@ -1,0 +1,24 @@
+# HIR legacy_ast_nodes baseline (modernization program)
+#
+# Incrementally tighten: when a declaration kind gains a dedicated Hir* vector,
+# remove it from "expected in legacy" and add a regression test.
+#
+# last_reviewed: 2026-03-25
+
+[expectations]
+# Declaration kinds that must NOT appear in legacy_ast_nodes when alone in a module
+# (enforced by targeted unit tests; see docs/src/reference/hir-legacy-inventory.md).
+graduated = [
+  "Table",
+  "Index",
+  "Collection",
+  "VectorIndex",
+  "SearchIndex",
+  "Function",
+  "ReactiveComponent",
+  "HttpRoute",
+  "ServerFn",
+  "Workflow",
+  "Activity",
+  "Actor",
+]

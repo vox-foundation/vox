@@ -8,6 +8,7 @@ pub mod publication_worthiness;
 pub mod scholarly;
 pub mod scientia_evidence;
 pub mod scientific_metadata;
+pub mod switching;
 pub mod templates;
 pub mod topic_packs;
 pub mod types;
@@ -60,11 +61,12 @@ fn policy_block_reason(
     channel: &str,
     cfg: &PublisherConfig,
 ) -> Option<String> {
-    let p = item
-        .syndication
-        .distribution_policy
-        .channel_policy
-        .get(channel)?;
+    let map = &item.syndication.distribution_policy.channel_policy;
+    let p = map.get(channel).or_else(|| {
+        map.iter()
+            .find(|(k, _)| k.trim().eq_ignore_ascii_case(channel))
+            .map(|(_, v)| v)
+    })?;
     if p.enabled == Some(false) {
         return Some("policy_disabled".to_string());
     }
@@ -127,6 +129,8 @@ pub struct PublisherConfig {
     pub opencollective_graphql_url: Option<String>,
     pub twitter_text_chunk_max: Option<usize>,
     pub twitter_truncation_suffix: Option<String>,
+    pub twitter_summary_margin_chars: Option<usize>,
+    pub reddit_selfpost_summary_max: Option<usize>,
     pub reddit_client_id: Option<String>,
     pub reddit_client_secret: Option<String>,
     pub reddit_refresh_token: Option<String>,
@@ -136,6 +140,7 @@ pub struct PublisherConfig {
     pub youtube_refresh_token: Option<String>,
     pub youtube_repo_root: Option<std::path::PathBuf>,
     pub hacker_news_mode: Option<String>,
+    pub youtube_default_category_id: Option<String>,
     pub worthiness_score: Option<f64>,
 }
 
@@ -153,6 +158,8 @@ impl Default for PublisherConfig {
             opencollective_graphql_url: None,
             twitter_text_chunk_max: None,
             twitter_truncation_suffix: None,
+            twitter_summary_margin_chars: None,
+            reddit_selfpost_summary_max: None,
             reddit_client_id: None,
             reddit_client_secret: None,
             reddit_refresh_token: None,
@@ -162,6 +169,7 @@ impl Default for PublisherConfig {
             youtube_refresh_token: None,
             youtube_repo_root: None,
             hacker_news_mode: None,
+            youtube_default_category_id: None,
             worthiness_score: None,
         }
     }
@@ -172,9 +180,13 @@ impl Default for PublisherConfig {
 /// Used by [`PublisherConfig::clear_route_simulation_env_overrides`] so route-simulation tests stay
 /// deterministic when the shell exports news/social tokens.
 pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
+    "VOX_NEWS_SITE_BASE_URL",
+    "VOX_NEWS_RSS_FEED_PATH",
     "VOX_NEWS_TWITTER_TOKEN",
     "VOX_NEWS_GITHUB_TOKEN",
     "VOX_NEWS_OPENCOLLECTIVE_TOKEN",
+    "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
+    "VOX_NEWS_TWITTER_TRUNCATION_SUFFIX",
     "VOX_SOCIAL_REDDIT_CLIENT_ID",
     "VOX_SOCIAL_REDDIT_CLIENT_SECRET",
     "VOX_SOCIAL_REDDIT_REFRESH_TOKEN",
@@ -183,9 +195,23 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_SOCIAL_YOUTUBE_CLIENT_SECRET",
     "VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN",
     "VOX_SOCIAL_HN_MODE",
+    "VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS",
+    "VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX",
+    "VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID",
+    "VOX_SCHOLARLY_ADAPTER",
+    "VOX_SOCIAL_WORTHINESS_ENFORCE",
+    "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
 ];
 
 impl PublisherConfig {
+    #[inline]
+    fn syndication_secret(id: vox_clavis::SecretId) -> Option<String> {
+        vox_clavis::resolve_secret(id)
+            .expose()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    }
+
     /// Unset process env vars that influence [`Self::from_operator_environment`] (for tests).
     pub fn clear_route_simulation_env_overrides() {
         for &key in ROUTE_SIMULATION_ENV_KEYS {
@@ -198,9 +224,11 @@ impl PublisherConfig {
 
     /// Build a publisher config for operator surfaces (`vox db publication-*`, MCP Scientia tools).
     ///
-    /// Loads optional credentials from the standard `VOX_NEWS_*` / `VOX_SOCIAL_*` environment keys
-    /// and applies the given [`NewsSiteConfig`] (CLI typically uses [`NewsSiteConfig::default`];
-    /// MCP may override `base_url` from orchestrator config).
+    /// Resolves syndication credentials through Clavis (`vox_clavis::resolve_secret`) for the standard
+    /// `VOX_NEWS_*` / `VOX_SOCIAL_*` secret specs (see `vox_publisher::contract` for precedence).
+    /// Applies the given [`NewsSiteConfig`]. CLI typically uses
+    /// [`NewsSiteConfig::from_default_with_operator_env`]. MCP builds from `[orchestrator.news]` then
+    /// [`NewsSiteConfig::merge_operator_env_overrides`].
     #[must_use]
     pub fn from_operator_environment(
         dry_run: bool,
@@ -213,18 +241,47 @@ impl PublisherConfig {
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
         };
+        let env_usize = |k: &str| {
+            env_opt(k).and_then(|v| match v.parse::<usize>() {
+                Ok(n) => Some(n),
+                Err(_) => {
+                    warn!(
+                        target: "vox.publisher.config",
+                        key = k,
+                        value = v,
+                        "invalid usize env override; ignoring"
+                    );
+                    None
+                }
+            })
+        };
         Self {
-            twitter_bearer_token: env_opt("VOX_NEWS_TWITTER_TOKEN"),
-            github_token: env_opt("VOX_NEWS_GITHUB_TOKEN"),
-            open_collective_token: env_opt("VOX_NEWS_OPENCOLLECTIVE_TOKEN"),
-            reddit_client_id: env_opt("VOX_SOCIAL_REDDIT_CLIENT_ID"),
-            reddit_client_secret: env_opt("VOX_SOCIAL_REDDIT_CLIENT_SECRET"),
-            reddit_refresh_token: env_opt("VOX_SOCIAL_REDDIT_REFRESH_TOKEN"),
-            reddit_user_agent: env_opt("VOX_SOCIAL_REDDIT_USER_AGENT"),
-            youtube_client_id: env_opt("VOX_SOCIAL_YOUTUBE_CLIENT_ID"),
-            youtube_client_secret: env_opt("VOX_SOCIAL_YOUTUBE_CLIENT_SECRET"),
-            youtube_refresh_token: env_opt("VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN"),
+            twitter_bearer_token: Self::syndication_secret(vox_clavis::SecretId::VoxNewsTwitterBearer),
+            github_token: Self::syndication_secret(vox_clavis::SecretId::GitHubToken),
+            open_collective_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
+            ),
+            twitter_summary_margin_chars: env_usize("VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS"),
+            reddit_selfpost_summary_max: env_usize("VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX"),
+            reddit_client_id: Self::syndication_secret(vox_clavis::SecretId::VoxSocialRedditClientId),
+            reddit_client_secret: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditClientSecret,
+            ),
+            reddit_refresh_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditRefreshToken,
+            ),
+            reddit_user_agent: Self::syndication_secret(vox_clavis::SecretId::VoxSocialRedditUserAgent),
+            youtube_client_id: Self::syndication_secret(vox_clavis::SecretId::VoxSocialYoutubeClientId),
+            youtube_client_secret: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeClientSecret,
+            ),
+            youtube_refresh_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
+            ),
             hacker_news_mode: env_opt("VOX_SOCIAL_HN_MODE"),
+            youtube_default_category_id: env_opt("VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID"),
+            twitter_text_chunk_max: env_usize("VOX_NEWS_TWITTER_TEXT_CHUNK_MAX"),
+            twitter_truncation_suffix: env_opt("VOX_NEWS_TWITTER_TRUNCATION_SUFFIX"),
             youtube_repo_root,
             dry_run,
             site,
@@ -246,6 +303,7 @@ pub struct SyndicationResult {
     pub reddit: ChannelOutcome,
     pub hacker_news: ChannelOutcome,
     pub youtube: ChannelOutcome,
+    pub crates_io: ChannelOutcome,
     #[serde(default)]
     pub decision_reasons: BTreeMap<String, String>,
 }
@@ -280,6 +338,7 @@ impl SyndicationResult {
             &self.reddit,
             &self.hacker_news,
             &self.youtube,
+            &self.crates_io,
         ]
         .iter()
         .any(|o| matches!(o, ChannelOutcome::Failed { .. }))
@@ -303,7 +362,8 @@ impl SyndicationResult {
         let reddit_ok = item.syndication.reddit.is_none() || ok(&self.reddit);
         let hn_ok = item.syndication.hacker_news.is_none() || ok(&self.hacker_news);
         let yt_ok = item.syndication.youtube.is_none() || ok(&self.youtube);
-        rss_ok && twitter_ok && github_ok && oc_ok && reddit_ok && hn_ok && yt_ok
+        let crates_ok = item.syndication.crates_io.is_none() || ok(&self.crates_io);
+        rss_ok && twitter_ok && github_ok && oc_ok && reddit_ok && hn_ok && yt_ok && crates_ok
     }
 
     #[must_use]
@@ -355,6 +415,22 @@ impl Publisher {
         item.validate()?;
         info!("Starting syndication for news item: {}", item.id);
         let mut result = SyndicationResult::default();
+        if let Some(ref rp) = item.syndication.distribution_policy.retry_profile {
+            let t = rp.trim();
+            if !t.is_empty() {
+                result
+                    .decision_reasons
+                    .insert("retry_profile".to_string(), t.to_string());
+            }
+        }
+        if let Some(ref rp) = item.syndication.distribution_policy.rate_limit_profile {
+            let t = rp.trim();
+            if !t.is_empty() {
+                result
+                    .decision_reasons
+                    .insert("rate_limit_profile".to_string(), t.to_string());
+            }
+        }
 
         let is_dry_run = self.config.dry_run
             || item.syndication.dry_run
@@ -376,9 +452,13 @@ impl Publisher {
                     .unwrap_or("")
                     .is_empty()
                 {
+                    let margin = self
+                        .config
+                        .twitter_summary_margin_chars
+                        .unwrap_or(contract::TWITTER_SUMMARY_MARGIN_CHARS);
                     cfg.short_text = Some(summarize_for_social(
                         item.content_markdown.as_str(),
-                        contract::TWITTER_TEXT_CHUNK_MAX.saturating_sub(20),
+                        contract::TWITTER_TEXT_CHUNK_MAX.saturating_sub(margin),
                     ));
                 }
                 cfg
@@ -392,7 +472,12 @@ impl Publisher {
             .and_then(|yt| yt.description_override.as_deref())
             .unwrap_or(item.content_markdown.as_str());
         #[cfg(feature = "scientia-reddit")]
-        let derived_summary = summarize_for_social(social_source, 700);
+        let derived_summary = summarize_for_social(
+            social_source,
+            self.config
+                .reddit_selfpost_summary_max
+                .unwrap_or(contract::REDDIT_SELFPOST_SUMMARY_MAX),
+        );
         #[cfg(feature = "scientia-reddit")]
         let derived_reddit: Option<RedditConfig> =
             item.syndication.reddit.clone().map(|mut cfg| {
@@ -468,6 +553,21 @@ impl Publisher {
                         item.title.as_str(),
                         contract::YOUTUBE_TITLE_MAX,
                     ));
+                }
+                if cfg
+                    .category_id
+                    .as_deref()
+                    .map(str::trim)
+                    .unwrap_or("")
+                    .is_empty()
+                {
+                    cfg.category_id = self
+                        .config
+                        .youtube_default_category_id
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|v| !v.is_empty())
+                        .map(std::string::ToString::to_string);
                 }
                 cfg
             });
@@ -669,12 +769,11 @@ impl Publisher {
 
         #[cfg(not(feature = "scientia-reddit"))]
         if item.syndication.reddit.is_some() {
-            result.reddit = ChannelOutcome::Failed {
-                code: "reddit_feature_disabled".to_string(),
-                message: "reddit publishing requires vox-publisher feature `scientia-reddit`."
-                    .to_string(),
-                retryable: false,
-            };
+            result.reddit = ChannelOutcome::Disabled;
+            result.decision_reasons.insert(
+                "reddit".to_string(),
+                "feature_disabled:scientia-reddit".to_string(),
+            );
         }
 
         if let Some(hn) = &derived_hn {
@@ -726,56 +825,102 @@ impl Publisher {
                     "[DRY RUN] Would upload video payload {} to YouTube",
                     yt.video_asset_ref
                 );
-            } else if let (Some(client_id), Some(client_secret), Some(refresh_token)) = (
-                self.config.youtube_client_id.as_deref(),
-                self.config.youtube_client_secret.as_deref(),
-                self.config.youtube_refresh_token.as_deref(),
-            ) {
-                let auth = adapters::youtube::YouTubeAuthConfig {
-                    client_id,
-                    client_secret,
-                    refresh_token,
-                };
-                match adapters::youtube::upload_video(
-                    &auth,
-                    yt,
-                    item,
-                    self.config.youtube_repo_root.as_deref(),
-                )
-                .await
-                {
-                    Ok(external_id) => {
-                        result.youtube = ChannelOutcome::Success {
-                            external_id: Some(external_id),
-                        };
-                        info!("Uploaded video to YouTube.");
-                    }
-                    Err(e) => {
-                        result.youtube = ChannelOutcome::Failed {
-                            code: "youtube_upload_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                        };
-                    }
-                }
             } else {
-                result.youtube = ChannelOutcome::Failed {
-                    code: "missing_youtube_credentials".to_string(),
-                    message: "YouTube config present but OAuth credentials are incomplete."
-                        .to_string(),
-                    retryable: false,
+                let mut missing_asset = false;
+                let resolved = if std::path::Path::new(yt.video_asset_ref.as_str()).is_absolute() {
+                    std::path::PathBuf::from(yt.video_asset_ref.as_str())
+                } else if let Some(root) = self.config.youtube_repo_root.as_deref() {
+                    root.join(yt.video_asset_ref.as_str())
+                } else {
+                    std::path::PathBuf::from(yt.video_asset_ref.as_str())
                 };
+                if !resolved.is_file() {
+                    result.youtube = ChannelOutcome::Disabled;
+                    result.decision_reasons.insert(
+                        "youtube".to_string(),
+                        format!("missing_video_asset:{}", resolved.display()),
+                    );
+                    info!(
+                        "Skipping YouTube publish for {}: missing payload {}",
+                        item.id,
+                        resolved.display()
+                    );
+                    missing_asset = true;
+                }
+                if !missing_asset
+                    && let (Some(client_id), Some(client_secret), Some(refresh_token)) = (
+                        self.config.youtube_client_id.as_deref(),
+                        self.config.youtube_client_secret.as_deref(),
+                        self.config.youtube_refresh_token.as_deref(),
+                    )
+                {
+                    let auth = adapters::youtube::YouTubeAuthConfig {
+                        client_id,
+                        client_secret,
+                        refresh_token,
+                    };
+                    match adapters::youtube::upload_video(
+                        &auth,
+                        yt,
+                        item,
+                        self.config.youtube_repo_root.as_deref(),
+                    )
+                    .await
+                    {
+                        Ok(external_id) => {
+                            result.youtube = ChannelOutcome::Success {
+                                external_id: Some(external_id),
+                            };
+                            info!("Uploaded video to YouTube.");
+                        }
+                        Err(e) => {
+                            result.youtube = ChannelOutcome::Failed {
+                                code: "youtube_upload_failed".to_string(),
+                                message: e.to_string(),
+                                retryable: true,
+                            };
+                        }
+                    }
+                } else if !missing_asset {
+                    result.youtube = ChannelOutcome::Failed {
+                        code: "missing_youtube_credentials".to_string(),
+                        message: "YouTube config present but OAuth credentials are incomplete."
+                            .to_string(),
+                        retryable: false,
+                    };
+                }
             }
         }
 
         #[cfg(not(feature = "scientia-youtube"))]
         if item.syndication.youtube.is_some() {
-            result.youtube = ChannelOutcome::Failed {
-                code: "youtube_feature_disabled".to_string(),
-                message: "youtube support requires vox-publisher feature `scientia-youtube`."
-                    .to_string(),
-                retryable: false,
-            };
+            result.youtube = ChannelOutcome::Disabled;
+            result.decision_reasons.insert(
+                "youtube".to_string(),
+                "feature_disabled:scientia-youtube".to_string(),
+            );
+        }
+
+        if item.syndication.crates_io.is_some() {
+            if let Some(reason) = policy_block_reason(item, "crates_io", &self.config) {
+                result.crates_io = ChannelOutcome::Disabled;
+                result
+                    .decision_reasons
+                    .insert("crates_io".to_string(), reason);
+            } else if is_dry_run {
+                result.crates_io = ChannelOutcome::DryRun {
+                    external_id: Some(format!("dry-run-crates-io-{}", item.id)),
+                };
+                info!("[DRY RUN] Would apply crates.io update metadata.");
+            } else {
+                result.crates_io = ChannelOutcome::Failed {
+                    code: "crates_io_not_implemented".to_string(),
+                    message:
+                        "crates_io publishing is modeled in policy but adapter implementation is not wired yet."
+                            .to_string(),
+                    retryable: false,
+                };
+            }
         }
 
         Ok(result)

@@ -48,7 +48,11 @@ impl DetectionRule for SprawlDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         // 1. Check for forbidden generic names
@@ -71,6 +75,8 @@ impl DetectionRule for SprawlDetector {
                     file_name
                 )),
                 context: String::new(),
+                confidence: None,
+                evidence: None,
             });
         }
 
@@ -98,6 +104,8 @@ impl DetectionRule for SprawlDetector {
                             .to_string(),
                     ),
                     context: String::new(),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }

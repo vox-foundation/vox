@@ -57,6 +57,8 @@ pub enum Capability {
     Mesh,
     RuntimeIngress,
     AuxTools,
+    /// Optional tokens for Scientia / news syndication adapters (`VOX_NEWS_*`, `VOX_SOCIAL_*`).
+    ScientiaSyndication,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -83,6 +85,15 @@ pub enum SecretId {
     VoxDbUrl,
     VoxDbToken,
     VoxMeshToken,
+    VoxNewsTwitterBearer,
+    VoxNewsOpenCollectiveToken,
+    VoxSocialRedditClientId,
+    VoxSocialRedditClientSecret,
+    VoxSocialRedditRefreshToken,
+    VoxSocialRedditUserAgent,
+    VoxSocialYoutubeClientId,
+    VoxSocialYoutubeClientSecret,
+    VoxSocialYoutubeRefreshToken,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -351,6 +362,96 @@ const SPECS: &[SecretSpec] = &[
         policy: SecretPolicy::optional_skip(),
         remediation: "Run `vox populi up` or set VOX_MESH_TOKEN for mesh auth.",
     },
+    SecretSpec {
+        id: SecretId::VoxNewsTwitterBearer,
+        canonical_env: "VOX_NEWS_TWITTER_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_NEWS_TWITTER_TOKEN (or Clavis env/backend resolution) for Twitter syndication.",
+    },
+    SecretSpec {
+        id: SecretId::VoxNewsOpenCollectiveToken,
+        canonical_env: "VOX_NEWS_OPENCOLLECTIVE_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_NEWS_OPENCOLLECTIVE_TOKEN for Open Collective updates.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialRedditClientId,
+        canonical_env: "VOX_SOCIAL_REDDIT_CLIENT_ID",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_REDDIT_CLIENT_ID when Reddit syndication is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialRedditClientSecret,
+        canonical_env: "VOX_SOCIAL_REDDIT_CLIENT_SECRET",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_REDDIT_CLIENT_SECRET when Reddit syndication is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialRedditRefreshToken,
+        canonical_env: "VOX_SOCIAL_REDDIT_REFRESH_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_REDDIT_REFRESH_TOKEN when Reddit syndication is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialRedditUserAgent,
+        canonical_env: "VOX_SOCIAL_REDDIT_USER_AGENT",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_REDDIT_USER_AGENT when Reddit syndication is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialYoutubeClientId,
+        canonical_env: "VOX_SOCIAL_YOUTUBE_CLIENT_ID",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_YOUTUBE_CLIENT_ID when YouTube upload is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialYoutubeClientSecret,
+        canonical_env: "VOX_SOCIAL_YOUTUBE_CLIENT_SECRET",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_YOUTUBE_CLIENT_SECRET when YouTube upload is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxSocialYoutubeRefreshToken,
+        canonical_env: "VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN when YouTube upload is enabled.",
+    },
 ];
 
 impl SecretId {
@@ -484,6 +585,15 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         SecretId::VoxMeshToken => &[Capability::Mesh],
         SecretId::VoxApiKey | SecretId::VoxBearerToken => &[Capability::RuntimeIngress],
         SecretId::V0ApiKey | SecretId::OpenClawToken => &[Capability::AuxTools],
+        SecretId::VoxNewsTwitterBearer
+        | SecretId::VoxNewsOpenCollectiveToken
+        | SecretId::VoxSocialRedditClientId
+        | SecretId::VoxSocialRedditClientSecret
+        | SecretId::VoxSocialRedditRefreshToken
+        | SecretId::VoxSocialRedditUserAgent
+        | SecretId::VoxSocialYoutubeClientId
+        | SecretId::VoxSocialYoutubeClientSecret
+        | SecretId::VoxSocialYoutubeRefreshToken => &[Capability::ScientiaSyndication],
     }
 }
 

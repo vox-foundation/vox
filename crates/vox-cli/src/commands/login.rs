@@ -120,9 +120,10 @@ pub fn get_auth(registry: &str) -> Option<RegistryAuth> {
     let username = if matches!(source, vox_clavis::SecretSource::LegacyAuthToken) {
         None
     } else {
-        let content =
-            crate::commands::ci::bounded_read::read_utf8_path_capped(&dirs_path().join("auth.json"))
-                .ok()?;
+        let content = crate::commands::ci::bounded_read::read_utf8_path_capped(
+            &dirs_path().join("auth.json"),
+        )
+        .ok()?;
         let config = serde_json::from_str::<CliCredentials>(&content).ok()?;
         config
             .registries

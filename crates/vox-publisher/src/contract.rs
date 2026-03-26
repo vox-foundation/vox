@@ -1,4 +1,19 @@
 //! Single source of truth for news publishing defaults and validation (no I/O).
+//!
+//! ## Operator config precedence (`PublisherConfig::from_operator_environment`)
+//!
+//! 1. **Clavis** resolves syndication credentials via `vox_clavis::resolve_secret` (see `SecretId`
+//!    variants such as `VoxNewsTwitterBearer`). Resolution covers canonical env keys, aliases, auth JSON,
+//!    and optional Infisical/Vault backends when enabled.
+//! 2. **Plain env** remains for non-secret knobs: `VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS`,
+//!    `VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX`, `VOX_SOCIAL_HN_MODE`, `VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID`.
+//! 3. **Site layout** (`NewsSiteConfig`): orchestrator and MCP set `base_url` / RSS path from
+//!    `[orchestrator.news]`, then **all** operator surfaces should call
+//!    [`NewsSiteConfig::merge_operator_env_overrides`] so `VOX_NEWS_SITE_BASE_URL` /
+//!    `VOX_NEWS_RSS_FEED_PATH` match the orchestrator. CLI publication uses
+//!    [`NewsSiteConfig::from_default_with_operator_env`].
+//! 4. **Twitter formatting**: optional `VOX_NEWS_TWITTER_TEXT_CHUNK_MAX` and
+//!    `VOX_NEWS_TWITTER_TRUNCATION_SUFFIX` in [`crate::PublisherConfig::from_operator_environment`].
 
 /// Default public site base (GitHub Pages) for generated links and RSS.
 pub const DEFAULT_SITE_BASE_URL: &str = "https://vox-foundation.github.io/vox";
@@ -26,14 +41,20 @@ pub const DEFAULT_GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 
 /// Max tweet body length used for conservative chunking (legacy limit; adjust when tier supports longer).
 pub const TWITTER_TEXT_CHUNK_MAX: usize = 280;
+/// Reserve tail room for links/hashtags when deriving short social summaries.
+pub const TWITTER_SUMMARY_MARGIN_CHARS: usize = 20;
 /// Conservative Reddit title cap.
 pub const REDDIT_TITLE_MAX: usize = 300;
+/// Default max size for derived Reddit self-post summaries.
+pub const REDDIT_SELFPOST_SUMMARY_MAX: usize = 700;
 /// HN title cap.
 pub const HACKER_NEWS_TITLE_MAX: usize = 80;
 /// YouTube title cap.
 pub const YOUTUBE_TITLE_MAX: usize = 100;
 /// YouTube description cap.
 pub const YOUTUBE_DESCRIPTION_MAX: usize = 5000;
+/// Default YouTube category id used when no explicit category is set.
+pub const YOUTUBE_DEFAULT_CATEGORY_ID: &str = "28";
 
 /// Site configuration for RSS links and feed file location.
 #[derive(Debug, Clone)]
@@ -54,6 +75,30 @@ impl Default for NewsSiteConfig {
 }
 
 impl NewsSiteConfig {
+    /// Default site layout with `VOX_NEWS_SITE_BASE_URL` / `VOX_NEWS_RSS_FEED_PATH` overrides when set.
+    #[must_use]
+    pub fn from_default_with_operator_env() -> Self {
+        let mut site = Self::default();
+        site.merge_operator_env_overrides();
+        site
+    }
+
+    /// Apply `VOX_NEWS_SITE_BASE_URL` and `VOX_NEWS_RSS_FEED_PATH` when non-empty.
+    pub fn merge_operator_env_overrides(&mut self) {
+        if let Ok(v) = std::env::var("VOX_NEWS_SITE_BASE_URL") {
+            let t = v.trim().trim_end_matches('/').to_string();
+            if !t.is_empty() {
+                self.base_url = t;
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_NEWS_RSS_FEED_PATH") {
+            let t = v.trim();
+            if !t.is_empty() {
+                self.rss_feed_path = std::path::PathBuf::from(t);
+            }
+        }
+    }
+
     #[must_use]
     pub fn news_item_link(&self, news_id: &str) -> String {
         format!("{}/news/{}.html", self.base_url, news_id)

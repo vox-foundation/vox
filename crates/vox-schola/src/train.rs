@@ -310,7 +310,8 @@ pub async fn run(args: Args) -> Result<()> {
         deployment_target: vox_populi::mens::TrainingDeploymentTarget::Workstation,
         validation_split_ratio: Some(0.05),
         curriculum: false,
-        optimizer_experiment_mode: vox_populi::mens::tensor::training_config::OptimizerExperimentMode::Off,
+        optimizer_experiment_mode:
+            vox_populi::mens::tensor::training_config::OptimizerExperimentMode::Off,
         trajectory_weighting_enabled,
         trajectory_tool_trace_boost,
         trajectory_failure_category_boost,
@@ -374,7 +375,9 @@ fn spawn_background(log_dir: Option<PathBuf>) -> Result<()> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB);
     }
 
     let child = cmd.spawn()?;

@@ -21,6 +21,9 @@
   "youtube": {
     "status": "disabled"
   },
+  "crates_io": {
+    "status": "disabled"
+  },
   "decision_reasons": {
     "twitter": "policy_disabled"
   }

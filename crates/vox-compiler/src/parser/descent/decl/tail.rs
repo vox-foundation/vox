@@ -4,7 +4,7 @@ use super::super::Parser;
 use crate::ast::decl::*;
 use crate::ast::expr::Expr;
 use crate::lexer::token::Token;
-use crate::parser::error::ParseError;
+use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
     /// Parse `@table type Name { field: Type }` — brace-delimited field block.
@@ -95,22 +95,24 @@ impl Parser {
                         (String::new(), Some(s))
                     }
                     _ => {
-                        self.errors.push(ParseError::new(
+                        self.errors.push(ParseError::classified(
                             self.span(),
                             "Expected image path string after 'from'",
                             vec!["\"path\"".into()],
                             Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
                         ));
                         return Err(());
                     }
                 }
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     "Expected prompt string or 'from' after @v0",
                     vec!["\"prompt\"".into(), "from".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }

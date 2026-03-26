@@ -52,3 +52,10 @@ Direct machine retrieval of some social-post evidence remains inconsistent in ou
 - Require explicit provenance fields anywhere artifacts are promoted, merged, or distributed.
 - Apply confidence labels in architecture docs when facts are mixed primary/secondary.
 
+## 2026 forward (structure and training)
+
+- **Data**: tighten tool-trace and failure/recovery slices in the corpus mix (weights in `mens/config/mix.yaml`); strict operator mix + per-source reports reduce silent starvation when a JSONL is missing.
+- **Eval**: add tiered held-out checks (unit parity tests today; extend toward long-horizon agent tasks only when compute allows — Kimi-style swarm/PARL is not a 4080 QLoRA default).
+- **Manifests**: keep `training_manifest.json` and `populi_adapter_manifest_v3.json` as the promotion gate for lineage; avoid “hero” adapter drops without upstream ids.
+- **MoE / trillion-parameter assumptions**: out of scope for the local Candle trainer; absorb any external MoE bases only through **documented** HF ids + provenance fields, not by pretending in-tree graphs match their block structure.
+

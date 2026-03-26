@@ -1,5 +1,7 @@
 use serde_json::json;
+use vox_db::{DbConfig, PublicationManifestParams, VoxDb};
 use vox_mcp::{ServerState, tools};
+use vox_orchestrator::OrchestratorConfig;
 
 #[tokio::test]
 async fn test_mcp_tool_dispatch_list_queues() {
@@ -136,5 +138,147 @@ async fn test_scientia_publish_compact_json_is_single_line() {
     assert!(
         !publish.contains('\n'),
         "compact tool envelope should be one line, got: {publish:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_scientia_retry_failed_uses_current_manifest_digest() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    db.upsert_publication_manifest(PublicationManifestParams {
+        publication_id: "retry-digest-case",
+        content_type: "scientia",
+        source_ref: None,
+        title: "Retry digest test",
+        author: "Vox",
+        abstract_text: None,
+        body_markdown: "Body",
+        citations_json: None,
+        metadata_json: Some("{}"),
+        content_sha3_256: "digest-current",
+        state: "draft",
+    })
+    .await
+    .expect("upsert");
+    let stale_outcome = serde_json::json!({
+        "rss": {"status":"failed","code":"x","message":"x","retryable":true},
+        "twitter": {"status":"disabled"},
+        "github": {"status":"disabled"},
+        "open_collective": {"status":"disabled"},
+        "reddit": {"status":"disabled"},
+        "hacker_news": {"status":"disabled"},
+        "youtube": {"status":"disabled"},
+        "crates_io": {"status":"disabled"},
+        "decision_reasons": {}
+    });
+    db.record_publication_attempt(
+        "retry-digest-case",
+        "digest-old",
+        "manual_test",
+        &serde_json::to_string(&stale_outcome).expect("json"),
+    )
+    .await
+    .expect("record attempt");
+
+    let state = ServerState::new_test().await.with_db(db);
+    let retry = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_retry_failed",
+        json!({ "publication_id": "retry-digest-case", "dry_run": true }),
+    )
+    .await
+    .expect("retry tool json");
+    let val: serde_json::Value = serde_json::from_str(&retry).expect("valid json");
+    assert_eq!(val["success"], false);
+    let err = val["error"].as_str().unwrap_or_default();
+    assert!(
+        err.contains("current manifest digest"),
+        "expected digest-scoped retry error, got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn test_scientia_live_publish_honors_digest_gate() {
+    let mut orch = OrchestratorConfig::for_testing();
+    orch.news.dry_run = false;
+    let state = ServerState::new(orch);
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    db.upsert_publication_manifest(PublicationManifestParams {
+        publication_id: "gate-live-mcp",
+        content_type: "scientia",
+        source_ref: None,
+        title: "Title",
+        author: "Author",
+        abstract_text: None,
+        body_markdown: "Body",
+        citations_json: None,
+        metadata_json: Some(r#"{"syndication":{"dry_run":false,"rss":false}}"#),
+        content_sha3_256: "digest-gate-mcp",
+        state: "approved",
+    })
+    .await
+    .expect("upsert");
+    let state = state.with_db(db);
+    let publish = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_publish",
+        json!({ "publication_id": "gate-live-mcp", "dry_run": false }),
+    )
+    .await
+    .expect("publish tool");
+    let val: serde_json::Value = serde_json::from_str(&publish).expect("valid json");
+    assert_eq!(val["success"], false);
+    let err = val["error"].as_str().expect("error string");
+    assert!(
+        err.contains("live publish blocked"),
+        "expected gate failure, got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn test_scientia_live_publish_honors_worthiness_floor_when_gate_passes() {
+    let mut orch = OrchestratorConfig::for_testing();
+    orch.news.dry_run = false;
+    orch.news.publish_armed = true;
+    orch.news.worthiness_enforce = true;
+    orch.news.worthiness_score_min = Some(0.99);
+    let state = ServerState::new(orch);
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let publication_id = "worthiness-floor-mcp";
+    let digest = "digest-worthiness-mcp";
+    db.upsert_publication_manifest(PublicationManifestParams {
+        publication_id,
+        content_type: "scientia",
+        source_ref: None,
+        title: "Title",
+        author: "Author",
+        abstract_text: None,
+        body_markdown: "Body",
+        citations_json: None,
+        metadata_json: Some(r#"{"syndication":{"dry_run":false,"rss":false}}"#),
+        content_sha3_256: digest,
+        state: "approved",
+    })
+    .await
+    .expect("upsert");
+    db.record_publication_approval_for_digest(publication_id, digest, "alice")
+        .await
+        .expect("approve alice");
+    db.record_publication_approval_for_digest(publication_id, digest, "bob")
+        .await
+        .expect("approve bob");
+    let state = state.with_db(db);
+    let publish = tools::handle_tool_call(
+        &state,
+        "vox_scientia_publication_publish",
+        json!({ "publication_id": publication_id, "dry_run": false }),
+    )
+    .await
+    .expect("publish tool");
+    let val: serde_json::Value = serde_json::from_str(&publish).expect("valid json");
+    assert_eq!(val["success"], false);
+    let err = val["error"].as_str().expect("error string");
+    assert!(
+        err.contains("worthiness"),
+        "expected worthiness floor failure, got: {err}"
     );
 }

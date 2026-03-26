@@ -45,4 +45,4 @@ pub mod descent;
 pub mod error;
 
 pub use descent::parse;
-pub use error::ParseError;
+pub use error::{ParseError, ParseErrorClass};

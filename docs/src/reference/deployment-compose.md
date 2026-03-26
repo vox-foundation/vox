@@ -26,7 +26,7 @@ training_eligible: true
 - **Binary:** `vox` (release), optional features via `VOX_CLI_FEATURES` (e.g. `mens,script-execution`).
 - **Data:** volume **`/root/.vox`**; align with `VOX_DB_*` / local SQLite layout per [ADR 004](../adr/004-codex-arca-turso-ssot.md).
 - **Mens sidecar (single container):** `VOX_MESH_MESH_SIDECAR=1` + entrypoint [`docker/vox-entrypoint.sh`](../../../docker/vox-entrypoint.sh); exposes **9847** when used.
-- **Health:** `vox doctor` (see `Dockerfile` `HEALTHCHECK`).
+- **Health:** `vox doctor --probe` (see root `Dockerfile` and `docker/Dockerfile.populi` `HEALTHCHECK`).
 
 ## Environment SSOT (Compose-friendly)
 

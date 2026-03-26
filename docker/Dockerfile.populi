@@ -19,7 +19,7 @@
 #   VOX_VAST_API_KEY        — injected by dispatcher; used by Vast.ai self-terminate curl
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM rust:1.83-slim-bookworm AS builder
+FROM rust:1.92-slim-bookworm AS builder
 WORKDIR /app
 
 # Build dependencies
@@ -32,11 +32,14 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY populi/ populi/
 
-# Build vox-cli with GPU + cloud features
-# candle-qlora provides CPU-capable QLoRA baseline (candle-qlora-cuda adds CUDA kernels)
-ARG VOX_CLI_FEATURES="gpu,candle-qlora,train,hf-hub,cloud"
+# Build vox-cli with Mens train + cloud dispatch. `mens-candle-cuda` needs nvcc — use a CUDA *devel* builder stage if you need CUDA kernels in this image; rust:bookworm-slim has no nvcc.
+# Feature names: see crates/vox-cli/Cargo.toml.
+ARG VOX_CLI_FEATURES="gpu,cloud"
+# `vox mens serve` shells out to `vox-schola` for local checkpoints. CPU-only schola build avoids nvcc in slim builder.
 RUN cargo build --release -p vox-cli --features "${VOX_CLI_FEATURES}" \
-    && strip /app/target/release/vox
+    && strip /app/target/release/vox \
+    && cargo build --release -p vox-schola --no-default-features \
+    && strip /app/target/release/vox-schola
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 # CUDA 12.4 runtime — only the shared libs, not the compiler or toolchain
@@ -50,8 +53,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # HuggingFace Hub CLI for dataset download + adapter upload
 RUN pip3 install --no-cache-dir "huggingface-hub[cli]"
 
-# Copy vox binary from builder (no Rust toolchain in runtime image)
+# Binaries from builder (no Rust toolchain in runtime image)
 COPY --from=builder /app/target/release/vox /usr/local/bin/vox
+COPY --from=builder /app/target/release/vox-schola /usr/local/bin/vox-schola
 
 # Copy GPU specs so TimeEstimator can load them (read-only; updated by container env)
 COPY --from=builder /app/populi/config/gpu-specs.yaml /opt/vox/gpu-specs.yaml
@@ -69,7 +73,7 @@ VOLUME /root/.vox
 EXPOSE 8080
 
 HEALTHCHECK --interval=60s --timeout=10s --start-period=120s \
-    CMD vox doctor 2>&1 | grep -Eq "All checks|ready" || exit 1
+    CMD vox doctor --probe
 
 ENTRYPOINT ["/entrypoint.sh"]
 

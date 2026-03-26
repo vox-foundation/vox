@@ -182,6 +182,8 @@ impl EmptyBodyDetector {
             message: message.to_string(),
             suggestion: Some("Implement the function body or remove the empty stub.".to_string()),
             context: file.context_around(line, 2),
+            confidence: None,
+            evidence: None,
         }
     }
 }
@@ -202,7 +204,11 @@ impl DetectionRule for EmptyBodyDetector {
     fn languages(&self) -> &[Language] {
         &[Language::Rust, Language::TypeScript, Language::Python]
     }
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         match file.language {
             Language::Rust => self.detect_rust(file),
             Language::TypeScript => self.detect_typescript(file),
@@ -225,7 +231,7 @@ mod tests {
     fn detects_rust_empty_fn() {
         let d = EmptyBodyDetector::new();
         let f = source("rs", "fn process_event() {}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
     }
 
@@ -233,7 +239,7 @@ mod tests {
     fn detects_rust_empty_impl() {
         let d = EmptyBodyDetector::new();
         let f = source("rs", "impl Default for MyStruct {}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert!(
             findings[0]
@@ -246,7 +252,7 @@ mod tests {
     fn detects_rust_multi_line_empty_impl() {
         let d = EmptyBodyDetector::new();
         let f = source("rs", "impl MyTrait for MyType {\n    \n}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
     }
 
@@ -254,7 +260,7 @@ mod tests {
     fn ignores_rust_fn_with_body() {
         let d = EmptyBodyDetector::new();
         let f = source("rs", "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
 
@@ -262,7 +268,7 @@ mod tests {
     fn detects_ts_empty_function() {
         let d = EmptyBodyDetector::new();
         let f = source("ts", "function handleClick() {}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
     }
 
@@ -270,7 +276,7 @@ mod tests {
     fn detects_python_ellipsis_stub() {
         let d = EmptyBodyDetector::new();
         let f = source("py", "def process():\n    ...\n");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
     }
 }

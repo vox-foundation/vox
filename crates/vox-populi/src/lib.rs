@@ -419,11 +419,11 @@ pub fn local_registry_path() -> PathBuf {
 pub mod mens;
 
 #[cfg(feature = "transport")]
+mod bounded_fs;
+#[cfg(feature = "transport")]
 pub mod http_client;
 #[cfg(feature = "transport")]
 pub mod http_lifecycle;
-#[cfg(feature = "transport")]
-mod bounded_fs;
 #[cfg(feature = "transport")]
 pub mod transport;
 

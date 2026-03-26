@@ -1,3 +1,6 @@
+# DEPRECATED: prefer `vox mens corpus generate|replay|mix` + `vox mens pipeline` (or a single train invocation)
+# instead of this bat-driven loop. Kept for reference; see docs/src/architecture/script-surface-audit.md
+#
 # Continuous Training Orchestrator
 # This script manages the full life cycle of Mens dogfooding and training dynamically.
 

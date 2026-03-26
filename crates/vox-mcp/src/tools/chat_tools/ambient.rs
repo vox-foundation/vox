@@ -71,8 +71,7 @@ pub async fn ambient_state(state: &ServerState, params: AmbientStateParams) -> S
                     if !prefix_filter.is_empty() && !path_str.contains(prefix_filter) {
                         continue;
                     }
-                    let agent_ids: Vec<u64> =
-                        conflict.sides.iter().map(|s| s.agent_id.0).collect();
+                    let agent_ids: Vec<u64> = conflict.sides.iter().map(|s| s.agent_id.0).collect();
                     decorations.push(serde_json::json!({
                         "path": path_str,
                         "decoration": {

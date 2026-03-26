@@ -130,6 +130,9 @@ pub enum CorpusAction {
         /// Path to mix YAML (default: `mens/config/mix.yaml`)
         #[arg(long, default_value = "mens/config/mix.yaml")]
         config: std::path::PathBuf,
+        /// Allow missing or empty required sources (warn only; default is strict fail for operator mixes).
+        #[arg(long)]
+        allow_missing_sources: bool,
     },
 }
 
@@ -190,7 +193,16 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             output,
             print_summary,
         } => stats::run_eval(&input, &output, print_summary).await,
-        CorpusAction::Mix { config } => vox_corpus::corpus::run_mix(&config),
+        CorpusAction::Mix {
+            config,
+            allow_missing_sources,
+        } => vox_corpus::corpus::run_mix_with_options(
+            &config,
+            vox_corpus::corpus::MixRunOptions {
+                strict: !allow_missing_sources,
+                write_report: true,
+            },
+        ),
         CorpusAction::Replay {
             chatml: _chatml,
             min_score: _min_score,

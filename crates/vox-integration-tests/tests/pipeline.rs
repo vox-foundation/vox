@@ -5,7 +5,6 @@
 
 use std::ffi::OsString;
 use std::fs;
-use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -13,6 +12,7 @@ use vox_compiler::codegen_ts::{CodegenOptions, generate, generate_with_options};
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::typecheck_module;
+use vox_lsp::bounded_fs::read_utf8_path_capped;
 
 /// Serializes all tests that read or write `VOX_EMIT_EXPRESS_SERVER`.
 /// Without this, parallel test runners observe the env-var mid-mutation,

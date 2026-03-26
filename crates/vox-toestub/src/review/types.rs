@@ -96,6 +96,8 @@ impl ReviewResult {
                 message: rf.message.clone(),
                 suggestion: rf.suggestion.clone(),
                 context: String::new(),
+                confidence: None,
+                evidence: None,
             })
             .collect()
     }

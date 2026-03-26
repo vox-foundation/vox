@@ -4,7 +4,7 @@ use super::super::Parser;
 use crate::ast::decl::*;
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
-use crate::parser::error::ParseError;
+use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
     pub(crate) fn parse_import(&mut self) -> Result<Decl, ()> {
@@ -33,11 +33,12 @@ impl Parser {
                 self.advance();
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     "Expected identifier in import path",
                     vec!["identifier".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }
@@ -73,11 +74,12 @@ impl Parser {
                 Ok(Decl::ReactiveComponent(inner))
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     "After @component, expected `fn` or a reactive component name (Path C)",
                     vec!["fn".into(), "ComponentName".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
                 ));
                 Err(())
             }
@@ -136,11 +138,12 @@ impl Parser {
                     view = Some(self.parse_expr()?);
                 }
                 _ => {
-                    self.errors.push(ParseError::new(
+                    self.errors.push(ParseError::classified(
                         self.span(),
                         format!("Unexpected token in component block: {}", self.peek()),
                         vec![],
                         Some(self.peek().to_string()),
+                        ParseErrorClass::Statement,
                     ));
                     return Err(());
                 }
@@ -311,11 +314,12 @@ impl Parser {
                 Ok("component".to_string())
             }
             _ => {
-                self.errors.push(ParseError::new(
+                self.errors.push(ParseError::classified(
                     self.span(),
                     "Expected identifier",
                     vec!["identifier".into()],
                     Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
                 ));
                 Err(())
             }

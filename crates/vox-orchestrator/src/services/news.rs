@@ -1,9 +1,8 @@
-use anyhow::Context;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::Orchestrator;
-use vox_publisher::gate::{PublishGateInputs, evaluate_publish_gate};
+use vox_publisher::gate::{evaluate_publish_gate, publish_gate_inputs_for_orchestrator};
 use vox_publisher::types::UnifiedNewsItem;
 use vox_publisher::{NewsSiteConfig, Publisher, PublisherConfig};
 use walkdir::WalkDir;
@@ -51,8 +50,11 @@ impl NewsService {
             opencollective_graphql_url: config.news.opencollective_graphql_url.clone(),
             twitter_text_chunk_max: config.news.twitter_text_chunk_max,
             twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
+            twitter_summary_margin_chars: None,
+            reddit_selfpost_summary_max: None,
             youtube_repo_root: Some(vox_repository::resolve_repo_root_for_ci()),
             hacker_news_mode: config.news.hacker_news_mode.clone(),
+            youtube_default_category_id: None,
             worthiness_score: None,
         };
 
@@ -120,17 +122,13 @@ impl NewsService {
             } else {
                 false
             };
-            let env_armed = std::env::var("VOX_NEWS_PUBLISH_ARMED")
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false);
-            let gate = evaluate_publish_gate(PublishGateInputs {
-                orchestrator_dry_run: config.news.dry_run,
-                item_dry_run: item.syndication.dry_run,
-                publish_armed_config: config.news.publish_armed,
-                publish_armed_env: env_armed,
-                db_present: db_opt.is_some(),
+            let gate = evaluate_publish_gate(publish_gate_inputs_for_orchestrator(
+                config.news.dry_run,
+                config.news.publish_armed,
+                db_opt.is_some(),
                 dual_approval_met,
-            });
+                &item,
+            ));
             if gate.has_blockers() {
                 let reason_codes: Vec<&str> = gate
                     .blocking_reasons
@@ -313,29 +311,9 @@ fn collect_news_markdown_paths(news_dir: &Path, recursive: bool) -> Vec<PathBuf>
 }
 
 fn compute_news_worthiness_score(item: &UnifiedNewsItem) -> anyhow::Result<f64> {
-    let manifest = vox_publisher::publication::PublicationManifest {
-        publication_id: item.id.clone(),
-        content_type: "news".to_string(),
-        source_ref: None,
-        title: item.title.clone(),
-        author: item.author.clone(),
-        abstract_text: None,
-        body_markdown: item.content_markdown.clone(),
-        citations_json: None,
-        metadata_json: None,
-    };
-    let profile = vox_publisher::publication_preflight::PreflightProfile::Default;
-    let preflight = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    let manifest = vox_publisher::publication::PublicationManifest::from(item.clone());
     let root = vox_repository::resolve_repo_root_for_ci();
-    let path = root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
-    let yaml = crate::bounded_fs::read_utf8_path_capped(&path)
-        .with_context(|| format!("read worthiness contract {}", path.display()))?;
-    let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
-    vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
-    let inputs =
-        vox_publisher::publication_preflight::worthiness_inputs_from_manifest_and_preflight(
-            &manifest, &preflight,
-        );
-    let out = vox_publisher::publication_worthiness::evaluate_worthiness(&contract, &inputs);
-    Ok(out.worthiness_score)
+    vox_publisher::publication_worthiness::worthiness_score_for_publication_manifest(
+        &manifest, &root,
+    )
 }

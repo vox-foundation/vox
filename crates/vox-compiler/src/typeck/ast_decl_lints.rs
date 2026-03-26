@@ -3,7 +3,7 @@
 use crate::ast::decl::{ComponentDecl, Decl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::types::TypeExpr;
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppressed};
-use crate::typeck::diagnostics::{Diagnostic, Severity};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
 
@@ -85,6 +85,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             found_type: None,
             context: None,
             suggestions: vec![],
+            category: DiagnosticCategory::Lint,
         });
         return;
     };
@@ -101,6 +102,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             found_type: None,
             context: None,
             suggestions: vec![],
+            category: DiagnosticCategory::Lint,
         });
         return;
     };
@@ -117,6 +119,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             found_type: None,
             context: None,
             suggestions: vec![],
+            category: DiagnosticCategory::Lint,
         });
         return;
     };
@@ -133,6 +136,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             found_type: Some(format!("{field_ty:?}")),
             context: None,
             suggestions: vec![],
+            category: DiagnosticCategory::Lint,
         });
     }
 }
@@ -158,6 +162,7 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
                     "Use `state x = ...`, `derived`, `effect`, `mount`, `cleanup`, and `view:` instead of hooks where possible.".into(),
                     "Keep advanced React-only logic in `@island` TypeScript under islands/.".into(),
                 ],
+                category: DiagnosticCategory::Lint,
             });
         });
     }
@@ -194,6 +199,7 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         found_type: None,
                         context: None,
                         suggestions: vec![],
+                        category: DiagnosticCategory::Lint,
                     });
                 }
             }

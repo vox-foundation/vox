@@ -6,7 +6,8 @@ use super::PopuliAction;
 
 #[cfg(feature = "gpu")]
 use super::{
-    MensTokenizerCli, OptimizerExperimentModeCli, PopuliTrainBackendCli, TrainingDeploymentTargetCli,
+    MensTokenizerCli, OptimizerExperimentModeCli, PopuliTrainBackendCli,
+    TrainingDeploymentTargetCli,
 };
 
 use crate::commands::mens::bench_completion;
@@ -308,6 +309,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             probe::run_probe(_global_verbose)
         }
 
+        PopuliAction::WatchTelemetry {
+            telemetry,
+            err_log,
+            interval_ms,
+        } => crate::commands::mens::watch_telemetry::run(telemetry, err_log, interval_ms),
         PopuliAction::Status {
             run_dir,
             quotas,

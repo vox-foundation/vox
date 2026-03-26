@@ -2,7 +2,7 @@
 title: "Environment variables (SSOT)"
 description: "Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-25
 training_eligible: true
 ---
 
@@ -52,7 +52,8 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) to reduce expensive training placements under budget pressure. |
 | `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
-| `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
+| `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
+| `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter: `local_ledger` (default) or `echo_ledger` (deterministic id, no external repository I/O). Unknown values error. |
 | `VOX_NEWS_SITE_BASE_URL` | Public site base URL for RSS links (overrides `[orchestrator.news].site_base_url`). |
 | `VOX_NEWS_RSS_FEED_PATH` | Repo-relative path to `feed.xml` (overrides `[orchestrator.news].rss_feed_path`). |
 | `VOX_NEWS_SCAN_RECURSIVE` | `0`/`1`: whether `NewsService` walks `news_dir` recursively (default `1`). |
@@ -65,9 +66,12 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_SOCIAL_YOUTUBE_CLIENT_ID` | YouTube OAuth client id for channel upload automation. |
 | `VOX_SOCIAL_YOUTUBE_CLIENT_SECRET` | YouTube OAuth client secret for channel upload automation. |
 | `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN` | YouTube refresh token for user-channel upload scopes. |
+| `VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID` | Optional default YouTube `categoryId` used when a manifest omits `youtube.category_id` (publisher fallback defaults to `28`). |
+| `VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS` | Optional integer reserve applied when deriving `twitter.short_text` from markdown (`twitter_text_chunk_max - margin`). |
+| `VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX` | Optional integer cap for derived Reddit self-post body text when `text_override` is empty. |
 | `VOX_SOCIAL_HN_MODE` | Hacker News publish mode (`manual_assist` only; official HN API is read-only). |
-| `VOX_SOCIAL_WORTHINESS_ENFORCE` | `0`/`1`: enforce worthiness floor before live social fan-out in orchestrator news service. |
-| `VOX_SOCIAL_WORTHINESS_SCORE_MIN` | Optional minimum worthiness score floor for live fan-out (default policy fallback if unset). |
+| `VOX_SOCIAL_WORTHINESS_ENFORCE` | `0`/`1`: enforce aggregate worthiness floor before **live** fan-out (orchestrator news tick, `vox db publication-publish`, MCP `vox_scientia_publication_publish` when not dry-run). On MCP, `[orchestrator.news].worthiness_enforce` also applies. |
+| `VOX_SOCIAL_WORTHINESS_SCORE_MIN` | Minimum worthiness score when enforcement is on (default **0.85** if unset). MCP may set `[news].worthiness_score_min` instead. |
 | `VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS` | Optional CSV `channel=floor` map (e.g., `reddit=0.82,hacker_news=0.86`) merged into runtime channel policy. |
 
 Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates/vox-socrates-policy/src/lib.rs); optional TOML overrides live under `[orchestrator]` as `socrates_policy` (see `OrchestratorConfig`).
@@ -118,6 +122,14 @@ Full table: [mens SSOT](mens.md). Common entries:
 |----------|------|
 | `VOX_BUILD_TIMINGS_BUDGET_WARN` | Soft budget warnings for **`vox ci build-timings`**. |
 | `SKIP_CUDA_FEATURE_CHECK` | Skip optional `nvcc` gates (documented escape hatch in [runner contract](../ci/runner-contract.md)). |
+
+## TOESTUB / scaling-audit (`vox-toestub`, `emit-reports`)
+
+| Variable | Role |
+|----------|------|
+| `VOX_TOESTUB_MAX_RUST_PARSE_FAILURES` | Maximum allowed `rust_parse_failures` in the **`toestub --format json`** v1 envelope before **`vox ci scaling-audit emit-reports`** fails (and before PR CI’s full-`crates/` audit step fails). Non-negative integer. **Unset or invalid** ⇒ no limit (historical `emit-reports` behavior). **PR CI** sets this to **`3`** while the repo baseline is low (recent full `crates/` runs reported **`1`**); tighten to **`0`** once every Rust file parses under `syn::parse_file`, or raise the cap when adding deliberate snapshot exclusions. |
+
+**CLI feature flag (not an env var):** `toestub --feature-flags unresolved-regex-fallback` (comma-separated with other flags) relaxes unresolved-ref’s AST `call_sites` gate so regex-only matches can surface again (e.g. macro-expanded calls). Default remains AST-gated for fewer false positives. See [scaling TOESTUB rules](../architecture/scaling-toestub-rules.md).
 
 ## Web / Vite / TanStack codegen
 

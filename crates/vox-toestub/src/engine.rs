@@ -1,7 +1,9 @@
-use std::path::PathBuf;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
+use crate::analysis::RustFileContext;
 use crate::detectors;
-use crate::report::{OutputFormat, Reporter};
+use crate::report::{OutputFormat, Reporter, RunSnapshot};
 use crate::rules::{DetectionRule, Finding, Language, Severity};
 use crate::scanner::Scanner;
 use crate::task_queue::TaskQueue;
@@ -47,6 +49,16 @@ pub struct ToestubConfig {
     pub unwired_path: Option<PathBuf>,
     /// Exit-code policy for CLI / CI (see [`ToestubRunMode`]).
     pub run_mode: ToestubRunMode,
+    /// Optional structured suppressions JSON (schema `contracts/toestub/suppression.v1.schema.json`).
+    pub suppression_path: Option<PathBuf>,
+    /// When non-empty, AST-enhanced unresolved-ref runs only under `crates/<name>/` (canary rollout).
+    pub canary_crates: Option<Vec<String>>,
+    /// Policy for scanning Rust files under `tests/` directories.
+    pub tests_mode: crate::run_context::ToestubTestsMode,
+    /// Optional JSON allowlist (`contracts/toestub/prelude-allowlist.v1.json`); merged with defaults.
+    pub prelude_allowlist_path: Option<PathBuf>,
+    /// Staged detector flags (e.g. `unwired-graph`, `scaling-fs-ast-only`).
+    pub feature_flags: Vec<String>,
 }
 
 impl Default for ToestubConfig {
@@ -62,8 +74,43 @@ impl Default for ToestubConfig {
             schema_path: None,
             unwired_path: None,
             run_mode: ToestubRunMode::default(),
+            suppression_path: None,
+            canary_crates: None,
+            tests_mode: crate::run_context::ToestubTestsMode::default(),
+            prelude_allowlist_path: None,
+            feature_flags: Vec::new(),
         }
     }
+}
+
+#[derive(serde::Deserialize)]
+struct PreludeAllowFile {
+    version: u32,
+    idents: Vec<String>,
+}
+
+fn merge_prelude_allowlist(roots: &[PathBuf], explicit: Option<&Path>) -> HashSet<String> {
+    let mut out = HashSet::new();
+    let mut try_load = |p: &Path| {
+        if let Ok(raw) = crate::bounded_fs::read_utf8_path_capped(p) {
+            if let Ok(doc) = serde_json::from_str::<PreludeAllowFile>(&raw) {
+                if doc.version == 1 {
+                    out.extend(doc.idents.into_iter());
+                }
+            }
+        }
+    };
+    if let Some(p) = explicit {
+        try_load(p);
+    }
+    try_load(Path::new("contracts/toestub/prelude-allowlist.v1.json"));
+    for root in roots {
+        try_load(&root.join("contracts/toestub/prelude-allowlist.v1.json"));
+        if let Some(parent) = root.parent() {
+            try_load(&parent.join("contracts/toestub/prelude-allowlist.v1.json"));
+        }
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -96,36 +143,85 @@ impl ToestubEngine {
 
     /// Run the full analysis pipeline and return findings.
     pub fn run(&self) -> AnalysisResult {
+        let roots = self.get_roots();
+        let prelude = merge_prelude_allowlist(
+            &roots,
+            self.config.prelude_allowlist_path.as_deref(),
+        );
+        let _run_ctx_guard =
+            crate::run_context::RunContextGuard::new(crate::run_context::RunContext {
+                canary_crates: self.config.canary_crates.clone(),
+                tests_mode: self.config.tests_mode,
+                prelude_allow_idents: prelude,
+                feature_flags: self.config.feature_flags.iter().cloned().collect(),
+                unresolved_callee_counts: std::collections::HashMap::new(),
+            });
+        let suppression_store = match crate::suppression::SuppressionStore::load_optional(
+            self.config.suppression_path.as_deref(),
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("TOESTUB suppressions not applied: {e}");
+                crate::suppression::SuppressionStore::empty()
+            }
+        };
+
         // 1. Scan for source files
         let scanner = Scanner::new(
-            self.get_roots(),
+            roots,
             &self.config.excludes,
             self.config.languages.clone(),
         );
         let files = scanner.scan();
 
-        // 2. Run each rule on each file
+        // 2. Run each rule on each file (one Rust parse + token map per file)
         let mut all_findings: Vec<Finding> = Vec::new();
+        let mut rust_parse_failures = 0usize;
         for file in &files {
+            let rust_ctx_owned = if file.language == Language::Rust {
+                let ctx = RustFileContext::parse(&file.content);
+                if ctx.ast.is_err() {
+                    rust_parse_failures += 1;
+                }
+                Some(ctx)
+            } else {
+                None
+            };
+            let rust_ctx = rust_ctx_owned.as_ref();
             for rule in &self.rules {
                 // Skip rules that don't apply to this language
                 if !rule.languages().contains(&file.language) {
                     continue;
                 }
-                let findings = rule.detect(file);
+                let findings = rule.detect(file, rust_ctx);
                 all_findings.extend(findings);
             }
         }
 
+        let mut suppressions_applied: usize = 0;
+        let mut suppression_counts_by_family: HashMap<String, usize> = HashMap::new();
+        all_findings.retain(|f| {
+            if suppression_store.suppresses(f) {
+                suppressions_applied += 1;
+                let fam = f
+                    .rule_id
+                    .split_once('/')
+                    .map(|(a, _)| a.to_string())
+                    .unwrap_or_else(|| f.rule_id.clone());
+                *suppression_counts_by_family.entry(fam).or_insert(0) += 1;
+                return false;
+            }
+            true
+        });
+
         // 3. Filter by severity
         all_findings.retain(|f| f.severity >= self.config.min_severity);
 
-        // 4. Sort by severity (critical first), then by file, then by line
+        // 4. Sort by severity (critical first), then deterministic tie-breakers
         all_findings.sort_by(|a, b| {
             b.severity
                 .cmp(&a.severity)
-                .then_with(|| a.file.cmp(&b.file))
-                .then_with(|| a.line.cmp(&b.line))
+                .then_with(|| a.deterministic_key().cmp(&b.deterministic_key()))
         });
 
         // 5. Build the task queue
@@ -135,18 +231,37 @@ impl ToestubEngine {
             TaskQueue::empty()
         };
 
+        let unresolved_ref_callee_counts =
+            crate::run_context::unresolved_callee_counts_snapshot();
+
         AnalysisResult {
             files_scanned: files.len(),
             rules_applied: self.rules.len(),
             findings: all_findings,
             task_queue,
+            rust_parse_failures,
+            unresolved_ref_callee_counts,
+            suppressions_applied,
+            suppression_counts_by_family,
         }
     }
 
     /// Run analysis and produce formatted output as a String.
     pub fn run_and_report(&self) -> (AnalysisResult, String) {
         let result = self.run();
-        let output = Reporter::format(&result.findings, self.config.format, &result.task_queue);
+        let output = Reporter::format_run(
+            RunSnapshot {
+                findings: &result.findings,
+                files_scanned: result.files_scanned,
+                rules_applied: result.rules_applied,
+                rust_parse_failures: result.rust_parse_failures,
+                unresolved_ref_callee_counts: &result.unresolved_ref_callee_counts,
+                suppressions_applied: result.suppressions_applied,
+                suppression_counts_by_family: &result.suppression_counts_by_family,
+            },
+            self.config.format,
+            &result.task_queue,
+        );
         (result, output)
     }
 
@@ -179,6 +294,14 @@ pub struct AnalysisResult {
     pub findings: Vec<Finding>,
     /// Generated task queue with fix suggestions.
     pub task_queue: TaskQueue,
+    /// Rust files where `syn::parse_file` failed (token map still available).
+    pub rust_parse_failures: usize,
+    /// Best-effort counts of unresolved-ref callees (for hotlist / diagnostics).
+    pub unresolved_ref_callee_counts: HashMap<String, usize>,
+    /// Findings dropped by structured suppressions (before severity filter).
+    pub suppressions_applied: usize,
+    /// Suppressed finding counts by rule id family (segment before first `/`).
+    pub suppression_counts_by_family: HashMap<String, usize>,
 }
 
 impl AnalysisResult {

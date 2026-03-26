@@ -38,7 +38,11 @@ impl DetectionRule for FileOrganizationDetector {
         &[Language::Rust, Language::TypeScript]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
         let file_name = file.path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
@@ -74,6 +78,8 @@ impl DetectionRule for FileOrganizationDetector {
                     ),
                     suggestion: Some("Extract structs, enums, and traits into separate files and re-export them from lib.rs.".to_string()),
                     context: String::new(),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }
@@ -115,6 +121,8 @@ impl DetectionRule for FileOrganizationDetector {
                     ),
                     suggestion: Some("Organize types into a 'types.rs' or 'models/' directory to maintain a clean logic-to-data ratio.".to_string()),
                     context: String::new(),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }

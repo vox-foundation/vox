@@ -2,6 +2,7 @@ use crate::ast::{
     decl::{Decl, Module},
     types::TypeExpr,
 };
+use crate::hir::{HirModule, HirType};
 
 /// Generate a VoxDB `schema.ts` from all @table, @index, and @vector_index declarations.
 ///
@@ -178,6 +179,265 @@ pub fn generate_voxdb_schema(module: &Module) -> String {
     }
 
     out
+}
+
+/// Same as [`generate_voxdb_schema`] but reads canonical HIR vectors (tables, collections, indexes).
+///
+/// Use this on [`HirModule`] after lowering so schema emission stays aligned with `legacy_ast_nodes` removal.
+pub fn generate_voxdb_schema_from_hir(module: &HirModule) -> String {
+    let mut indexes: Vec<(String, String, Vec<String>)> = Vec::new();
+    let mut vector_indexes: Vec<(String, String, String, u32, Vec<String>)> = Vec::new();
+    let mut search_indexes: Vec<(String, String, String, Vec<String>)> = Vec::new();
+
+    for idx in &module.indexes {
+        indexes.push((
+            idx.table_name.clone(),
+            idx.index_name.clone(),
+            idx.columns.clone(),
+        ));
+    }
+    for vidx in &module.vector_indexes {
+        vector_indexes.push((
+            vidx.table_name.clone(),
+            vidx.index_name.clone(),
+            vidx.column.clone(),
+            vidx.dimensions,
+            vidx.filter_fields.clone(),
+        ));
+    }
+    for sidx in &module.search_indexes {
+        search_indexes.push((
+            sidx.table_name.clone(),
+            sidx.index_name.clone(),
+            sidx.search_field.clone(),
+            sidx.filter_fields.clone(),
+        ));
+    }
+
+    if module.tables.is_empty() && module.collections.is_empty() {
+        return String::new();
+    }
+
+    let mut out = String::new();
+    out.push_str("import { defineSchema, defineTable } from \"voxdb/server\";\n");
+    out.push_str("import { v } from \"voxdb/values\";\n\n");
+    out.push_str("export default defineSchema({\n");
+
+    for table in &module.tables {
+        let table_key = to_camel_case(&table.name);
+        out.push_str(&format!("  {}: defineTable({{\n", table_key));
+        for field in &table.fields {
+            let validator = hir_type_to_voxdb_validator(&field.type_ann);
+            out.push_str(&format!("    {}: {},\n", field.name, validator));
+        }
+        out.push_str("  })");
+
+        for (tbl, idx_name, cols) in &indexes {
+            if tbl == &table.name {
+                let cols_str: Vec<String> = cols.iter().map(|c| format!("\"{}\"", c)).collect();
+                out.push_str(&format!(
+                    "\n    .index(\"{}\", [{}])",
+                    idx_name,
+                    cols_str.join(", ")
+                ));
+            }
+        }
+
+        for (tbl, idx_name, field, dims, filters) in &vector_indexes {
+            if tbl == &table.name {
+                let filters_str = if filters.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(
+                        ", filterFields: [{}]",
+                        filters
+                            .iter()
+                            .map(|f| format!("\"{}\"", f))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+                out.push_str(&format!(
+                    "\n    .vectorIndex(\"{}\", {{ vectorField: \"{}\", dimensions: {}{} }})",
+                    idx_name, field, dims, filters_str
+                ));
+            }
+        }
+
+        for (tbl, idx_name, field, filters) in &search_indexes {
+            if tbl == &table.name {
+                let filters_str = if filters.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(
+                        ", filterFields: [{}]",
+                        filters
+                            .iter()
+                            .map(|f| format!("\"{}\"", f))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+                out.push_str(&format!(
+                    "\n    .searchIndex(\"{}\", {{ searchField: \"{}\"{} }})",
+                    idx_name, field, filters_str
+                ));
+            }
+        }
+
+        out.push_str(",\n");
+    }
+
+    for coll in &module.collections {
+        let coll_key = to_camel_case(&coll.name);
+        out.push_str(&format!("  {}: defineTable({{\n", coll_key));
+
+        for field in &coll.fields {
+            let validator = hir_type_to_voxdb_validator(&field.type_ann);
+            out.push_str(&format!("    {}: {},\n", field.name, validator));
+        }
+
+        out.push_str("  })");
+
+        for (tbl, idx_name, cols) in &indexes {
+            if tbl == &coll.name {
+                let cols_str: Vec<String> = cols.iter().map(|c| format!("\"{}\"", c)).collect();
+                out.push_str(&format!(
+                    "\n    .index(\"{}\", [{}])",
+                    idx_name,
+                    cols_str.join(", ")
+                ));
+            }
+        }
+
+        out.push_str(",\n");
+    }
+
+    out.push_str("});\n\n");
+
+    out.push_str("// TypeScript interfaces for client-side type safety\n");
+    for table in &module.tables {
+        out.push_str(&format!("export interface {} {{\n", table.name));
+        out.push_str("  _id: string; // VoxDB ID\n");
+        out.push_str("  _creationTime: number;\n");
+        for field in &table.fields {
+            let ts_type = hir_type_to_ts(&field.type_ann);
+            out.push_str(&format!("  {}: {};\n", field.name, ts_type));
+        }
+        out.push_str("}\n\n");
+    }
+
+    for coll in &module.collections {
+        out.push_str(&format!("export interface {} {{\n", coll.name));
+        out.push_str("  _id: string; // VoxDB ID\n");
+        out.push_str("  _creationTime: number;\n");
+        for field in &coll.fields {
+            let ts_type = hir_type_to_ts(&field.type_ann);
+            out.push_str(&format!("  {}: {};\n", field.name, ts_type));
+        }
+        out.push_str("  [key: string]: any; // Schemaless fields\n");
+        out.push_str("}\n\n");
+    }
+
+    out
+}
+
+fn hir_type_to_voxdb_validator(ty: &HirType) -> String {
+    match ty {
+        HirType::Named(name) => match name.as_str() {
+            "str" => "v.string()".to_string(),
+            "int" | "float" | "float64" => "v.number()".to_string(),
+            "bool" => "v.boolean()".to_string(),
+            "bytes" | "Bytes" => "v.bytes()".to_string(),
+            other => format!("v.any() /* {} */", other),
+        },
+        HirType::Generic(name, args) => match name.as_str() {
+            "Option" => {
+                let inner = args
+                    .first()
+                    .map(hir_type_to_voxdb_validator)
+                    .unwrap_or_else(|| "v.any()".to_string());
+                format!("v.optional({})", inner)
+            }
+            "List" | "list" => {
+                let inner = args
+                    .first()
+                    .map(hir_type_to_voxdb_validator)
+                    .unwrap_or_else(|| "v.any()".to_string());
+                format!("v.array({})", inner)
+            }
+            "Id" => {
+                let table = args
+                    .first()
+                    .and_then(|a| {
+                        if let HirType::Named(n) = a {
+                            Some(n.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or("unknown");
+                format!("v.id(\"{}\")", to_camel_case(&table.to_lowercase()))
+            }
+            "Map" | "map" => "v.any() /* Map */".to_string(),
+            "Set" | "set" => "v.any() /* Set */".to_string(),
+            _ => format!("v.any() /* {}<...> */", name),
+        },
+        HirType::Tuple(elements) => {
+            let els: Vec<String> = elements.iter().map(hir_type_to_voxdb_validator).collect();
+            format!("v.array(v.union({}))", els.join(", "))
+        }
+        HirType::Function(..) => "v.any() /* Function */".to_string(),
+        HirType::Unit => "v.null()".to_string(),
+    }
+}
+
+fn hir_type_to_ts(ty: &HirType) -> String {
+    match ty {
+        HirType::Named(name) => match name.as_str() {
+            "str" => "string".to_string(),
+            "int" | "float" | "float64" => "number".to_string(),
+            "bool" => "boolean".to_string(),
+            "bytes" | "Bytes" => "ArrayBuffer".to_string(),
+            "Unit" => "void".to_string(),
+            "Id" => "string".to_string(),
+            other => other.to_string(),
+        },
+        HirType::Generic(name, args) => {
+            let args_str: Vec<String> = args.iter().map(hir_type_to_ts).collect();
+            match name.as_str() {
+                "Option" => format!("{} | undefined", args_str.join(", ")),
+                "List" | "list" => format!(
+                    "readonly {}[]",
+                    args_str.first().map(String::as_str).unwrap_or("unknown")
+                ),
+                "Map" | "map" if args_str.len() == 2 => {
+                    format!("Record<{}, {}>", args_str[0], args_str[1])
+                }
+                "Set" | "set" if !args_str.is_empty() => format!("Set<{}>", args_str[0]),
+                "Result" => format!("Result<{}>", args_str.join(", ")),
+                "Id" => "string".to_string(),
+                _ => format!("{}<{}>", name, args_str.join(", ")),
+            }
+        }
+        HirType::Function(params, return_type) => {
+            let params_str: Vec<String> = params
+                .iter()
+                .enumerate()
+                .map(|(i, p)| format!("arg{i}: {}", hir_type_to_ts(p)))
+                .collect();
+            format!(
+                "({}) => {}",
+                params_str.join(", "),
+                hir_type_to_ts(return_type)
+            )
+        }
+        HirType::Tuple(elements) => {
+            let elems: Vec<String> = elements.iter().map(hir_type_to_ts).collect();
+            format!("[{}]", elems.join(", "))
+        }
+        HirType::Unit => "void".to_string(),
+    }
 }
 
 /// Map a Vox TypeExpr to a Convex validator expression (e.g. `v.string()`).

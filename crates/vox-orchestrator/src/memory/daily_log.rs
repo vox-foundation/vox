@@ -39,9 +39,8 @@ impl DailyLog {
     /// Read full contents of this log.
     pub fn read(&self) -> Result<String, MemoryError> {
         if self.path.exists() {
-            crate::bounded_fs::read_utf8_path_capped(&self.path).map_err(|e| {
-                MemoryError::Io(std::io::Error::other(e.to_string()))
-            })
+            crate::bounded_fs::read_utf8_path_capped(&self.path)
+                .map_err(|e| MemoryError::Io(std::io::Error::other(e.to_string())))
         } else {
             Ok(String::new())
         }

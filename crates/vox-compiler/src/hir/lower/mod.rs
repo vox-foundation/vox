@@ -40,6 +40,9 @@ impl LowerCtx {
             server_fns: Vec::new(),
             tables: Vec::new(),
             indexes: Vec::new(),
+            collections: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_indexes: Vec::new(),
             mcp_tools: Vec::new(),
             components: Vec::new(),
             v0_components: Vec::new(),
@@ -128,6 +131,28 @@ impl LowerCtx {
                         index_name: idx.index_name.clone(),
                         columns: idx.columns.clone(),
                         span: idx.span,
+                    });
+                }
+                Decl::Collection(c) => {
+                    hir.collections.push(self.lower_collection(c));
+                }
+                Decl::VectorIndex(v) => {
+                    hir.vector_indexes.push(HirVectorIndex {
+                        table_name: v.table_name.clone(),
+                        index_name: v.index_name.clone(),
+                        column: v.column.clone(),
+                        dimensions: v.dimensions,
+                        filter_fields: v.filter_fields.clone(),
+                        span: v.span,
+                    });
+                }
+                Decl::SearchIndex(s) => {
+                    hir.search_indexes.push(HirSearchIndex {
+                        table_name: s.table_name.clone(),
+                        index_name: s.index_name.clone(),
+                        search_field: s.search_field.clone(),
+                        filter_fields: s.filter_fields.clone(),
+                        span: s.span,
                     });
                 }
                 Decl::V0Component(decl) => {
@@ -230,5 +255,78 @@ http post "/chat" to Result { ret Ok(0) }
             hir.server_fns[0].route_path,
             format!("{SERVER_FN_API_PREFIX}{}", "doThing")
         );
+    }
+
+    /// Collection / vector / search declarations must lower to HIR vectors (not `legacy_ast_nodes`).
+    #[test]
+    fn hir_lowering_maps_collection_vector_search_out_of_legacy() {
+        use crate::ast::decl::{
+            CollectionDecl, Decl, Module, SearchIndexDecl, TableDecl, TableField, VectorIndexDecl,
+        };
+        use crate::ast::span::Span;
+        use crate::ast::types::TypeExpr;
+
+        let sp = Span::new(0, 0);
+        let table = TableDecl {
+            name: "Doc".into(),
+            fields: vec![TableField {
+                name: "title".into(),
+                type_ann: TypeExpr::Named {
+                    name: "str".into(),
+                    span: sp,
+                },
+                description: None,
+                span: sp,
+            }],
+            description: None,
+            json_layout: None,
+            auth_provider: None,
+            roles: vec![],
+            cors: None,
+            is_pub: true,
+            is_deprecated: false,
+            span: sp,
+        };
+        let col = CollectionDecl {
+            name: "Notes".into(),
+            fields: vec![],
+            description: None,
+            is_pub: false,
+            has_spread: false,
+            span: sp,
+        };
+        let vix = VectorIndexDecl {
+            table_name: "Doc".into(),
+            index_name: "emb".into(),
+            column: "v".into(),
+            dimensions: 384,
+            filter_fields: vec![],
+            span: sp,
+        };
+        let six = SearchIndexDecl {
+            table_name: "Doc".into(),
+            index_name: "titles".into(),
+            search_field: "title".into(),
+            filter_fields: vec![],
+            span: sp,
+        };
+        let module = Module {
+            declarations: vec![
+                Decl::Table(table),
+                Decl::Collection(col),
+                Decl::VectorIndex(vix),
+                Decl::SearchIndex(six),
+            ],
+            span: sp,
+        };
+        let hir = lower_module(&module);
+        assert!(
+            hir.legacy_ast_nodes.is_empty(),
+            "legacy_ast_nodes should not contain db index decls, got {:?}",
+            hir.legacy_ast_nodes
+        );
+        assert_eq!(hir.collections.len(), 1);
+        assert_eq!(hir.vector_indexes.len(), 1);
+        assert_eq!(hir.search_indexes.len(), 1);
     }
 }

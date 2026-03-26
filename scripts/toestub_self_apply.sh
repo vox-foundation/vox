@@ -1,16 +1,9 @@
-#!/bin/bash
-# TOESTUB Self-Apply Automation for Vox
-
-set -e
-
-echo "🚀 Running TOESTUB Architectural Scan..."
-
-# 1. Build the engine
-echo "🛠️  Building TOESTUB engine..."
-cargo build -p vox-toestub --release
-
-# 2. Run scan
-echo "🔍 Scanning codebase for anti-patterns..."
-cargo run -q -p vox-toestub --bin toestub
-
-echo "✅ TOESTUB: Scan complete."
+#!/usr/bin/env bash
+# Delegates to canonical `vox ci toestub-self-apply` (release build + full-repo scan).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+if command -v vox >/dev/null 2>&1; then
+  exec vox ci toestub-self-apply
+fi
+exec cargo run -p vox-cli -- ci toestub-self-apply

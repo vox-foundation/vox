@@ -60,11 +60,13 @@ operations:
   - { surface: vox-cli, path: [ci, workflow-scripts], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, line-endings], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, mens-gate], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, toestub-self-apply], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, toestub-scoped], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scaling-audit], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scaling-audit, verify], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scaling-audit, emit-reports], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, cuda-features], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, cuda-release-build], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, build-timings], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, grammar-drift], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, repo-guards], status: active, reachability_required: false }
@@ -95,6 +97,7 @@ operations:
   - { surface: vox-cli, path: [mens, corpus], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, pipeline], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, status], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
+  - { surface: vox-cli, path: [mens, watch-telemetry], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, plan], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, eval-gate], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
   - { surface: vox-cli, path: [mens, bench-completion], status: active, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
@@ -154,7 +157,9 @@ script_duals:
   - { script_glob: scripts/check_cuda_feature_builds.sh, canonical_cli: "vox ci cuda-features" }
   - { script_glob: scripts/quality/toestub_scoped.sh, canonical_cli: "vox ci toestub-scoped" }
   - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci mens-gate --profile m1m4" }
-  - { script_glob: scripts/mens/release_training_gate.*, canonical_cli: "vox ci mens-gate --profile training" }
+  - { script_glob: scripts/populi/release_training_gate.*, canonical_cli: "vox ci mens-gate --profile training" }
+  - { script_glob: scripts/populi/release_ci_full_gate.ps1, canonical_cli: "vox ci mens-gate --profile ci_full" }
+  - { script_glob: scripts/populi/mens_gate_safe.ps1, canonical_cli: "vox ci mens-gate --profile <training|ci_full|m1m4>" }
 
 # Names must appear in docs/src/reference/env-vars-ssot.md (Web / codegen / dev topology).
 env_var_ssot_index:

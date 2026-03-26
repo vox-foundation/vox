@@ -59,7 +59,11 @@ impl DetectionRule for VictoryClaimDetector {
         ]
     }
 
-    fn detect(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -80,6 +84,8 @@ impl DetectionRule for VictoryClaimDetector {
                         "Remove the comment if the implementation is complete, or replace with a descriptive comment.".to_string(),
                     ),
                     context: file.context_around(line_num, 2),
+                    confidence: None,
+                    evidence: None,
                 });
             }
 
@@ -97,6 +103,8 @@ impl DetectionRule for VictoryClaimDetector {
                         "Complete the TODO or create a tracked task for it.".to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
 
@@ -112,6 +120,8 @@ impl DetectionRule for VictoryClaimDetector {
                     message: "FIXME marker — known issue left unresolved".to_string(),
                     suggestion: Some("Fix the issue or track it as a task.".to_string()),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
 
@@ -130,6 +140,8 @@ impl DetectionRule for VictoryClaimDetector {
                             .to_string(),
                     ),
                     context: file.context_around(line_num, 1),
+                    confidence: None,
+                    evidence: None,
                 });
             }
         }
@@ -151,7 +163,7 @@ mod tests {
     fn detects_victory_comment() {
         let d = VictoryClaimDetector::new();
         let f = source("rs", "// Done! Implementation complete\nfn foo() {}");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings
                 .iter()
@@ -164,7 +176,7 @@ mod tests {
     fn detects_todo_leftover() {
         let d = VictoryClaimDetector::new();
         let f = source("py", "# TODO: implement later\ndef foo():\n    pass");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings
                 .iter()
@@ -177,7 +189,7 @@ mod tests {
     fn detects_fixme() {
         let d = VictoryClaimDetector::new();
         let f = source("ts", "// FIXME this is broken\nconst x = 1;");
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(
             findings.iter().any(|f| f.rule_id == "victory-claim/fixme"),
             "should detect FIXME"
@@ -191,7 +203,7 @@ mod tests {
             "rs",
             "/// Adds two numbers.\nfn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
         );
-        let findings = d.detect(&f);
+        let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
 }
