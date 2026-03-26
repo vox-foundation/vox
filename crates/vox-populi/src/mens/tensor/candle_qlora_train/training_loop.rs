@@ -424,24 +424,25 @@ pub(super) fn run_training_loop(
                     trajectory_weighted_pairs,
                     trajectory_clamped_pairs
                 ));
+                let step_payload = build_train_step_payload(
+                    epoch,
+                    global_step,
+                    optimizer_step_count,
+                    loss_val,
+                    lr_applied_this_step,
+                    eta_s,
+                    total_optimizer_steps_planned,
+                    skip_no_supervised_positions,
+                    skip_short_seq,
+                    skip_curriculum,
+                    trajectory_weighted_pairs,
+                    trajectory_clamped_pairs,
+                    ema_steps_per_sec,
+                );
                 telemetry::append(
                     out,
                     telemetry_schema::events::TRAIN_STEP,
-                    serde_json::json!({
-                        telemetry_schema::keys::EPOCH: epoch,
-                        telemetry_schema::keys::STEP: global_step,
-                        "optimizer_step": optimizer_step_count,
-                        telemetry_schema::keys::LOSS: loss_val,
-                        telemetry_schema::keys::LR: lr_applied_this_step,
-                        telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_s,
-                        telemetry_schema::keys::PROGRESS_FRACTION: optimizer_step_count as f64 / total_optimizer_steps_planned.max(1) as f64,
-                        telemetry_schema::keys::STEPS_PER_SEC_EMA: ema_steps_per_sec,
-                        "skip_no_supervised_positions": skip_no_supervised_positions,
-                        "skip_short_seq": skip_short_seq,
-                        "skip_curriculum": skip_curriculum,
-                        "trajectory_weighted_pairs": trajectory_weighted_pairs,
-                        "trajectory_clamped_pairs": trajectory_clamped_pairs,
-                    }),
+                    step_payload,
                 )?;
                 progress_anchor_step = optimizer_step_count;
                 progress_anchor_time = now;
@@ -600,9 +601,42 @@ fn trajectory_weight_for_pair(pair: &TrainingPair, config: &LoraTrainingConfig) 
     (clamped, was_clamped)
 }
 
+#[allow(clippy::too_many_arguments)]
+fn build_train_step_payload(
+    epoch: usize,
+    global_step: u32,
+    optimizer_step_count: u32,
+    loss_val: f32,
+    lr_applied_this_step: f64,
+    eta_s: Option<u64>,
+    total_optimizer_steps_planned: u32,
+    skip_no_supervised_positions: u64,
+    skip_short_seq: u64,
+    skip_curriculum: u64,
+    trajectory_weighted_pairs: u64,
+    trajectory_clamped_pairs: u64,
+    ema_steps_per_sec: Option<f64>,
+) -> serde_json::Value {
+    serde_json::json!({
+        telemetry_schema::keys::EPOCH: epoch,
+        telemetry_schema::keys::STEP: global_step,
+        "optimizer_step": optimizer_step_count,
+        telemetry_schema::keys::LOSS: loss_val,
+        telemetry_schema::keys::LR: lr_applied_this_step,
+        telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_s,
+        telemetry_schema::keys::PROGRESS_FRACTION: optimizer_step_count as f64 / total_optimizer_steps_planned.max(1) as f64,
+        telemetry_schema::keys::STEPS_PER_SEC_EMA: ema_steps_per_sec,
+        "skip_no_supervised_positions": skip_no_supervised_positions,
+        "skip_short_seq": skip_short_seq,
+        "skip_curriculum": skip_curriculum,
+        "trajectory_weighted_pairs": trajectory_weighted_pairs,
+        "trajectory_clamped_pairs": trajectory_clamped_pairs,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{build_epoch_shuffled_indices, trajectory_weight_for_pair};
+    use super::{build_epoch_shuffled_indices, build_train_step_payload, trajectory_weight_for_pair};
     use rand::SeedableRng;
     use vox_tensor::data::TrainingPair;
 
@@ -680,5 +714,36 @@ mod tests {
         let (w, clamped) = trajectory_weight_for_pair(&pair, &cfg);
         assert!(clamped);
         assert!(w <= 8.0);
+    }
+
+    #[test]
+    fn trajectory_telemetry_payload_reports_clamped_pairs() {
+        let payload = build_train_step_payload(
+            1,
+            10,
+            4,
+            0.55,
+            1e-4,
+            Some(90),
+            25,
+            0,
+            0,
+            0,
+            6,
+            3,
+            Some(2.2),
+        );
+        assert_eq!(
+            payload
+                .get("trajectory_weighted_pairs")
+                .and_then(|v| v.as_u64()),
+            Some(6)
+        );
+        assert_eq!(
+            payload
+                .get("trajectory_clamped_pairs")
+                .and_then(|v| v.as_u64()),
+            Some(3)
+        );
     }
 }

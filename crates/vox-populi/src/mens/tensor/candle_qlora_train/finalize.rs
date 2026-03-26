@@ -8,10 +8,51 @@ use qlora_rs::training::QLoraTrainer;
 
 use super::{QloraAdapterMetaV2, TrainingDbEvent, TrainingLoopStats};
 use crate::mens::tensor::{
+    adapter_schema_v3::{AdapterProvenanceFields, PopuliAdapterManifestV3},
     backend::TrainingSummary, checkpoint_state::CheckpointState, manifest,
+    finetune_contract::{AdapterMethod, BaseQuantMode},
     qlora_preflight::QloraEmbedBundle, telemetry, telemetry_schema, train_log,
     training_config::LoraTrainingConfig,
 };
+
+fn adapter_provenance_from_config(config: &LoraTrainingConfig) -> Option<AdapterProvenanceFields> {
+    let has_lineage = config.base_model_family.is_some()
+        || config.upstream_model_id.is_some()
+        || config.license_class.is_some()
+        || config.attribution_required;
+    if !has_lineage {
+        return None;
+    }
+    Some(AdapterProvenanceFields {
+        base_family: config.base_model_family.clone(),
+        upstream_model_id: config.upstream_model_id.clone(),
+        license_class: config.license_class.clone(),
+        attribution_required: config.attribution_required,
+    })
+}
+
+fn build_adapter_manifest_v3(
+    vocab: usize,
+    d_model: usize,
+    rank: usize,
+    alpha: usize,
+    config: &LoraTrainingConfig,
+    adapter_layer_order: &[String],
+    base_key_map: &std::collections::HashMap<String, String>,
+) -> PopuliAdapterManifestV3 {
+    PopuliAdapterManifestV3::new(
+        AdapterMethod::Qlora,
+        BaseQuantMode::Nf4,
+        config.qlora_double_quant,
+        base_key_map.clone(),
+        adapter_layer_order.to_vec(),
+        vocab,
+        d_model,
+        rank,
+        alpha,
+        adapter_provenance_from_config(config),
+    )
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn finalize_training_run(
@@ -92,6 +133,19 @@ pub(super) fn finalize_training_run(
         out.join("adapter_meta_v2.json"),
         serde_json::to_string_pretty(&meta)?,
     )?;
+    let adapter_manifest_v3 = build_adapter_manifest_v3(
+        bundle.vocab,
+        bundle.d_model,
+        config.rank,
+        config.alpha as usize,
+        config,
+        adapter_layer_order,
+        base_key_map,
+    );
+    std::fs::write(
+        out.join("populi_adapter_manifest_v3.json"),
+        serde_json::to_string_pretty(&adapter_manifest_v3)?,
+    )?;
 
     CheckpointState::delete(out);
 
@@ -164,4 +218,41 @@ pub(super) fn finalize_training_run(
         total_tokens,
         ms_per_step,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::build_adapter_manifest_v3;
+    use crate::mens::tensor::training_config::LoraTrainingConfig;
+
+    #[test]
+    fn adapter_manifest_v3_carries_lineage_from_training_config() {
+        let mut cfg = LoraTrainingConfig::default();
+        cfg.base_model_family = Some("kimi-k2.5".into());
+        cfg.upstream_model_id = Some("moonshotai/Kimi-K2.5".into());
+        cfg.license_class = Some("modified-mit".into());
+        cfg.attribution_required = true;
+
+        let mut key_map = HashMap::new();
+        key_map.insert("lm_head".into(), "wte.weight".into());
+        let manifest = build_adapter_manifest_v3(
+            32000,
+            4096,
+            16,
+            32,
+            &cfg,
+            &["lm_head".into()],
+            &key_map,
+        );
+        let prov = manifest.provenance.expect("expected provenance");
+        assert_eq!(prov.base_family.as_deref(), Some("kimi-k2.5"));
+        assert_eq!(
+            prov.upstream_model_id.as_deref(),
+            Some("moonshotai/Kimi-K2.5")
+        );
+        assert_eq!(prov.license_class.as_deref(), Some("modified-mit"));
+        assert!(prov.attribution_required);
+    }
 }

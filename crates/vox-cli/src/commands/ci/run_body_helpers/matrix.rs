@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use std::fs;
+use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -90,6 +91,16 @@ fn resolve_mens_gate_manifest_path(root: &Path) -> PathBuf {
     }
 }
 
+fn nested_cargo_target_dir(root: &Path) -> PathBuf {
+    let base = env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .map(|p| {
+            if p.is_absolute() { p } else { root.join(p) }
+        })
+        .unwrap_or_else(|| root.join("target"));
+    base.join("nested-ci")
+}
+
 pub(crate) fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
     let manifest_path = resolve_mens_gate_manifest_path(root);
     let raw = read_utf8_path_capped(&manifest_path)
@@ -108,6 +119,7 @@ pub(crate) fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
         .ok_or_else(|| anyhow!("profile {profile}: missing steps"))?;
 
     let cargo = cargo_bin();
+    let nested_target = nested_cargo_target_dir(root);
     for step in steps {
         let cmd = step
             .get("command")
@@ -123,10 +135,12 @@ pub(crate) fn run_mens_gate(root: &Path, profile: &str) -> Result<()> {
             .collect();
         eprintln!(">> {cmd} {}", arg_strs.join(" "));
         let st = if cmd == "cargo" {
-            Command::new(&cargo)
+            let mut child = Command::new(&cargo);
+            child
                 .current_dir(root)
-                .args(&arg_strs)
-                .status()?
+                .env("CARGO_TARGET_DIR", &nested_target)
+                .args(&arg_strs);
+            child.status()?
         } else {
             Command::new(cmd)
                 .current_dir(root)
@@ -194,7 +208,7 @@ mod feature_matrix_contract_tests {
     use std::path::{Path, PathBuf};
 
     use crate::commands::ci::constants::FEATURE_SETS;
-    use crate::commands::ci::run_body_helpers::matrix::resolve_mens_gate_manifest_path;
+    use super::{nested_cargo_target_dir, resolve_mens_gate_manifest_path};
 
     #[test]
     fn feature_sets_include_script_execution_lane() {
@@ -220,7 +234,6 @@ mod feature_matrix_contract_tests {
     fn canonical_mens_gate_manifest_exists_in_repo() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
-            .join("..")
             .join("..");
         let resolved = resolve_mens_gate_manifest_path(&root);
         assert!(
@@ -243,6 +256,18 @@ mod feature_matrix_contract_tests {
             resolved.ends_with(PathBuf::from("scripts/mens/gates.yaml")),
             "expected legacy fallback, got {}",
             resolved.display()
+        );
+    }
+
+    #[test]
+    fn nested_cargo_target_uses_nested_ci_suffix() {
+        let td = tempfile::tempdir().expect("tempdir");
+        let root = td.path();
+        let nested = nested_cargo_target_dir(root);
+        assert!(
+            nested.ends_with(PathBuf::from("target/nested-ci")),
+            "unexpected nested target path: {}",
+            nested.display()
         );
     }
 }

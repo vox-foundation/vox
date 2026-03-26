@@ -210,7 +210,9 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
 
     use safetensors::SafeTensors;
     use safetensors::tensor::{Dtype, TensorView};
-    use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
+    use vox_populi::mens::tensor::adapter_schema_v3::{
+        AdapterProvenanceFields, PopuliAdapterManifestV3,
+    };
     use vox_populi::mens::tensor::finetune_contract::{AdapterMethod, BaseQuantMode};
 
     let dir = tempfile::tempdir().expect("tempdir");
@@ -261,6 +263,12 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
 
     let mut base_key_map = HashMap::new();
     base_key_map.insert("lm_head".into(), "wte.weight".into());
+    let provenance = AdapterProvenanceFields {
+        base_family: Some("kimi-k2.5".into()),
+        upstream_model_id: Some("moonshotai/Kimi-K2.5".into()),
+        license_class: Some("modified-mit".into()),
+        attribution_required: true,
+    };
     let v3 = PopuliAdapterManifestV3::new(
         AdapterMethod::Qlora,
         BaseQuantMode::Nf4,
@@ -271,8 +279,9 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         d,
         rank,
         alpha,
-        None,
+        Some(provenance.clone()),
     );
+    assert_eq!(v3.provenance, Some(provenance));
     let meta_path = dir.path().join("meta_v3.json");
     std::fs::write(
         &meta_path,
