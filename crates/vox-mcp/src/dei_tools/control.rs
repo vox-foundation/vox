@@ -3,17 +3,36 @@ use crate::sync_poison::{poison_rw_read, poison_rw_write};
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::{AgentId, TaskId};
 
+const REM_AGENT_ID: &str =
+    "Use `spawn_agent` / orchestrator status to list valid agent ids before querying queues.";
+const REM_VOXDB_EVENTS: &str =
+    "Configure VoxDb/Turso for the MCP server (or use `vox` CLI with DB enabled) to read Codex history.";
+const REM_ORCH_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_ORCH_TASK: &str =
+    "Verify task id and lifecycle state with orchestrator tools; the task may be completed or invalid.";
+const REM_ORCH_AGENT_OP: &str =
+    "Confirm agent ids via orchestrator status; agents may be retired or paused.";
+const REM_ORCH_CONFIG: &str =
+    "Patch only valid `OrchestratorConfig` fields; compare against docs and `config_get` output.";
+
 /// Return the queue snapshot for `params.agent_id`.
 pub async fn queue_status(state: &ServerState, params: QueueStatusParams) -> String {
     let orch = &state.orchestrator;
     if let Some(queue_lock) = orch.agent_queue(AgentId(params.agent_id)) {
         let json = match poison_rw_read(queue_lock.read(), "read agent queue for queue_status") {
             Ok(guard) => guard.to_json(),
-            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_LOCK).to_json();
+            }
         };
         ToolResult::ok(json).to_json()
     } else {
-        ToolResult::<String>::err(format!("Agent {} not found", params.agent_id)).to_json()
+        ToolResult::<String>::err_with_remediation(
+            format!("Agent {} not found", params.agent_id),
+            REM_AGENT_ID,
+        )
+        .to_json()
     }
 }
 
@@ -36,7 +55,9 @@ pub async fn budget_status(state: &ServerState) -> String {
     for agent_id in orch.agent_ids() {
         let budget = match poison_rw_read(bh.read(), "read budget for budget_status") {
             Ok(guard) => guard.check_budget(agent_id),
-            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_LOCK).to_json();
+            }
         };
         if let Some(budget) = budget {
             total_tokens += budget.tokens_used;
@@ -56,7 +77,7 @@ pub async fn cancel_task(state: &ServerState, params: crate::CancelTaskParams) -
     let orch = &state.orchestrator;
 
     if let Err(e) = orch.cancel_task(TaskId(params.task_id)) {
-        return ToolResult::<String>::err(format!("{}", e)).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_TASK).to_json();
     }
     ToolResult::ok(format!("Task {} cancelled", params.task_id)).to_json()
 }
@@ -72,7 +93,7 @@ pub async fn reorder_task(state: &ServerState, params: crate::ReorderTaskParams)
     };
 
     if let Err(e) = orch.reorder_task(TaskId(params.task_id), priority) {
-        return ToolResult::<String>::err(format!("{}", e)).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_TASK).to_json();
     }
     ToolResult::ok(format!(
         "Task {} reordered to {:?}",
@@ -92,7 +113,7 @@ pub async fn drain_agent(state: &ServerState, params: crate::DrainAgentParams) -
             params.agent_id
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{}", e)).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_TASK).to_json(),
     }
 }
 
@@ -108,10 +129,18 @@ pub async fn agent_events(state: &ServerState, params: AgentEventsParams) -> Str
     if let Some(db) = &state.db {
         match vox_ludus::db::get_events(db, &params.agent_id.to_string(), None).await {
             Ok(events) => ToolResult::ok(events).to_json(),
-            Err(e) => ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(
+                format!("DB error: {}", e),
+                REM_VOXDB_EVENTS,
+            )
+            .to_json(),
         }
     } else {
-        ToolResult::<String>::err("Database not configured, cannot fetch past events.").to_json()
+        ToolResult::<String>::err_with_remediation(
+            "Database not configured, cannot fetch past events.",
+            REM_VOXDB_EVENTS,
+        )
+        .to_json()
     }
 }
 
@@ -131,7 +160,7 @@ pub async fn map_agent_session(
             params.session_id, params.agent_id
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{}", e)).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP).to_json(),
     }
 }
 
@@ -169,7 +198,11 @@ pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> Str
 
         ToolResult::ok(all_records).to_json()
     } else {
-        ToolResult::<String>::err("Database not configured, cannot fetch cost history.").to_json()
+        ToolResult::<String>::err_with_remediation(
+            "Database not configured, cannot fetch cost history.",
+            REM_VOXDB_EVENTS,
+        )
+        .to_json()
     }
 }
 
@@ -190,7 +223,9 @@ pub async fn config_get(state: &ServerState) -> String {
         let handle = orch.config_handle();
         let cfg = match poison_rw_read(handle.read(), "read orchestrator config for config_get") {
             Ok(c) => c,
-            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_LOCK).to_json();
+            }
         };
         serde_json::to_value(&*cfg).unwrap_or_default()
     };
@@ -218,7 +253,9 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
         let handle = orch.config_handle();
         let cfg = match poison_rw_read(handle.read(), "read orchestrator config for config_set") {
             Ok(c) => c,
-            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_LOCK).to_json();
+            }
         };
         serde_json::to_value(&*cfg).unwrap_or_default()
     };
@@ -238,11 +275,17 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
                 "write orchestrator config for config_set",
             ) {
                 Ok(mut w) => *w = new_config.clone(),
-                Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_LOCK).to_json();
+                }
             }
             ToolResult::ok(new_config).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("invalid config fields: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("invalid config fields: {e}"),
+            REM_ORCH_CONFIG,
+        )
+        .to_json(),
     }
 }
 
@@ -293,7 +336,8 @@ pub async fn spawn_agent(
             "dynamic": params.dynamic.unwrap_or(false),
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP)
+            .to_json(),
     }
 }
 
@@ -309,7 +353,8 @@ pub async fn retire_agent(
             "remaining_tasks": remaining.len(),
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP)
+            .to_json(),
     }
 }
 
@@ -321,7 +366,7 @@ pub async fn pause_agent(
     let orch = &state.orchestrator;
     match orch.pause_agent(vox_orchestrator::AgentId(params.agent_id)) {
         Ok(()) => ToolResult::ok(format!("Agent {} paused", params.agent_id)).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json(),
     }
 }
 
@@ -333,6 +378,6 @@ pub async fn resume_agent(
     let orch = &state.orchestrator;
     match orch.resume_agent(vox_orchestrator::AgentId(params.agent_id)) {
         Ok(()) => ToolResult::ok(format!("Agent {} resumed", params.agent_id)).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json(),
     }
 }

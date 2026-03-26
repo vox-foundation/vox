@@ -2,7 +2,7 @@
 title: "Architecture Decision Records (ADR)"
 description: "Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
 # Architecture Decision Records (ADR)
@@ -22,5 +22,6 @@ This directory contains ADRs for the Vox project.
 | [009](009-mens-hosted-baas.md) | **Hosted mens / BaaS (future trust model)** |
 | [010](010-tanstack-web-spine.md) | **TanStack web spine (Router → Start, SSR topology)** |
 | [011](011-scientia-publication-ssot.md) | **Scientia publication manifest SSOT** |
+| [012](012-internal-web-ir-strategy.md) | **Internal web IR strategy for Vox frontend emission** |
 
-See also: [Codex vNext schema](../architecture/codex-vnext-schema.md), [Codex BaaS](../architecture/codex-baas.md).
+See also: [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md), [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md), [Codex vNext schema](../architecture/codex-vnext-schema.md), [Codex BaaS](../architecture/codex-baas.md).

@@ -7,6 +7,11 @@ use serde::Deserialize;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_VOXDB_ATTACH: &str =
+    "Attach VoxDb via `VOX_DB_PATH` / `VOX_DB_URL` on the MCP server before querying benchmark telemetry.";
+const REM_BENCHMARK_DB: &str =
+    "Verify Turso connectivity and that `research_metrics` (benchmark rows) migrations are applied.";
+
 /// Arguments for `vox_benchmark_list`.
 #[derive(Debug, Deserialize)]
 pub struct BenchmarkListParams {
@@ -22,8 +27,11 @@ fn default_limit() -> i64 {
 /// List recent benchmark-class metrics for this repository (best-effort).
 pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) -> String {
     let Some(db) = state.db.as_ref() else {
-        return ToolResult::<String>::err("VoxDb not attached; set VOX_DB_PATH / VOX_DB_URL.")
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached; set VOX_DB_PATH / VOX_DB_URL.",
+            REM_VOXDB_ATTACH,
+        )
+        .to_json();
     };
     let rid = state.repository.repository_id.clone();
     match db
@@ -31,7 +39,7 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
         .await
     {
         Ok(rows) => ToolResult::ok(rows).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json(),
     }
 }
 
@@ -49,8 +57,11 @@ pub struct BenchmarkRecordParams {
 /// Record a benchmark-class metric for this repository.
 pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams) -> String {
     let Some(db) = state.db.as_ref() else {
-        return ToolResult::<String>::err("VoxDb not attached; set VOX_DB_PATH / VOX_DB_URL.")
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached; set VOX_DB_PATH / VOX_DB_URL.",
+            REM_VOXDB_ATTACH,
+        )
+        .to_json();
     };
     let rid = state.repository.repository_id.clone();
     match db
@@ -58,6 +69,6 @@ pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams
         .await
     {
         Ok(_) => ToolResult::ok("Recorded.").to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json(),
     }
 }

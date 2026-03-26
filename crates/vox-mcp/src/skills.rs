@@ -5,6 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ServerState, ToolResult};
 
+const REM_SKILL_BUNDLE: &str =
+    "Validate `bundle_json` against the vox-skills bundle schema (id, manifest, files).";
+const REM_SKILL_INSTALL: &str =
+    "Check disk permissions, bundle hash conflicts, and that the skill id is not corrupted.";
+const REM_SKILL_MD: &str =
+    "Ensure `skill_md` matches the SKILL.md frontmatter/body format documented for vox-skills.";
+const REM_SKILL_ID: &str = "Run `skill_list` / `skill_search` and pass an installed skill `id`.";
+
 // ---------------------------------------------------------------------------
 // Parameters
 // ---------------------------------------------------------------------------
@@ -58,7 +66,13 @@ fn to_info(m: vox_skills::SkillManifest) -> SkillInfo {
 pub async fn skill_install(state: &ServerState, params: SkillInstallParams) -> String {
     let bundle = match vox_skills::VoxSkillBundle::from_json(&params.bundle_json) {
         Ok(b) => b,
-        Err(e) => return ToolResult::<String>::err(format!("Invalid bundle: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("Invalid bundle: {e}"),
+                REM_SKILL_BUNDLE,
+            )
+            .to_json();
+        }
     };
     // Arc<SkillRegistry> — interior mutability, no Mutex needed
     match state.skill_registry.install(&bundle).await {
@@ -79,7 +93,7 @@ pub async fn skill_install(state: &ServerState, params: SkillInstallParams) -> S
                 .to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SKILL_INSTALL).to_json(),
     }
 }
 
@@ -92,7 +106,7 @@ pub async fn skill_uninstall(state: &ServerState, params: SkillIdParams) -> Stri
                 ToolResult::ok(format!("Skill '{}' was not installed.", res.id)).to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SKILL_ID).to_json(),
     }
 }
 
@@ -123,7 +137,11 @@ pub fn skill_search(state: &ServerState, params: SkillSearchParams) -> String {
 pub fn skill_parse(params: SkillParseParams) -> String {
     match vox_skills::parser::parse_skill_md(&params.skill_md) {
         Ok(bundle) => ToolResult::ok(to_info(bundle.manifest)).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("Parse error: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Parse error: {e}"),
+            REM_SKILL_MD,
+        )
+        .to_json(),
     }
 }
 
@@ -131,7 +149,11 @@ pub fn skill_info(state: &ServerState, params: SkillIdParams) -> String {
     match state.skill_registry.get(&params.id) {
         Some(m) => ToolResult::ok(to_info(m)).to_json(),
         None => {
-            ToolResult::<String>::err(format!("Skill '{}' not installed.", params.id)).to_json()
+            ToolResult::<String>::err_with_remediation(
+                format!("Skill '{}' not installed.", params.id),
+                REM_SKILL_ID,
+            )
+            .to_json()
         }
     }
 }

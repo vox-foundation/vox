@@ -3,10 +3,15 @@
 //! This module plans which files to write and validates an on-disk tree before upload tooling runs.
 
 use std::fs;
+use std::io::Cursor;
 use std::path::Path;
 
 use flate2::Compression;
+use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
+use sha3::digest::Digest;
+use sha3::Sha3_256;
+use tar::Archive;
 
 use crate::citation_cff::render_citation_cff;
 use crate::crossref_metadata::crossref_work_export_json;
@@ -78,6 +83,10 @@ pub fn staging_artifacts(venue: ScholarlyVenue) -> Vec<StagingArtifact> {
         });
     }
     if matches!(venue, ScholarlyVenue::ArxivAssist) {
+        v.push(StagingArtifact {
+            relative_path: "main.tex".to_string(),
+            require_non_empty_source: true,
+        });
         v.push(StagingArtifact {
             relative_path: "arxiv_handoff.json".to_string(),
             require_non_empty_source: false,
@@ -190,6 +199,9 @@ pub fn write_scholarly_staging(
     }
 
     if matches!(venue, ScholarlyVenue::ArxivAssist) {
+        let stub = arxiv_assist_main_tex(manifest);
+        fs::write(out_dir.join("main.tex"), stub)?;
+        written.push("main.tex".to_string());
         let ah = serde_json::to_string_pretty(&arxiv_operator_handoff_value(manifest))?;
         fs::write(out_dir.join("arxiv_handoff.json"), ah)?;
         written.push("arxiv_handoff.json".to_string());
@@ -198,7 +210,148 @@ pub fn write_scholarly_staging(
         written.push("arxiv_bundle.tar.gz".to_string());
     }
 
+    write_staging_checksum_manifest(out_dir, &written)?;
+    written.push("staging_checksums.json".to_string());
+
     Ok(written)
+}
+
+/// Writes `staging_checksums.json` (`schema_version` + hex SHA3-256 per relative path) for Zenodo upload verification.
+pub fn write_staging_checksum_manifest(
+    out_dir: &Path,
+    relpaths: &[String],
+) -> Result<(), StagingExportError> {
+    let mut sha_map = serde_json::Map::new();
+    for rel in relpaths {
+        if rel == "staging_checksums.json" {
+            continue;
+        }
+        let p = out_dir.join(rel);
+        if !p.is_file() {
+            continue;
+        }
+        let bytes = fs::read(&p)?;
+        let digest = Sha3_256::digest(&bytes);
+        let hex = format!("{digest:x}");
+        sha_map.insert(rel.clone(), serde_json::json!(hex));
+    }
+    let doc = serde_json::json!({
+        "schema_version": 1_i32,
+        "sha3_256": sha_map,
+    });
+    fs::write(
+        out_dir.join("staging_checksums.json"),
+        serde_json::to_string_pretty(&doc)?,
+    )?;
+    Ok(())
+}
+
+/// Validate gzip-compressed tar expected to contain an arXiv-style source bundle (≥1 `.tex`, no risky extensions).
+#[must_use]
+pub fn validate_arxiv_submission_tar_gz(bytes: &[u8]) -> Vec<ValidationFinding> {
+    let mut findings = Vec::new();
+    if bytes.len() < 2 || bytes[0] != 0x1f || bytes[1] != 0x8b {
+        findings.push(ValidationFinding {
+            code: "arxiv_bundle_not_gzip",
+            message: "bundle must be gzip (0x1f 0x8b)".into(),
+        });
+        return findings;
+    }
+    let dec = GzDecoder::new(Cursor::new(bytes));
+    let mut archive = Archive::new(dec);
+    let mut tex_count = 0_usize;
+    let mut entries = match archive.entries() {
+        Ok(e) => e,
+        Err(e) => {
+            findings.push(ValidationFinding {
+                code: "arxiv_bundle_tar_unreadable",
+                message: format!("tar entries: {e}"),
+            });
+            return findings;
+        }
+    };
+    for ent in entries.by_ref() {
+        let ent = match ent {
+            Ok(e) => e,
+            Err(e) => {
+                findings.push(ValidationFinding {
+                    code: "arxiv_bundle_tar_entry",
+                    message: format!("{e}"),
+                });
+                continue;
+            }
+        };
+        let path = match ent.path() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        let path_s = path.to_string_lossy();
+        if path_s.contains("..") {
+            findings.push(ValidationFinding {
+                code: "arxiv_path_traversal",
+                message: format!("unsafe path {path_s:?}"),
+            });
+            continue;
+        }
+        let lower = path_s.to_ascii_lowercase();
+        if lower.ends_with(".tex") {
+            tex_count += 1;
+        }
+        for bad in [".exe", ".dll", ".dmg", ".pkg", ".deb", ".msi", ".app/"] {
+            if lower.contains(bad) {
+                findings.push(ValidationFinding {
+                    code: "arxiv_disallowed_binary",
+                    message: format!("path {path_s:?} matches disallowed pattern {bad:?}"),
+                });
+            }
+        }
+    }
+    if tex_count == 0 {
+        findings.push(ValidationFinding {
+            code: "arxiv_missing_tex",
+            message: "arXiv bundle must contain at least one .tex source".into(),
+        });
+    }
+    findings
+}
+
+fn latex_escape_minimal(s: &str) -> String {
+    let mut out = String::with_capacity(s.len().saturating_mul(2));
+    for c in s.chars() {
+        match c {
+            '\\' | '{' | '}' | '#' | '$' | '%' | '^' | '_' | '&' | '~' => {
+                out.push('\\');
+                out.push(c);
+            }
+            '\n' => out.push_str("\n\n"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+fn arxiv_assist_main_tex(manifest: &PublicationManifest) -> String {
+    let title = latex_escape_minimal(&manifest.title);
+    let author = latex_escape_minimal(&manifest.author);
+    let abs = manifest
+        .abstract_text
+        .as_deref()
+        .map(latex_escape_minimal)
+        .unwrap_or_else(|| "Abstract pending.".to_string());
+    format!(
+        "% Auto-generated stub for arXiv operator-assist staging (vox-publisher).\n\
+\\documentclass{{article}}\n\
+\\usepackage{{hyperref}}\n\
+\\title{{{title}}}\n\
+\\author{{{author}}}\n\
+\\begin{{document}}\n\
+\\maketitle\n\
+\\begin{{abstract}}\n\
+{abs}\n\
+\\end{{abstract}}\n\
+\\noindent\\textit{{Companion manuscript:}} \\texttt{{body.md}} in this bundle.\n\
+\\end{{document}}\n"
+    )
 }
 
 /// Gzip-compressed tar of every regular file in `staging_dir` (sorted by name), except `arxiv_bundle.tar.gz`.
@@ -381,11 +534,18 @@ fn content_checks(path: &Path, relative_path: &str, venue: ScholarlyVenue) -> Ve
         }
     }
     if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_bundle.tar.gz" {
-        if bytes.len() < 2 || bytes[0] != 0x1f || bytes[1] != 0x8b {
-            out.push(ValidationFinding {
-                code: "staging_arxiv_bundle_not_gzip",
-                message: format!("{} must be a gzip stream (starts with 1f 8b)", path.display()),
-            });
+        for f in validate_arxiv_submission_tar_gz(&bytes) {
+            if f.code == "arxiv_bundle_not_gzip" {
+                out.push(ValidationFinding {
+                    code: "staging_arxiv_bundle_not_gzip",
+                    message: format!(
+                        "{} must be a gzip stream (starts with 1f 8b)",
+                        path.display()
+                    ),
+                });
+            } else {
+                out.push(f);
+            }
         }
     }
     out
@@ -405,13 +565,14 @@ fn file_kind_check(path: &Path) -> Result<(), ValidationFinding> {
         || lower.ends_with(".yaml")
         || lower.ends_with(".yml")
         || lower.ends_with(".tar.gz")
+        || lower.ends_with(".tex")
     {
         return Ok(());
     }
     Err(ValidationFinding {
         code: "staging_unexpected_extension",
         message: format!(
-            "{} (allowed: .md .cff .json .yaml .yml .tar.gz)",
+            "{} (allowed: .md .cff .json .yaml .yml .tar.gz .tex)",
             path.display()
         ),
     })
@@ -521,6 +682,7 @@ mod tests {
         )
         .unwrap();
         assert!(!files.iter().any(|f| f == "zenodo.json"));
+        assert!(files.iter().any(|f| f == "main.tex"));
         assert!(files.iter().any(|f| f == "arxiv_handoff.json"));
         assert!(files.iter().any(|f| f == "arxiv_bundle.tar.gz"));
         let handoff = fs::read_to_string(tmp.path().join("arxiv_handoff.json")).unwrap();

@@ -23,7 +23,20 @@ pub fn pnpm_executable() -> &'static str {
 pub fn maybe_write_root_pnpm_workspace(app_dir: &Path) -> Result<()> {
     let cwd = std::env::current_dir().context("current_dir for pnpm-workspace")?;
     let ctx = vox_repository::discover_repository_or_fallback(&cwd);
-    let islands_pkg = ctx.root.join("islands").join("package.json");
+    let islands_pkg = if ctx
+        .root
+        .join("packages")
+        .join("islands")
+        .join("package.json")
+        .is_file()
+    {
+        ctx.root
+            .join("packages")
+            .join("islands")
+            .join("package.json")
+    } else {
+        ctx.root.join("islands").join("package.json")
+    };
     if !islands_pkg.is_file() {
         return Ok(());
     }
@@ -44,7 +57,16 @@ pub fn maybe_write_root_pnpm_workspace(app_dir: &Path) -> Result<()> {
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "dist/app".to_string());
-    let yaml = format!("packages:\n  - '{app_pkg_rel}'\n  - 'islands'\n");
+    let islands_dir = islands_pkg
+        .parent()
+        .expect("islands package.json parent");
+    let islands_rel = islands_dir
+        .strip_prefix(&repo_root)
+        .ok()
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "islands".to_string());
+    let yaml = format!("packages:\n  - '{app_pkg_rel}'\n  - '{islands_rel}'\n");
     std::fs::write(&workspace_path, yaml)
         .with_context(|| format!("write {}", workspace_path.display()))?;
     println!(
@@ -133,7 +155,9 @@ pub fn scaffold_react_app(
     maybe_write_root_pnpm_workspace(app_dir)?;
 
     let port = config::default_port();
-    let pkg = templates::package_json(tanstack_start);
+    let has_vox_programmatic_router = generated_ts_dir.join("VoxTanStackRouter.tsx").is_file();
+    let file_route_tsr_pregen = tanstack_start && !has_vox_programmatic_router;
+    let pkg = templates::package_json(tanstack_start, file_route_tsr_pregen);
     let vite = templates::vite_config(port, tanstack_start);
 
     std::fs::write(app_dir.join("package.json"), pkg).context("Failed to write package.json")?;
@@ -151,7 +175,6 @@ pub fn scaffold_react_app(
             templates::tanstack_start_root_tsx(),
         )
         .context("Failed to write routes/__root.tsx")?;
-        let has_vox_programmatic_router = generated_ts_dir.join("VoxTanStackRouter.tsx").is_file();
         if has_vox_programmatic_router {
             // `routes:` + TanStack Start: single router from codegen (`voxRouteTree`); no file-route index.
             std::fs::write(
@@ -224,6 +247,8 @@ pub fn npm_install_and_build(app_dir: &Path) -> Result<()> {
         }
     }
 
+    try_pnpm_routes_gen(app_dir, &pnpm)?;
+
     println!("  Building frontend assets...");
     let build_status = std::process::Command::new(pnpm)
         .args(["run", "build"])
@@ -239,13 +264,49 @@ pub fn npm_install_and_build(app_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// When the app uses TanStack file routes (not programmatic `voxRouteTree` re-export), run
+/// **`pnpm run routes:gen`** so `routeTree.gen.ts` matches `src/routes/**` (TanStack Router CLI).
+fn try_pnpm_routes_gen(app_dir: &Path, pnpm: &str) -> Result<()> {
+    let route_tree = app_dir.join("src").join("routeTree.gen.ts");
+    if !route_tree.is_file() {
+        return Ok(());
+    }
+    let rt = read_utf8_path_capped(&route_tree)
+        .with_context(|| format!("read {}", route_tree.display()))?;
+    if rt.contains("voxRouteTree") {
+        return Ok(());
+    }
+    let pkg_path = app_dir.join("package.json");
+    if !pkg_path.is_file() {
+        return Ok(());
+    }
+    let pkg = read_utf8_path_capped(&pkg_path)
+        .with_context(|| format!("read {}", pkg_path.display()))?;
+    if !pkg.contains("\"routes:gen\"") {
+        return Ok(());
+    }
+    println!("  Regenerating TanStack route tree (pnpm run routes:gen)...");
+    let status = std::process::Command::new(pnpm)
+        .args(["run", "routes:gen"])
+        .current_dir(app_dir)
+        .stderr(std::process::Stdio::inherit())
+        .status()
+        .context("Failed to run pnpm run routes:gen. Is @tanstack/router-cli installed?")?;
+    if !status.success() {
+        anyhow::bail!("pnpm run routes:gen failed");
+    }
+    Ok(())
+}
+
 /// Build islands (Vite) when `islands/package.json` exists.
 ///
 /// Runs `pnpm install` and `pnpm build` in `islands/`, then copies
 /// `islands/dist/*` into `target/generated/<static_dir>/islands/` for `rust_embed`
 /// (alongside the main Vite app under `public/`).
 pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Result<()> {
-    let islands_dir = Path::new("islands");
+    let cwd = std::env::current_dir().context("cwd for islands build")?;
+    let ctx = vox_repository::discover_repository_or_fallback(&cwd);
+    let islands_dir = crate::island_paths::island_package_root(&ctx.root);
     let package_json = islands_dir.join("package.json");
     if !package_json.exists() {
         return Ok(());
@@ -273,7 +334,7 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
         println!("  Installing island dependencies...");
         let status = std::process::Command::new(pnpm)
             .args(["install", "--prefer-offline"])
-            .current_dir(islands_dir)
+            .current_dir(&islands_dir)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::inherit())
             .status()
@@ -286,7 +347,7 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
     println!("  Building islands...");
     let build_status = std::process::Command::new(pnpm)
         .args(["run", "build"])
-        .current_dir(islands_dir)
+        .current_dir(&islands_dir)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::inherit())
         .status()

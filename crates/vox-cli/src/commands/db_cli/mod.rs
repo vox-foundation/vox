@@ -1,8 +1,12 @@
 //! Clap subcommands for [`super::db`] (`vox db …`).
 
+mod core_subcommands;
+mod publication_subcommands;
 mod subcommands;
 mod types;
 
+pub use core_subcommands::DbCliCore;
+pub use publication_subcommands::DbCliPublication;
 pub use subcommands::DbCli;
 pub use types::{
     ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
@@ -12,38 +16,39 @@ pub use types::{
 pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
     use super::db;
     match cmd {
-        DbCli::Status => db::status().await,
-        DbCli::Audit { timestamps } => db::audit(timestamps).await,
-        DbCli::Reset { file } => db::reset(file.as_ref()).await,
-        DbCli::Schema { file } => db::schema(file.as_ref()).await,
-        DbCli::Explain {
+        DbCli::Core(cmd) => match cmd {
+            DbCliCore::Status => db::status().await,
+            DbCliCore::Audit { timestamps } => db::audit(timestamps).await,
+            DbCliCore::Reset { file } => db::reset(file.as_ref()).await,
+            DbCliCore::Schema { file } => db::schema(file.as_ref()).await,
+            DbCliCore::Explain {
             file,
             query,
             compact,
             jsonl,
         } => db::explain(file.as_ref(), query.as_deref(), !compact, jsonl).await,
-        DbCli::Sample { table, limit } => db::sample(&table, limit).await,
-        DbCli::Migrate { file } => db::migrate(file.as_ref()).await,
-        DbCli::Export { user_id, output } => db::export(&user_id, output.as_ref()).await,
-        DbCli::Import { path } => db::import(path.as_path()).await,
-        DbCli::Vacuum => db::vacuum().await,
-        DbCli::Prune { user_id, days } => db::prune(&user_id, days).await,
-        DbCli::PrunePlan { policy } => db::prune_plan(policy.as_deref()).await,
-        DbCli::PruneApply {
+        DbCliCore::Sample { table, limit } => db::sample(&table, limit).await,
+        DbCliCore::Migrate { file } => db::migrate(file.as_ref()).await,
+        DbCliCore::Export { user_id, output } => db::export(&user_id, output.as_ref()).await,
+        DbCliCore::Import { path } => db::import(path.as_path()).await,
+        DbCliCore::Vacuum => db::vacuum().await,
+        DbCliCore::Prune { user_id, days } => db::prune(&user_id, days).await,
+        DbCliCore::PrunePlan { policy } => db::prune_plan(policy.as_deref()).await,
+        DbCliCore::PruneApply {
             policy,
             i_understand,
         } => db::prune_apply(policy.as_deref(), i_understand).await,
-        DbCli::PrefGet { user_id, key } => db::pref_get(&user_id, &key).await,
-        DbCli::PrefSet {
+        DbCliCore::PrefGet { user_id, key } => db::pref_get(&user_id, &key).await,
+        DbCliCore::PrefSet {
             user_id,
             key,
             value,
         } => db::pref_set(&user_id, &key, &value).await,
-        DbCli::PrefList { user_id, prefix } => db::pref_list(&user_id, prefix.as_deref()).await,
-        DbCli::CapabilityList => db::capability_list().await,
-        DbCli::SyncInvocables { path } => db::sync_invocables(&path).await,
-        DbCli::RetrievalStatus => db::retrieval_status().await,
-        DbCli::ResearchIngestUrl {
+        DbCliCore::PrefList { user_id, prefix } => db::pref_list(&user_id, prefix.as_deref()).await,
+        DbCliCore::CapabilityList => db::capability_list().await,
+        DbCliCore::SyncInvocables { path } => db::sync_invocables(&path).await,
+        DbCliCore::RetrievalStatus => db::retrieval_status().await,
+        DbCliCore::ResearchIngestUrl {
             vendor,
             topic,
             url,
@@ -69,7 +74,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::ResearchIngestFile {
+        DbCliCore::ResearchIngestFile {
             vendor,
             topic,
             path,
@@ -89,13 +94,13 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::ResearchRefresh { vendor, dry_run } => db::research_refresh(&vendor, dry_run).await,
-        DbCli::ResearchList {
+        DbCliCore::ResearchRefresh { vendor, dry_run } => db::research_refresh(&vendor, dry_run).await,
+        DbCliCore::ResearchList {
             vendor,
             topic,
             limit,
         } => db::research_list(vendor.as_deref(), topic.as_deref(), limit).await,
-        DbCli::ResearchMapAdd {
+        DbCliCore::ResearchMapAdd {
             vendor,
             topic,
             area,
@@ -119,20 +124,22 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::ResearchMapList {
+        DbCliCore::ResearchMapList {
             vendor,
             topic,
             limit,
         } => db::research_map_list(vendor.as_deref(), topic.as_deref(), limit).await,
-        DbCli::ResearchMetrics {
+        DbCliCore::ResearchMetrics {
             session_id,
             metric_type,
         } => db::research_metrics(session_id, metric_type.as_deref()).await,
-        DbCli::ReliabilityList { domain, limit } => db::reliability_list(&domain, limit).await,
-        DbCli::ReliabilityAgents { limit, min_score } => {
-            db::reliability_agents(limit, min_score).await
-        }
-        DbCli::PublicationPrepare {
+        DbCliCore::ReliabilityList { domain, limit } => db::reliability_list(&domain, limit).await,
+            DbCliCore::ReliabilityAgents { limit, min_score } => {
+                db::reliability_agents(limit, min_score).await
+            }
+        },
+        DbCli::Publication(cmd) => match cmd {
+            DbCliPublication::PublicationPrepare {
             content_type,
             body,
             preflight,
@@ -152,7 +159,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationPrepareValidated {
+        DbCliPublication::PublicationPrepareValidated {
             content_type,
             body,
             preflight_profile,
@@ -171,15 +178,18 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationPreflight {
+        DbCliPublication::PublicationPreflight {
             publication_id,
             profile,
             with_worthiness,
         } => db::publication_preflight(&publication_id, profile.into(), with_worthiness).await,
-        DbCli::PublicationZenodoMetadata { publication_id } => {
+        DbCliPublication::PublicationZenodoMetadata { publication_id } => {
             db::publication_zenodo_metadata(&publication_id).await
         }
-        DbCli::PublicationScholarlyStagingExport {
+        DbCliPublication::PublicationOpenreviewProfile { publication_id } => {
+            db::publication_openreview_profile(&publication_id).await
+        }
+        DbCliPublication::PublicationScholarlyStagingExport {
             publication_id,
             output_dir,
             venue,
@@ -191,24 +201,24 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationWorthinessEvaluate {
+        DbCliPublication::PublicationWorthinessEvaluate {
             contract_yaml,
             metrics_json,
         } => db::publication_worthiness_evaluate(contract_yaml.as_ref(), metrics_json).await,
-        DbCli::PublicationApprove {
+        DbCliPublication::PublicationApprove {
             publication_id,
             approver,
         } => db::publication_approve(&publication_id, &approver).await,
-        DbCli::PublicationSubmitLocal {
+        DbCliPublication::PublicationSubmitLocal {
             publication_id,
             adapter,
         } => {
             db::publication_submit_local(&publication_id, adapter.as_deref()).await
         }
-        DbCli::PublicationStatus { publication_id } => {
+        DbCliPublication::PublicationStatus { publication_id } => {
             db::publication_status(&publication_id).await
         }
-        DbCli::PublicationScholarlyRemoteStatus {
+        DbCliPublication::PublicationScholarlyRemoteStatus {
             publication_id,
             external_submission_id,
         } => {
@@ -218,10 +228,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
+        DbCliPublication::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
             db::publication_scholarly_remote_status_sync_all(&publication_id).await
         }
-        DbCli::PublicationScholarlyRemoteStatusSyncBatch {
+        DbCliPublication::PublicationScholarlyRemoteStatusSyncBatch {
             limit,
             iterations,
             interval_secs,
@@ -237,7 +247,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationArxivHandoffRecord {
+        DbCliPublication::PublicationArxivHandoffRecord {
             publication_id,
             stage,
             operator,
@@ -253,16 +263,16 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationExternalJobsDue { limit } => {
+        DbCliPublication::PublicationExternalJobsDue { limit } => {
             db::publication_external_jobs_due(limit).await
         }
-        DbCli::PublicationExternalJobsDeadLetter { limit } => {
+        DbCliPublication::PublicationExternalJobsDeadLetter { limit } => {
             db::publication_external_jobs_dead_letter(limit).await
         }
-        DbCli::PublicationExternalJobsReplay { job_id } => {
+        DbCliPublication::PublicationExternalJobsReplay { job_id } => {
             db::publication_external_jobs_replay(job_id).await
         }
-        DbCli::PublicationExternalJobsTick {
+        DbCliPublication::PublicationExternalJobsTick {
             limit,
             lock_ttl_ms,
             lock_owner,
@@ -282,13 +292,14 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationScholarlyPipelineRun {
+        DbCliPublication::PublicationScholarlyPipelineRun {
             publication_id,
             preflight_profile,
             dry_run,
             staging_output_dir,
             venue,
             adapter,
+            json,
         } => {
             db::publication_scholarly_pipeline_run(
                 &publication_id,
@@ -297,13 +308,14 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 staging_output_dir.as_deref(),
                 venue,
                 adapter.as_deref(),
+                json,
             )
             .await
         }
-        DbCli::PublicationExternalPipelineMetrics { since_hours } => {
+        DbCliPublication::PublicationExternalPipelineMetrics { since_hours } => {
             db::publication_external_pipeline_metrics(since_hours).await
         }
-        DbCli::PublicationMediaUpsert {
+        DbCliPublication::PublicationMediaUpsert {
             publication_id,
             asset_ref,
             media_type,
@@ -321,28 +333,29 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             )
             .await
         }
-        DbCli::PublicationMediaList { publication_id } => {
+        DbCliPublication::PublicationMediaList { publication_id } => {
             db::publication_media_list(&publication_id).await
         }
-        DbCli::PublicationMediaDelete {
+        DbCliPublication::PublicationMediaDelete {
             publication_id,
             asset_ref,
         } => db::publication_media_delete(&publication_id, &asset_ref).await,
-        DbCli::PublicationRouteSimulate {
+        DbCliPublication::PublicationRouteSimulate {
             publication_id,
             json,
         } => db::publication_route_simulate(&publication_id, json).await,
-        DbCli::PublicationPublish {
+        DbCliPublication::PublicationPublish {
             publication_id,
             channels,
             dry_run,
             json,
         } => db::publication_publish(&publication_id, channels.as_deref(), dry_run, json).await,
-        DbCli::PublicationRetryFailed {
+        DbCliPublication::PublicationRetryFailed {
             publication_id,
             channel,
             dry_run,
             json,
-        } => db::publication_retry_failed(&publication_id, channel.as_deref(), dry_run, json).await,
+            } => db::publication_retry_failed(&publication_id, channel.as_deref(), dry_run, json).await,
+        },
     }
 }

@@ -7,6 +7,13 @@ use crate::tools::chat_socrates_meta::{
     socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
 };
 
+const REM_MCP_MODEL_RESOLVE: &str =
+    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_LOCK: &str =
+    "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
+const REM_LLM_COMPLETION: &str =
+    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+
 pub(crate) fn ghost_grounding_score(params: &GhostTextParams) -> f64 {
     let mut n = 0u32;
     if params.file_path.is_some() {
@@ -70,14 +77,22 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
     .await
     {
         Ok(pair) => pair,
-        Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("No model: {e}"),
+                REM_MCP_MODEL_RESOLVE,
+            )
+            .to_json();
+        }
     };
     let pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+        }
     };
     let temperature = 0.2_f32;
     let routing = McpInferRouting {
@@ -102,7 +117,13 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
     .await
     {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("LLM error: {e}"),
+                REM_LLM_COMPLETION,
+            )
+            .to_json();
+        }
     };
 
     let latency_ms = t0.elapsed().as_millis() as u64;

@@ -11,6 +11,7 @@ import {
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router";
+import { VoxQueryProvider } from "../generated/vox-tanstack-query";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -25,9 +26,11 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <RootDocument>
-      <Outlet />
-    </RootDocument>
+    <VoxQueryProvider>
+      <RootDocument>
+        <Outlet />
+      </RootDocument>
+    </VoxQueryProvider>
   );
 }
 
@@ -94,7 +97,7 @@ declare module "@tanstack/react-router" {
 "#
 }
 
-/// Minimal `routeTree.gen.ts` for a single `/` file route (mirrors TanStack Start counter example layout).
+/// Seed `routeTree.gen.ts` for a single `/` file route before **`pnpm run routes:gen`** refreshes it.
 pub fn tanstack_start_route_tree_gen() -> &'static str {
     r#"/* eslint-disable */
 // @ts-nocheck
@@ -167,7 +170,7 @@ declare module "@tanstack/react-start" {
 pub fn tanstack_start_route_tree_gen_reexport() -> &'static str {
     r#"/* eslint-disable */
 // @ts-nocheck
-// Re-exports the programmatic route tree from `vox-codegen-ts` for TanStack Start (`getRouter` in router.tsx).
+// Re-exports the programmatic route tree from Vox compiler output for TanStack Start (`getRouter` in router.tsx).
 
 export { voxRouteTree as routeTree } from "./generated/VoxTanStackRouter";
 

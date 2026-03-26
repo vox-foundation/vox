@@ -9,6 +9,10 @@ use crate::server::ServerState;
 use vox_orchestrator::AgentId;
 
 const MAX_FILES_WALKED: usize = 50_000;
+const REM_REPO_INDEX: &str =
+    "Confirm `VOX_REPOSITORY_ROOT` / MCP workspace binding points at a readable directory with expected permissions.";
+const REM_REPO_INDEX_CACHE: &str =
+    "Ensure `.vox/cache` (or repo tooling cache dir) is writable and not locked by another tool.";
 
 /// Bounded repository walk statistics for MCP clients and on-disk cache files.
 #[derive(Debug, Serialize)]
@@ -145,7 +149,7 @@ pub async fn repo_index_status(state: &ServerState) -> String {
 
     let summary = match build_summary(state) {
         Ok(s) => ToolResult::ok(s).to_json(),
-        Err(e) => ToolResult::<RepoIndexSummary>::err(e).to_json(),
+        Err(e) => ToolResult::<RepoIndexSummary>::err_with_remediation(e, REM_REPO_INDEX).to_json(),
     };
 
     match crate::sync_poison::poison_rw_write(
@@ -191,21 +195,37 @@ pub async fn repo_index_refresh(state: &ServerState) -> String {
 
     let summary = match build_summary(state) {
         Ok(s) => s,
-        Err(e) => return ToolResult::<String>::err(e).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e, REM_REPO_INDEX).to_json();
+        }
     };
     let path = index_cache_path(state);
     if let Some(parent) = path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
-            return ToolResult::<String>::err(format!("mkdir {}: {e}", parent.display())).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("mkdir {}: {e}", parent.display()),
+                REM_REPO_INDEX_CACHE,
+            )
+            .to_json();
         }
     }
     let text = match serde_json::to_string_pretty(&summary) {
         Ok(t) => t,
-        Err(e) => return ToolResult::<String>::err(format!("serialize: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("serialize: {e}"),
+                REM_REPO_INDEX_CACHE,
+            )
+            .to_json();
+        }
     };
     let res = match fs::write(&path, &text) {
         Ok(()) => ToolResult::ok(format!("wrote {}", path.display())).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("write {}: {e}", path.display())).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("write {}: {e}", path.display()),
+            REM_REPO_INDEX_CACHE,
+        )
+        .to_json(),
     };
 
     let ctx_handle = state.orchestrator.context_handle();

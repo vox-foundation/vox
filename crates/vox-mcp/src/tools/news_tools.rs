@@ -9,6 +9,20 @@ use vox_publisher::templates;
 use vox_publisher::types::UnifiedNewsItem;
 use vox_publisher::{Publisher, PublisherConfig};
 
+const REM_NEWS_ID: &str =
+    "Use a publisher-valid `news_id` (filename stem): no slashes; see `vox_publisher::contract::validate_news_id`.";
+const REM_VOXDB_NEWS: &str =
+    "Attach VoxDb via `VOX_DB_PATH` / `VOX_DB_URL` on the MCP server for approvals and status tools.";
+const REM_NEWS_PATH: &str =
+    "Place `{news_id}.md` under the configured `news_dir` or `news_dir/drafts/`, or fix `news_dir` in orchestrator config.";
+const REM_NEWS_PARSE: &str =
+    "Align markdown + YAML frontmatter with `UnifiedNewsItem` (use news draft templates as a reference).";
+const REM_APPROVER: &str = "Pass a non-empty `approver` identifier (e.g. GitHub login).";
+const REM_NEWS_IO: &str = "Ensure the process can create/write under `news_dir` (permissions, disk space).";
+const REM_NEWS_DB: &str = "Check Turso connectivity and vox-db migrations for publication tables.";
+const REM_NEWS_SYNDICATE: &str =
+    "Validate syndication fields in frontmatter and dry-run prerequisites; live tokens are not required for dry-run.";
+
 fn read_news_markdown_first(paths: &[PathBuf; 2]) -> Result<String, String> {
     crate::bounded_fs::read_utf8_path_capped(&paths[0])
         .or_else(|e1| {
@@ -49,10 +63,10 @@ pub async fn vox_news_test_syndicate(
             it
         }
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Failed to parse news item frontmatter: {}",
-                e
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Failed to parse news item frontmatter: {}", e),
+                REM_NEWS_PARSE,
+            )
             .to_json();
         }
     };
@@ -68,8 +82,11 @@ pub async fn vox_news_test_syndicate(
     let result = match publisher.publish_all(&item).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<String>::err(format!("Dry-run syndication failed: {}", e))
-                .to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("Dry-run syndication failed: {}", e),
+                REM_NEWS_SYNDICATE,
+            )
+            .to_json();
         }
     };
 
@@ -94,7 +111,7 @@ pub async fn vox_news_draft_research(
     params: VoxNewsDraftResearchParams,
 ) -> String {
     if let Err(e) = vox_publisher::contract::validate_news_id(&params.news_id) {
-        return ToolResult::<String>::err(e.to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(e.to_string(), REM_NEWS_ID).to_json();
     }
     let now = chrono::Utc::now();
     let draft_content = templates::render_research_update(
@@ -113,10 +130,10 @@ pub async fn vox_news_draft_research(
     }
 
     if let Err(e) = fs::write(&draft_path, draft_content) {
-        return ToolResult::<String>::err(format!(
-            "Failed to write draft to {:?}: {}",
-            draft_path, e
-        ))
+        return ToolResult::<String>::err_with_remediation(
+            format!("Failed to write draft to {:?}: {}", draft_path, e),
+            REM_NEWS_IO,
+        )
         .to_json();
     }
 
@@ -133,15 +150,20 @@ pub struct VoxNewsApproveParams {
 
 pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams) -> String {
     if let Err(e) = vox_publisher::contract::validate_news_id(&params.news_id) {
-        return ToolResult::<String>::err(e.to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(e.to_string(), REM_NEWS_ID).to_json();
     }
     let approver = params.approver.trim();
     if approver.is_empty() {
-        return ToolResult::<String>::err("approver must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "approver must not be empty".to_string(),
+            REM_APPROVER,
+        )
+        .to_json();
     }
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err(
+        return ToolResult::<String>::err_with_remediation(
             "VoxDb is not connected; cannot record approvals".to_string(),
+            REM_VOXDB_NEWS,
         )
         .to_json();
     };
@@ -149,30 +171,30 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
     let content = match read_news_markdown_first(&paths) {
         Ok(c) => c,
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Could not read news markdown for {:?}: {}",
-                params.news_id, e
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Could not read news markdown for {:?}: {}", params.news_id, e),
+                REM_NEWS_PATH,
+            )
             .to_json();
         }
     };
     let digest = match UnifiedNewsItem::parse(&content, &params.news_id) {
         Ok(item) => item.content_sha3_256(),
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Cannot approve without a valid UnifiedNewsItem parse: {}",
-                e
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Cannot approve without a valid UnifiedNewsItem parse: {}", e),
+                REM_NEWS_PARSE,
+            )
             .to_json();
         }
     };
     let item = match UnifiedNewsItem::parse(&content, &params.news_id) {
         Ok(item) => item,
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Cannot approve without a valid UnifiedNewsItem parse: {}",
-                e
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Cannot approve without a valid UnifiedNewsItem parse: {}", e),
+                REM_NEWS_PARSE,
+            )
             .to_json();
         }
     };
@@ -198,7 +220,7 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
         })
         .await
     {
-        return ToolResult::<String>::err(format!("DB error: {}", e)).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("DB error: {}", e), REM_NEWS_DB).to_json();
     }
     match db
         .record_publication_approval_for_digest(&params.news_id, &digest, approver)
@@ -206,7 +228,8 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
     {
         Ok(()) => {}
         Err(e) => {
-            return ToolResult::<String>::err(format!("DB error: {}", e)).to_json();
+            return ToolResult::<String>::err_with_remediation(format!("DB error: {}", e), REM_NEWS_DB)
+                .to_json();
         }
     }
     let count = match db
@@ -215,7 +238,7 @@ pub async fn vox_news_approve(state: &ServerState, params: VoxNewsApproveParams)
     {
         Ok(c) => c,
         Err(e) => {
-            return ToolResult::<String>::err(format!("DB error: {}", e)).to_json();
+            return ToolResult::<String>::err_with_remediation(format!("DB error: {}", e), REM_NEWS_DB).to_json();
         }
     };
     ToolResult::ok(format!(
@@ -243,29 +266,33 @@ pub async fn vox_news_approval_status(
     params: VoxNewsApprovalStatusParams,
 ) -> String {
     if let Err(e) = vox_publisher::contract::validate_news_id(&params.news_id) {
-        return ToolResult::<String>::err(e.to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(e.to_string(), REM_NEWS_ID).to_json();
     }
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb is not connected".to_string(),
+            REM_VOXDB_NEWS,
+        )
+        .to_json();
     };
     let paths = news_content_paths(state, &params.news_id);
     let content = match read_news_markdown_first(&paths) {
         Ok(c) => c,
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Could not read news markdown for {:?}: {}",
-                params.news_id, e
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Could not read news markdown for {:?}: {}", params.news_id, e),
+                REM_NEWS_PATH,
+            )
             .to_json();
         }
     };
     let digest = match UnifiedNewsItem::parse(&content, &params.news_id) {
         Ok(item) => item.content_sha3_256(),
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Cannot read approval status without a valid UnifiedNewsItem parse: {}",
-                e
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Cannot read approval status without a valid UnifiedNewsItem parse: {}", e),
+                REM_NEWS_PARSE,
+            )
             .to_json();
         }
     };
@@ -274,14 +301,18 @@ pub async fn vox_news_approval_status(
         .await
     {
         Ok(c) => c,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(format!("DB error: {}", e), REM_NEWS_DB).to_json();
+        }
     };
     let dual = match db
         .has_dual_publication_approval_for_digest(&params.news_id, &digest)
         .await
     {
         Ok(b) => b,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {}", e)).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(format!("DB error: {}", e), REM_NEWS_DB).to_json();
+        }
     };
     ToolResult::ok(ApprovalStatusBody {
         news_id: params.news_id,

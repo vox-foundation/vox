@@ -11,6 +11,9 @@ use crate::params::ToolResult;
 
 use super::ServerState;
 
+const REM_TOOL_DISPATCH: &str =
+    "Retry the call; if it persists, check tool arguments against the schema and restart the MCP server.";
+
 /// RMCP [`ServerHandler`] implementation listing tools and dispatching `call_tool`.
 pub struct VoxMcpServer {
     state: ServerState,
@@ -114,7 +117,8 @@ impl ServerHandler for VoxMcpServer {
                     (json, is_err)
                 }
                 Err(e) => (
-                    ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+                    ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_TOOL_DISPATCH)
+                        .to_json(),
                     true,
                 ),
             };

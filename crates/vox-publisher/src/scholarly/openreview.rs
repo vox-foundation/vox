@@ -111,6 +111,31 @@ fn merge_openreview_config(manifest: &PublicationManifest) -> Result<OpenReviewC
     })
 }
 
+/// Resolved OpenReview `notes/edits` profile (stdout-only helper for operators and CI).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OpenReviewSubmitProfileExport {
+    pub schema_version: i32,
+    pub invitation: String,
+    pub signature: String,
+    pub readers: Vec<String>,
+    pub api_base: String,
+}
+
+/// Merge `VOX_OPENREVIEW_*` / `OPENREVIEW_*` with `metadata_json.openreview` (same rules as submit).
+#[must_use]
+pub fn export_openreview_submit_profile(
+    manifest: &PublicationManifest,
+) -> Result<OpenReviewSubmitProfileExport, ScholarlyError> {
+    let cfg = merge_openreview_config(manifest)?;
+    Ok(OpenReviewSubmitProfileExport {
+        schema_version: 1,
+        invitation: cfg.invitation,
+        signature: cfg.signature,
+        readers: cfg.readers,
+        api_base: api_base(),
+    })
+}
+
 fn api_base() -> String {
     env_trim("VOX_OPENREVIEW_API_BASE")
         .or_else(|| env_trim("OPENREVIEW_API_BASE"))
@@ -388,4 +413,33 @@ impl super::ScholarlyAdapter for OpenReviewAdapter {
 
 pub(super) async fn openreview_adapter_from_env() -> Result<OpenReviewAdapter, ScholarlyError> {
     OpenReviewAdapter::new_from_env().await
+}
+
+#[cfg(test)]
+mod profile_export_tests {
+    use super::export_openreview_submit_profile;
+    use crate::publication::PublicationManifest;
+
+    #[test]
+    fn export_reads_metadata_openreview_overlay() {
+        let manifest = PublicationManifest {
+            publication_id: "p1".into(),
+            content_type: "scientia".into(),
+            source_ref: None,
+            title: "T".into(),
+            author: "A".into(),
+            abstract_text: None,
+            body_markdown: "x".into(),
+            citations_json: None,
+            metadata_json: Some(
+                r#"{"openreview":{"invitation":"TestVenue/2024/Conference/-/Submission","signature":"TestVenue/2024/Conference"}}"#.into(),
+            ),
+        };
+        let p = export_openreview_submit_profile(&manifest).unwrap();
+        assert_eq!(p.schema_version, 1);
+        assert_eq!(p.invitation, "TestVenue/2024/Conference/-/Submission");
+        assert_eq!(p.signature, "TestVenue/2024/Conference");
+        assert_eq!(p.readers, vec!["everyone".to_string()]);
+        assert!(p.api_base.contains("openreview"));
+    }
 }

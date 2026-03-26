@@ -60,6 +60,11 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Effect**: Compiles to a React component with scoped styles.
 - **Usage**: `@component fn MyUI() to Element`
 
+### `@loading`
+- **Goal**: Suspense / transition UI for TanStack Router while a lazy route or data boundary resolves.
+- **Effect**: Emits `{Name}.tsx` like a plain component. When **`routes:`** produces **`App.tsx` / `VoxTanStackRouter.tsx`**, the **first** `@loading` in the module becomes **`pendingComponent`** on each **`createRoute`** (additional `@loading` decls still emit TSX but are ignored for the router shim).
+- **Usage**: `@loading fn Spinner() to Element { ret <div>"…"</div> }`
+
 ### `@v0`
 - **Goal**: AI-generated React component via v0.dev (`V0_API_KEY`).
 - **Effect**: `vox build` fetches or stubs `.tsx`; output is normalized to a **named** `export function Name` so **`routes:`** / **TanStack Router** can `import { Name } from "./Name.tsx"` (same rule for **`islands/`** v0 output).

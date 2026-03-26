@@ -2,6 +2,8 @@
 
 /// Shared `@tanstack/react-router` semver range (SPA + Start `package_json`).
 pub const TANSTACK_REACT_ROUTER_RANGE: &str = "^1.120.0";
+/// `@tanstack/react-query` semver range (generated `vox-tanstack-query.tsx`).
+pub const TANSTACK_REACT_QUERY_RANGE: &str = "^5.62.0";
 /// `@tanstack/react-start` semver range (TanStack Start scaffold only).
 pub const TANSTACK_REACT_START_RANGE: &str = "^1.120.0";
 /// `@tanstack/router-cli` semver range (`tsr generate` / `pnpm run routes:gen`).
@@ -32,12 +34,15 @@ pub fn main_tsx(component_name: &str) -> String {
     format!(
         r#"import React from "react";
 import ReactDOM from "react-dom/client";
+import {{ VoxQueryProvider }} from "./generated/vox-tanstack-query";
 import {{ {component_name} }} from "./generated/{component_name}";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <{component_name} />
+    <VoxQueryProvider>
+      <{component_name} />
+    </VoxQueryProvider>
   </React.StrictMode>
 );
 "#
@@ -90,8 +95,16 @@ html, body, #root {
 ///
 /// When `tanstack_start` is true, adds **`@tanstack/react-start`** and uses `vite dev` / `vite build`
 /// ([TanStack Start](https://tanstack.com/start/latest/docs/framework/react/build-from-scratch)).
-pub fn package_json(tanstack_start: bool) -> String {
+///
+/// When `file_route_tsr_pregen` is true (file-based `src/routes/*` without programmatic `VoxTanStackRouter.tsx`),
+/// `dev` / `build` run **`pnpm run routes:gen`** first so `routeTree.gen.ts` stays in sync.
+pub fn package_json(tanstack_start: bool, file_route_tsr_pregen: bool) -> String {
     if tanstack_start {
+        let (dev_cmd, build_cmd) = if file_route_tsr_pregen {
+            ("pnpm run routes:gen && vite dev", "pnpm run routes:gen && vite build")
+        } else {
+            ("vite dev", "vite build")
+        };
         return format!(
             r#"{{
   "name": "vox-generated-app",
@@ -99,8 +112,8 @@ pub fn package_json(tanstack_start: bool) -> String {
   "version": "0.1.0",
   "type": "module",
   "scripts": {{
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "{dev_cmd}",
+    "build": "{build_cmd}",
     "preview": "vite preview",
     "dev:ssr-upstream": "vite --port 3001 --strictPort",
     "routes:gen": "tsr generate"
@@ -109,7 +122,8 @@ pub fn package_json(tanstack_start: bool) -> String {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@tanstack/react-router": "{tr}",
-    "@tanstack/react-start": "{ts}"
+    "@tanstack/react-start": "{ts}",
+    "@tanstack/react-query": "{rq}"
   }},
   "devDependencies": {{
     "@types/node": "^22.0.0",
@@ -122,9 +136,12 @@ pub fn package_json(tanstack_start: bool) -> String {
   }}
 }}
 "#,
+            dev_cmd = dev_cmd,
+            build_cmd = build_cmd,
             tr = TANSTACK_REACT_ROUTER_RANGE,
             ts = TANSTACK_REACT_START_RANGE,
-            tcli = TANSTACK_ROUTER_CLI_RANGE
+            tcli = TANSTACK_ROUTER_CLI_RANGE,
+            rq = TANSTACK_REACT_QUERY_RANGE
         );
     }
     format!(
@@ -142,7 +159,8 @@ pub fn package_json(tanstack_start: bool) -> String {
   "dependencies": {{
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@tanstack/react-router": "{tr}"
+    "@tanstack/react-router": "{tr}",
+    "@tanstack/react-query": "{rq}"
   }},
   "devDependencies": {{
     "@types/react": "^19.0.0",
@@ -153,7 +171,8 @@ pub fn package_json(tanstack_start: bool) -> String {
   }}
 }}
 "#,
-        tr = TANSTACK_REACT_ROUTER_RANGE
+        tr = TANSTACK_REACT_ROUTER_RANGE,
+        rq = TANSTACK_REACT_QUERY_RANGE
     )
 }
 

@@ -2,12 +2,17 @@ use crate::{ServerState, ToolResult};
 
 use super::params::{SessionCompactParams, SessionCreateParams, SessionIdParams, SessionInfo};
 
+const REM_SESSION_OP: &str =
+    "Verify the agent id and orchestrator session manager health; restart MCP if state is corrupted.";
+const REM_SESSION_ID: &str =
+    "Call `session_list` and pass an existing `session_id`; ids are case-sensitive.";
+
 /// Create a new session for an agent (async).
 pub async fn session_create(state: &ServerState, params: SessionCreateParams) -> String {
     let mut mgr = state.session_manager.lock().await;
     match mgr.create(vox_orchestrator::AgentId(params.agent_id)) {
         Ok(id) => ToolResult::ok(id).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SESSION_OP).to_json(),
     }
 }
 
@@ -38,7 +43,7 @@ pub async fn session_reset(state: &ServerState, params: SessionIdParams) -> Stri
             params.session_id, cleared
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SESSION_OP).to_json(),
     }
 }
 
@@ -51,7 +56,7 @@ pub async fn session_compact(state: &ServerState, params: SessionCompactParams) 
             params.session_id, removed
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SESSION_OP).to_json(),
     }
 }
 
@@ -68,8 +73,11 @@ pub async fn session_info(state: &ServerState, params: SessionIdParams) -> Strin
             last_active: s.last_active,
         })
         .to_json(),
-        None => ToolResult::<String>::err(format!("Session '{}' not found.", params.session_id))
-            .to_json(),
+        None => ToolResult::<String>::err_with_remediation(
+            format!("Session '{}' not found.", params.session_id),
+            REM_SESSION_ID,
+        )
+        .to_json(),
     }
 }
 
@@ -79,6 +87,6 @@ pub async fn session_cleanup(state: &ServerState) -> String {
     mgr.tick_lifecycle();
     match mgr.cleanup() {
         Ok(n) => ToolResult::ok(format!("{n} sessions cleaned up.")).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SESSION_OP).to_json(),
     }
 }

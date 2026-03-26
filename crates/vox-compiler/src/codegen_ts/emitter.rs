@@ -1,8 +1,11 @@
 use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 use crate::codegen_ts::component::generate_component;
+use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
+use crate::codegen_ts::tanstack_programmatic_routes::push_route_tree_files;
+use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
 use crate::codegen_ts::tanstack_start::{
     CREATE_SERVER_FN, CREATE_SERVER_FN_PKG, FETCH_CONTENT_TYPE, SERVER_FN_HTTP_METHOD,
     SERVER_FNS_FILENAME,
@@ -47,6 +50,7 @@ pub fn generate_with_options(
     options: CodegenOptions,
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
+    let island_names = collect_island_names(hir);
 
     // Generate type definitions
     let types_content = generate_types(hir);
@@ -54,16 +58,29 @@ pub fn generate_with_options(
         files.push(("types.ts".to_string(), types_content));
     }
 
+    files.push((
+        "vox-tanstack-query.tsx".to_string(),
+        vox_tanstack_query_tsx(),
+    ));
+
     // Generate components
     for hir_comp in &hir.components {
         let comp = &hir_comp.0;
-        let (filename, content) = generate_component(&comp.func, !comp.styles.is_empty());
+        let (filename, content) =
+            generate_component(&comp.func, !comp.styles.is_empty(), &island_names);
         files.push((filename, content));
     }
 
     // Generate reactive components (Path C)
     for rc in &hir.reactive_components {
-        let (filename, content) = generate_reactive_component(rc);
+        let (filename, content) = generate_reactive_component(rc, &island_names);
+        files.push((filename, content));
+    }
+
+    // Route loading / suspense UI (`@loading fn … to Element`) — TanStack `pendingComponent`
+    for hir_loading in &hir.loadings {
+        let (filename, content) =
+            generate_component(&hir_loading.0.func, false, &island_names);
         files.push((filename, content));
     }
 
@@ -208,89 +225,7 @@ pub fn generate_with_options(
         }
     }
 
-    // Generate TanStack Router route tree: SPA -> App.tsx + RouterProvider; Start -> VoxTanStackRouter.tsx + voxRouteTree only.
-    for hir_routes in &hir.client_routes {
-        let routes_decl = &hir_routes.0;
-        if options.tanstack_start {
-            let mut s = String::new();
-            s.push_str(
-                "// Programmatic route tree for TanStack Start — export voxRouteTree; SPA shell provides the provider.\n",
-            );
-            s.push_str("import React from \"react\";\n");
-            s.push_str(
-                "import {\n  Outlet,\n  createRootRoute,\n  createRoute,\n} from \"@tanstack/react-router\";\n",
-            );
-            for entry in &routes_decl.entries {
-                s.push_str(&format!(
-                    "import {{ {} }} from \"./{}.tsx\";\n",
-                    entry.component_name, entry.component_name
-                ));
-            }
-            s.push_str("\nconst rootRoute = createRootRoute({\n");
-            s.push_str("  component: () => <Outlet />,\n");
-            s.push_str("});\n\n");
-
-            for (i, entry) in routes_decl.entries.iter().enumerate() {
-                let id = tanstack_route_var_id(i, &entry.path);
-                let path_lit = tanstack_path_literal(&entry.path);
-                s.push_str(&format!(
-                    "const {id} = createRoute({{\n  getParentRoute: () => rootRoute,\n  path: {path_lit},\n  component: {},\n}});\n\n",
-                    entry.component_name
-                ));
-            }
-
-            let child_ids: Vec<String> = routes_decl
-                .entries
-                .iter()
-                .enumerate()
-                .map(|(i, e)| tanstack_route_var_id(i, &e.path))
-                .collect();
-            s.push_str("const routeTree = rootRoute.addChildren([");
-            s.push_str(&child_ids.join(", "));
-            s.push_str("]);\n\n");
-            s.push_str("export const voxRouteTree = routeTree;\n");
-            files.push(("VoxTanStackRouter.tsx".to_string(), s));
-        } else {
-            let mut app = String::new();
-            app.push_str("import React from \"react\";\n");
-            app.push_str(
-                "import {\n  Outlet,\n  RouterProvider,\n  createRootRoute,\n  createRoute,\n  createRouter,\n} from \"@tanstack/react-router\";\n",
-            );
-            for entry in &routes_decl.entries {
-                app.push_str(&format!(
-                    "import {{ {} }} from \"./{}.tsx\";\n",
-                    entry.component_name, entry.component_name
-                ));
-            }
-            app.push_str("\nconst rootRoute = createRootRoute({\n");
-            app.push_str("  component: () => <Outlet />,\n");
-            app.push_str("});\n\n");
-
-            for (i, entry) in routes_decl.entries.iter().enumerate() {
-                let id = tanstack_route_var_id(i, &entry.path);
-                let path_lit = tanstack_path_literal(&entry.path);
-                app.push_str(&format!(
-                    "const {id} = createRoute({{\n  getParentRoute: () => rootRoute,\n  path: {path_lit},\n  component: {},\n}});\n\n",
-                    entry.component_name
-                ));
-            }
-
-            let child_ids: Vec<String> = routes_decl
-                .entries
-                .iter()
-                .enumerate()
-                .map(|(i, e)| tanstack_route_var_id(i, &e.path))
-                .collect();
-            app.push_str("const routeTree = rootRoute.addChildren([");
-            app.push_str(&child_ids.join(", "));
-            app.push_str("]);\n\n");
-            app.push_str("const router = createRouter({ routeTree });\n\n");
-            app.push_str("export default function App(): React.ReactElement {\n");
-            app.push_str("  return <RouterProvider router={router} />;\n");
-            app.push_str("}\n");
-            files.push(("App.tsx".to_string(), app));
-        }
-    }
+    push_route_tree_files(&mut files, hir, options.tanstack_start);
 
     let island_names: Vec<&str> = hir.islands.iter().map(|i| i.0.name.as_str()).collect();
     if !island_names.is_empty() {
@@ -311,32 +246,4 @@ pub fn generate_with_options(
     }
 
     Ok(CodegenOutput { files })
-}
-
-/// TanStack Router `path` option for a Vox `routes:` entry (`/` → root index).
-fn tanstack_path_literal(vox_path: &str) -> String {
-    let t = vox_path.trim();
-    if t == "/" || t.is_empty() {
-        return "'/'".to_string();
-    }
-    let rest = t.trim_start_matches('/');
-    let esc = rest.replace('\\', "\\\\").replace('\'', "\\'");
-    format!("'{esc}'")
-}
-
-/// Stable `const` name for each `createRoute` (`route_0_chat`, etc.).
-fn tanstack_route_var_id(index: usize, path: &str) -> String {
-    let mut s: String = path
-        .trim()
-        .trim_start_matches('/')
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect();
-    if s.is_empty() {
-        s = "index".to_string();
-    }
-    if s.chars().next().is_some_and(|c| c.is_ascii_digit()) {
-        s = format!("p_{s}");
-    }
-    format!("route_{index}_{s}")
 }

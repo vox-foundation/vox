@@ -3,6 +3,11 @@ use vox_orchestrator::AgentId;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_VCS_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_WORKSPACE_NONE: &str =
+    "Create a workspace with `workspace_create` or verify `agent_id` matches an agent with an active workspace.";
+
 /// Create a workspace for an agent (async).
 pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> String {
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -14,7 +19,8 @@ pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> S
             match crate::sync_poison::poison_rw_write(snapshot_store.write(), "snapshot store") {
                 Ok(g) => g,
                 Err(e) => {
-                    return ToolResult::<serde_json::Value>::err(e.to_string()).to_json();
+                    return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                        .to_json();
                 }
             };
         store_guard.take_snapshot(AgentId(agent_id), &[], "workspace base".to_string())
@@ -24,7 +30,10 @@ pub async fn workspace_create(state: &ServerState, args: serde_json::Value) -> S
     let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
     {
         Ok(g) => g,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                .to_json();
+        }
     };
     let ws = mgr.create_workspace(AgentId(agent_id), base_id).clone();
 
@@ -45,7 +54,10 @@ pub async fn workspace_status(state: &ServerState, args: serde_json::Value) -> S
     let mgr_handle = orch.workspace_manager_handle();
     let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
         Ok(g) => g,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                .to_json();
+        }
     };
     match mgr.get_workspace(AgentId(agent_id)) {
         Some(ws) => {
@@ -77,7 +89,10 @@ pub async fn workspace_merge(state: &ServerState, args: serde_json::Value) -> St
     let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
     {
         Ok(g) => g,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                .to_json();
+        }
     };
     match mgr.destroy_workspace(AgentId(agent_id)) {
         Some(ws) => {
@@ -89,7 +104,11 @@ pub async fn workspace_merge(state: &ServerState, args: serde_json::Value) -> St
             .to_json()
         }
         None => {
-            ToolResult::<String>::err("No active workspace for this agent".to_string()).to_json()
+            ToolResult::<String>::err_with_remediation(
+                "No active workspace for this agent".to_string(),
+                REM_WORKSPACE_NONE,
+            )
+            .to_json()
         }
     }
 }

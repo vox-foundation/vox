@@ -317,4 +317,71 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         pass: reg_pass,
         detail: reg_detail,
     });
+
+    v0_named_export_doctor_check(checks).await;
+}
+
+/// When **`VOX_WEB_TS_OUT`** is set, ensures each local `@v0` component has a matching **named** export in that directory.
+async fn v0_named_export_doctor_check(checks: &mut Vec<Check>) {
+    let Ok(ts_out) = std::env::var("VOX_WEB_TS_OUT") else {
+        checks.push(Check::pass(
+            "@v0 TSX named exports (optional)",
+            "skipped — set VOX_WEB_TS_OUT to the directory where `vox build` writes `*.tsx` (same path as the build output) to verify @v0 named exports",
+        ));
+        return;
+    };
+    let root = std::path::PathBuf::from(ts_out);
+    if !root.is_dir() {
+        checks.push(Check::fail(
+            "@v0 TSX named exports",
+            format!("VOX_WEB_TS_OUT={} is not a directory", root.display()),
+        ));
+        return;
+    }
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let names = crate::v0_tsx_normalize::scan_v0_component_names_from_vox_sources(&cwd);
+    if names.is_empty() {
+        checks.push(Check::pass(
+            "@v0 TSX named exports",
+            format!(
+                "no @v0 declarations under {} — nothing to verify",
+                cwd.display()
+            ),
+        ));
+        return;
+    }
+    let mut failures: Vec<String> = Vec::new();
+    for name in &names {
+        let p = root.join(format!("{name}.tsx"));
+        if !p.is_file() {
+            failures.push(format!("{name}.tsx missing under {}", root.display()));
+            continue;
+        }
+        let content = match read_utf8_path_capped_async(&p).await {
+            Ok(s) => s,
+            Err(e) => {
+                failures.push(format!("{}: {e}", p.display()));
+                continue;
+            }
+        };
+        if let Some(msg) = crate::v0_tsx_normalize::v0_named_export_violation(&content, name) {
+            failures.push(msg);
+        }
+    }
+    if failures.is_empty() {
+        checks.push(Check::pass(
+            "@v0 TSX named exports",
+            format!(
+                "{} — {} @v0 component(s) under {} satisfy the named-export contract",
+                root.display(),
+                names.len(),
+                cwd.display()
+            ),
+        ));
+    } else {
+        checks.push(Check::fail(
+            "@v0 TSX named exports",
+            failures.join("; "),
+        ));
+    }
 }

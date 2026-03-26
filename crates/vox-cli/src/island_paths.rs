@@ -1,4 +1,4 @@
-//! On-disk layout for v0.dev **islands** (`islands/src/<Name>/…`).
+//! On-disk layout for v0.dev **islands** (`islands/src/<Name>/…` or `packages/islands/src/…`).
 //!
 //! [`resolve_island_main_tsx`] backs `vox island upgrade` when the **`island`** Cargo feature is on.
 //! Unit tests keep the path rules stable without enabling that feature.
@@ -6,16 +6,39 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-/// Repo-root **`islands/`** directory (Vite app for `vox island`).
+/// Default **bootstrap** directory when creating a new islands Vite app (`<repo>/islands/`).
 #[must_use]
 pub fn island_root(root: &Path) -> PathBuf {
     root.join("islands")
 }
 
-/// **`islands/src/`** — generated island components live here.
+/// Resolved islands package root: **`islands/`** or **`packages/islands/`** when `package.json` exists.
+///
+/// Falls back to [`island_root`] so callers can still construct paths before first bootstrap.
+#[must_use]
+pub fn island_package_root(repo_root: &Path) -> PathBuf {
+    resolve_island_package_root(repo_root).unwrap_or_else(|| island_root(repo_root))
+}
+
+/// `Some(path)` when a workspace-style or repo-root islands app is present.
+#[must_use]
+pub fn resolve_island_package_root(repo_root: &Path) -> Option<PathBuf> {
+    let candidates = [
+        repo_root.join("islands"),
+        repo_root.join("packages").join("islands"),
+    ];
+    for p in candidates {
+        if p.join("package.json").is_file() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+/// **`…/src/`** under [`island_package_root`].
 #[must_use]
 pub fn island_src_dir(root: &Path) -> PathBuf {
-    island_root(root).join("src")
+    island_package_root(root).join("src")
 }
 
 /// **`islands/src/<Name>/`** directory for one island.
@@ -71,6 +94,17 @@ mod tests {
                 .join(name)
                 .join("FooBar.component.tsx")
         );
+    }
+
+    #[test]
+    fn packages_islands_resolves_when_pkg_present() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let pkg_root = root.join("packages").join("islands");
+        std::fs::create_dir_all(pkg_root.join("src")).unwrap();
+        std::fs::write(pkg_root.join("package.json"), "{}").unwrap();
+        assert_eq!(resolve_island_package_root(root), Some(pkg_root.clone()));
+        assert_eq!(island_package_root(root), pkg_root);
     }
 
     #[test]

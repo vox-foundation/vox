@@ -4,6 +4,12 @@ use vox_orchestrator::types::TaskCategory;
 
 use crate::{ServerState, ToolResult};
 
+const REM_MODEL_CATEGORY: &str =
+    "Use a known `task_category` (parsing, typechecking, debugging, research, testing, codegen, review) or seed the model registry.";
+const REM_MODEL_REGISTRY: &str = "Call `list_models` and pass a `model_id` that exists in the orchestrator registry.";
+const REM_LOCK_POISON: &str =
+    "Retry; if the error persists, restart the MCP server to clear a poisoned async lock.";
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ListModelsParams {}
 
@@ -48,7 +54,11 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
     {
         ToolResult::ok(model).to_json()
     } else {
-        ToolResult::<String>::err("No suitable model found for category").to_json()
+        ToolResult::<String>::err_with_remediation(
+            "No suitable model found for category",
+            REM_MODEL_CATEGORY,
+        )
+        .to_json()
     }
 }
 
@@ -67,7 +77,9 @@ pub async fn set_active_mcp_chat_model(
         "mcp_chat_model_override",
     ) {
         Ok(g) => g,
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_POISON).to_json();
+        }
     };
     if params.model_id.is_empty() {
         *lock = None;
@@ -86,7 +98,9 @@ pub async fn get_active_mcp_chat_model(state: &ServerState) -> String {
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_POISON).to_json();
+        }
     };
     ToolResult::ok(id.unwrap_or_default()).to_json()
 }
@@ -107,7 +121,10 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
         ))
         .to_json()
     } else {
-        ToolResult::<String>::err(format!("Model {} not found in registry", params.model_id))
-            .to_json()
+        ToolResult::<String>::err_with_remediation(
+            format!("Model {} not found in registry", params.model_id),
+            REM_MODEL_REGISTRY,
+        )
+        .to_json()
     }
 }

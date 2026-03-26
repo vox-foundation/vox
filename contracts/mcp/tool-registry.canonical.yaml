@@ -350,7 +350,7 @@ tools:
   - name: "vox_scientia_publication_external_jobs_tick"
     description: "Process one or more batches of due scholarly submit jobs (preflight dual-approval + digest match, lease row, submit using stored adapter). Optional lock_ttl_ms, lock_owner, iterations, interval_secs, max_runtime_secs, and jitter_secs between ticks."
   - name: "vox_scientia_publication_scholarly_pipeline_run"
-    description: "Run scholarly pipeline on a stored manifest: preflight, dual-approval gate, optional venue staging export (output_dir + venue), then scholarly submit (unless dry_run)."
+    description: "Run scholarly pipeline on a stored manifest: preflight, dual-approval gate, optional venue staging export (output_dir + venue), then scholarly submit (unless dry_run). Optional json_compact returns a single-line JSON payload inside the tool result envelope (matches CLI --json)."
   - name: "vox_scientia_publication_external_pipeline_metrics"
     description: "Read-only JSON rollup of scholarly external_submission_jobs (queue snapshot, in-window status view, percentiles, per-adapter terminal/retry ratios), attempts, snapshots, scholarly_submissions (incl. in-window view), and publication_attempts by channel. metrics_schema_version 2. Optional since_hours (default 168)."
   - name: "vox_scientia_publication_media_upsert"

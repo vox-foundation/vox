@@ -3,8 +3,8 @@
 use super::super::Parser;
 use crate::ast::decl::{
     ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, IslandDecl, IslandProp,
-    McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, QueryDecl, ReactiveComponentDecl,
-    ReactiveMemberDecl, ServerFnDecl, TestDecl,
+    LoadingDecl, McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, QueryDecl,
+    ReactiveComponentDecl, ReactiveMemberDecl, ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -166,6 +166,14 @@ impl Parser {
     }
 
     /// `@island Name { prop: Type, prop?: Type }` — brace-delimited prop block.
+    /// `@loading fn Name() to Element { ... }` — TanStack Router `pendingComponent` / suspense UI.
+    pub(crate) fn parse_loading(&mut self) -> Result<Decl, ()> {
+        self.advance(); // @loading
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Loading(LoadingDecl { func: f }))
+    }
+
     pub(crate) fn parse_island(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // @island

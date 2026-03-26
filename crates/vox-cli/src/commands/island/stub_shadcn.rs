@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
 use std::path::Path;
 
-use crate::island_paths::island_root;
+use crate::island_paths::island_package_root;
 
 use super::build::bootstrap_islands_if_needed;
 
@@ -80,7 +80,7 @@ pub(super) async fn add_shadcn(
     from_file: Option<&str>,
 ) -> Result<()> {
     bootstrap_islands_if_needed(root)?;
-    let islands_dir = island_root(root);
+    let islands_dir = island_package_root(root);
 
     let components_json = islands_dir.join("components.json");
     if tokio::fs::metadata(&components_json).await.is_err() {

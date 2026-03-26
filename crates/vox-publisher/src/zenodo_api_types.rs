@@ -41,5 +41,7 @@ pub struct ZenodoDeposition {
     #[serde(default)]
     pub state: String,
     #[serde(default)]
+    pub doi: Option<String>,
+    #[serde(default)]
     pub links: Option<ZenodoDepositionLinks>,
 }

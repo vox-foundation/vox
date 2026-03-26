@@ -11,6 +11,53 @@ use vox_publisher::scholarly_external_jobs::{
 use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
 use vox_publisher::types::UnifiedNewsItem;
 
+const REM_VOXDB: &str = "Attach Turso/VoxDb to the MCP server, or run the same flow via `vox db` / `vox scientia` in a configured shell.";
+const REM_PUBLICATION_ID: &str = "Run `vox scientia publication-prepare` (or verify the publication id) before this step.";
+const REM_SCIENTIA_DB: &str =
+    "Verify Turso/VoxDb connectivity and vox-db publication/scientia table migrations.";
+const REM_SCIENTIA_APPROVER: &str =
+    "Pass a non-empty `approver` string when recording publication approvals.";
+const REM_SCIENTIA_ARXIV: &str =
+    "When using `published` stage metadata, include a non-empty `arxiv_id`.";
+const REM_SCIENTIA_OUTPUT_DIR: &str =
+    "Set `output_dir` to a writable directory for scholarly pipeline artifacts.";
+const REM_SCIENTIA_METADATA: &str =
+    "Fix `scholarly_metadata` / manifest JSON to match SCIENTIA contracts (see scientia handbook).";
+const REM_SCIENTIA_SIMULATE: &str =
+    "Inspect simulate/gate output and manifest state; resolve blockers then retry.";
+const REM_SCIENTIA_PUBLISH: &str =
+    "Check syndication channel config, dry-run flags, approvals, and publisher credentials for live paths.";
+const REM_SCIENTIA_REMOTE: &str =
+    "Ensure `publication_id` has scholarly submission rows; pass `external_submission_id` when disambiguating.";
+const REM_SCIENTIA_EXT_SUBMIT: &str =
+    "When provided, `external_submission_id` must be a non-empty id from the submissions table.";
+const REM_WORTHINESS_CONTRACT: &str =
+    "Ensure SCIENTIA worthiness YAML under the repo root is readable and schema-valid (see `contracts/scientia/`).";
+const REM_SCIENTIA_STAGE: &str =
+    "Use stage tokens `staging_exported`, `operator_ack`, `bundle_validated`, `submitted`, or `published` (see arXiv handoff tool docs).";
+const REM_SCIENTIA_ATTEMPTS: &str =
+    "Run `publication_publish` or `route_simulate` first so syndication attempts exist for the current manifest digest.";
+
+#[inline]
+fn no_voxdb_tool_string() -> String {
+    ToolResult::<String>::err_with_remediation("VoxDb is not connected", REM_VOXDB).to_json()
+}
+
+#[inline]
+fn no_voxdb_syndication(compact: bool) -> String {
+    ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+        "VoxDb is not connected",
+        REM_VOXDB,
+    )
+    .to_json_styled(compact)
+}
+
+#[inline]
+fn no_voxdb_json_envelope(compact: bool) -> String {
+    ToolResult::<serde_json::Value>::err_with_remediation("VoxDb is not connected", REM_VOXDB)
+        .to_json_styled(compact)
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationPrepareParams {
     pub publication_id: String,
@@ -93,17 +140,19 @@ fn operator_publisher_config(
     dry_run: bool,
     worthiness_score: Option<f64>,
 ) -> vox_publisher::PublisherConfig {
-    let mut site = vox_publisher::NewsSiteConfig::default();
-    site.base_url = state
-        .orchestrator_config
-        .news
-        .site_base_url
-        .clone()
-        .unwrap_or_else(|| {
-            vox_publisher::contract::DEFAULT_SITE_BASE_URL
-                .trim_end_matches('/')
-                .to_string()
-        });
+    let mut site = vox_publisher::NewsSiteConfig {
+        base_url: state
+            .orchestrator_config
+            .news
+            .site_base_url
+            .clone()
+            .unwrap_or_else(|| {
+                vox_publisher::contract::DEFAULT_SITE_BASE_URL
+                    .trim_end_matches('/')
+                    .to_string()
+            }),
+        ..Default::default()
+    };
     if let Some(ref p) = state.orchestrator_config.news.rss_feed_path {
         let t = p.trim();
         if !t.is_empty() {
@@ -182,7 +231,7 @@ pub async fn vox_scientia_publication_prepare(
     params: VoxScientiaPublicationPrepareParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let citations_json = params
         .citations_json
@@ -193,7 +242,11 @@ pub async fn vox_scientia_publication_prepare(
         Some(v) => match serde_json::from_value::<ScientificPublicationMetadata>(v.clone()) {
             Ok(s) => Some(s),
             Err(e) => {
-                return ToolResult::<String>::err(format!("scholarly_metadata: {e}")).to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    format!("scholarly_metadata: {e}"),
+                    REM_SCIENTIA_METADATA,
+                )
+                .to_json();
             }
         },
     };
@@ -205,7 +258,10 @@ pub async fn vox_scientia_publication_prepare(
         None,
     ) {
         Ok(s) => s,
-        Err(e) => return ToolResult::<String>::err(format!("metadata_json: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(format!("metadata_json: {e}"), REM_SCIENTIA_METADATA)
+                .to_json();
+        }
     };
     let manifest = PublicationManifest {
         publication_id: params.publication_id.clone(),
@@ -222,10 +278,13 @@ pub async fn vox_scientia_publication_prepare(
     if params.preflight {
         let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
         if !report.ok {
-            return ToolResult::<()>::err(format!(
-                "preflight failed: {}",
-                serde_json::to_string(&report).unwrap_or_default()
-            ))
+            return ToolResult::<()>::err_with_remediation(
+                format!(
+                    "preflight failed: {}",
+                    serde_json::to_string(&report).unwrap_or_default()
+                ),
+                "Fix readiness findings on the manifest or pass a different `preflight_profile`; mirror check with `vox scientia publication-preflight`.",
+            )
             .to_json();
         }
     }
@@ -247,7 +306,7 @@ pub async fn vox_scientia_publication_prepare(
         })
         .await
     {
-        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
     }
     ToolResult::ok(serde_json::json!({
         "publication_id": manifest.publication_id,
@@ -269,18 +328,23 @@ pub async fn vox_scientia_publication_approve(
     params: VoxScientiaPublicationApproveParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let manifest = match db.get_publication_manifest(&params.publication_id).await {
         Ok(m) => m,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let Some(manifest) = manifest else {
-        return ToolResult::<String>::err("publication not found".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
+            .to_json();
     };
     let approver = params.approver.trim();
     if approver.is_empty() {
-        return ToolResult::<String>::err("approver must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "approver must not be empty".to_string(),
+            REM_SCIENTIA_APPROVER,
+        )
+        .to_json();
     }
     if let Err(e) = db
         .record_publication_approval_for_digest(
@@ -290,14 +354,14 @@ pub async fn vox_scientia_publication_approve(
         )
         .await
     {
-        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
     }
     let count = match db
         .count_publication_approvers_for_digest(&params.publication_id, &manifest.content_sha3_256)
         .await
     {
         Ok(c) => c,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     if count >= 2 {
         let _ = db
@@ -326,7 +390,7 @@ pub async fn vox_scientia_publication_submit_local(
     params: VoxScientiaPublicationSubmitLocalParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let adapter = params.adapter.as_deref().map(str::trim).filter(|s| !s.is_empty());
     match publication_scholarly_submit_with_ledger(
@@ -337,7 +401,11 @@ pub async fn vox_scientia_publication_submit_local(
     .await
     {
         Ok(receipt) => ToolResult::ok(receipt).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            e.to_string(),
+            "Verify `VOX_SCHOLARLY_*` flags, adapter credentials (Clavis / env), and that live adapters are not disabled.",
+        )
+        .to_json(),
     }
 }
 
@@ -365,43 +433,44 @@ pub async fn vox_scientia_publication_status(
     params: VoxScientiaPublicationStatusParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let Some(row) = row else {
-        return ToolResult::<String>::err("publication not found".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
+            .to_json();
     };
     let approvals = match db
         .count_publication_approvers_for_digest(&params.publication_id, &row.content_sha3_256)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let submissions = match db.list_scholarly_submissions(&params.publication_id).await {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let media_assets = match db
         .list_publication_media_assets(&params.publication_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let publication_attempts = match db.list_publication_attempts(&params.publication_id).await {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let publication_status_events = match db
         .list_publication_status_events(&params.publication_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     ToolResult::ok(ScientiaPublicationStatusBody {
         publication_id: row.publication_id,
@@ -466,31 +535,43 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
     params: VoxScientiaPublicationScholarlyStagingExportParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let publication_id = params.publication_id.trim();
     if publication_id.is_empty() {
-        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication_id must not be empty".to_string(),
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     }
     let out_s = params.output_dir.trim();
     if out_s.is_empty() {
-        return ToolResult::<String>::err("output_dir must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "output_dir must not be empty".to_string(),
+            REM_SCIENTIA_OUTPUT_DIR,
+        )
+        .to_json();
     }
     let venue_raw = params.venue.trim();
     let Some(venue) = vox_publisher::submission_package::ScholarlyVenue::parse(venue_raw) else {
-        return ToolResult::<String>::err(format!(
-            "unknown venue {venue_raw:?}; use zenodo, openreview, or arxiv-assist"
-        ))
+        return ToolResult::<String>::err_with_remediation(
+            format!("unknown venue {venue_raw:?}"),
+            "Use `zenodo`, `openreview`, or `arxiv-assist` (see `ScholarlyVenue::parse` in vox-publisher).",
+        )
         .to_json();
     };
     let output_dir = std::path::PathBuf::from(out_s);
     let row = match db.get_publication_manifest(publication_id).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            return ToolResult::<String>::err(format!("publication not found: {publication_id}"))
-                .to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("publication not found: {publication_id}"),
+                REM_PUBLICATION_ID,
+            )
+            .to_json();
         }
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let manifest = PublicationManifest {
         publication_id: row.publication_id.clone(),
@@ -509,7 +590,9 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
         &output_dir,
     ) {
         Ok(w) => w,
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_OUTPUT_DIR).to_json();
+        }
     };
     if let Err(findings) =
         vox_publisher::submission_package::validate_scholarly_staging(&output_dir, venue, &manifest)
@@ -519,7 +602,11 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
             .map(|f| format!("{}: {}", f.code, f.message))
             .collect::<Vec<_>>()
             .join("; ");
-        return ToolResult::<String>::err(format!("staging validation failed: {msg}")).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("staging validation failed: {msg}"),
+            "Inspect `written` paths under output_dir; re-run export or fix files to match the venue plan (see vox-publisher `submission_package::staging_artifacts`).",
+        )
+        .to_json();
     }
     ToolResult::ok(serde_json::json!({
         "publication_id": publication_id,
@@ -535,36 +622,39 @@ pub async fn vox_scientia_publication_scholarly_remote_status(
     params: VoxScientiaPublicationScholarlyRemoteStatusParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let submissions = match db
         .list_scholarly_submissions(&params.publication_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let sub_row: &vox_db::ScholarlySubmissionRow = match params.external_submission_id.as_deref() {
         Some(e) => {
             let e = e.trim();
             if e.is_empty() {
-                return ToolResult::<String>::err(
+                return ToolResult::<String>::err_with_remediation(
                     "external_submission_id must not be empty when provided".to_string(),
+                    REM_SCIENTIA_EXT_SUBMIT,
                 )
                 .to_json();
             }
             let Some(row) = submissions.iter().find(|r| r.external_submission_id == e) else {
-                return ToolResult::<String>::err(format!(
-                    "no scholarly submission with external_submission_id {e}"
-                ))
+                return ToolResult::<String>::err_with_remediation(
+                    format!("no scholarly submission with external_submission_id {e}"),
+                    REM_SCIENTIA_REMOTE,
+                )
                 .to_json();
             };
             row
         }
         None => {
             let Some(row) = submissions.first() else {
-                return ToolResult::<String>::err(
+                return ToolResult::<String>::err_with_remediation(
                     "no scholarly submissions for this publication".to_string(),
+                    REM_SCIENTIA_REMOTE,
                 )
                 .to_json();
             };
@@ -573,7 +663,9 @@ pub async fn vox_scientia_publication_scholarly_remote_status(
     };
     match poll_scholarly_remote_status_persist(db, params.publication_id.as_str(), sub_row).await {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json()
+        }
     }
 }
 
@@ -582,15 +674,19 @@ pub async fn vox_scientia_publication_scholarly_remote_status_sync_all(
     params: VoxScientiaPublicationScholarlyRemoteStatusSyncAllParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let publication_id = params.publication_id.trim();
     if publication_id.is_empty() {
-        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication_id must not be empty".to_string(),
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     }
     match poll_scholarly_remote_status_all_submissions_for_publication(db, publication_id).await {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -608,6 +704,9 @@ pub struct VoxScientiaPublicationScholarlyPipelineRunParams {
     pub venue: Option<String>,
     #[serde(default)]
     pub adapter: Option<String>,
+    /// When true, emit compact JSON in the tool result (single line).
+    #[serde(default)]
+    pub json_compact: bool,
 }
 
 pub async fn vox_scientia_publication_scholarly_pipeline_run(
@@ -615,19 +714,27 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
     params: VoxScientiaPublicationScholarlyPipelineRunParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let publication_id = params.publication_id.trim();
     if publication_id.is_empty() {
-        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication_id must not be empty".to_string(),
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     }
     let profile: PreflightProfile = params.preflight_profile.unwrap_or_default().into();
     let row = match db.get_publication_manifest(publication_id).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            return ToolResult::<String>::err(format!("publication not found: {publication_id}")).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("publication not found: {publication_id}"),
+                REM_PUBLICATION_ID,
+            )
+            .to_json();
         }
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let manifest = PublicationManifest {
         publication_id: row.publication_id.clone(),
@@ -642,11 +749,14 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
     };
     let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
     if !report.ok {
-        return ToolResult::<String>::err(format!(
-            "scholarly pipeline preflight failed (readiness {}): {}",
-            report.readiness_score,
-            serde_json::to_string(&report).unwrap_or_else(|_| "{}".into())
-        ))
+        return ToolResult::<String>::err_with_remediation(
+            format!(
+                "scholarly pipeline preflight failed (readiness {}): {}",
+                report.readiness_score,
+                serde_json::to_string(&report).unwrap_or_else(|_| "{}".into())
+            ),
+            "Fix preflight findings on the stored manifest or pass a different `preflight_profile`; compare with `vox scientia publication-preflight`.",
+        )
         .to_json();
     }
     let digest = row.content_sha3_256.clone();
@@ -655,12 +765,12 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
         .await
     {
         Ok(b) => b,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     if !dual {
-        return ToolResult::<String>::err(
-            "scholarly pipeline requires two distinct digest-bound approvers before staging export / submit"
-                .to_string(),
+        return ToolResult::<String>::err_with_remediation(
+            "scholarly pipeline requires two distinct digest-bound approvers before staging export / submit",
+            "Record two digest-bound approvers with `vox scientia publication-approve --publication-id ...` (distinct `--approver` values), then retry.",
         )
         .to_json();
     }
@@ -676,9 +786,10 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
     match (venue_raw, out_dir) {
         (Some(vs), Some(od)) => {
             let Some(venue) = vox_publisher::submission_package::ScholarlyVenue::parse(vs) else {
-                return ToolResult::<String>::err(format!(
-                    "unknown venue {vs:?}; use zenodo, openreview, or arxiv-assist"
-                ))
+                return ToolResult::<String>::err_with_remediation(
+                    format!("unknown venue {vs:?}"),
+                    "Use `zenodo`, `openreview`, or `arxiv-assist` for `venue` when `staging_output_dir` is set.",
+                )
                 .to_json();
             };
             if params.dry_run {
@@ -690,7 +801,8 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
                     venue,
                     output_path,
                 ) {
-                    return ToolResult::<String>::err(e.to_string()).to_json();
+                    return ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_OUTPUT_DIR)
+                        .to_json();
                 }
                 if let Err(findings) =
                     vox_publisher::submission_package::validate_scholarly_staging(
@@ -704,47 +816,73 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
                         .map(|f| format!("{}: {}", f.code, f.message))
                         .collect::<Vec<_>>()
                         .join("; ");
-                    return ToolResult::<String>::err(format!("staging validation failed: {msg}"))
-                        .to_json();
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("staging validation failed: {msg}"),
+                        "Inspect staging under output_dir; re-export with matching venue or fix validation codes reported above.",
+                    )
+                    .to_json();
                 }
                 stages.push("staging_exported".into());
             }
         }
         (None, Some(_)) => {
-            return ToolResult::<String>::err("staging_output_dir requires venue".to_string()).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                "staging_output_dir requires venue",
+                "Pass `venue` (`zenodo`, `openreview`, or `arxiv-assist`) whenever `staging_output_dir` is set (matches CLI).",
+            )
+            .to_json();
         }
         (Some(_), None) => {
-            return ToolResult::<String>::err("venue requires staging_output_dir".to_string()).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                "venue requires staging_output_dir",
+                "Set `staging_output_dir` to the directory that should receive staging files, or omit both for submit-only.",
+            )
+            .to_json();
         }
         (None, None) => {}
     }
 
+    let compact = params.json_compact;
     if params.dry_run {
-        return ToolResult::ok(serde_json::json!({
+        let tr = ToolResult::ok(serde_json::json!({
             "dry_run": true,
             "publication_id": publication_id,
             "digest": digest,
             "stages": stages,
             "preflight_report": report,
-        }))
-        .to_json();
+        }));
+        return if compact {
+            tr.to_json_compact()
+        } else {
+            tr.to_json()
+        };
     }
 
     match publication_scholarly_submit_with_ledger(db, publication_id, params.adapter.as_deref()).await
     {
-        Ok(receipt) => ToolResult::ok(serde_json::json!({
-            "pipeline_completed": true,
-            "publication_id": publication_id,
-            "digest": digest,
-            "stages": stages,
-            "submission": {
-                "adapter": receipt.adapter,
-                "external_submission_id": receipt.external_submission_id,
-                "status": receipt.status,
+        Ok(receipt) => {
+            let tr = ToolResult::ok(serde_json::json!({
+                "pipeline_completed": true,
+                "publication_id": publication_id,
+                "digest": digest,
+                "stages": stages,
+                "submission": {
+                    "adapter": receipt.adapter,
+                    "external_submission_id": receipt.external_submission_id,
+                    "status": receipt.status,
+                }
+            }));
+            if compact {
+                tr.to_json_compact()
+            } else {
+                tr.to_json()
             }
-        }))
+        }
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            e.to_string(),
+            "Verify `VOX_SCHOLARLY_*` flags, adapter credentials (Clavis / env), dual approval, and that the stored digest matches the manifest.",
+        )
         .to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
     }
 }
 
@@ -753,7 +891,7 @@ pub async fn vox_scientia_publication_scholarly_remote_status_sync_batch(
     params: VoxScientiaPublicationScholarlyRemoteStatusSyncBatchParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let res = if params.iterations <= 1
         && params.interval_secs == 0
@@ -774,7 +912,7 @@ pub async fn vox_scientia_publication_scholarly_remote_status_sync_batch(
     };
     match res {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -796,11 +934,15 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
     params: VoxScientiaPublicationArxivHandoffRecordParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let publication_id = params.publication_id.trim();
     if publication_id.is_empty() {
-        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication_id must not be empty".to_string(),
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     }
     let stage = params.stage.trim().to_ascii_lowercase();
     let allowed = [
@@ -811,10 +953,13 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
         "published",
     ];
     if !allowed.contains(&stage.as_str()) {
-        return ToolResult::<String>::err(format!(
-            "invalid stage {stage:?}; expected one of {}",
-            allowed.join(", ")
-        ))
+        return ToolResult::<String>::err_with_remediation(
+            format!(
+                "invalid stage {stage:?}; expected one of {}",
+                allowed.join(", ")
+            ),
+            REM_SCIENTIA_STAGE,
+        )
         .to_json();
     }
     if stage == "published"
@@ -825,16 +970,23 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
             .filter(|s| !s.is_empty())
             .is_none()
     {
-        return ToolResult::<String>::err("arxiv_id is required when stage is published".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "arxiv_id is required when stage is published".to_string(),
+            REM_SCIENTIA_ARXIV,
+        )
+        .to_json();
     }
     match db.get_publication_manifest(publication_id).await {
         Ok(Some(_)) => {}
         Ok(None) => {
-            return ToolResult::<String>::err(format!("publication not found: {publication_id}"))
-                .to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("publication not found: {publication_id}"),
+                REM_PUBLICATION_ID,
+            )
+            .to_json();
         }
         Err(e) => {
-            return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+            return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
         }
     }
 
@@ -866,7 +1018,7 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
         )
         .await
     {
-        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
     }
     ToolResult::ok(serde_json::json!({
         "recorded": true,
@@ -892,7 +1044,7 @@ pub async fn vox_scientia_publication_external_jobs_due(
     params: VoxScientiaPublicationExternalJobsDueParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let before_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -907,7 +1059,7 @@ pub async fn vox_scientia_publication_external_jobs_due(
             "jobs": jobs,
         }))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -926,11 +1078,11 @@ pub async fn vox_scientia_publication_external_jobs_dead_letter(
     params: VoxScientiaPublicationExternalJobsDeadLetterParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     match db.list_external_submission_jobs_failed(params.limit).await {
         Ok(jobs) => ToolResult::ok(serde_json::json!({ "jobs": jobs })).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -944,7 +1096,7 @@ pub async fn vox_scientia_publication_external_jobs_replay(
     params: VoxScientiaPublicationExternalJobsReplayParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     match db
         .replay_failed_external_submission_job_to_queued(params.job_id)
@@ -955,7 +1107,7 @@ pub async fn vox_scientia_publication_external_jobs_replay(
             "job": job,
         }))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -990,7 +1142,7 @@ pub async fn vox_scientia_publication_external_jobs_tick(
     params: VoxScientiaPublicationExternalJobsTickParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     if params.iterations <= 1
         && params.interval_secs == 0
@@ -1017,7 +1169,7 @@ pub async fn vox_scientia_publication_external_jobs_tick(
                 "results": out.results,
             }))
             .to_json(),
-            Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
         };
     }
     match vox_publisher::scholarly_external_jobs::run_external_submit_jobs_tick_loop(
@@ -1033,7 +1185,7 @@ pub async fn vox_scientia_publication_external_jobs_tick(
     .await
     {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -1053,7 +1205,7 @@ pub async fn vox_scientia_publication_external_pipeline_metrics(
     params: VoxScientiaPublicationExternalPipelineMetricsParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1067,7 +1219,7 @@ pub async fn vox_scientia_publication_external_pipeline_metrics(
     };
     match db.summarize_scholarly_external_pipeline_metrics(since_ms).await {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     }
 }
 
@@ -1088,7 +1240,7 @@ pub async fn vox_scientia_publication_media_upsert(
     params: VoxScientiaPublicationMediaUpsertParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let metadata_json = params
         .metadata_json
@@ -1105,7 +1257,7 @@ pub async fn vox_scientia_publication_media_upsert(
         })
         .await
     {
-        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
     }
     ToolResult::ok(serde_json::json!({
         "publication_id": params.publication_id,
@@ -1128,14 +1280,14 @@ pub async fn vox_scientia_publication_media_list(
     params: VoxScientiaPublicationMediaListParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let rows = match db
         .list_publication_media_assets(&params.publication_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     ToolResult::ok(rows).to_json()
 }
@@ -1151,13 +1303,13 @@ pub async fn vox_scientia_publication_media_delete(
     params: VoxScientiaPublicationMediaDeleteParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     if let Err(e) = db
         .delete_publication_media_asset(&params.publication_id, &params.asset_ref)
         .await
     {
-        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
     }
     ToolResult::ok(serde_json::json!({
         "deleted": true,
@@ -1177,26 +1329,35 @@ pub async fn vox_scientia_publication_route_simulate(
     params: VoxScientiaPublicationRouteSimulateParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let Some(row) = row else {
-        return ToolResult::<String>::err("publication not found".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
+            .to_json();
     };
     let item = match unified_news_item_from_manifest_row(&row) {
         Ok(i) => i,
         Err(e) => {
-            return ToolResult::<String>::err(format!("parse metadata_json: {e}")).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("parse metadata_json: {e}"),
+                REM_SCIENTIA_METADATA,
+            )
+            .to_json();
         }
     };
     let worthiness = worthiness_score_for_row(&row);
     let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, true, worthiness));
     match publisher.publish_all(&item).await {
         Ok(r) => ToolResult::ok(r).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("simulate failed: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("simulate failed: {e}"),
+            REM_SCIENTIA_SIMULATE,
+        )
+        .to_json(),
     }
 }
 
@@ -1222,21 +1383,19 @@ pub async fn vox_scientia_publication_publish(
 ) -> String {
     let compact = params.json;
     let Some(db) = &state.db else {
-        return ToolResult::<vox_publisher::SyndicationResult>::err(
-            "VoxDb is not connected".to_string(),
-        )
-        .to_json_styled(compact);
+        return no_voxdb_syndication(compact);
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<vox_publisher::SyndicationResult>::err(format!("DB error: {e}"))
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
                 .to_json_styled(compact);
         }
     };
     let Some(row) = row else {
-        return ToolResult::<vox_publisher::SyndicationResult>::err(
-            "publication not found".to_string(),
+        return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+            "publication not found",
+            REM_PUBLICATION_ID,
         )
         .to_json_styled(compact);
     };
@@ -1244,9 +1403,10 @@ pub async fn vox_scientia_publication_publish(
     let mut item = match unified_news_item_from_manifest_row(&row) {
         Ok(i) => i,
         Err(e) => {
-            return ToolResult::<vox_publisher::SyndicationResult>::err(format!(
-                "parse metadata_json: {e}"
-            ))
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+                format!("parse metadata_json: {e}"),
+                REM_SCIENTIA_METADATA,
+            )
             .to_json_styled(compact);
         }
     };
@@ -1260,7 +1420,7 @@ pub async fn vox_scientia_publication_publish(
     {
         Ok(v) => v,
         Err(e) => {
-            return ToolResult::<vox_publisher::SyndicationResult>::err(format!("DB error: {e}"))
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
                 .to_json_styled(compact);
         }
     };
@@ -1280,7 +1440,11 @@ pub async fn vox_scientia_publication_publish(
             "blocking_reasons": gate.blocking_reasons,
         })
         .to_string();
-        return ToolResult::<vox_publisher::SyndicationResult>::err(msg).to_json_styled(compact);
+        return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+            msg,
+            REM_SCIENTIA_SIMULATE,
+        )
+        .to_json_styled(compact);
     }
     let worthiness = worthiness_score_for_row(&row);
     if mcp_social_worthiness_enforce(state)
@@ -1298,7 +1462,11 @@ pub async fn vox_scientia_publication_publish(
                 "floor": floor,
             })
             .to_string();
-            return ToolResult::<vox_publisher::SyndicationResult>::err(msg).to_json_styled(compact);
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+                msg,
+                REM_SCIENTIA_PUBLISH,
+            )
+            .to_json_styled(compact);
         }
     }
     let publisher =
@@ -1306,9 +1474,10 @@ pub async fn vox_scientia_publication_publish(
     let out = match publisher.publish_all(&item).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<vox_publisher::SyndicationResult>::err(format!(
-                "publish failed: {e}"
-            ))
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+                format!("publish failed: {e}"),
+                REM_SCIENTIA_PUBLISH,
+            )
             .to_json_styled(compact);
         }
     };
@@ -1378,31 +1547,36 @@ pub async fn vox_scientia_publication_retry_failed(
     }
     let compact = params.json;
     let Some(db) = &state.db else {
-        return ToolResult::<serde_json::Value>::err("VoxDb is not connected".to_string())
-            .to_json_styled(compact);
+        return no_voxdb_json_envelope(compact);
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("DB error: {e}"))
+            return ToolResult::<serde_json::Value>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
                 .to_json_styled(compact);
         }
     };
     let Some(row) = row else {
-        return ToolResult::<serde_json::Value>::err("publication not found".to_string())
-            .to_json_styled(compact);
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "publication not found",
+            REM_PUBLICATION_ID,
+        )
+        .to_json_styled(compact);
     };
     let digest = row.content_sha3_256;
     let attempts = match db.list_publication_attempts(&params.publication_id).await {
         Ok(v) => v,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("DB error: {e}"))
+            return ToolResult::<serde_json::Value>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
                 .to_json_styled(compact);
         }
     };
     if attempts.is_empty() {
-        return ToolResult::<serde_json::Value>::err("no attempts found".to_string())
-            .to_json_styled(compact);
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "no attempts found".to_string(),
+            REM_SCIENTIA_ATTEMPTS,
+        )
+        .to_json_styled(compact);
     }
     let attempt_refs: Vec<vox_publisher::switching::AttemptOutcome<'_>> = attempts
         .iter()
@@ -1417,14 +1591,18 @@ pub async fn vox_scientia_publication_retry_failed(
     ) {
         Ok(Some(v)) => v,
         Ok(None) => {
-            return ToolResult::<serde_json::Value>::err(
+            return ToolResult::<serde_json::Value>::err_with_remediation(
                 "no syndication attempt outcome for current manifest digest".to_string(),
+                REM_SCIENTIA_ATTEMPTS,
             )
             .to_json_styled(compact);
         }
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("attempt parse: {e}"))
-                .to_json_styled(compact);
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("attempt parse: {e}"),
+                REM_SCIENTIA_METADATA,
+            )
+            .to_json_styled(compact);
         }
     };
     if failed.is_empty() {
@@ -1462,14 +1640,15 @@ pub async fn vox_scientia_publication_preflight(
     params: VoxScientiaPublicationPreflightParams,
 ) -> String {
     let Some(db) = &state.db else {
-        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+        return no_voxdb_tool_string();
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
     };
     let Some(row) = row else {
-        return ToolResult::<String>::err("publication not found".to_string()).to_json();
+        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
+            .to_json();
     };
     let mut manifest = publication_manifest_from_row(&row);
     let profile: PreflightProfile = params.profile.unwrap_or_default().into();
@@ -1493,8 +1672,11 @@ pub async fn vox_scientia_publication_preflight(
         {
             Ok(s) => manifest.metadata_json = Some(s),
             Err(e) => {
-                return ToolResult::<String>::err(format!("socrates telemetry merge: {e}"))
-                    .to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    format!("socrates telemetry merge: {e}"),
+                    REM_SCIENTIA_DB,
+                )
+                .to_json();
             }
         }
         match vox_publisher::scientia_evidence::enrich_metadata_json_with_repo_files(
@@ -1504,8 +1686,11 @@ pub async fn vox_scientia_publication_preflight(
             Ok(Some(updated)) => manifest.metadata_json = Some(updated),
             Ok(None) => {}
             Err(e) => {
-                return ToolResult::<String>::err(format!("scientia_evidence file hydration: {e}"))
-                    .to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    format!("scientia_evidence file hydration: {e}"),
+                    REM_SCIENTIA_METADATA,
+                )
+                .to_json();
             }
         }
         let path = state
@@ -1515,25 +1700,31 @@ pub async fn vox_scientia_publication_preflight(
         let yaml = match crate::bounded_fs::read_utf8_path_capped(&path) {
             Ok(s) => s,
             Err(e) => {
-                return ToolResult::<String>::err(format!(
-                    "read worthiness contract {}: {e}",
-                    path.display()
-                ))
+                return ToolResult::<String>::err_with_remediation(
+                    format!("read worthiness contract {}: {e}", path.display()),
+                    REM_WORTHINESS_CONTRACT,
+                )
                 .to_json();
             }
         };
         let contract = match vox_publisher::publication_worthiness::load_contract_from_str(&yaml) {
             Ok(c) => c,
             Err(e) => {
-                return ToolResult::<String>::err(format!("parse worthiness contract: {e}"))
-                    .to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    format!("parse worthiness contract: {e}"),
+                    REM_WORTHINESS_CONTRACT,
+                )
+                .to_json();
             }
         };
         if let Err(e) =
             vox_publisher::publication_worthiness::validate_contract_invariants(&contract)
         {
-            return ToolResult::<String>::err(format!("worthiness contract invariants: {e}"))
-                .to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("worthiness contract invariants: {e}"),
+                REM_WORTHINESS_CONTRACT,
+            )
+            .to_json();
         }
         vox_publisher::publication_preflight::run_preflight_with_worthiness(
             &manifest, profile, &contract,
@@ -1566,26 +1757,40 @@ pub async fn vox_scientia_worthiness_evaluate(
     let yaml = match crate::bounded_fs::read_utf8_path_capped(&contract_path) {
         Ok(s) => s,
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "read contract {}: {e}",
-                contract_path.display()
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("read contract {}: {e}", contract_path.display()),
+                REM_WORTHINESS_CONTRACT,
+            )
             .to_json();
         }
     };
     let contract = match vox_publisher::publication_worthiness::load_contract_from_str(&yaml) {
         Ok(c) => c,
         Err(e) => {
-            return ToolResult::<String>::err(format!("parse contract YAML: {e}")).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("parse contract YAML: {e}"),
+                REM_WORTHINESS_CONTRACT,
+            )
+            .to_json();
         }
     };
     if let Err(e) = vox_publisher::publication_worthiness::validate_contract_invariants(&contract) {
-        return ToolResult::<String>::err(format!("contract invariants: {e}")).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("contract invariants: {e}"),
+            REM_WORTHINESS_CONTRACT,
+        )
+        .to_json();
     }
     let inputs: vox_publisher::publication_worthiness::WorthinessInputs =
         match serde_json::from_value(params.metrics) {
             Ok(i) => i,
-            Err(e) => return ToolResult::<String>::err(format!("metrics: {e}")).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("metrics: {e}"),
+                    "Pass `metrics` as a JSON object matching `WorthinessInputs` (see publication_worthiness docs).",
+                )
+                .to_json();
+            }
         };
     let out = vox_publisher::publication_worthiness::evaluate_worthiness(&contract, &inputs);
     ToolResult::ok(out).to_json()

@@ -17,17 +17,17 @@
 //! | Tests | `@test` |
 //! | Server functions | `@server` |
 //! | v0 components | `@v0` |
+//! | Route loading UI | `@loading` |
 //! | Actors & workflows | `actor`, `workflow`, `activity` |
 //! | HTTP routes | `http get/post/put/delete` |
 //! | JSX | `<Tag ...>` / `<Tag ... />` |
 //! | Expressions | arithmetic, logic, match, if/else, for, spawn, pipe `|>` |
 //!
-//! ## Out of scope (parsed downstream)
+//! ## Out of scope today
 //!
-//! Extended full-stack declarations — `@page`, `@partial`, `@theme`, `@layout`,
-//! `@i18n`, `@schema`, `@action` — are **not** part of this parser's grammar.
-//! They are handled by crates that consume `vox-ast` output and augment it:
-//! `vox-codegen-ts`, `vox-codegen-rust`, and related pipeline stages.
+//! Declarations named in older roadmaps (`@page`, `@layout`, `@theme`, …) appear in the AST type
+//! definitions for future work but are **not** produced by this parser. Use `routes:`, `@component`,
+//! `@server`, and `@island` for the supported web stack (see `docs/src/reference/vox-web-stack.md`).
 //!
 //! ## Error strategy
 //!

@@ -1,6 +1,10 @@
 //! Completion engine for `vox-lsp`.
 //!
 //! Provides context-aware completions for keywords, decorators, types, and builtins.
+//!
+//! Decorators listed here match the **canonical parser** in `vox-compiler` (see
+//! `crates/vox-compiler/src/parser/mod.rs`). Do not suggest top-level forms the lexer
+//! cannot parse.
 
 use tower_lsp::lsp_types::*;
 
@@ -75,38 +79,19 @@ impl CompletionEngine {
     }
 
     fn add_decorators(items: &mut Vec<CompletionItem>) {
+        // SSOT: `vox-compiler` lexer tokens `@component`, `@island`, `@server`, …
         let decorators = vec![
+            ("@component", "Reactive or legacy `fn` component (see Vox web stack docs)."),
+            ("@island", "Typed stub for a React island under `islands/` (hydration mount point)."),
+            ("@loading", "Route suspense UI (`fn` → `*.tsx`); TanStack Router `pendingComponent` when `routes:` exists."),
+            ("@server", "Server function (Axum route + TS client wrapper)."),
             ("@table", "Declares a persistent database table."),
+            ("@index", "Declares a database index."),
             ("@query", "Declares a database query function."),
             ("@mutation", "Declares a database mutation function."),
-            ("@action", "Declares a side-effecting action."),
-            ("@collection", "Declares a NoSQL collection."),
-            ("@index", "Declares a database index."),
-            ("@vector_index", "Declares a vector search index."),
-            ("@search_index", "Declares a full-text search index."),
-            ("@layout", "Defines a multi-page layout island."),
-            ("@loading", "Defines a loading skeleton for a route."),
-            ("@not_found", "Defines a 404 handler."),
-            ("@error_boundary", "Defines a React-style error fallback."),
-            ("@test", "Marks a function as a test case."),
-            ("@fixture", "Declares a test fixture."),
-            ("@mock", "Declares a mock implementation."),
-            ("@trace", "Enables Opentelemetry tracing."),
-            ("@health", "Defines a health check endpoint."),
-            ("@metric", "Records a custom prometheus metric."),
-            ("@scheduled", "Defines a CRON-style scheduled task."),
             ("@mcp.tool", "Exposes a function as an MCP tool."),
-            ("@mcp.resource", "Exposes a data source as an MCP resource."),
-            ("@agent_def", "Defines a persistent agent profile."),
-            ("@skill", "Defines a cross-agent capability skill."),
-            ("@v0", "Marks as a legacy/wave-0 interface."),
-            ("@py_import", "Imports a Python function via FFI."),
-            ("@deprecated", "Marks the symbol as deprecated."),
-            ("@pure", "Marks a function as side-effect free."),
-            ("@require", "Adds security/auth requirements."),
-            ("@theme", "Defines visual theme overrides."),
-            ("@keyframes", "Defines a CSS animation sequence."),
-            ("@server", "Forces server-side execution only."),
+            ("@test", "Marks a function as a test case."),
+            ("@v0", "Placeholder for v0.dev-generated UI hook."),
         ];
 
         for (name, doc) in decorators {

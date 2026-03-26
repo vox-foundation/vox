@@ -12,21 +12,22 @@ use super::bounded_read::read_utf8_path_capped;
 use super::cargo_bin;
 use super::cmd_enums::ScalingAuditCmd;
 
-const POLICY_REL: &str = "contracts/scaling/policy.yaml";
-const POLICY_SCHEMA_REL: &str = "contracts/scaling/policy.schema.json";
+pub(super) const POLICY_REL: &str = "contracts/scaling/policy.yaml";
+pub(super) const POLICY_SCHEMA_REL: &str = "contracts/scaling/policy.schema.json";
 const TEMPLATES_REL: &str = "contracts/scaling/task-templates.yaml";
 const REPORT_ROOT: &str = "contracts/reports/scaling-audit";
-const FINDINGS_LATEST_REL: &str = "contracts/reports/scaling-audit/findings-latest.json";
-const FINDINGS_ARRAY_SCHEMA_REL: &str =
+pub(super) const FINDINGS_LATEST_REL: &str = "contracts/reports/scaling-audit/findings-latest.json";
+pub(super) const FINDINGS_ARRAY_SCHEMA_REL: &str =
     "contracts/reports/scaling-audit/findings-array.v1.schema.json";
-const GOLD_DATASET_REL: &str = "contracts/toestub/gold-dataset.v1.json";
-const GOLD_SCHEMA_REL: &str = "contracts/toestub/gold-dataset.v1.schema.json";
-const REMEDIATION_LANES_REL: &str = "contracts/reports/toestub-remediation/REMEDIATION-LANES.yaml";
-const REMEDIATION_DELTA_REL: &str =
+pub(super) const GOLD_DATASET_REL: &str = "contracts/toestub/gold-dataset.v1.json";
+pub(super) const GOLD_SCHEMA_REL: &str = "contracts/toestub/gold-dataset.v1.schema.json";
+pub(super) const REMEDIATION_LANES_REL: &str =
+    "contracts/reports/toestub-remediation/REMEDIATION-LANES.yaml";
+pub(super) const REMEDIATION_DELTA_REL: &str =
     "contracts/reports/toestub-remediation/delta-after-remediation.json";
-const REMEDIATION_DELTA_SCHEMA_REL: &str =
+pub(super) const REMEDIATION_DELTA_SCHEMA_REL: &str =
     "contracts/reports/toestub-remediation/delta-after-remediation.v1.schema.json";
-const REMEDIATION_REPORT_ROOT: &str = "contracts/reports/toestub-remediation";
+pub(super) const REMEDIATION_REPORT_ROOT: &str = "contracts/reports/toestub-remediation";
 
 #[derive(Debug, Deserialize)]
 struct TaskTemplatesFile {
@@ -45,198 +46,13 @@ struct TaskCategory {
     verification: String,
 }
 
-/// Validate `contracts/scaling/policy.yaml` against `policy.schema.json`.
-fn verify_policy_schema(repo_root: &Path) -> Result<()> {
-    let policy_path = repo_root.join(POLICY_REL);
-    let raw = read_utf8_path_capped(&policy_path)
-        .with_context(|| format!("read {}", policy_path.display()))?;
-    let schema_path = repo_root.join(POLICY_SCHEMA_REL);
-    if !schema_path.is_file() {
-        return Err(anyhow!("missing {}", schema_path.display()));
-    }
-    let schema_val: JsonValue = serde_json::from_str(
-        &read_utf8_path_capped(&schema_path)
-            .with_context(|| format!("read {}", schema_path.display()))?,
-    )
-    .with_context(|| format!("parse {}", schema_path.display()))?;
-    let instance: JsonValue =
-        serde_yaml::from_str(&raw).context("parse scaling policy as JSON value")?;
-    let validator =
-        jsonschema::validator_for(&schema_val).context("compile scaling policy.schema.json")?;
-    validator
-        .validate(&instance)
-        .map_err(|e| anyhow!("scaling policy does not match schema: {e}"))?;
-    println!("scaling policy YAML OK (schema validated)");
-    Ok(())
-}
+mod verify;
 
-/// Embedded policy must match on-disk file (vox-scaling-policy `include_str`).
-fn verify_embedded_policy_roundtrip(repo_root: &Path) -> Result<()> {
-    let policy_path = repo_root.join(POLICY_REL);
-    let disk = read_utf8_path_capped(&policy_path)
-        .with_context(|| format!("read {}", policy_path.display()))?;
-    let parsed = vox_scaling_policy::ScalingPolicy::from_yaml_str(&disk)
-        .context("parse policy with vox-scaling-policy")?;
-    if parsed.schema_version < 1 {
-        return Err(anyhow!("scaling policy schema_version must be >= 1"));
-    }
-    println!("vox-scaling-policy parse OK");
-    Ok(())
-}
-
-fn validate_json_file_against_schema(
-    repo_root: &Path,
-    instance_rel: &str,
-    schema_rel: &str,
-    label: &str,
-) -> Result<()> {
-    let inst_path = repo_root.join(instance_rel);
-    if !inst_path.is_file() {
-        return Err(anyhow!("missing {} file {}", label, inst_path.display()));
-    }
-    let schema_path = repo_root.join(schema_rel);
-    if !schema_path.is_file() {
-        return Err(anyhow!(
-            "missing {} schema {}",
-            label,
-            schema_path.display()
-        ));
-    }
-    let schema_val: JsonValue = serde_json::from_str(
-        &read_utf8_path_capped(&schema_path)
-            .with_context(|| format!("read {}", schema_path.display()))?,
-    )
-    .with_context(|| format!("parse {}", schema_path.display()))?;
-    let instance_val: JsonValue = serde_json::from_str(
-        &read_utf8_path_capped(&inst_path)
-            .with_context(|| format!("read {}", inst_path.display()))?,
-    )
-    .with_context(|| format!("parse {}", inst_path.display()))?;
-    let validator = jsonschema::validator_for(&schema_val)
-        .with_context(|| format!("compile {label} schema"))?;
-    validator.validate(&instance_val).map_err(|e| {
-        anyhow!(
-            "{label} does not match schema ({}): {e}",
-            inst_path.display()
-        )
-    })?;
-    println!("{label} OK (schema validated)");
-    Ok(())
-}
-
-/// `findings-latest.json` is a bare array; validate against findings-array v1 schema.
-fn verify_findings_latest_schema(repo_root: &Path) -> Result<()> {
-    validate_json_file_against_schema(
-        repo_root,
-        FINDINGS_LATEST_REL,
-        FINDINGS_ARRAY_SCHEMA_REL,
-        "findings-latest.json",
-    )
-}
-
-fn verify_remediation_delta_schema(repo_root: &Path) -> Result<()> {
-    validate_json_file_against_schema(
-        repo_root,
-        REMEDIATION_DELTA_REL,
-        REMEDIATION_DELTA_SCHEMA_REL,
-        "remediation delta-after-remediation.json",
-    )
-}
-
-fn verify_gold_dataset_schema(repo_root: &Path) -> Result<()> {
-    validate_json_file_against_schema(
-        repo_root,
-        GOLD_DATASET_REL,
-        GOLD_SCHEMA_REL,
-        "TOESTUB gold-dataset.v1.json",
-    )
-}
-
-/// If `promotion-metrics.json` exists (after `emit-reports`), enforce minimal contract for CI dashboards.
-fn verify_promotion_metrics_optional(repo_root: &Path) -> Result<()> {
-    let p = PathBuf::from(repo_root)
-        .join(REMEDIATION_REPORT_ROOT)
-        .join("promotion-metrics.json");
-    if !p.is_file() {
-        println!("promotion-metrics.json: absent (optional until emit-reports)");
-        return Ok(());
-    }
-    let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-    let v: JsonValue = serde_json::from_str(&raw)
-        .with_context(|| format!("parse {}", p.display()))?;
-    if v.get("version").and_then(|x| x.as_u64()) != Some(1) {
-        return Err(anyhow!(
-            "{}: expected version 1",
-            p.display()
-        ));
-    }
-    if v.get("findings_total_latest").is_none() {
-        return Err(anyhow!(
-            "{}: missing findings_total_latest",
-            p.display()
-        ));
-    }
-    println!("promotion-metrics.json OK (rollup contract)");
-    Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-struct RemediationLanesFile {
-    #[allow(dead_code)]
-    version: u32,
-    lanes: Vec<RemediationLane>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RemediationLane {
-    id: String,
-    rule_family: String,
-    status: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    primary_crate: Option<String>,
-    #[serde(default)]
-    #[allow(dead_code)]
-    focus: Option<String>,
-}
-
-fn verify_remediation_lanes(repo_root: &Path) -> Result<()> {
-    let p = repo_root.join(REMEDIATION_LANES_REL);
-    let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-    let doc: RemediationLanesFile =
-        serde_yaml::from_str(&raw).context("parse REMEDIATION-LANES.yaml")?;
-    if doc.version != 1 {
-        return Err(anyhow!(
-            "REMEDIATION-LANES.yaml: expected version 1, got {}",
-            doc.version
-        ));
-    }
-    let mut ids = std::collections::HashSet::<&str>::new();
-    for lane in &doc.lanes {
-        if lane.id.is_empty() {
-            return Err(anyhow!("remediation lane missing id"));
-        }
-        if !ids.insert(lane.id.as_str()) {
-            return Err(anyhow!("duplicate remediation lane id: {}", lane.id));
-        }
-        if lane.rule_family.is_empty() {
-            return Err(anyhow!("lane {}: rule_family required", lane.id));
-        }
-        if lane.status.is_empty() {
-            return Err(anyhow!("lane {}: status required", lane.id));
-        }
-    }
-    if doc.lanes.is_empty() {
-        return Err(anyhow!(
-            "REMEDIATION-LANES.yaml: expected at least one lane"
-        ));
-    }
-    println!(
-        "REMEDIATION-LANES.yaml OK ({} unique lanes)",
-        doc.lanes.len()
-    );
-    Ok(())
-}
+use verify::{
+    verify_embedded_policy_roundtrip, verify_findings_latest_schema, verify_gold_dataset_schema,
+    verify_policy_schema, verify_promotion_metrics_optional, verify_remediation_delta_schema,
+    verify_remediation_lanes,
+};
 
 fn workspace_crates(repo_root: &Path) -> Result<Vec<String>> {
     let mut out = Vec::new();
@@ -580,27 +396,4 @@ pub fn run(repo_root: &Path, cmd: ScalingAuditCmd) -> Result<()> {
 }
 
 #[cfg(test)]
-mod toestub_parse_budget_tests {
-    use super::enforce_toestub_rust_parse_budget;
-    use serde_json::json;
-
-    #[test]
-    fn budget_skips_when_field_absent() {
-        enforce_toestub_rust_parse_budget(&json!({ "findings": [] }), 0).unwrap();
-    }
-
-    #[test]
-    fn budget_allows_at_cap() {
-        enforce_toestub_rust_parse_budget(&json!({ "rust_parse_failures": 2 }), 2).unwrap();
-    }
-
-    #[test]
-    fn budget_rejects_over_cap() {
-        let e = enforce_toestub_rust_parse_budget(&json!({ "rust_parse_failures": 5 }), 3)
-            .unwrap_err();
-        assert!(
-            e.to_string().contains("rust_parse_failures=5"),
-            "{e}"
-        );
-    }
-}
+mod tests;

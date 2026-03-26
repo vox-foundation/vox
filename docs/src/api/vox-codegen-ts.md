@@ -2,14 +2,21 @@
 title: "Crate API: vox-codegen-ts"
 description: "Official documentation for Crate API: vox-codegen-ts for the Vox language. Detailed technical reference, architecture guides, and impleme"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
 # Crate API: vox-codegen-ts
 
 ## Overview
 
-TypeScript/TSX code generator for the Vox compiler. Emits React components, fetch wrappers, ADT types, and route definitions.
+TypeScript/TSX **code generation** for Vox lives in **`crates/vox-compiler/src/codegen_ts/`** (this page title is legacy). It emits React components, fetch wrappers, ADT types, and TanStack Router trees.
+
+Design rationale and migration direction for internal frontend IR boundaries:
+[ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
+Execution detail and weighted rollout tasks:
+[Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+Precise current-vs-target representation mapping:
+[Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
 
 ## Purpose
 
@@ -19,11 +26,10 @@ Transforms the typed HIR into TypeScript source files. The emitter is modularize
 
 | File | Purpose |
 |------|---------|
-| `emitter.rs` | `generate()` — main entry point, orchestrates all modules |
+| `emitter.rs` | `generate()` — entry point, TanStack route trees, server fns, islands metadata |
 | `jsx.rs` | React JSX component rendering |
 | `component.rs` | `@component` declarations and hook wiring |
 | `activity.rs` | Activity and workflow client wrappers |
-| `routes.rs` | React Router route definitions |
 | `adt.rs` | TypeScript discriminated union types from Vox ADTs |
 
 ## Output Mapping
@@ -33,17 +39,19 @@ Transforms the typed HIR into TypeScript source files. The emitter is modularize
 | `@component fn` | React functional component |
 | `@server fn` | Typed `fetch()` wrapper |
 | `type A = \| B \| C` | Discriminated union type |
-| `routes:` | React Router `<Route>` elements |
+| `routes:` | TanStack Router `createRoute` tree |
 | `@deprecated` | `/** @deprecated */` JSDoc |
-| `style:` | CSS-in-JS object |
+| `style:` | Scoped `.css` module (see `emitter.rs`) |
 
 ## Usage
 
 ```rust
-use vox_codegen_ts::generate;
+use vox_compiler::codegen_ts::generate;
+use vox_compiler::hir::lower_module;
 
-let ts_output = generate(&ast_module);
-// ts_output: String — complete TypeScript/TSX file
+let hir = lower_module(&module);
+let ts_output = generate(&hir)?;
+// ts_output.files: Vec<(String, String)> — TypeScript / TSX artifacts
 ```
 
 ---

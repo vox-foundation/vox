@@ -35,9 +35,19 @@ TanStack **Start**-specific `vite.config` and route files are still tracked in [
 | Mode | How to enable | What you get |
 | ---- | ------------- | ------------ |
 | **SPA (default)** | _(nothing)_ | `index.html` + `src/main.tsx` + Vite + TanStack Router imports from `src/generated/*`. |
-| **TanStack Start** | `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** (must match **`vox build`** so TS output aligns) | `vite dev` / `vite build`, `@tanstack/react-start` Vite plugin, `src/routes/__root.tsx`, `router.tsx`, `routeTree.gen.ts`. **With `routes:`:** codegen emits **`VoxTanStackRouter.tsx`** exporting **`voxRouteTree`** (no nested SPA `RouterProvider`); `routeTree.gen.ts` re-exports it. **Without `routes:`:** `src/routes/index.tsx` + a static `routeTree.gen.ts` mount the primary `@component`. |
+| **TanStack Start** | `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** (must match **`vox build`** so TS output aligns) | `vite dev` / `vite build`, `@tanstack/react-start` Vite plugin, `src/routes/__root.tsx`, `router.tsx`, `routeTree.gen.ts`. **With `routes:`:** codegen emits **`VoxTanStackRouter.tsx`** exporting **`voxRouteTree`** (no nested SPA `RouterProvider`); `routeTree.gen.ts` re-exports it. **Without `routes:`:** `src/routes/index.tsx` plus a seed **`routeTree.gen.ts`**; **`pnpm run routes:gen`** (via **`dev`/`build`** scripts and **`vox` frontend install+build**) regenerates it from **`@tanstack/router-cli`**. |
 
 SSR in production still follows **ADR 010** (Axum + optional Node SSR upstream); this table is only the **local scaffold** written by `vox run` / bundle.
+
+## Production Docker sketch
+
+This is a **pattern**, not a single canonical image: your generated binary name and paths depend on the `.vox` project.
+
+1. **Stage `web-build` (Node)** — `WORKDIR /app`, copy the scaffolded app (**`package.json`**, lockfile, **`src/`**), `pnpm install`, `pnpm run build` → Vite/Start **`dist/`** (or the output directory your template uses).
+2. **Stage `rust-build`** — `WORKDIR /src`, copy the workspace (or at least the crate that builds the generated Axum binary), `cargo build --release -p <crate>` (often the generated package under **`target/generated`** in your pipeline).
+3. **Runtime image** — slim Debian/Alpine (or `distroless`), install **`ca-certificates`** if you call HTTPS APIs, copy the **`target/release/<binary>`** from stage 2 and the **static** tree from stage 1 (or embed with **`rust_embed`** as in local `vox run`). Set **`VOX_PORT`** (or your listen binding) and, if you terminate TLS at Axum, document it separately.
+
+For **full-document SSR** in production, ADR 010’s **Node SSR upstream** may run as a second container; Axum proxies **`GET /**`** to that service (same idea as **`VOX_SSR_DEV_URL`**, but with a stable internal URL).
 
 ## See also
 

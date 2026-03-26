@@ -8,6 +8,11 @@ use crate::{ServerState, ToolResult};
 use vox_orchestrator::{AgentId, MessageGateway};
 use vox_runtime::prompt_canonical;
 
+const REM_QA_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_QA_CORRELATION: &str =
+    "Use the correlation id returned by `ask_agent`, or list `pending_questions` for the target agent.";
+
 /// MCP arguments: direct question from `from_agent` to `to_agent` (canonicalized prompt text).
 #[derive(Debug, Deserialize)]
 pub struct AskAgentParams {
@@ -64,7 +69,9 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
     let q_router = orch.qa_router_handle();
     let mut q_guard = match crate::sync_poison::poison_rw_write(q_router.write(), "qa router") {
         Ok(g) => g,
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK).to_json();
+        }
     };
     let corr_id = q_guard.ask(
         AgentId(params.from_agent),
@@ -97,7 +104,9 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
     let q_router = orch.qa_router_handle();
     let mut q_guard = match crate::sync_poison::poison_rw_write(q_router.write(), "qa router") {
         Ok(g) => g,
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK).to_json();
+        }
     };
     match q_guard.answer(corr_id, &answer) {
         Some(original_asker) => {
@@ -116,10 +125,13 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
             ))
             .to_json()
         }
-        None => ToolResult::<String>::err(format!(
-            "No pending question found for correlation ID: {}",
-            params.correlation_id
-        ))
+        None => ToolResult::<String>::err_with_remediation(
+            format!(
+                "No pending question found for correlation ID: {}",
+                params.correlation_id
+            ),
+            REM_QA_CORRELATION,
+        )
         .to_json(),
     }
 }
@@ -131,7 +143,9 @@ pub async fn pending_questions(state: &ServerState, params: PendingQuestionsPara
     let q_router = orch.qa_router_handle();
     let read_guard = match crate::sync_poison::poison_rw_read(q_router.read(), "qa router") {
         Ok(g) => g,
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK).to_json();
+        }
     };
     let questions = read_guard.pending_questions(AgentId(params.agent_id));
 

@@ -4,6 +4,13 @@ use super::parse::parse_operation_id_value;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_VCS_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_OPLOG_ID: &str =
+    "Pass `operation_id` as a number or `OP-XXXXXX` from `oplog_list`.";
+const REM_OPLOG_UNDO: &str =
+    "Verify the operation exists, is not already undone, and orchestrator VCS state is healthy.";
+
 /// List recent operations from the operation log (async).
 pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String {
     let agent_id_val = args.get("agent_id").and_then(|v| v.as_u64());
@@ -14,7 +21,10 @@ pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String 
     let handle = orch.oplog_handle();
     let guard = match crate::sync_poison::poison_rw_read(handle.read(), "oplog") {
         Ok(g) => g,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                .to_json();
+        }
     };
     let ops = guard.list(agent, limit);
 
@@ -38,8 +48,9 @@ pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String 
 /// Undo an operation (async).
 pub async fn oplog_undo(state: &ServerState, args: serde_json::Value) -> String {
     let Some(op_id) = parse_operation_id_value(args.get("operation_id")) else {
-        return ToolResult::<String>::err(
+        return ToolResult::<String>::err_with_remediation(
             "Missing or invalid operation_id (number or OP-XXXXXX string)".to_string(),
+            REM_OPLOG_ID,
         )
         .to_json();
     };
@@ -52,15 +63,20 @@ pub async fn oplog_undo(state: &ServerState, args: serde_json::Value) -> String 
             "operation_id": op_id.0,
         }))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("Undo failed: {}", e)).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Undo failed: {}", e),
+            REM_OPLOG_UNDO,
+        )
+        .to_json(),
     }
 }
 
 /// Redo an operation (async).
 pub async fn oplog_redo(state: &ServerState, args: serde_json::Value) -> String {
     let Some(op_id) = parse_operation_id_value(args.get("operation_id")) else {
-        return ToolResult::<String>::err(
+        return ToolResult::<String>::err_with_remediation(
             "Missing or invalid operation_id (number or OP-XXXXXX string)".to_string(),
+            REM_OPLOG_ID,
         )
         .to_json();
     };
@@ -73,6 +89,10 @@ pub async fn oplog_redo(state: &ServerState, args: serde_json::Value) -> String 
             "operation_id": op_id.0,
         }))
         .to_json(),
-        Err(e) => ToolResult::<String>::err(format!("Redo failed: {}", e)).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Redo failed: {}", e),
+            REM_OPLOG_UNDO,
+        )
+        .to_json(),
     }
 }

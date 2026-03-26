@@ -2,9 +2,14 @@ use anyhow::{Context, Result, anyhow};
 use std::path::Path;
 
 use crate::frontend;
-use crate::island_paths::{island_root, island_src_dir};
+use crate::island_paths::{
+    island_package_root, island_root, island_src_dir, resolve_island_package_root,
+};
 use crate::templates;
 pub(super) fn bootstrap_islands_if_needed(root: &Path) -> Result<()> {
+    if resolve_island_package_root(root).is_some() {
+        return Ok(());
+    }
     let islands_dir = island_root(root);
     let pkg = islands_dir.join("package.json");
     if pkg.exists() {
@@ -48,7 +53,7 @@ pub(super) fn bootstrap_islands_if_needed(root: &Path) -> Result<()> {
 pub async fn build_islands(root: &Path) -> Result<()> {
     bootstrap_islands_if_needed(root)?;
 
-    let islands_dir = island_root(root);
+    let islands_dir = island_package_root(root);
     which::which(frontend::pnpm_executable()).map_err(|_| {
         anyhow!(
             "pnpm not found in PATH. Install pnpm (https://pnpm.io/) to build islands; Node.js required."
@@ -106,7 +111,7 @@ fn needs_island_rebuild(root: &Path) -> Result<bool> {
         return Ok(true);
     }
     let fp_mtime = fp.metadata()?.modified()?;
-    let islands_dir = island_root(root);
+    let islands_dir = island_package_root(root);
     for marker in [
         islands_dir.join("package.json"),
         islands_dir.join("vite.config.ts"),

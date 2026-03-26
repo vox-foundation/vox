@@ -6,6 +6,8 @@ mod idempotency;
 mod openreview;
 mod zenodo;
 
+pub use openreview::{export_openreview_submit_profile, OpenReviewSubmitProfileExport};
+
 pub use error::{
     ScholarlyError, scholarly_http_status_code, scholarly_retry_not_before_ms,
 };

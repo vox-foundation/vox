@@ -71,14 +71,23 @@ async fn zenodo_adapter_submit_and_status_use_api_base_override() {
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let base = format!("http://{}/api", addr);
+    let port = addr.port();
+    let base = format!("http://127.0.0.1:{port}/api");
+    let bucket = format!("http://127.0.0.1:{port}/api/deposit/depositions/424242/files");
 
     let app = Router::new()
         .route(
             "/api/deposit/depositions",
-            post(|Json(body): Json<serde_json::Value>| async move {
-                assert!(body.get("metadata").is_some());
-                Json(json!({ "id": 424242, "state": "draft" }))
+            post(move |Json(body): Json<serde_json::Value>| {
+                let bucket = bucket.clone();
+                async move {
+                    assert!(body.get("metadata").is_some());
+                    Json(json!({
+                        "id": 424242,
+                        "state": "draft",
+                        "links": { "bucket": bucket }
+                    }))
+                }
             }),
         )
         .route(
@@ -136,24 +145,38 @@ async fn zenodo_create_deposition_retries_on_5xx_then_succeeds() {
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let base = format!("http://{}/api", addr);
+    let port = addr.port();
+    let base = format!("http://127.0.0.1:{port}/api");
+    let bucket_ok = format!("http://127.0.0.1:{port}/api/deposit/depositions/9001/files");
 
     let post_count = Arc::new(AtomicU32::new(0));
     let post_count_cb = post_count.clone();
+    let bucket_for_ok = bucket_ok.clone();
     let app = Router::new()
         .route(
             "/api/deposit/depositions",
-            post(move |Json(body): Json<serde_json::Value>| async move {
-                assert!(body.get("metadata").is_some());
-                let n = post_count_cb.fetch_add(1, Ordering::SeqCst);
-                if n < 2 {
-                    (
-                        StatusCode::SERVICE_UNAVAILABLE,
-                        Json(json!({ "message": "temporary" })),
-                    )
-                        .into_response()
-                } else {
-                    (StatusCode::OK, Json(json!({ "id": 9001, "state": "draft" }))).into_response()
+            post(move |Json(body): Json<serde_json::Value>| {
+                let bucket_for_ok = bucket_for_ok.clone();
+                async move {
+                    assert!(body.get("metadata").is_some());
+                    let n = post_count_cb.fetch_add(1, Ordering::SeqCst);
+                    if n < 2 {
+                        (
+                            StatusCode::SERVICE_UNAVAILABLE,
+                            Json(json!({ "message": "temporary" })),
+                        )
+                            .into_response()
+                    } else {
+                        (
+                            StatusCode::OK,
+                            Json(json!({
+                                "id": 9001,
+                                "state": "draft",
+                                "links": { "bucket": bucket_for_ok }
+                            })),
+                        )
+                            .into_response()
+                    }
                 }
             }),
         )

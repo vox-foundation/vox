@@ -63,8 +63,8 @@ pub(super) async fn generate(
         build_islands(root).await?;
     }
 
-    println!("\n✅  Island '{name}' ready. Mount it in Vox with:");
-    println!("    <{name}[island] ...props... />");
+    println!("\n✅  Island '{name}' ready. Mount it in Vox view JSX with a tag matching `@island`:");
+    println!("    <{name} propName={{value}} />");
 
     Ok(())
 }

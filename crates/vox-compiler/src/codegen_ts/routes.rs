@@ -1,9 +1,11 @@
 use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
+use crate::codegen_ts::island_emit::empty_island_set;
 use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirStmt};
 use std::collections::HashSet;
 
 fn emit_hir_route_expr(expr: &HirExpr) -> String {
     let empty = HashSet::new();
+    let no_islands = empty_island_set();
     match expr {
         HirExpr::MethodCall(object, method, args, _) => {
             let obj = emit_hir_route_expr(object);
@@ -18,7 +20,7 @@ fn emit_hir_route_expr(expr: &HirExpr) -> String {
             }
         }
         HirExpr::Spawn(target, _) => {
-            format!("new {}Actor()", emit_hir_expr(target, &empty))
+            format!("new {}Actor()", emit_hir_expr(target, &empty, no_islands))
         }
         HirExpr::FieldAccess(object, field, _) => {
             let obj = emit_hir_route_expr(object);
@@ -32,12 +34,12 @@ fn emit_hir_route_expr(expr: &HirExpr) -> String {
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
-        _ => emit_hir_expr(expr, &empty),
+        _ => emit_hir_expr(expr, &empty, no_islands),
     }
 }
 
 fn emit_expr_from_hir_arg(expr: &HirExpr) -> String {
-    emit_hir_expr(expr, &HashSet::new())
+    emit_hir_expr(expr, &HashSet::new(), empty_island_set())
 }
 
 fn emit_hir_route_stmt(stmt: &HirStmt) -> String {

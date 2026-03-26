@@ -1,6 +1,7 @@
 use crate::ast::decl::ActivityDecl;
 use crate::codegen_ts::component::map_vox_type_to_ts;
 use crate::codegen_ts::hir_emit::emit_hir_stmt;
+use crate::codegen_ts::island_emit::empty_island_set;
 use crate::codegen_ts::jsx::emit_stmt;
 use crate::hir::HirActivity;
 use std::collections::HashSet;
@@ -81,7 +82,7 @@ pub fn generate_activity_hir(activity: &HirActivity) -> String {
     ));
     let empty = HashSet::new();
     for stmt in &activity.body {
-        out.push_str(&emit_hir_stmt(stmt, &empty, 1));
+        out.push_str(&emit_hir_stmt(stmt, &empty, empty_island_set(), 1));
     }
     out.push_str("}\n\n");
     out

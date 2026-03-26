@@ -13,7 +13,6 @@ use super::{
 use crate::commands::mens::bench_completion;
 use crate::commands::mens::eval_gate;
 use crate::commands::mens::pipeline;
-use crate::commands::mens::plan;
 use crate::commands::mens::status;
 
 #[cfg(feature = "gpu")]
@@ -497,19 +496,23 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             output,
         ),
 
-        PopuliAction::EvalGate { run_dir, policy } => {
-            let code = eval_gate::run_eval_gate(run_dir, policy)?;
-            std::process::exit(code);
-        }
+        PopuliAction::MensTail(tail) => match tail {
+            super::mens_tail_subcommands::PopuliMensTail::EvalGate { run_dir, policy } => {
+                let code = eval_gate::run_eval_gate(run_dir, policy)?;
+                std::process::exit(code);
+            }
 
-        PopuliAction::BenchCompletion { url, count, warmup } => {
-            bench_completion::run_bench(&url, count, warmup).await
-        }
+            super::mens_tail_subcommands::PopuliMensTail::BenchCompletion { url, count, warmup } => {
+                bench_completion::run_bench(&url, count, warmup).await
+            }
 
-        PopuliAction::Plan(action) => plan::run(action).await,
+            super::mens_tail_subcommands::PopuliMensTail::Plan(action) => {
+                crate::commands::mens::plan::run(action).await
+            }
 
-        PopuliAction::SystemPromptTemplate { output, format } => {
-            crate::commands::mens::system_prompt_template::run(output, &format).await
-        }
+            super::mens_tail_subcommands::PopuliMensTail::SystemPromptTemplate { output, format } => {
+                crate::commands::mens::system_prompt_template::run(output, &format).await
+            }
+        },
     }
 }

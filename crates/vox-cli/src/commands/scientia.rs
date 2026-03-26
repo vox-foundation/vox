@@ -86,6 +86,12 @@ pub enum ScientiaCmd {
         #[arg(long)]
         publication_id: String,
     },
+    /// Merged OpenReview invitation/signature/readers + API base (stdout JSON; no HTTP).
+    #[command(name = "publication-openreview-profile")]
+    PublicationOpenreviewProfile {
+        #[arg(long)]
+        publication_id: String,
+    },
     #[command(name = "publication-scholarly-staging-export")]
     PublicationScholarlyStagingExport {
         #[arg(long)]
@@ -221,6 +227,8 @@ pub enum ScientiaCmd {
         venue: Option<ScholarlyVenueCli>,
         #[arg(long)]
         adapter: Option<String>,
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
     /// JSON rollup of external scholarly pipeline metrics (see `vox db publication-external-pipeline-metrics`).
     #[command(name = "publication-external-pipeline-metrics")]
@@ -232,103 +240,109 @@ pub enum ScientiaCmd {
 
 /// Dispatch `vox scientia` to the shared `vox db` handlers.
 pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
-    use super::db_cli::{self, DbCli};
+    use super::db_cli::{self, DbCli, DbCliCore, DbCliPublication};
     let db_cmd = match cmd {
-        ScientiaCmd::CapabilityList => DbCli::CapabilityList,
+        ScientiaCmd::CapabilityList => DbCli::Core(DbCliCore::CapabilityList),
         ScientiaCmd::ResearchList {
             vendor,
             topic,
             limit,
-        } => DbCli::ResearchList {
+        } => DbCli::Core(DbCliCore::ResearchList {
             vendor,
             topic,
             limit,
-        },
+        }),
         ScientiaCmd::ResearchMapList {
             vendor,
             topic,
             limit,
-        } => DbCli::ResearchMapList {
+        } => DbCli::Core(DbCliCore::ResearchMapList {
             vendor,
             topic,
             limit,
-        },
-        ScientiaCmd::RetrievalStatus => DbCli::RetrievalStatus,
-        ScientiaCmd::ResearchRefresh { vendor, dry_run } => {
-            DbCli::ResearchRefresh { vendor, dry_run }
-        }
+        }),
+        ScientiaCmd::RetrievalStatus => DbCli::Core(DbCliCore::RetrievalStatus),
+        ScientiaCmd::ResearchRefresh { vendor, dry_run } => DbCli::Core(DbCliCore::ResearchRefresh {
+            vendor,
+            dry_run,
+        }),
         ScientiaCmd::PublicationPrepare {
             body,
             preflight,
             preflight_profile,
-        } => DbCli::PublicationPrepare {
+        } => DbCli::Publication(DbCliPublication::PublicationPrepare {
             content_type: "scientia".to_string(),
             body,
             preflight,
             preflight_profile,
-        },
+        }),
         ScientiaCmd::PublicationPrepareValidated {
             body,
             preflight_profile,
-        } => DbCli::PublicationPrepareValidated {
+        } => DbCli::Publication(DbCliPublication::PublicationPrepareValidated {
             content_type: "scientia".to_string(),
             body,
             preflight_profile,
-        },
+        }),
         ScientiaCmd::PublicationPreflight {
             publication_id,
             profile,
             with_worthiness,
-        } => DbCli::PublicationPreflight {
+        } => DbCli::Publication(DbCliPublication::PublicationPreflight {
             publication_id,
             profile,
             with_worthiness,
-        },
+        }),
         ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
-            DbCli::PublicationZenodoMetadata { publication_id }
-        }
+            DbCli::Publication(DbCliPublication::PublicationZenodoMetadata { publication_id })
+        },
+        ScientiaCmd::PublicationOpenreviewProfile { publication_id } => {
+            DbCli::Publication(DbCliPublication::PublicationOpenreviewProfile { publication_id })
+        },
         ScientiaCmd::PublicationScholarlyStagingExport {
             publication_id,
             output_dir,
             venue,
-        } => DbCli::PublicationScholarlyStagingExport {
+        } => DbCli::Publication(DbCliPublication::PublicationScholarlyStagingExport {
             publication_id,
             output_dir,
             venue,
-        },
+        }),
         ScientiaCmd::PublicationWorthinessEvaluate {
             contract_yaml,
             metrics_json,
-        } => DbCli::PublicationWorthinessEvaluate {
+        } => DbCli::Publication(DbCliPublication::PublicationWorthinessEvaluate {
             contract_yaml,
             metrics_json,
-        },
+        }),
         ScientiaCmd::PublicationApprove {
             publication_id,
             approver,
-        } => DbCli::PublicationApprove {
+        } => DbCli::Publication(DbCliPublication::PublicationApprove {
             publication_id,
             approver,
-        },
+        }),
         ScientiaCmd::PublicationSubmitLocal {
             publication_id,
             adapter,
-        } => DbCli::PublicationSubmitLocal {
+        } => DbCli::Publication(DbCliPublication::PublicationSubmitLocal {
             publication_id,
             adapter,
-        },
+        }),
         ScientiaCmd::PublicationStatus { publication_id } => {
-            DbCli::PublicationStatus { publication_id }
+            DbCli::Publication(DbCliPublication::PublicationStatus { publication_id })
         },
         ScientiaCmd::PublicationScholarlyRemoteStatus {
             publication_id,
             external_submission_id,
-        } => DbCli::PublicationScholarlyRemoteStatus {
+        } => DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatus {
             publication_id,
             external_submission_id,
-        },
+        }),
         ScientiaCmd::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
-            DbCli::PublicationScholarlyRemoteStatusSyncAll { publication_id }
+            DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatusSyncAll {
+                publication_id,
+            })
         },
         ScientiaCmd::PublicationScholarlyRemoteStatusSyncBatch {
             limit,
@@ -336,35 +350,35 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             interval_secs,
             max_runtime_secs,
             jitter_secs,
-        } => DbCli::PublicationScholarlyRemoteStatusSyncBatch {
+        } => DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatusSyncBatch {
             limit,
             iterations,
             interval_secs,
             max_runtime_secs,
             jitter_secs,
-        },
+        }),
         ScientiaCmd::PublicationArxivHandoffRecord {
             publication_id,
             stage,
             operator,
             note,
             arxiv_id,
-        } => DbCli::PublicationArxivHandoffRecord {
+        } => DbCli::Publication(DbCliPublication::PublicationArxivHandoffRecord {
             publication_id,
             stage,
             operator,
             note,
             arxiv_id,
-        },
+        }),
         ScientiaCmd::PublicationExternalJobsDue { limit } => {
-            DbCli::PublicationExternalJobsDue { limit }
+            DbCli::Publication(DbCliPublication::PublicationExternalJobsDue { limit })
         },
         ScientiaCmd::PublicationExternalJobsDeadLetter { limit } => {
-            DbCli::PublicationExternalJobsDeadLetter { limit }
+            DbCli::Publication(DbCliPublication::PublicationExternalJobsDeadLetter { limit })
         },
         ScientiaCmd::PublicationExternalJobsReplay { job_id } => {
-            DbCli::PublicationExternalJobsReplay { job_id }
-        },
+            DbCli::Publication(DbCliPublication::PublicationExternalJobsReplay { job_id })
+        }
         ScientiaCmd::PublicationExternalJobsTick {
             limit,
             lock_ttl_ms,
@@ -373,7 +387,7 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             interval_secs,
             max_runtime_secs,
             jitter_secs,
-        } => DbCli::PublicationExternalJobsTick {
+        } => DbCli::Publication(DbCliPublication::PublicationExternalJobsTick {
             limit,
             lock_ttl_ms,
             lock_owner,
@@ -381,7 +395,7 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             interval_secs,
             max_runtime_secs,
             jitter_secs,
-        },
+        }),
         ScientiaCmd::PublicationScholarlyPipelineRun {
             publication_id,
             preflight_profile,
@@ -389,17 +403,19 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             staging_output_dir,
             venue,
             adapter,
-        } => DbCli::PublicationScholarlyPipelineRun {
+            json,
+        } => DbCli::Publication(DbCliPublication::PublicationScholarlyPipelineRun {
             publication_id,
             preflight_profile,
             dry_run,
             staging_output_dir,
             venue,
             adapter,
-        },
+            json,
+        }),
         ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
-            DbCli::PublicationExternalPipelineMetrics { since_hours }
-        }
+            DbCli::Publication(DbCliPublication::PublicationExternalPipelineMetrics { since_hours })
+        },
     };
     db_cli::run(db_cmd).await
 }

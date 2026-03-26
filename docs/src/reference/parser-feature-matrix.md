@@ -2,7 +2,7 @@
 title: "Parser feature matrix"
 description: "Current parser coverage matrix for Vox declarations and expressions."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: 2026-03-27
 training_eligible: true
 ---
 
@@ -17,6 +17,7 @@ training_eligible: true
 - `type`, `pub type`
 - `import`
 - `@component`
+- `@loading`
 - `@island`
 - `@table`, `@index`
 - `@mcp.tool`

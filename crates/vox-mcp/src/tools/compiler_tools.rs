@@ -16,6 +16,33 @@ use crate::params::{
 use crate::server::ServerState;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 
+const REM_VALIDATE_IO: &str =
+    "Confirm the path is inside the MCP workspace, exists, and is readable UTF-8 text.";
+const REM_CARGO_DISABLED: &str =
+    "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
+const REM_CARGO_TEST: &str =
+    "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
+const REM_CARGO_SPAWN: &str =
+    "Ensure `cargo` is installed and on PATH for the MCP process (see build-environment docs for agent shells).";
+const REM_CARGO_CHECK: &str =
+    "Fix compiler errors shown in stderr; run `cargo check --workspace` locally for full diagnostics.";
+const REM_CARGO_BUILD: &str =
+    "Fix build errors in stderr; verify features, targets, and that no concurrent build holds file locks.";
+const REM_COVERAGE: &str =
+    "Install `cargo-llvm-cov` (`cargo install cargo-llvm-cov`) or run coverage outside MCP.";
+const REM_GEN_PROMPT: &str =
+    "Provide a non-empty `prompt` describing the `.vox` code to generate.";
+const REM_MCP_MODEL_LOCK: &str =
+    "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
+const REM_MCP_MODEL_RESOLVE: &str =
+    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str =
+    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_CODEGEN_REPAIR: &str =
+    "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
+const REM_CODEGEN_STALL: &str =
+    "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
+
 fn hir_error_signature(errors: &[&tower_lsp::lsp_types::Diagnostic]) -> u64 {
     let mut h = DefaultHasher::new();
     for e in errors {
@@ -54,21 +81,30 @@ pub async fn validate_file(params: ValidateFileParams) -> String {
     let exists = match tokio::fs::try_exists(&path).await {
         Ok(e) => e,
         Err(e) => {
-            return ToolResult::<ValidateResponse>::err(format!("failed to stat file: {e}"))
-                .to_json();
+            return ToolResult::<ValidateResponse>::err_with_remediation(
+                format!("failed to stat file: {e}"),
+                REM_VALIDATE_IO,
+            )
+            .to_json();
         }
     };
 
     if !exists {
-        return ToolResult::<ValidateResponse>::err(format!("file not found: {}", params.path))
-            .to_json();
+        return ToolResult::<ValidateResponse>::err_with_remediation(
+            format!("file not found: {}", params.path),
+            REM_VALIDATE_IO,
+        )
+        .to_json();
     }
 
     let text = match tokio::fs::read_to_string(&path).await {
         Ok(t) => t,
         Err(e) => {
-            return ToolResult::<ValidateResponse>::err(format!("failed to read file: {e}"))
-                .to_json();
+            return ToolResult::<ValidateResponse>::err_with_remediation(
+                format!("failed to read file: {e}"),
+                REM_VALIDATE_IO,
+            )
+            .to_json();
         }
     };
 
@@ -111,7 +147,7 @@ pub async fn validate_file(params: ValidateFileParams) -> String {
 /// Run `cargo test` for a specific crate.
 pub async fn run_tests(state: &ServerState, params: RunTestsParams) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
-        return ToolResult::<String>::err(msg).to_json();
+        return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
     }
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.current_dir(&state.repository.root);
@@ -135,17 +171,21 @@ pub async fn run_tests(state: &ServerState, params: RunTestsParams) -> String {
             if output.status.success() {
                 ToolResult::ok(combined).to_json()
             } else {
-                ToolResult::<String>::err(combined).to_json()
+                ToolResult::<String>::err_with_remediation(combined, REM_CARGO_TEST).to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err(format!("failed to run cargo test: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("failed to run cargo test: {e}"),
+            REM_CARGO_SPAWN,
+        )
+        .to_json(),
     }
 }
 
 /// Run `cargo check` for the entire workspace.
 pub async fn check_workspace(state: &ServerState) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
-        return ToolResult::<String>::err(msg).to_json();
+        return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
     }
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.current_dir(&state.repository.root);
@@ -161,17 +201,25 @@ pub async fn check_workspace(state: &ServerState) -> String {
                 record_expensive_op(state).await;
                 ToolResult::ok("workspace check passed".to_string()).to_json()
             } else {
-                ToolResult::<String>::err(format!("check failed:\n{stderr}")).to_json()
+                ToolResult::<String>::err_with_remediation(
+                    format!("check failed:\n{stderr}"),
+                    REM_CARGO_CHECK,
+                )
+                .to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err(format!("failed to run cargo check: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("failed to run cargo check: {e}"),
+            REM_CARGO_SPAWN,
+        )
+        .to_json(),
     }
 }
 
 /// Run `cargo test` for the entire workspace.
 pub async fn test_all(state: &ServerState) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
-        return ToolResult::<String>::err(msg).to_json();
+        return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
     }
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.current_dir(&state.repository.root);
@@ -190,18 +238,21 @@ pub async fn test_all(state: &ServerState) -> String {
                 record_expensive_op(state).await;
                 ToolResult::ok(combined).to_json()
             } else {
-                ToolResult::<String>::err(combined).to_json()
+                ToolResult::<String>::err_with_remediation(combined, REM_CARGO_TEST).to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err(format!("failed to run cargo test --workspace: {e}"))
-            .to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("failed to run cargo test --workspace: {e}"),
+            REM_CARGO_SPAWN,
+        )
+        .to_json(),
     }
 }
 
 /// Run `cargo build` for a crate or the whole workspace.
 pub async fn build_crate(state: &ServerState, crate_name: Option<&str>) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
-        return ToolResult::<String>::err(msg).to_json();
+        return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
     }
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.current_dir(&state.repository.root);
@@ -220,17 +271,25 @@ pub async fn build_crate(state: &ServerState, crate_name: Option<&str>) -> Strin
                 record_expensive_op(state).await;
                 ToolResult::ok(format!("Build succeeded.\n{stdout}")).to_json()
             } else {
-                ToolResult::<String>::err(format!("Build failed:\n{stderr}")).to_json()
+                ToolResult::<String>::err_with_remediation(
+                    format!("Build failed:\n{stderr}"),
+                    REM_CARGO_BUILD,
+                )
+                .to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err(format!("failed to run cargo build: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("failed to run cargo build: {e}"),
+            REM_CARGO_SPAWN,
+        )
+        .to_json(),
     }
 }
 
 /// Run `cargo clippy` and TOESTUB for a crate or the whole workspace.
 pub async fn lint_crate(state: &ServerState, crate_name: Option<&str>) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
-        return ToolResult::<String>::err(msg).to_json();
+        return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
     }
 
     let repo_root = state.repository.root.clone();
@@ -301,7 +360,7 @@ pub async fn lint_crate(state: &ServerState, crate_name: Option<&str>) -> String
 /// Run `cargo llvm-cov` or `cargo tarpaulin` for code coverage.
 pub async fn coverage_report(state: &ServerState, crate_name: Option<&str>) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
-        return ToolResult::<String>::err(msg).to_json();
+        return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
     }
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.current_dir(&state.repository.root);
@@ -315,9 +374,10 @@ pub async fn coverage_report(state: &ServerState, crate_name: Option<&str>) -> S
         Ok(output) if output.status.success() => {
             ToolResult::ok(String::from_utf8_lossy(&output.stdout).to_string()).to_json()
         }
-        _ => ToolResult::<String>::err(
+        _ => ToolResult::<String>::err_with_remediation(
             "Coverage tool (llvm-cov or tarpaulin) not installed. Run `cargo install cargo-llvm-cov`."
                 .to_string(),
+            REM_COVERAGE,
         )
         .to_json(),
     }
@@ -342,7 +402,8 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .min(crate::speech_constraints::SPEECH_CODE_MAX_REPAIR_ATTEMPTS as u64);
 
     if prompt.is_empty() {
-        return ToolResult::<String>::err("Missing 'prompt' parameter").to_json();
+        return ToolResult::<String>::err_with_remediation("Missing 'prompt' parameter", REM_GEN_PROMPT)
+            .to_json();
     }
 
     let mut current_prompt = prompt.to_string();
@@ -355,7 +416,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
     decode_policy.note_delegation_target();
 
     loop {
-        let hint_stub = crate::speech_constraints::TypeHintStub::default();
+        let hint_stub = crate::speech_constraints::TypeHintStub;
         let system_prompt = format!(
             "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
              Rules:\n\
@@ -378,7 +439,10 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             "mcp_chat_model_override",
         ) {
             Ok(g) => g.clone(),
-            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
+                    .to_json();
+            }
         };
         let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
             state,
@@ -389,7 +453,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .await
         {
             Ok(pair) => pair,
-            Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("No model: {e}"),
+                    REM_MCP_MODEL_RESOLVE,
+                )
+                .to_json();
+            }
         };
 
         let routing = crate::llm_bridge::McpInferRouting {
@@ -414,7 +484,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .await
         {
             Ok(r) => r,
-            Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+            Err(e) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("LLM error: {e}"),
+                    REM_LLM_COMPLETION,
+                )
+                .to_json();
+            }
         };
 
         // Robust fence stripping: strip the language tag and then any trailing ```
@@ -455,9 +531,10 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
 
         let sig = hir_error_signature(&errors);
         if prev_error_sig == Some(sig) {
-            return ToolResult::<String>::err(format!(
-                "repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"),
+                REM_CODEGEN_STALL,
+            )
             .to_json();
         }
         prev_error_sig = Some(sig);
@@ -465,10 +542,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         retry_count += 1;
         if retry_count > max_retries {
             let err_msgs: Vec<_> = errors.iter().map(|e| &e.message).collect();
-            return ToolResult::<String>::err(format!(
-                "Failed to generate valid code after {} retries. Errors: {:?}",
-                max_retries, err_msgs
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!(
+                    "Failed to generate valid code after {} retries. Errors: {:?}",
+                    max_retries, err_msgs
+                ),
+                REM_CODEGEN_REPAIR,
+            )
             .to_json();
         }
 

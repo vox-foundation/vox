@@ -202,3 +202,21 @@ When implementing SCIENTIA tasks agents should:
 ## 12. Metrics schema version (T050–T051)
 
 The rollup includes `"metrics_schema_version": <integer>` at the top level. Increment when adding/removing keys or changing types of required fields.
+
+## 13. Zenodo staging upload runbook (T093)
+
+1. Export Zenodo staging: `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo`.
+2. Point **`VOX_ZENODO_STAGING_DIR`** at that directory before `publication-submit-local` / pipeline / external job (adapter `zenodo`).
+3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission_package.rs) plan that exists on disk.
+4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) to match bytes before each bucket `PUT`.
+5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`**: fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
+6. **`VOX_ZENODO_DRAFT_ONLY`** / **`VOX_ZENODO_PUBLISH_NOW`** compose with attach + staging per [`scholarly/flags`](../../../crates/vox-publisher/src/scholarly/flags.rs).
+
+## 14. OpenReview submit profile export (T094)
+
+Use **`vox scientia publication-openreview-profile --publication-id <id>`** (or `vox db publication-openreview-profile`) to print merged **invitation**, **signature**, **readers**, and resolved **api_base** — same merge as live submit (`VOX_OPENREVIEW_*` / `OPENREVIEW_*` plus `metadata_json.openreview.*`). No HTTP; safe in CI to verify manifest overlays before enabling **`VOX_SCHOLARLY_DISABLE_LIVE=0`**.
+
+## 15. Scholarly pipeline machine output (T095)
+
+- CLI: **`vox scientia publication-scholarly-pipeline-run … --json`** emits **single-line** JSON for dry-run and success payloads (default remains pretty-printed for humans).
+- MCP: **`vox_scientia_publication_scholarly_pipeline_run`** accepts **`json_compact: true`** for the same shape in compact form inside the tool result envelope.

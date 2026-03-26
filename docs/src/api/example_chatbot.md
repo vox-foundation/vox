@@ -133,7 +133,7 @@ style:
 
 # ── Routes ───────────────────────────────────────────
 # `routes:` maps URL paths to component names.
-# The codegen generates a React Router (TS) or Axum router (Rust).
+# The codegen generates a TanStack Router tree (TS) and Axum routes (Rust).
 routes:
     "/" to Chat
 

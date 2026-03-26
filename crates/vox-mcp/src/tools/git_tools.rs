@@ -10,6 +10,9 @@ use std::path::PathBuf;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_GIT_EXEC: &str =
+    "Ensure `git` is on PATH and the MCP workspace points at a repository with a usable `git_root`.";
+
 fn git_cwd(state: &ServerState) -> PathBuf {
     state
         .repository
@@ -32,7 +35,11 @@ pub async fn git_log(state: &ServerState, max_commits: Option<usize>) -> String 
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             ToolResult::ok(text).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("git log failed: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("git log failed: {e}"),
+            REM_GIT_EXEC,
+        )
+        .to_json(),
     }
 }
 
@@ -50,7 +57,11 @@ pub async fn git_diff(state: &ServerState, path: Option<&str>) -> String {
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             ToolResult::ok(text).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("git diff failed: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("git diff failed: {e}"),
+            REM_GIT_EXEC,
+        )
+        .to_json(),
     }
 }
 
@@ -67,7 +78,11 @@ pub async fn git_status(state: &ServerState) -> String {
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             ToolResult::ok(text).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("git status failed: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("git status failed: {e}"),
+            REM_GIT_EXEC,
+        )
+        .to_json(),
     }
 }
 
@@ -84,6 +99,10 @@ pub async fn git_blame(state: &ServerState, path: &str) -> String {
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             ToolResult::ok(text).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("git blame failed: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("git blame failed: {e}"),
+            REM_GIT_EXEC,
+        )
+        .to_json(),
     }
 }

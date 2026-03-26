@@ -127,7 +127,8 @@ impl Parser {
                 | Token::AtQuery
                 | Token::AtMutation
                 | Token::Component
-                | Token::AtV0 => break,
+                | Token::AtV0
+                | Token::AtLoading => break,
                 Token::RBrace => {
                     self.advance();
                     break;
@@ -150,6 +151,7 @@ impl Parser {
             Token::AtComponent => self.parse_component(),
             Token::Component => self.parse_reactive_component(),
             Token::AtIsland => self.parse_island(),
+            Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
             Token::AtServer => self.parse_server_fn(),
             Token::AtQuery => self.parse_query_fn(),

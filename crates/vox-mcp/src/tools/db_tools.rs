@@ -8,6 +8,23 @@ use std::path::Path;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_VOX_FILE_PATH: &str =
+    "Pass `path` to a `.vox` module (workspace-relative or absolute) that defines your schema.";
+const REM_VOXDB_SAMPLE: &str =
+    "Attach VoxDb/Turso to the MCP server for live table samples, or use `vox db` in a configured CLI.";
+const REM_DB_QUERY: &str =
+    "Provide a non-empty `query` string; optional `schema_path` defaults to `src/main.vox`.";
+const REM_DB_INTENT: &str =
+    "Provide non-empty `intent`; set `schema_path` if your module is not at `src/main.vox`.";
+const REM_DB_DIGEST_JSON: &str =
+    "If this persists, the generated schema digest may be unusually large — simplify the `.vox` module or file an issue.";
+const REM_MCP_MODEL_LOCK: &str =
+    "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
+const REM_MCP_MODEL_RESOLVE: &str =
+    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str =
+    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+
 // ---------------------------------------------------------------------------
 // Shared helper
 // ---------------------------------------------------------------------------
@@ -32,8 +49,9 @@ pub(crate) fn parse_vox_module(path: &str) -> Result<vox_compiler::ast::decl::Mo
 pub fn vox_db_schema(args: serde_json::Value) -> String {
     let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
     if path.is_empty() {
-        return ToolResult::<serde_json::Value>::err(
+        return ToolResult::<serde_json::Value>::err_with_remediation(
             "Missing 'path' parameter. Provide the path to a .vox file.",
+            REM_VOX_FILE_PATH,
         )
         .to_json();
     }
@@ -46,13 +64,14 @@ pub fn vox_db_schema(args: serde_json::Value) -> String {
                     serde_json::from_str::<serde_json::Value>(&json).unwrap_or_default(),
                 )
                 .to_json(),
-                Err(e) => {
-                    ToolResult::<serde_json::Value>::err(format!("Serialization error: {}", e))
-                        .to_json()
-                }
+                Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+                    format!("Serialization error: {}", e),
+                    REM_DB_DIGEST_JSON,
+                )
+                .to_json(),
             }
         }
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json(),
     }
 }
 
@@ -60,7 +79,11 @@ pub fn vox_db_schema(args: serde_json::Value) -> String {
 pub fn vox_db_relationships(args: serde_json::Value) -> String {
     let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
     if path.is_empty() {
-        return ToolResult::<serde_json::Value>::err("Missing 'path' parameter.").to_json();
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "Missing 'path' parameter.",
+            REM_VOX_FILE_PATH,
+        )
+        .to_json();
     }
 
     match parse_vox_module(path) {
@@ -73,7 +96,7 @@ pub fn vox_db_relationships(args: serde_json::Value) -> String {
             }))
             .to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json(),
     }
 }
 
@@ -81,7 +104,11 @@ pub fn vox_db_relationships(args: serde_json::Value) -> String {
 pub fn vox_db_data_flow(args: serde_json::Value) -> String {
     let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
     if path.is_empty() {
-        return ToolResult::<serde_json::Value>::err("Missing 'path' parameter.").to_json();
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "Missing 'path' parameter.",
+            REM_VOX_FILE_PATH,
+        )
+        .to_json();
     }
 
     match parse_vox_module(path) {
@@ -93,13 +120,14 @@ pub fn vox_db_data_flow(args: serde_json::Value) -> String {
                     serde_json::from_str::<serde_json::Value>(&json).unwrap_or_default(),
                 )
                 .to_json(),
-                Err(e) => {
-                    ToolResult::<serde_json::Value>::err(format!("Serialization error: {}", e))
-                        .to_json()
-                }
+                Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+                    format!("Serialization error: {}", e),
+                    REM_DB_DIGEST_JSON,
+                )
+                .to_json(),
             }
         }
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json(),
     }
 }
 
@@ -109,19 +137,32 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(3);
 
     if table.is_empty() {
-        return ToolResult::<serde_json::Value>::err("Missing 'table' parameter.").to_json();
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "Missing 'table' parameter.",
+            "Pass `table` as the logical table name from your `.vox` schema.",
+        )
+        .to_json();
     }
 
     let db = match &state.db {
         Some(db) => db,
-        None => return ToolResult::<serde_json::Value>::err("VoxDb is not connected.").to_json(),
+        None => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                "VoxDb is not connected.",
+                REM_VOXDB_SAMPLE,
+            )
+            .to_json();
+        }
     };
 
     let results = match db.mcp_diagnostic_sample_table(table, limit).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("DB error (sample data): {e}"))
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("DB error (sample data): {e}"),
+                REM_VOXDB_SAMPLE,
+            )
+            .to_json();
         }
     };
 
@@ -146,13 +187,18 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         .unwrap_or("src/main.vox");
 
     if query.is_empty() {
-        return ToolResult::<String>::err("Missing 'query' parameter.").to_json();
+        return ToolResult::<String>::err_with_remediation("Missing 'query' parameter.", REM_DB_QUERY)
+            .to_json();
     }
 
     let schema_digest = match parse_vox_module(schema_path) {
         Ok(module) => vox_db::generate_schema_digest(&module, None),
         Err(e) => {
-            return ToolResult::<String>::err(format!("Failed to parse schema: {e}")).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("Failed to parse schema: {e}"),
+                REM_VOX_FILE_PATH,
+            )
+            .to_json();
         }
     };
 
@@ -176,7 +222,9 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+        }
     };
     let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
         state,
@@ -187,7 +235,13 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
     .await
     {
         Ok(pair) => pair,
-        Err(e) => return ToolResult::<String>::err(format!("No model: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("No model: {e}"),
+                REM_MCP_MODEL_RESOLVE,
+            )
+            .to_json();
+        }
     };
 
     let routing = crate::llm_bridge::McpInferRouting {
@@ -212,7 +266,11 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
     .await
     {
         Ok((completion, _, _)) => ToolResult::ok(completion).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("LLM error: {e}"),
+            REM_LLM_COMPLETION,
+        )
+        .to_json(),
     }
 }
 
@@ -225,13 +283,21 @@ pub async fn vox_db_suggest_query(state: &ServerState, args: serde_json::Value) 
         .unwrap_or("src/main.vox");
 
     if intent.is_empty() {
-        return ToolResult::<String>::err("Missing 'intent' parameter.").to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "Missing 'intent' parameter.",
+            REM_DB_INTENT,
+        )
+        .to_json();
     }
 
     let schema_digest = match parse_vox_module(schema_path) {
         Ok(module) => vox_db::generate_schema_digest(&module, None),
         Err(e) => {
-            return ToolResult::<String>::err(format!("Failed to parse schema: {e}")).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("Failed to parse schema: {e}"),
+                REM_VOX_FILE_PATH,
+            )
+            .to_json();
         }
     };
 

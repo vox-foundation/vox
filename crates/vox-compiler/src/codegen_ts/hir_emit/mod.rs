@@ -1,11 +1,20 @@
 //! Shared HIR → TypeScript / JSX emission for reactive components, activities, and routes.
 
+mod state_deps;
+
+use super::island_emit::{escape_html_attr, island_data_prop_attr};
 use crate::hir::*;
 use std::collections::HashSet;
 
+pub use state_deps::extract_state_deps;
+
 /// Emit a HIR expression as TypeScript/JSX with optional reactive `state` names (for `set_x` rewriting).
 #[must_use]
-pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
+pub fn emit_hir_expr(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+) -> String {
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
@@ -13,8 +22,8 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::Ident(name, _) => name.clone(),
         HirExpr::Binary(op, left, right, _) => {
-            let l = emit_hir_expr(left, state_names);
-            let r = emit_hir_expr(right, state_names);
+            let l = emit_hir_expr(left, state_names, island_names);
+            let r = emit_hir_expr(right, state_names, island_names);
             let op_str = match op {
                 HirBinOp::Add => "+",
                 HirBinOp::Sub => "-",
@@ -37,7 +46,7 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             }
         }
         HirExpr::Unary(op, expr, _) => {
-            let e = emit_hir_expr(expr, state_names);
+            let e = emit_hir_expr(expr, state_names, island_names);
             match op {
                 HirUnOp::Not => format!("!{e}"),
                 HirUnOp::Neg => format!("-{e}"),
@@ -47,21 +56,30 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             let mut out = String::new();
             out.push_str("(() => {\n");
             for stmt in stmts {
-                out.push_str(&emit_hir_stmt(stmt, state_names, 2));
+                out.push_str(&emit_hir_stmt(stmt, state_names, island_names, 2));
             }
             out.push_str("  })()");
             out
         }
         HirExpr::Jsx(el) => {
+            if let Some(mount) = emit_hir_island_mount_el(
+                &el.tag,
+                &el.attributes,
+                el.children.len(),
+                state_names,
+                island_names,
+            ) {
+                return mount;
+            }
             let mut attrs = Vec::new();
             for attr in &el.attributes {
                 let name = map_jsx_attr_name(&attr.name);
-                let val = emit_hir_expr_attr_value(&attr.value, state_names, name);
+                let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
             }
             let mut children = Vec::new();
             for child in &el.children {
-                children.push(emit_hir_expr(child, state_names));
+                children.push(emit_hir_expr(child, state_names, island_names));
             }
             format!(
                 "<{} {}\n>\n  {}\n</{}>",
@@ -72,10 +90,19 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             )
         }
         HirExpr::JsxSelfClosing(el) => {
+            if let Some(mount) = emit_hir_island_mount_el(
+                &el.tag,
+                &el.attributes,
+                0,
+                state_names,
+                island_names,
+            ) {
+                return mount;
+            }
             let mut attrs = Vec::new();
             for attr in &el.attributes {
                 let name = map_jsx_attr_name(&attr.name);
-                let val = emit_hir_expr_attr_value(&attr.value, state_names, name);
+                let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
             }
             format!("<{} {} />", el.tag, attrs.join(" "))
@@ -83,22 +110,22 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
         HirExpr::ObjectLit(fields, _) => {
             let pairs: Vec<String> = fields
                 .iter()
-                .map(|(k, v)| format!("{k}: {}", emit_hir_expr(v, state_names)))
+                .map(|(k, v)| format!("{k}: {}", emit_hir_expr(v, state_names, island_names)))
                 .collect();
             format!("{{ {} }}", pairs.join(", "))
         }
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
             let items: Vec<String> = elems
                 .iter()
-                .map(|e| emit_hir_expr(e, state_names))
+                .map(|e| emit_hir_expr(e, state_names, island_names))
                 .collect();
             format!("[{}]", items.join(", "))
         }
         HirExpr::Call(callee, args, _, _) => {
-            let callee_str = emit_hir_expr(callee, state_names);
+            let callee_str = emit_hir_expr(callee, state_names, island_names);
             let args_str: Vec<String> = args
                 .iter()
-                .map(|a| emit_hir_expr(&a.value, state_names))
+                .map(|a| emit_hir_expr(&a.value, state_names, island_names))
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
@@ -123,7 +150,7 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             };
             let args_str: Vec<String> = args
                 .iter()
-                .map(|a| emit_hir_expr(&a.value, state_names))
+                .map(|a| emit_hir_expr(&a.value, state_names, island_names))
                 .collect();
             let mut base = format!("db.{table}.{method}({})", args_str.join(", "));
             if let Some((col, asc)) = order_by {
@@ -131,7 +158,10 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
                 base.push_str(&format!(".order_by(\"{}\", \"{}\")", col, dir));
             }
             if let Some(lim) = limit {
-                base.push_str(&format!(".limit({})", emit_hir_expr(lim.as_ref(), state_names)));
+                base.push_str(&format!(
+                    ".limit({})",
+                    emit_hir_expr(lim.as_ref(), state_names, island_names)
+                ));
             }
             if let Some(cols) = select_cols {
                 let cols_js: Vec<String> = cols
@@ -162,47 +192,47 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             base
         }
         HirExpr::MethodCall(obj, method, args, _) => {
-            let obj_str = emit_hir_expr(obj, state_names);
+            let obj_str = emit_hir_expr(obj, state_names, island_names);
             let args_str: Vec<String> = args
                 .iter()
-                .map(|a| emit_hir_expr(&a.value, state_names))
+                .map(|a| emit_hir_expr(&a.value, state_names, island_names))
                 .collect();
             format!("{obj_str}.{method}({})", args_str.join(", "))
         }
         HirExpr::FieldAccess(obj, field, _) => {
-            let obj_str = emit_hir_expr(obj, state_names);
+            let obj_str = emit_hir_expr(obj, state_names, island_names);
             format!("{obj_str}.{field}")
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
-            let c = emit_hir_expr(cond, state_names);
+            let c = emit_hir_expr(cond, state_names, island_names);
             let mut then_out = String::new();
             for s in then_stmts {
-                then_out.push_str(&emit_hir_stmt(s, state_names, 0));
+                then_out.push_str(&emit_hir_stmt(s, state_names, island_names, 0));
             }
             let mut else_out = String::new();
             if let Some(estmts) = else_stmts {
                 for s in estmts {
-                    else_out.push_str(&emit_hir_stmt(s, state_names, 0));
+                    else_out.push_str(&emit_hir_stmt(s, state_names, island_names, 0));
                 }
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
         HirExpr::For(name, iterable, body, _) => {
-            let iter = emit_hir_expr(iterable, state_names);
-            let b = emit_hir_expr(body, state_names);
+            let iter = emit_hir_expr(iterable, state_names, island_names);
+            let b = emit_hir_expr(body, state_names, island_names);
             format!("{iter}.map(({name}) => ({b}))")
         }
         HirExpr::Lambda(params, _, body, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let b = emit_hir_expr(body, state_names);
+            let b = emit_hir_expr(body, state_names, island_names);
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
         HirExpr::Match(subject, arms, _) => {
-            let s = emit_hir_expr(subject, state_names);
+            let s = emit_hir_expr(subject, state_names, island_names);
             let mut arms_out = Vec::new();
             for arm in arms {
                 let pat = emit_hir_pattern(&arm.pattern);
-                let body = emit_hir_expr(&arm.body, state_names);
+                let body = emit_hir_expr(&arm.body, state_names, island_names);
                 arms_out.push(format!("case {pat}: return {body};"));
             }
             format!(
@@ -214,10 +244,46 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
     }
 }
 
+/// When the JSX tag matches an `@island` name, emit a `div` mount point for `island-mount.js`
+/// (`data-vox-island` + `data-prop-*`), not a React component reference.
+fn emit_hir_island_mount_el(
+    tag: &str,
+    attributes: &[HirJsxAttr],
+    child_count: usize,
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+) -> Option<String> {
+    if !island_names.contains(tag) {
+        return None;
+    }
+    let mut parts = vec![format!(
+        "data-vox-island=\"{}\"",
+        escape_html_attr(tag)
+    )];
+    for attr in attributes {
+        if attr.name == "bind" {
+            continue;
+        }
+        let dname = island_data_prop_attr(&attr.name);
+        let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &dname);
+        parts.push(format!("{dname}={{{val}}}"));
+    }
+    let inner = format!("<div {} />", parts.join(" "));
+    if child_count == 0 {
+        Some(inner)
+    } else {
+        Some(format!(
+            "<>{{/* vox: @island `{}` ignores {} JSX child(ren); use `<{} />` */}}{}</>",
+            tag, child_count, tag, inner
+        ))
+    }
+}
+
 #[must_use]
 pub fn emit_hir_expr_attr_value(
     expr: &HirExpr,
     state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
     attr_name: &str,
 ) -> String {
     let is_event_handler = attr_name.starts_with("on")
@@ -231,23 +297,28 @@ pub fn emit_hir_expr_attr_value(
         if let HirExpr::Block(stmts, _) = expr {
             let stmts_str = stmts
                 .iter()
-                .map(|s| emit_hir_stmt(s, state_names, 2))
+                .map(|s| emit_hir_stmt(s, state_names, island_names, 2))
                 .collect::<String>();
             return format!("() => {{\n{}}}", stmts_str);
         }
     }
-    emit_hir_expr(expr, state_names)
+    emit_hir_expr(expr, state_names, island_names)
 }
 
 #[must_use]
-pub fn emit_block_stmts(expr: &HirExpr, state_names: &HashSet<String>, indent: usize) -> String {
+pub fn emit_block_stmts(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+    indent: usize,
+) -> String {
     match expr {
         HirExpr::Block(stmts, _) => stmts
             .iter()
-            .map(|s| emit_hir_stmt(s, state_names, indent))
+            .map(|s| emit_hir_stmt(s, state_names, island_names, indent))
             .collect(),
         _ => {
-            let e = emit_hir_expr(expr, state_names);
+            let e = emit_hir_expr(expr, state_names, island_names);
             let pad = "  ".repeat(indent);
             format!("{pad}{e};\n")
         }
@@ -255,7 +326,12 @@ pub fn emit_block_stmts(expr: &HirExpr, state_names: &HashSet<String>, indent: u
 }
 
 #[must_use]
-pub fn emit_hir_stmt(stmt: &HirStmt, state_names: &HashSet<String>, indent: usize) -> String {
+pub fn emit_hir_stmt(
+    stmt: &HirStmt,
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+    indent: usize,
+) -> String {
     let pad = "  ".repeat(indent);
     match stmt {
         HirStmt::Let {
@@ -266,28 +342,28 @@ pub fn emit_hir_stmt(stmt: &HirStmt, state_names: &HashSet<String>, indent: usiz
         } => {
             let keyword = if *mutable { "let" } else { "const" };
             let pat = emit_hir_pattern(pattern);
-            let val = emit_hir_expr(value, state_names);
+            let val = emit_hir_expr(value, state_names, island_names);
             format!("{pad}{keyword} {pat} = {val};\n")
         }
         HirStmt::Assign { target, value, .. } => {
             if let HirExpr::Ident(name, _) = target {
                 if state_names.contains(name) {
-                    let val = emit_hir_expr(value, state_names);
+                    let val = emit_hir_expr(value, state_names, island_names);
                     return format!("{pad}set_{name}({val});\n");
                 }
             }
             format!(
                 "{pad}{} = {};\n",
-                emit_hir_expr(target, state_names),
-                emit_hir_expr(value, state_names)
+                emit_hir_expr(target, state_names, island_names),
+                emit_hir_expr(value, state_names, island_names)
             )
         }
         HirStmt::Expr { expr, .. } => {
-            format!("{pad}{};\n", emit_hir_expr(expr, state_names))
+            format!("{pad}{};\n", emit_hir_expr(expr, state_names, island_names))
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
-                format!("{pad}return {};\n", emit_hir_expr(v, state_names))
+                format!("{pad}return {};\n", emit_hir_expr(v, state_names, island_names))
             } else {
                 format!("{pad}return;\n")
             }
@@ -329,132 +405,6 @@ pub fn map_hir_type_to_ts(ty: &HirType) -> String {
             format!("{}<{}>", name, args_str.join(", "))
         }
         _ => "any".to_string(),
-    }
-}
-
-#[must_use]
-pub fn extract_state_deps(expr: &HirExpr, state_names: &HashSet<String>) -> Vec<String> {
-    let mut deps = HashSet::new();
-    collect_deps(expr, state_names, &mut deps);
-    let mut sorted: Vec<String> = deps.into_iter().collect();
-    sorted.sort();
-    sorted
-}
-
-fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSet<String>) {
-    match expr {
-        HirExpr::Ident(name, _) => {
-            if state_names.contains(name) {
-                deps.insert(name.clone());
-            }
-        }
-        HirExpr::Binary(_, left, right, _) => {
-            collect_deps(left, state_names, deps);
-            collect_deps(right, state_names, deps);
-        }
-        HirExpr::Unary(_, expr, _) => {
-            collect_deps(expr, state_names, deps);
-        }
-        HirExpr::Block(stmts, _) => {
-            for stmt in stmts {
-                collect_deps_stmt(stmt, state_names, deps);
-            }
-        }
-        HirExpr::Jsx(el) => {
-            for attr in &el.attributes {
-                collect_deps(&attr.value, state_names, deps);
-            }
-            for child in &el.children {
-                collect_deps(child, state_names, deps);
-            }
-        }
-        HirExpr::JsxSelfClosing(el) => {
-            for attr in &el.attributes {
-                collect_deps(&attr.value, state_names, deps);
-            }
-        }
-        HirExpr::ObjectLit(fields, _) => {
-            for (_, val) in fields {
-                collect_deps(val, state_names, deps);
-            }
-        }
-        HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
-            for e in elems {
-                collect_deps(e, state_names, deps);
-            }
-        }
-        HirExpr::Call(callee, args, _, _) => {
-            collect_deps(callee, state_names, deps);
-            for arg in args {
-                collect_deps(&arg.value, state_names, deps);
-            }
-        }
-        HirExpr::DbTableOp { args, .. } => {
-            for arg in args {
-                collect_deps(&arg.value, state_names, deps);
-            }
-        }
-        HirExpr::MethodCall(obj, _, args, _) => {
-            collect_deps(obj, state_names, deps);
-            for arg in args {
-                collect_deps(&arg.value, state_names, deps);
-            }
-        }
-        HirExpr::FieldAccess(obj, _, _) => {
-            collect_deps(obj, state_names, deps);
-        }
-        HirExpr::If(cond, then_body, else_body, _) => {
-            collect_deps(cond, state_names, deps);
-            for stmt in then_body {
-                collect_deps_stmt(stmt, state_names, deps);
-            }
-            if let Some(estmts) = else_body {
-                for stmt in estmts {
-                    collect_deps_stmt(stmt, state_names, deps);
-                }
-            }
-        }
-        HirExpr::For(_, iterable, body, _) => {
-            collect_deps(iterable, state_names, deps);
-            collect_deps(body, state_names, deps);
-        }
-        HirExpr::Lambda(_, _, body, _) => {
-            collect_deps(body, state_names, deps);
-        }
-        HirExpr::Match(subject, arms, _) => {
-            collect_deps(subject, state_names, deps);
-            for arm in arms {
-                collect_deps(&arm.body, state_names, deps);
-            }
-        }
-        HirExpr::Pipe(left, right, _) | HirExpr::With(left, right, _) => {
-            collect_deps(left, state_names, deps);
-            collect_deps(right, state_names, deps);
-        }
-        HirExpr::Spawn(expr, _) => {
-            collect_deps(expr, state_names, deps);
-        }
-        _ => {}
-    }
-}
-
-fn collect_deps_stmt(stmt: &HirStmt, state_names: &HashSet<String>, deps: &mut HashSet<String>) {
-    match stmt {
-        HirStmt::Let { value, .. } => {
-            collect_deps(value, state_names, deps);
-        }
-        HirStmt::Assign { target, value, .. } => {
-            collect_deps(target, state_names, deps);
-            collect_deps(value, state_names, deps);
-        }
-        HirStmt::Expr { expr, .. } => {
-            collect_deps(expr, state_names, deps);
-        }
-        HirStmt::Return { value, .. } => {
-            if let Some(v) = value {
-                collect_deps(v, state_names, deps);
-            }
-        }
     }
 }
 

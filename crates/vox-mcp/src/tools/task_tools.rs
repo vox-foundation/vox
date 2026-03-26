@@ -12,6 +12,17 @@ use crate::params::{
 };
 use crate::server::ServerState;
 
+const REM_TASK_SCOPE: &str =
+    "Limit `files` to paths under the agent scopes, or omit `agent_name` so routing picks a valid agent.";
+const REM_PROMPT_SAFETY: &str =
+    "Rewrite the task to remove injection patterns and disallowed content per Trust & Safety.";
+const REM_TASK_SUBMIT: &str =
+    "Check orchestrator health, queues, and that referenced files exist and are readable.";
+const REM_TASK_ID: &str =
+    "Confirm `task_id` with task/orchestrator status; it may be stale, completed, or cancelled.";
+const REM_TASK_ORCH_OP: &str =
+    "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
+
 fn socrates_context_from_retrieval(
     retrieval: &crate::memory::RetrievalEvidenceEnvelope,
 ) -> vox_orchestrator::SocratesTaskContext {
@@ -57,10 +68,13 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         }
                     }
                     if !ok {
-                        return ToolResult::<SubmitTaskResponse>::err(format!(
-                            "Agent '{}' tried to edit outside its scope. File '{}' does not match scope {:?}",
-                            agent_name, f.path, scopes
-                        ))
+                        return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                            format!(
+                                "Agent '{}' tried to edit outside its scope. File '{}' does not match scope {:?}",
+                                agent_name, f.path, scopes
+                            ),
+                            REM_TASK_SCOPE,
+                        )
                         .to_json();
                     }
                 }
@@ -114,7 +128,11 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             orch.event_bus().emit(AgentEventKind::InjectionDetected {
                 detail: e.to_string(),
             });
-            return ToolResult::<SubmitTaskResponse>::err(format!("Prompt safety: {e}")).to_json();
+            return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                format!("Prompt safety: {e}"),
+                REM_PROMPT_SAFETY,
+            )
+            .to_json();
         }
     };
 
@@ -180,7 +198,18 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             })
             .to_json()
         }
-        Err(e) => ToolResult::<SubmitTaskResponse>::err(format!("{e}")).to_json(),
+        Err(e) => {
+            let msg = format!("{e}");
+            let remediation = if msg.contains("scope")
+                || msg.contains("Scope")
+                || msg.contains("outside")
+            {
+                REM_TASK_SCOPE
+            } else {
+                REM_TASK_SUBMIT
+            };
+            ToolResult::<SubmitTaskResponse>::err_with_remediation(msg, remediation).to_json()
+        }
     }
 }
 
@@ -218,7 +247,11 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
             }
         }
     }
-    ToolResult::<String>::err(format!("task {} not found", params.task_id)).to_json()
+    ToolResult::<String>::err_with_remediation(
+        format!("task {} not found", params.task_id),
+        REM_TASK_ID,
+    )
+    .to_json()
 }
 
 /// Mark a task as completed, releasing its file locks (async).
@@ -253,7 +286,9 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
             }
             ToolResult::ok("task completed".to_string()).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }
 
@@ -291,7 +326,9 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
             }
             ToolResult::ok("task marked as failed".to_string()).to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }
 
@@ -300,7 +337,9 @@ pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskP
     let orch = &state.orchestrator;
     match orch.cancel_task(TaskId(params.task_id)) {
         Ok(()) => ToolResult::ok("Task cancelled successfully".to_string()).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }
 
@@ -316,7 +355,9 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
 
     match orch.reorder_task(TaskId(params.task_id), priority) {
         Ok(()) => ToolResult::ok("Task reordered successfully".to_string()).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }
 
@@ -325,7 +366,9 @@ pub async fn drain_agent(state: &ServerState, params: DrainAgentParams) -> Strin
     let orch = &state.orchestrator;
     match orch.drain_agent(AgentId(params.agent_id)) {
         Ok(tasks) => ToolResult::ok(format!("Agent drained {} tasks", tasks.len())).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_TASK_ORCH_OP).to_json()
+        }
     }
 }
 

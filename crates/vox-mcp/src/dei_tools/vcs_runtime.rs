@@ -2,6 +2,11 @@ use super::params::{HeartbeatParams, PollEventsParams, RecordCostParams, SubmitT
 use crate::{ServerState, ToolResult};
 use std::path::PathBuf;
 
+const REM_VCS_SUBMIT: &str =
+    "Check orchestrator health, task description validity, and agent/session mapping.";
+const REM_SESSION_AGENT_MAP: &str =
+    "Call `map_agent_session` or list orchestrator agents so `session_id` maps to a live agent.";
+
 /// Check which agent owns a given file path (async).
 pub async fn check_file_owner(state: &ServerState, path: &str) -> String {
     let orch = &state.orchestrator;
@@ -194,7 +199,11 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         .await
     {
         Ok(task_id) => ToolResult::ok(format!("Submitted task {}", task_id.0)).to_json(),
-        Err(e) => ToolResult::<String>::err(format!("Submit failed: {}", e)).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Submit failed: {}", e),
+            REM_VCS_SUBMIT,
+        )
+        .to_json(),
     }
 }
 
@@ -217,7 +226,11 @@ pub async fn heartbeat(state: &ServerState, params: HeartbeatParams) -> String {
             .emit(vox_orchestrator::AgentEventKind::AgentBusy { agent_id: id });
         ToolResult::ok(format!("Heartbeat received for agent {}", id.0)).to_json()
     } else {
-        ToolResult::<String>::err("No agent mapped to this session").to_json()
+        ToolResult::<String>::err_with_remediation(
+            "No agent mapped to this session",
+            REM_SESSION_AGENT_MAP,
+        )
+        .to_json()
     }
 }
 
@@ -266,6 +279,10 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
         ))
         .to_json()
     } else {
-        ToolResult::<String>::err("No agent mapped to this session").to_json()
+        ToolResult::<String>::err_with_remediation(
+            "No agent mapped to this session",
+            REM_SESSION_AGENT_MAP,
+        )
+        .to_json()
     }
 }

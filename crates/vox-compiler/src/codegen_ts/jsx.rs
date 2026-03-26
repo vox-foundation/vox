@@ -1,5 +1,34 @@
-use crate::ast::expr::{BinOp, Expr, JsxElement, JsxSelfClosingElement, UnOp};
+use crate::ast::expr::{BinOp, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, UnOp};
 use crate::ast::stmt::Stmt;
+use crate::codegen_ts::island_emit::{empty_island_set, escape_html_attr, island_data_prop_attr};
+use std::collections::HashSet;
+
+fn emit_ast_island_mount(
+    tag: &str,
+    attributes: &[JsxAttribute],
+    indent: usize,
+    child_count: usize,
+) -> String {
+    let pad = "  ".repeat(indent);
+    let mut parts = vec![format!("data-vox-island=\"{}\"", escape_html_attr(tag))];
+    for attr in attributes {
+        if attr.name == "bind" {
+            continue;
+        }
+        let dname = island_data_prop_attr(&attr.name);
+        let val = emit_jsx_attr_value(&attr.value);
+        parts.push(format!("{dname}={{{val}}}"));
+    }
+    let div_line = format!("{pad}<div {} />\n", parts.join(" "));
+    if child_count == 0 {
+        div_line
+    } else {
+        format!(
+            "{pad}<>{{/* vox: @island `{tag}` ignores {child_count} JSX child(ren); use `<{tag} />` */}}<div {} /></>\n",
+            parts.join(" ")
+        )
+    }
+}
 
 /// Map Vox JSX attribute names to React attribute names.
 pub fn map_jsx_attr_name(name: &str) -> &str {
@@ -20,7 +49,10 @@ pub fn map_jsx_attr_name(name: &str) -> &str {
 }
 
 /// Emit a JSX element with children to TypeScript.
-pub fn emit_jsx_element(el: &JsxElement, indent: usize) -> String {
+pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<String>) -> String {
+    if island_names.contains(&el.tag) {
+        return emit_ast_island_mount(&el.tag, &el.attributes, indent, el.children.len());
+    }
     let pad = "  ".repeat(indent);
     let mut out = String::new();
 
@@ -43,7 +75,7 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize) -> String {
 
     // Children
     for child in &el.children {
-        out.push_str(&emit_jsx_child(child, indent + 1));
+        out.push_str(&emit_jsx_child(child, indent + 1, island_names));
     }
 
     out.push_str(&format!("{pad}</{}>\n", el.tag));
@@ -51,7 +83,14 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize) -> String {
 }
 
 /// Emit a self-closing JSX element.
-pub fn emit_jsx_self_closing(el: &JsxSelfClosingElement, indent: usize) -> String {
+pub fn emit_jsx_self_closing(
+    el: &JsxSelfClosingElement,
+    indent: usize,
+    island_names: &HashSet<String>,
+) -> String {
+    if island_names.contains(&el.tag) {
+        return emit_ast_island_mount(&el.tag, &el.attributes, indent, 0);
+    }
     let pad = "  ".repeat(indent);
     let mut out = format!("{pad}<{}", el.tag);
 
@@ -125,12 +164,12 @@ fn expand_bind_attribute(expr: &Expr) -> (String, String) {
 }
 
 /// Emit a JSX child expression.
-fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
+fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) -> String {
     let pad = "  ".repeat(indent);
     let unwrapped = unwrap_block(expr);
     match unwrapped {
-        Expr::Jsx(el) => emit_jsx_element(el, indent),
-        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent),
+        Expr::Jsx(el) => emit_jsx_element(el, indent, island_names),
+        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent, island_names),
         Expr::For {
             binding,
             iterable,
@@ -138,7 +177,7 @@ fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
             ..
         } => {
             let iter_str = emit_expr(iterable);
-            let body_str = emit_jsx_child(body, indent + 1);
+            let body_str = emit_jsx_child(body, indent + 1, island_names);
             format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
         }
         Expr::StringLit { value, .. } => format!("{pad}{value}\n"),
@@ -318,8 +357,8 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::Spawn { target, .. } => {
             format!("new {}Actor()", emit_expr(target))
         }
-        Expr::Jsx(el) => emit_jsx_element(el, 0),
-        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0),
+        Expr::Jsx(el) => emit_jsx_element(el, 0, empty_island_set()),
+        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0, empty_island_set()),
         Expr::For {
             binding,
             iterable,

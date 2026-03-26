@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
 use crate::commands::corpus::CorpusAction;
-use crate::commands::mens::plan;
-
 /// CLI mapping for `vox mens train --backend` → [`vox_populi::mens::PopuliTrainBackend`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]

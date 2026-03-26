@@ -5,8 +5,17 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::sync_poison::{poison_rw_read, poison_rw_write};
 
+const REM_VCS_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_CONFLICT_ID: &str =
+    "List conflicts with `conflicts_list` and pass `conflict_id` as a number or `C-XXXXXX`.";
+const REM_CONFLICT_MISSING: &str =
+    "Refresh `conflicts_list`; the conflict may have been resolved by another agent.";
+const REM_CONFLICT_RESOLVE: &str =
+    "Confirm the conflict id is still active; stale ids cannot be resolved twice.";
+
 fn lock_err(e: anyhow::Error) -> String {
-    ToolResult::<String>::err(e.to_string()).to_json()
+    ToolResult::<String>::err_with_remediation(e.to_string(), REM_VCS_LOCK).to_json()
 }
 
 /// List active conflicts (async).
@@ -59,15 +68,17 @@ fn conflict_diff_inner(state: &ServerState, args: serde_json::Value) -> anyhow::
             .and_then(|s| s.parse::<u64>().ok())
             .map(ConflictId)
         else {
-            return Ok(
-                ToolResult::<String>::err("Invalid conflict_id format. Expected C-XXXXXX")
-                    .to_json(),
-            );
+            return Ok(ToolResult::<String>::err_with_remediation(
+                "Invalid conflict_id format. Expected C-XXXXXX",
+                REM_CONFLICT_ID,
+            )
+            .to_json());
         };
         id
     } else {
-        return Ok(ToolResult::<String>::err(
+        return Ok(ToolResult::<String>::err_with_remediation(
             "Missing conflict_id (number or C-XXXXXX string)".to_string(),
+            REM_CONFLICT_ID,
         )
         .to_json());
     };
@@ -81,9 +92,11 @@ fn conflict_diff_inner(state: &ServerState, args: serde_json::Value) -> anyhow::
     };
 
     let Some(c) = conflict else {
-        return Ok(
-            ToolResult::<String>::err(format!("Conflict {} not found", conflict_id)).to_json(),
-        );
+        return Ok(ToolResult::<String>::err_with_remediation(
+            format!("Conflict {} not found", conflict_id),
+            REM_CONFLICT_MISSING,
+        )
+        .to_json());
     };
 
     let store = poison_rw_read(ss_lock.read(), "read snapshot store for conflict_diff")?;
@@ -168,8 +181,9 @@ pub async fn resolve_conflict(state: &ServerState, args: serde_json::Value) -> S
 
 fn resolve_conflict_inner(state: &ServerState, args: serde_json::Value) -> anyhow::Result<String> {
     let Some(conflict_id) = parse_conflict_id_value(args.get("conflict_id")) else {
-        return Ok(ToolResult::<String>::err(
+        return Ok(ToolResult::<String>::err_with_remediation(
             "Missing or invalid conflict_id (number or C-XXXXXX string)".to_string(),
+            REM_CONFLICT_ID,
         )
         .to_json());
     };
@@ -202,10 +216,11 @@ fn resolve_conflict_inner(state: &ServerState, args: serde_json::Value) -> anyho
     if ok {
         Ok(ToolResult::ok("Conflict resolved".to_string()).to_json())
     } else {
-        Ok(
-            ToolResult::<String>::err("Conflict not found or already resolved".to_string())
-                .to_json(),
+        Ok(ToolResult::<String>::err_with_remediation(
+            "Conflict not found or already resolved".to_string(),
+            REM_CONFLICT_RESOLVE,
         )
+        .to_json())
     }
 }
 

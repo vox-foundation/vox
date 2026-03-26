@@ -2,6 +2,7 @@
 
 mod action;
 mod dispatch;
+mod mens_tail_subcommands;
 #[cfg(feature = "gpu")]
 mod train_arm;
 

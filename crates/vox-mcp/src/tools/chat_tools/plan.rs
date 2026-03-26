@@ -8,6 +8,17 @@ use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{socrates_tool_meta, spawn_socrates_telemetry};
 
+const REM_MCP_MODEL_RESOLVE: &str =
+    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_LOCK: &str =
+    "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
+const REM_LLM_COMPLETION: &str =
+    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_PLAN_JSON: &str =
+    "Retry planning with a simpler goal or lower `max_tasks`; ensure the model returns valid JSON in a ```json block.";
+const REM_DEI_DAEMON: &str =
+    "Start `vox-dei-d` (DeI daemon) or verify IPC/socket configuration for this workspace.";
+
 #[derive(Deserialize)]
 struct PlanResponseSchema {
     #[serde(default)]
@@ -81,7 +92,11 @@ Rules:
     {
         Ok(pair) => pair,
         Err(e) => {
-            return ToolResult::<String>::err(format!("No model found for plan: {e}")).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("No model found for plan: {e}"),
+                REM_MCP_MODEL_RESOLVE,
+            )
+            .to_json();
         }
     };
 
@@ -90,7 +105,9 @@ Rules:
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+        }
     };
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
@@ -114,7 +131,13 @@ Rules:
     .await
     {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("LLM error: {e}"),
+                REM_LLM_COMPLETION,
+            )
+            .to_json();
+        }
     };
 
     // Strip any markdown fences if the model still included them despite JSON mode
@@ -141,8 +164,11 @@ Rules:
         Ok(p) => p,
         Err(e) => {
             tracing::error!(error = %e, raw = cleaned, "plan_goal: JSON decode failed after cleanup");
-            return ToolResult::<String>::err(format!("Failed to parse task list JSON: {e}"))
-                .to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("Failed to parse task list JSON: {e}"),
+                REM_PLAN_JSON,
+            )
+            .to_json();
         }
     };
 
@@ -236,7 +262,8 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
             }
             ToolResult::ok(v).to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
+            .to_json(),
     }
 }
 
@@ -253,6 +280,7 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
             }
             ToolResult::ok(v).to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
+            .to_json(),
     }
 }

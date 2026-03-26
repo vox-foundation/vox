@@ -49,3 +49,57 @@ pub fn zenodo_attach_manifest_body() -> bool {
 pub fn zenodo_publish_deposition() -> bool {
     env_truthy("VOX_ZENODO_PUBLISH_DEPOSITION")
 }
+
+/// Force draft-only behavior: never call publish (overrides [`zenodo_publish_deposition`] and
+/// [`zenodo_publish_now_profile`]).
+#[must_use]
+pub fn zenodo_draft_only() -> bool {
+    env_truthy("VOX_ZENODO_DRAFT_ONLY")
+}
+
+/// Convenience profile: attach `body.md` and publish when the deposition is otherwise valid.
+/// Still respects [`zenodo_draft_only`] when set.
+#[must_use]
+pub fn zenodo_publish_now_profile() -> bool {
+    env_truthy("VOX_ZENODO_PUBLISH_NOW")
+}
+
+/// Directory written by `publication-scholarly-staging-export` (Zenodo layout). When set, Zenodo
+/// submit uploads existing files from this tree (see [`zenodo_upload_allowlist`]).
+#[must_use]
+pub fn zenodo_staging_dir() -> Option<std::path::PathBuf> {
+    std::env::var("VOX_ZENODO_STAGING_DIR")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(std::path::PathBuf::from)
+}
+
+/// Comma-separated relative names to upload from [`zenodo_staging_dir`] (e.g. `body.md,zenodo.json`).
+/// When empty, uploads every file that exists from the Zenodo [`crate::submission_package::staging_artifacts`] plan
+/// except `arxiv_bundle.tar.gz` / `arxiv_handoff.json`.
+#[must_use]
+pub fn zenodo_upload_allowlist() -> Vec<String> {
+    std::env::var("VOX_ZENODO_UPLOAD_ALLOWLIST")
+        .ok()
+        .map(|s| {
+            s.split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// When uploading from staging, require `staging_checksums.json` and match SHA-256 per file.
+#[must_use]
+pub fn zenodo_verify_staging_checksums() -> bool {
+    env_truthy("VOX_ZENODO_VERIFY_STAGING_CHECKSUMS")
+}
+
+/// Before deposit create, require `zenodo.json` in [`zenodo_staging_dir`] to list a metadata title
+/// matching the manifest title (normalization: trim / collapse ASCII space).
+#[must_use]
+pub fn zenodo_require_metadata_title_parity() -> bool {
+    env_truthy("VOX_ZENODO_REQUIRE_METADATA_PARITY")
+}

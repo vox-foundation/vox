@@ -12,6 +12,11 @@ use crate::tools::chat_socrates_meta::{socrates_tool_meta, spawn_socrates_teleme
 use vox_orchestrator::session_retrieval_envelope_key;
 use vox_runtime::prompt_canonical;
 
+const REM_CHAT_CANONICAL: &str =
+    "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
+const REM_LLM_COMPLETION: &str =
+    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+
 /// Handle a user chat message. Resolves @mentions, injects context from the editor,
 /// calls the best available LLM, persists to session history, and returns the updated history.
 ///
@@ -46,9 +51,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             (c.text, Some((hash, conflict_count, objective_count)))
         }
         Err(e) => {
-            return ToolResult::<String>::err(format!(
-                "Prompt rejected by safety canonicalizer: {e}"
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("Prompt rejected by safety canonicalizer: {e}"),
+                REM_CHAT_CANONICAL,
+            )
             .to_json();
         }
     };
@@ -261,7 +267,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     {
                         Ok(r) => r,
                         Err(e) => {
-                            return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
+                            return ToolResult::<String>::err_with_remediation(
+                                format!("LLM error: {e}"),
+                                REM_LLM_COMPLETION,
+                            )
+                            .to_json();
                         }
                     }
                 }
@@ -275,7 +285,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     match call_llm(state, &system_prompt, &user_prompt, Some(session_id)).await {
                         Ok(r) => r,
                         Err(e2) => {
-                            return ToolResult::<String>::err(format!("LLM error: {e2}")).to_json();
+                            return ToolResult::<String>::err_with_remediation(
+                                format!("LLM error: {e2}"),
+                                REM_LLM_COMPLETION,
+                            )
+                            .to_json();
                         }
                     }
                 }
@@ -284,7 +298,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         None => match call_llm(state, &system_prompt, &user_prompt, Some(session_id)).await {
             Ok(r) => r,
             Err(e) => {
-                return ToolResult::<String>::err(format!("LLM error: {e}")).to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    format!("LLM error: {e}"),
+                    REM_LLM_COMPLETION,
+                )
+                .to_json();
             }
         },
     };

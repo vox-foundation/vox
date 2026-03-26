@@ -13,6 +13,8 @@ pub mod component;
 pub mod emitter;
 /// Shared HIR → TS emission (reactive, routes, activities).
 pub mod hir_emit;
+/// `@island` mount-point helpers (`data-vox-island`).
+pub mod island_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
 /// Reactive components codegen (Path C).
@@ -23,6 +25,10 @@ pub mod routes;
 pub mod schema;
 /// TanStack Start server-fn emission constants.
 pub mod tanstack_start;
+/// `routes:` → programmatic TanStack Router trees.
+pub mod tanstack_programmatic_routes;
+/// TanStack Query helper emission (`vox-tanstack-query.tsx`).
+pub mod tanstack_query_emit;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};

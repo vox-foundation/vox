@@ -9,6 +9,13 @@ use crate::tools::chat_socrates_meta::{
     socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
 };
 
+const REM_MCP_MODEL_RESOLVE: &str =
+    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_LOCK: &str =
+    "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
+const REM_LLM_COMPLETION: &str =
+    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+
 /// Perform an inline edit on a range in a file.
 /// The editor sends the current text; Rust queries the LLM and returns the replacement.
 pub async fn inline_edit(state: &ServerState, params: InlineEditParams) -> String {
@@ -69,14 +76,18 @@ OUTPUT RULES:
     .await
     {
         Ok(pair) => pair,
-        Err(e) => return ToolResult::<String>::err(e).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_RESOLVE).to_json();
+        }
     };
     let pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+        }
     };
     let max_tokens = clamp_http_max_output_tokens(model.max_tokens);
     let temperature = 0.3_f32;
@@ -102,7 +113,13 @@ OUTPUT RULES:
     .await
     {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("LLM error: {e}")).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("LLM error: {e}"),
+                REM_LLM_COMPLETION,
+            )
+            .to_json();
+        }
     };
 
     let result = InlineEditResult {

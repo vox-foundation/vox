@@ -5,6 +5,9 @@ use std::path::PathBuf;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_TOESTUB_IO: &str =
+    "Ensure `.vox/` is writable and `toestub_findings.jsonl` is not locked by another process (AV, sync).";
+
 /// Arguments for `vox_toestub_findings_upsert`.
 #[derive(Debug, Deserialize)]
 pub struct ToestubFindingsParams {
@@ -49,7 +52,11 @@ pub async fn toestub_findings_upsert(
         Ok(mut file) => {
             use std::io::Write;
             if let Err(e) = file.write_all(data.as_bytes()) {
-                return ToolResult::<String>::err(format!("Write failed: {e}")).to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    format!("Write failed: {e}"),
+                    REM_TOESTUB_IO,
+                )
+                .to_json();
             }
             ToolResult::ok(format!(
                 "Upserted {} findings to {}",
@@ -58,6 +65,10 @@ pub async fn toestub_findings_upsert(
             ))
             .to_json()
         }
-        Err(e) => ToolResult::<String>::err(format!("Failed to open findings file: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Failed to open findings file: {e}"),
+            REM_TOESTUB_IO,
+        )
+        .to_json(),
     }
 }

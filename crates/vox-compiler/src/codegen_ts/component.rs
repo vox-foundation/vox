@@ -4,11 +4,15 @@ use crate::ast::scalar_mapping::VoxScalar;
 use crate::ast::stmt::Stmt;
 use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing, emit_stmt};
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, react_hook_export_for_vox_ident};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 /// Generate a React component from a Vox @component function declaration.
 /// Returns (filename, content) tuple.
-pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
+pub fn generate_component(
+    func: &FnDecl,
+    has_styles: bool,
+    island_names: &HashSet<String>,
+) -> (String, String) {
     let name = &func.name;
     let filename = format!("{name}.tsx");
     let mut out = String::new();
@@ -95,10 +99,10 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
                 match expr {
                     Expr::Jsx(el) => {
                         // This is the return JSX
-                        jsx_return = Some(emit_jsx_element(el, 2));
+                        jsx_return = Some(emit_jsx_element(el, 2, island_names));
                     }
                     Expr::JsxSelfClosing(el) => {
-                        jsx_return = Some(emit_jsx_self_closing(el, 2));
+                        jsx_return = Some(emit_jsx_self_closing(el, 2, island_names));
                     }
                     Expr::Call { .. } | Expr::MethodCall { .. } => {
                         out.push_str(&emit_component_stmt(stmt));

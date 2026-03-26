@@ -15,12 +15,15 @@ use serde::{Deserialize, Serialize};
 pub struct ToolResult<T> {
     /// Whether the tool invocation succeeded.
     pub success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Success payload when `success` is true.
     pub data: Option<T>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Error message when `success` is false.
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Optional operator hint (docs, env keys, next CLI) when `success` is false.
+    pub remediation: Option<String>,
 }
 
 impl<T: Serialize> ToolResult<T> {
@@ -30,6 +33,7 @@ impl<T: Serialize> ToolResult<T> {
             success: true,
             data: Some(data),
             error: None,
+            remediation: None,
         }
     }
 
@@ -39,6 +43,20 @@ impl<T: Serialize> ToolResult<T> {
             success: false,
             data: None,
             error: Some(msg.into()),
+            remediation: None,
+        }
+    }
+
+    /// Failed [`ToolResult`] with a short remediation for clients (docs links, env keys, etc.).
+    pub fn err_with_remediation(
+        msg: impl Into<String>,
+        remediation: impl Into<String>,
+    ) -> Self {
+        Self {
+            success: false,
+            data: None,
+            error: Some(msg.into()),
+            remediation: Some(remediation.into()),
         }
     }
 
@@ -63,6 +81,21 @@ impl<T: Serialize> ToolResult<T> {
         } else {
             self.to_json()
         }
+    }
+}
+
+#[cfg(test)]
+mod tool_result_tests {
+    use super::ToolResult;
+
+    #[test]
+    fn remediation_round_trips_json() {
+        let tr = ToolResult::<String>::err_with_remediation("bad", "try `vox doctor`");
+        let s = tr.to_json_compact();
+        let de: ToolResult<String> = serde_json::from_str(&s).expect("parse");
+        assert!(!de.success);
+        assert_eq!(de.error.as_deref(), Some("bad"));
+        assert_eq!(de.remediation.as_deref(), Some("try `vox doctor`"));
     }
 }
 

@@ -1,14 +1,19 @@
 //! Minimal Zenodo REST client (deposit draft creation).
 
+use std::collections::HashMap;
+use std::path::Path;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use sha3::digest::Digest;
+use sha3::Sha3_256;
 
 use super::error::{classify_scholarly_http, ScholarlyError};
 use super::flags;
 use super::ScholarlyRemoteStatus;
 use super::ScholarlySubmissionReceipt;
 use crate::publication::PublicationManifest;
+use crate::submission_package::{self, ScholarlyVenue};
 use crate::zenodo_api_types::{ZenodoDeposition, ZenodoDepositionCreateBody};
 use crate::zenodo_metadata;
 
@@ -281,6 +286,151 @@ impl ZenodoHttpClient {
     }
 }
 
+fn zenodo_staging_content_type(rel: &str) -> &'static str {
+    let n = rel.to_ascii_lowercase();
+    if n.ends_with(".md") {
+        return "text/markdown; charset=utf-8";
+    }
+    if n.ends_with(".json") {
+        return "application/json; charset=utf-8";
+    }
+    if n.ends_with(".cff") {
+        return "application/yaml; charset=utf-8";
+    }
+    if n.ends_with(".tex") {
+        return "application/x-tex; charset=utf-8";
+    }
+    "application/octet-stream"
+}
+
+fn zenodo_verify_title_parity(manifest: &PublicationManifest, root: &Path) -> Result<(), ScholarlyError> {
+    let p = root.join("zenodo.json");
+    let raw = std::fs::read_to_string(&p).map_err(|e| ScholarlyError::Config {
+        message: format!(
+            "read {} for metadata parity: {e} — hint: run `vox scientia publication-scholarly-staging-export`",
+            p.display()
+        ),
+    })?;
+    let v: serde_json::Value = serde_json::from_str(&raw).map_err(|e| ScholarlyError::Config {
+        message: format!(
+            "parse zenodo.json for parity: {e} — hint: regenerate staging zenodo.json from manifest"
+        ),
+    })?;
+    let file_title = v
+        .get("metadata")
+        .and_then(|m| m.get("title"))
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .trim();
+    let mt = manifest.title.trim();
+    if file_title != mt {
+        return Err(ScholarlyError::Config {
+            message: format!(
+                "zenodo.json metadata.title ({file_title:?}) != manifest.title ({mt:?}); fix staging or unset VOX_ZENODO_REQUIRE_METADATA_PARITY"
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn zenodo_load_staging_sha_map(root: &Path) -> Result<HashMap<String, String>, ScholarlyError> {
+    let p = root.join("staging_checksums.json");
+    let raw = std::fs::read_to_string(&p).map_err(|e| ScholarlyError::Config {
+        message: format!(
+            "read staging_checksums.json: {e} — hint: export staging with current vox-publisher (writes checksum manifest) or unset VOX_ZENODO_VERIFY_STAGING_CHECKSUMS"
+        ),
+    })?;
+    let v: serde_json::Value = serde_json::from_str(&raw).map_err(|e| ScholarlyError::Config {
+        message: format!("parse staging_checksums.json: {e}"),
+    })?;
+    let obj = v
+        .get("sha3_256")
+        .or_else(|| v.get("sha256"))
+        .and_then(|s| s.as_object())
+        .ok_or_else(|| ScholarlyError::Config {
+            message: "staging_checksums.json missing top-level sha3_256 (or legacy sha256) object".into(),
+        })?;
+    let mut m = HashMap::new();
+    for (k, val) in obj {
+        if let Some(s) = val.as_str() {
+            m.insert(k.clone(), s.trim().to_ascii_lowercase());
+        }
+    }
+    Ok(m)
+}
+
+fn zenodo_relpaths_to_upload(root: &Path) -> Result<Vec<String>, ScholarlyError> {
+    let allow = flags::zenodo_upload_allowlist();
+    let plan: Vec<String> = submission_package::staging_artifacts(ScholarlyVenue::Zenodo)
+        .into_iter()
+        .map(|a| a.relative_path)
+        .filter(|r| r != "arxiv_bundle.tar.gz" && r != "arxiv_handoff.json")
+        .collect();
+    let candidates: Vec<String> = if allow.is_empty() {
+        plan
+    } else {
+        allow
+    };
+    let mut out = Vec::new();
+    for rel in candidates {
+        let p = root.join(&rel);
+        if rel == "citations.json" && !p.is_file() {
+            continue;
+        }
+        if !p.is_file() {
+            return Err(ScholarlyError::Config {
+                message: format!(
+                    "Zenodo staging upload: missing {rel} under {} — hint: run publication-scholarly-staging-export or narrow VOX_ZENODO_UPLOAD_ALLOWLIST",
+                    root.display()
+                ),
+            });
+        }
+        out.push(rel);
+    }
+    if out.is_empty() {
+        return Err(ScholarlyError::Config {
+            message: "Zenodo staging upload: no files matched (empty tree or allowlist) — hint: set VOX_ZENODO_STAGING_DIR to export root"
+                .into(),
+        });
+    }
+    Ok(out)
+}
+
+async fn zenodo_upload_staging_files(
+    client: &ZenodoHttpClient,
+    bucket: &str,
+    root: &Path,
+    rels: &[String],
+    sha_expected: Option<&HashMap<String, String>>,
+) -> Result<(), ScholarlyError> {
+    for rel in rels {
+        let p = root.join(rel);
+        let bytes =
+            std::fs::read(&p).map_err(|e| ScholarlyError::Fatal {
+                code: "zenodo_staging_read".into(),
+                message: format!("{rel}: {e}"),
+            })?;
+        if let Some(map) = sha_expected {
+            if let Some(hex) = map.get(rel) {
+                let d = Sha3_256::digest(&bytes);
+                let got = format!("{d:x}");
+                if got != *hex {
+                    return Err(ScholarlyError::Config {
+                        message: format!(
+                            "SHA-256 mismatch for {rel}: expected {hex}, got {got}; re-run staging export"
+                        ),
+                    });
+                }
+            }
+        }
+        let ct = zenodo_staging_content_type(rel);
+        client
+            .put_bucket_object(bucket, rel, &bytes, ct)
+            .await?;
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct ZenodoAdapter {
     client: ZenodoHttpClient,
@@ -304,19 +454,42 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
         &self,
         manifest: &PublicationManifest,
     ) -> Result<ScholarlySubmissionReceipt, ScholarlyError> {
+        let mut attach = flags::zenodo_attach_manifest_body();
+        let mut publish = flags::zenodo_publish_deposition();
+        if flags::zenodo_publish_now_profile() {
+            attach = true;
+            publish = true;
+        }
+        if flags::zenodo_draft_only() {
+            publish = false;
+        }
+
+        let staging_root = flags::zenodo_staging_dir();
+
         let body = zenodo_metadata::zenodo_deposition_create_body(manifest);
         let mut dep = self.client.create_deposition_draft(&body).await?;
         let id = dep.id;
-        let attach = flags::zenodo_attach_manifest_body();
-        let publish = flags::zenodo_publish_deposition();
-        if publish && !attach {
-            return Err(ScholarlyError::Config {
-                message: "VOX_ZENODO_PUBLISH_DEPOSITION requires VOX_ZENODO_ATTACH_MANIFEST_BODY (deposit must include at least one file before publish)"
-                    .into(),
-            });
-        }
-        if attach {
-            let bucket = ZenodoHttpClient::bucket_url_from_deposition(&dep)?;
+        let bucket = ZenodoHttpClient::bucket_url_from_deposition(&dep)?;
+
+        if let Some(ref root) = staging_root {
+            if flags::zenodo_require_metadata_title_parity() {
+                zenodo_verify_title_parity(manifest, root)?;
+            }
+            let rels = zenodo_relpaths_to_upload(root)?;
+            let sha_map = if flags::zenodo_verify_staging_checksums() {
+                Some(zenodo_load_staging_sha_map(root)?)
+            } else {
+                None
+            };
+            zenodo_upload_staging_files(
+                &self.client,
+                &bucket,
+                root,
+                &rels,
+                sha_map.as_ref(),
+            )
+            .await?;
+        } else if attach {
             self.client
                 .put_bucket_object(
                     &bucket,
@@ -325,6 +498,15 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
                     "text/markdown; charset=utf-8",
                 )
                 .await?;
+        }
+
+        let uploaded_from_staging = staging_root.is_some();
+        let effective_attach = attach || uploaded_from_staging;
+        if publish && !effective_attach {
+            return Err(ScholarlyError::Config {
+                message: "Zenodo publish requires ≥1 file: set VOX_ZENODO_ATTACH_MANIFEST_BODY and/or VOX_ZENODO_STAGING_DIR — hint: draft-only uses VOX_ZENODO_DRAFT_ONLY=1"
+                    .into(),
+            });
         }
         if publish {
             dep = self.client.publish_deposition(&id.to_string()).await?;
@@ -335,7 +517,19 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
             dep.state.clone()
         };
         let digest = manifest.content_sha3_256();
-        let meta_json = serde_json::to_string(&dep).map_err(|e| ScholarlyError::Fatal {
+        let mut dep_val = serde_json::to_value(&dep).map_err(|e| ScholarlyError::Fatal {
+            code: "zenodo_receipt_encode".into(),
+            message: format!("deposition as JSON value: {e}"),
+        })?;
+        if let Some(doi) = dep.doi.clone().filter(|s| !s.trim().is_empty()) {
+            if let Some(m) = dep_val.as_object_mut() {
+                m.insert(
+                    "expected_doi_hint".into(),
+                    serde_json::Value::String(doi),
+                );
+            }
+        }
+        let meta_json = serde_json::to_string(&dep_val).map_err(|e| ScholarlyError::Fatal {
             code: "zenodo_receipt_encode".into(),
             message: format!("serialize deposition: {e}"),
         })?;

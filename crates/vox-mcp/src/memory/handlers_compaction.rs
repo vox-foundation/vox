@@ -1,5 +1,8 @@
 use crate::{ServerState, ToolResult};
 
+const REM_BUDGET_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+
 /// Get current context window usage and compaction recommendation (async).
 pub async fn compaction_status(
     state: &ServerState,
@@ -10,7 +13,9 @@ pub async fn compaction_status(
     let handle = orch.budget_handle();
     let budget_lock = match crate::sync_poison::poison_rw_read(handle.read(), "agent budget") {
         Ok(g) => g,
-        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_BUDGET_LOCK).to_json();
+        }
     };
     if let Some(budget) = budget_lock.check_budget(id) {
         let engine = vox_orchestrator::CompactionEngine::default();

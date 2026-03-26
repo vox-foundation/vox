@@ -3,6 +3,11 @@ use vox_orchestrator::{AgentId, SnapshotId};
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
+const REM_VCS_LOCK: &str =
+    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_CHANGE_ID: &str =
+    "List changes with `change_log` (omit `change_id`) and pass a valid id returned there.";
+
 /// Create a new logical change (async).
 pub async fn change_create(state: &ServerState, args: serde_json::Value) -> String {
     let agent_id = args.get("agent_id").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -17,7 +22,10 @@ pub async fn change_create(state: &ServerState, args: serde_json::Value) -> Stri
     let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
     {
         Ok(g) => g,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                .to_json();
+        }
     };
     let change_id = mgr.create_change(AgentId(agent_id), description);
 
@@ -40,7 +48,10 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
         let mgr_handle = orch.workspace_manager_handle();
         let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
             Ok(g) => g,
-            Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                    .to_json();
+            }
         };
         match mgr.get_change(vox_orchestrator::workspace::ChangeId(cid))
         {
@@ -53,14 +64,21 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
                 "created_ms": change.created_ms,
             }))
             .to_json(),
-            None => ToolResult::<String>::err("Change not found".to_string()).to_json(),
+            None => ToolResult::<String>::err_with_remediation(
+                "Change not found".to_string(),
+                REM_CHANGE_ID,
+            )
+            .to_json(),
         }
     } else {
         let agent = agent_id.map(AgentId);
         let mgr_handle = orch.workspace_manager_handle();
         let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
             Ok(g) => g,
-            Err(e) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+            Err(e) => {
+                return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
+                    .to_json();
+            }
         };
         let changes = mgr.list_changes(agent, limit);
         let items: Vec<serde_json::Value> = changes

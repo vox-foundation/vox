@@ -104,6 +104,8 @@ pub enum Token {
     AtV0,
     #[token("@island")]
     AtIsland,
+    #[token("@loading")]
+    AtLoading,
 
     // ── HTTP Methods (contextual, used after `http` keyword) ─
     #[token("get")]
@@ -263,6 +265,7 @@ impl std::fmt::Display for Token {
             Token::AtIndex => write!(f, "@index"),
             Token::AtV0 => write!(f, "@v0"),
             Token::AtIsland => write!(f, "@island"),
+            Token::AtLoading => write!(f, "@loading"),
             Token::Get => write!(f, "get"),
             Token::Post => write!(f, "post"),
             Token::Put => write!(f, "put"),

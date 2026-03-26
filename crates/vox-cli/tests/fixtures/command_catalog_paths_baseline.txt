@@ -88,6 +88,7 @@ db/publication-external-pipeline-metrics
 db/publication-media-delete
 db/publication-media-list
 db/publication-media-upsert
+db/publication-openreview-profile
 db/publication-preflight
 db/publication-prepare
 db/publication-prepare-validated
@@ -171,6 +172,7 @@ scientia/publication-external-jobs-due
 scientia/publication-external-jobs-replay
 scientia/publication-external-jobs-tick
 scientia/publication-external-pipeline-metrics
+scientia/publication-openreview-profile
 scientia/publication-preflight
 scientia/publication-prepare
 scientia/publication-prepare-validated

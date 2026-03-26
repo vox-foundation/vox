@@ -13,8 +13,8 @@ pub mod lexer;
 pub mod parser;
 pub mod react_bridge;
 pub mod serialization;
-pub mod ssg;
 pub mod typeck;
+pub mod web_ir;
 pub mod web_prefixes;
 
 /// Re-export of common types if needed.

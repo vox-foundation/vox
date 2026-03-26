@@ -37,7 +37,11 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
     )
 }
 
-pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String) {
+/// `island_names` should be [`crate::codegen_ts::island_emit::collect_island_names`] for the enclosing [`crate::hir::HirModule`].
+pub fn generate_reactive_component(
+    rc: &HirReactiveComponent,
+    island_names: &HashSet<String>,
+) -> (String, String) {
     let name = &rc.name;
     let filename = format!("{name}.tsx");
     let mut out = String::new();
@@ -78,14 +82,14 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
     for member in &rc.members {
         match member {
             HirReactiveMember::State(s) => {
-                let init = emit_hir_expr(&s.init, &state_names);
+                let init = emit_hir_expr(&s.init, &state_names, island_names);
                 out.push_str(&format!(
                     "  const [{}, set_{}] = useState({});\n",
                     s.name, s.name, init
                 ));
             }
             HirReactiveMember::Derived(d) => {
-                let expr = emit_hir_expr(&d.expr, &state_names);
+                let expr = emit_hir_expr(&d.expr, &state_names, island_names);
                 let deps = extract_state_deps(&d.expr, &state_names);
                 let dep_str = deps.join(", ");
                 out.push_str(&format!(
@@ -94,7 +98,7 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
                 ));
             }
             HirReactiveMember::Effect(e) => {
-                let stmts_str = emit_block_stmts(&e.body, &state_names, 2);
+                let stmts_str = emit_block_stmts(&e.body, &state_names, island_names, 2);
                 let deps = extract_state_deps(&e.body, &state_names);
                 let dep_str = deps.join(", ");
                 out.push_str(&format!(
@@ -103,11 +107,11 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
                 ));
             }
             HirReactiveMember::OnMount(m) => {
-                let stmts_str = emit_block_stmts(&m.body, &state_names, 2);
+                let stmts_str = emit_block_stmts(&m.body, &state_names, island_names, 2);
                 out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", stmts_str));
             }
             HirReactiveMember::OnCleanup(c) => {
-                let stmts_str = emit_block_stmts(&c.body, &state_names, 2);
+                let stmts_str = emit_block_stmts(&c.body, &state_names, island_names, 2);
                 out.push_str(&format!(
                     "  useEffect(() => () => {{\n{}  }}, []);\n",
                     stmts_str
@@ -117,7 +121,7 @@ pub fn generate_reactive_component(rc: &HirReactiveComponent) -> (String, String
     }
 
     if let Some(view) = &rc.view {
-        let view_js = emit_hir_expr(view, &state_names);
+        let view_js = emit_hir_expr(view, &state_names, island_names);
         out.push_str(&format!("  return (\n    {}\n  );\n", view_js));
     }
 

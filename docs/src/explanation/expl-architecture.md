@@ -2,7 +2,7 @@
 title: "Compiler Architecture"
 description: "Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat"
 category: "explanation"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
 
@@ -130,7 +130,7 @@ Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decora
 | `actor` | Tokio task + mpsc mailbox |
 | `workflow` | State machine with durable step recording |
 
-#### TypeScript Codegen (`vox-codegen-ts`)
+#### TypeScript Codegen (`vox-compiler` / `codegen_ts`)
 
 Emits TypeScript/TSX in modular files:
 
@@ -139,8 +139,15 @@ Emits TypeScript/TSX in modular files:
 | `jsx.rs` | React JSX components |
 | `component.rs` | Component declarations and hooks |
 | `activity.rs` | Activity/workflow client wrappers |
-| `routes.rs` | React Router route definitions |
+| `emitter.rs` | TanStack Router trees, optional server fns, islands metadata |
 | `adt.rs` | TypeScript discriminated union types |
+
+Normative strategy for reducing frontend emitter complexity while preserving React interop:
+[ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
+Detailed implementation sequencing and weighted task quotas:
+[Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+Canonical current-vs-target representation mapping:
+[Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
 
 ---
 

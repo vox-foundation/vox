@@ -206,7 +206,7 @@ Runs `build`, then **`cargo test`** in `target/generated`.
 
 ### `vox doctor`
 
-Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.).
+Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.). With **`VOX_WEB_TS_OUT`** set to your **`vox build`** TypeScript output directory, doctor also verifies **`@v0`** components use **named** exports for TanStack **`routes:`** (see [`env-vars.md`](env-vars.md#web--vite--tanstack-codegen)).
 
 | Build | Flags |
 |-------|--------|
@@ -241,6 +241,7 @@ Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` /
   - `vox scientia publication-prepare-validated` (same flags as prepare except preflight is always on)
   - `vox scientia publication-preflight --publication-id <id> [--profile default|double-blind] [--with-worthiness]`
   - `vox scientia publication-zenodo-metadata --publication-id <id>` (stdout JSON for Zenodo deposit metadata; no HTTP)
+  - `vox scientia publication-openreview-profile --publication-id <id>` (stdout JSON: merged OpenReview invitation/signature/readers + API base; no HTTP)
   - `vox scientia publication-worthiness-evaluate [--contract-yaml <path>] --metrics-json <path>` (stdout worthiness decision JSON from repo contract + metrics file; no DB)
   - `vox scientia publication-approve --publication-id <id> --approver <identity>`
   - `vox scientia publication-submit-local --publication-id <id>`
@@ -248,8 +249,8 @@ Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` /
   - `vox scientia publication-scholarly-remote-status --publication-id <id> [--external-submission-id <id>]` (poll remote scholarly repository / deposit state for a stored submission)
   - `vox scientia publication-scholarly-remote-status-sync-all --publication-id <id>` (poll remote status for every `scholarly_submissions` row on that publication)
   - `vox scientia publication-scholarly-remote-status-sync-batch [--limit <n>] [--iterations <n>] [--interval-secs <s>] [--max-runtime-secs <s>] [--jitter-secs <s>]` (batch sync across publications ranked by recent submission activity; optional bounded loop for supervised workers)
-  - `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo|open-review|arxiv-assist` (write venue-scoped scholarly staging artifacts under `output-dir` and validate layout; Zenodo adds `zenodo.json`, arXiv assist adds `arxiv_handoff.json`; mirrors `vox db publication-scholarly-staging-export`)
-  - `vox scientia publication-scholarly-pipeline-run --publication-id <id> [--preflight-profile default|double-blind|metadata-complete] [--dry-run] [--staging-output-dir <dir> --venue zenodo|open-review|arxiv-assist] [--adapter <kind>]` (preflight → dual-approval gate → optional staging export → scholarly submit unless `--dry-run`; mirrors `vox db publication-scholarly-pipeline-run`)
+  - `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo|open-review|arxiv-assist` (write venue-scoped scholarly staging artifacts under `output-dir` and validate layout; Zenodo adds `zenodo.json`, arXiv assist adds `arxiv_handoff.json`, **`main.tex`** stub, and `arxiv_bundle.tar.gz`; mirrors `vox db publication-scholarly-staging-export`)
+  - `vox scientia publication-scholarly-pipeline-run --publication-id <id> [--preflight-profile default|double-blind|metadata-complete] [--dry-run] [--staging-output-dir <dir> --venue zenodo|open-review|arxiv-assist] [--adapter <kind>] [--json]` (preflight → dual-approval gate → optional staging export → scholarly submit unless `--dry-run`; `--json` = compact single-line JSON on stdout; mirrors `vox db publication-scholarly-pipeline-run`)
   - `vox scientia publication-arxiv-handoff-record --publication-id <id> --stage <staging-exported|…|published> [--operator <id>] [--note <text>] [--arxiv-id <id>]` (append-only operator milestone for arXiv assist; `published` requires `--arxiv-id`)
   - `vox scientia publication-external-jobs-due [--limit <n>]` (list external submission jobs due for retry/tick)
   - `vox scientia publication-external-jobs-dead-letter [--limit <n>]` (list terminal `failed` external submission jobs)

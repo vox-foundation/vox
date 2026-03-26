@@ -521,6 +521,35 @@ fn codegen_routes_produces_app_tsx() {
 }
 
 #[test]
+fn codegen_routes_with_loading_emits_pending_component() {
+    let src = r#"@loading fn Spinner() to Element { ret <div>"wait"</div> }
+
+routes {
+    "/" to home
+}
+"#;
+    let tokens = lex(src);
+    let module = parse(tokens).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
+    let app = output.files.iter().find(|(n, _)| n == "App.tsx").unwrap();
+    assert!(
+        app.1.contains("pendingComponent: Spinner"),
+        "TanStack createRoute should reference @loading component; got:\n{}",
+        app.1
+    );
+    assert!(
+        app.1.contains("Spinner"),
+        "Should import Spinner alongside route targets; got:\n{}",
+        app.1
+    );
+    assert!(
+        output.files.iter().any(|(n, _)| n == "Spinner.tsx"),
+        "Should emit Spinner.tsx"
+    );
+}
+
+#[test]
 fn codegen_tanstack_start_emits_vox_router_without_nested_provider() {
     let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);

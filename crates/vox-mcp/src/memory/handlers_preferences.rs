@@ -1,5 +1,11 @@
 use crate::{ServerState, ToolResult};
 
+const REM_PREF_VOXDB: &str =
+    "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for preference and learner tools.";
+const REM_PREF_KEY: &str = "List or set preferences first; the key may not exist for this `user_id`.";
+const REM_PREF_DB: &str = "Verify Turso connectivity and vox-db migrations for preferences/learner tables.";
+const REM_LOCK_CFG: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+
 use super::params::{
     BehaviorRecordParams, BehaviorSummaryParams, LearnPatternParams, MemoryRecallDbParams,
     MemorySaveDbParams, PreferenceGetParams, PreferenceListParams, PreferenceSetParams,
@@ -8,12 +14,15 @@ use super::params::{
 /// Get a user preference from VoxDb.
 pub async fn preference_get(state: &ServerState, params: PreferenceGetParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => match db.get_user_preference(&params.user_id, &params.key).await {
             Ok(Some(val)) => ToolResult::ok(val).to_json(),
-            Ok(None) => ToolResult::<String>::err(format!("Preference '{}' not found", params.key))
-                .to_json(),
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            Ok(None) => ToolResult::<String>::err_with_remediation(
+                format!("Preference '{}' not found", params.key),
+                REM_PREF_KEY,
+            )
+            .to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
         },
     }
 }
@@ -21,7 +30,7 @@ pub async fn preference_get(state: &ServerState, params: PreferenceGetParams) ->
 /// Set a user preference in VoxDb.
 pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => match db
             .set_user_preference(&params.user_id, &params.key, &params.value)
             .await
@@ -35,13 +44,16 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
                             "orchestrator config",
                         ) {
                             Ok(mut cfg) => cfg.socrates_gate_enforce = enforce,
-                            Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+                            Err(e) => {
+                                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_CFG)
+                                    .to_json();
+                            }
                         }
                     }
                 }
                 ToolResult::ok(format!("Set '{}' = '{}'", params.key, params.value)).to_json()
             }
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
         },
     }
 }
@@ -49,7 +61,7 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
 /// List user preferences from VoxDb, optionally filtered by key prefix.
 pub async fn preference_list(state: &ServerState, params: PreferenceListParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => match db
             .list_user_preferences(&params.user_id, params.prefix.as_deref())
             .await
@@ -58,7 +70,7 @@ pub async fn preference_list(state: &ServerState, params: PreferenceListParams) 
                 let lines: Vec<String> = prefs.iter().map(|(k, v)| format!("{k} = {v}")).collect();
                 ToolResult::ok(lines.join("\n")).to_json()
             }
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
         },
     }
 }
@@ -66,7 +78,7 @@ pub async fn preference_list(state: &ServerState, params: PreferenceListParams) 
 /// Store a learned behavior pattern in VoxDb.
 pub async fn learn_pattern(state: &ServerState, params: LearnPatternParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => match db
             .store_learned_pattern(
                 &params.user_id,
@@ -79,7 +91,7 @@ pub async fn learn_pattern(state: &ServerState, params: LearnPatternParams) -> S
             .await
         {
             Ok(id) => ToolResult::ok(format!("Pattern stored with id={id}")).to_json(),
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
         },
     }
 }
@@ -87,7 +99,7 @@ pub async fn learn_pattern(state: &ServerState, params: LearnPatternParams) -> S
 /// Record a user behavior event and get triggered suggestions.
 pub async fn behavior_record(state: &ServerState, params: BehaviorRecordParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => {
             let learner = db.learner();
             match learner
@@ -123,7 +135,7 @@ pub async fn behavior_record(state: &ServerState, params: BehaviorRecordParams) 
                         .to_json()
                     }
                 }
-                Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+                Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
             }
         }
     }
@@ -132,7 +144,7 @@ pub async fn behavior_record(state: &ServerState, params: BehaviorRecordParams) 
 /// Analyze all behavior events for a user and return learned patterns summary.
 pub async fn behavior_summary(state: &ServerState, params: BehaviorSummaryParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => {
             let learner = db.learner();
             match learner.analyze(&params.user_id, None).await {
@@ -155,7 +167,7 @@ pub async fn behavior_summary(state: &ServerState, params: BehaviorSummaryParams
                         ToolResult::ok(lines.join("\n")).to_json()
                     }
                 }
-                Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+                Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
             }
         }
     }
@@ -164,7 +176,7 @@ pub async fn behavior_summary(state: &ServerState, params: BehaviorSummaryParams
 /// Persist a fact directly into VoxDb agent_memory table.
 pub async fn memory_save_db(state: &ServerState, params: MemorySaveDbParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => match db
             .save_memory(vox_db::MemoryParams {
                 agent_id: &params.agent_id,
@@ -178,7 +190,7 @@ pub async fn memory_save_db(state: &ServerState, params: MemorySaveDbParams) -> 
             .await
         {
             Ok(id) => ToolResult::ok(format!("Memory saved with id={id}")).to_json(),
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
         },
     }
 }
@@ -186,7 +198,7 @@ pub async fn memory_save_db(state: &ServerState, params: MemorySaveDbParams) -> 
 /// Recall facts from VoxDb agent_memory table.
 pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams) -> String {
     match &state.db {
-        None => ToolResult::<String>::err("VoxDb not attached").to_json(),
+        None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB).to_json(),
         Some(db) => match db
             .recall_memory(
                 &params.agent_id,
@@ -207,7 +219,7 @@ pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams)
                     ToolResult::ok(lines.join("\n")).to_json()
                 }
             }
-            Err(e) => ToolResult::<String>::err(format!("{e}")).to_json(),
+            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json(),
         },
     }
 }

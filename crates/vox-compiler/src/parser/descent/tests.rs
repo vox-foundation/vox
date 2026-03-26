@@ -39,6 +39,15 @@ fn test_parse_component() {
 }
 
 #[test]
+fn test_parse_loading_decl() {
+    let m = parse_str("@loading fn RouteSpinner() to Element { ret <div/> }");
+    assert!(matches!(
+        &m.declarations[0],
+        Decl::Loading(l) if l.func.name == "RouteSpinner"
+    ));
+}
+
+#[test]
 fn test_parse_at_component_reactive_path_c() {
     let m =
         parse_str("@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}");

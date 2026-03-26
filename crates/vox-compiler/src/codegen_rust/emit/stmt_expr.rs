@@ -77,7 +77,7 @@ pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
     emit_stmt(stmt, indent, false, false, false)
 }
 
-fn emit_pattern(
+pub(super) fn emit_pattern(
     pat: &HirPattern,
     is_route: bool,
     is_actor: bool,
@@ -147,6 +147,16 @@ fn emit_expr_with(
 ) -> String {
     let fallible_db = mutation_tx;
     let emit = |e: &HirExpr| emit_expr_with(e, is_route, is_actor, mutation_tx);
+    if let Some(s) = super::stmt_expr_tail::try_emit_expr_tail(
+        expr,
+        is_route,
+        is_actor,
+        mutation_tx,
+        fallible_db,
+        &emit,
+    ) {
+        return s;
+    }
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
@@ -393,125 +403,8 @@ fn emit_expr_with(
                 format!("{}({})", c, a.join(", "))
             }
         }
-        HirExpr::ObjectLit(fields, _) => {
-            let props: Vec<String> = fields
-                .iter()
-                .map(|(k, v)| format!("\"{}\": {}", k, emit(v)))
-                .collect();
-            format!("serde_json::json!({{ {} }})", props.join(", "))
-        }
-        HirExpr::MethodCall(obj, method, args, _) => {
-            super::method_emit::emit_method_call(&emit, obj.as_ref(), method.as_str(), args, fallible_db)
-        }
-        HirExpr::DbTableOp {
-            table,
-            op,
-            args,
-            select_cols,
-            order_by,
-            limit,
-            plan,
-            ..
-        } => super::method_emit::emit_db_table_op(
-            &emit,
-            table,
-            *op,
-            args,
-            select_cols,
-            order_by,
-            limit,
-            plan.as_ref(),
-            fallible_db,
+        _ => unreachable!(
+            "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
         ),
-        HirExpr::Spawn(target, _) => {
-            if let HirExpr::Ident(n, _) = &**target {
-                format!("{}Handle::spawn()", n)
-            } else {
-                "/* error: spawn target must be actor name */".into()
-            }
-        }
-        HirExpr::If(cond, then_b, else_b, _) => {
-            let mut s = format!("if {} {{\n", emit(cond));
-            for stmt in then_b {
-                s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
-            }
-            s.push('}');
-            if let Some(else_stmts) = else_b {
-                s.push_str(" else {\n");
-                for stmt in else_stmts {
-                    s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
-                }
-                s.push('}');
-            }
-            s
-        }
-        HirExpr::FieldAccess(obj, field, _) => {
-            if let HirExpr::Ident(root, _) = obj.as_ref() {
-                if root == "std" && field == "args" {
-                    return "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
-                        .to_string();
-                }
-            }
-            format!("{}[\"{}\"].clone()", emit(obj), field)
-        }
-        HirExpr::Block(stmts, _) => {
-            let mut s = String::from("{\n");
-            for stmt in stmts {
-                s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
-            }
-            s.push('}');
-            s
-        }
-        HirExpr::With(operand, options, _) => {
-            super::with_emit::emit_with(&emit, operand.as_ref(), options.as_ref())
-        }
-        HirExpr::Lambda(params, _ret_ty, body, _) => {
-            let mut s = String::new();
-            s.push('|');
-            let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            s.push_str(&param_strs.join(", "));
-            s.push_str("| ");
-            s.push_str(&emit(body));
-            s
-        }
-        HirExpr::Pipe(left, right, _) => {
-            format!("({})({})", emit(right), emit(left))
-        }
-        HirExpr::For(name, iter, body, _) => {
-            let mut s = format!("for {} in {} {{\n", name, emit(iter));
-            if let HirExpr::Block(stmts, _) = &**body {
-                for stmt in stmts {
-                    s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
-                }
-            } else {
-                s.push_str(&format!("  {};\n", emit(body)));
-            }
-            s.push_str("}\n");
-            s
-        }
-        HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
-            "panic!(\"JSX cannot be rendered via the Rust backend yet\")".into()
-        }
-
-        HirExpr::Unary(op, expr, _) => {
-            let op_str = match op {
-                crate::hir::HirUnOp::Not => "!",
-                crate::hir::HirUnOp::Neg => "-",
-            };
-            format!("{}({})", op_str, emit(expr))
-        }
-        HirExpr::Match(obj, arms, _) => {
-            let mut s = format!("match {} {{\n", emit(obj));
-            for arm in arms {
-                s.push_str(&format!(
-                    "    {} => {{\n",
-                    emit_pattern(&arm.pattern, is_route, is_actor, mutation_tx)
-                ));
-                s.push_str(&emit(&arm.body));
-                s.push_str("\n    }\n");
-            }
-            s.push('}');
-            s
-        }
     }
 }

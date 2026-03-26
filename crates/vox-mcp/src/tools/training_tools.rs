@@ -7,6 +7,9 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use vox_orchestrator::{TaskCapabilityHints, TaskPriority};
 
+const REM_TRAIN_SUBMIT: &str =
+    "Check orchestrator health, agent queues, and that the Mens training docs match your backend (`docs/src/reference/mens-training.md`).";
+
 /// Arguments for `vox_schola_submit`.
 #[derive(Debug, Deserialize)]
 pub struct TrainSubmitParams {
@@ -88,6 +91,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
             "min_quality_score": params.min_quality_score,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(format!("{e}")).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(format!("{e}"), REM_TRAIN_SUBMIT)
+            .to_json(),
     }
 }

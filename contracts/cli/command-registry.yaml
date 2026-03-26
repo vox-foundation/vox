@@ -42,6 +42,7 @@ operations:
   - { surface: vox-cli, path: [scientia, publication-prepare-validated], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-preflight], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-zenodo-metadata], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [scientia, publication-openreview-profile], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-worthiness-evaluate], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-approve], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-submit-local], status: active, latin_ns: codex, ref_cli_required: true }

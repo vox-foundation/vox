@@ -9,6 +9,11 @@ use std::path::PathBuf;
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::AgentId;
 
+const REM_AFFINITY_CLAIM: &str =
+    "Release the path, pick another file, or negotiate transfer with the owning agent via affinity tools.";
+const REM_AFFINITY_TRANSFER: &str =
+    "Use `file_owner` / `my_files` to verify current ownership before transferring.";
+
 /// MCP arguments: workspace-relative or absolute path to inspect for an owning agent.
 #[derive(Debug, Deserialize)]
 pub struct FileOwnerParams {
@@ -100,10 +105,10 @@ pub async fn claim_file(state: &ServerState, params: ClaimFileParams) -> String 
 
     if let Some(existing) = orch.affinity_map().lookup(&path) {
         if existing != agent_id {
-            return ToolResult::<String>::err(format!(
-                "File already owned by agent {}",
-                existing.0
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("File already owned by agent {}", existing.0),
+                REM_AFFINITY_CLAIM,
+            )
             .to_json();
         }
     }
@@ -122,14 +127,18 @@ pub async fn transfer_file(state: &ServerState, params: TransferFileParams) -> S
 
     if let Some(existing) = orch.affinity_map().lookup(&path) {
         if existing != from_id {
-            return ToolResult::<String>::err(format!(
-                "File is owned by {}, not {}",
-                existing.0, from_id.0
-            ))
+            return ToolResult::<String>::err_with_remediation(
+                format!("File is owned by {}, not {}", existing.0, from_id.0),
+                REM_AFFINITY_TRANSFER,
+            )
             .to_json();
         }
     } else {
-        return ToolResult::<String>::err("File is not currently owned by anyone").to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "File is not currently owned by anyone",
+            REM_AFFINITY_TRANSFER,
+        )
+        .to_json();
     }
 
     // Perform transfer

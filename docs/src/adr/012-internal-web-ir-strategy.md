@@ -1,0 +1,298 @@
+---
+title: "ADR 012 — Internal Web IR strategy for Vox"
+description: "Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu"
+category: "reference"
+last_updated: 2026-03-26
+training_eligible: true
+---
+
+# ADR 012 — Internal Web IR strategy for Vox
+
+**Status**: Accepted  
+**Date**: 2026-03-26  
+**Revised**: 2026-03-26
+
+---
+
+## Context
+
+Vox frontend generation is currently split across mixed representations:
+
+- Path C reactive components emit from HIR (`reactive.rs`, `hir_emit.rs`).
+- `@component` legacy path still retains AST-shaped data (`HirComponent(pub ComponentDecl)`) in `hir/nodes/decl.rs`.
+- JSX/island rewriting lives in multiple emitters (`codegen_ts/jsx.rs` and `codegen_ts/hir_emit.rs`).
+- Islands hydration contract is tied to generated mount attributes and client template behavior (`data-vox-island`, `data-prop-*`, `island-mount.tsx`).
+
+This yields higher maintenance cost, divergence risk, and higher k-complexity for AI-first authoring.
+
+---
+
+## Current vs target representation (side-by-side)
+
+Canonical mapping and full legacy registry:
+[Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+
+### Current island schema (implemented)
+
+Source anchors:
+
+- `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_island`)
+- `crates/vox-compiler/src/ast/decl/ui.rs` (`IslandDecl`, `IslandProp`)
+- `crates/vox-compiler/src/hir/lower/mod.rs` (`Decl::Island -> HirIsland`)
+- `crates/vox-compiler/src/codegen_ts/hir_emit.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
+- `crates/vox-cli/src/templates/islands.rs` (runtime hydration parse)
+
+Current shape:
+
+```text
+@island Name { prop: Type, prop2?: Type }
+-> Decl::Island(IslandDecl { name, props: Vec<IslandProp> })
+-> HirIsland(pub IslandDecl)
+-> JSX rewrite to <div data-vox-island="Name" data-prop-*=... />
+-> hydration reads data-prop-* values as strings
+```
+
+### Target completed WebIR schema
+
+Source anchors:
+
+- `crates/vox-compiler/src/web_ir/mod.rs`
+- `crates/vox-compiler/src/web_ir/lower.rs`
+- `crates/vox-compiler/src/web_ir/validate.rs`
+- `crates/vox-compiler/src/web_ir/emit_tsx.rs`
+
+Target shape:
+
+```text
+HIR -> WebIrModule {
+  dom_nodes, view_roots, behavior_nodes, style_nodes, route_nodes, interop_nodes
+}
+with DomNode::IslandMount { island_name, props, ignored_child_count, span }
+then validate_web_ir(...) before target emit
+```
+
+### Critical architectural difference
+
+- Current model: representation semantics are split across parser/HIR and duplicated string emit paths.
+- Target model: representation semantics are centralized in WebIR lower + validate, with printers consuming a stable internal schema.
+
+### Parser-backed syntax boundaries (normative)
+
+This ADR is constrained by syntax currently accepted by the parser and verified in tests:
+
+- Component forms: `component Name(...) { ... }`, `@component Name(...) { ... }`, and `@component fn Name(...) to Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
+- Routes form: `routes { "path" to Component }` (`crates/vox-compiler/src/parser/descent/decl/tail.rs`).
+- Island form: `@island Name { prop: Type prop2?: Type }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`).
+- Style form: `style { .class { prop: "value" } }` via `parse_style_blocks()` (`crates/vox-compiler/src/parser/descent/expr/style.rs`).
+- Current island mount runtime contract: `data-vox-island` + `data-prop-*` read from DOM attributes in `island-mount.tsx` (`crates/vox-cli/src/templates/islands.rs`).
+
+Non-parser forms and speculative grammar are out of scope for this ADR revision.
+
+---
+
+## Decision
+
+Adopt **WebIR** as a first-class compiler layer between HIR and frontend target emitters.
+
+- Keep **React/TanStack** as the primary target backend.
+- Keep current island mount contract stable until an explicit `IslandMountV2` migration.
+- Reduce framework-shaped syntax leakage into `.vox`.
+
+---
+
+## WebIR specification (normative)
+
+### Root container
+
+`WebIrModule` is the canonical frontend emission input:
+
+- `dom_nodes: Vec<DomNode>`
+- `view_roots: Vec<(String, DomNodeId)>` (reactive component name → root of lowered `view:`)
+- `behavior_nodes: Vec<BehaviorNode>`
+- `style_nodes: Vec<StyleNode>`
+- `route_nodes: Vec<RouteNode>`
+- `interop_nodes: Vec<InteropNode>`
+- `diagnostic_nodes: Vec<WebIrDiagnostic>`
+- `spans: SourceSpanTable`
+- `version: WebIrVersion`
+
+### Node families
+
+1. `DomNode`: `Element`, `Text`, `Fragment`, `Slot`, `Conditional`, `Loop`, `IslandMount`, `Expr` (TS/JSX escape hatch leaf)
+2. `BehaviorNode`: `StateDecl`, `DerivedDecl`, `EffectDecl`, `EventHandler`, `Action`
+3. `StyleNode`: `Rule`, `Selector`, `Declaration`, `TokenRef`, `AtRule`
+4. `RouteNode`: `RouteTree`, `LoaderContract`, `ServerFnContract`, `MutationContract`
+5. `InteropNode`: `ReactComponentRef`, `ExternalModuleRef`, `EscapeHatchExpr`
+
+### Nullability and safety policy
+
+- Every optional field must be explicit and classified as `Required`, `Optional`, or `Defaulted`.
+- Nullable semantics are resolved in lowering/validation stages, not at string-printer time.
+- Emitters must not invent implicit `undefined` values for required fields.
+- WebIR validation fails hard on unresolved optionality ambiguity at target boundary.
+
+### Lowering boundaries
+
+- AST/HIR -> `WebIrLoweringPass`
+- WebIR -> `WebIrValidationPass`
+- WebIR -> target emitters (`ReactTanStackEmitter`, `SsgHtmlEmitter`, future emitters)
+
+### Compatibility contract
+
+- Existing island hydration attributes are a compatibility surface and remain unchanged in phase 1 and phase 2.
+- Any contract break requires a versioned migration (`IslandMountV2`) and fixture parity gate.
+
+---
+
+## Measurement model and quantified trade-offs
+
+### Scoring method
+
+Each strategy is scored using:
+
+- criterion score `0..10`
+- fixed weight by Vox priority
+- confidence level (`High`, `Medium`, `Low`)
+
+### Weighted scorecard
+
+| Criterion | Weight | Path A: Current direct emit | Path B: WebIR + React target (chosen) | Path C: custom runtime first |
+| --- | ---: | ---: | ---: | ---: |
+| k-complexity reduction | 25 | 3 | 9 | 10 |
+| maintainability | 20 | 4 | 8 | 7 |
+| non-nullability/safety | 15 | 5 | 8 | 9 |
+| React ecosystem interop | 20 | 10 | 9 | 4 |
+| runtime/build performance | 10 | 6 | 8 | 9 |
+| migration safety | 10 | 9 | 6 | 2 |
+| **Weighted total (/100)** | **100** | **58.0** | **82.5** | **71.5** |
+
+### Measurable baselines and targets
+
+1. Duplicate emitter paths
+   - Baseline: dual JSX/island pathways across `jsx.rs` and `hir_emit.rs`.
+   - Target: one canonical island rewrite surface in WebIR printer path.
+2. Framework-shaped constructs in `.vox`
+   - Baseline: mixed legacy hook/JSX influence.
+   - Target: reduce framework-shaped author surface by at least 40% over migration window.
+3. Nullability ambiguity at emit boundary
+   - Baseline: ad hoc string-level fallback behavior.
+   - Target: zero unresolved required-field ambiguity after WebIR validation.
+4. Divergence defects
+   - Baseline: feature updates often touch parallel emit paths.
+   - Target: 50% fewer dual-path edits for new UI features after phase 2.
+
+### Acceptance gates
+
+- G1: WebIR lower + validate pass on canonical fixture corpus.
+- G2: React/TanStack parity >= 95% on canonical generated artifacts.
+- G3: Island mount contract parity == 100% for compatibility fixtures.
+- G4: Nullability ambiguity metric reaches zero unresolved required fields.
+- G5: WebIR mode passes CI + target perf budgets.
+
+---
+
+## 90% functionality target
+
+### Included capability (first-class)
+
+- Component composition and props
+- State/derived/effect lifecycle
+- Event handlers and forms
+- Routes/data loading and server function contracts
+- Islands interop and hydration metadata
+
+### Deliberate exclusions (escape hatch)
+
+- Rare framework-internal timing hacks
+- Exotic runtime hooks without stable cross-target semantics
+
+### Pipeline
+
+```mermaid
+flowchart LR
+  voxSource[VoxSource] --> astLayer[AstLayer]
+  astLayer --> hirLayer[HirLayer]
+  hirLayer --> webIrLayer[WebIrLayer]
+  webIrLayer --> validateLayer[WebIrValidate]
+  validateLayer --> reactEmit[ReactTanStackEmitter]
+  validateLayer --> ssgEmit[SsgHtmlEmitter]
+  validateLayer --> futureEmit[FutureEmitter]
+```
+
+---
+
+## Migration guardrails
+
+### Phase 0: preflight contracts
+
+- Add parity fixtures for generated outputs.
+- Freeze island contract fixtures.
+
+### Phase 1: UI convergence
+
+- Lower AST-retained component bodies into WebIR-compatible form.
+- Decommission duplicate JSX/island transform logic.
+
+### Phase 2: route/style/data convergence
+
+- Route/data contracts generated through `RouteNode`.
+- Style semantics generated through `StyleNode` and validated selectors/declarations.
+
+### Phase 3: policy and deprecation
+
+- Mark direct framework-shaped patterns as legacy.
+- Keep explicit interop escape hatches with policy and diagnostics.
+
+---
+
+## Assumption audit (confidence-graded)
+
+| Assumption | Status | Confidence | Basis |
+| --- | --- | --- | --- |
+| React interop remains critical for Vox web adoption | Supported | High | React Compiler docs and Rules of React |
+| Structured IR lowers long-term maintenance cost vs direct string emit | Supported | High | SWC architecture transform/codegen separation |
+| Explicit optionality materially improves null-safety outcomes | Supported | High | TypeScript `strictNullChecks` model |
+| A typed CSS value model is preferable to pure string CSS emit internals | Supported | Medium | CSS Typed OM model + Lightning CSS typed value surface |
+| Full custom runtime should replace React near-term | Rejected (near-term) | Medium | Ecosystem and migration-risk trade-offs |
+| WebIR can preserve >=90% practical React workflows with escape hatches | Supported | Medium | Current Vox islands + adapter model + compiler-backed interop boundary |
+| Route/data payloads must remain serializable across server-client boundaries | Supported | Medium | React `use server` serialization constraints |
+
+---
+
+## External references used
+
+- [React Compiler Introduction](https://react.dev/learn/react-compiler)
+- [Compiling Libraries with React Compiler](https://react.dev/reference/react-compiler/compiling-libraries)
+- [Rules of React](https://react.dev/reference/rules)
+- [TypeScript strictNullChecks](https://www.typescriptlang.org/tsconfig/strictNullChecks.html)
+- [ESTree base spec](https://raw.githubusercontent.com/estree/estree/master/es5.md)
+- [JSX AST extensions](https://raw.githubusercontent.com/facebook/jsx/main/AST.md)
+- [Babel parser AST and ESTree deviations](https://babel.dev/docs/babel-parser)
+- [Svelte compiler parse/transform reference](https://svelte.dev/docs/svelte-compiler)
+- [SWC architecture](https://raw.githubusercontent.com/swc-project/swc/main/ARCHITECTURE.md)
+- [CSS Typed OM overview](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Typed_OM_API)
+- [Lightning CSS typed AST surface](https://raw.githubusercontent.com/parcel-bundler/lightningcss/master/node/ast.d.ts)
+- [Astro islands architecture](https://docs.astro.build/en/concepts/islands/)
+- [Qwik resumability concepts](https://qwik.dev/docs/concepts/resumable/)
+- [esbuild FAQ](https://esbuild.github.io/faq/)
+
+---
+
+## Consequences
+
+- Frontend codegen in `codegen_ts` moves to printer-over-WebIR architecture.
+- New frontend features should land in WebIR lowering + validation first, then emitters.
+- Documentation and implementation blueprint must stay linked to this ADR.
+- Normative schema, `validate::validate_web_ir`, **`lower::lower_hir_to_web_ir`**, and **`emit_tsx::emit_component_view_tsx`** live in `crates/vox-compiler/src/web_ir/`. The main TS codegen path still uses `codegen_ts` directly; WebIR is the convergence layer for tests and future printer migration.
+
+---
+
+## Related decisions and docs
+
+- [ADR 010 — TanStack web spine](010-tanstack-web-spine.md)
+- [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md)
+- [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md)
+- [Compiler Architecture](../explanation/expl-architecture.md)
+- [Compiler Lowering Phases](../explanation/expl-compiler-lowering.md)
+- [Vox web stack SSOT](../reference/vox-web-stack.md)
+- [vox-codegen-ts API](../api/vox-codegen-ts.md)

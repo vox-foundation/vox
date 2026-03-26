@@ -5,6 +5,7 @@ This file is the **required** SSOT for **secret management (Clavis)**. It does *
 ## Architecture & compiler pipeline (pointers)
 
 - **End-to-end pipeline (lex → parse → AST → HIR → typecheck → codegen):** [`docs/src/explanation/expl-architecture.md`](docs/src/explanation/expl-architecture.md)
+- **Internal web IR strategy (compiler frontend boundary):** [`docs/src/adr/012-internal-web-ir-strategy.md`](docs/src/adr/012-internal-web-ir-strategy.md) — Phase 0 schema lives in **`crates/vox-compiler/src/web_ir/`** (`mod.rs`, `validate.rs`).
 - **Lowering / HIR:** [`docs/src/explanation/expl-compiler-lowering.md`](docs/src/explanation/expl-compiler-lowering.md)
 - **Runtime / execution context:** [`docs/src/explanation/expl-runtime.md`](docs/src/explanation/expl-runtime.md)
 - **CLI surface:** [`docs/src/reference/cli.md`](docs/src/reference/cli.md)
