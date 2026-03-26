@@ -6,7 +6,7 @@ use vox_ludus::db as ludus_db;
 /// Create a new collegium (team).
 pub async fn collegium_new(name: &str, description: Option<&str>) -> Result<()> {
     let codex = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let id = name.to_lowercase().replace(' ', "-");
 
     ludus_db::create_collegium(&codex, &id, name, description, &user_id).await?;
@@ -83,7 +83,7 @@ pub async fn collegium_list() -> Result<()> {
 /// Join a collegium.
 pub async fn collegium_join(id: &str) -> Result<()> {
     let codex = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     ludus_db::join_collegium(&codex, id, &user_id, "legionnaire").await?;
 
@@ -98,7 +98,7 @@ pub async fn collegium_join(id: &str) -> Result<()> {
 /// Show status of a collegium.
 pub async fn collegium_status(id: Option<&str>) -> Result<()> {
     let codex = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     let collegium = if let Some(cid) = id {
         ludus_db::get_collegium(&codex, cid).await?

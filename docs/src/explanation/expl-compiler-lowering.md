@@ -9,6 +9,8 @@ training_eligible: true
 
 Understand how the Vox compiler transforms high-level source code into optimized Rust and TypeScript output.
 
+Implementation note: current production code keeps these stages under `crates/vox-compiler/src/` with explicit modules for parser, HIR lowering, typecheck, and dual-target emitters.
+
 ## 1. Syntax to AST (Abstract Syntax Tree)
 
 The `vox-parser` converts the raw `.vox` file into a tree of declarations. This phase ensures the code is syntactically valid but does not yet understand types or decorators.

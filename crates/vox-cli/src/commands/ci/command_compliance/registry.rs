@@ -6,52 +6,12 @@ use serde_json::Value as JsonValue;
 use std::collections::HashSet;
 use std::path::Path;
 
+pub(crate) use crate::command_registry_model::RegistryFile;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 pub(crate) const REGISTRY_REL: &str = "contracts/cli/command-registry.yaml";
 pub(crate) const SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";
 pub(crate) const MCP_TOOL_REGISTRY_REL: &str = "contracts/mcp/tool-registry.canonical.yaml";
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct RegistryFile {
-    pub(crate) schema_version: u32,
-    pub(crate) operations: Vec<RegistryOperation>,
-    #[serde(default)]
-    pub(crate) script_duals: Vec<ScriptDual>,
-    /// Environment variable names that must appear in `docs/src/reference/env-vars-ssot.md`.
-    #[serde(default)]
-    pub(crate) env_var_ssot_index: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct RegistryOperation {
-    pub(crate) surface: String,
-    pub(crate) path: Vec<String>,
-    #[serde(default = "default_status")]
-    pub(crate) status: String,
-    #[serde(default)]
-    pub(crate) latin_ns: Option<String>,
-    #[serde(default = "default_true")]
-    pub(crate) ref_cli_required: bool,
-    #[serde(default)]
-    pub(crate) reachability_required: Option<bool>,
-    #[serde(default)]
-    pub(crate) handler_rust: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct ScriptDual {
-    pub(crate) script_glob: String,
-    pub(crate) canonical_cli: String,
-}
-
-fn default_status() -> String {
-    "active".to_string()
-}
-
-fn default_true() -> bool {
-    true
-}
 
 pub(crate) fn validate_registry_against_json_schema(
     repo_root: &Path,

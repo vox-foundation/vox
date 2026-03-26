@@ -27,7 +27,8 @@ pub struct AgentEventsParams {
 /// MCP arguments: cap rows pulled per pseudo-agent when listing spend history.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CostHistoryParams {
-    /// Per-agent SQL `LIMIT` before global merge.
+    /// Per-agent SQL `LIMIT` before global merge (VS Code extension historically sent `buckets`).
+    #[serde(alias = "buckets")]
     pub limit_per_agent: Option<i64>,
 }
 

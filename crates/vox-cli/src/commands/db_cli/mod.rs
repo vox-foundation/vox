@@ -4,7 +4,9 @@ mod subcommands;
 mod types;
 
 pub use subcommands::DbCli;
-pub use types::{DbPreflightProfileCli, PublicationPrepareBodyCli};
+pub use types::{
+    ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
+};
 
 /// Dispatch `vox db` subcommands to `commands::db` implementations.
 pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
@@ -14,6 +16,12 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         DbCli::Audit { timestamps } => db::audit(timestamps).await,
         DbCli::Reset { file } => db::reset(file.as_ref()).await,
         DbCli::Schema { file } => db::schema(file.as_ref()).await,
+        DbCli::Explain {
+            file,
+            query,
+            compact,
+            jsonl,
+        } => db::explain(file.as_ref(), query.as_deref(), !compact, jsonl).await,
         DbCli::Sample { table, limit } => db::sample(&table, limit).await,
         DbCli::Migrate { file } => db::migrate(file.as_ref()).await,
         DbCli::Export { user_id, output } => db::export(&user_id, output.as_ref()).await,
@@ -171,6 +179,18 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
         DbCli::PublicationZenodoMetadata { publication_id } => {
             db::publication_zenodo_metadata(&publication_id).await
         }
+        DbCli::PublicationScholarlyStagingExport {
+            publication_id,
+            output_dir,
+            venue,
+        } => {
+            db::publication_scholarly_staging_export(
+                &publication_id,
+                output_dir.as_path(),
+                venue.to_venue(),
+            )
+            .await
+        }
         DbCli::PublicationWorthinessEvaluate {
             contract_yaml,
             metrics_json,
@@ -179,11 +199,78 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             publication_id,
             approver,
         } => db::publication_approve(&publication_id, &approver).await,
-        DbCli::PublicationSubmitLocal { publication_id } => {
-            db::publication_submit_local(&publication_id).await
+        DbCli::PublicationSubmitLocal {
+            publication_id,
+            adapter,
+        } => {
+            db::publication_submit_local(&publication_id, adapter.as_deref()).await
         }
         DbCli::PublicationStatus { publication_id } => {
             db::publication_status(&publication_id).await
+        }
+        DbCli::PublicationScholarlyRemoteStatus {
+            publication_id,
+            external_submission_id,
+        } => {
+            db::publication_scholarly_remote_status(
+                &publication_id,
+                external_submission_id.as_deref(),
+            )
+            .await
+        }
+        DbCli::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
+            db::publication_scholarly_remote_status_sync_all(&publication_id).await
+        }
+        DbCli::PublicationScholarlyRemoteStatusSyncBatch {
+            limit,
+            iterations,
+            interval_secs,
+        } => {
+            db::publication_scholarly_remote_status_sync_batch(limit, iterations, interval_secs).await
+        }
+        DbCli::PublicationArxivHandoffRecord {
+            publication_id,
+            stage,
+            operator,
+            note,
+            arxiv_id,
+        } => {
+            db::publication_arxiv_handoff_record(
+                &publication_id,
+                stage,
+                operator.as_deref(),
+                note.as_deref(),
+                arxiv_id.as_deref(),
+            )
+            .await
+        }
+        DbCli::PublicationExternalJobsDue { limit } => {
+            db::publication_external_jobs_due(limit).await
+        }
+        DbCli::PublicationExternalJobsDeadLetter { limit } => {
+            db::publication_external_jobs_dead_letter(limit).await
+        }
+        DbCli::PublicationExternalJobsReplay { job_id } => {
+            db::publication_external_jobs_replay(job_id).await
+        }
+        DbCli::PublicationExternalJobsTick {
+            limit,
+            lock_ttl_ms,
+            lock_owner,
+            iterations,
+            interval_secs,
+        } => {
+            db::publication_external_jobs_tick(
+                limit,
+                lock_ttl_ms,
+                lock_owner.as_deref(),
+                iterations,
+                interval_secs,
+            )
+            .await
+        }
+        DbCli::PublicationExternalPipelineMetrics { since_hours } => {
+            db::publication_external_pipeline_metrics(since_hours).await
         }
         DbCli::PublicationMediaUpsert {
             publication_id,

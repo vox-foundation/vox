@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
+use super::guards::run_sql_surface_guard;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
@@ -252,6 +253,8 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
 pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     check_docs_ssot(root)?;
     check_codex_ssot(root)?;
+    // Full-workspace scan; transitional allowlist in docs/agents/sql-connection-api-allowlist.txt
+    run_sql_surface_guard(root, true)?;
     command_compliance::run(root)?;
     contracts_index::run(root)?;
     scientia_worthiness_contract::run(root)?;

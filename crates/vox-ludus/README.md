@@ -18,11 +18,11 @@ Gamification layer for the Vox programming language. Code companions, daily ques
 ## CLI Commands
 
 ```bash
-vox gamify status              # Show your profile
-vox gamify companion list      # List code companions
-vox gamify companion adopt     # Adopt a new companion
-vox gamify quest list           # View daily quests
-vox gamify battle start         # Start a bug battle
+vox ludus status               # Show your profile
+vox ludus companion list       # List code companions
+vox ludus companion create     # Adopt a new companion
+vox ludus quest list           # View daily quests
+vox ludus battle start         # Start a bug battle
 ```
 
 ## Design

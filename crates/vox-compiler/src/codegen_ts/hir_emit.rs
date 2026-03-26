@@ -102,6 +102,65 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
+        HirExpr::DbTableOp {
+            table,
+            op,
+            args,
+            select_cols,
+            order_by,
+            limit,
+            plan,
+            ..
+        } => {
+            let method = match op {
+                crate::hir::HirDbTableOp::Insert => "insert",
+                crate::hir::HirDbTableOp::Get => "get",
+                crate::hir::HirDbTableOp::Delete => "delete",
+                crate::hir::HirDbTableOp::All => "all",
+                crate::hir::HirDbTableOp::FilterRecord => "filter",
+                crate::hir::HirDbTableOp::Count => "count",
+                crate::hir::HirDbTableOp::UnsafeQueryRawClause => "unsafe_query_raw_clause",
+            };
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| emit_hir_expr(&a.value, state_names))
+                .collect();
+            let mut base = format!("db.{table}.{method}({})", args_str.join(", "));
+            if let Some((col, asc)) = order_by {
+                let dir = if *asc { "asc" } else { "desc" };
+                base.push_str(&format!(".order_by(\"{}\", \"{}\")", col, dir));
+            }
+            if let Some(lim) = limit {
+                base.push_str(&format!(".limit({})", emit_hir_expr(lim.as_ref(), state_names)));
+            }
+            if let Some(cols) = select_cols {
+                let cols_js: Vec<String> = cols
+                    .iter()
+                    .map(|c| format!("\"{}\"", c.replace('\"', "\\\"")))
+                    .collect();
+                base.push_str(&format!(".select({})", cols_js.join(", ")));
+            }
+            if let Some(p) = plan {
+                if p.capabilities.requires_sync {
+                    base.push_str(".sync()");
+                }
+                if let Some(mode) = p.capabilities.retrieval_mode {
+                    let m = match mode {
+                        crate::hir::HirDbRetrievalMode::Fts => "fts",
+                        crate::hir::HirDbRetrievalMode::Vector => "vector",
+                        crate::hir::HirDbRetrievalMode::Hybrid => "hybrid",
+                    };
+                    base.push_str(&format!(".using(\"{m}\")"));
+                }
+                if let Some(topic) = &p.capabilities.live_topic {
+                    base.push_str(&format!(".live(\"{}\")", topic.replace('\"', "\\\"")));
+                }
+                if let Some(scope) = &p.capabilities.orchestration_scope {
+                    base.push_str(&format!(".scope(\"{}\")", scope.replace('\"', "\\\"")));
+                }
+            }
+            base
+        }
         HirExpr::MethodCall(obj, method, args, _) => {
             let obj_str = emit_hir_expr(obj, state_names);
             let args_str: Vec<String> = args
@@ -326,6 +385,11 @@ fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSe
         }
         HirExpr::Call(callee, args, _, _) => {
             collect_deps(callee, state_names, deps);
+            for arg in args {
+                collect_deps(&arg.value, state_names, deps);
+            }
+        }
+        HirExpr::DbTableOp { args, .. } => {
             for arg in args {
                 collect_deps(&arg.value, state_names, deps);
             }

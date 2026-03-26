@@ -1,19 +1,10 @@
 // Thin chat controller — all history, context injection and LLM generation live in Rust (vox-mcp).
 // TypeScript only: renders messages, captures user input, forwards to MCP.
 
-import * as vscode from 'vscode';
+import type { ChatMessage } from '../types';
 import { VoxMcpClient } from '../core/VoxMcpClient';
 
-export interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: number;
-    context_files?: string[];
-    tokens?: number;
-    is_streaming?: boolean;
-    model_used?: string;
-}
+export type { ChatMessage };
 
 export class ChatController {
     private _onUpdate: (messages: ChatMessage[]) => void;
@@ -27,7 +18,7 @@ export class ChatController {
 
     /** Fetch the authoritative history from the Rust session store. */
     async loadHistory(): Promise<void> {
-        const result = await this._mcp.call<ChatMessage[]>('vox_chat_history', {});
+        const result = await this._mcp.chatHistory();
         this._onUpdate(Array.isArray(result) ? result : []);
     }
 
@@ -52,15 +43,12 @@ export class ChatController {
         };
 
         // Immediately notify webview with these two pending messages
-        const currentHistory = await this._mcp.call<ChatMessage[]>('vox_chat_history', {});
+        const currentHistory = await this._mcp.chatHistory();
         const base = Array.isArray(currentHistory) ? currentHistory : [];
         this._onUpdate([...base, optimistic, streamingMsg]);
 
         // Call native MCP tool — Rust resolves @mentions, injects context, queries LLM
-        const result = await this._mcp.call<{ message: ChatMessage; history: ChatMessage[] }>(
-            'vox_chat_message',
-            { prompt, context_files: contextFiles },
-        );
+        const result = await this._mcp.chatMessage(prompt, contextFiles);
 
         if (result?.history) {
             this._onUpdate(result.history);
@@ -71,7 +59,7 @@ export class ChatController {
     }
 
     async clearHistory(): Promise<void> {
-        await this._mcp.call('vox_session_reset', {});
+        await this._mcp.sessionReset();
         this._onUpdate([]);
     }
 }

@@ -13,8 +13,8 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 ## Non-goals (near term)
 
 - Running **Ollama** or a full **Ollama-compatible** daemon on stock consumer phones.
-- Running **`vox schola train`** with **Candle QLoRA** or **Burn LoRA** *on* the phone (Rust + wgpu/Candle stacks are workstation targets).
-- Promising **end-to-end LLM LoRA fine-tuning** on-device with the same maturity as workstation `vox schola train` (industry runtimes still steer operators toward **train off-device, infer on-device** for LLMs).
+- Running **`vox mens train`** with **Candle QLoRA** or **Burn LoRA** *on* the phone (Rust + wgpu/Candle stacks are workstation targets).
+- Promising **end-to-end LLM LoRA fine-tuning** on-device with the same maturity as workstation `vox mens train` (industry runtimes still steer operators toward **train off-device, infer on-device** for LLMs).
 
 ## Industry context (2025–2026)
 
@@ -26,7 +26,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 
 | Tier | Train | Infer | Mens node | Notes |
 |------|--------|--------|-----------|--------|
-| **Workstation** | `vox schola train` (Burn / Candle) | `vox mens serve`, Ollama, cloud OpenAI-compatible | Yes (`vox-mcp`, `vox run`, `vox populi`) | Default SSOT paths. |
+| **Workstation** | `vox mens train` (Burn / Candle) | `vox mens serve`, Ollama, cloud OpenAI-compatible | Yes (`vox-mcp`, `vox run`, `vox populi`) | Default SSOT paths. |
 | **Mobile native** | **Off-device** (`mobile_edge` contract / preset) | LiteRT-LM, Core ML, vendor SDKs | Yes — HTTP control plane + [`NodeRecord`](../../../crates/vox-populi/src/lib.rs) | Register capabilities from the app; see mens env vars below. |
 | **Browser** | Off-device | WebGPU + WASM (when available) | Optional (HTTP client to mens) | Not WASI `vox run --isolation wasm` (that is desktop Wasmtime). |
 
@@ -34,7 +34,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 
 1. On a **GPU or CPU workstation**, run:
 
-   `vox schola train … --deployment-target mobile_edge`
+   `vox mens train … --deployment-target mobile_edge`
 
    or `--preset mobile_edge` (implies the same deployment target).
 

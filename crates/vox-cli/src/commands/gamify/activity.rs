@@ -17,7 +17,7 @@ pub async fn record_activity() -> Result<()> {
         Err(_) => return Ok(()),
     };
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = match db::get_profile(&db, &user_id).await.unwrap_or(None) {
         Some(p) => p,
         None => {
@@ -74,7 +74,7 @@ pub async fn record_activity() -> Result<()> {
 /// Display gamification status (profile overview).
 pub async fn status() -> Result<()> {
     let db = get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = match db::get_profile(&db, &user_id).await? {
         Some(p) => p,
         None => {
@@ -113,11 +113,11 @@ pub async fn status() -> Result<()> {
     println!();
     println!(
         "  Use {} to see your companions",
-        "vox gamify companion list".bright_green()
+        "vox ludus companion-list".bright_green()
     );
     println!(
         "  Use {} to see daily quests",
-        "vox gamify quest list".bright_green()
+        "vox ludus quest-list".bright_green()
     );
 
     Ok(())

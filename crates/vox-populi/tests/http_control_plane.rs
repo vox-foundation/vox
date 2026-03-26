@@ -6,7 +6,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use vox_populi::http_client::PopuliHttpClient;
-use vox_populi::transport::{PopuliHttpAuth, PopuliTransportState};
+use vox_populi::transport::{
+    AdminQuarantineRequest, PopuliHttpAuth, PopuliTransportState,
+};
 use vox_populi::{node_record_for_current_process, transport};
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -377,4 +379,268 @@ async fn bootstrap_exchange_works_once() {
             None => std::env::remove_var("VOX_MESH_SCOPE_ID"),
         }
     }
+}
+
+#[tokio::test]
+async fn quarantine_blocks_claim_until_cleared() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("q-worker".into(), None);
+    http.join(&node).await.unwrap();
+    http.admin_quarantine(&AdminQuarantineRequest {
+        node_id: "q-worker".into(),
+        quarantined: true,
+    })
+    .await
+    .unwrap();
+    http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+        sender_agent_id: "0".into(),
+        receiver_agent_id: "99".into(),
+        message_type: vox_populi::transport::A2A_MESSAGE_JOB_SUBMIT.into(),
+        payload: "{}".into(),
+        idempotency_key: None,
+        privacy_class: None,
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
+    })
+    .await
+    .unwrap();
+    let r = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "99",
+            "claimer_node_id": "q-worker",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), reqwest::StatusCode::OK);
+    let body: serde_json::Value = r.json().await.unwrap();
+    assert_eq!(body["messages"].as_array().unwrap().len(), 0);
+    http.admin_quarantine(&AdminQuarantineRequest {
+        node_id: "q-worker".into(),
+        quarantined: false,
+    })
+    .await
+    .unwrap();
+    let r2i = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "99",
+            "claimer_node_id": "q-worker",
+        }))
+        .send()
+        .await
+        .unwrap();
+    let body2: serde_json::Value = r2i.json().await.unwrap();
+    assert_eq!(body2["messages"].as_array().unwrap().len(), 1);
+    server.abort();
+}
+
+#[tokio::test]
+async fn a2a_lease_renew_requires_holder() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("lease-a".into(), None);
+    http.join(&node).await.unwrap();
+    http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+        sender_agent_id: "0".into(),
+        receiver_agent_id: "7".into(),
+        message_type: "x".into(),
+        payload: "{}".into(),
+        idempotency_key: None,
+        privacy_class: None,
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
+    })
+    .await
+    .unwrap();
+    let inbox: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "7",
+            "claimer_node_id": "lease-a",
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let mid = inbox["messages"][0]["id"].as_u64().unwrap();
+    http.relay_a2a_lease_renew(&vox_populi::transport::A2ALeaseRenewRequest {
+        receiver_agent_id: "7".into(),
+        message_id: mid,
+        claimer_node_id: "lease-a".into(),
+    })
+    .await
+    .unwrap();
+    let node_b = node_record_for_current_process("lease-b".into(), None);
+    http.join(&node_b).await.unwrap();
+    let bad = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/lease-renew"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "7",
+            "message_id": mid,
+            "claimer_node_id": "lease-b",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(bad.status(), reqwest::StatusCode::CONFLICT);
+    server.abort();
+}
+
+#[tokio::test]
+async fn mesh_jwt_hs256_accepts_and_rejects_jti_replay() {
+    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct Claims<'a> {
+        role: &'a str,
+        jti: &'a str,
+        exp: u64,
+    }
+
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let jwt_rt = transport::PopuliMeshAuthRuntime::with_jwt_hmac_only("jwt-unit-secret-for-test");
+    let app = transport::populi_http_app_with_auth(state, transport::PopuliHttpAuth::Custom(jwt_rt));
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let exp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        + 3600;
+    let token = encode(
+        &Header::new(Algorithm::HS256),
+        &Claims {
+            role: "worker",
+            jti: "jti-unit-once",
+            exp,
+        },
+        &EncodingKey::from_secret(b"jwt-unit-secret-for-test"),
+    )
+    .unwrap();
+    let url = format!("{base}/v1/populi/nodes");
+    let ok = reqwest::Client::new()
+        .get(&url)
+        .header(reqwest::header::AUTHORIZATION, format!("Bearer {}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(ok.status(), reqwest::StatusCode::OK);
+    let replay = reqwest::Client::new()
+        .get(&url)
+        .header(reqwest::header::AUTHORIZATION, format!("Bearer {}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(replay.status(), reqwest::StatusCode::UNAUTHORIZED);
+    server.abort();
+}
+
+#[tokio::test]
+async fn job_result_attestation_requires_full_key_when_fields_present() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let err = http
+        .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: "1".into(),
+            receiver_agent_id: "2".into(),
+            message_type: vox_populi::transport::A2A_MESSAGE_JOB_RESULT.into(),
+            payload: "{}".into(),
+            idempotency_key: None,
+            privacy_class: None,
+            payload_blake3_hex: Some(
+                "0000000000000000000000000000000000000000000000000000000000000000".into(),
+            ),
+            worker_ed25519_sig_b64: Some("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into()),
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("503")
+            || err.to_string().to_ascii_lowercase().contains("unavailable"),
+        "{err}"
+    );
+    server.abort();
+}
+
+#[tokio::test]
+async fn job_result_attestation_accepts_valid_signature() {
+    use base64::Engine as _;
+    use ed25519_dalek::{Signer, SigningKey};
+    use rand::RngCore;
+    use rand::rngs::OsRng;
+
+    let mut seed = [0u8; 32];
+    OsRng.fill_bytes(&mut seed);
+    let sk = SigningKey::from_bytes(&seed);
+    let vk = sk.verifying_key();
+
+    let state =
+        PopuliTransportState::new().with_worker_result_verify_key(Some(vk.to_bytes()));
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let payload = r#"{"status":"done"}"#;
+    let digest = *blake3::hash(payload.as_bytes()).as_bytes();
+    let sig = sk.sign(&digest);
+    let digest_hex = data_encoding::HEXLOWER.encode(&digest);
+    let sig_b64 = base64::engine::general_purpose::STANDARD.encode(sig.to_bytes());
+    http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+        sender_agent_id: "1".into(),
+        receiver_agent_id: "2".into(),
+        message_type: vox_populi::transport::A2A_MESSAGE_JOB_RESULT.into(),
+        payload: payload.into(),
+        idempotency_key: None,
+        privacy_class: None,
+        payload_blake3_hex: Some(digest_hex),
+        worker_ed25519_sig_b64: Some(sig_b64),
+    })
+    .await
+    .unwrap();
+    server.abort();
 }

@@ -1,7 +1,6 @@
 //! In-app notifications persistence.
 
 use anyhow::Result;
-use turso::params;
 use vox_db::Codex;
 
 /// Default TTL for notifications: 7 days in seconds.
@@ -14,23 +13,18 @@ pub async fn insert_notification(
 ) -> Result<()> {
     let expires = notif.created_at + NOTIF_TTL_SECS;
     let notif_type = format!("{:?}", notif.notification_type);
-    db.connection()
-        .execute(
-            "INSERT OR IGNORE INTO gamify_notifications
-             (id, user_id, notification_type, title, message, read, created_at, expires_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                notif.id.clone(),
-                notif.user_id.clone(),
-                notif_type,
-                notif.title.clone(),
-                notif.message.clone(),
-                if notif.read { 1i64 } else { 0i64 },
-                notif.created_at,
-                expires,
-            ],
-        )
-        .await?;
+    db.insert_gamify_notification_ignore(
+        notif.id.as_str(),
+        notif.user_id.as_str(),
+        notif_type.as_str(),
+        notif.title.as_str(),
+        notif.message.as_str(),
+        notif.read,
+        notif.created_at,
+        expires,
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -41,68 +35,60 @@ pub async fn list_unread_notifications(
     limit: u32,
 ) -> Result<Vec<crate::notifications::Notification>> {
     let now = crate::util::now_unix();
-    let mut rows = db
-        .connection()
-        .query(
-            "SELECT id, notification_type, title, message, created_at
-             FROM gamify_notifications
-             WHERE user_id = ?1 AND read = 0 AND (expires_at = 0 OR expires_at > ?2)
-             ORDER BY created_at DESC
-             LIMIT ?3",
-            params![user_id, now, limit as i64],
-        )
-        .await?;
+    let rows = db
+        .list_gamify_unread_notifications(user_id, now, limit as i64)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let mut out = Vec::new();
-    while let Some(row) = rows.next().await? {
-        let notif_type_str: String = row.get(1)?;
+    for (id, notif_type_str, title, message, created_at) in rows {
         let notif_type = parse_notification_type(&notif_type_str);
         out.push(crate::notifications::Notification {
-            id: row.get(0)?,
+            id,
             user_id: user_id.to_string(),
             notification_type: notif_type,
-            title: row.get(2)?,
-            message: row.get(3)?,
+            title,
+            message,
             read: false,
-            created_at: row.get::<i64>(4)?,
+            created_at,
         });
     }
     Ok(out)
 }
 
-/// Mark a notification as read by ID.
+/// Mark a notification as read by ID (any user row — prefer [`mark_notification_read_for_user`] from MCP).
 pub async fn mark_notification_read(db: &Codex, notif_id: &str) -> Result<()> {
-    db.connection()
-        .execute(
-            "UPDATE gamify_notifications SET read = 1 WHERE id = ?1",
-            params![notif_id],
-        )
-        .await?;
+    db.mark_gamify_notification_read(notif_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
+}
+
+/// Mark a notification as read for a specific user (prevents cross-user ACK by id).
+pub async fn mark_notification_read_for_user(
+    db: &Codex,
+    user_id: &str,
+    notif_id: &str,
+) -> Result<u64> {
+    db.mark_gamify_notification_read_for_user(user_id, notif_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Mark all unread notifications for a user as read.
 pub async fn mark_all_notifications_read(db: &Codex, user_id: &str) -> Result<()> {
-    db.connection()
-        .execute(
-            "UPDATE gamify_notifications SET read = 1 WHERE user_id = ?1 AND read = 0",
-            params![user_id],
-        )
-        .await?;
+    db.mark_all_gamify_notifications_read(user_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
 /// Delete notifications older than their `expires_at` timestamp (TTL cleanup).
 pub async fn cleanup_expired_notifications(db: &Codex) -> Result<u64> {
     let now = crate::util::now_unix();
-    let rows = db
-        .connection()
-        .execute(
-            "DELETE FROM gamify_notifications WHERE expires_at > 0 AND expires_at < ?1",
-            params![now],
-        )
-        .await?;
-    Ok(rows)
+    db.delete_expired_gamify_notifications(now)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 fn parse_notification_type(s: &str) -> crate::notifications::NotificationType {

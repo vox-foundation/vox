@@ -3,7 +3,7 @@
 use crate::ast::span::Span;
 use crate::hir::*;
 use crate::typeck::builtins::BuiltinTypes;
-use crate::typeck::diagnostics::Diagnostic;
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::registration::{register_hir_module, resolve_hir_type};
 use crate::typeck::ty::Ty;
@@ -31,6 +31,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Unary(_, _, s)
         | HirExpr::Call(_, _, _, s)
         | HirExpr::MethodCall(_, _, _, s)
+        | HirExpr::DbTableOp { span: s, .. }
         | HirExpr::FieldAccess(_, _, s)
         | HirExpr::Match(_, _, s)
         | HirExpr::If(_, _, _, s)
@@ -83,6 +84,13 @@ impl<'a> Checker<'a> {
             self.check_activity(act);
         }
         for sf in &module.server_fns {
+            self.check_server_fn(sf);
+        }
+        for sf in &module.query_fns {
+            self.check_server_fn(sf);
+            self.enforce_query_read_only(sf);
+        }
+        for sf in &module.mutation_fns {
             self.check_server_fn(sf);
         }
         for t in &module.tests {
@@ -271,6 +279,123 @@ impl<'a> Checker<'a> {
         }
         self.env.pop_return_type();
         self.env.pop_scope();
+    }
+
+    fn enforce_query_read_only(&mut self, sf: &HirServerFn) {
+        if Self::contains_db_write_or_unsafe_in_stmts(&sf.body) {
+            self.diags.push(Diagnostic {
+                severity: Severity::Error,
+                message: format!(
+                    "@query '{}' must be read-only; use @mutation for db.insert/db.delete or raw `.query(...)`",
+                    sf.name
+                ),
+                span: sf.span,
+                expected_type: None,
+                found_type: None,
+                context: Some(Diagnostic::capture_context(self.source, sf.span)),
+                suggestions: vec![
+                    "Move write operations into an @mutation function.".into(),
+                    "Replace `.query(clause)` with typed table operations.".into(),
+                ],
+                category: DiagnosticCategory::Lint,
+            });
+        }
+    }
+
+    fn contains_db_write_or_unsafe_in_stmts(stmts: &[HirStmt]) -> bool {
+        stmts.iter().any(Self::contains_db_write_or_unsafe_in_stmt)
+    }
+
+    fn contains_db_write_or_unsafe_in_stmt(stmt: &HirStmt) -> bool {
+        match stmt {
+            HirStmt::Let { value, .. } => Self::contains_db_write_or_unsafe_in_expr(value),
+            HirStmt::Assign { target, value, .. } => {
+                Self::contains_db_write_or_unsafe_in_expr(target)
+                    || Self::contains_db_write_or_unsafe_in_expr(value)
+            }
+            HirStmt::Return { value, .. } => value
+                .as_ref()
+                .is_some_and(Self::contains_db_write_or_unsafe_in_expr),
+            HirStmt::Expr { expr, .. } => Self::contains_db_write_or_unsafe_in_expr(expr),
+        }
+    }
+
+    fn contains_db_write_or_unsafe_in_expr(expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::DbTableOp { op, args, .. } => {
+                matches!(
+                    op,
+                    HirDbTableOp::Insert | HirDbTableOp::Delete | HirDbTableOp::UnsafeQueryRawClause
+                ) || args
+                    .iter()
+                    .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
+            }
+            HirExpr::ObjectLit(fields, _) => fields
+                .iter()
+                .any(|(_, v)| Self::contains_db_write_or_unsafe_in_expr(v)),
+            HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
+                items.iter().any(Self::contains_db_write_or_unsafe_in_expr)
+            }
+            HirExpr::Binary(_, l, r, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(l)
+                    || Self::contains_db_write_or_unsafe_in_expr(r)
+            }
+            HirExpr::Unary(_, e, _) => Self::contains_db_write_or_unsafe_in_expr(e),
+            HirExpr::Call(callee, args, _, _) | HirExpr::MethodCall(callee, _, args, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(callee)
+                    || args
+                        .iter()
+                        .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
+            }
+            HirExpr::FieldAccess(obj, _, _) => Self::contains_db_write_or_unsafe_in_expr(obj),
+            HirExpr::If(cond, then_body, else_body, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(cond)
+                    || Self::contains_db_write_or_unsafe_in_stmts(then_body)
+                    || else_body
+                        .as_ref()
+                        .is_some_and(|body| Self::contains_db_write_or_unsafe_in_stmts(body))
+            }
+            HirExpr::For(_, iter, body, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(iter)
+                    || Self::contains_db_write_or_unsafe_in_expr(body)
+            }
+            HirExpr::Lambda(_, _, body, _) => Self::contains_db_write_or_unsafe_in_expr(body),
+            HirExpr::Block(body, _) => {
+                Self::contains_db_write_or_unsafe_in_stmts(body)
+            }
+            HirExpr::Pipe(l, r, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(l)
+                    || Self::contains_db_write_or_unsafe_in_expr(r)
+            }
+            HirExpr::Spawn(e, _) => Self::contains_db_write_or_unsafe_in_expr(e),
+            HirExpr::With(base, opts, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(base)
+                    || Self::contains_db_write_or_unsafe_in_expr(opts)
+            }
+            HirExpr::Match(scrutinee, arms, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(scrutinee)
+                    || arms
+                        .iter()
+                        .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.body))
+            }
+            HirExpr::Jsx(node) => node
+                .attributes
+                .iter()
+                .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
+                || node
+                    .children
+                    .iter()
+                    .any(Self::contains_db_write_or_unsafe_in_expr),
+            HirExpr::JsxSelfClosing(node) => node
+                .attributes
+                .iter()
+                .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value)),
+            HirExpr::IntLit(_, _)
+            | HirExpr::FloatLit(_, _)
+            | HirExpr::StringLit(_, _)
+            | HirExpr::BoolLit(_, _)
+            | HirExpr::Ident(_, _) => false,
+        }
     }
 
     fn check_route(&mut self, r: &HirRoute) {

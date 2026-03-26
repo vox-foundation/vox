@@ -6,6 +6,8 @@ pub const TOOL_WIRE_ALIASES: &[(&str, &str)] = &[
     ("vox_set_config", "vox_config_set"),
     ("vox_map_opencode_session", "vox_map_agent_session"),
     ("vox_map_vscode_session", "vox_map_agent_session"),
+    ("vox_budget_history", "vox_cost_history"),
+    ("vox_model_list", "vox_list_models"),
 ];
 
 /// Resolve an incoming tool name to the canonical handler name.

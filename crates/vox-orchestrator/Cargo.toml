@@ -31,7 +31,7 @@ vox-ludus = { workspace = true }
 futures-util = { workspace = true }
 sysinfo = { version = "0.38.2", optional = true }
 sha3 = { workspace = true }
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
+xxhash-rust = { workspace = true }
 
 # Optional dependencies behind feature flags
 vox-runtime = { workspace = true, optional = true }
@@ -54,7 +54,6 @@ uuid = { version = "1.22.0", features = ["v4"] }
 turso.workspace = true
 chrono = { workspace = true }
 walkdir = { workspace = true }
-seahash = "4.1.0"
 vox-scaling-policy = { workspace = true }
 
 [dev-dependencies]

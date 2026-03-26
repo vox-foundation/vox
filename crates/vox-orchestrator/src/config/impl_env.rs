@@ -265,6 +265,29 @@ impl OrchestratorConfig {
                 self.populi_remote_execute_experimental,
             );
         }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_RECEIVER_AGENT") {
+            let t = val.trim();
+            if t.is_empty() {
+                self.populi_remote_execute_receiver_agent = None;
+            } else {
+                self.populi_remote_execute_receiver_agent = Some(t.to_string());
+            }
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT") {
+            let t = val.trim();
+            if t.is_empty() {
+                self.populi_remote_execute_sender_agent = None;
+            } else {
+                self.populi_remote_execute_sender_agent = Some(t.to_string());
+            }
+        }
+        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS") {
+            self.populi_remote_result_poll_interval_secs = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS",
+                &val,
+                self.populi_remote_result_poll_interval_secs,
+            );
+        }
         if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CHATML_STRICT") {
             self.chatml_strict =
                 parse_or_warn("VOX_ORCHESTRATOR_CHATML_STRICT", &val, self.chatml_strict);

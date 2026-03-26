@@ -161,6 +161,67 @@ pub struct PublicationMediaAssetParams<'a> {
     pub metadata_json: Option<&'a str>,
 }
 
+/// Parameters for inserting or updating one [`external_submission_jobs`] row by idempotency key.
+#[derive(Debug, Clone)]
+pub struct ExternalSubmissionJobUpsertParams<'a> {
+    pub publication_id: &'a str,
+    pub content_sha3_256: &'a str,
+    pub adapter: &'a str,
+    pub operation: &'a str,
+    pub idempotency_key: &'a str,
+    pub status: &'a str,
+    pub lock_owner: Option<&'a str>,
+    pub lock_expires_at_ms: Option<i64>,
+    pub next_retry_at_ms: Option<i64>,
+    pub attempt_count: i64,
+    pub last_error_class: Option<&'a str>,
+    pub last_error_message: Option<&'a str>,
+    pub metadata_json: Option<&'a str>,
+}
+
+/// Parameters for [`crate::VoxDb::record_external_submission_attempt`].
+#[derive(Debug, Clone)]
+pub struct ExternalSubmissionAttemptParams<'a> {
+    pub job_id: i64,
+    pub http_status: Option<i32>,
+    pub error_class: Option<&'a str>,
+    pub retryable: bool,
+    pub request_fingerprint: Option<&'a str>,
+    pub response_fingerprint: Option<&'a str>,
+    pub detail_json: Option<&'a str>,
+}
+
+/// Parameters for [`crate::VoxDb::insert_external_status_snapshot`].
+#[derive(Debug, Clone)]
+pub struct ExternalStatusSnapshotParams<'a> {
+    pub adapter: &'a str,
+    pub external_submission_id: &'a str,
+    pub publication_id: &'a str,
+    pub content_sha3_256: &'a str,
+    pub snapshot_json: &'a str,
+}
+
+/// Parameters for [`crate::VoxDb::upsert_publication_external_link`].
+#[derive(Debug, Clone)]
+pub struct PublicationExternalLinkUpsertParams<'a> {
+    pub publication_id: &'a str,
+    pub content_sha3_256: &'a str,
+    pub adapter: &'a str,
+    pub link_kind: &'a str,
+    pub link_value: &'a str,
+    pub metadata_json: Option<&'a str>,
+}
+
+/// Parameters for [`crate::VoxDb::upsert_publication_external_revision`].
+#[derive(Debug, Clone)]
+pub struct PublicationExternalRevisionUpsertParams<'a> {
+    pub publication_id: &'a str,
+    pub content_sha3_256: &'a str,
+    pub adapter: &'a str,
+    pub external_revision: &'a str,
+    pub metadata_json: Option<&'a str>,
+}
+
 /// Parameters for [`crate::VoxDb::register_agent`].
 #[derive(Debug, Clone)]
 pub struct RegisterAgentParams<'a> {

@@ -34,6 +34,8 @@ pub enum DbPreflightProfileCli {
     #[default]
     Default,
     DoubleBlind,
+    /// Require structured scientific metadata, license, abstract, and at least one author.
+    MetadataComplete,
 }
 
 impl From<DbPreflightProfileCli> for vox_publisher::publication_preflight::PreflightProfile {
@@ -41,6 +43,57 @@ impl From<DbPreflightProfileCli> for vox_publisher::publication_preflight::Prefl
         match v {
             DbPreflightProfileCli::Default => Self::Default,
             DbPreflightProfileCli::DoubleBlind => Self::DoubleBlind,
+            DbPreflightProfileCli::MetadataComplete => Self::MetadataComplete,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ScholarlyVenueCli {
+    Zenodo,
+    OpenReview,
+    ArxivAssist,
+}
+
+impl ScholarlyVenueCli {
+    #[must_use]
+    pub fn to_venue(self) -> vox_publisher::submission_package::ScholarlyVenue {
+        match self {
+            ScholarlyVenueCli::Zenodo => vox_publisher::submission_package::ScholarlyVenue::Zenodo,
+            ScholarlyVenueCli::OpenReview => {
+                vox_publisher::submission_package::ScholarlyVenue::OpenReview
+            }
+            ScholarlyVenueCli::ArxivAssist => {
+                vox_publisher::submission_package::ScholarlyVenue::ArxivAssist
+            }
+        }
+    }
+}
+
+/// Operator milestone for the arXiv-assist handoff (recorded under `arxiv_handoff:*` status).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ArxivHandoffStageCli {
+    /// Staging bundle (`arxiv_handoff.json` + `arxiv_bundle.tar.gz`) was produced.
+    StagingExported,
+    /// Operator took custody of the bundle for manual upload.
+    OperatorAck,
+    /// Operator validated bundle contents (checksums, file layout).
+    BundleValidated,
+    /// Submitted via arXiv UI (identifier may still be pending).
+    Submitted,
+    /// Live on arXiv; requires `--arxiv-id`.
+    Published,
+}
+
+impl ArxivHandoffStageCli {
+    #[must_use]
+    pub fn slug(self) -> &'static str {
+        match self {
+            Self::StagingExported => "staging_exported",
+            Self::OperatorAck => "operator_ack",
+            Self::BundleValidated => "bundle_validated",
+            Self::Submitted => "submitted",
+            Self::Published => "published",
         }
     }
 }

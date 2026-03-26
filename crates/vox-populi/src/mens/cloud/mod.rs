@@ -80,7 +80,7 @@ impl std::fmt::Display for ProviderKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum JobKind {
-    /// `vox schola train` — terminates when training completes.
+    /// `vox mens train` — terminates when training completes.
     Train,
     /// `vox mens serve` — persistent inference server.
     Infer,

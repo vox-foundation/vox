@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import "./index.css";
 import { getVsCodeApi } from "./utils/vscode";
+import { parseHostToWebviewMessage } from "../../src/protocol/hostToWebviewMessages";
 import { Dashboard } from "./components/Dashboard";
 import { AgentFlow } from "./components/AgentFlow";
 import { PipelineView } from "./components/PipelineView";
@@ -23,6 +24,7 @@ import { IntentionMatrix } from "./components/IntentionMatrix";
 import { WorkflowScrubber } from "./components/WorkflowScrubber";
 import { MeshTopology } from "./components/MeshTopology";
 import { CompanionHUD } from "./components/CompanionHUD";
+import { LudusPanel } from "./components/LudusPanel";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { BrainCircuit, RotateCcw, Globe2, AlertCircle } from "lucide-react";
 
@@ -46,52 +48,65 @@ function App() {
   const [budgetHistory, setBudgetHistory] = useState<any[]>([]);
   const [modelList, setModelList] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [capabilities, setCapabilities] = useState<any>(null);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      const message = event.data;
-      switch (message.type) {
+      const parsed = parseHostToWebviewMessage(event.data);
+      if (!parsed) return;
+      switch (parsed.type) {
         case 'voxStatus':
-          setVoxStatus(message.value);
+          setVoxStatus(parsed.value);
           break;
         case 'gamifyUpdate':
-          setGamify(message.value);
+          setGamify(parsed.value);
           break;
         case 'languageSurface':
-          setLanguageSurface(message.value);
+          setLanguageSurface(parsed.value);
           break;
         case 'astResult':
-          setAst(message.value);
+          setAst(parsed.value);
           break;
         case 'pipelineStatus':
-          setPipeline(message.value);
+          setPipeline(parsed.value);
           break;
         case 'activeEditorChanged':
-          setActiveFile(message.value);
+          setActiveFile(parsed.value);
           break;
-        case 'a2aTasks': // Ensure this matches SidebarProvider.ts
-          setTasks(message.value);
+        case 'a2aTasks':
+          setTasks(Array.isArray(parsed.value) ? parsed.value : []);
           break;
         case 'budgetHistory':
-          if (message.value) setBudgetHistory(message.value);
+          if (parsed.value) setBudgetHistory(parsed.value);
           break;
         case 'modelList':
-          if (message.value) setModelList(message.value);
+          if (parsed.value) setModelList(parsed.value);
           break;
         case 'workflowStatus':
-          setWorkflowStatus(message.value);
+          setWorkflowStatus(parsed.value);
           break;
         case 'meshStatus':
-          setMeshStatus(message.value);
+          setMeshStatus(parsed.value);
           break;
         case 'intentionMatrix':
-          setIntentionMatrix(message.value);
+          setIntentionMatrix(parsed.value);
           break;
         case 'oplog':
-          if (message.value) setOplog(message.value);
+          if (parsed.value) setOplog(parsed.value);
           break;
         case 'agentsUpdate':
-          if (message.value) setAgents(message.value);
+          if (parsed.value) setAgents(parsed.value);
+          break;
+        case 'capabilitiesUpdate':
+          setCapabilities(parsed.value);
+          break;
+        case 'ludusProgressSnapshot':
+          if (parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value)) {
+            setLudusSnapshot(parsed.value as Record<string, unknown>);
+          }
+          break;
+        case 'chatHistory':
+        case 'planUpdate':
           break;
       }
     };
@@ -103,26 +118,38 @@ function App() {
   }, []);
 
   const renderContent = () => {
-    // Combine data for dashboard
+    const orch = gamify as Record<string, unknown> | null;
+    const agentCount =
+      typeof orch?.agent_count === 'number'
+        ? orch.agent_count
+        : agents.filter((a) => a.status === 'working').length;
     const dashboardStats = {
-      activeAgents: agents.filter(a => a.status === 'working').length.toString(),
+      activeAgents: String(agentCount),
       queueDepth: tasks.length.toString(),
       latency: voxStatus?.avg_latency_ms ? `${voxStatus.avg_latency_ms}ms` : '--',
-      budget: voxStatus?.total_cost_usd != null ? `$${voxStatus.total_cost_usd.toFixed(2)}` : '--'
+      budget:
+        (voxStatus as { total_cost_usd?: number } | null)?.total_cost_usd != null
+          ? `$${(voxStatus as { total_cost_usd: number }).total_cost_usd.toFixed(2)}`
+          : '--',
     };
 
-    const dashboardOps = tasks.map(t => ({
-      label: t.description.length > 30 ? t.description.substring(0, 27) + "..." : t.description,
-      agent: t.agent_id,
-      status: t.status === "InProgress" ? "Running" : t.status,
-      time: "2ms" // Mock
-    })).slice(0, 5);
+    const taskFallback = tasks.map((t: any, i: number) => ({
+      id: String(t.id ?? t.task_id ?? i),
+      description:
+        typeof t.description === 'string' && t.description.length > 30
+          ? t.description.substring(0, 27) + '...'
+          : t.description ?? 'task',
+      agent_id: t.agent_id ?? '--',
+      status: t.status === 'InProgress' ? 'Running' : t.status ?? 'Queued',
+      duration_ms: undefined as number | undefined,
+    }));
+    const opRows = Array.isArray(oplog) && oplog.length > 0 ? oplog : taskFallback;
 
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard stats={dashboardStats} ops={oplog} pipeline={pipeline} />;
+        return <Dashboard stats={dashboardStats} ops={opRows} pipeline={pipeline} />;
       case 'flow':
-        return <AgentFlow tasks={tasks} />;
+        return <AgentFlow tasks={tasks} capabilities={capabilities} />;
       case 'pipeline':
         return <PipelineView status={pipeline} />;
       case 'ast':
@@ -135,15 +162,40 @@ function App() {
         return <WorkflowScrubber snapshots={workflowStatus} />;
       case 'mesh':
         return <MeshTopology topology={meshStatus} />;
+      case 'ludus':
+        return <LudusPanel snapshot={ludusSnapshot} />;
       default:
-        return <Dashboard stats={dashboardStats} ops={oplog} pipeline={pipeline} />;
+        return <Dashboard stats={dashboardStats} ops={opRows} pipeline={pipeline} />;
     }
   };
 
+  const execHint =
+    capabilities?.execution_mode === 'queue_only'
+      ? 'Orchestrator: queue-only (no worker handles)'
+      : capabilities?.execution_mode === 'workers_attached'
+        ? 'Orchestrator: workers attached'
+        : capabilities?.execution_mode
+          ? `Orchestrator: ${String(capabilities.execution_mode)}`
+          : capabilities?.mcpConnected === false
+            ? 'MCP: disconnected'
+            : 'Orchestrator: status unknown (no snapshot yet)';
+
   return (
-    <div className="flex h-screen w-screen bg-[#09090b] overflow-hidden">
+    <div
+      className="flex h-screen w-screen overflow-hidden vox-root"
+      style={{
+        background: 'var(--vscode-sideBar-background, #09090b)',
+        color: 'var(--vscode-sideBar-foreground, #e4e4e7)',
+      }}
+    >
       {/* Mini Sidebar Nav */}
-      <aside className="w-16 border-r border-white/5 flex flex-col items-center py-6 gap-6 bg-white/[0.01] z-50">
+      <aside
+        className="w-16 border-r flex flex-col items-center py-6 gap-6 z-50"
+        style={{
+          borderColor: 'var(--vscode-panel-border, rgba(255,255,255,0.06))',
+          background: 'var(--vscode-sideBar-background, rgba(255,255,255,0.02))',
+        }}
+      >
         <NavIcon icon={<LayoutDashboard size={20} />} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
         <NavIcon icon={<Network size={20} />} active={activeTab === 'flow'} onClick={() => setActiveTab('flow')} />
         <NavIcon icon={<RotateCcw size={20} />} active={activeTab === 'scrubber'} onClick={() => setActiveTab('scrubber')} />
@@ -152,6 +204,7 @@ function App() {
         <NavIcon icon={<Blocks size={20} />} active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} />
         <NavIcon icon={<Code2 size={20} />} active={activeTab === 'ast'} onClick={() => setActiveTab('ast')} />
         <NavIcon icon={<ActivityIcon size={20} />} active={activeTab === 'telemetry'} onClick={() => setActiveTab('telemetry')} />
+        <NavIcon icon={<Trophy size={20} />} active={activeTab === 'ludus'} onClick={() => setActiveTab('ludus')} />
         
         <div className="mt-auto flex flex-col gap-4 mb-2">
            <NavIcon icon={<Settings2 size={18} />} onClick={() => vscode.postMessage({ type: 'pickModel' })} />
@@ -160,7 +213,25 @@ function App() {
       </aside>
 
       {/* Main content area */}
-      <main className="flex-1 relative overflow-hidden">
+      <main className="flex-1 relative overflow-hidden flex flex-col">
+        <div
+          role="status"
+          aria-live="polite"
+          className="text-[10px] px-3 py-1 font-mono border-b shrink-0 leading-relaxed"
+          style={{
+            borderColor: 'var(--vscode-panel-border)',
+            background: 'var(--vscode-editor-inactiveSelectionBackground, rgba(100,100,100,0.15))',
+            color: 'var(--vscode-descriptionForeground, inherit)',
+          }}
+        >
+          {execHint}
+          {capabilities?.db_configured === false ? ' · events: transient' : ''}
+          {typeof capabilities?.toolCount === 'number' ? ` · MCP tools: ${capabilities.toolCount}` : ''}
+          {capabilities?.schemaFingerprint ? ` · cap fp: ${capabilities.schemaFingerprint}` : ''}
+          {capabilities?.lastMcpError
+            ? ` · MCP error: ${String(capabilities.lastMcpError).slice(0, 120)}`
+            : ''}
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -168,7 +239,7 @@ function App() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="h-full w-full"
+            className="h-full w-full min-h-0"
           >
             <ErrorBoundary>
               {renderContent()}
@@ -206,7 +277,7 @@ function TelemetryView({ stats }: any) {
                         <div className="text-5xl font-black text-white tracking-tighter mb-2">
                             {stats?.total_tokens_used?.toLocaleString() || "0"}
                         </div>
-                        <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Tokens Processed Today</div>
+                        <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Total tokens (session)</div>
                     </div>
                 </div>
                 <div className="glass p-8 rounded-[2rem] border border-white/5">

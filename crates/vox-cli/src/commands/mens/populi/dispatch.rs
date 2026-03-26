@@ -65,8 +65,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             epochs: _,
         } => {
             anyhow::bail!(
-                "`vox schola train-uv` is retired: `quantized_train.py` is not shipped in this repository.\n\
-                 Use **`vox schola train --backend qlora --tokenizer hf`** (see docs/src/architecture/mens-training-ssot.md)."
+                "`vox mens train-uv` is retired: `quantized_train.py` is not shipped in this repository.\n\
+                 Use **`vox mens train --backend qlora --tokenizer hf`** (see docs/src/architecture/mens-training-ssot.md)."
             );
         }
         #[cfg(feature = "gpu")]

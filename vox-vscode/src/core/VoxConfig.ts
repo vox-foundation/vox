@@ -6,15 +6,9 @@
  */
 
 import type { VoxMcpClient } from './VoxMcpClient';
+import type { VoxConfigResponse } from '../types';
 
-export interface VoxConfigResponse {
-    model: string;
-    daily_budget_usd: number;
-    per_session_budget_usd: number;
-    data_dir: string;
-    model_dir: string;
-    db_url: string | null;
-}
+export type { VoxConfigResponse };
 
 /**
  * Reads the shared VoxConfig from the Orchestrator (Rust → vox-config crate).
@@ -31,7 +25,7 @@ export class VoxConfig {
     /** Fetch the full config from the Orchestrator. */
     static async load(mcp: VoxMcpClient): Promise<VoxConfigResponse | null> {
         try {
-            const config = await mcp.call<VoxConfigResponse>('vox_config_get', {});
+            const config = await mcp.configGet();
             if (config) {
                 this._cache = config;
             }
@@ -49,7 +43,7 @@ export class VoxConfig {
 
     /** Set a value in the Orchestrator config (writes to Vox.toml or ~/.vox/config.toml). */
     static async set(mcp: VoxMcpClient, key: string, value: string | number): Promise<void> {
-        await mcp.call('vox_config_set', { key, value: String(value) });
+        await mcp.configSet(key, String(value));
         this._cache = null; // Invalidate cache
     }
 

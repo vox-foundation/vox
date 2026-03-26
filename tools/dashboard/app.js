@@ -3,6 +3,10 @@
  *
  * SSE-powered real-time state management with component renderers
  * for agents, tasks, events, costs, locks, companion, and A2A messages.
+ *
+ * **Product SSOT:** prefer the VS Code extension webview (`vox-vscode/`) for the
+ * maintained control plane; keep this file aligned only when the HTTP dashboard
+ * remains a supported second surface.
  */
 
 // ── State ─────────────────────────────────────────────────

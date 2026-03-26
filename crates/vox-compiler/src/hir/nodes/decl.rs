@@ -30,6 +30,10 @@ pub struct HirModule {
     pub tests: Vec<HirFn>,
     /// `@server` RPC functions.
     pub server_fns: Vec<HirServerFn>,
+    /// `@query` read-only DB / API functions (POST JSON body, `/api/query/...`).
+    pub query_fns: Vec<HirServerFn>,
+    /// `@mutation` write functions (POST JSON body, `/api/mutation/...`).
+    pub mutation_fns: Vec<HirServerFn>,
     /// Codex table schemas.
     pub tables: Vec<HirTable>,
     /// Table indexes.

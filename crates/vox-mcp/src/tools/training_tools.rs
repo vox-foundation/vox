@@ -34,7 +34,7 @@ pub struct TrainSubmitParams {
     pub min_quality_score: Option<u8>,
 }
 
-/// Enqueue a background orchestrator task tagged for training; returns canonical `vox schola train` hint.
+/// Enqueue a background orchestrator task tagged for training; returns canonical `vox mens train` hint.
 pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> String {
     let prefer_gpu_compute = params.require_cuda || params.require_metal;
     let caps = TaskCapabilityHints {
@@ -64,7 +64,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
     };
 
     let desc = format!(
-        "[Mens train orchestration] {}\ntrajectory: {}\n\nRun locally: `vox schola train --backend qlora --tokenizer hf --device cuda|metal|cpu` (see docs/src/reference/mens-training.md).",
+        "[Mens train orchestration] {}\ntrajectory: {}\n\nRun locally: `vox mens train --backend qlora --tokenizer hf --device cuda|metal|cpu` (see docs/src/reference/mens-training.md).",
         params.description, trajectory_note
     );
 
@@ -83,7 +83,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
         Ok(task_id) => ToolResult::ok(json!({
             "task_id": task_id.0,
             "hint": "Training execution remains in Mens CLI; this task records intent and routes GPU-capable agents when configured.",
-            "canonical_cli": "vox schola train",
+            "canonical_cli": "vox mens train",
             "trajectory_capture": params.trajectory_capture,
             "min_quality_score": params.min_quality_score,
         }))

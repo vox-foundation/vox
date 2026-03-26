@@ -60,7 +60,7 @@ pub async fn run_status(
             "⚠".yellow(),
             telemetry_path.display()
         );
-        eprintln!("  Run `vox schola train` to generate training metrics.");
+        eprintln!("  Run `vox mens train` to generate training metrics.");
         return Ok(());
     }
 

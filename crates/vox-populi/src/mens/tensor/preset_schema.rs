@@ -257,7 +257,7 @@ pub struct GpuSpec {
 
 /// Training preset configuration — auto-selected by VRAM tier for both local and cloud.
 ///
-/// Defined once in `gpu-specs.yaml`; consumed by both `vox schola train` (local)
+/// Defined once in `gpu-specs.yaml`; consumed by both `vox mens train` (local)
 /// and cloud dispatch (to set container env vars). This is the SSOT for preset configs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingPreset {

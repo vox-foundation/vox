@@ -14,6 +14,16 @@ export interface VoxStatus {
     cost_today_usd: number;
 }
 
+/** Orchestrator `vox_config_get` payload shape (see VoxConfig). */
+export interface VoxConfigResponse {
+    model: string;
+    daily_budget_usd: number;
+    per_session_budget_usd: number;
+    data_dir: string;
+    model_dir: string;
+    db_url: string | null;
+}
+
 export type AgentRole = 'build' | 'plan' | 'debug' | 'research' | 'review' | 'unknown';
 export type AgentStatus = 'idle' | 'working' | 'done' | 'error' | 'waiting';
 export type AgentMode = 'chat' | 'plan' | 'debug' | 'auto';
@@ -31,6 +41,8 @@ export interface AgentEvent {
 
 export interface AgentState {
     agent_id: string;
+    /** Numeric orchestrator agent id when known (retire/pause/drain). */
+    orchestrator_agent_id?: number;
     role: AgentRole;
     status: AgentStatus;
     current_task?: string;
@@ -122,7 +134,11 @@ export interface ChatMessage {
     timestamp: number;
     tokens?: number;
     contextFiles?: string[];
+    /** Wire/session shape from vox-mcp */
+    context_files?: string[];
     isStreaming?: boolean;
+    is_streaming?: boolean;
+    model_used?: string;
 }
 
 export interface SkillInfo {

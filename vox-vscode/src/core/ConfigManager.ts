@@ -50,6 +50,14 @@ export class ConfigManager {
         await this._config().update(`models.byok.${provider}`, key, vscode.ConfigurationTarget.Global);
     }
 
+    // MCP stdio transport (`vox mcp`)
+    static get mcpServerPath(): string { return this._config().get<string>('mcp.serverPath', 'vox'); }
+    static get mcpDebugPayloads(): boolean { return this._config().get<boolean>('mcp.debugPayloads', false); }
+    /** Log when runtime list_tools lacks entries from the generated expected set */
+    static get mcpWarnOnMissingTools(): boolean {
+        return this._config().get<boolean>('mcp.warnOnMissingTools', true);
+    }
+
     // Build
     static get buildOutputDir(): string { return this._config().get<string>('build.outputDir', 'dist'); }
 

@@ -52,6 +52,11 @@ jobs:
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance
 
+      - name: Clavis SSOT parity + secret direct-read guard
+        run: |
+          cargo run -p vox-cli --quiet -- ci clavis-parity
+          cargo run -p vox-cli --quiet -- ci secret-env-guard
+
       - name: Contracts index + scaling policy SSOT
         run: |
           cargo run -p vox-cli --quiet -- ci contracts-index
@@ -156,6 +161,22 @@ jobs:
         env:
           VOX_WEB_VITE_SMOKE: "1"
         run: cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored --nocapture
+
+  vox-vscode-extension:
+    name: VS Code extension (MCP parity + compile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm ci + parity + compile
+        run: |
+          cd vox-vscode
+          npm ci
+          npm run check:mcp-parity
+          npm run compile
+          npm run lint
 
   mesh-compose-config:
     name: Validate examples/mesh-compose.yml

@@ -2,7 +2,10 @@ use crate::ast::scalar_mapping::VoxScalar;
 use crate::hir::{HirModule, HirType};
 
 pub fn emit_api_client(module: &HirModule) -> String {
-    if module.server_fns.is_empty() {
+    if module.server_fns.is_empty()
+        && module.query_fns.is_empty()
+        && module.mutation_fns.is_empty()
+    {
         return String::new();
     }
 
@@ -12,7 +15,12 @@ pub fn emit_api_client(module: &HirModule) -> String {
 
     out.push_str("const API_BASE = '';\n\n");
 
-    for sf in &module.server_fns {
+    for sf in module
+        .server_fns
+        .iter()
+        .chain(module.query_fns.iter())
+        .chain(module.mutation_fns.iter())
+    {
         // Generate TypeScript function signature
         let params: Vec<String> = sf
             .params

@@ -10,6 +10,8 @@ training_eligible: true
 
 The Vox compiler follows a modern, modular pipeline architecture. Each stage is implemented as an independent Rust crate within the `crates/` workspace.
 
+Current implementation note: the practical pipeline is currently consolidated under `crates/vox-compiler/src/` for lexer, parser, AST, HIR, typecheck, and emitters. This document keeps conceptual stage boundaries while implementation modules may live in one crate.
+
 ---
 
 ## Pipeline Overview
@@ -65,7 +67,7 @@ vox mens corpus extract   # produces validated.jsonl
 vox mens corpus pairs     # produces train.jsonl (instruction-response pairs)
     │
     ▼
-vox schola train            # native Burn / HF path (default CLI features)
+vox mens train            # native Burn / HF path (default CLI features)
     │
     ▼
 mens/runs/v1/model_final.bin
@@ -165,12 +167,12 @@ Emits TypeScript/TSX in modular files:
 
 The full checklist for adding a new language construct:
 
-1. **Lexer** — Add tokens to `vox-lexer/src/token.rs`
-2. **Parser** — Add grammar rules in `vox-parser/src/grammar.rs`
-3. **AST** — Add node types in `vox-ast/src/`
-4. **HIR** — Map AST → HIR in `vox-hir/src/lower.rs`
-5. **Type Check** — Add inference rules in `vox-typeck/src/check.rs`
-6. **Codegen** — Emit code in both `vox-codegen-rust` and `vox-codegen-ts`
+1. **Lexer** — Add tokens to `crates/vox-compiler/src/lexer/token.rs`
+2. **Parser** — Add grammar rules in `crates/vox-compiler/src/parser/descent/`
+3. **AST** — Add node types in `crates/vox-compiler/src/ast/`
+4. **HIR** — Map AST → HIR in `crates/vox-compiler/src/hir/lower/`
+5. **Type Check** — Add inference rules in `crates/vox-compiler/src/typeck/`
+6. **Codegen** — Emit code in both `crates/vox-compiler/src/codegen_rust/` and `crates/vox-compiler/src/codegen_ts/`
 7. **Test** — Add an integration test in `vox-integration-tests/tests/`
 8. **Docs** — Add frontmatter + code example in `docs/src/`
 9. **Training** — Run `vox mens corpus extract` to include the new construct in ML data

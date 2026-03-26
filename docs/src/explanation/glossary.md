@@ -18,7 +18,7 @@ These names are **canonical in documentation** (code paths and env vars may stil
 | **Populi** | The **mesh**: multi-node coordination, local registry file, HTTP control plane, join/heartbeat. | `vox populi`, crate **`vox-populi`**, Cargo feature **`populi`**, `VOX_MESH_*` |
 | **Mens** | The **model**: native ML stack, checkpoints, LoRA/QLoRA weights, inference/training targets for the language model. | `vox mens` (when feature-gated), crate **`vox-mens`**, paths under **`mens/`** for data |
 | **Oratio** | **Speech** (speech-to-text and related audio UX), not general “ML.” | `vox oratio` / `vox speech`, crate **`vox-oratio`** |
-| **Schola** | **Training**: the fine-tuning / curriculum surface (`vox schola …`), distinct from the **Mens** model artifacts. | `vox schola train`, merge/eval helpers under **`schola`** |
+| **Schola** | **Training**: the fine-tuning / curriculum surface (`vox schola …`), distinct from the **Mens** model artifacts. | `vox mens train`, merge/eval helpers under **`schola`** |
 
 ## A
 ### Actor

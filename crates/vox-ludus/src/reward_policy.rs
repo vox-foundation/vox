@@ -106,6 +106,8 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         // Task lifecycle
         "task_completed" => BaseReward::new(50, 5),
         "task_started" => BaseReward::new(5, 1),
+        // Queued work (orchestrator bus) — policy-first; companion/counters in `process_rewards`.
+        "task_submitted" => BaseReward::new(8, 1),
         "task_failed" => BaseReward::new(0, 0),
 
         // Agent lifecycle
@@ -129,9 +131,9 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         // Code quality signals
         "refactor" => BaseReward::with_lumens(150, 30, 5),
         "bug_fix" => BaseReward::with_lumens(200, 40, 8),
-        "test_pass" => BaseReward::new(40, 8),
+        "test_pass" => BaseReward::new(55, 10),
         "lint_clean" => BaseReward::new(30, 6),
-        "doc_added" => BaseReward::new(20, 4),
+        "doc_added" => BaseReward::new(28, 6),
 
         // CLI command completions
         "build_completed" => BaseReward::new(25, 5),
@@ -154,6 +156,10 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "test_suite_green" => BaseReward::with_shield(250, 50),
         "test_coverage_improved" => BaseReward::with_lumens(150, 30, 7),
         "toestub_violations_fixed" => BaseReward::with_lumens(300, 60, 12),
+        // Clean TOESTUB workspace scan (`vox stub-check` with zero findings).
+        "toestub_scan_clean" => BaseReward::new(10, 5),
+        // Non-rewarding audit event: structural debt signal for teaching hints.
+        "stub_check_debt" => BaseReward::new(0, 0),
         "fmt_applied" => BaseReward::new(2, 0),
 
         // ── Documentation ──────────────────────────────────
@@ -213,6 +219,7 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "exterminatus" => BaseReward::new(200, 200),
         "iron_will_recovery" => BaseReward::with_lumens(300, 60, 10),
         "scribes_fury" => BaseReward::with_lumens(400, 80, 15),
+        "review_fix_ship_bonus" => BaseReward::with_lumens(320, 50, 12),
 
         // Cost / continuation
         "cost_incurred" => BaseReward::new(0, 0),
@@ -224,6 +231,29 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         // Default: 0 reward for unknown events
         _ => BaseReward::new(0, 0),
     }
+}
+
+/// Small crystal bonus in **Learning** mode only: deterministic per user, day (`quest::current_day_number`), and `event_type`. Zero when the policy awarded no crystals.
+#[must_use]
+pub fn learning_mode_crystal_jitter(
+    user_id: &str,
+    event_type: &str,
+    base_crystals_after_policy: u64,
+) -> u64 {
+    if base_crystals_after_policy == 0 {
+        return 0;
+    }
+    if !matches!(crate::config_gate::mode(), vox_config::GamifyMode::Learning) {
+        return 0;
+    }
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let day = crate::quest::current_day_number();
+    let mut h = DefaultHasher::new();
+    user_id.hash(&mut h);
+    day.hash(&mut h);
+    event_type.hash(&mut h);
+    (h.finish() % 4) as u64
 }
 
 // ── Policy engine ─────────────────────────────────────────
@@ -258,12 +288,23 @@ pub fn apply_policy(
     event_type: &str,
     session: &mut SessionState,
 ) -> PolicyReward {
-    // Record occurrence then apply tiered decay: full 1-15, half 16-25, 10% 26-30, zero after
+    // Record occurrence then apply tiered decay. High-frequency / low-signal events taper faster.
     let count = session.record(event_type);
+    let (full_cap, half_cap) = match event_type {
+        "mcp_tool_called"
+        | "message_sent"
+        | "actor_message_sent"
+        | "build_completed"
+        | "task_submitted"
+        | "lock_acquired"
+        | "lock_released"
+        | "snapshot_captured" => (8, 14),
+        _ => (15, 25),
+    };
     let grind_multiplier = match count {
-        0..=15 => 1.0,
-        16..=25 => 0.5,
-        26..=30 => 0.1,
+        c if c <= full_cap => 1.0,
+        c if c <= half_cap => 0.5,
+        c if c <= 30 => 0.1,
         _ => {
             tracing::debug!(
                 "grind cap: event '{}' has fired {} times this session, reward zeroed",

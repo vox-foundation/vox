@@ -117,60 +117,13 @@ pub async fn vox_db_sample_data(state: &ServerState, args: serde_json::Value) ->
         None => return ToolResult::<serde_json::Value>::err("VoxDb is not connected.").to_json(),
     };
 
-    let info_sql = format!("PRAGMA table_info({})", table);
-    let mut info_rows = match db.connection().query(&info_sql, ()).await {
+    let results = match db.mcp_diagnostic_sample_table(table, limit).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("DB error (table info): {e}"))
+            return ToolResult::<serde_json::Value>::err(format!("DB error (sample data): {e}"))
                 .to_json();
         }
     };
-
-    let mut col_names = Vec::new();
-    while let Ok(Some(row)) = info_rows.next().await {
-        if let Ok(name) = row.get::<String>(1) {
-            col_names.push(name);
-        }
-    }
-
-    if col_names.is_empty() {
-        return ToolResult::<serde_json::Value>::err(format!(
-            "Table '{table}' does not exist or has no columns."
-        ))
-        .to_json();
-    }
-
-    let sql = format!("SELECT * FROM {} LIMIT {}", table, limit);
-    let mut rows = match db.connection().query(&sql, ()).await {
-        Ok(r) => r,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("DB error (select): {e}"))
-                .to_json();
-        }
-    };
-
-    let mut results = Vec::new();
-    while let Ok(Some(row)) = rows.next().await {
-        let mut map = serde_json::Map::new();
-        for (i, col_name) in col_names.iter().enumerate() {
-            let val = match row.get_value(i) {
-                Ok(v) => match v {
-                    turso::Value::Null => serde_json::Value::Null,
-                    turso::Value::Integer(i) => serde_json::Value::Number(i.into()),
-                    turso::Value::Real(f) => serde_json::Number::from_f64(f)
-                        .map(serde_json::Value::Number)
-                        .unwrap_or(serde_json::Value::Null),
-                    turso::Value::Text(s) => serde_json::Value::String(s),
-                    turso::Value::Blob(b) => {
-                        serde_json::Value::String(format!("(blob {} bytes)", b.len()))
-                    }
-                },
-                Err(_) => serde_json::Value::String("<error>".to_string()),
-            };
-            map.insert(col_name.to_string(), val);
-        }
-        results.push(serde_json::Value::Object(map));
-    }
 
     ToolResult::ok(serde_json::json!({
         "table": table,

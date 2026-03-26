@@ -2,6 +2,23 @@ use tempfile::tempdir;
 use vox_db::{DbConfig, VoxDb};
 
 #[tokio::test]
+async fn probe_sqlite_capabilities_returns_snapshot() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    let snap = db.probe_sqlite_capabilities().await.unwrap();
+    assert!(!snap.journal_mode.is_empty());
+}
+
+#[tokio::test]
+async fn sqlite_capabilities_snapshot_is_idempotent() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    let a = db.sqlite_capabilities_snapshot().await.unwrap();
+    let b = db.sqlite_capabilities_snapshot().await.unwrap();
+    assert_eq!(a.journal_mode, b.journal_mode);
+    assert_eq!(a.foreign_keys_on, b.foreign_keys_on);
+    assert_eq!(a.fts5_reported, b.fts5_reported);
+}
+
+#[tokio::test]
 async fn test_db_memory_smoke() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     assert_eq!(

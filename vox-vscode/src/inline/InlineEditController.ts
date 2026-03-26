@@ -157,7 +157,7 @@ async function runEditWithPrompt(
     }
 
     // Call native vox_inline_edit (Rust handles all context + LLM routing)
-    const result = await mcp.call<InlineEditResult>('vox_inline_edit', {
+    const result = (await mcp.inlineEdit({
         prompt,
         file: filePath,
         start_line: range.start.line + 1,
@@ -166,7 +166,7 @@ async function runEditWithPrompt(
         language,
         context_before: contextBefore,
         context_after: contextAfter,
-    });
+    })) as InlineEditResult | null;
 
     loadDec.dispose();
 

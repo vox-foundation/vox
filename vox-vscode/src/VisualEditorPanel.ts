@@ -97,26 +97,20 @@ export class VisualEditorPanel {
         // For Vox, typically applications might be served locally.
         // We will default to an iframe to a local dev server, but fallback to rendering available index.html
 
-        let htmlContent = "";
-
         // 1. Try to read dist/index.html if we statically generated it
         if (this._workspaceFolder) {
             const distHtmlPath = path.join(this._workspaceFolder, 'dist', 'index.html');
             if (fs.existsSync(distHtmlPath)) {
                 try {
-                    let rawHtml = fs.readFileSync(distHtmlPath, 'utf8');
-                    // We might need to rewrite local paths to webview URIs
-                    // But for now, we can just load it directly or inject a base tag
+                    const rawHtml = fs.readFileSync(distHtmlPath, 'utf8');
                     const distUri = webview.asWebviewUri(vscode.Uri.file(path.join(this._workspaceFolder, 'dist')));
 
-                    // Simple replacement to make relative assets load via webview
-                    htmlContent = rawHtml.replace(/(href|src)="(\.\/|\/)?([^"]+)"/g, (match, p1, p2, p3) => {
+                    const withUris = rawHtml.replace(/(href|src)="(\.\/|\/)?([^"]+)"/g, (match, p1, _p2, p3) => {
                         if (p3.startsWith('http') || p3.startsWith('data:')) return match;
                         return `${p1}="${distUri}/${p3}"`;
                     });
 
-                    // Add an auto-refresh script
-                    htmlContent = htmlContent.replace('</head>', `
+                    return withUris.replace('</head>', `
                         <script>
                             window.addEventListener('message', event => {
                                 if (event.data.type === 'refresh') {
@@ -126,10 +120,8 @@ export class VisualEditorPanel {
                         </script>
                         </head>
                     `);
-
-                    return htmlContent;
-                } catch(e) {
-                    console.error("Error reading dist/index.html", e);
+                } catch (e) {
+                    console.error('Error reading dist/index.html', e);
                 }
             }
         }

@@ -13,7 +13,7 @@ use super::db_util;
 /// Start a bug battle.
 pub async fn battle_start(companion_name: &str) -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     println!("  {} Searching for bugs in the rift...", "🔍".bright_blue());
 
@@ -115,7 +115,7 @@ pub async fn battle_start(companion_name: &str) -> Result<()> {
 pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) -> Result<()> {
     let db = db_util::get_db().await?;
     let code = read_utf8_path_capped(code_file)?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     let is_success = !code.contains("todo!()") && !code.is_empty(); // toestub-ignore(stub)
 

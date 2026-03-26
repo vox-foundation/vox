@@ -94,6 +94,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_drain_agent" => parse_obj(
             r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
         ),
+        "vox_spawn_agent" => parse_obj(
+            r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":256},"dynamic":{"type":"boolean"}},"required":["name"],"additionalProperties":false}"#,
+        ),
+        "vox_retire_agent" | "vox_pause_agent" | "vox_resume_agent" => parse_obj(
+            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
+        ),
 
         // ── Orchestrator status / no-arg tools ───────────────────────────────
         "vox_orchestrator_status"
@@ -164,6 +170,34 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_check_mood" | "vox_agent_status" | "vox_agent_continue" | "vox_agent_assess"
         | "vox_agent_handoff" => parse_obj(
             r#"{"type":"object","additionalProperties":true,"description":"Pass agent_id and other fields per orchestrator tool docs."}"#,
+        ),
+        "vox_ludus_notifications_list" => parse_obj(
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}"#,
+        ),
+        "vox_ludus_progress_snapshot" => parse_obj(
+            r#"{"type":"object","properties":{"notification_limit":{"type":"integer","minimum":1,"maximum":100},"policy_limit":{"type":"integer","minimum":1,"maximum":500},"policy_days":{"type":"integer","minimum":1,"maximum":3660}},"additionalProperties":false}"#,
+        ),
+        "vox_ludus_notification_ack" => parse_obj(
+            r#"{"type":"object","properties":{"notification_id":{"type":"string","minLength":1}},"required":["notification_id"],"additionalProperties":false}"#,
+        ),
+        "vox_ludus_notifications_ack_all" => parse_obj(
+            r#"{"type":"object","additionalProperties":false}"#,
+        ),
+        "vox_ludus_quest_list" => parse_obj(
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}"#,
+        ),
+        "vox_ludus_shop_catalog" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_ludus_shop_buy" => parse_obj(
+            r#"{"type":"object","properties":{"item_index":{"type":"integer","minimum":1},"idempotency_key":{"type":"string"}},"required":["item_index"],"additionalProperties":false}"#,
+        ),
+        "vox_ludus_collegium_join" => parse_obj(
+            r#"{"type":"object","properties":{"collegium_id":{"type":"string","minLength":1}},"required":["collegium_id"],"additionalProperties":false}"#,
+        ),
+        "vox_ludus_battle_start" => parse_obj(
+            r#"{"type":"object","properties":{"companion_name":{"type":"string"},"rule_id":{"type":"string"},"message":{"type":"string"},"file_path":{"type":"string"},"line":{"type":"integer","minimum":1},"context":{"type":"string"}},"required":["companion_name","rule_id","message"],"additionalProperties":false}"#,
+        ),
+        "vox_ludus_battle_submit" => parse_obj(
+            r#"{"type":"object","properties":{"companion_name":{"type":"string"},"code":{"type":"string"},"success":{"type":"boolean"}},"required":["companion_name","code"],"additionalProperties":false}"#,
         ),
 
         "vox_queue_status" | "vox_budget_status" | "vox_agent_events" | "vox_cost_history"
@@ -388,10 +422,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"news_id":{"type":"string","minLength":1,"maxLength":256},"content":{"type":"string","minLength":1}},"required":["news_id","content"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_prepare" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"content":{"type":"string","minLength":1},"abstract_text":{"type":"string"},"citations_json":{"type":"object"},"scholarly_metadata":{"type":"object","description":"ScientificPublicationMetadata (authors, license_spdx, funding_statement, ...)","additionalProperties":true},"preflight":{"type":"boolean","description":"If true, run publication_preflight before upsert; fail on error-level findings."},"preflight_profile":{"type":"string","enum":["default","double_blind"]}},"required":["publication_id","title","author","content"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"title":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"content":{"type":"string","minLength":1},"abstract_text":{"type":"string"},"citations_json":{"type":"object"},"scholarly_metadata":{"type":"object","description":"ScientificPublicationMetadata (authors, license_spdx, funding_statement, ...)","additionalProperties":true},"preflight":{"type":"boolean","description":"If true, run publication_preflight before upsert; fail on error-level findings."},"preflight_profile":{"type":"string","enum":["default","double_blind","metadata_complete"]}},"required":["publication_id","title","author","content"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_preflight" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"profile":{"type":"string","enum":["default","double_blind"]},"with_worthiness":{"type":"boolean","description":"If true, attach conservative worthiness rubric output (repo default YAML)."}},"required":["publication_id"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"profile":{"type":"string","enum":["default","double_blind","metadata_complete"]},"with_worthiness":{"type":"boolean","description":"If true, attach conservative worthiness rubric output (repo default YAML)."}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
         "vox_scientia_worthiness_evaluate" => parse_obj(
             r#"{"type":"object","properties":{"contract_yaml_relative":{"type":"string","minLength":1,"maxLength":512,"description":"Repo-relative path to worthiness YAML"},"metrics":{"type":"object","description":"WorthinessInputs","properties":{"red_line_violation_ids":{"type":"array","items":{"type":"string","minLength":1}},"repeated_unresolved_contradiction":{"type":"boolean"},"claim_evidence_coverage":{"type":"number"},"artifact_replayability":{"type":"number"},"before_after_pair_integrity":{"type":"number"},"metadata_completeness":{"type":"number"},"ai_disclosure_compliance":{"type":"number"},"epistemic":{"type":"number"},"reproducibility":{"type":"number"},"novelty":{"type":"number"},"reliability":{"type":"number"},"metadata_policy":{"type":"number"},"meaningful_advance":{"type":"boolean"}},"required":["claim_evidence_coverage","artifact_replayability","before_after_pair_integrity","metadata_completeness","ai_disclosure_compliance","epistemic","reproducibility","novelty","reliability","metadata_policy"],"additionalProperties":false}},"required":["metrics"],"additionalProperties":false}"#,
@@ -399,8 +433,41 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_scientia_publication_approve" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id","approver"],"additionalProperties":false}"#,
         ),
-        "vox_scientia_publication_submit_local" | "vox_scientia_publication_status" => parse_obj(
+        "vox_scientia_publication_submit_local" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"adapter":{"type":"string","minLength":1,"maxLength":64,"description":"Override scholarly adapter (zenodo, openreview, local_ledger, …) instead of VOX_SCHOLARLY_ADAPTER"}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_status" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_scholarly_remote_status" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"external_submission_id":{"type":"string","minLength":1,"maxLength":512}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_scholarly_remote_status_sync_all" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_scholarly_remote_status_sync_batch" => parse_obj(
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":25},"iterations":{"type":"integer","minimum":1,"maximum":10000,"default":1},"interval_secs":{"type":"integer","minimum":0,"maximum":3600,"default":0}},"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_arxiv_handoff_record" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"stage":{"type":"string","enum":["staging_exported","operator_ack","bundle_validated","submitted","published"]},"operator":{"type":"string","maxLength":256},"note":{"type":"string","maxLength":4096},"arxiv_id":{"type":"string","maxLength":256}},"required":["publication_id","stage"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_scholarly_staging_export" => parse_obj(
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"output_dir":{"type":"string","minLength":1,"maxLength":4096,"description":"Directory to write staging files (created if needed)"},"venue":{"type":"string","minLength":1,"maxLength":64,"description":"zenodo | openreview | arxiv-assist"}},"required":["publication_id","output_dir","venue"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_external_jobs_due" => parse_obj(
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":50}},"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_external_jobs_dead_letter" => parse_obj(
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":50}},"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_external_jobs_replay" => parse_obj(
+            r#"{"type":"object","properties":{"job_id":{"type":"integer","minimum":1}},"required":["job_id"],"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_external_jobs_tick" => parse_obj(
+            r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":500,"default":10},"lock_ttl_ms":{"type":"integer","minimum":5000,"maximum":3600000,"default":120000},"lock_owner":{"type":"string","minLength":1,"maxLength":256},"iterations":{"type":"integer","minimum":1,"maximum":10000,"default":1},"interval_secs":{"type":"integer","minimum":0,"maximum":3600,"default":0}},"additionalProperties":false}"#,
+        ),
+        "vox_scientia_publication_external_pipeline_metrics" => parse_obj(
+            r#"{"type":"object","properties":{"since_hours":{"type":"integer","minimum":0,"maximum":8760,"default":168,"description":"Window for attempts/snapshots/latencies/publication_attempts; 0 = all time"}},"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_media_list" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,

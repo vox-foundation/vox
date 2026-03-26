@@ -15,7 +15,7 @@ wasm = ["dep:wasmtime"]
 [dependencies]
 # Workspace dependencies
 vox-orchestrator = { workspace = true, features = ["json-schema"] }
-vox-publisher = { workspace = true, features = ["scientia-reddit", "scientia-youtube"] }
+vox-publisher = { workspace = true, features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
 vox-populi = { workspace = true, features = ["transport"] }
 vox-repository   = { workspace = true, features = ["json-schema"] }
 vox-runtime      = { workspace = true }
@@ -62,6 +62,7 @@ vox-scaling-policy = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+tempfile = { workspace = true }
 insta = { workspace = true }
 serial_test = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }

@@ -119,7 +119,7 @@ pub async fn run_train(
         ?train_backend,
         ?tokenizer_mode,
         model = ?model.as_deref(),
-        "vox schola train entry (backend + tokenizer SSOT)"
+        "vox mens train entry (backend + tokenizer SSOT)"
     );
     tracing::debug!(
         model = ?model.as_deref(),
@@ -330,7 +330,7 @@ pub async fn run_train(
         eprintln!("  Rebuild with: cargo build --features gpu");
         eprintln!();
         eprintln!(
-            "  Canonical QLoRA (when `gpu` is enabled): `vox schola train --backend qlora …`"
+            "  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`"
         );
         eprintln!("  See docs/src/reference/mens-training.md");
         Ok(())

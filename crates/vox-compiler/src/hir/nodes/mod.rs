@@ -15,4 +15,7 @@ mod stmt_expr;
 pub use decl::*;
 pub use expr::*;
 pub use stmt::*;
-pub use stmt_expr::{DefId, HirParam, HirType};
+pub use stmt_expr::{
+    DefId, HirDbPlanCapabilities, HirDbPredicate, HirDbQueryPlan, HirDbRetrievalMode, HirDbTableOp,
+    HirParam, HirType,
+};

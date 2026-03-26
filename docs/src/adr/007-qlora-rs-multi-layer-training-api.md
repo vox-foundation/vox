@@ -10,7 +10,7 @@ training_eligible: true
 
 ## Status
 
-**Accepted** — 2026-03-21. In-tree native Candle QLoRA (`vox schola train --backend qlora`) may expand from the current **single `QuantizedLinear` (LM head)** path to **multiple quantized layers** without forking **qlora-rs** 1.0.5, subject to graph construction work in `vox-mens`.
+**Accepted** — 2026-03-21. In-tree native Candle QLoRA (`vox mens train --backend qlora`) may expand from the current **single `QuantizedLinear` (LM head)** path to **multiple quantized layers** without forking **qlora-rs** 1.0.5, subject to graph construction work in `vox-mens`.
 
 ## Context
 

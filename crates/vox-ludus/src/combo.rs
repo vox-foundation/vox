@@ -71,6 +71,13 @@ pub static COMBOS: &[ComboDefinition] = &[
         window_secs: 3_600, // 1 hour
         bonus_event: "scribes_fury",
     },
+    ComboDefinition {
+        id: "review_fix_ship",
+        display_name: "Review → Fix → Ship",
+        sequence: &["snapshot_captured", "test_pass", "build_clean"],
+        window_secs: 7_200, // 2 hours
+        bonus_event: "review_fix_ship_bonus",
+    },
 ];
 
 // ── Bonus reward table ────────────────────────────────────────────────────────
@@ -174,14 +181,8 @@ async fn reset_combo(db: &Codex, user_id: &str, combo_id: &str) {
 /// Overwrite a daily counter to an exact value (used for resets and timestamps).
 async fn set_counter_exact(db: &Codex, user_id: &str, key: &str, value: i64) -> Result<()> {
     let day = crate::util::now_unix() / 86_400;
-    db.connection()
-        .execute(
-            "INSERT INTO gamify_daily_counters (user_id, event_type, day, count)
-         VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT (user_id, event_type, day)
-         DO UPDATE SET count = excluded.count",
-            turso::params![user_id, key, day, value],
-        )
-        .await?;
+    db.set_gamify_daily_counter_exact(user_id, key, day, value)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }

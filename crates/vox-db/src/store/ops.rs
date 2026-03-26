@@ -7,6 +7,8 @@
 //! - [`super::ops_learning`]: behavioral learning, patterns, training data
 //! - [`super::ops_codex`]: codex reactivity, research graph, reliability, eval, corpus
 
+use crate::store::types::StoreError;
+
 impl crate::VoxDb {
     /// Borrow the underlying libSQL connection.
     ///
@@ -16,6 +18,32 @@ impl crate::VoxDb {
     #[must_use]
     pub fn connection(&self) -> &turso::Connection {
         &self.conn
+    }
+
+    /// Cached PRAGMA snapshot (WAL, FK, compile options / FTS hints). Safe to call repeatedly.
+    pub async fn sqlite_capabilities_snapshot(
+        &self,
+    ) -> Result<crate::capabilities::SqliteProbeSnapshot, turso::Error> {
+        {
+            let cache = self.sqlite_probe_cache.read().await;
+            if let Some(s) = cache.as_ref() {
+                return Ok(s.clone());
+            }
+        }
+        let snap = crate::capabilities::probe_sqlite_capabilities(self.connection()).await?;
+        let mut cache = self.sqlite_probe_cache.write().await;
+        if let Some(s) = cache.as_ref() {
+            return Ok(s.clone());
+        }
+        *cache = Some(snap.clone());
+        Ok(snap)
+    }
+
+    /// Alias for [`Self::sqlite_capabilities_snapshot`] (kept for call sites that name “probe”).
+    pub async fn probe_sqlite_capabilities(
+        &self,
+    ) -> Result<crate::capabilities::SqliteProbeSnapshot, turso::Error> {
+        self.sqlite_capabilities_snapshot().await
     }
 
     /// Run an async future from a synchronous call site (e.g. a `std::thread` worker).
@@ -31,5 +59,11 @@ impl crate::VoxDb {
                 .expect("VoxDb::block_on could not build Tokio runtime")
                 .block_on(fut),
         }
+    }
+
+    /// Run SQLite `VACUUM` (compact / reclaim space).
+    pub async fn run_sqlite_vacuum(&self) -> Result<(), StoreError> {
+        self.conn.execute("VACUUM", ()).await?;
+        Ok(())
     }
 }

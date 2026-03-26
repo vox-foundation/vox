@@ -2,11 +2,10 @@
 
 use crate::hir::HirExpr;
 
-pub(super) fn emit_with(
-    emit_expr: fn(&HirExpr) -> String,
-    operand: &HirExpr,
-    options: &HirExpr,
-) -> String {
+pub(super) fn emit_with<F>(emit_expr: &F, operand: &HirExpr, options: &HirExpr) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
     let mut opts_builder = String::from("vox_runtime::ActivityOptions::new()");
 
     if let HirExpr::ObjectLit(fields, _) = options {

@@ -304,25 +304,27 @@ impl crate::VoxDb {
         user_id: &str,
         name: &str,
     ) -> Result<i64, StoreError> {
+        self.increment_gamify_counter_by(user_id, name, 1).await
+    }
+
+    /// Add `delta` to a persistent counter (minimum 1) and return the new value.
+    pub async fn increment_gamify_counter_by(
+        &self,
+        user_id: &str,
+        name: &str,
+        delta: i64,
+    ) -> Result<i64, StoreError> {
+        if delta <= 0 {
+            return self.get_gamify_counter(user_id, name).await;
+        }
         self.conn
             .execute(
-                "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, 1)
-             ON CONFLICT(user_id, name) DO UPDATE SET count=count+1",
-                params![user_id, name],
+                "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
+             ON CONFLICT(user_id, name) DO UPDATE SET count=count+excluded.count",
+                params![user_id, name, delta],
             )
             .await?;
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT count FROM gamify_counters WHERE user_id=?1 AND name=?2",
-                params![user_id, name],
-            )
-            .await?;
-        Ok(rows
-            .next()
-            .await?
-            .map(|r| r.get::<i64>(0).unwrap_or(1))
-            .unwrap_or(1))
+        self.get_gamify_counter(user_id, name).await
     }
 
     /// Increment a daily counter (gamify_daily_counters); returns new value.
@@ -364,6 +366,24 @@ impl crate::VoxDb {
             .await?
             .map(|r| r.get::<i64>(0).unwrap_or(0))
             .unwrap_or(0))
+    }
+
+    /// Set a daily counter to an exact value (upsert), for combo resets and timestamps.
+    pub async fn set_gamify_daily_counter_exact(
+        &self,
+        user_id: &str,
+        event_type: &str,
+        day: i64,
+        count: i64,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT (user_id, event_type, day) DO UPDATE SET count = excluded.count",
+                params![user_id, event_type, day, count],
+            )
+            .await?;
+        Ok(())
     }
 
     // ── Event Config (gamify_event_config) ────────────────────────────────────

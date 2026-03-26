@@ -66,6 +66,7 @@ Boolean fields use Rust `bool` parsing (`true` / `false` only). Invalid values l
 | `VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK` | `orchestration_migration.legacy_orchestration_fallback` |
 | `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | `populi_control_url` — HTTP base for **`GET /v1/populi/nodes`** (read-only); MCP `vox_orchestrator_status` includes **`mesh_snapshot`** JSON when set. Uses **`VOX_MESH_TOKEN`** on the client when present. Does not change task routing. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL` | `populi_remote_execute_experimental` (TOML alias: `mesh_remote_execute_experimental`) — enables staged rollout for remote task-envelope dispatch over populi A2A relay (with local fallback). |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS` | `populi_remote_result_poll_interval_secs` (TOML alias: `mesh_remote_result_poll_interval_secs`) — MCP **`remote_task_result`** inbox poll interval in seconds; **`0`** disables. |
 
 ### Other CLI / data plane
 

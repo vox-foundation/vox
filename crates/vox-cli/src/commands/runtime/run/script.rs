@@ -10,7 +10,6 @@ use anyhow::Result;
 
 use crate::commands::runtime::run::backend::{NativeBackend, RunBackend, WasiBackend};
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 // ── Error taxonomy (P0) ───────────────────────────────────────────────────────
@@ -199,14 +198,14 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
 
     let backend = opts.backend();
 
-    // Compute content-hash cache key using SipHasher for cross-version stability.
-    // DefaultHasher is not guaranteed stable across Rust versions; SipHasher is.
+    // Cache key: XXH3-64 over a version prefix + raw source bytes (stable across Rust versions;
+    // unlike std::collections::hash_map::DefaultHasher). Bump the prefix when the cache layout must invalidate.
     let hash = {
-        let mut hasher = twox_hash::XxHash64::default();
-        // Seed with a fixed version so we can bump it when codegen / build layout changes.
-        "vox-cache-v3".hash(&mut hasher);
-        source.hash(&mut hasher);
-        format!("{:016x}", hasher.finish())
+        use xxhash_rust::xxh3::xxh3_64;
+        let mut key = Vec::with_capacity(b"vox-cache-v4".len() + 1 + source.len());
+        key.extend_from_slice(b"vox-cache-v4\0");
+        key.extend_from_slice(source.as_bytes());
+        format!("{:016x}", xxh3_64(&key))
     };
 
     let cache_dir = vox_config::paths::script_cache_dir(opts.use_wasi()).join(&hash);

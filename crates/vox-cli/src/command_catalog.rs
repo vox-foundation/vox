@@ -1,6 +1,8 @@
 use clap::{Command, CommandFactory, ValueEnum};
 use serde::Serialize;
 
+use crate::command_contract;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum CatalogFormat {
     Text,
@@ -83,7 +85,7 @@ pub fn select_entries(
 fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEntry>) {
     let mut path = prefix.to_vec();
     path.push(cmd.get_name().to_string());
-    let feature_gate = feature_gate_for_path(&path);
+    let feature_gate = command_contract::merged_feature_gate(&path);
     let tier = tier_for_path(&path, feature_gate.is_some());
     out.push(CommandCatalogEntry {
         command: format!("vox {}", path.join(" ")),
@@ -94,7 +96,7 @@ fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEn
         aliases: collect_aliases(cmd),
         has_subcommands: cmd.has_subcommands(),
         compiled_in: true,
-        source_group: source_group_for_path(&path),
+        source_group: command_contract::catalog_source_group(&path),
         feature_gate,
         path: path.clone(),
         tier,
@@ -111,60 +113,6 @@ fn collect_aliases(cmd: &Command) -> Vec<String> {
     aliases
 }
 
-fn source_group_for_path(path: &[String]) -> String {
-    let top = path.first().map(String::as_str).unwrap_or("unknown");
-    if matches!(top, "fabrica" | "diag" | "ars" | "recensio") {
-        return top.to_string();
-    }
-    if matches!(
-        top,
-        "build" | "check" | "test" | "run" | "dev" | "bundle" | "fmt" | "script" | "completions"
-    ) {
-        return "fabrica".to_string();
-    }
-    if matches!(top, "doctor" | "architect" | "stub-check") {
-        return "diag".to_string();
-    }
-    if matches!(top, "snippet" | "share" | "skill" | "openclaw" | "ludus") {
-        return "ars".to_string();
-    }
-    if matches!(top, "review") {
-        return "recensio".to_string();
-    }
-    if matches!(top, "oratio" | "speech") {
-        return "oratio".to_string();
-    }
-    "core".to_string()
-}
-
-fn feature_gate_for_path(path: &[String]) -> Option<String> {
-    let top = path.first().map(String::as_str)?;
-    let gate = match top {
-        "script" => Some("script-execution"),
-        "live" => Some("live"),
-        "architect" => Some("codex|stub-check"),
-        "openclaw" | "skill" => Some("ars"),
-        "ludus" => Some("extras-ludus"),
-        "stub-check" => Some("stub-check"),
-        "review" | "recensio" => Some("coderabbit"),
-        "island" => Some("island"),
-        "dei" => Some("dei"),
-        "train" => Some("gpu+mens-dei"),
-        "populi" => Some("populi"),
-        "oratio" => Some("oratio"),
-        "speech" => Some("oratio"),
-        "mens" => {
-            if path.get(1).is_some_and(|s| s == "serve") {
-                Some("execution-api|populi")
-            } else {
-                Some("mens-base|gpu")
-            }
-        }
-        _ => None,
-    };
-    gate.map(ToString::to_string)
-}
-
 fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
     if feature_gated {
         return CatalogTier::FeatureGated;
@@ -173,7 +121,7 @@ fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
     if path.len() == 1
         && matches!(
             top,
-            "build" | "check" | "run" | "bundle" | "dev" | "doctor" | "completions"
+            "build" | "check" | "run" | "test" | "bundle" | "dev" | "doctor" | "completions"
         )
     {
         return CatalogTier::Recommended;
@@ -225,6 +173,7 @@ mod tests {
             "build",
             "check",
             "run",
+            "test",
             "bundle",
             "dev",
             "doctor",

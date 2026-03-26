@@ -326,8 +326,8 @@ fn deterministic_hint_content(
         }
         MistakeKind::TodoDebt => {
             let title = "TODO Debt Accumulating".to_string();
-            let body = "You have TODO/FIXME comments building up. Consider using `vox gamify quest-generate` to turn them into trackable quests and earn XP for fixing them.".to_string();
-            (title, body, Some("Vox: `vox gamify quest-generate` scans your workspace for TODOs and creates quests.".to_string()))
+            let body = "You have TODO/FIXME comments building up. Consider using `vox ludus quest-generate` to turn them into trackable quests and earn XP for fixing them.".to_string();
+            (title, body, Some("Vox: `vox ludus quest-generate` scans your workspace for TODOs and creates quests.".to_string()))
         }
         MistakeKind::ArchitecturalIssue => {
             let title = "Architecture Issue".to_string();

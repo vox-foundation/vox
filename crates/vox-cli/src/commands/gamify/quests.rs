@@ -16,7 +16,7 @@ pub async fn quest_list() -> Result<()> {
         .as_secs();
     let day_seed = now / 86_400;
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut quests = db::list_quests(&db, &user_id).await?;
 
     // Filter out expired quests or if none exist for today, generate new ones

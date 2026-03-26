@@ -1,5 +1,4 @@
 use serde_json::Value;
-use turso::params;
 
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt, now_ts, ts_to_date_str};
@@ -138,6 +137,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     .join("\n");
                 context_parts.push(format!(
                     "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
+                ));
+            }
+            if !bundle.chunk_lines.is_empty() {
+                let formatted = bundle
+                    .chunk_lines
+                    .iter()
+                    .map(|c| format!("- {c}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                context_parts.push(format!(
+                    "[AUTONOMOUS RESEARCH — DOCUMENT CHUNKS]:\n{formatted}"
                 ));
             }
             retrieval_evidence = Some(bundle.evidence);
@@ -373,38 +383,36 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let q_repo = repo_id.to_string();
 
         // Insert user turn
-        let _ = db.connection()
-            .execute(
-                "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    user_msg.id.clone(),
-                    q_session.clone(),
-                    user_msg.role.clone(),
-                    user_msg.content.clone(),
-                    user_msg.model_used.clone(),
-                    user_msg.tokens.map(|t| t as i64),
-                    serde_json::to_string(&user_msg.context_files).unwrap_or_default(),
-                    q_repo.clone(),
-                ],
-            ).await;
+        let user_ctx_files =
+            serde_json::to_string(&user_msg.context_files).unwrap_or_default();
+        let _ = db
+            .insert_chat_transcript_turn(
+                user_msg.id.as_str(),
+                q_session.as_str(),
+                user_msg.role.as_str(),
+                user_msg.content.as_str(),
+                user_msg.model_used.as_deref(),
+                user_msg.tokens.map(|t| t as i64),
+                user_ctx_files.as_str(),
+                q_repo.as_str(),
+            )
+            .await;
 
         // Insert assistant turn into chat_transcripts (V17 legacy / VS Code history API)
-        let _ = db.connection()
-            .execute(
-                "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    asst_msg.id.clone(),
-                    q_session.clone(),
-                    asst_msg.role.clone(),
-                    asst_msg.content.clone(),
-                    asst_msg.model_used.clone(),
-                    asst_msg.tokens.map(|t| t as i64),
-                    serde_json::to_string(&asst_msg.context_files).unwrap_or_default(),
-                    q_repo,
-                ],
-            ).await;
+        let asst_ctx_files =
+            serde_json::to_string(&asst_msg.context_files).unwrap_or_default();
+        let _ = db
+            .insert_chat_transcript_turn(
+                asst_msg.id.as_str(),
+                q_session.as_str(),
+                asst_msg.role.as_str(),
+                asst_msg.content.as_str(),
+                asst_msg.model_used.as_deref(),
+                asst_msg.tokens.map(|t| t as i64),
+                asst_ctx_files.as_str(),
+                q_repo.as_str(),
+            )
+            .await;
 
         let now_s = now_ts();
         let date_str = ts_to_date_str(now_s);
@@ -426,6 +434,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         // Record high-quality LLM turn in agent_events for Mens replay/SFT
         let mut payload = serde_json::json!({
             "type": "llm_turn",
+            "agent_id": 0u64,
             "prompt": user_prompt,
             "response": response_text,
             "model": model_used,
@@ -441,13 +450,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         if let Some(ev) = &retrieval_evidence {
             payload["retrieval"] = serde_json::to_value(ev).unwrap_or(Value::Null);
         }
-        let _ = vox_ludus::db::insert_event(
-            db,
-            "0", // Global AI/Orchestrator surface agent_id
-            "llm_turn",
-            Some(&payload.to_string()),
-        )
-        .await;
+        if vox_ludus::config_gate::is_enabled() {
+            let _ = vox_ludus::event_router::route_event_auto_user(db, &payload).await;
+        } else {
+            let _ = vox_ludus::db::insert_event(
+                db,
+                "0",
+                "llm_turn",
+                Some(&payload.to_string()),
+            )
+            .await;
+        }
     }
 
     // 5. Return updated history + the new assistant message

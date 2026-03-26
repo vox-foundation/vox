@@ -18,8 +18,10 @@ use vox_db::Codex;
 use crate::companion::{Companion, Mood, Personality};
 use crate::config_gate;
 use crate::db::{
-    canonical_user_id, get_companion, insert_event, process_event_rewards, upsert_companion,
+    canonical_user_id, get_companion, get_teaching_profile, insert_event, log_hint_event,
+    process_event_rewards, try_claim_processed_event, upsert_companion, upsert_teaching_profile,
 };
+use crate::teaching::{MistakeKind, TeachingProfile};
 use crate::sprite_svg::{AgentPose, character_for_agent, generate_svg};
 use crate::util::now_unix;
 
@@ -53,8 +55,50 @@ pub async fn route_event(
         return Ok(Default::default());
     }
 
+    if let Err(e) = crate::ingest::validate_event_payload(event_json) {
+        tracing::warn!(error = %e, "ludus route_event: reject oversize or invalid payload");
+        return Ok(Default::default());
+    }
+
+    if let Ok(raw) = std::env::var("VOX_LUDUS_ROUTE_LOG_SAMPLE") {
+        if let Ok(n) = raw.parse::<u64>() {
+            if n > 0 {
+                use std::hash::{Hash, Hasher};
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                user_id.hash(&mut h);
+                if let Some(t) = event_json.get("type").and_then(|v| v.as_str()) {
+                    t.hash(&mut h);
+                }
+                if h.finish() % n == 0 {
+                    tracing::info!(
+                        target: "vox_ludus::route_event",
+                        user_id = %user_id,
+                        event_type = %event_json.get("type").and_then(|v| v.as_str()).unwrap_or(""),
+                        "sampled route_event"
+                    );
+                }
+            }
+        }
+    }
+
     let (agent_id, event_type) = parse_agent_event(event_json);
     let payload = event_json.to_string();
+
+    // 0. Idempotency for orchestrator replays (MCP adds `ludus_dedupe_id`)
+    if let Some(did) = event_json
+        .get("ludus_dedupe_id")
+        .and_then(|v| v.as_u64())
+    {
+        let key = format!("{user_id}:orch:{did}");
+        match try_claim_processed_event(db, user_id, &key).await {
+            Ok(true) => {}
+            Ok(false) => {
+                tracing::trace!("[ludus] skip duplicate event {}", key);
+                return Ok(Default::default());
+            }
+            Err(e) => tracing::debug!("[ludus] dedupe check failed: {e}"),
+        }
+    }
 
     // 1. Insert event record
     let _ = insert_event(db, &agent_id.to_string(), event_type, Some(&payload)).await;
@@ -118,7 +162,45 @@ pub async fn route_event(
         }
     }
 
+    let _ = teaching_hook(db, user_id, event_type).await;
+
     Ok(route_res)
+}
+
+async fn teaching_hook(db: &Codex, user_id: &str, event_type: &str) -> Result<()> {
+    let kind = match event_type {
+        "task_failed" | "task_expired" => Some(MistakeKind::WorkflowError),
+        "build_failed" | "check_failed" | "workflow_failed" => Some(MistakeKind::WorkflowError),
+        "test_fail" => Some(MistakeKind::TestFailure),
+        "parse_error" | "syntax_error" => Some(MistakeKind::SyntaxError),
+        "type_error" | "typecheck_error" => Some(MistakeKind::TypeCheckError),
+        "scope_violation" | "injection_detected" => Some(MistakeKind::SecurityHint),
+        "prompt_conflict_detected" | "stub_check_debt" | "conflict_detected" => {
+            Some(MistakeKind::ArchitecturalIssue)
+        }
+        "fmt_failed" | "bundle_failed" => Some(MistakeKind::WorkflowError),
+        _ => None,
+    };
+    let Some(kind) = kind else {
+        return Ok(());
+    };
+    let mut profile = get_teaching_profile(db, user_id)
+        .await
+        .unwrap_or_else(|_| TeachingProfile::new(user_id));
+    let freq = config_gate::mode().hint_frequency() * config_gate::experiment_hint_frequency_multiplier();
+    let req = profile.record_mistake(kind, freq);
+    let _ = upsert_teaching_profile(db, &profile).await;
+    if req.is_some() {
+        let _ = log_hint_event(
+            db,
+            user_id,
+            &format!("{kind:?}"),
+            "shown",
+            Some("route_event"),
+        )
+        .await;
+    }
+    Ok(())
 }
 
 /// Auto-create or update companion records based on agent lifecycle events.
@@ -132,7 +214,8 @@ async fn sync_companion_lifecycle(
     let companion_id = format!("agent-{agent_id}");
 
     match event_type {
-        "AgentSpawned" => {
+        // serde `AgentEventKind` uses #[serde(tag = "type", rename_all = "snake_case")]
+        "agent_spawned" => {
             if get_companion(db, &companion_id).await?.is_none() {
                 let agent_name = event_json
                     .get("name")
@@ -174,13 +257,13 @@ async fn sync_companion_lifecycle(
                 let _ = upsert_companion(db, &c).await;
             }
         }
-        "ActivityChanged" | "TaskStarted" => {
+        "activity_changed" | "task_started" => {
             if let Ok(Some(mut c)) = get_companion(db, &companion_id).await {
                 let activity = event_json
                     .get("activity")
                     .or_else(|| event_json.get("task"))
                     .and_then(|v| v.as_str())
-                    .unwrap_or("Working");
+                    .unwrap_or("working");
                 c.mood = mood_from_activity(activity);
                 let pose = pose_from_activity(activity);
                 let sprite = generate_svg(character_for_agent(agent_id), pose);
@@ -188,9 +271,9 @@ async fn sync_companion_lifecycle(
                 let _ = upsert_companion(db, &c).await;
             }
         }
-        "AgentRetired" | "AgentFailed" => {
+        "agent_retired" | "task_failed" => {
             if let Ok(Some(mut c)) = get_companion(db, &companion_id).await {
-                c.mood = if event_type == "AgentFailed" {
+                c.mood = if event_type == "task_failed" {
                     Mood::Sad
                 } else {
                     Mood::Tired

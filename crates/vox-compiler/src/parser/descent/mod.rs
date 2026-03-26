@@ -124,6 +124,8 @@ impl Parser {
                 | Token::Http
                 | Token::AtTest
                 | Token::AtServer
+                | Token::AtQuery
+                | Token::AtMutation
                 | Token::Component
                 | Token::AtV0 => break,
                 Token::RBrace => {
@@ -150,6 +152,8 @@ impl Parser {
             Token::AtIsland => self.parse_island(),
             Token::AtTest => self.parse_test(),
             Token::AtServer => self.parse_server_fn(),
+            Token::AtQuery => self.parse_query_fn(),
+            Token::AtMutation => self.parse_mutation_fn(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtMcpTool => self.parse_mcp_tool(),
             Token::Fn => {

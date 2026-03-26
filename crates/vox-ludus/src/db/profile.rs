@@ -95,3 +95,23 @@ pub async fn record_level_up(
 pub async fn list_unlocked_achievements(db: &Codex, user_id: &str) -> Result<Vec<(String, i64)>> {
     Ok(db.list_gamify_achievements(user_id).await?)
 }
+
+/// If `target_user_id` has no profile but the synthetic `default` profile exists, copy it over.
+///
+/// Helps MCP (`default`) vs CLI (`local_user_id`) progression split.
+pub async fn merge_default_profile_into_user(db: &Codex, target_user_id: &str) -> Result<bool> {
+    let default_id = crate::util::DEFAULT_USER_ID;
+    if target_user_id == default_id {
+        return Ok(false);
+    }
+    if get_profile(db, target_user_id).await?.is_some() {
+        return Ok(false);
+    }
+    let Some(src) = get_profile(db, default_id).await? else {
+        return Ok(false);
+    };
+    let mut merged = src;
+    merged.user_id = target_user_id.to_string();
+    upsert_profile(db, &merged).await?;
+    Ok(true)
+}

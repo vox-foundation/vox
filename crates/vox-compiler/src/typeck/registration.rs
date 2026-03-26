@@ -20,6 +20,12 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) {
     for sf in &module.server_fns {
         register_fn_like(env, &sf.params, sf.return_type.as_ref(), &sf.name);
     }
+    for sf in &module.query_fns {
+        register_fn_like(env, &sf.params, sf.return_type.as_ref(), &sf.name);
+    }
+    for sf in &module.mutation_fns {
+        register_fn_like(env, &sf.params, sf.return_type.as_ref(), &sf.name);
+    }
     for t in &module.tests {
         register_hir_function(env, t);
     }

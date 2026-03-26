@@ -28,6 +28,7 @@ last_updated: "2026-03-25"
 | Open Turso via helpers | `VoxDb::connect`, `VoxDb::open`, `VoxDb::open_memory` (`vox-db`, `local` feature) | Ad-hoc `turso::Builder` in product crates without allowlist |
 | Run domain SQL | Inside `vox-db/src/store/ops_*.rs` (methods on `VoxDb`) | Raw SQL scattered in consumers for tables owned by Arca |
 | Read-only diagnostics | Documented exceptions (allowlist) | `connection().execute` for business writes outside `vox-db` |
+| CI: `.connection().query\|execute` | `vox ci sql-surface-guard` (diff-scoped; `--all` for full audit) | Extra path prefixes in [`sql-connection-api-allowlist.txt`](./sql-connection-api-allowlist.txt) while migrating |
 
 > [!CAUTION]
 > Prefer adding a method on `VoxDb` in `store/ops_*.rs` instead of embedding SQL in `vox-ludus`, `vox-mcp`, or `vox-orchestrator`.

@@ -7,7 +7,7 @@
 //! ## Subcommands
 //!
 //! ```text
-//! vox schola train      — Fine-tune: Candle QLoRA (default) or Burn LoRA (`--backend lora` deprecated)
+//! vox mens train       — Fine-tune: Candle QLoRA (default) or Burn LoRA (`--backend lora` deprecated)
 //! vox mens serve      — HTTP inference (build `vox-cli` with `--features execution-api`)
 //! vox mens corpus     — Training data pipeline (extract, validate, mix, eval…)
 //! vox mens probe      — Detect GPU capabilities and print recommended LoRA training config

@@ -8,12 +8,17 @@ description = "Unified news syndication and publishing for vox"
 default = []
 scientia-reddit = []
 scientia-youtube = []
+# Shared scholarly `external_submission_jobs` orchestration (CLI + MCP).
+scholarly-external-jobs = ["dep:vox-db"]
 
 [dependencies]
+async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
+flate2 = { version = "1", default-features = true, features = ["rust_backend"] }
+tar = "0.4.45"
 chrono = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
@@ -26,8 +31,9 @@ regex = { workspace = true }
 pulldown-cmark = "0.13"
 vox-scaling-policy = { workspace = true }
 vox-clavis = { path = "../vox-clavis" }
+vox-db = { path = "../vox-db", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
-axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query"] }

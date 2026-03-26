@@ -1,18 +1,27 @@
 pub mod adapters;
 mod bounded_fs;
+pub mod citation_cff;
+pub mod crossref_metadata;
 pub mod contract;
 pub mod gate;
 pub mod publication;
 pub mod publication_preflight;
 pub mod publication_worthiness;
 pub mod scholarly;
+#[cfg(feature = "scholarly-external-jobs")]
+pub mod scholarly_external_jobs;
 pub mod scientia_evidence;
 pub mod scientific_metadata;
+pub mod submission_package;
 pub mod switching;
 pub mod templates;
 pub mod topic_packs;
 pub mod types;
+pub mod openreview_api_types;
+pub mod zenodo_api_types;
 pub mod zenodo_metadata;
+
+mod social_retry;
 
 pub use topic_packs::{apply_topic_pack_from_metadata_json, hydrate_syndication_from_pack_id};
 
@@ -199,6 +208,26 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
     "VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX",
     "VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID",
     "VOX_SCHOLARLY_ADAPTER",
+    "VOX_SCHOLARLY_DISABLE",
+    "VOX_SCHOLARLY_DISABLE_LIVE",
+    "VOX_SCHOLARLY_DISABLE_ZENODO",
+    "VOX_SCHOLARLY_DISABLE_OPENREVIEW",
+    "VOX_OPENREVIEW_API_BASE",
+    "VOX_OPENREVIEW_INVITATION",
+    "VOX_OPENREVIEW_SIGNATURE",
+    "VOX_OPENREVIEW_ACCESS_TOKEN",
+    "OPENREVIEW_API_BASE",
+    "OPENREVIEW_INVITATION",
+    "OPENREVIEW_SIGNATURE",
+    "OPENREVIEW_ACCESS_TOKEN",
+    "OPENREVIEW_EMAIL",
+    "OPENREVIEW_PASSWORD",
+    "VOX_ZENODO_SANDBOX",
+    "VOX_ZENODO_API_BASE",
+    "VOX_ZENODO_HTTP_MAX_ATTEMPTS",
+    "VOX_ZENODO_ATTACH_MANIFEST_BODY",
+    "VOX_ZENODO_PUBLISH_DEPOSITION",
+    "VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS",
     "VOX_SOCIAL_WORTHINESS_ENFORCE",
     "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
 ];
@@ -432,6 +461,12 @@ impl Publisher {
             }
         }
 
+        let social_retry_budget = social_retry::budget_from_distribution_policy(item);
+        result.decision_reasons.insert(
+            "social_retry_max_attempts".to_string(),
+            social_retry_budget.max_attempts.to_string(),
+        );
+
         let is_dry_run = self.config.dry_run
             || item.syndication.dry_run
             || item
@@ -580,7 +615,11 @@ impl Publisher {
                 info!("[DRY RUN] Would update RSS feed for {}", item.id);
                 result.rss = ChannelOutcome::DryRun { external_id: None };
             } else {
-                match adapters::rss::update_feed(item, &self.config.site).await {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::rss::update_feed(item, &self.config.site)
+                })
+                .await
+                {
                     Ok(()) => {
                         result.rss = ChannelOutcome::Success { external_id: None };
                         info!("RSS feed updated.");
@@ -646,7 +685,11 @@ impl Publisher {
                     external_id: Some(format!("dry-run-github-{}", item.id)),
                 };
             } else if let Some(token) = &self.config.github_token {
-                match adapters::github::post(&self.config, token, item, github).await {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::github::post(&self.config, token, item, github)
+                })
+                .await
+                {
                     Ok(id) => {
                         result.github = ChannelOutcome::Success {
                             external_id: Some(id),
@@ -686,7 +729,11 @@ impl Publisher {
                     external_id: Some(format!("dry-run-oc-{}", item.id)),
                 };
             } else if let Some(token) = &self.config.open_collective_token {
-                match adapters::opencollective::post(&self.config, token, item, oc).await {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::opencollective::post(&self.config, token, item, oc)
+                })
+                .await
+                {
                     Ok(id) => {
                         result.open_collective = ChannelOutcome::Success {
                             external_id: Some(id),
@@ -742,7 +789,11 @@ impl Publisher {
                     refresh_token,
                     user_agent,
                 };
-                match adapters::reddit::submit(&auth, item, reddit, canonical_link.as_str()).await {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::reddit::submit(&auth, item, reddit, canonical_link.as_str())
+                })
+                .await
+                {
                     Ok(id) => {
                         result.reddit = ChannelOutcome::Success {
                             external_id: Some(id),
@@ -847,7 +898,19 @@ impl Publisher {
                     );
                     missing_asset = true;
                 }
+                let mut youtube_precheck_failed = false;
+                if !missing_asset {
+                    if let Err(e) = adapters::youtube::precheck_video_upload(&resolved) {
+                        result.youtube = ChannelOutcome::Failed {
+                            code: "youtube_precheck_failed".to_string(),
+                            message: e.to_string(),
+                            retryable: false,
+                        };
+                        youtube_precheck_failed = true;
+                    }
+                }
                 if !missing_asset
+                    && !youtube_precheck_failed
                     && let (Some(client_id), Some(client_secret), Some(refresh_token)) = (
                         self.config.youtube_client_id.as_deref(),
                         self.config.youtube_client_secret.as_deref(),
@@ -859,12 +922,14 @@ impl Publisher {
                         client_secret,
                         refresh_token,
                     };
-                    match adapters::youtube::upload_video(
-                        &auth,
-                        yt,
-                        item,
-                        self.config.youtube_repo_root.as_deref(),
-                    )
+                    match social_retry::run_with_retries(social_retry_budget, || {
+                        adapters::youtube::upload_video(
+                            &auth,
+                            yt,
+                            item,
+                            self.config.youtube_repo_root.as_deref(),
+                        )
+                    })
                     .await
                     {
                         Ok(external_id) => {
@@ -881,7 +946,7 @@ impl Publisher {
                             };
                         }
                     }
-                } else if !missing_asset {
+                } else if !missing_asset && !youtube_precheck_failed {
                     result.youtube = ChannelOutcome::Failed {
                         code: "missing_youtube_credentials".to_string(),
                         message: "YouTube config present but OAuth credentials are incomplete."

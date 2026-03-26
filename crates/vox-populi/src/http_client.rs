@@ -7,7 +7,8 @@
 use std::time::Duration;
 
 use crate::transport::{
-    A2AAckRequest, A2ADeliverRequest, A2AInboxRequest, A2AInboxResponse, LeaveRequest,
+    A2AAckRequest, A2ADeliverRequest, A2AInboxRequest, A2AInboxResponse, A2ALeaseRenewRequest,
+    AdminQuarantineRequest, LeaveRequest,
 };
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
 
@@ -71,6 +72,36 @@ impl PopuliHttpClient {
         } else {
             self
         }
+    }
+
+    /// Bearer for **`POST /v1/populi/a2a/deliver`**: first non-empty among mesh, submitter, then admin tokens.
+    #[must_use]
+    pub fn with_env_deliver_token(self) -> Self {
+        let mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+            .expose()
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .map(ToString::to_string);
+        if let Some(t) = mesh {
+            return self.with_bearer(t);
+        }
+        let sub = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshSubmitterToken)
+            .expose()
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .map(ToString::to_string);
+        if let Some(t) = sub {
+            return self.with_bearer(t);
+        }
+        let adm = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdminToken)
+            .expose()
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .map(ToString::to_string);
+        if let Some(t) = adm {
+            return self.with_bearer(t);
+        }
+        self
     }
 
     fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -168,6 +199,7 @@ impl PopuliHttpClient {
         let url = format!("{}/v1/populi/a2a/inbox", self.base);
         self.auth(self.client.post(url).json(&A2AInboxRequest {
             receiver_agent_id: receiver_agent_id.to_string(),
+            claimer_node_id: None,
         }))
         .send()
         .await
@@ -202,5 +234,35 @@ impl PopuliHttpClient {
                 resp.status()
             ))),
         }
+    }
+
+    /// `POST /v1/populi/a2a/lease-renew`.
+    pub async fn relay_a2a_lease_renew(
+        &self,
+        req: &A2ALeaseRenewRequest,
+    ) -> Result<(), PopuliRegistryError> {
+        let url = format!("{}/v1/populi/a2a/lease-renew", self.base);
+        self.auth(self.client.post(url).json(req))
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?
+            .error_for_status()
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        Ok(())
+    }
+
+    /// `POST /v1/populi/admin/quarantine` — requires mesh/admin bearer.
+    pub async fn admin_quarantine(
+        &self,
+        req: &AdminQuarantineRequest,
+    ) -> Result<(), PopuliRegistryError> {
+        let url = format!("{}/v1/populi/admin/quarantine", self.base);
+        self.auth(self.client.post(url).json(req))
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?
+            .error_for_status()
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        Ok(())
     }
 }

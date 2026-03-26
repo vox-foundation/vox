@@ -4,7 +4,9 @@
 
 use clap::Subcommand;
 
-use super::db_cli::{DbPreflightProfileCli, PublicationPrepareBodyCli};
+use super::db_cli::{
+    ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
+};
 
 /// Subcommands for `vox scientia`.
 #[derive(Subcommand)]
@@ -84,6 +86,15 @@ pub enum ScientiaCmd {
         #[arg(long)]
         publication_id: String,
     },
+    #[command(name = "publication-scholarly-staging-export")]
+    PublicationScholarlyStagingExport {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long)]
+        output_dir: std::path::PathBuf,
+        #[arg(long, value_enum)]
+        venue: ScholarlyVenueCli,
+    },
     /// Worthiness rubric evaluation JSON (`vox db publication-worthiness-evaluate`).
     #[command(name = "publication-worthiness-evaluate")]
     PublicationWorthinessEvaluate {
@@ -102,12 +113,15 @@ pub enum ScientiaCmd {
         #[arg(long)]
         approver: String,
     },
-    /// Submit through the local scholarly adapter.
+    /// Submit through the scholarly adapter (`--adapter` or `VOX_SCHOLARLY_ADAPTER`).
     #[command(name = "publication-submit-local")]
     PublicationSubmitLocal {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+        /// Override adapter: `local_ledger`, `echo_ledger`, `zenodo`, `openreview` (default: env).
+        #[arg(long)]
+        adapter: Option<String>,
     },
     /// Show manifest + approval + scholarly status.
     #[command(name = "publication-status")]
@@ -115,6 +129,80 @@ pub enum ScientiaCmd {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+    },
+    /// Poll remote scholarly repository status for a stored submission.
+    #[command(name = "publication-scholarly-remote-status")]
+    PublicationScholarlyRemoteStatus {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long)]
+        external_submission_id: Option<String>,
+    },
+    /// Poll remote status for every scholarly submission row on this publication (multi-deposit / multi-venue).
+    #[command(name = "publication-scholarly-remote-status-sync-all")]
+    PublicationScholarlyRemoteStatusSyncAll {
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Batch remote status poll across publications (for cron).
+    #[command(name = "publication-scholarly-remote-status-sync-batch")]
+    PublicationScholarlyRemoteStatusSyncBatch {
+        #[arg(long, default_value_t = 25)]
+        limit: i64,
+        #[arg(long, default_value_t = 1)]
+        iterations: u32,
+        #[arg(long, default_value_t = 0)]
+        interval_secs: u64,
+    },
+    /// Record an arXiv-assist operator milestone (append-only audit trail).
+    #[command(name = "publication-arxiv-handoff-record")]
+    PublicationArxivHandoffRecord {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long)]
+        stage: ArxivHandoffStageCli,
+        #[arg(long)]
+        operator: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+        #[arg(long)]
+        arxiv_id: Option<String>,
+    },
+    #[command(name = "publication-external-jobs-due")]
+    PublicationExternalJobsDue {
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    /// List scholarly outbound jobs in terminal `failed` state (dead-letter review).
+    #[command(name = "publication-external-jobs-dead-letter")]
+    PublicationExternalJobsDeadLetter {
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    /// Requeue one dead-letter scholarly job (`failed` → `queued`) by job id.
+    #[command(name = "publication-external-jobs-replay")]
+    PublicationExternalJobsReplay {
+        #[arg(long)]
+        job_id: i64,
+    },
+    #[command(name = "publication-external-jobs-tick")]
+    PublicationExternalJobsTick {
+        #[arg(long, default_value_t = 10)]
+        limit: i64,
+        #[arg(long, default_value_t = 120_000)]
+        lock_ttl_ms: i64,
+        #[arg(long)]
+        lock_owner: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        iterations: u32,
+        #[arg(long, default_value_t = 0)]
+        interval_secs: u64,
+    },
+    /// JSON rollup of external scholarly pipeline metrics (see `vox db publication-external-pipeline-metrics`).
+    #[command(name = "publication-external-pipeline-metrics")]
+    PublicationExternalPipelineMetrics {
+        #[arg(long, default_value_t = 168)]
+        since_hours: i64,
     },
 }
 
@@ -175,6 +263,15 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
             DbCli::PublicationZenodoMetadata { publication_id }
         }
+        ScientiaCmd::PublicationScholarlyStagingExport {
+            publication_id,
+            output_dir,
+            venue,
+        } => DbCli::PublicationScholarlyStagingExport {
+            publication_id,
+            output_dir,
+            venue,
+        },
         ScientiaCmd::PublicationWorthinessEvaluate {
             contract_yaml,
             metrics_json,
@@ -189,11 +286,72 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             publication_id,
             approver,
         },
-        ScientiaCmd::PublicationSubmitLocal { publication_id } => {
-            DbCli::PublicationSubmitLocal { publication_id }
-        }
+        ScientiaCmd::PublicationSubmitLocal {
+            publication_id,
+            adapter,
+        } => DbCli::PublicationSubmitLocal {
+            publication_id,
+            adapter,
+        },
         ScientiaCmd::PublicationStatus { publication_id } => {
             DbCli::PublicationStatus { publication_id }
+        },
+        ScientiaCmd::PublicationScholarlyRemoteStatus {
+            publication_id,
+            external_submission_id,
+        } => DbCli::PublicationScholarlyRemoteStatus {
+            publication_id,
+            external_submission_id,
+        },
+        ScientiaCmd::PublicationScholarlyRemoteStatusSyncAll { publication_id } => {
+            DbCli::PublicationScholarlyRemoteStatusSyncAll { publication_id }
+        },
+        ScientiaCmd::PublicationScholarlyRemoteStatusSyncBatch {
+            limit,
+            iterations,
+            interval_secs,
+        } => DbCli::PublicationScholarlyRemoteStatusSyncBatch {
+            limit,
+            iterations,
+            interval_secs,
+        },
+        ScientiaCmd::PublicationArxivHandoffRecord {
+            publication_id,
+            stage,
+            operator,
+            note,
+            arxiv_id,
+        } => DbCli::PublicationArxivHandoffRecord {
+            publication_id,
+            stage,
+            operator,
+            note,
+            arxiv_id,
+        },
+        ScientiaCmd::PublicationExternalJobsDue { limit } => {
+            DbCli::PublicationExternalJobsDue { limit }
+        },
+        ScientiaCmd::PublicationExternalJobsDeadLetter { limit } => {
+            DbCli::PublicationExternalJobsDeadLetter { limit }
+        },
+        ScientiaCmd::PublicationExternalJobsReplay { job_id } => {
+            DbCli::PublicationExternalJobsReplay { job_id }
+        },
+        ScientiaCmd::PublicationExternalJobsTick {
+            limit,
+            lock_ttl_ms,
+            lock_owner,
+            iterations,
+            interval_secs,
+        } => DbCli::PublicationExternalJobsTick {
+            limit,
+            lock_ttl_ms,
+            lock_owner,
+            iterations,
+            interval_secs,
+        },
+        ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
+            DbCli::PublicationExternalPipelineMetrics { since_hours }
         }
     };
     db_cli::run(db_cmd).await

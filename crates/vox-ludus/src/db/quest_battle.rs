@@ -1,7 +1,6 @@
 //! Quest and battle persistence.
 
 use anyhow::Result;
-use turso::params;
 use vox_db::Codex;
 
 use crate::battle::{Battle, BugType};
@@ -90,38 +89,52 @@ pub async fn upsert_quest(db: &Codex, q: &Quest) -> Result<()> {
 
 /// Get a specific quest by ID.
 pub async fn get_quest(db: &Codex, id: &str) -> Result<Option<Quest>> {
-    let mut rows = db.connection().query(
-        "SELECT id, user_id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at,
-                hint, modifier, status
-         FROM gamify_quests WHERE id = ?1",
-        params![id],
-    ).await?;
-    if let Some(row) = rows.next().await? {
-        let completed = row.get::<i64>(8)? != 0;
-        let modifier_str: String = row.get(11).unwrap_or_else(|_| "none".to_string());
+    let row = db
+        .get_gamify_quest_by_id(id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    if let Some((
+        qid,
+        user_id,
+        quest_type_s,
+        description,
+        target,
+        progress,
+        crystal_reward,
+        xp_reward,
+        completed_i,
+        expires_at,
+        hint,
+        modifier_str,
+        status,
+    )) = row
+    {
+        let completed = completed_i != 0;
         let modifier = serde_json::from_str::<QuestModifier>(&format!("\"{}\"", modifier_str))
             .unwrap_or(QuestModifier::None);
 
         Ok(Some(Quest {
-            id: row.get::<String>(0)?,
-            user_id: row.get::<String>(1)?,
-            quest_type: parse_quest_type(&row.get::<String>(2)?),
-            description: row.get::<String>(3)?,
-            hint: row.get(10).unwrap_or_default(),
-            target: row.get::<i64>(4)? as u32,
-            progress: row.get::<i64>(5)? as u32,
-            crystal_reward: row.get::<i64>(6)? as u64,
-            xp_reward: row.get::<i64>(7)? as u64,
+            id: qid,
+            user_id,
+            quest_type: parse_quest_type(&quest_type_s),
+            description,
+            hint,
+            target: target as u32,
+            progress: progress as u32,
+            crystal_reward: crystal_reward as u64,
+            xp_reward: xp_reward as u64,
             modifier,
             completed,
-            status: row.get(12).unwrap_or_else(|_| {
+            status: if status.is_empty() {
                 if completed {
                     "completed".into()
                 } else {
                     "active".into()
                 }
-            }),
-            expires_at: row.get(9).unwrap_or_default(),
+            } else {
+                status
+            },
+            expires_at,
         }))
     } else {
         Ok(None)
@@ -198,31 +211,43 @@ pub async fn insert_battle(db: &Codex, b: &Battle) -> Result<()> {
 
 /// Get a specific battle by ID.
 pub async fn get_battle(db: &Codex, id: &str) -> Result<Option<Battle>> {
-    let mut rows = db.connection().query(
-        "SELECT id, user_id, companion_id, bug_type, bug_description, bug_code, submitted_code, success, crystals_earned, xp_earned, duration_secs, created_at
-         FROM gamify_battles WHERE id = ?1",
-        params![id],
-    ).await?;
-    if let Some(row) = rows.next().await? {
+    let cols = db
+        .get_gamify_battle(id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    if let Some(c) = cols {
+        fn col_str(c: &[Option<String>], i: usize) -> String {
+            c.get(i).and_then(|x| x.clone()).unwrap_or_default()
+        }
+        fn col_i64(c: &[Option<String>], i: usize) -> i64 {
+            c.get(i)
+                .and_then(|x| x.as_deref())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0)
+        }
+        fn col_opt(c: &[Option<String>], i: usize) -> Option<String> {
+            c.get(i).and_then(|x| x.clone())
+        }
+        let bug_type_s = col_str(&c, 3);
         Ok(Some(Battle {
-            id: row.get::<String>(0)?,
-            user_id: row.get::<String>(1)?,
-            companion_id: row.get::<String>(2)?,
-            bug_type: match row.get::<String>(3)?.as_str() {
+            id: col_str(&c, 0),
+            user_id: col_str(&c, 1),
+            companion_id: col_str(&c, 2),
+            bug_type: match bug_type_s.as_str() {
                 "syntax" => BugType::Syntax,
                 "logic" => BugType::Logic,
                 "performance" => BugType::Performance,
                 "security" => BugType::Security,
                 _ => BugType::Syntax,
             },
-            bug_description: row.get::<String>(4)?,
-            bug_code: row.get::<Option<String>>(5)?,
-            submitted_code: row.get::<Option<String>>(6)?,
-            success: row.get::<i64>(7)? != 0,
-            crystals_earned: row.get::<i64>(8)? as u64,
-            xp_earned: row.get::<i64>(9)? as u64,
-            duration_secs: row.get::<i64>(10)? as u64,
-            created_at: row.get::<i64>(11)?,
+            bug_description: col_str(&c, 4),
+            bug_code: col_opt(&c, 5),
+            submitted_code: col_opt(&c, 6),
+            success: col_i64(&c, 7) != 0,
+            crystals_earned: col_i64(&c, 8) as u64,
+            xp_earned: col_i64(&c, 9) as u64,
+            duration_secs: col_i64(&c, 10) as u64,
+            created_at: col_i64(&c, 11),
         }))
     } else {
         Ok(None)

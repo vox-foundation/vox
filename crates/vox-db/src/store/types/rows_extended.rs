@@ -278,6 +278,78 @@ pub struct PublicationStatusEventRow {
     pub recorded_at_ms: i64,
 }
 
+/// One row from `external_submission_jobs`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalSubmissionJobRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub content_sha3_256: String,
+    pub adapter: String,
+    pub operation: String,
+    pub idempotency_key: String,
+    pub status: String,
+    pub lock_owner: Option<String>,
+    pub lock_expires_at_ms: Option<i64>,
+    pub next_retry_at_ms: Option<i64>,
+    pub attempt_count: i64,
+    pub last_error_class: Option<String>,
+    pub last_error_message: Option<String>,
+    pub metadata_json: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+/// One row from `external_submission_attempts`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalSubmissionAttemptRow {
+    pub id: i64,
+    pub job_id: i64,
+    pub attempted_at_ms: i64,
+    pub http_status: Option<i64>,
+    pub error_class: Option<String>,
+    pub retryable: bool,
+    pub request_fingerprint: Option<String>,
+    pub response_fingerprint: Option<String>,
+    pub detail_json: Option<String>,
+}
+
+/// One row from `external_status_snapshots`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalStatusSnapshotRow {
+    pub id: i64,
+    pub adapter: String,
+    pub external_submission_id: String,
+    pub publication_id: String,
+    pub content_sha3_256: String,
+    pub snapshot_json: String,
+    pub fetched_at_ms: i64,
+}
+
+/// One row from `publication_external_links`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PublicationExternalLinkRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub content_sha3_256: String,
+    pub adapter: String,
+    pub link_kind: String,
+    pub link_value: String,
+    pub metadata_json: Option<String>,
+    pub created_at_ms: i64,
+}
+
+/// One row from `publication_external_revisions`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PublicationExternalRevisionRow {
+    pub id: i64,
+    pub publication_id: String,
+    pub content_sha3_256: String,
+    pub adapter: String,
+    pub external_revision: String,
+    pub metadata_json: Option<String>,
+    pub updated_at_ms: i64,
+}
+
 /// A single row from `local_train_log`.
 #[derive(Debug, Clone)]
 pub struct LocalTrainRow {
@@ -333,4 +405,54 @@ pub struct PlanNodeRow {
     pub execution_policy_json: String,
     pub status: String,
     pub workflow_invocation: Option<String>,
+}
+
+/// One row from `gamify_policy_snapshots` for Ludus KPI / audit lists.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GamifyPolicySnapshotListRow {
+    /// Event type label stored on the snapshot.
+    pub event_type: String,
+    /// Base XP before multipliers.
+    pub base_xp: i64,
+    /// Base crystals before multipliers.
+    pub base_crystals: i64,
+    /// Mode / policy bucket label.
+    pub mode_label: String,
+    /// Effective multiplier applied.
+    pub effective_multiplier: f64,
+    /// Final awarded XP.
+    pub awarded_xp: i64,
+    /// Final awarded crystals.
+    pub awarded_crystals: i64,
+    /// SQLite truthy grind-cap flag.
+    pub grind_capped: i64,
+    /// Lumens component if present.
+    pub lumens: i64,
+    /// `created_at` column as stored (string timestamp).
+    pub created_at: String,
+}
+
+/// Aggregated Ludus-facing KPI counters for one user (`load_kpi_summary`).
+#[derive(Debug, Clone)]
+pub struct GamifyLudusKpiRollup {
+    /// Policy snapshot rows for this user.
+    pub events_recorded: i64,
+    /// Sum of awarded XP across policy snapshots.
+    pub total_xp_awarded: i64,
+    /// Sum of awarded crystals across policy snapshots.
+    pub total_crystals_awarded: i64,
+    /// Count of grind-capped snapshots.
+    pub grind_capped_events: i64,
+    /// Average effective multiplier across snapshots.
+    pub avg_effective_multiplier: f64,
+    /// Total hint telemetry rows.
+    pub hint_events_logged: i64,
+    /// Completed quest rows for this user.
+    pub quests_completed_total: i64,
+    /// Unread notifications.
+    pub notifications_unread: i64,
+    /// Hint rows with `action = 'shown'`.
+    pub hints_shown: i64,
+    /// Hint rows with `action = 'dismissed'`.
+    pub hints_dismissed: i64,
 }

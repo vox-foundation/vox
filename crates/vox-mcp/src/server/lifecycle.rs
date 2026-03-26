@@ -37,6 +37,8 @@ pub struct ServerState {
     pub orchestrator: Arc<Orchestrator>,
     /// Optional Turso/Codex handle for gamify, preferences, and knowledge graph tools.
     pub db: Option<Arc<VoxDb>>,
+    /// Filled when the DB is attached via [`Self::with_db_initialized`] (PRAGMA snapshot for FTS/WAL/FK routing).
+    pub sqlite_capabilities: Option<vox_db::capabilities::SqliteProbeSnapshot>,
     /// Persists chat/session turns under `.sessions/<repository_id>/` when enabled.
     pub session_manager: Arc<Mutex<SessionManager>>,
     /// Installed vox-skills registry (also used for MCP skill tools).
@@ -57,8 +59,10 @@ pub struct ServerState {
     event_log_sink_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Last background fetch of `GET /v1/populi/nodes` (read-only federation; see mens SSOT).
     pub populi_remote_snapshot: Arc<RwLock<RemotePopuliSnapshot>>,
-    /// Stops [`Self::spawn_populi_federation_poller`] when re-rooting.
+    /// Stops the federation poller when re-rooting (see [`Self::with_workspace_root`]).
     populi_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Stops [`Self::spawn_populi_remote_result_poller`] when re-rooting.
+    populi_remote_result_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl ServerState {
@@ -109,6 +113,7 @@ impl ServerState {
             repository: repository.clone(),
             orchestrator: Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
             db: None,
+            sqlite_capabilities: None,
             session_manager: Arc::new(Mutex::new(session_manager)),
             skill_registry: registry,
             transient_events: Arc::new(Mutex::new(Vec::new())),
@@ -120,9 +125,11 @@ impl ServerState {
             event_log_sink_join: Arc::new(SyncMutex::new(None)),
             populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
             populi_poll_join: Arc::new(SyncMutex::new(None)),
+            populi_remote_result_poll_join: Arc::new(SyncMutex::new(None)),
         };
         state.spawn_orchestrator_event_log_sink();
         state.spawn_populi_federation_poller();
+        state.spawn_populi_remote_result_poller();
         state
     }
 
@@ -222,6 +229,69 @@ impl ServerState {
         *guard = Some(handle);
     }
 
+    /// Drain populi **`remote_task_result`** inbox rows (experimental remote execute).
+    ///
+    /// Runs on its own interval ([`OrchestratorConfig::populi_remote_result_poll_interval_secs`]) so
+    /// results are picked up even when federation polling (`populi_poll_interval_secs`) is `0` or very slow.
+    pub fn spawn_populi_remote_result_poller(&self) {
+        if !self.orchestrator_config.populi_remote_execute_experimental {
+            return;
+        }
+        if self.orchestrator_config.populi_remote_result_poll_interval_secs == 0 {
+            return;
+        }
+        let url = match self
+            .orchestrator_config
+            .populi_control_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(u) => u.to_string(),
+            None => return,
+        };
+        let interval_secs = self
+            .orchestrator_config
+            .populi_remote_result_poll_interval_secs
+            .max(1);
+        let timeout_ms = self.orchestrator_config.populi_http_timeout_ms.max(500);
+        let orch_cfg = self.orchestrator_config.clone();
+        let orch = self.orchestrator.clone();
+        let mut guard = self
+            .populi_remote_result_poll_join
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(h) = guard.take() {
+            h.abort();
+        }
+        let handle = tokio::spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                tick.tick().await;
+                let parent_agent = orch_cfg
+                    .populi_remote_execute_sender_agent
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(1_u64);
+                let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                    &url,
+                    std::time::Duration::from_millis(timeout_ms),
+                )
+                .with_env_token();
+                vox_orchestrator::a2a::drain_populi_remote_task_results(
+                    &client,
+                    parent_agent,
+                    &orch,
+                )
+                .await;
+            }
+        });
+        *guard = Some(handle);
+    }
+
     /// Append JSON lines for every [`AgentEvent`] when **`VOX_ORCHESTRATOR_EVENT_LOG`** is set to a file path.
     pub fn spawn_orchestrator_event_log_sink(&self) {
         let Ok(raw) = std::env::var("VOX_ORCHESTRATOR_EVENT_LOG") else {
@@ -289,6 +359,18 @@ impl ServerState {
         self.orchestrator_config = orch_cfg.clone();
         self.orchestrator = Arc::new(Orchestrator::with_groups(orch_cfg, groups));
         self.spawn_orchestrator_event_log_sink();
+        if let Ok(mut g) = self.populi_poll_join.lock() {
+            if let Some(h) = g.take() {
+                h.abort();
+            }
+        }
+        if let Ok(mut g) = self.populi_remote_result_poll_join.lock() {
+            if let Some(h) = g.take() {
+                h.abort();
+            }
+        }
+        self.spawn_populi_federation_poller();
+        self.spawn_populi_remote_result_poller();
         self
     }
 
@@ -318,6 +400,7 @@ impl ServerState {
             repository,
             orchestrator,
             db: None,
+            sqlite_capabilities: None,
             session_manager,
             skill_registry,
             transient_events: Arc::new(Mutex::new(Vec::new())),
@@ -329,12 +412,48 @@ impl ServerState {
             event_log_sink_join: Arc::new(SyncMutex::new(None)),
             populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
             populi_poll_join: Arc::new(SyncMutex::new(None)),
+            populi_remote_result_poll_join: Arc::new(SyncMutex::new(None)),
         }
     }
 
-    /// Attach Codex, stream orchestrator events into Gamify tables, and enable skill persistence.
-    pub fn with_db(mut self, db: VoxDb) -> Self {
+    /// Attach Codex after syncing orchestrator schema into the same [`VoxDb`] handle.
+    ///
+    /// Ensures [`Orchestrator::db`] is populated for reputation routing, A2A mailboxes, and other
+    /// orchestrator features that read `self.db()` — not only MCP tool `state.db`.
+    pub async fn with_db_initialized(self, db: VoxDb) -> Self {
         let db_arc = Arc::new(db);
+        if let Err(e) = self.orchestrator.init_db(db_arc.clone()).await {
+            tracing::warn!(
+                "orchestrator.init_db failed (orchestrator DB features may be disabled): {}",
+                e
+            );
+        }
+        let probe = match db_arc.sqlite_capabilities_snapshot().await {
+            Ok(p) => {
+                tracing::info!(
+                    journal_mode = %p.journal_mode,
+                    foreign_keys_on = p.foreign_keys_on,
+                    fts5_reported = p.fts5_reported,
+                    "sqlite capability probe"
+                );
+                Some(p)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "sqlite capability probe failed");
+                None
+            }
+        };
+        let mut next = self.with_db_arc(db_arc);
+        next.sqlite_capabilities = probe;
+        next
+    }
+
+    /// Attach Codex, stream orchestrator events into Gamify tables, and enable skill persistence.
+    pub fn with_db(self, db: VoxDb) -> Self {
+        self.with_db_arc(Arc::new(db))
+    }
+
+    fn with_db_arc(mut self, db_arc: Arc<VoxDb>) -> Self {
         self.db = Some(db_arc.clone());
 
         let mut session_cfg = self.orchestrator_config.session.clone();
@@ -476,30 +595,21 @@ impl ServerState {
                     _ => None,
                 };
 
-                if let Some((agent_id, event_type)) = agent_and_type {
+                if let Some((_agent_id, _event_type)) = agent_and_type {
                     let mut kind_json = serde_json::to_value(&event.kind).unwrap_or_default();
                     if let Some(obj) = kind_json.as_object_mut() {
                         obj.insert(
                             "repository_id".to_string(),
                             serde_json::Value::String(repository_id.clone()),
                         );
+                        obj.insert(
+                            "ludus_dedupe_id".to_string(),
+                            serde_json::json!(event.id.0),
+                        );
                     }
-                    let payload = serde_json::to_string(&kind_json).unwrap_or_default();
-                    let _ = vox_ludus::db::insert_event(
-                        &db_for_task,
-                        &agent_id.to_string(),
-                        event_type,
-                        Some(&payload),
-                    )
-                    .await;
-
-                    // Process rewards
-                    let _ = vox_ludus::db::process_event_rewards(
-                        &db_for_task,
-                        vox_ludus::util::DEFAULT_USER_ID,
-                        &kind_json,
-                    )
-                    .await;
+                    let _ =
+                        vox_ludus::event_router::route_event_auto_user(&db_for_task, &kind_json)
+                            .await;
                 }
             }
         });

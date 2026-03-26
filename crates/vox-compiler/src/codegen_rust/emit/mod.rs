@@ -18,7 +18,9 @@ mod workflow;
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
 pub use stmt_expr::{emit_expr, emit_main_stmt};
-pub use tables::{emit_index_ddl, emit_table_ddl, emit_table_struct};
+pub use tables::{
+    emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,
+};
 pub use workflow::{emit_fn, emit_lib};
 
 pub struct CodegenOutput {
@@ -31,6 +33,13 @@ pub struct CodegenOutput {
 /// Emit a minimal Axum + Turso backend crate from `module` (paths relative to generated root).
 pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput, miette::Error> {
     let mut files = HashMap::new();
+
+    let table_projections = tables::collect_table_select_projections(module);
+    for table in &module.tables {
+        if let Some(projs) = table_projections.get(&table.name) {
+            tables::validate_db_projection_suffixes_unique(&table.name, projs)?;
+        }
+    }
 
     // Cargo.toml
     files.insert("Cargo.toml".to_string(), emit_cargo_toml(package_name));

@@ -153,12 +153,26 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Fail when unknown crates use `db.connection().query|execute(` (transitional allowlist in docs).
+    #[command(name = "sql-surface-guard")]
+    SqlSurfaceGuard {
+        /// Scan all `crates/**/*.rs` instead of only `git diff` changed files.
+        #[arg(long)]
+        all: bool,
+    },
     /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
     #[command(name = "clavis-parity")]
     ClavisParity,
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,
+    /// Regenerate or verify `docs/src/reference/cli-command-surface.generated.md` from the registry.
+    #[command(name = "command-sync")]
+    CommandSync {
+        /// Write generated Markdown; without this flag, verify it matches the registry.
+        #[arg(long)]
+        write: bool,
+    },
     /// Fail if internal Markdown links are broken in `docs/src` or root-level guides.
     #[command(name = "check-links")]
     CheckLinks,

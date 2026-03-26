@@ -1,6 +1,6 @@
 //! Mens **training backend** selection (`lora` vs `qlora`).
 //!
-//! SSOT: `vox schola train --backend`. [`PopuliTrainBackend::BurnLora`] → Burn + wgpu LoRA on Vox JSONL.
+//! SSOT: `vox mens train --backend`. [`PopuliTrainBackend::BurnLora`] → Burn + wgpu LoRA on Vox JSONL.
 //! [`PopuliTrainBackend::CandleQlora`] → Candle + **qlora-rs** NF4 on LM head + mmap `f32` embeds + HF tokenizer.
 //!
 //! **Execution kernel** (contract/planner vocabulary): type alias only — behavior is still this enum.

@@ -1,0 +1,105 @@
+//! MCP-facing introspection and legacy transcript writes (`db_sample_data`, chat persistence).
+
+use turso::params;
+
+use crate::store::types::StoreError;
+
+fn mcp_safe_sqlite_table_name(name: &str) -> Result<&str, StoreError> {
+    if name.is_empty() || name.len() > 128 {
+        return Err(StoreError::Db("table name empty or too long".into()));
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err(StoreError::Db(format!(
+            "table name must be [A-Za-z0-9_]+ only (got {name:?})"
+        )));
+    }
+    Ok(name)
+}
+
+impl crate::VoxDb {
+    /// `PRAGMA table_info` + `SELECT * … LIMIT` for MCP `db_sample_data` (identifier-validated `table`).
+    pub async fn mcp_diagnostic_sample_table(
+        &self,
+        table: &str,
+        limit: u64,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let table = mcp_safe_sqlite_table_name(table)?;
+        let lim = limit.clamp(1, 1000) as i64;
+
+        let pragma = format!("PRAGMA table_info({table})");
+        let mut info_rows = self.conn.query(&pragma, ()).await?;
+        let mut col_names = Vec::new();
+        while let Some(row) = info_rows.next().await? {
+            if let Ok(name) = row.get::<String>(1) {
+                col_names.push(name);
+            }
+        }
+        if col_names.is_empty() {
+            return Err(StoreError::Db(format!(
+                "table '{table}' does not exist or has no columns"
+            )));
+        }
+
+        let sql = format!("SELECT * FROM {table} LIMIT ?1");
+        let mut rows = self.conn.query(&sql, params![lim]).await?;
+
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let mut map = serde_json::Map::new();
+            for (i, col_name) in col_names.iter().enumerate() {
+                let val = match row.get_value(i) {
+                    Ok(v) => match v {
+                        turso::Value::Null => serde_json::Value::Null,
+                        turso::Value::Integer(i) => serde_json::Value::Number(i.into()),
+                        turso::Value::Real(f) => serde_json::Number::from_f64(f)
+                            .map(serde_json::Value::Number)
+                            .unwrap_or(serde_json::Value::Null),
+                        turso::Value::Text(s) => serde_json::Value::String(s),
+                        turso::Value::Blob(b) => {
+                            serde_json::Value::String(format!("(blob {} bytes)", b.len()))
+                        }
+                    },
+                    Err(_) => serde_json::Value::String("<error>".to_string()),
+                };
+                map.insert(col_name.to_string(), val);
+            }
+            results.push(serde_json::Value::Object(map));
+        }
+        Ok(results)
+    }
+
+    /// Insert one MCP chat transcript row (`chat_transcripts` legacy / VS Code history API).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn insert_chat_transcript_turn(
+        &self,
+        id: &str,
+        session_id: &str,
+        role: &str,
+        content: &str,
+        model_used: Option<&str>,
+        tokens: Option<i64>,
+        context_files_json: &str,
+        repository_id: &str,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    id,
+                    session_id,
+                    role,
+                    content,
+                    model_used,
+                    tokens,
+                    context_files_json,
+                    repository_id,
+                ],
+            )
+            .await?;
+        Ok(())
+    }
+}

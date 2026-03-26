@@ -3,23 +3,18 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import * as vscode from 'vscode';
 import type {
     AgentEvent,
+    ChatMessage,
     Snapshot,
     OplogEntry,
     BudgetStatus,
     GamifyState,
     SkillInfo,
+    VoxConfigResponse,
 } from '../types';
-
-interface McpResult {
-    content: Array<{ type: string; text: string }>;
-}
-
-function parseResult(result: unknown): unknown {
-    const r = result as McpResult | null;
-    if (!r || !r.content || r.content.length === 0) return null;
-    const text = r.content[0]?.type === 'text' ? r.content[0].text : '{}';
-    try { return JSON.parse(text); } catch { return text; }
-}
+import { CapabilityRegistry, type ListedMcpTool } from './CapabilityRegistry';
+import { MCP_EXTENSION_EXPECTED_TOOLS } from './mcpToolRegistry.generated';
+import { ConfigManager } from './ConfigManager';
+import { parseMcpToolResult, unwrapVoxToolEnvelope } from './mcpToolResult';
 
 export class VoxMcpClient {
     private client: Client;
@@ -28,9 +23,12 @@ export class VoxMcpClient {
     private _reconnectDelay = 1000;
     private _reconnectTimer?: NodeJS.Timeout;
     public outputChannel: vscode.OutputChannel;
+    private readonly _serverPath: string;
+    readonly capabilities = new CapabilityRegistry();
 
     constructor(outputChannel: vscode.OutputChannel, serverPath = 'vox') {
         this.outputChannel = outputChannel;
+        this._serverPath = serverPath;
         this.transport = new StdioClientTransport({ command: serverPath, args: ['mcp'] });
         this.client = new Client(
             { name: 'vox-vscode-client', version: '0.2.0' },
@@ -43,6 +41,13 @@ export class VoxMcpClient {
 
     get connected(): boolean { return this._connected; }
 
+    private _newClient(): Client {
+        return new Client(
+            { name: 'vox-vscode-client', version: '0.2.0' },
+            { capabilities: {} }
+        );
+    }
+
     async connect(): Promise<void> {
         try {
             this.outputChannel.appendLine('[Vox MCP] Connecting...');
@@ -50,11 +55,27 @@ export class VoxMcpClient {
             this._connected = true;
             this._reconnectDelay = 1000;
             const tools = await this.client.listTools();
-            this.outputChannel.appendLine(`[Vox MCP] Connected. ${tools.tools.length} tools available.`);
+            const listed: ListedMcpTool[] = tools.tools.map((t) => ({
+                name: t.name,
+                inputSchema: t.inputSchema as object | undefined,
+            }));
+            this.capabilities.refreshFromList(listed);
+            this.outputChannel.appendLine(
+                `[Vox MCP] Connected. ${tools.tools.length} tools (fp=${this.capabilities.schemaFingerprint}).`,
+            );
+            if (ConfigManager.mcpWarnOnMissingTools) {
+                const absent = this.capabilities.missingFromList(MCP_EXTENSION_EXPECTED_TOOLS);
+                if (absent.length > 0) {
+                    this.outputChannel.appendLine(
+                        `[Vox MCP] Expected tools missing from list_tools (UI may degrade): ${absent.join(', ')}`,
+                    );
+                }
+            }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
             this.outputChannel.appendLine(`[Vox MCP] Failed to connect: ${msg}`);
             this._connected = false;
+            this.capabilities.lastError = msg;
             this._scheduleReconnect();
         }
     }
@@ -63,12 +84,11 @@ export class VoxMcpClient {
         clearTimeout(this._reconnectTimer);
         this._reconnectTimer = setTimeout(async () => {
             this.outputChannel.appendLine(`[Vox MCP] Reconnecting (delay: ${this._reconnectDelay}ms)...`);
-            // Re-create transport for fresh connection
-            this.transport = new StdioClientTransport({ command: 'vox', args: ['mcp'] });
-            this.client = new Client(
-                { name: 'vox-vscode-client', version: '0.2.0' },
-                { capabilities: {} }
-            );
+            this.transport = new StdioClientTransport({ command: this._serverPath, args: ['mcp'] });
+            this.client = this._newClient();
+            this.client.fallbackNotificationHandler = async (notification) => {
+                this.outputChannel.appendLine(`[MCP Notification] ${JSON.stringify(notification)}`);
+            };
             await this.connect();
             this._reconnectDelay = Math.min(this._reconnectDelay * 2, 30000);
         }, this._reconnectDelay);
@@ -78,8 +98,20 @@ export class VoxMcpClient {
     async call<T>(name: string, args: Record<string, unknown>): Promise<T | null> {
         if (!this._connected) return null;
         try {
+            const debug =
+                vscode.workspace.getConfiguration('vox').get<boolean>('mcp.debugPayloads', false);
+            if (debug) {
+                this.outputChannel.appendLine(`[Vox MCP] call ${name} args=${JSON.stringify(args).slice(0, 2000)}`);
+            }
             const result = await this.client.callTool({ name, arguments: args });
-            return parseResult(result) as T;
+            const parsed = parseMcpToolResult(result);
+            const unwrapped = unwrapVoxToolEnvelope(parsed, this.outputChannel, name);
+            if (debug && unwrapped !== undefined) {
+                this.outputChannel.appendLine(
+                    `[Vox MCP] ${name} result=${JSON.stringify(unwrapped).slice(0, 2000)}`,
+                );
+            }
+            return unwrapped as T | null;
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
             this.outputChannel.appendLine(`[Vox MCP] Tool error [${name}]: ${msg}`);
@@ -91,46 +123,85 @@ export class VoxMcpClient {
         }
     }
 
+    /** Returns false if the server did not advertise this tool name (skills may add more at runtime). */
+    isToolAvailable(name: string): boolean {
+        return this.capabilities.has(name);
+    }
+
     // ── Task & Orchestration ──────────────────────────────────────────────────
     async submitTask(description: string, files: string[] = [], mode?: string): Promise<unknown> {
-        return this.call('vox_submit_task', { description, files, ...(mode ? { mode } : {}) });
+        const fileSpecs =
+            files.length > 0
+                ? files.map((path) => ({ path, access: 'read' as const }))
+                : [{ path: '.', access: 'read' as const }];
+        const payload: Record<string, unknown> = { description, files: fileSpecs };
+        if (mode) payload.planning_mode = mode;
+        return this.call('vox_submit_task', payload);
     }
     async taskStatus(taskId: string): Promise<unknown> {
-        return this.call('vox_task_status', { task_id: taskId });
+        return this.call('vox_task_status', { task_id: Number(taskId) });
     }
     async completeTask(taskId: string): Promise<unknown> {
-        return this.call('vox_complete_task', { task_id: taskId });
+        return this.call('vox_complete_task', { task_id: Number(taskId) });
     }
     async cancelTask(taskId: string): Promise<unknown> {
-        return this.call('vox_cancel_task', { task_id: taskId });
+        return this.call('vox_cancel_task', { task_id: Number(taskId) });
     }
     async orchestratorStatus(): Promise<GamifyState | null> {
         return this.call<GamifyState>('vox_orchestrator_status', {});
     }
+
+    /** Ludus KPI + unread notifications + recent policy (requires Codex + tools on server). */
+    async ludusProgressSnapshot(params?: {
+        notification_limit?: number;
+        policy_limit?: number;
+        policy_days?: number;
+    }): Promise<Record<string, unknown> | null> {
+        return this.call<Record<string, unknown>>('vox_ludus_progress_snapshot', {
+            notification_limit: params?.notification_limit ?? 12,
+            policy_limit: params?.policy_limit ?? 24,
+            policy_days: params?.policy_days ?? 7,
+        });
+    }
+
+    async ludusNotificationAck(notificationId: string): Promise<unknown> {
+        return this.call('vox_ludus_notification_ack', { notification_id: notificationId });
+    }
+
+    async ludusNotificationsAckAll(): Promise<unknown> {
+        return this.call('vox_ludus_notifications_ack_all', {});
+    }
     async rebalance(): Promise<unknown> {
         return this.call('vox_rebalance', {});
+    }
+
+    async spawnAgent(name: string, dynamic = false): Promise<unknown> {
+        return this.call('vox_spawn_agent', { name, dynamic });
+    }
+    async retireAgent(agentId: number): Promise<unknown> {
+        return this.call('vox_retire_agent', { agent_id: agentId });
+    }
+    async pauseAgent(agentId: number): Promise<unknown> {
+        return this.call('vox_pause_agent', { agent_id: agentId });
+    }
+    async resumeAgent(agentId: number): Promise<unknown> {
+        return this.call('vox_resume_agent', { agent_id: agentId });
+    }
+    async drainAgent(agentId: number): Promise<unknown> {
+        return this.call('vox_drain_agent', { agent_id: agentId });
     }
     async pollEvents(limit = 20): Promise<AgentEvent[]> {
         const result = await this.call<AgentEvent[]>('vox_poll_events', { limit });
         return Array.isArray(result) ? result : [];
     }
-    
-    // ── SDUI & Real-time Integrations ─────────────────────────────────────────
-    async workflowStatus(): Promise<unknown> {
-        return this.call('vox_workflow_status', {});
-    }
-    async meshStatus(): Promise<unknown> {
-        return this.call('vox_mesh_status', {});
-    }
-    async intentionMatrix(): Promise<unknown> {
-        return this.call('vox_intention_matrix', {});
-    }
+
+    // ── Cost / models (canonical tool names + server-side aliases) ─────────────
     async budgetHistory(buckets = 20): Promise<unknown[]> {
-        const result = await this.call<unknown[]>('vox_budget_history', { buckets });
+        const result = await this.call<unknown[]>('vox_cost_history', { limit_per_agent: buckets });
         return Array.isArray(result) ? result : [];
     }
     async modelList(): Promise<unknown[]> {
-        const result = await this.call<unknown[]>('vox_model_list', {});
+        const result = await this.call<unknown[]>('vox_list_models', {});
         return Array.isArray(result) ? result : [];
     }
 
@@ -178,7 +249,10 @@ export class VoxMcpClient {
         return this.call('vox_validate_file', { path });
     }
     async runTests(crate?: string): Promise<unknown> {
-        return this.call('vox_run_tests', crate ? { crate } : {});
+        if (!crate) {
+            return this.call('vox_check_workspace', {});
+        }
+        return this.call('vox_run_tests', { crate_name: crate });
     }
     async checkWorkspace(): Promise<unknown> {
         return this.call('vox_check_workspace', {});
@@ -257,6 +331,49 @@ export class VoxMcpClient {
         return this.call('vox_session_reset', {});
     }
 
+    async chatHistory(): Promise<ChatMessage[] | null> {
+        return this.call<ChatMessage[]>('vox_chat_history', {});
+    }
+
+    async chatMessage(
+        prompt: string,
+        contextFiles: string[],
+    ): Promise<{ message: ChatMessage; history: ChatMessage[] } | null> {
+        return this.call('vox_chat_message', { prompt, context_files: contextFiles });
+    }
+
+    async configGet(): Promise<VoxConfigResponse | null> {
+        return this.call<VoxConfigResponse>('vox_config_get', {});
+    }
+
+    async configSet(key: string, value: string): Promise<unknown> {
+        return this.call('vox_config_set', { key, value });
+    }
+
+    async suggestModel<T = unknown>(taskCategory: string): Promise<T | null> {
+        return this.call<T>('vox_suggest_model', { task_category: taskCategory });
+    }
+
+    async inlineEdit(payload: Record<string, unknown>): Promise<unknown> {
+        return this.call('vox_inline_edit', payload);
+    }
+
+    async replanSession(payload: {
+        session_id: string;
+        delta_hint: string;
+        write_to_disk: boolean;
+    }): Promise<unknown> {
+        return this.call('vox_replan', payload);
+    }
+
+    async planGoal(payload: {
+        goal: string;
+        write_to_disk: boolean;
+        max_tasks: number;
+    }): Promise<{ plan_md: string; tasks: unknown[]; written_to_disk: boolean } | null> {
+        return this.call('vox_plan', payload);
+    }
+
     // ── Behavior ──────────────────────────────────────────────────────────────
     async behaviorRecord(event: string, detail: string): Promise<void> {
         await this.call('vox_behavior_record', { event, detail });
@@ -276,7 +393,7 @@ export class VoxMcpClient {
         return this.call('vox_language_surface', {});
     }
     async astInspect(path: string): Promise<unknown> {
-        return this.call('vox_ast_inspect', { path });
+        return this.call('vox_compiler::ast_inspect', { path });
     }
     async pipelineStatus(): Promise<unknown> {
         return this.call('vox_pipeline_status', {});

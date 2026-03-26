@@ -40,7 +40,8 @@ impl ServerHandler for VoxMcpServer {
             },
             capabilities: ServerCapabilities {
                 tools: Some(ToolsCapability {
-                    list_changed: Some(false),
+                    // Skills may append tools after startup; clients should refresh occasionally.
+                    list_changed: Some(true),
                 }),
                 experimental: {
                     let mut map = std::collections::BTreeMap::new();

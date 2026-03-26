@@ -10,7 +10,7 @@ training_eligible: true
 
 Vox "dogfoods" itself: the language, compiler, and documentation all feed a native machine learning loop that trains the **Mens** code assistant model. The **default** native path is [Burn](https://burn.dev) + **wgpu** (Vulkan / DX12 / Metal) — **no Python** and **no CUDA required** for that path.
 
-**Two first-class trainers** share **`vox schola train`**: **Burn LoRA** (above) and optional **Candle + qlora-rs QLoRA** on **Hugging Face** weights (**CUDA/Metal optional**, **`--backend qlora`**). They are **not** interchangeable objectives or artifacts — see [Mens training SSOT — Burn vs QLoRA](../reference/mens-training.md#burn-lora-vs-candle-qlora--which-path-when-4080-super-and-beyond).
+**Two first-class trainers** share **`vox mens train`**: **Burn LoRA** (above) and optional **Candle + qlora-rs QLoRA** on **Hugging Face** weights (**CUDA/Metal optional**, **`--backend qlora`**). They are **not** interchangeable objectives or artifacts — see [Mens training SSOT — Burn vs QLoRA](../reference/mens-training.md#burn-lora-vs-candle-qlora--which-path-when-4080-super-and-beyond).
 
 **Default GPU acceleration** for **`--backend lora`** uses **wgpu**, not NVIDIA CUDA. For **QLoRA on an RTX-class workstation**, build **`mens-candle-cuda`** and use **`--device cuda`**. Use CPU-only training when drivers or CI forbid GPU.
 
@@ -42,7 +42,7 @@ Vox "dogfoods" itself: the language, compiler, and documentation all feed a nati
 │  TRAINING                                                  │
 │                                                             │
 │  Default: Native Burn LoRA (Rust) — GPU, no CUDA, no Python │
-│  **`vox schola train`** (canonical CLI; `train.jsonl`)       │
+│  **`vox mens train`** (canonical CLI; `train.jsonl`)       │
 │  → `LoraVoxTransformer` + wgpu (Vulkan/DX12/Metal)          │
 │                                                             │
 │  **`--backend qlora`**: Candle + **qlora-rs** (NF4 LM head + │
@@ -50,7 +50,7 @@ Vox "dogfoods" itself: the language, compiler, and documentation all feed a nati
 │  SSOT: `reference/mens-training.md`.                │
 │                                                             │
 │  Legacy: `vox train` (when `mens-dei` + `gpu`) — local     │
-│  bails to **`vox schola train --backend qlora`**; Together  │
+│  bails to **`vox mens train --backend qlora`**; Together  │
 │  remote; **`--native`** Burn scratch (not Candle QLoRA).      │
 └─────────────────────────────────────────────────────────────┘
                                       ▼
@@ -192,8 +192,8 @@ The ML pipeline runs automatically via `.github/workflows/ml_data_extraction.yml
 
 The **train** job runs on a self-hosted GPU runner when corpus changes or when manually triggered:
 
-- **Native path (default)**: Prefer **`vox schola train`** with `VOX_BACKEND=cpu` for CI compatibility. Older workflows may still invoke **`vox train`**; **`--provider local`** now **bails** with the canonical Candle QLoRA command (no Python `train_qlora` script).
-- **Workflow_dispatch `native_train: false`**: If still wired to **`vox train --provider local`**, expect the **bail** message directing operators to **`vox schola train --backend qlora`**. Use **`vox schola train`** directly in updated automation.
+- **Native path (default)**: Prefer **`vox mens train`** with `VOX_BACKEND=cpu` for CI compatibility. Older workflows may still invoke **`vox train`**; **`--provider local`** now **bails** with the canonical Candle QLoRA command (no Python `train_qlora` script).
+- **Workflow_dispatch `native_train: false`**: If still wired to **`vox train --provider local`**, expect the **bail** message directing operators to **`vox mens train --backend qlora`**. Use **`vox mens train`** directly in updated automation.
 - **Eval strict mode**: `VOX_EVAL_STRICT=1` — training fails when eval gate thresholds are not met.
 - **Benchmark gate**: `VOX_BENCHMARK=1` — runs held-out benchmark from `mens/data/heldout_bench/`; `VOX_BENCHMARK_MIN_PASS_RATE` (e.g. 0.80) fails promotion when pass rate is below threshold.
 - **Artifact retention**: LoRA adapter `target/dogfood/run/` uploaded as `lora-adapter-$VCS_SHA`, retained 90 days. Eval results `eval_results.json` / `eval_gate_failed.json` retained 30 days.
@@ -203,7 +203,7 @@ The **train** job runs on a self-hosted GPU runner when corpus changes or when m
 
 ```bash
 # CI uses VOX_BACKEND=cpu by default (no GPU drivers required)
-VOX_BACKEND=cpu vox schola train --data-dir target/dogfood --output-dir target/dogfood/run
+VOX_BACKEND=cpu vox mens train --data-dir target/dogfood --output-dir target/dogfood/run
 ```
 
 ### Runbook: Evol-Instruct (optional, gated)
@@ -223,10 +223,10 @@ Use **`vox mens corpus mix`** with `mens/config/mix.yaml`, or merge JSONL with y
 
 | Mode | Command | When to use |
 |------|---------|-------------|
-| Native Mens (Burn) | `vox schola train …` (`--backend lora`; `--tokenizer vox` default or `--tokenizer hf` for GPT-2-shaped HF) | Burn LoRA + wgpu; Vox ChatML or HF tokenizer + optional embed warm-start |
-| Native Mens (Candle QLoRA) | `vox schola train --backend qlora --tokenizer hf --model <hf_repo> …` | Candle + **qlora-rs NF4** proxy stack + mmap `f32` embeds; CUDA/Metal optional |
-| Qwen2.5-Coder (4080 16GB) | `cargo build -p vox-cli --release --features gpu,mens-candle-cuda` then `vox schola train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --device cuda …` | Production-oriented QLoRA preset; strict proxy stack optional via `--qlora-require-full-proxy-stack` |
-| Legacy `vox train` | `vox train …` (build `--features mens-dei`) | **`--provider local`** → bail + **`vox schola train --backend qlora`** copy-paste; Together remote; **`--native`** Burn scratch |
+| Native Mens (Burn) | `vox mens train …` (`--backend lora`; `--tokenizer vox` default or `--tokenizer hf` for GPT-2-shaped HF) | Burn LoRA + wgpu; Vox ChatML or HF tokenizer + optional embed warm-start |
+| Native Mens (Candle QLoRA) | `vox mens train --backend qlora --tokenizer hf --model <hf_repo> …` | Candle + **qlora-rs NF4** proxy stack + mmap `f32` embeds; CUDA/Metal optional |
+| Qwen2.5-Coder (4080 16GB) | `cargo build -p vox-cli --release --features gpu,mens-candle-cuda` then `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --device cuda …` | Production-oriented QLoRA preset; strict proxy stack optional via `--qlora-require-full-proxy-stack` |
+| Legacy `vox train` | `vox train …` (build `--features mens-dei`) | **`--provider local`** → bail + **`vox mens train --backend qlora`** copy-paste; Together remote; **`--native`** Burn scratch |
 | CI strict | `VOX_EVAL_STRICT=1` | Fail promotion on eval gate failure |
 | CI benchmark | `VOX_BENCHMARK=1` | Run held-out benchmark before promotion |
 

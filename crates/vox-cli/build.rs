@@ -43,4 +43,6 @@ fn main() {
 
     // Re-run when build script changes. Avoid .git paths when index may be corrupted.
     println!("cargo:rerun-if-changed=build.rs");
+    // `command_contract` embeds this file; rebuild CLI when registry changes.
+    println!("cargo:rerun-if-changed=../../contracts/cli/command-registry.yaml");
 }

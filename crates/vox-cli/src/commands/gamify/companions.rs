@@ -13,7 +13,7 @@ use super::activity::get_db;
 /// List all companions.
 pub async fn companion_list() -> Result<()> {
     let db = get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let companions = db::list_companions(&db, &user_id).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_cyan());
@@ -52,7 +52,7 @@ pub async fn companion_list() -> Result<()> {
     }
     println!(
         "  Use {} to create a new companion",
-        "vox gamify companion create --name <NAME> --code <FILE>".bright_green()
+        "vox ludus companion-create --name <NAME> --code-file <FILE>".bright_green()
     );
 
     Ok(())
@@ -64,7 +64,7 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
 
     let id = vox_runtime::builtins::vox_uuid();
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut companion = Companion::new(&id, &user_id, name, "vox");
     companion.code_hash = Some(vox_runtime::builtins::vox_hash_fast(&code));
     companion.description = Some(format!("Created from {}", code_file.display()));
@@ -123,7 +123,7 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
 /// Interact with a companion.
 pub async fn companion_interact(name: &str, interaction: Interaction) -> Result<()> {
     let db_conn = get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let companions = db::list_companions(&db_conn, &user_id).await?;
 
     let mut companion = match companions.into_iter().find(|c| c.name == name) {

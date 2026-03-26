@@ -13,7 +13,9 @@ mod build_service;
 mod cli_actions;
 mod cli_args;
 mod cli_dispatch;
-mod command_catalog;
+mod command_registry_model;
+mod command_contract;
+pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
@@ -364,7 +366,7 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: cli_actions::IslandCli,
     },
-    /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox schola train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `mens-dei`). **Canonical native QLoRA:** `vox schola train`.
+    /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox mens train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `mens-dei`). **Canonical native QLoRA:** `vox mens train`.
     #[cfg(all(feature = "gpu", feature = "mens-dei"))]
     Train {
         /// Arguments.

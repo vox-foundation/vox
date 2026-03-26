@@ -1,7 +1,7 @@
 use crate::hir::{HirActivity, HirActor, HirFn, HirModule, HirStmt, HirType, HirWorkflow};
 
 use super::stmt_expr::{emit_expr, emit_stmt};
-use super::tables::emit_table_struct;
+use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
 
 pub fn emit_lib(module: &HirModule) -> String {
@@ -60,8 +60,13 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     // Table structs
+    let table_projections = collect_table_select_projections(module);
     for table in &module.tables {
-        out.push_str(&emit_table_struct(table));
+        let projs = table_projections
+            .get(&table.name)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[]);
+        out.push_str(&emit_table_struct(table, projs));
     }
 
     // Functions (skip components)
@@ -123,7 +128,7 @@ pub fn emit_fn(func: &HirFn) -> String {
     }
     out.push_str("{\n");
     for stmt in &func.body {
-        out.push_str(&emit_stmt(stmt, 1, false, false));
+        out.push_str(&emit_stmt(stmt, 1, false, false, false));
     }
     out.push_str("}\n\n");
     out
@@ -151,7 +156,7 @@ fn emit_activity(func: &HirActivity) -> String {
     }
     out.push_str("{\n");
     for stmt in &func.body {
-        out.push_str(&emit_stmt(stmt, 1, false, false));
+        out.push_str(&emit_stmt(stmt, 1, false, false, false));
     }
     out.push_str("}\n\n");
     out
@@ -179,7 +184,7 @@ fn emit_workflow(wf: &HirWorkflow) -> String {
     }
     out.push_str("{\n");
     for stmt in &wf.body {
-        out.push_str(&emit_stmt(stmt, 1, false, false));
+        out.push_str(&emit_stmt(stmt, 1, false, false, false));
     }
     out.push_str("}\n\n");
     out
@@ -243,7 +248,7 @@ fn emit_actor(actor: &HirActor) -> String {
         } else {
             // Emit all statements except the last as regular statements
             for stmt in &handler.body[..handler.body.len().saturating_sub(1)] {
-                out.push_str(&emit_stmt(stmt, 10, false, true));
+                out.push_str(&emit_stmt(stmt, 10, false, true, false));
             }
             // For the last statement, extract the value and serialize to String
             if let Some(last) = handler.body.last() {
@@ -259,7 +264,7 @@ fn emit_actor(actor: &HirActor) -> String {
                         out.push_str(&format!("                                    serde_json::to_string(&({})).unwrap_or_default()\n", val_str));
                     }
                     _ => {
-                        out.push_str(&emit_stmt(last, 10, false, true));
+                        out.push_str(&emit_stmt(last, 10, false, true, false));
                         out.push_str("                                    String::new()\n");
                     }
                 }

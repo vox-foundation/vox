@@ -11,6 +11,7 @@ impl crate::VoxDb {
             conn,
             sync_db,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         }
     }
 
@@ -121,7 +122,7 @@ impl crate::VoxDb {
                     url,
                     token,
                 } => {
-                    let db = turso::sync::Builder::new_remote(local_path)
+                    let db = turso::sync::Builder::new_remote(local_path.as_str())
                         .with_remote_url(url)
                         .with_auth_token(token)
                         .build()
@@ -140,6 +141,7 @@ impl crate::VoxDb {
                         conn,
                         sync_db,
                         breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
+                        sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
                     });
                 }
                 Err(e) if attempts < max_retries => {
@@ -182,8 +184,18 @@ impl crate::VoxDb {
                 ));
             }
             #[cfg(feature = "replication")]
-            DbConfig::EmbeddedReplica { url, token, .. } => {
-                turso::Connection::open_remote(url, token).await?
+            DbConfig::EmbeddedReplica {
+                local_path,
+                url,
+                token,
+            } => {
+                turso::sync::Builder::new_remote(local_path.as_str())
+                    .with_remote_url(url)
+                    .with_auth_token(token)
+                    .build()
+                    .await?
+                    .connect()
+                    .await?
             }
         };
         Self::apply_pragmas(&conn).await?;
@@ -191,6 +203,7 @@ impl crate::VoxDb {
             conn,
             sync_db: None,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
     }
 

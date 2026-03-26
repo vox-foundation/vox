@@ -1,4 +1,4 @@
-//! Hugging Face Hub downloads for `vox schola train --model <repo_id>`.
+//! Hugging Face Hub downloads for `vox mens train --model <repo_id>`.
 
 use std::path::PathBuf;
 

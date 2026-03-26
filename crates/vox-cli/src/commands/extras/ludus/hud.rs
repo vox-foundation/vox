@@ -1,8 +1,11 @@
+//! In-process orchestrator HUD for Ludus companions (`vox ludus hud`; needs `ludus-hud` feature).
+
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
-use vox_gamify::companion::{render_multi_agent_status, Companion, Interaction};
+use vox_ludus::companion::{render_multi_agent_status, Companion, Interaction};
+use vox_ludus::db::canonical_user_id;
 use vox_orchestrator::types::AgentMessage;
 use vox_orchestrator::{Orchestrator, OrchestratorConfig};
 
@@ -10,10 +13,11 @@ pub async fn run() -> Result<()> {
     let config = OrchestratorConfig::default();
     let orch = Orchestrator::new(config);
     let mut rx = orch.bulletin().subscribe();
+    let uid = canonical_user_id();
 
     println!(
         "{}",
-        "Starting Gamified Vox HUD. Listening for events...".cyan()
+        "Starting Ludus HUD. Listening for orchestrator events…".cyan()
     );
     sleep(Duration::from_secs(1)).await;
 
@@ -24,12 +28,17 @@ pub async fn run() -> Result<()> {
             result = rx.recv() => {
                 let msg = match result {
                     Ok(m) => m,
-                    Err(_) => continue, // Disconnected or lagged
+                    Err(_) => continue,
                 };
 
                 match msg {
                     AgentMessage::AgentSpawned { agent_id, name } => {
-                        let c = Companion::new(format!("agent-{}", agent_id.0), "user", name, "vox");
+                        let c = Companion::new(
+                            format!("agent-{}", agent_id.0),
+                            &uid,
+                            name,
+                            "vox",
+                        );
                         companions.insert(agent_id.0, c);
                     }
                     AgentMessage::TaskAssigned { agent_id, .. } => {
@@ -45,8 +54,10 @@ pub async fn run() -> Result<()> {
                     AgentMessage::TaskFailed { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::TaskFailed);
-                            println!("{} BUG BATTLE TRIGGERED for agent {}! {}", "⚔️".red(), agent_id.0, "⚔️".red());
-                            sleep(Duration::from_millis(500)).await;
+                            tracing::debug!(
+                                agent_id = agent_id.0,
+                                "ludus hud: task failed (companion mood updated)"
+                            );
                         }
                     }
                     AgentMessage::LockAcquired { agent_id, .. } => {
@@ -57,22 +68,16 @@ pub async fn run() -> Result<()> {
                     _ => {}
                 }
             }
-            _ = sleep(Duration::from_millis(500)) => {
-                // Periodically render
-            }
+            _ = sleep(Duration::from_secs(3)) => {}
         }
 
-        // Render to terminal
-        print!("{esc}c", esc = 27 as char); // Clear screen
-
         let mut refs: Vec<&Companion> = companions.values().collect();
-        // Sort by ID to keep the display stable
         refs.sort_by_key(|c| c.id.clone());
 
         println!("{}", render_multi_agent_status(&refs));
 
         for c in &refs {
-            let ascii = vox_gamify::sprite::generate_deterministic(&c.name, c.mood);
+            let ascii = vox_ludus::sprite::generate_deterministic(&c.name, c.mood);
             println!("{}\n", ascii.cyan());
         }
     }

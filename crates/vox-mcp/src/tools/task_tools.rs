@@ -19,6 +19,7 @@ fn socrates_context_from_retrieval(
         retrieval_tier: retrieval.retrieval_tier.clone(),
         memory_hit_count: retrieval.memory_hit_count,
         knowledge_hit_count: retrieval.knowledge_hit_count,
+        chunk_hit_count: retrieval.chunk_hit_count,
         used_vector: retrieval.used_vector,
         used_bm25: retrieval.used_bm25,
         used_lexical_fallback: retrieval.used_lexical_fallback,
@@ -158,8 +159,11 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         });
                 }
             }
-            let agent_ids = orch.agent_ids();
-            let agent_id = agent_ids.last().map(|a| a.0).unwrap_or(0);
+            let agent_id = orch
+                .task_assignments_copy()
+                .get(&task_id)
+                .map(|a| a.0)
+                .unwrap_or(0);
             let (prompt_canonicalized, conflict_warnings, original_prompt_hash) =
                 canonical_info.unwrap_or((false, None, None));
             let v2 = state
@@ -219,24 +223,29 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
 
 /// Mark a task as completed, releasing its file locks (async).
 pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> String {
-    let res = state
-        .orchestrator
-        .complete_task(TaskId(params.task_id))
-        .await;
+    let task_id = TaskId(params.task_id);
+    let assigned = state.orchestrator.agent_assigned_to_task(task_id);
+    let res = state.orchestrator.complete_task(task_id).await;
 
     match res {
         Ok(()) => {
-            // Gamification: Update companion state
-            if let Some(db) = &state.db {
-                let id = "vox-orchestrator";
-                let mut companion = match vox_ludus::db::list_companions(db, "user").await {
+            // Gamification: update the agent-scoped companion (matches event_router / HUD).
+            if let (Some(db), Some(aid)) = (&state.db, assigned) {
+                let uid = vox_ludus::db::canonical_user_id();
+                let id = format!("agent-{}", aid.0);
+                let mut companion = match vox_ludus::db::list_companions(db, &uid).await {
                     Ok(comps) => comps
                         .into_iter()
                         .find(|c: &vox_ludus::companion::Companion| c.id == id),
                     Err(_) => None,
                 }
                 .unwrap_or_else(|| {
-                    vox_ludus::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+                    vox_ludus::companion::Companion::new(
+                        &id,
+                        &uid,
+                        format!("Agent {}", aid.0),
+                        "vox",
+                    )
                 });
 
                 companion.interact(vox_ludus::companion::Interaction::TaskCompleted);
@@ -250,23 +259,31 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
 
 /// Mark a task as failed with a reason (async).
 pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
+    let task_id = TaskId(params.task_id);
+    let assigned = state.orchestrator.agent_assigned_to_task(task_id);
     let res = state
         .orchestrator
-        .fail_task(TaskId(params.task_id), params.reason)
+        .fail_task(task_id, params.reason)
         .await;
 
     match res {
         Ok(()) => {
-            if let Some(db) = &state.db {
-                let id = "vox-orchestrator";
-                let mut companion = match vox_ludus::db::list_companions(db, "user").await {
+            if let (Some(db), Some(aid)) = (&state.db, assigned) {
+                let uid = vox_ludus::db::canonical_user_id();
+                let id = format!("agent-{}", aid.0);
+                let mut companion = match vox_ludus::db::list_companions(db, &uid).await {
                     Ok(comps) => comps
                         .into_iter()
                         .find(|c: &vox_ludus::companion::Companion| c.id == id),
                     Err(_) => None,
                 }
                 .unwrap_or_else(|| {
-                    vox_ludus::companion::Companion::new(id, "user", "Vox Orchestrator", "vox")
+                    vox_ludus::companion::Companion::new(
+                        &id,
+                        &uid,
+                        format!("Agent {}", aid.0),
+                        "vox",
+                    )
                 });
 
                 companion.interact(vox_ludus::companion::Interaction::TaskFailed);

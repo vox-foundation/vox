@@ -1,6 +1,6 @@
 //! Subcommand implementations for the **`vox`** binary.
 //!
-//! Each submodule corresponds to one clap variant in `src/main.rs`. Shared behavior (lex/parse/typecheck)
+//! Each submodule corresponds to one clap variant in [`crate::Cli`] (`src/lib.rs`). Shared behavior (lex/parse/typecheck)
 //! is available in [`crate::pipeline`] for a single frontend; `build` and `check` here still use the
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
@@ -80,7 +80,7 @@ pub mod stub_check;
 /// Ludus gamification systems logic wrapper.
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
-/// `vox gamify` companion / quest / battle helpers (explicit modules; `extras-ludus`).
+/// Ludus companion / quest / battle helpers used by **`vox ludus`** (`extras-ludus`).
 #[cfg(feature = "extras-ludus")]
 pub mod gamify;
 /// AI-powered CodeRabbit review adapter (`vox review`).

@@ -5,44 +5,60 @@
 
 use crate::publication::PublicationManifest;
 use crate::publication_preflight::parse_scientific_from_metadata_json;
+use crate::zenodo_api_types::{
+    ZenodoCreator, ZenodoDepositionCreateBody, ZenodoDepositionMetadata,
+};
 
-/// Build the `metadata` object for a new Zenodo deposit draft.
+/// Build the typed POST body for a new Zenodo deposit draft.
 #[must_use]
-pub fn zenodo_deposition_metadata(manifest: &PublicationManifest) -> serde_json::Value {
+pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDepositionCreateBody {
     let scientific = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
         .ok()
         .flatten();
 
-    let creators: Vec<serde_json::Value> = if let Some(ref sci) = scientific {
+    let creators: Vec<ZenodoCreator> = if let Some(ref sci) = scientific {
         if sci.authors.is_empty() {
-            vec![serde_json::json!({ "name": manifest.author })]
+            vec![ZenodoCreator {
+                name: manifest.author.clone(),
+                affiliation: None,
+                orcid: None,
+            }]
         } else {
             sci.authors
                 .iter()
                 .map(|a| {
-                    let mut o = serde_json::json!({ "name": a.name });
-                    if let Some(ref aff) = a.affiliation
-                        && !aff.trim().is_empty()
-                    {
-                        o["affiliation"] = serde_json::Value::String(aff.clone());
-                    }
-                    if let Some(ref oid) = a.orcid {
+                    let affiliation = a
+                        .affiliation
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(std::string::ToString::to_string);
+                    let orcid = a.orcid.as_deref().and_then(|oid| {
                         let t = oid.trim();
-                        if !t.is_empty() {
-                            let uri = if t.starts_with("http") {
-                                t.to_string()
-                            } else {
-                                format!("https://orcid.org/{t}")
-                            };
-                            o["orcid"] = serde_json::Value::String(uri);
+                        if t.is_empty() {
+                            return None;
                         }
+                        let uri = if t.starts_with("http") {
+                            t.to_string()
+                        } else {
+                            format!("https://orcid.org/{t}")
+                        };
+                        Some(uri)
+                    });
+                    ZenodoCreator {
+                        name: a.name.clone(),
+                        affiliation,
+                        orcid,
                     }
-                    o
                 })
                 .collect()
         }
     } else {
-        vec![serde_json::json!({ "name": manifest.author })]
+        vec![ZenodoCreator {
+            name: manifest.author.clone(),
+            affiliation: None,
+            orcid: None,
+        }]
     };
 
     let description = manifest
@@ -66,17 +82,31 @@ pub fn zenodo_deposition_metadata(manifest: &PublicationManifest) -> serde_json:
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "notspecified".to_string());
 
-    serde_json::json!({
-        "metadata": {
-            "title": manifest.title,
-            "upload_type": "publication",
-            "publication_type": "article",
-            "description": description,
-            "creators": creators,
-            "access_right": "open",
-            "license": license,
-        }
+    ZenodoDepositionCreateBody {
+        metadata: ZenodoDepositionMetadata {
+            title: manifest.title.clone(),
+            upload_type: "publication".to_string(),
+            publication_type: "article".to_string(),
+            description,
+            creators,
+            access_right: "open".to_string(),
+            license,
+        },
+    }
+}
+
+/// Build the JSON envelope for a new Zenodo deposit draft (compat for callers expecting [`serde_json::Value`]).
+#[must_use]
+pub fn zenodo_deposition_metadata(manifest: &PublicationManifest) -> serde_json::Value {
+    serde_json::to_value(zenodo_deposition_create_body(manifest)).unwrap_or_else(|_| {
+        serde_json::json!({ "metadata": { "title": manifest.title, "upload_type": "publication" } })
     })
+}
+
+/// Pretty JSON for a sidecar `.zenodo.json` file (same envelope as [`zenodo_deposition_metadata`]).
+#[must_use]
+pub fn zenodo_json_pretty(manifest: &PublicationManifest) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(&zenodo_deposition_create_body(manifest))
 }
 
 #[cfg(test)]
@@ -118,5 +148,23 @@ mod tests {
                 .unwrap()
                 .contains("orcid.org")
         );
+    }
+
+    #[test]
+    fn zenodo_json_pretty_round_trips() {
+        let m = PublicationManifest {
+            publication_id: "p".to_string(),
+            content_type: "scientia".to_string(),
+            source_ref: None,
+            title: "T2".to_string(),
+            author: "B".to_string(),
+            abstract_text: None,
+            body_markdown: "body".to_string(),
+            citations_json: None,
+            metadata_json: None,
+        };
+        let s = zenodo_json_pretty(&m).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&s).unwrap();
+        assert_eq!(v["metadata"]["title"], "T2");
     }
 }

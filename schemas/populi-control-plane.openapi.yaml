@@ -2,8 +2,10 @@ openapi: 3.0.3
 info:
   title: Vox populi control plane
   description: |
-    HTTP API for populi node registry and A2A relay endpoints.
-    Bearer auth is optional (`VOX_MESH_TOKEN`); `GET /health` is never authenticated.
+    HTTP API for populi node registry and A2A relay endpoints (extension-first `/v1` only).
+    Bearer auth is optional; `GET /health` and `POST /v1/populi/bootstrap/exchange` are never authenticated.
+    When any mesh secret is set on the server (`VOX_MESH_TOKEN` and/or role tokens via Clavis), clients must
+    present a matching `Authorization: Bearer`. Responses may include `x-populi-feature` (additive rollout hints).
     See `docs/src/reference/populi.md`.
   version: 1.0.0
 
@@ -161,6 +163,52 @@ paths:
         "401":
           description: Unauthorized
 
+  /v1/populi/a2a/lease-renew:
+    post:
+      summary: Extend an active inbox lease held by claimer_node_id
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/A2ALeaseRenewRequest"
+      responses:
+        "204":
+          description: Lease extended
+        "400":
+          description: Bad request (missing ids)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Unknown claimer or quarantined node
+        "404":
+          description: Message not found
+        "409":
+          description: Not the lease holder
+
+  /v1/populi/admin/quarantine:
+    post:
+      summary: Set NodeRecord quarantine (mesh/admin bearer only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminQuarantineRequest"
+      responses:
+        "204":
+          description: Updated
+        "401":
+          description: Unauthorized
+        "403":
+          description: Insufficient role
+        "404":
+          description: Unknown node id
+
   /v1/populi/bootstrap/exchange:
     post:
       summary: Exchange one-time bootstrap token for mesh credentials
@@ -204,6 +252,22 @@ components:
           type: string
         payload:
           type: string
+        idempotency_key:
+          type: string
+          nullable: true
+          description: When set, duplicate delivers return the same message_id while the row is pending.
+        privacy_class:
+          type: string
+          nullable: true
+          description: Optional claim policy hint (`public`, `private`, `trusted`, `trusted_only`, …).
+        payload_blake3_hex:
+          type: string
+          nullable: true
+          description: Optional 64-hex BLAKE3 digest of UTF-8 payload (`job_result` / `job_fail` attestations).
+        worker_ed25519_sig_b64:
+          type: string
+          nullable: true
+          description: Optional Standard base64 Ed25519 signature over the raw 32-byte BLAKE3 digest.
 
     A2ADeliverResponse:
       type: object
@@ -244,6 +308,25 @@ components:
           format: int64
         acknowledged:
           type: boolean
+        lease_holder_node_id:
+          type: string
+          nullable: true
+        lease_expires_unix_ms:
+          type: integer
+          format: int64
+          nullable: true
+        privacy_class:
+          type: string
+          nullable: true
+        idempotency_dedupe_key:
+          type: string
+          nullable: true
+        payload_blake3_hex:
+          type: string
+          nullable: true
+        worker_ed25519_sig_b64:
+          type: string
+          nullable: true
 
     A2AInboxRequest:
       type: object
@@ -251,6 +334,10 @@ components:
       properties:
         receiver_agent_id:
           type: string
+        claimer_node_id:
+          type: string
+          nullable: true
+          description: When set, return at most one claimable row and refresh its inbox lease for this node id.
 
     A2AInboxResponse:
       type: object
@@ -321,6 +408,34 @@ components:
           type: string
           nullable: true
           description: Must match server VOX_MESH_SCOPE_ID when server enforces scope
+        visibility:
+          type: string
+          nullable: true
+        pool_id:
+          type: string
+          nullable: true
+        trust_tier:
+          type: string
+          nullable: true
+        workload_classes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        privacy_class:
+          type: string
+          nullable: true
+        maintenance:
+          type: boolean
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+          description: Optional hybrid tag (e.g. runpod/vast synthetic worker)
+        quarantined:
+          type: boolean
+          nullable: true
+          description: When true, server rejects new A2A claims for this node
 
     PopuliRegistryFile:
       type: object

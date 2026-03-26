@@ -1,4 +1,5 @@
 use tempfile::tempdir;
+use turso::params;
 use vox_db::MemoryParams as SaveMemoryParams;
 use vox_db::VoxDb;
 
@@ -86,4 +87,92 @@ async fn test_embedding_similarity() {
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].0.source_id, "a");
     assert_eq!(results[1].0.source_id, "b");
+}
+
+#[tokio::test]
+async fn test_knowledge_search_falls_back_or_uses_fts() {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("test.db");
+    let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
+
+    store
+        .upsert_knowledge_node(
+            "fts-node-1",
+            "Rust vectors",
+            "Embeddings and retrieval in vox",
+            Some("concept"),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+    let hits = store.query_knowledge_nodes("Rust", 10).await.unwrap();
+    assert!(!hits.is_empty());
+    assert!(hits.iter().any(|(id, _, _)| id == "fts-node-1"));
+
+    let cap = store.sqlite_capabilities_snapshot().await.unwrap();
+    if cap.fts5_reported {
+        let rows = store
+            .query_all(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='knowledge_nodes_fts'",
+                (),
+            )
+            .await
+            .unwrap();
+        assert!(
+            !rows.is_empty(),
+            "fts5 reported but knowledge_nodes_fts table missing"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_search_document_chunks_falls_back_or_uses_fts() {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("chunks_fts.db");
+    let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
+
+    store
+        .connection()
+        .execute(
+            "INSERT INTO search_documents (source_uri, title) VALUES (?1, ?2)",
+            params!["test://chunk-path", "RAG doc title"],
+        )
+        .await
+        .unwrap();
+    let doc_id = store.connection().last_insert_rowid();
+
+    store
+        .connection()
+        .execute(
+            "INSERT INTO search_document_chunks (document_id, chunk_index, body_text) VALUES (?1, 0, ?2)",
+            params![doc_id, "hybrid retrieval alpha token for vox chunks"],
+        )
+        .await
+        .unwrap();
+
+    let hits = store
+        .query_search_document_chunks("alpha", 10)
+        .await
+        .unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].1, doc_id);
+    assert!(hits[0].2.contains("alpha"));
+    assert_eq!(hits[0].3, "RAG doc title");
+
+    let cap = store.sqlite_capabilities_snapshot().await.unwrap();
+    if cap.fts5_reported {
+        let rows = store
+            .query_all(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='search_document_chunks_fts'",
+                (),
+            )
+            .await
+            .unwrap();
+        assert!(
+            !rows.is_empty(),
+            "fts5 reported but search_document_chunks_fts table missing"
+        );
+    }
 }

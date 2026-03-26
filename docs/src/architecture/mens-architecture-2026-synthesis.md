@@ -17,7 +17,7 @@ Vox Mens is the unified native Rust AI/ML subsystem that moves Vox beyond legacy
 
 1.  **`vox mens corpus` (Data Pipeline)**: Extracts syntactically correct code samples directly from `.vox` files in the repository. It performs a semantic validation through the Vox compiler and tokenizes data via the deterministic, character-level `VoxTokenizer`.
 2.  **`vox-tensor` (Core ML Primitives)**: The foundational crate that wraps backend logic. It abstracts tensors and Neural Network (`nn`) modules so they gracefully dispatch to specific device backends (WGPU, CUDA, Metal, NdArray).
-3.  **`vox schola train` (Native Orchestrator)**: The heart of the fine-tuning process. The active and supported path is:
+3.  **`vox mens train` (Native Orchestrator)**: The heart of the fine-tuning process. The active and supported path is:
     *   **Candle qlora-rs (`--backend qlora`)**: Geared specifically for 16GB VRAM hardware (e.g., RTX 4080) fine-tuning industry models like Qwen2.5-Coder. It applies NF4 (4-bit NormalFloat) quantization to frozen Hugging Face (HF) base model weights while only training localized high-precision LoRA matrices.
     *   **Burn LoRA (`--backend lora`)**: historical path kept for context only; no longer the active training lane in current code.
 4.  **`vox mens serve` (Inference Server)**: An Axum-based high-concurrency server implementing the `OpenAI /v1/completions` API schema natively, seamlessly serving merged Burn LoRA checkpoints.
@@ -37,7 +37,7 @@ The core mathematical architecture revolves around making Large Language Model (
 
 ## 3. What We Do Well (As of 2026)
 
-*   **Python Elimination**: Bypassing the Global Interpreter Lock (GIL), Python environment hell, and runtime overheads. Integrating training directly into the CLI via `vox schola train` allows users to deploy reproducible compilation-and-training loops safely.
+*   **Python Elimination**: Bypassing the Global Interpreter Lock (GIL), Python environment hell, and runtime overheads. Integrating training directly into the CLI via `vox mens train` allows users to deploy reproducible compilation-and-training loops safely.
 *   **Contract-first native path**: Vox uses a contract/planner-preflight flow with Candle QLoRA as the active execution kernel while preserving historical Burn context for migration clarity.
 *   **Industry Class UX**: Mens's telemetry features an Exponential Moving Average (EMA) for reliable training times and true "Sample-based Counting" allowing stable loss scaling regardless of `grad_accum` sizes.
 

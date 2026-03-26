@@ -142,6 +142,10 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                     receiver_agent_id: params.receiver_id.to_string(),
                     message_type: msg_type_wire(&msg_type),
                     payload: params.payload.clone(),
+                    idempotency_key: None,
+                    privacy_class: None,
+                    payload_blake3_hex: None,
+                    worker_ed25519_sig_b64: None,
                 })
                 .await
                 .is_ok();

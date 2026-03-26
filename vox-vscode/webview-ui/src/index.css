@@ -1,5 +1,9 @@
 :root {
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Map opaque Tailwind-like panels to VS Code theme tokens when available */
+  --vox-panel-bg: var(--vscode-sideBar-background, rgba(9, 9, 11, 1));
+  --vox-panel-fg: var(--vscode-sideBar-foreground, #e4e4e7);
+  --vox-border: var(--vscode-panel-border, rgba(255, 255, 255, 0.06));
 }
 
 body {
@@ -7,7 +11,9 @@ body {
   padding: 0;
   overflow: hidden;
   font-family: var(--font-inter);
-  color-scheme: dark;
+  color: var(--vox-panel-fg);
+  background: var(--vox-panel-bg);
+  color-scheme: light dark;
 }
 
 .glass {

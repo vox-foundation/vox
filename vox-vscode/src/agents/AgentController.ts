@@ -2,6 +2,15 @@ import * as vscode from 'vscode';
 import { VoxMcpClient } from '../core/VoxMcpClient';
 import type { AgentEvent, AgentState, AgentRole, AgentStatus } from '../types';
 
+function parseOrchestratorAgentId(raw: string): number | undefined {
+    const t = raw.trim();
+    const digits = /^(\d+)$/.exec(t);
+    if (digits) return Number(digits[1]);
+    const prefixed = /^agent-(\d+)$/i.exec(t);
+    if (prefixed) return Number(prefixed[1]);
+    return undefined;
+}
+
 export class AgentController {
     private _agents: Map<string, AgentState> = new Map();
     private _pollTimer?: NodeJS.Timeout;
@@ -164,13 +173,28 @@ export class AgentController {
     async kill(agentId: string): Promise<void> {
         const agent = this._agents.get(agentId);
         if (!agent) return;
+        const oid = agent.orchestrator_agent_id ?? parseOrchestratorAgentId(agentId);
+        if (oid === undefined) {
+            void vscode.window.showWarningMessage(
+                `Cannot resolve orchestrator agent id for “${agentId}”. Use MCP tools with a numeric agent_id.`,
+            );
+            return;
+        }
         const confirm = await vscode.window.showWarningMessage(
-            `Kill agent [${agentId}]? Its current task will be cancelled.`,
+            `Retire orchestrator agent ${oid} (was ${agentId})? Queued work may be drained separately.`,
             { modal: true },
-            'Kill Agent',
+            'Retire agent',
         );
-        if (confirm !== 'Kill Agent') return;
-        await this._mcp.cancelTask(agentId);
+        if (confirm !== 'Retire agent') return;
+        if (this._mcp.isToolAvailable('vox_retire_agent')) {
+            await this._mcp.retireAgent(oid);
+        } else if (this._mcp.isToolAvailable('vox_drain_agent')) {
+            void vscode.window.showInformationMessage('`vox_retire_agent` unavailable; draining queue only.');
+            await this._mcp.drainAgent(oid);
+        } else {
+            void vscode.window.showWarningMessage('Server has neither vox_retire_agent nor vox_drain_agent.');
+            return;
+        }
         this._agents.delete(agentId);
         this._onUpdate(this.getAgents());
     }
@@ -180,7 +204,7 @@ export class AgentController {
         vscode.window.showInformationMessage('Vox task queue rebalanced.');
     }
 
-    async enableDebugMode(agentId?: string): Promise<void> {
+    async enableDebugMode(_agentId?: string): Promise<void> {
         // Run workspace check and tests, feed results back as a debug task
         const [wsResult, testResult] = await Promise.all([
             this._mcp.checkWorkspace(),

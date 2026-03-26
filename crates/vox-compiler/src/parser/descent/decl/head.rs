@@ -1,7 +1,11 @@
 // Top-level and declaration parsing.
 
 use super::super::Parser;
-use crate::ast::decl::*;
+use crate::ast::decl::{
+    ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, IslandDecl, IslandProp,
+    McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, QueryDecl, ReactiveComponentDecl,
+    ReactiveMemberDecl, ServerFnDecl, TestDecl,
+};
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
@@ -211,14 +215,30 @@ impl Parser {
 
     pub(crate) fn parse_test(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @test
+        self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Test(TestDecl { func: f }))
     }
 
     pub(crate) fn parse_server_fn(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @server
+        self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::ServerFn(ServerFnDecl { func: f }))
+    }
+
+    pub(crate) fn parse_query_fn(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @query
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Query(QueryDecl { func: f }))
+    }
+
+    pub(crate) fn parse_mutation_fn(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @mutation
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Mutation(MutationDecl { func: f }))
     }
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {

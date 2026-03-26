@@ -27,67 +27,118 @@ pub async fn research_metrics(session_id: i64, metric_type: Option<&str>) -> any
 /// List reliability scores for LLM endpoints, skills, workflows, or repositories.
 pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let conn = &db.connection();
 
-    let (query, headers, fields) = match domain {
-        "endpoints" => (
-            "SELECT endpoint_url, model_id, total_requests, hallucination_proxy_ewma, contradiction_ratio_ewma, infra_failure_ewma FROM endpoint_reliability ORDER BY hallucination_proxy_ewma DESC, infra_failure_ewma DESC LIMIT ?1",
-            vec![
+    println!("Reliability stats for: {}", domain);
+
+    match domain {
+        "endpoints" => {
+            let headers = vec![
                 "Endpoint",
                 "Model",
                 "Reqs",
                 "Hallucina",
                 "Contradic",
                 "InfraFail",
-            ],
-            6,
-        ),
-        "skills" => (
-            "SELECT skill_id, reliability, success_count, failure_count FROM skill_reliability ORDER BY reliability ASC LIMIT ?1",
-            vec!["Skill ID", "Reliability", "Success", "Failure"],
-            4,
-        ),
-        "workflows" => (
-            "SELECT workflow_name, reliability, success_count, failure_count FROM workflow_reliability ORDER BY reliability ASC LIMIT ?1",
-            vec!["Workflow", "Reliability", "Success", "Failure"],
-            4,
-        ),
-        "repositories" => (
-            "SELECT repository_id, reliability, success_count, failure_count FROM repository_reliability ORDER BY reliability ASC LIMIT ?1",
-            vec!["Repository ID", "Reliability", "Success", "Failure"],
-            4,
-        ),
+            ];
+            let entries = db
+                .list_endpoint_reliability(limit)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            for h in &headers {
+                print!("{:<24} ", h);
+            }
+            println!();
+            let mut count = 0;
+            for e in entries {
+                print!(
+                    "{:<24} ",
+                    summarize_text(&e.endpoint_url, 22)
+                );
+                print!("{:<24} ", summarize_text(&e.model_id, 22));
+                print!("{:<24} ", e.total_requests);
+                print!("{:<24.4} ", e.hallucination_proxy_ewma);
+                print!("{:<24.4} ", e.contradiction_ratio_ewma);
+                print!("{:<24.4} ", e.infra_failure_ewma);
+                println!();
+                count += 1;
+            }
+            if count == 0 {
+                println!("(no records found)");
+            }
+        }
+        "skills" => {
+            let headers = vec!["Skill ID", "Reliability", "Success", "Failure"];
+            let rows = db
+                .list_skill_reliability_worst_first(limit)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            for h in &headers {
+                print!("{:<24} ", h);
+            }
+            println!();
+            let mut count = 0;
+            for (id, rel, succ, fail) in rows {
+                print!("{:<24} ", summarize_text(&id, 22));
+                print!("{:<24.4} ", rel);
+                print!("{:<24} ", succ);
+                print!("{:<24} ", fail);
+                println!();
+                count += 1;
+            }
+            if count == 0 {
+                println!("(no records found)");
+            }
+        }
+        "workflows" => {
+            let headers = vec!["Workflow", "Reliability", "Success", "Failure"];
+            let rows = db
+                .list_workflow_reliability_worst_first(limit)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            for h in &headers {
+                print!("{:<24} ", h);
+            }
+            println!();
+            let mut count = 0;
+            for (id, rel, succ, fail) in rows {
+                print!("{:<24} ", summarize_text(&id, 22));
+                print!("{:<24.4} ", rel);
+                print!("{:<24} ", succ);
+                print!("{:<24} ", fail);
+                println!();
+                count += 1;
+            }
+            if count == 0 {
+                println!("(no records found)");
+            }
+        }
+        "repositories" => {
+            let headers = vec!["Repository ID", "Reliability", "Success", "Failure"];
+            let rows = db
+                .list_repository_reliability_worst_first(limit)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            for h in &headers {
+                print!("{:<24} ", h);
+            }
+            println!();
+            let mut count = 0;
+            for (id, rel, succ, fail) in rows {
+                print!("{:<24} ", summarize_text(&id, 22));
+                print!("{:<24.4} ", rel);
+                print!("{:<24} ", succ);
+                print!("{:<24} ", fail);
+                println!();
+                count += 1;
+            }
+            if count == 0 {
+                println!("(no records found)");
+            }
+        }
         _ => anyhow::bail!(
             "Unknown reliability domain '{}'. Use endpoints, skills, workflows, or repositories.",
             domain
         ),
-    };
-
-    let mut rows = conn.query(query, turso::params![limit]).await?;
-    println!("Reliability stats for: {}", domain);
-
-    for h in &headers {
-        print!("{:<24} ", h);
-    }
-    println!();
-
-    let mut count = 0;
-    while let Some(row) = rows.next().await? {
-        for i in 0..fields {
-            let val_str = match row.get_value(i as usize) {
-                Ok(turso::Value::Text(s)) => s,
-                Ok(turso::Value::Integer(v)) => v.to_string(),
-                Ok(turso::Value::Real(f)) => format!("{:.4}", f),
-                _ => "-".to_string(),
-            };
-            print!("{:<24} ", summarize_text(&val_str, 22));
-        }
-        println!();
-        count += 1;
-    }
-
-    if count == 0 {
-        println!("(no records found)");
     }
     Ok(())
 }
@@ -95,13 +146,12 @@ pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
 /// List reliability scores for execution agents.
 pub async fn reliability_agents(limit: i64, min_score: Option<f64>) -> anyhow::Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let conn = &db.connection();
 
     let min = min_score.unwrap_or(0.0);
-    let mut rows = conn.query(
-        "SELECT agent_id, reliability, success_count, failure_count FROM agent_reliability WHERE reliability >= ?1 ORDER BY reliability DESC LIMIT ?2",
-        turso::params![min, limit]
-    ).await?;
+    let rows = db
+        .list_agent_reliability_above(min, limit)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     println!("Agent Reliability (min score: {:.2})", min);
     println!(
@@ -110,11 +160,7 @@ pub async fn reliability_agents(limit: i64, min_score: Option<f64>) -> anyhow::R
     );
 
     let mut count = 0;
-    while let Some(row) = rows.next().await? {
-        let aid: String = row.get(0)?;
-        let rel: f64 = row.get(1)?;
-        let succ: i64 = row.get(2)?;
-        let fail: i64 = row.get(3)?;
+    for (aid, rel, succ, fail) in rows {
         println!("{:<40} {:<12.4} {:<10} {:<10}", aid, rel, succ, fail);
         count += 1;
     }

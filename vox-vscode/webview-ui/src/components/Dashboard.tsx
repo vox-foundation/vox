@@ -1,16 +1,41 @@
 import React from 'react';
-import { Layers, Terminal, Activity, CheckCircle2, AlertCircle, Clock, Zap, Target, Cpu, MessageSquare } from 'lucide-react';
+import { Layers, Terminal, Activity, CheckCircle2, Zap, Target, Cpu, MessageSquare, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getVsCodeApi } from '../utils/vscode';
+import { Panel } from './ui/Panel';
+import { StateChip } from './ui/StateChip';
 
-export const Dashboard = ({ ops = [], stats = {} }: any) => {
+const vscode = getVsCodeApi();
+
+const surfaceMuted = 'var(--vscode-descriptionForeground, rgba(161,161,170,1))';
+const accentText = 'var(--vscode-textLink-foreground, #60a5fa)';
+
+export const Dashboard = ({ ops = [], stats = {}, pipeline = null }: any) => {
   return (
-    <div className="p-10 grid grid-cols-12 gap-8 overflow-y-auto h-full bg-[#09090b]">
+    <div
+      className="p-10 grid grid-cols-12 gap-8 overflow-y-auto h-full"
+      style={{
+        background: 'var(--vscode-sideBar-background, #09090b)',
+        color: 'var(--vscode-sideBar-foreground, #fafafa)',
+      }}
+    >
       <div className="col-span-12 mb-2">
-        <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
-          Fleet <span className="text-blue-500">Dashboard</span>
-          <div className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold uppercase text-blue-500 tracking-widest">Live</div>
+        <h2 className="text-3xl font-extrabold tracking-tight mb-2 flex items-center gap-3">
+          Fleet <span style={{ color: accentText }}>Dashboard</span>
+          <div
+            className="px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-widest"
+            style={{
+              borderColor: 'var(--vscode-panel-border, rgba(255,255,255,0.08))',
+              color: surfaceMuted,
+              background: 'var(--vscode-textBlockQuote-background, rgba(255,255,255,0.03))',
+            }}
+          >
+            MCP-backed
+          </div>
         </h2>
-        <p className="text-zinc-500 text-sm max-w-2xl font-medium tracking-wide">Orchestrator monitoring and real-time compiler telemetry for the Vox workspace.</p>
+        <p className="text-sm max-w-2xl font-medium tracking-wide" style={{ color: surfaceMuted }}>
+          Orchestrator monitoring and compiler telemetry from the connected MCP server.
+        </p>
       </div>
 
       {/* Primary Stats row */}
@@ -29,24 +54,44 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
 
       {/* Main interaction row */}
       <div className="col-span-8">
-        <div className="glass rounded-[2rem] border border-white/5 p-8 h-full">
+        <Panel className="h-full !p-8">
            <div className="flex items-center justify-between mb-8">
              <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+               <div
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                  style={{
+                    background: 'var(--vscode-button-secondaryBackground, rgba(59,130,246,0.1))',
+                    color: accentText,
+                  }}
+               >
                   <Activity size={20} />
                </div>
                <div>
-                 <h3 className="text-sm font-bold text-white/90 uppercase tracking-widest leading-tight">Operation Stream</h3>
-                 <span className="text-[11px] text-zinc-500 font-medium">Real-time task dispatching across @vox-mcp</span>
+                 <h3 className="text-sm font-bold uppercase tracking-widest leading-tight opacity-90">Operation Stream</h3>
+                 <span className="text-[11px] font-medium" style={{ color: surfaceMuted }}>
+                   From oplog / task queue (fallback when oplog empty)
+                 </span>
                </div>
              </div>
-             <button className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-zinc-400 hover:text-white hover:bg-white/10 transition-all uppercase tracking-widest">View All Logs</button>
+             <button
+               type="button"
+               className="px-4 py-2 rounded-xl text-[11px] font-bold transition-all uppercase tracking-widest"
+               style={{
+                  borderWidth: 1,
+                  borderStyle: 'solid',
+                  borderColor: 'var(--vscode-button-border, rgba(255,255,255,0.12))',
+                  background: 'var(--vscode-button-secondaryBackground, transparent)',
+                  color: 'var(--vscode-button-secondaryForeground, inherit)',
+               }}
+             >
+               View All Logs
+             </button>
            </div>
 
            <div className="space-y-1">
-             {ops && ops.length > 0 ? ops.slice(0, 10).map((entry: any) => (
+             {ops && ops.length > 0 ? ops.slice(0, 10).map((entry: any, idx: number) => (
                 <OpRow 
-                  key={entry.id} 
+                  key={entry.id ?? entry.description ?? idx} 
                   label={entry.description || entry.op_type} 
                   agent={entry.agent_id ?? "--"} 
                   status={entry.status || "Completed"} 
@@ -54,31 +99,64 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
                   active={entry.status === 'Running'} 
                 />
              )) : (
-                <div className="py-8 text-center text-zinc-500 text-xs font-bold uppercase tracking-widest">No recent operations</div>
+                <div className="py-8 text-center text-xs font-bold uppercase tracking-widest" style={{ color: surfaceMuted }}>
+                  No recent operations
+                </div>
              )}
            </div>
-        </div>
+        </Panel>
       </div>
 
       <div className="col-span-4 flex flex-col gap-8">
-        {/* Alerts / Error stack */}
-        <div className="glass rounded-[2rem] border border-white/5 p-8 flex-1">
+        <Panel className="flex-1 !p-8">
            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                style={{
+                  background: 'rgba(52, 211, 153, 0.12)',
+                  color: 'var(--vscode-testing-iconPassed, #34d399)',
+                }}
+              >
                  <MessageSquare size={20} />
               </div>
-              <h3 className="text-sm font-bold text-white/90 uppercase tracking-widest leading-tight">Pipeline Health</h3>
+              <h3 className="text-sm font-bold uppercase tracking-widest leading-tight opacity-90">Pipeline Health</h3>
            </div>
            
-           <div className="flex flex-col items-center justify-center h-48 py-10">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/5 flex items-center justify-center text-emerald-500/30 mb-4 animate-ping" />
-              <div className="absolute w-16 h-16 rounded-full bg-emerald-500/5 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+           <div className="flex flex-col items-center justify-center h-48 py-10 relative">
+              {pipeline == null ? (
+                <>
+                  <AlertCircle size={28} style={{ color: 'var(--vscode-editorWarning-foreground, #eab308)' }} className="mb-2" />
+                  <p className="text-[11px] font-bold uppercase tracking-widest mt-2 text-center px-4" style={{ color: surfaceMuted }}>
+                    No vox_pipeline_status yet
+                  </p>
+                  <span className="text-[10px] mt-1 text-center px-4" style={{ color: surfaceMuted }}>
+                    Open Pipeline tab after MCP connects
+                  </span>
+                </>
+              ) : pipeline && typeof pipeline === 'object' && (pipeline as { ok?: boolean }).ok === false ? (
+                <>
+                  <AlertCircle size={32} className="text-amber-500 mb-2" />
+                  <p className="text-[11px] font-bold text-amber-500 uppercase tracking-widest mt-2 text-center px-4">Compiler pipeline reported issues</p>
+                  <span className="text-[10px] text-zinc-500 mt-1 text-center px-4">See Pipeline tab for details</span>
+                </>
+              ) : (
+                <>
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mb-4 border"
+                style={{
+                  borderColor: 'var(--vscode-testing-iconPassed, #34d399)',
+                  color: 'var(--vscode-testing-iconPassed, #34d399)',
+                  background: 'var(--vscode-textfield-background, rgba(52,211,153,0.06))',
+                }}
+              >
                  <CheckCircle2 size={32} />
               </div>
-              <p className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mt-4">All Stages Green</p>
-              <span className="text-[10px] text-zinc-500 mt-1">Last audit: Just now</span>
+              <p className="text-[11px] font-bold uppercase tracking-widest mt-2" style={{ color: 'var(--vscode-testing-iconPassed, #34d399)' }}>Pipeline OK</p>
+              <span className="text-[10px] mt-1" style={{ color: surfaceMuted }}>From vox_pipeline_status</span>
+                </>
+              )}
            </div>
-        </div>
+        </Panel>
 
         {/* Action Quicklinks */}
         <div className="grid grid-cols-2 gap-4">
@@ -90,11 +168,12 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
   );
 };
 
-const OpRow = ({ label, agent, status, time, active }: any) => (
+const OpRow = ({ label, agent, status, time, active: _active }: any) => (
   <motion.div 
     initial={false}
     animate={{ opacity: 1 }}
-    className="group flex items-center justify-between py-4 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] -mx-4 px-4 rounded-2xl transition-all duration-300"
+    className="group flex items-center justify-between py-4 border-b last:border-0 -mx-4 px-4 rounded-2xl transition-all duration-300"
+    style={{ borderColor: 'var(--vscode-panel-border, rgba(255,255,255,0.06))' }}
   >
     <div className="flex items-center gap-4">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
@@ -105,49 +184,67 @@ const OpRow = ({ label, agent, status, time, active }: any) => (
          <Terminal size={16} />
       </div>
       <div>
-        <p className="text-sm font-bold text-white/80 group-hover:text-white transition-colors tracking-tight">{label}</p>
-        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">@ {agent}</span>
+        <p className="text-sm font-bold opacity-90 group-hover:opacity-100 transition-colors tracking-tight">{label}</p>
+        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: surfaceMuted }}>@ {agent}</span>
       </div>
     </div>
     
     <div className="flex items-center gap-8">
-       <span className="text-[11px] font-mono text-zinc-600 font-medium">{time}</span>
-       <div className={`px-3 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-widest border transition-all ${
-         status === 'Success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
-         status === 'Running' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 
-         'bg-zinc-500/5 text-zinc-600 border-transparent'
-       }`}>
-         {status}
-       </div>
+       <span className="text-[11px] font-mono font-medium" style={{ color: surfaceMuted }}>{time}</span>
+       <StateChip label={String(status)} tone={opRowTone(String(status))} />
     </div>
   </motion.div>
 )
 
-const StatCard = ({ title, value, delta, color, icon }: any) => (
+const StatCard = ({ title, value, delta, color: _color, icon }: any) => (
   <motion.div 
     whileHover={{ y: -4, scale: 1.02 }}
-    className="bg-[#101012] border border-[#27272a] rounded-[2rem] p-8 hover:border-blue-500/30 transition-all cursor-default group relative overflow-hidden"
+    className="rounded-[2rem] p-8 transition-all cursor-default group relative overflow-hidden"
+    style={{
+      background: 'var(--vscode-editorWidget-background, rgba(16,16,18,1))',
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: 'var(--vscode-panel-border, rgba(39,39,42,1))',
+    }}
   >
-     {/* Background glow decorator */}
-     <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/5 blur-[40px] rounded-full group-hover:bg-blue-500/10 transition-all duration-700" />
+     <div className="absolute -top-10 -right-10 w-32 h-32 blur-[40px] rounded-full transition-all duration-700 opacity-40" style={{ background: accentText }} />
      
      <div className="flex justify-between items-center mb-6">
-       <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-zinc-500 group-hover:text-blue-500 group-hover:border-blue-500/30 transition-all">
+       <div
+         className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+         style={{
+           background: 'var(--vscode-toolbar-hoverBackground, rgba(255,255,255,0.05))',
+           borderWidth: 1,
+           borderStyle: 'solid',
+           borderColor: 'var(--vscode-panel-border)',
+           color: surfaceMuted,
+         }}
+       >
           {icon}
        </div>
        {delta && <span className={`text-[10px] font-extrabold tracking-widest uppercase ${delta.startsWith('-') ? 'text-rose-500' : 'text-emerald-500'} bg-white/[0.02] px-2 py-0.5 rounded-full border border-white/5`}>{delta}</span>}
      </div>
      
      <div className="flex flex-col">
-       <span className="text-[10px] font-bold text-zinc-500 mb-1 uppercase tracking-widest peer">{title}</span>
-       <span className="text-4xl font-black text-white group-hover:text-blue-400 transition-all duration-300 tracking-tighter">{value}</span>
+       <span className="text-[10px] font-bold mb-1 uppercase tracking-widest" style={{ color: surfaceMuted }}>{title}</span>
+       <span className="text-4xl font-black tracking-tighter transition-all duration-300 group-hover:opacity-90">{value}</span>
      </div>
   </motion.div>
 );
 
 const ActionBtn = ({ icon, label, onClick }: any) => (
-  <button onClick={onClick} className="flex-1 glass border border-white/5 rounded-2xl py-5 px-4 flex flex-col items-center gap-3 group hover:border-blue-500/40 hover:bg-blue-500/[0.02] transition-all">
-     <div className="text-zinc-500 group-hover:text-blue-500 transition-colors">{icon}</div>
-     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest group-hover:text-zinc-300">{label}</span>
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex-1 rounded-2xl py-5 px-4 flex flex-col items-center gap-3 group transition-all"
+    style={{
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: 'var(--vscode-panel-border)',
+      background: 'var(--vscode-button-secondaryBackground, transparent)',
+    }}
+  >
+     <div className="transition-colors" style={{ color: surfaceMuted }}>{icon}</div>
+     <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: surfaceMuted }}>{label}</span>
   </button>
 )

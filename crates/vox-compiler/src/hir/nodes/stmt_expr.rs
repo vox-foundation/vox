@@ -21,6 +21,70 @@ pub struct HirParam {
     pub span: Span,
 }
 
+/// Canonical lowered operation for `db.<Table>.<method>(...)` (Vox Native DB IR).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirDbTableOp {
+    Insert,
+    /// Primary key fetch by `_id` (alias: `find`).
+    Get,
+    Delete,
+    /// Safe full-table scan (`SELECT * FROM t`).
+    All,
+    /// Typed equality predicates: `db.T.filter({ col: value, ... })` → parameterized `AND`.
+    FilterRecord,
+    /// `SELECT COUNT(*) FROM t` (safe aggregate).
+    Count,
+    /// Appends a caller-controlled fragment after `SELECT * FROM t` — avoid unless necessary.
+    UnsafeQueryRawClause,
+}
+
+/// Predicate algebra used by native DB query plans.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirDbPredicate {
+    Eq { field: String },
+    Neq { field: String },
+    Lt { field: String },
+    Lte { field: String },
+    Gt { field: String },
+    Gte { field: String },
+    In { field: String, arity: usize },
+    Contains { field: String },
+    IsNull { field: String },
+    And(Vec<HirDbPredicate>),
+    Or(Vec<HirDbPredicate>),
+    Not(Box<HirDbPredicate>),
+}
+
+/// Retrieval strategy hint for Turso-backed plans.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirDbRetrievalMode {
+    Fts,
+    Vector,
+    Hybrid,
+}
+
+/// Capability metadata carried with lowered DB plans.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct HirDbPlanCapabilities {
+    pub requires_sync: bool,
+    pub emits_change_log: bool,
+    pub live_topic: Option<String>,
+    pub retrieval_mode: Option<HirDbRetrievalMode>,
+    pub orchestration_scope: Option<String>,
+}
+
+/// Backend-neutral query/mutation plan representation attached to DB expressions.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct HirDbQueryPlan {
+    pub table: String,
+    pub op: HirDbTableOp,
+    pub predicate: Option<HirDbPredicate>,
+    pub projection: Option<Vec<String>>,
+    pub order_by: Option<(String, bool)>,
+    pub has_limit: bool,
+    pub capabilities: HirDbPlanCapabilities,
+}
+
 /// Type representation in HIR (resolved from [`crate::ast::types::TypeExpr`]).
 #[derive(Debug, Clone, PartialEq)]
 pub enum HirType {
@@ -63,6 +127,21 @@ pub enum HirExpr {
     Call(Box<HirExpr>, Vec<HirArg>, bool, Span),
     /// Method call `obj.method(args)`.
     MethodCall(Box<HirExpr>, String, Vec<HirArg>, Span),
+    /// Lowered `db.Table.op(args)` Codex call (see [`HirDbTableOp`]).
+    DbTableOp {
+        table: String,
+        op: HirDbTableOp,
+        args: Vec<HirArg>,
+        /// Column projection from `.select(...)` (subset of table fields); `None` means `SELECT *`.
+        select_cols: Option<Vec<String>>,
+        /// Optional ORDER BY clause (`column`, `ascending`).
+        order_by: Option<(String, bool)>,
+        /// Optional LIMIT expression (must typecheck as int).
+        limit: Option<Box<HirExpr>>,
+        /// Shared serializable plan consumed by codegen and tooling.
+        plan: Option<HirDbQueryPlan>,
+        span: Span,
+    },
     /// Field projection.
     FieldAccess(Box<HirExpr>, String, Span),
     /// `match` expression.

@@ -178,4 +178,89 @@ CREATE TABLE IF NOT EXISTS publication_status_events (
     detail_json TEXT,
     recorded_at_ms INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS external_submission_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    publication_id TEXT NOT NULL,
+    content_sha3_256 TEXT NOT NULL,
+    adapter TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL,
+    lock_owner TEXT,
+    lock_expires_at_ms INTEGER,
+    next_retry_at_ms INTEGER,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_error_class TEXT,
+    last_error_message TEXT,
+    metadata_json TEXT,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_jobs_pub_digest_adapter
+    ON external_submission_jobs(publication_id, content_sha3_256, adapter);
+CREATE INDEX IF NOT EXISTS idx_external_jobs_status_retry
+    ON external_submission_jobs(status, next_retry_at_ms);
+
+-- error_class: adapter values from ScholarlyError (disabled, config, auth, rate_limit, transient, fatal)
+-- plus job-layer preflight; http_status filled when the underlying failure maps to an HTTP code
+CREATE TABLE IF NOT EXISTS external_submission_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL,
+    attempted_at_ms INTEGER NOT NULL,
+    http_status INTEGER,
+    error_class TEXT,
+    retryable INTEGER NOT NULL DEFAULT 0,
+    request_fingerprint TEXT,
+    response_fingerprint TEXT,
+    detail_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_attempts_job
+    ON external_submission_attempts(job_id, attempted_at_ms);
+
+CREATE TABLE IF NOT EXISTS external_status_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    adapter TEXT NOT NULL,
+    external_submission_id TEXT NOT NULL,
+    publication_id TEXT NOT NULL,
+    content_sha3_256 TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    fetched_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_snapshots_adapter_ext
+    ON external_status_snapshots(adapter, external_submission_id, fetched_at_ms);
+
+CREATE TABLE IF NOT EXISTS publication_external_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    publication_id TEXT NOT NULL,
+    content_sha3_256 TEXT NOT NULL,
+    adapter TEXT NOT NULL,
+    link_kind TEXT NOT NULL,
+    link_value TEXT NOT NULL,
+    metadata_json TEXT,
+    created_at_ms INTEGER NOT NULL,
+    UNIQUE(publication_id, content_sha3_256, adapter, link_kind)
+);
+
+CREATE INDEX IF NOT EXISTS idx_publication_external_links_pub
+    ON publication_external_links(publication_id, content_sha3_256);
+
+-- Maps an immutable local content digest to the adapter's current revision/version identifier
+-- (e.g. Zenodo deposition version, OpenReview revision tag) for idempotent updates.
+CREATE TABLE IF NOT EXISTS publication_external_revisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    publication_id TEXT NOT NULL,
+    content_sha3_256 TEXT NOT NULL,
+    adapter TEXT NOT NULL,
+    external_revision TEXT NOT NULL,
+    metadata_json TEXT,
+    updated_at_ms INTEGER NOT NULL,
+    UNIQUE(publication_id, content_sha3_256, adapter)
+);
+
+CREATE INDEX IF NOT EXISTS idx_publication_external_revisions_pub_digest
+    ON publication_external_revisions(publication_id, content_sha3_256);
 "#;

@@ -1,4 +1,4 @@
-//! `vox schola train` — native LoRA training worker.
+//! `vox mens train` — native LoRA training worker (implementation under `commands::schola::train`).
 
 #[cfg(feature = "gpu")]
 mod gpu;

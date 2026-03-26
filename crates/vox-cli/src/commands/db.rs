@@ -1,9 +1,185 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
 use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
+use crate::commands::db_cli::ArxivHandoffStageCli;
 use crate::commands::db_retention;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct QueryPlanExplainRow {
+    query_fn: String,
+    route_path: String,
+    plan: vox_compiler::hir::HirDbQueryPlan,
+}
+
+fn fallback_plan_from_db_op(
+    table: &str,
+    op: vox_compiler::hir::HirDbTableOp,
+    select_cols: &Option<Vec<String>>,
+    order_by: &Option<(String, bool)>,
+    limit: &Option<Box<vox_compiler::hir::HirExpr>>,
+) -> vox_compiler::hir::HirDbQueryPlan {
+    vox_compiler::hir::HirDbQueryPlan {
+        table: table.to_string(),
+        op,
+        predicate: None,
+        projection: select_cols.clone(),
+        order_by: order_by.clone(),
+        has_limit: limit.is_some(),
+        capabilities: vox_compiler::hir::HirDbPlanCapabilities::default(),
+    }
+}
+
+fn collect_query_plans_expr(expr: &vox_compiler::hir::HirExpr, out: &mut Vec<vox_compiler::hir::HirDbQueryPlan>) {
+    use vox_compiler::hir::HirExpr;
+    match expr {
+        HirExpr::DbTableOp {
+            table,
+            op,
+            args,
+            select_cols,
+            order_by,
+            limit,
+            plan,
+            ..
+        } => {
+            out.push(
+                plan.clone()
+                    .unwrap_or_else(|| fallback_plan_from_db_op(table, *op, select_cols, order_by, limit)),
+            );
+            for a in args {
+                collect_query_plans_expr(&a.value, out);
+            }
+            if let Some(l) = limit {
+                collect_query_plans_expr(l, out);
+            }
+        }
+        HirExpr::ObjectLit(fields, _) => {
+            for (_, v) in fields {
+                collect_query_plans_expr(v, out);
+            }
+        }
+        HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
+            for it in items {
+                collect_query_plans_expr(it, out);
+            }
+        }
+        HirExpr::Binary(_, l, r, _) => {
+            collect_query_plans_expr(l, out);
+            collect_query_plans_expr(r, out);
+        }
+        HirExpr::Unary(_, e, _) => collect_query_plans_expr(e, out),
+        HirExpr::Call(callee, args, _, _) => {
+            collect_query_plans_expr(callee, out);
+            for a in args {
+                collect_query_plans_expr(&a.value, out);
+            }
+        }
+        HirExpr::MethodCall(obj, _, args, _) => {
+            collect_query_plans_expr(obj, out);
+            for a in args {
+                collect_query_plans_expr(&a.value, out);
+            }
+        }
+        HirExpr::FieldAccess(o, _, _) => collect_query_plans_expr(o, out),
+        HirExpr::Match(subj, arms, _) => {
+            collect_query_plans_expr(subj, out);
+            for arm in arms {
+                if let Some(g) = &arm.guard {
+                    collect_query_plans_expr(g, out);
+                }
+                collect_query_plans_expr(&arm.body, out);
+            }
+        }
+        HirExpr::If(cond, then_b, else_b, _) => {
+            collect_query_plans_expr(cond, out);
+            for st in then_b {
+                collect_query_plans_stmt(st, out);
+            }
+            if let Some(else_stmts) = else_b {
+                for st in else_stmts {
+                    collect_query_plans_stmt(st, out);
+                }
+            }
+        }
+        HirExpr::For(_, it, body, _) => {
+            collect_query_plans_expr(it, out);
+            collect_query_plans_expr(body, out);
+        }
+        HirExpr::Lambda(_, _, body, _) => collect_query_plans_expr(body, out),
+        HirExpr::Pipe(l, r, _) => {
+            collect_query_plans_expr(l, out);
+            collect_query_plans_expr(r, out);
+        }
+        HirExpr::Spawn(target, _) => collect_query_plans_expr(target, out),
+        HirExpr::With(base, opts, _) => {
+            collect_query_plans_expr(base, out);
+            collect_query_plans_expr(opts, out);
+        }
+        HirExpr::Jsx(el) => {
+            for a in &el.attributes {
+                collect_query_plans_expr(&a.value, out);
+            }
+            for c in &el.children {
+                collect_query_plans_expr(c, out);
+            }
+        }
+        HirExpr::JsxSelfClosing(el) => {
+            for a in &el.attributes {
+                collect_query_plans_expr(&a.value, out);
+            }
+        }
+        HirExpr::Block(stmts, _) => {
+            for st in stmts {
+                collect_query_plans_stmt(st, out);
+            }
+        }
+        HirExpr::IntLit(_, _)
+        | HirExpr::FloatLit(_, _)
+        | HirExpr::StringLit(_, _)
+        | HirExpr::BoolLit(_, _)
+        | HirExpr::Ident(_, _) => {}
+    }
+}
+
+fn collect_query_plans_stmt(stmt: &vox_compiler::hir::HirStmt, out: &mut Vec<vox_compiler::hir::HirDbQueryPlan>) {
+    use vox_compiler::hir::HirStmt;
+    match stmt {
+        HirStmt::Let { value, .. } => collect_query_plans_expr(value, out),
+        HirStmt::Assign { target, value, .. } => {
+            collect_query_plans_expr(target, out);
+            collect_query_plans_expr(value, out);
+        }
+        HirStmt::Return { value: Some(v), .. } => collect_query_plans_expr(v, out),
+        HirStmt::Return { value: None, .. } => {}
+        HirStmt::Expr { expr, .. } => collect_query_plans_expr(expr, out),
+    }
+}
+
+fn collect_query_fn_plans(
+    hir: &vox_compiler::hir::HirModule,
+    query_filter: Option<&str>,
+) -> Vec<QueryPlanExplainRow> {
+    let mut out = Vec::new();
+    for q in &hir.query_fns {
+        if query_filter.is_some_and(|f| f != q.name.as_str()) {
+            continue;
+        }
+        let mut plans = Vec::new();
+        for st in &q.body {
+            collect_query_plans_stmt(st, &mut plans);
+        }
+        for plan in plans {
+            out.push(QueryPlanExplainRow {
+                query_fn: q.name.clone(),
+                route_path: q.route_path.clone(),
+                plan,
+            });
+        }
+    }
+    out
+}
 
 /// Print current VoxDB schema version and connection path.
 pub async fn status() -> Result<()> {
@@ -198,6 +374,56 @@ pub async fn schema(file: Option<&PathBuf>) -> Result<()> {
     Ok(())
 }
 
+/// Print lowered DB query plans (`HirDbQueryPlan`) from `@query` functions in a `.vox` file.
+pub async fn explain(
+    file: Option<&PathBuf>,
+    query: Option<&str>,
+    pretty: bool,
+    jsonl: bool,
+) -> Result<()> {
+    let path = file
+        .cloned()
+        .unwrap_or_else(|| PathBuf::from("src/main.vox"));
+    if !path.exists() {
+        anyhow::bail!(
+            "No source file found at {}. Run `vox db explain --file <path>` to specify one.",
+            path.display()
+        );
+    }
+    let result = crate::pipeline::run_frontend(&path, false)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to parse source for explain: {}", e))?;
+    if !result.diagnostics.is_empty() {
+        crate::pipeline::print_diagnostics(&result, &path, false);
+    }
+    if result.has_errors() {
+        anyhow::bail!(
+            "Cannot explain DB query plans due to {} frontend error(s).",
+            result.error_count()
+        );
+    }
+    let plans = collect_query_fn_plans(&result.hir, query);
+    if jsonl {
+        for row in &plans {
+            println!("{}", serde_json::to_string(row)?);
+        }
+        return Ok(());
+    }
+    let out = serde_json::json!({
+        "file": path.display().to_string(),
+        "query_filter": query,
+        "query_function_count": result.hir.query_fns.len(),
+        "plan_count": plans.len(),
+        "plans": plans,
+    });
+    if pretty {
+        println!("{}", serde_json::to_string_pretty(&out)?);
+    } else {
+        println!("{}", serde_json::to_string(&out)?);
+    }
+    Ok(())
+}
+
 /// Print sample data from a table or collection.
 pub async fn sample(table: &str, limit: i64) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
@@ -375,8 +601,7 @@ pub async fn import(path: &Path) -> Result<()> {
 /// Run SQLite VACUUM to reclaim space and defragment the database.
 pub async fn vacuum() -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    db.connection()
-        .execute("VACUUM", ())
+    db.run_sqlite_vacuum()
         .await
         .map_err(|e| anyhow::anyhow!("VACUUM failed: {e}"))?;
     println!("VACUUM complete. Database has been compacted.");
@@ -391,19 +616,11 @@ pub async fn prune(user_id: &str, days: u32) -> Result<()> {
         .unwrap_or(chrono::Utc::now());
     let threshold_str = threshold.format("%Y-%m-%d %H:%M:%S").to_string();
     let deleted = db
-        .connection()
-        .execute(
-            "DELETE FROM memories WHERE agent_id = ?1 AND created_at < ?2",
-            turso::params![user_id, threshold_str],
-        )
+        .delete_memories_created_before(user_id, threshold_str.as_str())
         .await
         .map_err(|e| anyhow::anyhow!("Prune failed: {e}"))?;
     println!("Pruned {deleted} rows from `memories` older than {days} days for '{user_id}'.");
     Ok(())
-}
-
-fn retention_cutoff_sql(days: u32) -> String {
-    format!("datetime('now', '-{days} day')")
 }
 
 /// Emit JSON plan for rows that would be deleted per `contracts/db/retention-policy.yaml`.
@@ -413,7 +630,6 @@ pub async fn prune_plan(policy: Option<&Path>) -> Result<()> {
         .unwrap_or_else(db_retention::default_policy_path);
     let pol = db_retention::load_policy(&path)?;
     let db = vox_db::VoxDb::connect_default().await?;
-    let conn = db.connection();
     let mut rows_out = Vec::new();
     for (table, rule) in pol.tables.iter() {
         if rule.kind != "days" {
@@ -429,19 +645,10 @@ pub async fn prune_plan(policy: Option<&Path>) -> Result<()> {
                 "retention policy: table `{table}` kind=days requires `days` and `time_column`"
             );
         };
-        let tq = db_retention::sqlite_quote_ident(table);
-        let cq = db_retention::sqlite_quote_ident(col);
-        let cutoff = retention_cutoff_sql(days);
-        let sql = format!("SELECT COUNT(*) FROM {tq} WHERE {cq} < {cutoff}");
-        let mut r = conn
-            .query(&sql, ())
+        let n = db
+            .retention_count_older_than_days(table, col, days)
             .await
             .with_context(|| format!("plan {table}"))?;
-        let n: i64 = r
-            .next()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("count {table}"))?
-            .get(0)?;
         rows_out.push(serde_json::json!({
             "table": table,
             "mode": "days",
@@ -468,7 +675,6 @@ pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()
         .unwrap_or_else(db_retention::default_policy_path);
     let pol = db_retention::load_policy(&path)?;
     let db = vox_db::VoxDb::connect_default().await?;
-    let conn = db.connection();
     let mut total: u64 = 0;
     for (table, rule) in pol.tables.iter() {
         if rule.kind != "days" {
@@ -479,12 +685,8 @@ pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()
                 "retention policy: table `{table}` kind=days requires `days` and `time_column`"
             );
         };
-        let tq = db_retention::sqlite_quote_ident(table);
-        let cq = db_retention::sqlite_quote_ident(col);
-        let cutoff = retention_cutoff_sql(days);
-        let sql = format!("DELETE FROM {tq} WHERE {cq} < {cutoff}");
-        let n = conn
-            .execute(&sql, ())
+        let n = db
+            .retention_delete_older_than_days(table, col, days)
             .await
             .with_context(|| format!("delete {table}"))?;
         total += n;
@@ -730,6 +932,53 @@ pub async fn publication_zenodo_metadata(publication_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Write [`vox_publisher::submission_package`] staging files for an existing manifest (by id).
+pub async fn publication_scholarly_staging_export(
+    publication_id: &str,
+    output_dir: &std::path::Path,
+    venue: vox_publisher::submission_package::ScholarlyVenue,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    };
+    let written = vox_publisher::submission_package::write_scholarly_staging(
+        &manifest,
+        venue,
+        output_dir,
+    )?;
+    vox_publisher::submission_package::validate_scholarly_staging(output_dir, venue, &manifest)
+        .map_err(|findings| {
+            let msg: String = findings
+                .iter()
+                .map(|f| format!("{}: {}", f.code, f.message))
+                .collect::<Vec<_>>()
+                .join("; ");
+            anyhow::anyhow!("staging validation failed: {msg}")
+        })?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "publication_id": publication_id,
+            "output_dir": output_dir,
+            "venue": venue.as_str(),
+            "written": written,
+        }))?
+    );
+    Ok(())
+}
+
 /// Record one digest-bound publication approval.
 pub async fn publication_approve(publication_id: &str, approver: &str) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
@@ -756,38 +1005,16 @@ pub async fn publication_approve(publication_id: &str, approver: &str) -> Result
     Ok(())
 }
 
-/// Submit to the first scholarly adapter integration (`local_ledger`).
-pub async fn publication_submit_local(publication_id: &str) -> Result<()> {
+/// Submit to the scholarly adapter (`--adapter` or `VOX_SCHOLARLY_ADAPTER`; default `local_ledger`).
+pub async fn publication_submit_local(
+    publication_id: &str,
+    adapter: Option<&str>,
+) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let Some(row) = db.get_publication_manifest(publication_id).await? else {
-        anyhow::bail!("publication not found: {publication_id}");
-    };
-    let dual = db
-        .has_dual_publication_approval_for_digest(publication_id, &row.content_sha3_256)
-        .await?;
-    if !dual {
-        anyhow::bail!("publication requires two distinct digest-bound approvers before submission");
-    }
-    let manifest = vox_publisher::publication::PublicationManifest {
-        publication_id: row.publication_id.clone(),
-        content_type: row.content_type.clone(),
-        source_ref: row.source_ref.clone(),
-        title: row.title.clone(),
-        author: row.author.clone(),
-        abstract_text: row.abstract_text.clone(),
-        body_markdown: row.body_markdown.clone(),
-        citations_json: row.citations_json.clone(),
-        metadata_json: row.metadata_json.clone(),
-    };
-    let receipt = vox_publisher::scholarly::submit_with_configured_adapter(&manifest)?;
-    db.upsert_scholarly_submission(
+    let receipt = vox_publisher::scholarly_external_jobs::publication_scholarly_submit_with_ledger(
+        &db,
         publication_id,
-        &row.content_sha3_256,
-        &receipt.adapter,
-        &receipt.external_submission_id,
-        &receipt.status,
-        receipt.response_fingerprint.as_deref(),
-        receipt.metadata_json.as_deref(),
+        adapter,
     )
     .await?;
     println!(
@@ -825,6 +1052,249 @@ pub async fn publication_status(publication_id: &str) -> Result<()> {
             "publication_status_events": status_events,
         }))?
     );
+    Ok(())
+}
+
+/// Poll the remote scholarly repository for the latest stored submission (or one matching `external_submission_id`).
+pub async fn publication_scholarly_remote_status(
+    publication_id: &str,
+    external_submission_id: Option<&str>,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let submissions = db.list_scholarly_submissions(publication_id).await?;
+    let sub_row: &vox_db::ScholarlySubmissionRow = match external_submission_id {
+        Some(e) => {
+            let e = e.trim();
+            if e.is_empty() {
+                anyhow::bail!("--external-submission-id must not be empty when provided");
+            }
+            submissions
+                .iter()
+                .find(|r| r.external_submission_id == e)
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "no scholarly submission for publication {publication_id} with external_submission_id {e}"
+                    )
+                })?
+        }
+        None => submissions.first().ok_or_else(|| {
+            anyhow::anyhow!("no scholarly submissions for publication {publication_id}")
+        })?,
+    };
+    let v = vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_persist(
+        &db,
+        publication_id,
+        sub_row,
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!("{}", serde_json::to_string_pretty(&v)?);
+    Ok(())
+}
+
+/// Poll remote status for **every** `scholarly_submissions` row for this publication (continues on per-row errors).
+pub async fn publication_scholarly_remote_status_sync_all(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let v = vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_all_submissions_for_publication(
+        &db,
+        publication_id,
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!("{}", serde_json::to_string_pretty(&v)?);
+    Ok(())
+}
+
+/// Batch remote status poll across publications (distinct ids by recent `scholarly_submissions` activity). For cron/operators.
+pub async fn publication_scholarly_remote_status_sync_batch(
+    limit: i64,
+    iterations: u32,
+    interval_secs: u64,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let v = if iterations <= 1 && interval_secs == 0 {
+        vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch(&db, limit)
+            .await
+    } else {
+        vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch_loop(
+            &db,
+            limit,
+            iterations,
+            interval_secs,
+        )
+        .await
+    }
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!("{}", serde_json::to_string_pretty(&v)?);
+    Ok(())
+}
+
+/// Record an operator milestone for the arXiv-assist workflow (append-only audit in `publication_status_events`).
+pub async fn publication_arxiv_handoff_record(
+    publication_id: &str,
+    stage: ArxivHandoffStageCli,
+    operator: Option<&str>,
+    note: Option<&str>,
+    arxiv_id: Option<&str>,
+) -> Result<()> {
+    let publication_id = publication_id.trim();
+    if publication_id.is_empty() {
+        anyhow::bail!("publication_id must not be empty");
+    }
+    if matches!(stage, ArxivHandoffStageCli::Published)
+        && arxiv_id.map(str::trim).filter(|s| !s.is_empty()).is_none()
+    {
+        anyhow::bail!("--arxiv-id is required when --stage published");
+    }
+    let db = vox_db::VoxDb::connect_default().await?;
+    if db
+        .get_publication_manifest(publication_id)
+        .await?
+        .is_none()
+    {
+        anyhow::bail!("publication not found: {publication_id}");
+    }
+    let status = format!("arxiv_handoff:{}", stage.slug());
+    let op_trim = operator.map(str::trim).filter(|s| !s.is_empty());
+    let note_trim = note.map(str::trim).filter(|s| !s.is_empty());
+    let arxiv_trim = arxiv_id.map(str::trim).filter(|s| !s.is_empty());
+    let detail = serde_json::json!({
+        "schema_version": 1_u32,
+        "workflow": "arxiv_operator_assist",
+        "stage": stage.slug(),
+        "operator": op_trim,
+        "note": note_trim,
+        "arxiv_id": arxiv_trim,
+    });
+    db.append_publication_status_event(
+        publication_id,
+        &status,
+        Some(&detail.to_string()),
+    )
+    .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "recorded": true,
+            "publication_id": publication_id,
+            "status": status,
+            "detail": detail,
+        }))?
+    );
+    Ok(())
+}
+
+/// Read-only metrics rollup for the scholarly external pipeline and related publication attempt channels.
+pub async fn publication_external_pipeline_metrics(since_hours: i64) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let hours = since_hours.clamp(0, 8_760);
+    let since_ms = if hours == 0 {
+        0_i64
+    } else {
+        now_ms.saturating_sub(hours.saturating_mul(3_600_000))
+    };
+    let v = db
+        .summarize_scholarly_external_pipeline_metrics(since_ms)
+        .await?;
+    println!("{}", serde_json::to_string_pretty(&v)?);
+    Ok(())
+}
+
+/// Operator view of scholarly outbound jobs eligible for a retry worker (`queued` / due `retryable_failed`).
+pub async fn publication_external_jobs_due(limit: i64) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let before_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let jobs = db
+        .list_external_submission_jobs_due(before_ms, limit)
+        .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "due_before_ms_inclusive": before_ms,
+            "jobs": jobs,
+        }))?
+    );
+    Ok(())
+}
+
+/// List `external_submission_jobs` in terminal **`failed`** state (not scheduled for retry).
+pub async fn publication_external_jobs_dead_letter(limit: i64) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let jobs = db.list_external_submission_jobs_failed(limit).await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({ "jobs": jobs }))?
+    );
+    Ok(())
+}
+
+/// Requeue one dead-letter job (`status = failed`) to `queued` for the next `publication-external-jobs-tick`.
+pub async fn publication_external_jobs_replay(job_id: i64) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let row = db
+        .replay_failed_external_submission_job_to_queued(job_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "replayed": true,
+            "job": row,
+        }))?
+    );
+    Ok(())
+}
+
+/// Process one batch of due `external_submission_jobs`: preflight, lease, scholarly `submit` using the job's adapter.
+pub async fn publication_external_jobs_tick(
+    limit: i64,
+    lock_ttl_ms: i64,
+    lock_owner: Option<&str>,
+    iterations: u32,
+    interval_secs: u64,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    if iterations <= 1 && interval_secs == 0 {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let out = vox_publisher::scholarly_external_jobs::run_external_submit_jobs_tick(
+            &db,
+            limit,
+            lock_ttl_ms,
+            lock_owner,
+            now_ms,
+        )
+        .await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "now_ms": now_ms,
+                "lock_owner": out.lock_owner,
+                "lock_ttl_ms": out.lock_ttl_ms,
+                "results": out.results,
+            }))?
+        );
+        return Ok(());
+    }
+    let v = vox_publisher::scholarly_external_jobs::run_external_submit_jobs_tick_loop(
+        &db,
+        limit,
+        lock_ttl_ms,
+        lock_owner,
+        iterations,
+        interval_secs,
+    )
+    .await?;
+    println!("{}", serde_json::to_string_pretty(&v)?);
     Ok(())
 }
 
@@ -1122,7 +1592,7 @@ pub use super::db_research::*;
 
 #[cfg(test)]
 mod tests {
-    use super::publication_item_from_manifest;
+    use super::{collect_query_fn_plans, publication_item_from_manifest, QueryPlanExplainRow};
     use chrono::Utc;
     use vox_publisher::types::{SyndicationConfig, TwitterConfig, UnifiedNewsItem};
 
@@ -1199,5 +1669,62 @@ mod tests {
         let item = publication_item_from_manifest(&row).expect("item");
         assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
         assert!(item.syndication.twitter.is_none());
+    }
+
+    #[test]
+    fn collect_query_fn_plans_extracts_hir_db_query_plan_rows() {
+        let src = r#"
+@table type User { name: str active: bool }
+@query fn q1() to int {
+    ret len(db.User.filter({ active: true }).limit(5))
+}
+"#;
+        let tokens = vox_compiler::lexer::lex(src);
+        let module = vox_compiler::parser::parse(tokens).expect("parse");
+        let hir = vox_compiler::hir::lower_module(&module);
+        let rows = collect_query_fn_plans(&hir, None);
+        assert!(!rows.is_empty(), "expected at least one query plan row");
+        assert!(rows.iter().any(|r| r.query_fn == "q1"));
+        assert!(
+            rows.iter().any(|r| matches!(r.plan.op, vox_compiler::hir::HirDbTableOp::FilterRecord))
+        );
+    }
+
+    #[test]
+    fn collect_query_fn_plans_honors_query_name_filter() {
+        let src = r#"
+@table type User { name: str active: bool }
+@query fn qa() to int { ret len(db.User.all()) }
+@query fn qb() to int { ret len(db.User.filter({ active: true })) }
+"#;
+        let tokens = vox_compiler::lexer::lex(src);
+        let module = vox_compiler::parser::parse(tokens).expect("parse");
+        let hir = vox_compiler::hir::lower_module(&module);
+        let rows = collect_query_fn_plans(&hir, Some("qb"));
+        assert!(!rows.is_empty(), "expected rows for filtered query name");
+        assert!(rows.iter().all(|r| r.query_fn == "qb"));
+    }
+
+    #[test]
+    fn query_plan_explain_row_jsonl_line_round_trips() {
+        use vox_compiler::hir::{HirDbPlanCapabilities, HirDbQueryPlan, HirDbTableOp};
+        let row = QueryPlanExplainRow {
+            query_fn: "q".into(),
+            route_path: "/q/q".into(),
+            plan: HirDbQueryPlan {
+                table: "User".into(),
+                op: HirDbTableOp::All,
+                predicate: None,
+                projection: None,
+                order_by: None,
+                has_limit: false,
+                capabilities: HirDbPlanCapabilities::default(),
+            },
+        };
+        let line = serde_json::to_string(&row).expect("serialize");
+        assert!(!line.contains('\n'), "jsonl row must be a single line");
+        let parsed: QueryPlanExplainRow = serde_json::from_str(&line).expect("deserialize");
+        assert_eq!(parsed.query_fn, row.query_fn);
+        assert_eq!(parsed.plan.table, row.plan.table);
     }
 }

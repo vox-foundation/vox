@@ -14,6 +14,82 @@ pub(crate) fn run_repo_guards(root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Fail when Rust sources outside the Arca SQL home (`vox-db`) use Codex's
+/// raw SQL entrypoints on `connection()`: the `query` / `execute` methods (see nomenclature doc).
+///
+/// See `docs/agents/database-nomenclature.md` and `docs/agents/sql-connection-api-allowlist.txt`.
+/// Detects dot-`connection()` chains ending in `query` / `execute` call parentheses, including
+/// splits across lines (`.` + method on the next line). Test fixtures avoid spelling the banned
+/// substring literally so this module does not trip the repo-wide guard.
+#[must_use]
+pub(crate) fn sql_surface_contains_raw_connection_api(text: &str) -> bool {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| {
+        regex::Regex::new(r"\.connection\(\)\s*\.\s*(?:query|execute)\s*\(")
+            .expect("sql surface regex")
+    })
+    .is_match(text)
+}
+
+pub(crate) fn run_sql_surface_guard(root: &Path, all: bool) -> Result<()> {
+    let allow = load_sql_connection_allowlist(root)?;
+    let mut offenders = Vec::new();
+    for rel in scan_targets(root, all)? {
+        let rel_norm = rel.replace('\\', "/");
+        if sql_connection_path_allowed(&rel_norm, &allow) {
+            continue;
+        }
+        let path = root.join(&rel);
+        if !path.exists() {
+            continue;
+        }
+        let text = read_utf8_path_capped(&path)?;
+        if sql_surface_contains_raw_connection_api(&text) {
+            offenders.push(rel_norm);
+        }
+    }
+    if !offenders.is_empty() {
+        return Err(anyhow!(
+            "sql-surface-guard: disallowed Codex connection SQL API (query/execute) outside allowlist in {} file(s): {} — add vox_db::VoxDb methods in store/ops_*.rs (see docs/agents/database-nomenclature.md)",
+            offenders.len(),
+            offenders.join(", ")
+        ));
+    }
+    println!("sql-surface-guard OK");
+    Ok(())
+}
+
+fn load_sql_connection_allowlist(root: &Path) -> Result<Vec<String>> {
+    let mut out = vec![
+        "crates/vox-db/".to_string(),
+        "crates/vox-compiler/".to_string(),
+    ];
+    let p = root.join("docs/agents/sql-connection-api-allowlist.txt");
+    if p.is_file() {
+        let text = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let norm = line.replace('\\', "/");
+            let norm = if norm.ends_with('/') {
+                norm
+            } else {
+                format!("{norm}/")
+            };
+            out.push(norm);
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
+fn sql_connection_path_allowed(rel: &str, allow: &[String]) -> bool {
+    allow.iter().any(|prefix| rel.starts_with(prefix.as_str()))
+}
+
 fn path_is_allowed(rel_norm: &str) -> bool {
     rel_norm.starts_with("crates/vox-clavis/")
         || rel_norm == "crates/vox-config/src/inference.rs"
@@ -214,4 +290,58 @@ fn guard_no_stray_root_files(root: &Path) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod sql_surface_tests {
+    use super::sql_surface_contains_raw_connection_api;
+
+    #[test]
+    fn detects_single_line_connection_query() {
+        let src = concat!(
+            "db",
+            ".connection().",
+            "query",
+            "(\"SELECT 1\", ()).await"
+        );
+        assert!(sql_surface_contains_raw_connection_api(src));
+    }
+
+    #[test]
+    fn detects_multiline_connection_query_chain() {
+        let head = "foo\n            store\n                .connection()";
+        let tail = "\n                .query(&sql, params)\n                .await\n        ";
+        let src = format!("{head}{tail}");
+        assert!(sql_surface_contains_raw_connection_api(&src));
+    }
+
+    #[test]
+    fn detects_multiline_connection_execute() {
+        let src = concat!("x", ".connection()", "\n.execute(\"VACUUM\", ())");
+        assert!(sql_surface_contains_raw_connection_api(src));
+    }
+
+    #[test]
+    fn ignores_execute_batch() {
+        let src = concat!("db", ".connection().", "execute_batch", "(\"PRAGMA x\")");
+        assert!(!sql_surface_contains_raw_connection_api(src));
+    }
+
+    #[test]
+    fn allowlist_parser_ignores_comments_and_blank_lines() {
+        let tmp = tempfile::tempdir().unwrap();
+        let agents = tmp.path().join("docs").join("agents");
+        std::fs::create_dir_all(&agents).unwrap();
+        let p = agents.join("sql-connection-api-allowlist.txt");
+        std::fs::write(
+            &p,
+            "# comment\n\ncrates/vox-foo/\n  crates/vox-bar/  \n",
+        )
+        .unwrap();
+        let list = super::load_sql_connection_allowlist(tmp.path()).unwrap();
+        assert!(list.iter().any(|e| e == "crates/vox-db/"));
+        assert!(list.iter().any(|e| e == "crates/vox-compiler/"));
+        assert!(list.iter().any(|e| e == "crates/vox-foo/"));
+        assert!(list.iter().any(|e| e == "crates/vox-bar/"));
+    }
 }

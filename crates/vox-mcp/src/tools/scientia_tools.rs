@@ -3,7 +3,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::publication_preflight::PreflightProfile;
-use vox_publisher::scholarly::submit_with_configured_adapter;
+use vox_publisher::scholarly_external_jobs::{
+    poll_scholarly_remote_status_all_submissions_for_publication,
+    poll_scholarly_remote_status_batch, poll_scholarly_remote_status_persist,
+    publication_scholarly_submit_with_ledger,
+};
 use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
 use vox_publisher::types::UnifiedNewsItem;
 
@@ -31,6 +35,7 @@ pub enum PreflightProfileParam {
     #[default]
     Default,
     DoubleBlind,
+    MetadataComplete,
 }
 
 impl From<PreflightProfileParam> for PreflightProfile {
@@ -38,6 +43,7 @@ impl From<PreflightProfileParam> for PreflightProfile {
         match p {
             PreflightProfileParam::Default => Self::Default,
             PreflightProfileParam::DoubleBlind => Self::DoubleBlind,
+            PreflightProfileParam::MetadataComplete => Self::MetadataComplete,
         }
     }
 }
@@ -310,6 +316,9 @@ pub async fn vox_scientia_publication_approve(
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationSubmitLocalParams {
     pub publication_id: String,
+    /// When set, submit with this adapter (`zenodo`, `openreview`, …) instead of `VOX_SCHOLARLY_ADAPTER`.
+    #[serde(default)]
+    pub adapter: Option<String>,
 }
 
 pub async fn vox_scientia_publication_submit_local(
@@ -319,57 +328,17 @@ pub async fn vox_scientia_publication_submit_local(
     let Some(db) = &state.db else {
         return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
     };
-    let row = match db.get_publication_manifest(&params.publication_id).await {
-        Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
-    };
-    let Some(row) = row else {
-        return ToolResult::<String>::err("publication not found".to_string()).to_json();
-    };
-    let dual = match db
-        .has_dual_publication_approval_for_digest(&params.publication_id, &row.content_sha3_256)
-        .await
+    let adapter = params.adapter.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    match publication_scholarly_submit_with_ledger(
+        db,
+        params.publication_id.trim(),
+        adapter,
+    )
+    .await
     {
-        Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
-    };
-    if !dual {
-        return ToolResult::<String>::err(
-            "publication requires two distinct digest-bound approvals before submission"
-                .to_string(),
-        )
-        .to_json();
+        Ok(receipt) => ToolResult::ok(receipt).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
     }
-    let manifest = PublicationManifest {
-        publication_id: row.publication_id.clone(),
-        content_type: row.content_type,
-        source_ref: row.source_ref,
-        title: row.title,
-        author: row.author,
-        abstract_text: row.abstract_text,
-        body_markdown: row.body_markdown,
-        citations_json: row.citations_json,
-        metadata_json: row.metadata_json,
-    };
-    let receipt = match submit_with_configured_adapter(&manifest) {
-        Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err(format!("submit error: {e}")).to_json(),
-    };
-    if let Err(e) = db
-        .upsert_scholarly_submission(
-            &params.publication_id,
-            &row.content_sha3_256,
-            &receipt.adapter,
-            &receipt.external_submission_id,
-            &receipt.status,
-            receipt.response_fingerprint.as_deref(),
-            receipt.metadata_json.as_deref(),
-        )
-        .await
-    {
-        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
-    }
-    ToolResult::ok(receipt).to_json()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -447,6 +416,485 @@ pub async fn vox_scientia_publication_status(
         publication_status_events,
     })
     .to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationScholarlyRemoteStatusParams {
+    pub publication_id: String,
+    #[serde(default)]
+    pub external_submission_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationScholarlyRemoteStatusSyncAllParams {
+    pub publication_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationScholarlyRemoteStatusSyncBatchParams {
+    #[serde(default = "default_scholarly_remote_sync_batch_limit")]
+    pub limit: i64,
+    #[serde(default = "default_one_u32")]
+    pub iterations: u32,
+    #[serde(default)]
+    pub interval_secs: u64,
+}
+
+fn default_scholarly_remote_sync_batch_limit() -> i64 {
+    25
+}
+
+fn default_one_u32() -> u32 {
+    1
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationScholarlyStagingExportParams {
+    pub publication_id: String,
+    /// Absolute or process-relative directory; created if missing.
+    pub output_dir: String,
+    /// `zenodo`, `openreview`, or `arxiv-assist` (same tokens as `ScholarlyVenue::parse`).
+    pub venue: String,
+}
+
+pub async fn vox_scientia_publication_scholarly_staging_export(
+    state: &ServerState,
+    params: VoxScientiaPublicationScholarlyStagingExportParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let publication_id = params.publication_id.trim();
+    if publication_id.is_empty() {
+        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+    }
+    let out_s = params.output_dir.trim();
+    if out_s.is_empty() {
+        return ToolResult::<String>::err("output_dir must not be empty".to_string()).to_json();
+    }
+    let venue_raw = params.venue.trim();
+    let Some(venue) = vox_publisher::submission_package::ScholarlyVenue::parse(venue_raw) else {
+        return ToolResult::<String>::err(format!(
+            "unknown venue {venue_raw:?}; use zenodo, openreview, or arxiv-assist"
+        ))
+        .to_json();
+    };
+    let output_dir = std::path::PathBuf::from(out_s);
+    let row = match db.get_publication_manifest(publication_id).await {
+        Ok(Some(r)) => r,
+        Ok(None) => {
+            return ToolResult::<String>::err(format!("publication not found: {publication_id}"))
+                .to_json();
+        }
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    let manifest = PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    };
+    let written = match vox_publisher::submission_package::write_scholarly_staging(
+        &manifest,
+        venue,
+        &output_dir,
+    ) {
+        Ok(w) => w,
+        Err(e) => return ToolResult::<String>::err(e.to_string()).to_json(),
+    };
+    if let Err(findings) =
+        vox_publisher::submission_package::validate_scholarly_staging(&output_dir, venue, &manifest)
+    {
+        let msg: String = findings
+            .iter()
+            .map(|f| format!("{}: {}", f.code, f.message))
+            .collect::<Vec<_>>()
+            .join("; ");
+        return ToolResult::<String>::err(format!("staging validation failed: {msg}")).to_json();
+    }
+    ToolResult::ok(serde_json::json!({
+        "publication_id": publication_id,
+        "output_dir": output_dir,
+        "venue": venue.as_str(),
+        "written": written,
+    }))
+    .to_json()
+}
+
+pub async fn vox_scientia_publication_scholarly_remote_status(
+    state: &ServerState,
+    params: VoxScientiaPublicationScholarlyRemoteStatusParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let submissions = match db
+        .list_scholarly_submissions(&params.publication_id)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => return ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    };
+    let sub_row: &vox_db::ScholarlySubmissionRow = match params.external_submission_id.as_deref() {
+        Some(e) => {
+            let e = e.trim();
+            if e.is_empty() {
+                return ToolResult::<String>::err(
+                    "external_submission_id must not be empty when provided".to_string(),
+                )
+                .to_json();
+            }
+            let Some(row) = submissions.iter().find(|r| r.external_submission_id == e) else {
+                return ToolResult::<String>::err(format!(
+                    "no scholarly submission with external_submission_id {e}"
+                ))
+                .to_json();
+            };
+            row
+        }
+        None => {
+            let Some(row) = submissions.first() else {
+                return ToolResult::<String>::err(
+                    "no scholarly submissions for this publication".to_string(),
+                )
+                .to_json();
+            };
+            row
+        }
+    };
+    match poll_scholarly_remote_status_persist(db, params.publication_id.as_str(), sub_row).await {
+        Ok(v) => ToolResult::ok(v).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+    }
+}
+
+pub async fn vox_scientia_publication_scholarly_remote_status_sync_all(
+    state: &ServerState,
+    params: VoxScientiaPublicationScholarlyRemoteStatusSyncAllParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let publication_id = params.publication_id.trim();
+    if publication_id.is_empty() {
+        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+    }
+    match poll_scholarly_remote_status_all_submissions_for_publication(db, publication_id).await {
+        Ok(v) => ToolResult::ok(v).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+    }
+}
+
+pub async fn vox_scientia_publication_scholarly_remote_status_sync_batch(
+    state: &ServerState,
+    params: VoxScientiaPublicationScholarlyRemoteStatusSyncBatchParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let res = if params.iterations <= 1 && params.interval_secs == 0 {
+        poll_scholarly_remote_status_batch(db, params.limit).await
+    } else {
+        vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch_loop(
+            db,
+            params.limit,
+            params.iterations,
+            params.interval_secs,
+        )
+        .await
+    };
+    match res {
+        Ok(v) => ToolResult::ok(v).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationArxivHandoffRecordParams {
+    pub publication_id: String,
+    /// One of: staging_exported, operator_ack, bundle_validated, submitted, published.
+    pub stage: String,
+    #[serde(default)]
+    pub operator: Option<String>,
+    #[serde(default)]
+    pub note: Option<String>,
+    #[serde(default)]
+    pub arxiv_id: Option<String>,
+}
+
+pub async fn vox_scientia_publication_arxiv_handoff_record(
+    state: &ServerState,
+    params: VoxScientiaPublicationArxivHandoffRecordParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let publication_id = params.publication_id.trim();
+    if publication_id.is_empty() {
+        return ToolResult::<String>::err("publication_id must not be empty".to_string()).to_json();
+    }
+    let stage = params.stage.trim().to_ascii_lowercase();
+    let allowed = [
+        "staging_exported",
+        "operator_ack",
+        "bundle_validated",
+        "submitted",
+        "published",
+    ];
+    if !allowed.contains(&stage.as_str()) {
+        return ToolResult::<String>::err(format!(
+            "invalid stage {stage:?}; expected one of {}",
+            allowed.join(", ")
+        ))
+        .to_json();
+    }
+    if stage == "published"
+        && params
+            .arxiv_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .is_none()
+    {
+        return ToolResult::<String>::err("arxiv_id is required when stage is published".to_string()).to_json();
+    }
+    match db.get_publication_manifest(publication_id).await {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            return ToolResult::<String>::err(format!("publication not found: {publication_id}"))
+                .to_json();
+        }
+        Err(e) => {
+            return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+        }
+    }
+
+    let op_trim = params
+        .operator
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let note_trim = params.note.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let arxiv_trim = params
+        .arxiv_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let status = format!("arxiv_handoff:{stage}");
+    let detail = serde_json::json!({
+        "schema_version": 1_u32,
+        "workflow": "arxiv_operator_assist",
+        "stage": stage,
+        "operator": op_trim,
+        "note": note_trim,
+        "arxiv_id": arxiv_trim,
+    });
+    if let Err(e) = db
+        .append_publication_status_event(
+            publication_id,
+            &status,
+            Some(&detail.to_string()),
+        )
+        .await
+    {
+        return ToolResult::<String>::err(format!("DB error: {e}")).to_json();
+    }
+    ToolResult::ok(serde_json::json!({
+        "recorded": true,
+        "publication_id": publication_id,
+        "status": status,
+        "detail": detail,
+    }))
+    .to_json()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationExternalJobsDueParams {
+    #[serde(default = "default_jobs_due_limit")]
+    pub limit: i64,
+}
+
+fn default_jobs_due_limit() -> i64 {
+    50
+}
+
+pub async fn vox_scientia_publication_external_jobs_due(
+    state: &ServerState,
+    params: VoxScientiaPublicationExternalJobsDueParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let before_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    match db
+        .list_external_submission_jobs_due(before_ms, params.limit)
+        .await
+    {
+        Ok(jobs) => ToolResult::ok(serde_json::json!({
+            "due_before_ms_inclusive": before_ms,
+            "jobs": jobs,
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationExternalJobsDeadLetterParams {
+    #[serde(default = "default_jobs_dead_letter_limit")]
+    pub limit: i64,
+}
+
+fn default_jobs_dead_letter_limit() -> i64 {
+    50
+}
+
+pub async fn vox_scientia_publication_external_jobs_dead_letter(
+    state: &ServerState,
+    params: VoxScientiaPublicationExternalJobsDeadLetterParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    match db.list_external_submission_jobs_failed(params.limit).await {
+        Ok(jobs) => ToolResult::ok(serde_json::json!({ "jobs": jobs })).to_json(),
+        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationExternalJobsReplayParams {
+    pub job_id: i64,
+}
+
+pub async fn vox_scientia_publication_external_jobs_replay(
+    state: &ServerState,
+    params: VoxScientiaPublicationExternalJobsReplayParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    match db
+        .replay_failed_external_submission_job_to_queued(params.job_id)
+        .await
+    {
+        Ok(job) => ToolResult::ok(serde_json::json!({
+            "replayed": true,
+            "job": job,
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationExternalJobsTickParams {
+    #[serde(default = "default_jobs_tick_limit")]
+    pub limit: i64,
+    #[serde(default = "default_jobs_tick_lock_ttl_ms")]
+    pub lock_ttl_ms: i64,
+    #[serde(default)]
+    pub lock_owner: Option<String>,
+    #[serde(default = "default_one_u32")]
+    pub iterations: u32,
+    #[serde(default)]
+    pub interval_secs: u64,
+}
+
+fn default_jobs_tick_limit() -> i64 {
+    10
+}
+
+fn default_jobs_tick_lock_ttl_ms() -> i64 {
+    120_000
+}
+
+pub async fn vox_scientia_publication_external_jobs_tick(
+    state: &ServerState,
+    params: VoxScientiaPublicationExternalJobsTickParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    if params.iterations <= 1 && params.interval_secs == 0 {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        return match vox_publisher::scholarly_external_jobs::run_external_submit_jobs_tick(
+            db,
+            params.limit,
+            params.lock_ttl_ms,
+            params.lock_owner.as_deref(),
+            now_ms,
+        )
+        .await
+        {
+            Ok(out) => ToolResult::ok(serde_json::json!({
+                "now_ms": now_ms,
+                "lock_owner": out.lock_owner,
+                "lock_ttl_ms": out.lock_ttl_ms,
+                "results": out.results,
+            }))
+            .to_json(),
+            Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+        };
+    }
+    match vox_publisher::scholarly_external_jobs::run_external_submit_jobs_tick_loop(
+        db,
+        params.limit,
+        params.lock_ttl_ms,
+        params.lock_owner.as_deref(),
+        params.iterations,
+        params.interval_secs,
+    )
+    .await
+    {
+        Ok(v) => ToolResult::ok(v).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VoxScientiaPublicationExternalPipelineMetricsParams {
+    /// Hours of history for attempts, snapshots, terminal latencies, and publication_attempts (0 = all time). Clamped 0–8760.
+    #[serde(default = "default_metrics_since_hours")]
+    pub since_hours: i64,
+}
+
+fn default_metrics_since_hours() -> i64 {
+    168
+}
+
+pub async fn vox_scientia_publication_external_pipeline_metrics(
+    state: &ServerState,
+    params: VoxScientiaPublicationExternalPipelineMetricsParams,
+) -> String {
+    let Some(db) = &state.db else {
+        return ToolResult::<String>::err("VoxDb is not connected".to_string()).to_json();
+    };
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let hours = params.since_hours.clamp(0, 8_760);
+    let since_ms = if hours == 0 {
+        0_i64
+    } else {
+        now_ms.saturating_sub(hours.saturating_mul(3_600_000))
+    };
+    match db.summarize_scholarly_external_pipeline_metrics(since_ms).await {
+        Ok(v) => ToolResult::ok(v).to_json(),
+        Err(e) => ToolResult::<String>::err(format!("DB error: {e}")).to_json(),
+    }
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

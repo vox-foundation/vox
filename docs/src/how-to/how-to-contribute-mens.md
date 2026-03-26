@@ -1,6 +1,6 @@
 ---
 title: "Contributing — Mens native training"
-description: "Onboarding for vox-populi tensor / schola train paths"
+description: "Onboarding for vox-populi tensor / vox mens train paths"
 category: "how-to"
 last_updated: 2026-03-25
 ---
@@ -16,7 +16,7 @@ last_updated: 2026-03-25
 
 | Surface | Location |
 |---------|----------|
-| CLI | `vox schola train` → `crates/vox-cli/src/commands/schola/train/` |
+| CLI | `vox mens train` → `crates/vox-cli/src/commands/schola/train/` |
 | Library | `vox_populi::mens::tensor::run_mens_training` (`lora_train.rs`) |
 | Contract | `FineTuneContract`, `ExecutionPlanner`, `preflight_train` |
 
@@ -29,4 +29,4 @@ cargo test -p vox-populi --features mens-train execution_planner
 
 ## SSOT rule
 
-**Candle QLoRA** is the active `schola train` backend; keep docs and error messages aligned (`lora_train.rs` is authoritative when in doubt).
+**Candle QLoRA** is the active `vox mens train` backend; keep docs and error messages aligned (`lora_train.rs` is authoritative when in doubt).

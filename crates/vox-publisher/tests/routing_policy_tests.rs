@@ -142,6 +142,12 @@ async fn distribution_retry_and_rate_limit_profiles_surface_in_decision_reasons(
             .map(String::as_str),
         Some("conservative")
     );
+    assert_eq!(
+        out.decision_reasons
+            .get("social_retry_max_attempts")
+            .map(String::as_str),
+        Some("3")
+    );
 }
 
 #[tokio::test]

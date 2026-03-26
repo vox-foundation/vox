@@ -1,6 +1,12 @@
 use crate::hir::{HirBinOp, HirExpr, HirPattern, HirStmt};
 
-pub(super) fn emit_stmt(stmt: &HirStmt, indent: usize, is_route: bool, is_actor: bool) -> String {
+pub(super) fn emit_stmt(
+    stmt: &HirStmt,
+    indent: usize,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+) -> String {
     let pad = " ".repeat(indent * 4);
     match stmt {
         HirStmt::Let {
@@ -13,26 +19,35 @@ pub(super) fn emit_stmt(stmt: &HirStmt, indent: usize, is_route: bool, is_actor:
             format!(
                 "{pad}let {}{} = {};\n",
                 mut_kw,
-                emit_pattern(pattern),
-                emit_expr(value)
+                emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                emit_expr_with(value, is_route, is_actor, mutation_tx)
             )
         }
         HirStmt::Assign { target, value, .. } => {
-            format!("{pad}{} = {};\n", emit_expr(target), emit_expr(value))
+            format!(
+                "{pad}{} = {};\n",
+                emit_expr_with(target, is_route, is_actor, mutation_tx),
+                emit_expr_with(value, is_route, is_actor, mutation_tx)
+            )
         }
         HirStmt::Return { value, .. } => {
             if is_actor {
                 if let Some(v) = value {
                     format!(
                         "{pad}let _ = {}; // return ignored in actor; scaffolding only\n",
-                        emit_expr(v)
+                        emit_expr_with(v, is_route, is_actor, mutation_tx)
                     )
                 } else {
                     format!("{pad}// return ignored in actor; scaffolding only\n")
                 }
             } else if let Some(v) = value {
-                let expr_str = emit_expr(v);
-                if is_route {
+                let expr_str = emit_expr_with(v, is_route, is_actor, mutation_tx);
+                if is_route && mutation_tx {
+                    format!(
+                        "{pad}return Ok(Json(serde_json::to_value({}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?));\n",
+                        expr_str
+                    )
+                } else if is_route {
                     format!(
                         "{pad}return Json(serde_json::to_value({}).expect(\"vox codegen: route return JSON\"));\n",
                         expr_str
@@ -40,6 +55,8 @@ pub(super) fn emit_stmt(stmt: &HirStmt, indent: usize, is_route: bool, is_actor:
                 } else {
                     format!("{pad}return {};\n", expr_str)
                 }
+            } else if is_route && mutation_tx {
+                format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
             } else if is_route {
                 format!("{pad}return Json(serde_json::Value::Null);\n")
             } else {
@@ -47,24 +64,35 @@ pub(super) fn emit_stmt(stmt: &HirStmt, indent: usize, is_route: bool, is_actor:
             }
         }
         HirStmt::Expr { expr, .. } => {
-            format!("{pad}{};\n", emit_expr(expr))
+            format!(
+                "{pad}{};\n",
+                emit_expr_with(expr, is_route, is_actor, mutation_tx)
+            )
         }
     }
 }
 
 /// Emit one statement for script-mode `main` (no route/actor return wrapping).
 pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
-    emit_stmt(stmt, indent, false, false)
+    emit_stmt(stmt, indent, false, false, false)
 }
 
-fn emit_pattern(pat: &HirPattern) -> String {
+fn emit_pattern(
+    pat: &HirPattern,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+) -> String {
     match pat {
         HirPattern::Ident(n, _) => n.clone(),
         HirPattern::Wildcard(_) => "_".into(),
-        HirPattern::Literal(lit, _) => emit_expr(lit),
+        HirPattern::Literal(lit, _) => emit_expr_with(lit, is_route, is_actor, mutation_tx),
         HirPattern::Tuple(pats, _) => format!(
             "({})",
-            pats.iter().map(emit_pattern).collect::<Vec<_>>().join(", ")
+            pats.iter()
+                .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
         HirPattern::Constructor(n, pats, _) => {
             // Rust struct variant syntax: Name { field: val }
@@ -96,7 +124,11 @@ fn emit_pattern(pat: &HirPattern) -> String {
             format!(
                 "{}({})",
                 n,
-                pats.iter().map(emit_pattern).collect::<Vec<_>>().join(", ")
+                pats
+                    .iter()
+                    .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         }
     }
@@ -104,6 +136,17 @@ fn emit_pattern(pat: &HirPattern) -> String {
 
 /// Emit one HIR expression as a Rust expression string (for nested codegen / tools).
 pub fn emit_expr(expr: &HirExpr) -> String {
+    emit_expr_with(expr, false, false, false)
+}
+
+fn emit_expr_with(
+    expr: &HirExpr,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+) -> String {
+    let fallible_db = mutation_tx;
+    let emit = |e: &HirExpr| emit_expr_with(e, is_route, is_actor, mutation_tx);
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
@@ -113,7 +156,7 @@ pub fn emit_expr(expr: &HirExpr) -> String {
             "vec![{}]",
             elements
                 .iter()
-                .map(emit_expr)
+                .map(emit)
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -121,7 +164,7 @@ pub fn emit_expr(expr: &HirExpr) -> String {
             "({})",
             elements
                 .iter()
-                .map(emit_expr)
+                .map(emit)
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -149,51 +192,55 @@ pub fn emit_expr(expr: &HirExpr) -> String {
                 HirBinOp::Or => "||",
                 HirBinOp::Is => "==",
                 HirBinOp::Isnt => "!=",
-                HirBinOp::Pipe => return format!("{}({})", emit_expr(r), emit_expr(l)),
+                HirBinOp::Pipe => return format!("{}({})", emit(r), emit(l)),
             };
             if matches!(
                 op,
                 HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
             ) {
-                format!("({} {} &{})", emit_expr(l), op_str, emit_expr(r))
+                format!("({} {} &{})", emit(l), op_str, emit(r))
             } else {
-                format!("({} {} {})", emit_expr(l), op_str, emit_expr(r))
+                format!("({} {} {})", emit(l), op_str, emit(r))
             }
         }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee {
                 if n == "str" && args.len() == 1 {
-                    return format!("as_string(&{})", emit_expr(&args[0].value));
+                    return format!("as_string(&{})", emit(&args[0].value));
                 }
                 if n == "assert" && args.len() == 1 {
                     if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
-                        return format!("assert_eq!({}, {})", emit_expr(l), emit_expr(r));
+                        return format!("assert_eq!({}, {})", emit(l), emit(r));
                     }
-                    return format!("assert!({})", emit_expr(&args[0].value));
+                    return format!("assert!({})", emit(&args[0].value));
                 }
                 if n == "assert_eq" && args.len() >= 2 {
                     return format!(
                         "assert_eq!({}, {})",
-                        emit_expr(&args[0].value),
-                        emit_expr(&args[1].value)
+                        emit(&args[0].value),
+                        emit(&args[1].value)
                     );
                 }
                 if n == "assert_ne" && args.len() >= 2 {
                     return format!(
                         "assert_ne!({}, {})",
-                        emit_expr(&args[0].value),
-                        emit_expr(&args[1].value)
+                        emit(&args[0].value),
+                        emit(&args[1].value)
                     );
                 }
                 if n == "print" && args.len() == 1 {
-                    return format!("println!(\"{{}}\", {})", emit_expr(&args[0].value));
+                    return format!("println!(\"{{}}\", {})", emit(&args[0].value));
+                }
+                if n == "len" && args.len() == 1 {
+                    // Vec, String, &str, etc. — use Rust `.len()` (db.Table.all() lowers to Vec)
+                    return format!("({}).len()", emit(&args[0].value));
                 }
             }
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
                 if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
                     if std_kw == "std" {
-                        let a: Vec<_> = args.iter().map(|arg| emit_expr(&arg.value)).collect();
+                        let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
                         let builtin: Option<String> = match fn_name.as_str() {
                             "uuid" => Some("vox_runtime::builtins::vox_uuid()".to_string()),
                             "now_ms" => Some("vox_runtime::builtins::vox_now_ms()".to_string()),
@@ -213,7 +260,7 @@ pub fn emit_expr(expr: &HirExpr) -> String {
                 if let HirExpr::FieldAccess(std_expr, ns_name, _) = &**namespace_expr {
                     if let HirExpr::Ident(std_kw, _) = &**std_expr {
                         if std_kw == "std" {
-                            let a: Vec<_> = args.iter().map(|arg| emit_expr(&arg.value)).collect();
+                            let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
                             let builtin: Option<String> = match (ns_name.as_str(), fn_name.as_str())
                             {
                                 ("crypto", "hash_fast") if !a.is_empty() => {
@@ -338,8 +385,8 @@ pub fn emit_expr(expr: &HirExpr) -> String {
                     }
                 }
             }
-            let c = emit_expr(callee);
-            let a: Vec<_> = args.iter().map(|arg| emit_expr(&arg.value)).collect();
+            let c = emit(callee);
+            let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
             if *is_await {
                 format!("{}({}).await", c, a.join(", "))
             } else {
@@ -349,13 +396,33 @@ pub fn emit_expr(expr: &HirExpr) -> String {
         HirExpr::ObjectLit(fields, _) => {
             let props: Vec<String> = fields
                 .iter()
-                .map(|(k, v)| format!("\"{}\": {}", k, emit_expr(v)))
+                .map(|(k, v)| format!("\"{}\": {}", k, emit(v)))
                 .collect();
             format!("serde_json::json!({{ {} }})", props.join(", "))
         }
         HirExpr::MethodCall(obj, method, args, _) => {
-            super::method_emit::emit_method_call(emit_expr, obj.as_ref(), method.as_str(), args)
+            super::method_emit::emit_method_call(&emit, obj.as_ref(), method.as_str(), args, fallible_db)
         }
+        HirExpr::DbTableOp {
+            table,
+            op,
+            args,
+            select_cols,
+            order_by,
+            limit,
+            plan,
+            ..
+        } => super::method_emit::emit_db_table_op(
+            &emit,
+            table,
+            *op,
+            args,
+            select_cols,
+            order_by,
+            limit,
+            plan.as_ref(),
+            fallible_db,
+        ),
         HirExpr::Spawn(target, _) => {
             if let HirExpr::Ident(n, _) = &**target {
                 format!("{}Handle::spawn()", n)
@@ -364,15 +431,15 @@ pub fn emit_expr(expr: &HirExpr) -> String {
             }
         }
         HirExpr::If(cond, then_b, else_b, _) => {
-            let mut s = format!("if {} {{\n", emit_expr(cond));
+            let mut s = format!("if {} {{\n", emit(cond));
             for stmt in then_b {
-                s.push_str(&emit_stmt(stmt, 1, false, false));
+                s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
             }
             s.push('}');
             if let Some(else_stmts) = else_b {
                 s.push_str(" else {\n");
                 for stmt in else_stmts {
-                    s.push_str(&emit_stmt(stmt, 1, false, false));
+                    s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
                 }
                 s.push('}');
             }
@@ -385,18 +452,18 @@ pub fn emit_expr(expr: &HirExpr) -> String {
                         .to_string();
                 }
             }
-            format!("{}[\"{}\"].clone()", emit_expr(obj), field)
+            format!("{}[\"{}\"].clone()", emit(obj), field)
         }
         HirExpr::Block(stmts, _) => {
             let mut s = String::from("{\n");
             for stmt in stmts {
-                s.push_str(&emit_stmt(stmt, 1, false, false));
+                s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
             }
             s.push('}');
             s
         }
         HirExpr::With(operand, options, _) => {
-            super::with_emit::emit_with(emit_expr, operand.as_ref(), options.as_ref())
+            super::with_emit::emit_with(&emit, operand.as_ref(), options.as_ref())
         }
         HirExpr::Lambda(params, _ret_ty, body, _) => {
             let mut s = String::new();
@@ -404,20 +471,20 @@ pub fn emit_expr(expr: &HirExpr) -> String {
             let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
             s.push_str(&param_strs.join(", "));
             s.push_str("| ");
-            s.push_str(&emit_expr(body));
+            s.push_str(&emit(body));
             s
         }
         HirExpr::Pipe(left, right, _) => {
-            format!("({})({})", emit_expr(right), emit_expr(left))
+            format!("({})({})", emit(right), emit(left))
         }
         HirExpr::For(name, iter, body, _) => {
-            let mut s = format!("for {} in {} {{\n", name, emit_expr(iter));
+            let mut s = format!("for {} in {} {{\n", name, emit(iter));
             if let HirExpr::Block(stmts, _) = &**body {
                 for stmt in stmts {
-                    s.push_str(&emit_stmt(stmt, 1, false, false));
+                    s.push_str(&emit_stmt(stmt, 1, is_route, false, mutation_tx));
                 }
             } else {
-                s.push_str(&format!("  {};\n", emit_expr(body)));
+                s.push_str(&format!("  {};\n", emit(body)));
             }
             s.push_str("}\n");
             s
@@ -431,13 +498,16 @@ pub fn emit_expr(expr: &HirExpr) -> String {
                 crate::hir::HirUnOp::Not => "!",
                 crate::hir::HirUnOp::Neg => "-",
             };
-            format!("{}({})", op_str, emit_expr(expr))
+            format!("{}({})", op_str, emit(expr))
         }
         HirExpr::Match(obj, arms, _) => {
-            let mut s = format!("match {} {{\n", emit_expr(obj));
+            let mut s = format!("match {} {{\n", emit(obj));
             for arm in arms {
-                s.push_str(&format!("    {} => {{\n", emit_pattern(&arm.pattern)));
-                s.push_str(&emit_expr(&arm.body));
+                s.push_str(&format!(
+                    "    {} => {{\n",
+                    emit_pattern(&arm.pattern, is_route, is_actor, mutation_tx)
+                ));
+                s.push_str(&emit(&arm.body));
                 s.push_str("\n    }\n");
             }
             s.push('}');

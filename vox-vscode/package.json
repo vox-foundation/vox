@@ -111,6 +111,21 @@
           "default": true,
           "description": "Enable Vox Language Server."
         },
+        "vox.mcp.serverPath": {
+          "type": "string",
+          "default": "vox",
+          "description": "Executable or path to the Vox CLI used for MCP stdio (`vox mcp`)."
+        },
+        "vox.mcp.debugPayloads": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log MCP tool arguments and truncated results to the Vox output channel."
+        },
+        "vox.mcp.warnOnMissingTools": {
+          "type": "boolean",
+          "default": true,
+          "description": "After connect, log if runtime list_tools is missing tools expected by the workspace UI (see MCP_EXTENSION_EXPECTED_TOOLS in generated registry)."
+        },
         "vox.models.byok.anthropic": {
           "type": "string",
           "default": "",
@@ -206,6 +221,11 @@
         "title": "Vox: Rebalance Agents"
       },
       {
+        "command": "vox.agent.spawn",
+        "title": "Vox: Spawn Orchestrator Agent",
+        "category": "Vox"
+      },
+      {
         "command": "vox.commandPalette",
         "title": "Vox: Command Entry (Dynamic)"
       }
@@ -275,17 +295,22 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && node esbuild.js",
+    "generate:mcp-registry": "node ./scripts/generate-mcp-tool-registry.mjs",
+    "check:mcp-parity": "node ./scripts/check-mcp-tool-parity.mjs",
+    "compile": "npm run generate:mcp-registry && tsc -p ./ && node esbuild.js && node ./scripts/smoke-host-messages.mjs",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src webview-ui/src --max-warnings 100",
     "package": "vsce package"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.27.3",
-    "typescript": "^5.5.0"
+    "eslint": "^10.1.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.57.2"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
@@ -303,6 +328,7 @@
     "remark-gfm": "^4.0.1",
     "shiki": "^4.0.1",
     "tailwind-merge": "^3.5.0",
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^9.0.1",
+    "zod": "^3.25.76"
   }
 }

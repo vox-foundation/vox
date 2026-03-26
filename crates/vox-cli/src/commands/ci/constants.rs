@@ -31,6 +31,7 @@ pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/ci/github-hosted-exceptions.md",
     "docs/src/ci/workflow-enumeration.md",
     "docs/src/ci/binary-release-contract.md",
+    "docs/src/ci/cli-baseline-metrics.md",
 ];
 
 pub(crate) const CODEX_SSOT_FILES: &[&str] = &[
@@ -77,6 +78,7 @@ pub(crate) const FEATURE_SETS: &[&str] = &[
     "dashboard",
     "ars",
     "extras-ludus",
+    "ludus-hud",
     "gpu,mens-qlora,stub-check",
     "island",
     "island,mens-base",

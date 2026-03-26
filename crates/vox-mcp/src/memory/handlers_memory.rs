@@ -69,18 +69,23 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
     .await
     {
         Ok(bundle) => {
-            if bundle.memory_lines.is_empty() && bundle.knowledge_lines.is_empty() {
+            if bundle.memory_lines.is_empty()
+                && bundle.knowledge_lines.is_empty()
+                && bundle.chunk_lines.is_empty()
+            {
                 ToolResult::ok("No results found.".to_string()).to_json()
             } else {
                 let mut out = Vec::new();
                 out.push(format!(
-                    "retrieval_tier={} trigger={:?} used_vector={} used_bm25={} lexical_fallback={} contradictions={}",
+                    "retrieval_tier={} trigger={:?} used_vector={} used_bm25={} lexical_fallback={} contradictions={} knowledge_hits={} chunk_hits={}",
                     bundle.evidence.retrieval_tier,
                     bundle.evidence.trigger,
                     bundle.evidence.used_vector,
                     bundle.evidence.used_bm25,
                     bundle.evidence.used_lexical_fallback,
-                    bundle.evidence.contradiction_count
+                    bundle.evidence.contradiction_count,
+                    bundle.evidence.knowledge_hit_count,
+                    bundle.evidence.chunk_hit_count,
                 ));
                 if !bundle.memory_lines.is_empty() {
                     out.push("[MEMORY]".to_string());
@@ -89,6 +94,10 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
                 if !bundle.knowledge_lines.is_empty() {
                     out.push("[KNOWLEDGE_GRAPH]".to_string());
                     out.extend(bundle.knowledge_lines);
+                }
+                if !bundle.chunk_lines.is_empty() {
+                    out.push("[DOCUMENT_CHUNKS]".to_string());
+                    out.extend(bundle.chunk_lines);
                 }
                 ToolResult::ok(out.join("\n")).to_json()
             }
@@ -139,7 +148,9 @@ pub async fn knowledge_query(state: &ServerState, params: KnowledgeQueryParams) 
                 } else {
                     let formatted = nodes
                         .into_iter()
-                        .map(|(id, ntype, label)| format!("[{}] {} ({})", id, label, ntype))
+                        .map(|(id, label, snippet)| {
+                            format!("[{}] {} — {}", id, label, snippet.replace('\n', " "))
+                        })
                         .collect::<Vec<_>>()
                         .join("\n");
                     ToolResult::ok(formatted).to_json()

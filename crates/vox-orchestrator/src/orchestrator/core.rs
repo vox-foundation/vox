@@ -155,7 +155,20 @@ impl crate::orchestrator::Orchestrator {
             .await
             .map_err(|e| OrchestratorError::DatabaseError(format!("DB sync failed: {}", e)))?;
 
-        crate::sync_lock::rw_write(&*self.db).replace(db);
+        crate::sync_lock::rw_write(&*self.db).replace(db.clone());
+        match db.sqlite_capabilities_snapshot().await {
+            Ok(p) => {
+                tracing::debug!(
+                    journal_mode = %p.journal_mode,
+                    foreign_keys_on = p.foreign_keys_on,
+                    fts5_reported = p.fts5_reported,
+                    "sqlite capabilities (orchestrator init_db)"
+                );
+            }
+            Err(e) => {
+                tracing::debug!(error = %e, "sqlite capability probe failed during orchestrator init_db");
+            }
+        }
         Ok(())
     }
 

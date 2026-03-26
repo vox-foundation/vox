@@ -165,7 +165,7 @@ gpus:
 # ── Training preset configurations ──────────────────────────────────────────
 #
 # SSOT for both local and cloud training preset selection.
-# `vox schola train --preset auto` reads these to pick the best config for
+# `vox mens train --preset auto` reads these to pick the best config for
 # the available VRAM. Cloud dispatch reads the same to populate container env.
 #
 # Fields:

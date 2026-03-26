@@ -5,8 +5,11 @@ mod arena;
 mod collegium;
 mod companion;
 mod counters;
+mod dedupe;
 mod feedback;
+mod hint_telemetry;
 mod helpers;
+mod kpi;
 mod leaderboards;
 mod notifications;
 mod periodic;
@@ -31,17 +34,24 @@ pub use collegium::{
 };
 pub use companion::{delete_companion, get_companion, list_companions, upsert_companion};
 pub use counters::{get_counter, increment_counter, set_counter};
+pub use dedupe::try_claim_processed_event;
 pub use feedback::insert_feedback;
+pub use hint_telemetry::log_hint_event;
+pub use kpi::{
+    list_policy_snapshots_since_days, list_recent_policy_snapshots, load_kpi_summary,
+    PolicySnapshotRow,
+};
 pub use helpers::canonical_user_id;
 pub use leaderboards::{PlayerRankEntry, get_profile_stats, leaderboard, lumens_leaderboard};
 pub use notifications::{
     cleanup_expired_notifications, insert_notification, list_unread_notifications,
-    mark_all_notifications_read, mark_notification_read,
+    mark_all_notifications_read, mark_notification_read, mark_notification_read_for_user,
 };
 pub use periodic::{get_reward_claim, upsert_periodic_reward};
 pub use process_rewards::process_event_rewards;
 pub use profile::{
-    get_profile, list_unlocked_achievements, record_level_up, unlock_achievement, upsert_profile,
+    get_profile, list_unlocked_achievements, merge_default_profile_into_user, record_level_up,
+    unlock_achievement, upsert_profile,
 };
 pub use quest_battle::{
     count_battles, count_quests, delete_quest, get_battle, get_quest, insert_battle, list_battles,

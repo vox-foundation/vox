@@ -95,7 +95,7 @@ pub async fn challenge_start(id: &str) -> Result<()> {
 /// Submit code for a coding challenge.
 pub async fn challenge_submit(id: &str, code_file: &Path) -> Result<()> {
     let codex = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = ludus_db::get_profile(&codex, &user_id)
         .await?
         .unwrap_or_else(|| LudusProfile::new_default(&user_id));

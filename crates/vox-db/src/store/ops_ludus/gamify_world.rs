@@ -340,6 +340,55 @@ impl crate::VoxDb {
         Ok(())
     }
 
+    /// Load one quest row by id (Ludus `Quest` mapping).
+    pub async fn get_gamify_quest_by_id(
+        &self,
+        id: &str,
+    ) -> Result<
+        Option<(
+            String,
+            String,
+            String,
+            String,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            i64,
+            String,
+            String,
+            String,
+        )>,
+        StoreError,
+    > {
+        let mut rows = self.conn.query(
+            "SELECT id, user_id, quest_type, description, target, progress, crystal_reward, xp_reward, completed, expires_at,
+                    hint, modifier, status
+             FROM gamify_quests WHERE id = ?1",
+            params![id],
+        ).await?;
+        if let Some(row) = rows.next().await? {
+            Ok(Some((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get::<i64>(4)?,
+                row.get::<i64>(5)?,
+                row.get::<i64>(6)?,
+                row.get::<i64>(7)?,
+                row.get::<i64>(8)?,
+                row.get::<i64>(9)?,
+                row.get::<String>(10).unwrap_or_default(),
+                row.get::<String>(11).unwrap_or_else(|_| "none".to_string()),
+                row.get::<String>(12).unwrap_or_default(),
+            )))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Count active/non-expired quests for a user.
     pub async fn count_gamify_quests(&self, user_id: &str) -> Result<i64, StoreError> {
         let now = std::time::SystemTime::now()

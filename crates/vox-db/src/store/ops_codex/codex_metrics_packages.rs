@@ -259,6 +259,84 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// `skill_reliability` rows, lowest reliability first (CLI / ops surface).
+    pub async fn list_skill_reliability_worst_first(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<(String, f64, i64, i64)>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT skill_id, reliability, success_count, failure_count
+             FROM skill_reliability ORDER BY reliability ASC LIMIT ?1",
+                params![lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push((
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+            ));
+        }
+        Ok(out)
+    }
+
+    /// `workflow_reliability` rows, lowest reliability first.
+    pub async fn list_workflow_reliability_worst_first(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<(String, f64, i64, i64)>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT workflow_name, reliability, success_count, failure_count
+             FROM workflow_reliability ORDER BY reliability ASC LIMIT ?1",
+                params![lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push((
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+            ));
+        }
+        Ok(out)
+    }
+
+    /// `repository_reliability` rows, lowest reliability first.
+    pub async fn list_repository_reliability_worst_first(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<(String, f64, i64, i64)>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT repository_id, reliability, success_count, failure_count
+             FROM repository_reliability ORDER BY reliability ASC LIMIT ?1",
+                params![lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push((
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+            ));
+        }
+        Ok(out)
+    }
+
     // ── Eval Runs (eval_runs) ─────────────────────────────────────────────────
 
     /// Insert or replace an `eval_runs` row. Returns its `rowid`.

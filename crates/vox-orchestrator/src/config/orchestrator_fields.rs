@@ -184,6 +184,19 @@ pub struct OrchestratorConfig {
     /// Experimental: allow remote task-envelope dispatch over populi A2A relay with local fallback.
     #[serde(default = "default_false", alias = "mesh_remote_execute_experimental")]
     pub populi_remote_execute_experimental: bool,
+    /// Receiver **numeric** agent id (string form in env/TOML) for experimental remote relay.
+    #[serde(default, alias = "mesh_remote_execute_receiver_agent")]
+    pub populi_remote_execute_receiver_agent: Option<String>,
+    /// Sender **numeric** agent id for experimental remote relay (defaults to `1` when unset/invalid).
+    #[serde(default, alias = "mesh_remote_execute_sender_agent")]
+    pub populi_remote_execute_sender_agent: Option<String>,
+    /// Poll interval (seconds) for **`remote_task_result`** inbox draining when experimental remote execute is on.
+    /// `0` disables the dedicated poller. Independent of [`Self::populi_poll_interval_secs`].
+    #[serde(
+        default = "default_populi_remote_result_poll_interval_secs",
+        alias = "mesh_remote_result_poll_interval_secs"
+    )]
+    pub populi_remote_result_poll_interval_secs: u64,
     /// When true, MCP tool LLM calls collapse system/user turns into a single string
     /// formatted with `<|im_start|>` markers instead of JSON message arrays.
     #[serde(default = "default_false")]

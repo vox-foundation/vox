@@ -149,6 +149,8 @@ impl Orchestrator {
 
         self.record_activity();
         crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
+
+        let remote_relay_desc = task.description.clone();
         // Enqueue the task
         let handle = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
@@ -232,6 +234,96 @@ impl Orchestrator {
         }
 
         self.attach_session_retrieval_envelope_if_present(task_id, &session_id);
+
+        let remote_params = {
+            let c = crate::sync_lock::rw_read(&*self.config);
+            if !c.populi_remote_execute_experimental {
+                None
+            } else {
+                match (
+                    c.populi_control_url
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty()),
+                    c.populi_remote_execute_receiver_agent
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty()),
+                ) {
+                    (Some(b), Some(r)) => Some((
+                        b.to_string(),
+                        r.to_string(),
+                        c.populi_http_timeout_ms,
+                        c.populi_scope_id.clone(),
+                        c.populi_remote_execute_sender_agent.clone(),
+                    )),
+                    _ => None,
+                }
+            }
+        };
+
+        if let Some((base, recv_s, timeout_ms, scope, send_opt)) = remote_params {
+            let task_id_u = task_id.0;
+            let agent_u = agent_id.0;
+            let desc = remote_relay_desc;
+            let caps = capability_requirements.clone();
+            let send_s = send_opt.unwrap_or_default();
+            tokio::spawn(async move {
+                use std::time::Duration;
+
+                let Ok(recv_id) = recv_s.parse::<u64>() else {
+                    tracing::warn!(
+                        "populi remote relay: receiver agent id must be a u64 (got {:?})",
+                        recv_s
+                    );
+                    return;
+                };
+                let send_id = send_s.trim().parse::<u64>().unwrap_or(1);
+                let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                    &base,
+                    Duration::from_millis(timeout_ms.max(1000)),
+                )
+                .with_env_deliver_token();
+                let now = crate::types::now_unix_ms();
+                let cap_json = caps
+                    .as_ref()
+                    .and_then(|c| serde_json::to_string(c).ok())
+                    .unwrap_or_else(|| "{}".to_string());
+                let idempotency_key = format!("orch-remote-{task_id_u}-{now}");
+                let payload = serde_json::json!({
+                    "task_description": desc,
+                    "assigned_agent_id": agent_u,
+                })
+                .to_string();
+                let repository_id = scope
+                    .clone()
+                    .unwrap_or_else(|| "orchestrator-local".to_string());
+                let envelope = crate::a2a::RemoteTaskEnvelope {
+                    idempotency_key,
+                    task_id: task_id_u,
+                    repository_id,
+                    capability_requirements_json: cap_json,
+                    payload,
+                    privacy_class: None,
+                    populi_scope_id: scope.clone(),
+                    submitted_unix_ms: Some(now),
+                };
+                if let Err(err) = crate::a2a::relay_remote_task_envelope(
+                    &client,
+                    crate::types::AgentId(send_id),
+                    crate::types::AgentId(recv_id),
+                    &envelope,
+                )
+                .await
+                {
+                    tracing::debug!(
+                        error = %err,
+                        task_id = task_id_u,
+                        "populi experimental remote relay failed (local queue still owns execution)"
+                    );
+                }
+            });
+        }
 
         Ok(task_id)
     }

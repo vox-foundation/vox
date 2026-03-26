@@ -18,7 +18,7 @@ pub async fn quest_list() -> Result<()> {
         .as_secs();
     let day_seed = now / 86_400;
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut quests = db::list_quests(&db, &user_id).await?;
 
     // Filter out expired quests or if none exist for today, generate new ones
@@ -62,7 +62,7 @@ pub async fn quest_list() -> Result<()> {
 /// Generate quests: workspace scanner (TODOs/FIXMEs) + daily archetype templates.
 pub async fn quest_generate() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     println!("{}", "╔══════════════════════════════════╗".bright_yellow());
     println!("{}", "║   📋 Generating Quests...       ║".bright_yellow());
@@ -173,7 +173,7 @@ pub async fn leaderboard_show(metric: &str, limit: usize) -> Result<()> {
 /// List pending notifications.
 pub async fn notify_list() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let notifications = db::list_unread_notifications(&db, &user_id, 10).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_cyan());
@@ -210,7 +210,9 @@ pub async fn notify_list() -> Result<()> {
                 }
             );
         }
-        db::mark_all_notifications_read(&db, &user_id).await?;
+        if mark_read {
+            db::mark_all_notifications_read(&db, &user_id).await?;
+        }
     }
 
     Ok(())
@@ -219,7 +221,7 @@ pub async fn notify_list() -> Result<()> {
 /// Clear all notifications.
 pub async fn notify_clear() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     db::mark_all_notifications_read(&db, &user_id).await?;
     println!("  ✅ Notifications cleared.");
     Ok(())
@@ -227,13 +229,52 @@ pub async fn notify_clear() -> Result<()> {
 
 /// Show a contextual hint.
 pub async fn hint_show(context: Option<&str>) -> Result<()> {
-    let _db = db_util::get_db().await?;
-    // In a real implementation, we'd load the teaching engine and get a hint
-    // For now, let's show a generic one or a context-specific one
-    let hint = match context {
-        Some("build") => "Try using `vox check` before `vox build` to catch errors faster.",
-        Some("battle") => "Companions with higher 'Code Quality' deal more damage in battles.",
-        _ => "You can adopt multiple companions, but only one can join you in a battle.",
+    let db = db_util::get_db().await?;
+    let user_id = vox_ludus::db::canonical_user_id();
+    let mut profile = vox_ludus::db::get_teaching_profile(&db, &user_id).await?;
+    let freq = vox_ludus::config_gate::mode().hint_frequency();
+    let kind = match context {
+        Some("build") => vox_ludus::teaching::MistakeKind::ArchitecturalIssue,
+        Some("test") | Some("tests") => vox_ludus::teaching::MistakeKind::TestFailure,
+        Some("battle") => {
+            println!(
+                "  💡 {} {}",
+                "Pro Tip:".bright_yellow().bold(),
+                "Companions with higher 'Code Quality' deal more damage in battles."
+            );
+            return Ok(());
+        }
+        _ => vox_ludus::teaching::MistakeKind::TodoDebt,
+    };
+    let req = profile.record_mistake(kind, freq);
+    vox_ludus::db::upsert_teaching_profile(&db, &profile).await?;
+
+    let hint = if let Some(ref r) = req {
+        let _ = vox_ludus::db::log_hint_event(
+            &db,
+            &user_id,
+            &format!("{:?}", r.kind),
+            "pull_hint",
+            context,
+        )
+        .await;
+        vox_ludus::teaching::Hint::deterministic(r).body
+    } else {
+        let _ = vox_ludus::db::log_hint_event(
+            &db,
+            &user_id,
+            &format!("{kind:?}"),
+            "suppressed",
+            context,
+        )
+        .await;
+        match context {
+            Some("build") => {
+                "Try using `vox check` before `vox build` to catch errors faster.".to_string()
+            }
+            _ => "You can adopt multiple companions, but only one can join you in a battle."
+                .to_string(),
+        }
     };
 
     println!("  💡 {} {}", "Pro Tip:".bright_yellow().bold(), hint);
@@ -243,7 +284,7 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
 /// List all glyphs and achievements.
 pub async fn glyph_list(unlocked_only: bool) -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let tracker = vox_ludus::achievement::AchievementTracker::new();
     let unlocked = db::list_unlocked_achievements(&db, &user_id).await?;
 

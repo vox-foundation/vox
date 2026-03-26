@@ -1,20 +1,17 @@
 // ---
 // title: "Counter Actor Example"
-// description: "Stateful concurrent actor with mailbox. on Increment handler mutates and returns state."
+// description: "Concurrent actor with mailbox. Handler increments a passed-in counter step (persistent `state` inside actor blocks is not parsed yet)."
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [actor, state, on, ret]
-// last_validated: 2026-03-24
+// constructs: [actor, on, ret]
+// last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Define a Vox actor called CounterActor with an Increment handler
+# @training_prompt: Define a Vox actor with an Increment handler that returns the next value.
 actor CounterActor {
-    state count: int = 0
-
-    on Increment() to int {
-        count = count + 1
-        ret count
+    on Increment(current: int) to int {
+        ret current + 1
     }
 }

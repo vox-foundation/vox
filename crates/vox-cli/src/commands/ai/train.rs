@@ -1,8 +1,8 @@
 //! Fine-tune orchestration over corpus-generated train.jsonl artifacts.
 //!
-//! **Canonical native training** is **`vox schola train`** (Burn LoRA or Candle QLoRA). This module keeps
+//! **Canonical native training** is **`vox mens train`** (Burn LoRA or Candle QLoRA). This module keeps
 //! **`vox train`** for Together remote upload, **`--native`** (legacy Burn scratch trainer behind `mens-dei`),
-//! and a **local** path that errors with the exact `vox schola train` command to run instead of the removed
+//! and a **local** path that errors with the exact `vox mens train` command to run instead of the removed
 //! `scripts/train_qlora.vox` flow.
 //!
 //! Remote: Together AI (`TOGETHER_API_KEY`). GPU vendor probing remains for any subprocess paths.
@@ -21,7 +21,7 @@ pub async fn run(
     native: bool,
 ) -> anyhow::Result<()> {
     eprintln!(
-        "Note: `vox train` is legacy. **Canonical training:** `vox schola train` (see docs/src/architecture/mens-training-ssot.md). `--provider local` prints the QLoRA command; use `vox schola train --backend qlora` directly."
+        "Note: `vox train` is legacy. **Canonical training:** `vox mens train` (see docs/src/architecture/mens-training-ssot.md). `--provider local` prints the QLoRA command; use `vox mens train --backend qlora` directly."
     );
     let data_dir = data_dir.unwrap_or_else(|| std::path::PathBuf::from(DEFAULT_DATA_DIR));
     tracing::debug!(
@@ -66,7 +66,7 @@ async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result
     anyhow::bail!(
         "`vox train --provider local` does not run `scripts/train_qlora.vox` (not shipped).\n\
          **Canonical RTX 4080-class QLoRA (Candle + HF):**\n\
-           vox schola train --backend qlora --tokenizer hf --preset qwen_4080_16g \\\n\
+           vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g \\\n\
              --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir {} --output-dir {} \\\n\
              --device cuda --qlora-require-full-proxy-stack\n\
          Build with `--features gpu,mens-candle-cuda` for NVIDIA CUDA.\n\

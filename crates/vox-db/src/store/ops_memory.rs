@@ -36,6 +36,23 @@ impl crate::VoxDb {
         Ok(self.conn.last_insert_rowid())
     }
 
+    /// Delete `memories` rows for `agent_id` with `created_at` strictly before `created_before`
+    /// (ISO-like timestamp string compared as SQLite TEXT).
+    pub async fn delete_memories_created_before(
+        &self,
+        agent_id: &str,
+        created_before: &str,
+    ) -> Result<u64, StoreError> {
+        let n = self
+            .conn
+            .execute(
+                "DELETE FROM memories WHERE agent_id = ?1 AND created_at < ?2",
+                params![agent_id, created_before],
+            )
+            .await?;
+        Ok(n)
+    }
+
     /// Fetch recent `memories` for `agent_id`, newest first.
     ///
     /// Pass `memory_type = Some("…")` to filter; `_session_id` is accepted for API compatibility
@@ -181,6 +198,41 @@ impl crate::VoxDb {
         limit: i64,
     ) -> Result<Vec<(String, String, String)>, StoreError> {
         let lim = limit.clamp(1, 1_000);
+        let use_fts = self
+            .sqlite_capabilities_snapshot()
+            .await
+            .ok()
+            .is_some_and(|p| p.fts5_reported);
+        if use_fts && self.knowledge_nodes_fts_ready().await.unwrap_or(false) {
+            let q = sanitize_fts_query(query);
+            if !q.is_empty() {
+                if let Ok(out) = self.query_knowledge_nodes_fts(&q, lim).await {
+                    if !out.is_empty() {
+                        return Ok(out);
+                    }
+                }
+            }
+        }
+        self.query_knowledge_nodes_like(query, lim).await
+    }
+
+    async fn knowledge_nodes_fts_ready(&self) -> Result<bool, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT 1 FROM sqlite_master
+                 WHERE type = 'table' AND name = 'knowledge_nodes_fts' LIMIT 1",
+                (),
+            )
+            .await?;
+        Ok(rows.next().await?.is_some())
+    }
+
+    async fn query_knowledge_nodes_like(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<(String, String, String)>, StoreError> {
         let pat = format!("%{query}%");
         let mut rows = self
             .conn
@@ -189,17 +241,109 @@ impl crate::VoxDb {
                  FROM knowledge_nodes
                  WHERE label LIKE ?1 OR content LIKE ?1
                  ORDER BY created_at DESC LIMIT ?2",
-                params![pat, lim],
+                params![pat, limit],
             )
             .await?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next().await? {
-            let id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            let label: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            let snippet: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
-            out.push((id, label, snippet));
+        collect_knowledge_node_rows(&mut rows).await
+    }
+
+    async fn query_knowledge_nodes_fts(
+        &self,
+        match_query: &str,
+        limit: i64,
+    ) -> Result<Vec<(String, String, String)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT k.id, k.label, COALESCE(SUBSTR(k.content, 1, 200), '')
+                 FROM knowledge_nodes_fts f
+                 JOIN knowledge_nodes k ON k.rowid = f.rowid
+                 WHERE knowledge_nodes_fts MATCH ?1
+                 ORDER BY k.created_at DESC LIMIT ?2",
+                params![match_query, limit],
+            )
+            .await?;
+        collect_knowledge_node_rows(&mut rows).await
+    }
+
+    /// Full-text search over `search_document_chunks` joined with `search_documents` titles.
+    ///
+    /// Uses FTS5 when enabled and the shadow table exists; otherwise `body_text LIKE '%q%'`.
+    /// Returns `(chunk_id, document_id, body_snippet_200, document_title)`.
+    pub async fn query_search_document_chunks(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<(i64, i64, String, String)>, StoreError> {
+        let lim = limit.clamp(1, 1_000);
+        let use_fts = self
+            .sqlite_capabilities_snapshot()
+            .await
+            .ok()
+            .is_some_and(|p| p.fts5_reported);
+        if use_fts && self.search_document_chunks_fts_ready().await.unwrap_or(false) {
+            let q = sanitize_fts_query(query);
+            if !q.is_empty() {
+                if let Ok(out) = self.query_search_document_chunks_fts(&q, lim).await {
+                    if !out.is_empty() {
+                        return Ok(out);
+                    }
+                }
+            }
         }
-        Ok(out)
+        self.query_search_document_chunks_like(query, lim).await
+    }
+
+    async fn search_document_chunks_fts_ready(&self) -> Result<bool, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT 1 FROM sqlite_master
+                 WHERE type = 'table' AND name = 'search_document_chunks_fts' LIMIT 1",
+                (),
+            )
+            .await?;
+        Ok(rows.next().await?.is_some())
+    }
+
+    async fn query_search_document_chunks_like(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<(i64, i64, String, String)>, StoreError> {
+        let pat = format!("%{query}%");
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT c.id, c.document_id, COALESCE(SUBSTR(c.body_text, 1, 200), ''), COALESCE(d.title, '')
+                 FROM search_document_chunks c
+                 JOIN search_documents d ON d.id = c.document_id
+                 WHERE c.body_text LIKE ?1
+                 ORDER BY c.created_at DESC LIMIT ?2",
+                params![pat, limit],
+            )
+            .await?;
+        collect_search_chunk_rows(&mut rows).await
+    }
+
+    async fn query_search_document_chunks_fts(
+        &self,
+        match_query: &str,
+        limit: i64,
+    ) -> Result<Vec<(i64, i64, String, String)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT c.id, c.document_id, COALESCE(SUBSTR(c.body_text, 1, 200), ''), COALESCE(d.title, '')
+                 FROM search_document_chunks_fts f
+                 JOIN search_document_chunks c ON c.rowid = f.rowid
+                 JOIN search_documents d ON d.id = c.document_id
+                 WHERE search_document_chunks_fts MATCH ?1
+                 ORDER BY c.created_at DESC LIMIT ?2",
+                params![match_query, limit],
+            )
+            .await?;
+        collect_search_chunk_rows(&mut rows).await
     }
 
     // ── Embeddings (embeddings) ───────────────────────────────────────────────
@@ -241,7 +385,9 @@ impl crate::VoxDb {
         limit: i64,
     ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
         let lim = limit.clamp(1, 500);
-        let candidate_cap = lim * 10;
+        let probe = self.sqlite_capabilities_snapshot().await.ok();
+        let candidate_cap =
+            crate::capabilities::embedding_candidate_cap(lim, 10, probe.as_ref());
         let mut rows = match source_type {
             Some(st) => {
                 self.conn
@@ -328,4 +474,45 @@ impl crate::VoxDb {
             .await?;
         Ok(())
     }
+}
+
+async fn collect_search_chunk_rows(
+    rows: &mut turso::Rows,
+) -> Result<Vec<(i64, i64, String, String)>, StoreError> {
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().await? {
+        let chunk_id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let doc_id: i64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        let snippet: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+        let title: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+        out.push((chunk_id, doc_id, snippet, title));
+    }
+    Ok(out)
+}
+
+async fn collect_knowledge_node_rows(
+    rows: &mut turso::Rows,
+) -> Result<Vec<(String, String, String)>, StoreError> {
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().await? {
+        let id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let label: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        let snippet: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+        out.push((id, label, snippet));
+    }
+    Ok(out)
+}
+
+fn sanitize_fts_query(input: &str) -> String {
+    let cleaned = input
+        .chars()
+        .map(|ch| {
+            if ch.is_alphanumeric() || ch == '_' || ch == '-' {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>();
+    cleaned.split_whitespace().collect::<Vec<_>>().join(" ")
 }

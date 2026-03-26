@@ -1,6 +1,6 @@
-//! Native Mens training entrypoints (`vox schola train`).
+//! Native Mens training entrypoints (`vox mens train`).
 //!
-//! **SSOT:** Canonical CLI entry is `vox schola train`. The sole active backend is
+//! **SSOT:** Canonical CLI entry is `vox mens train`. The sole active backend is
 //! Candle+qlora-rs (`--backend qlora`). Burn LoRA is permanently deprecated.
 //!
 //! Dispatch is **contract-first**: [`FineTuneContract`] + [`ExecutionPlanner`] → kernel.
@@ -51,7 +51,7 @@ pub fn run_mens_training(
         PopuliTrainBackend::BurnLora => {
             anyhow::bail!(
                 "Burn LoRA backend is permanently deprecated. \
-                 Use `vox schola train --backend qlora --tokenizer hf --model <hf_repo>`. \
+                 Use `vox mens train --backend qlora --tokenizer hf --model <hf_repo>`. \
                  See docs/src/architecture/mens-training-ssot.md."
             )
         }

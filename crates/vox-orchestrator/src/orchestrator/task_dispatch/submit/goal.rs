@@ -48,7 +48,7 @@ impl Orchestrator {
                 .await;
         }
         if planning_mode.is_none() {
-            let selector = seahash::hash(goal.as_bytes()) % 100;
+            let selector = xxhash_rust::xxh3::xxh3_64(goal.as_bytes()) % 100;
             if selector >= u64::from(cfg.planning_rollout_percent) {
                 return self
                     .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)

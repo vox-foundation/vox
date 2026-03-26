@@ -32,7 +32,7 @@ It also defines the implementation gap between where the codebase is now and wha
 - Canonical publication object with digest hashing:
   - `crates/vox-publisher/src/publication.rs`
 - Scholarly adapter interface and current local adapter:
-  - `crates/vox-publisher/src/scholarly.rs`
+  - `crates/vox-publisher/src/scholarly/`
 - Persistence and state ledger:
   - `crates/vox-db/src/schema/domains/publish_cloud.rs`
   - `crates/vox-db/src/store/ops_publication.rs`
@@ -205,7 +205,7 @@ codexLedger --> readinessReports[ReadinessAndOpsReports]
 
 - Contract and model:
   - `crates/vox-publisher/src/publication.rs`
-  - `crates/vox-publisher/src/scholarly.rs`
+  - `crates/vox-publisher/src/scholarly/`
 - DB schema and operations:
   - `crates/vox-db/src/schema/domains/publish_cloud.rs`
   - `crates/vox-db/src/store/ops_publication.rs`
@@ -223,6 +223,18 @@ codexLedger --> readinessReports[ReadinessAndOpsReports]
 - `submission_success_rate`: successful submissions per adapter.
 - `revision_turnaround_ms`: digest update to remote revision acknowledgement.
 - `metadata_completeness_rate`: share of records with ORCID/funding/license/citations populated.
+
+## Rollout stages, legacy modes, and ledger metrics
+
+**Stages (recommended):**
+
+1. **Dev / CI** — `local_ledger` / `echo_ledger` only; no live repository credentials.
+2. **Staging** — turn on one live adapter with Clavis-backed secrets and per-adapter `VOX_SCHOLARLY_DISABLE_*` kill-switches; run `publication-preflight` (and venue staging export) before submit.
+3. **Production** — dual digest-bound approval enforced; a scheduler or supervisor runs `publication-external-jobs-tick` and `publication-scholarly-remote-status-sync-batch` (or their loop variants with bounded iterations). Operator-assisted arXiv uses `publication-arxiv-handoff-record` for append-only audit rows.
+
+**Legacy / restricted:** Treat echo-only and dry-run paths as non-production. Shared developer profiles must not embed production Zenodo/OpenReview tokens.
+
+**Operational metrics:** `vox scientia publication-external-pipeline-metrics` (alias: `vox db publication-external-pipeline-metrics`) returns a read-only JSON rollup: job counts by status and adapter, attempt/retry totals and `error_class` histogram in a sliding window (`--since-hours`, default 7d), snapshot activity, scholarly submission rows, and `publication_attempts` counts by channel. Approximate terminal latency uses `updated_at_ms - created_at_ms` on terminal job rows inside the same window.
 
 ## Conclusion
 

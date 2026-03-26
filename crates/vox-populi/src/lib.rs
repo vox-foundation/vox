@@ -223,6 +223,30 @@ pub struct NodeRecord {
     /// Populi tenancy / cluster id; must match server [`crate::transport::PopuliTransportState::required_scope`] when the server enforces scope.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope_id: Option<String>,
+    /// Worker visibility for scheduling policy (`private` or `public` when set).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    /// Logical pool id (`pool=…` mesh label normalization).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool_id: Option<String>,
+    /// Trust tier for public mesh policy (`new`, `probation`, `trusted`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trust_tier: Option<String>,
+    /// Declared workload classes (`infer`, `train`, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workload_classes: Option<Vec<String>>,
+    /// Privacy class advertised by this node (`public_ok`, `trusted_only`, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub privacy_class: Option<String>,
+    /// When true, scheduler should not place new work here (drain-only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maintenance: Option<bool>,
+    /// Optional cloud / bridge provider tag (`runpod`, `vast`, …) for hybrid workers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// When true, server rejects new A2A claims for this node (set via admin quarantine API only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quarantined: Option<bool>,
 }
 
 /// Serializable registry file (`.vox/cache/populi/local-registry.json`).
@@ -363,6 +387,14 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         version: env!("CARGO_PKG_VERSION").to_string(),
         last_seen_unix_ms: now_ms(),
         scope_id: env.scope_id.clone(),
+        visibility: None,
+        pool_id: None,
+        trust_tier: None,
+        workload_classes: None,
+        privacy_class: None,
+        maintenance: None,
+        provider: None,
+        quarantined: None,
     }
 }
 

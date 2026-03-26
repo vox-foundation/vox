@@ -33,6 +33,8 @@ pub enum SecretBundle {
     MinimalCloudDev,
     GpuCloud,
     PublishReview,
+    /// Role-scoped populi mesh tokens (split worker/submitter/admin); see `mesh_roles` in clavis SSOT.
+    MeshRoles,
 }
 
 impl SecretBundle {
@@ -43,6 +45,7 @@ impl SecretBundle {
             Self::MinimalCloudDev => "minimal_cloud_dev",
             Self::GpuCloud => "gpu_cloud",
             Self::PublishReview => "publish_review",
+            Self::MeshRoles => "mesh_roles",
         }
     }
 }
@@ -59,6 +62,8 @@ pub enum Capability {
     AuxTools,
     /// Optional tokens for Scientia / news syndication adapters (`VOX_NEWS_*`, `VOX_SOCIAL_*`).
     ScientiaSyndication,
+    /// Optional tokens for live scholarly repository adapters (Zenodo, OpenReview, Crossref, arXiv assist).
+    ScholarlyPublication,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -85,6 +90,16 @@ pub enum SecretId {
     VoxDbUrl,
     VoxDbToken,
     VoxMeshToken,
+    /// Opaque bearer for populi workers (join/heartbeat/inbox/ack on role-scoped meshes).
+    VoxMeshWorkerToken,
+    /// Opaque bearer for job submitters (`/v1/populi/a2a/deliver` with workload submissions).
+    VoxMeshSubmitterToken,
+    /// Admin bearer for moderation operations on the populi control plane.
+    VoxMeshAdminToken,
+    /// Shared secret for HS256 `Authorization: Bearer <jwt>` mesh control-plane auth (claim `role` + `jti` replay cache).
+    VoxMeshJwtHmacSecret,
+    /// Ed25519 verifying key (raw 32 bytes as hex or Standard base64) for optional `job_result` / `job_fail` payload attestations.
+    VoxMeshWorkerResultVerifyKey,
     VoxNewsTwitterBearer,
     VoxNewsOpenCollectiveToken,
     VoxSocialRedditClientId,
@@ -94,6 +109,16 @@ pub enum SecretId {
     VoxSocialYoutubeClientId,
     VoxSocialYoutubeClientSecret,
     VoxSocialYoutubeRefreshToken,
+    /// Zenodo REST API personal access token (depositions / uploads).
+    VoxZenodoAccessToken,
+    /// OpenReview login identifier (typically the registered email).
+    VoxOpenReviewEmail,
+    /// OpenReview account password for API/session flows.
+    VoxOpenReviewPassword,
+    /// Crossref Metadata Plus / Plus API key for metadata deposits (optional).
+    VoxCrossrefPlusApiKey,
+    /// Shared operator secret acknowledging an arXiv assist / handoff step (optional guardrail).
+    VoxArxivAssistHandoffSecret,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -139,6 +164,7 @@ const BUNDLE_DOC_NAMES: &[&str] = &[
     "minimal_cloud_dev",
     "gpu_cloud",
     "publish_review",
+    "mesh_roles",
 ];
 
 const SPECS: &[SecretSpec] = &[
@@ -363,6 +389,56 @@ const SPECS: &[SecretSpec] = &[
         remediation: "Run `vox populi up` or set VOX_MESH_TOKEN for mesh auth.",
     },
     SecretSpec {
+        id: SecretId::VoxMeshWorkerToken,
+        canonical_env: "VOX_MESH_WORKER_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_MESH_WORKER_TOKEN for populi worker-scoped control-plane auth.",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshSubmitterToken,
+        canonical_env: "VOX_MESH_SUBMITTER_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_MESH_SUBMITTER_TOKEN for populi job-submitter auth (A2A deliver).",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshAdminToken,
+        canonical_env: "VOX_MESH_ADMIN_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_MESH_ADMIN_TOKEN for populi admin-only control-plane operations.",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshJwtHmacSecret,
+        canonical_env: "VOX_MESH_JWT_HMAC_SECRET",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Optional HS256 secret for JWT mesh bearer tokens (set on server + issuer).",
+    },
+    SecretSpec {
+        id: SecretId::VoxMeshWorkerResultVerifyKey,
+        canonical_env: "VOX_MESH_WORKER_RESULT_VERIFY_KEY",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Optional Ed25519 public key to verify signed `job_result` / `job_fail` deliveries (worker signs BLAKE3 digest).",
+    },
+    SecretSpec {
         id: SecretId::VoxNewsTwitterBearer,
         canonical_env: "VOX_NEWS_TWITTER_TOKEN",
         aliases: &[],
@@ -452,6 +528,56 @@ const SPECS: &[SecretSpec] = &[
         policy: SecretPolicy::optional_skip(),
         remediation: "Set VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN when YouTube upload is enabled.",
     },
+    SecretSpec {
+        id: SecretId::VoxZenodoAccessToken,
+        canonical_env: "ZENODO_ACCESS_TOKEN",
+        aliases: &["VOX_ZENODO_ACCESS_TOKEN"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set ZENODO_ACCESS_TOKEN when Zenodo deposition submission is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxOpenReviewEmail,
+        canonical_env: "OPENREVIEW_EMAIL",
+        aliases: &["VOX_OPENREVIEW_EMAIL"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set OPENREVIEW_EMAIL when OpenReview submission flows are enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxOpenReviewPassword,
+        canonical_env: "OPENREVIEW_PASSWORD",
+        aliases: &["VOX_OPENREVIEW_PASSWORD"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set OPENREVIEW_PASSWORD when OpenReview submission flows are enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxCrossrefPlusApiKey,
+        canonical_env: "CROSSREF_PLUS_API_KEY",
+        aliases: &["VOX_CROSSREF_PLUS_API_KEY"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set CROSSREF_PLUS_API_KEY when Crossref metadata deposit is enabled.",
+    },
+    SecretSpec {
+        id: SecretId::VoxArxivAssistHandoffSecret,
+        canonical_env: "VOX_ARXIV_ASSIST_HANDOFF_SECRET",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_ARXIV_ASSIST_HANDOFF_SECRET to gate operator arXiv handoff acks.",
+    },
 ];
 
 impl SecretId {
@@ -463,6 +589,18 @@ impl SecretId {
             .find(|s| s.id == self)
             .expect("SecretId must exist in SPECS")
     }
+}
+
+/// Secrets resolved from `.vox/populi/mesh.env` when `ResolveOptions.include_populi_env` is set.
+#[must_use]
+pub const fn secret_reads_populi_env_file(id: SecretId) -> bool {
+    matches!(
+        id,
+        SecretId::VoxMeshToken
+            | SecretId::VoxMeshWorkerToken
+            | SecretId::VoxMeshSubmitterToken
+            | SecretId::VoxMeshAdminToken
+    )
 }
 
 #[must_use]
@@ -517,7 +655,12 @@ pub fn requirements_for_profile_mode(
             SecretId::VoxDbUrl,
             SecretId::VoxDbToken,
         ])],
-        Workflow::MensMesh => vec![RequirementSet::AllOf(&[SecretId::VoxMeshToken])],
+        Workflow::MensMesh => vec![RequirementSet::AnyOf(&[
+            SecretId::VoxMeshToken,
+            SecretId::VoxMeshWorkerToken,
+            SecretId::VoxMeshSubmitterToken,
+            SecretId::VoxMeshAdminToken,
+        ])],
     };
 
     if matches!(profile, Profile::Ci) && matches!(workflow, Workflow::Chat | Workflow::Mcp) {
@@ -526,7 +669,13 @@ pub fn requirements_for_profile_mode(
 
     let optional = match workflow {
         Workflow::Chat | Workflow::Mcp => ALL_CHAT_OPTIONALS.to_vec(),
-        Workflow::Publish | Workflow::Review => vec![],
+        Workflow::Publish | Workflow::Review => vec![
+            SecretId::VoxZenodoAccessToken,
+            SecretId::VoxOpenReviewEmail,
+            SecretId::VoxOpenReviewPassword,
+            SecretId::VoxCrossrefPlusApiKey,
+            SecretId::VoxArxivAssistHandoffSecret,
+        ],
         Workflow::DbRemote => vec![],
         Workflow::MensMesh => vec![],
     };
@@ -555,6 +704,16 @@ pub fn requirements_for_bundle(bundle: SecretBundle) -> WorkflowRequirements {
             blocking: vec![RequirementSet::AllOf(&[SecretId::GitHubToken])],
             optional: vec![],
         },
+        SecretBundle::MeshRoles => WorkflowRequirements {
+            blocking: vec![RequirementSet::AnyOf(&[
+                SecretId::VoxMeshWorkerToken,
+                SecretId::VoxMeshSubmitterToken,
+            ])],
+            optional: vec![
+                SecretId::VoxMeshToken,
+                SecretId::VoxMeshAdminToken,
+            ],
+        },
     }
 }
 
@@ -582,7 +741,12 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         }
         SecretId::GitHubToken => &[Capability::PublishReview],
         SecretId::VoxDbUrl | SecretId::VoxDbToken => &[Capability::DbRemote],
-        SecretId::VoxMeshToken => &[Capability::Mesh],
+        SecretId::VoxMeshToken
+        | SecretId::VoxMeshWorkerToken
+        | SecretId::VoxMeshSubmitterToken
+        | SecretId::VoxMeshAdminToken
+        | SecretId::VoxMeshJwtHmacSecret
+        | SecretId::VoxMeshWorkerResultVerifyKey => &[Capability::Mesh],
         SecretId::VoxApiKey | SecretId::VoxBearerToken => &[Capability::RuntimeIngress],
         SecretId::V0ApiKey | SecretId::OpenClawToken => &[Capability::AuxTools],
         SecretId::VoxNewsTwitterBearer
@@ -594,6 +758,11 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         | SecretId::VoxSocialYoutubeClientId
         | SecretId::VoxSocialYoutubeClientSecret
         | SecretId::VoxSocialYoutubeRefreshToken => &[Capability::ScientiaSyndication],
+        SecretId::VoxZenodoAccessToken
+        | SecretId::VoxOpenReviewEmail
+        | SecretId::VoxOpenReviewPassword
+        | SecretId::VoxCrossrefPlusApiKey
+        | SecretId::VoxArxivAssistHandoffSecret => &[Capability::ScholarlyPublication],
     }
 }
 

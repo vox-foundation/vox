@@ -14,8 +14,6 @@ use vox_db::{
     Codex, add_suppression, load_baseline as db_load_baseline, load_latest_task_queue,
     save_baseline as db_save_baseline, save_task_queue,
 };
-use vox_ludus::{LudusProfile, db};
-
 /// Run the TOESTUB analysis.
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
@@ -42,7 +40,7 @@ pub async fn run(
     // --task-list: show last saved queue from VoxDB and exit
     if task_list {
         if let Ok(db) = Codex::connect_default().await {
-            let user_id = vox_db::paths::local_user_id();
+            let user_id = vox_ludus::db::canonical_user_id();
             if let Ok(Some((total_findings, fix_suggestions_json))) =
                 load_latest_task_queue(&db, &user_id).await
             {
@@ -118,7 +116,7 @@ pub async fn run(
             let r = (|| -> anyhow::Result<()> {
                 let db = Codex::connect_default_sync()
                     .map_err(|e| anyhow::anyhow!("connect: {:?}", e))?;
-                let user_id = vox_db::paths::local_user_id();
+                let user_id = vox_ludus::db::canonical_user_id();
                 let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
                 let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
                     .unwrap_or_else(|_| "[]".to_string());
@@ -242,7 +240,7 @@ pub async fn run(
 
     // ── Save baseline / task queue to VoxDB ──
     if let Some(ref db) = db_opt {
-        let user_id = vox_db::paths::local_user_id();
+        let user_id = vox_ludus::db::canonical_user_id();
         let run_scope = path.to_string_lossy().to_string();
 
         if let Some(name) = save_baseline {
@@ -400,63 +398,45 @@ pub async fn run(
         }
     }
 
-    // ── Gamification Auto-Rewards ──
-    if result.findings.is_empty() {
-        // Reward the user for a clean codebase!
-        if let Some(ref db) = db_opt {
-            let user_id = vox_db::paths::local_user_id();
-            let mut profile = match db::get_profile(db, &user_id).await.unwrap_or(None) {
-                Some(p) => p,
-                None => {
-                    let p = LudusProfile::new_default(&user_id);
-                    db::upsert_profile(db.as_ref(), &p).await.ok();
-                    p
-                }
-            };
-
-            let mut xp_gain = 10;
-            let mut crystal_gain = 5;
-
-            if let Ok(Some(raw)) = db
-                .get_user_preference(&user_id, "gamify.clean_run_xp")
-                .await
-                && let Ok(val) = raw.parse::<u64>()
-            {
-                xp_gain = val;
+    // ── Ludus: canonical router (clean-scan rewards + debt teaching) ──
+    if let Some(ref db) = db_opt {
+        let user_id = vox_ludus::db::canonical_user_id();
+        if result.findings.is_empty() {
+            let ev = serde_json::json!({
+                "type": "toestub_scan_clean",
+                "agent_id": 0u64,
+            });
+            match vox_ludus::event_router::route_event_auto_user(db.as_ref(), &ev).await {
+                Ok(res) => print_stub_check_ludus_route(&res),
+                Err(e) => tracing::warn!(error = %e, "ludus route_event (toestub clean)"),
             }
-            if let Ok(Some(raw)) = db
-                .as_ref()
-                .get_user_preference(&user_id, "gamify.clean_run_crystals")
-                .await
-                && let Ok(val) = raw.parse::<u64>()
-            {
-                crystal_gain = val;
-            }
-
-            let leveled_up = profile.add_xp(xp_gain);
-            profile.add_crystals(crystal_gain);
-
-            if db::upsert_profile(db.as_ref(), &profile).await.is_ok() {
-                println!();
-                println!("{}", "🎉 Gamification Rewards!".bright_yellow());
-                println!("  +{} XP", xp_gain.to_string().bright_cyan());
-                println!("  +{} Crystals", crystal_gain.to_string().bright_cyan());
-
-                if leveled_up {
-                    println!(
-                        "  {} Level Up! You are now level {}",
-                        "⭐".bright_yellow(),
-                        profile.level.to_string().bright_white()
-                    );
+        } else {
+            println!(
+                "\n  {} Want extra rewards? Run {} to fight these bugs in a battle.",
+                "🔮".bright_magenta(),
+                "vox ludus battle start".bright_green()
+            );
+            let debt_signal = summary.critical + summary.error > 0
+                || result.findings.len() >= 10
+                || summary.warning >= 15;
+            if debt_signal {
+                let dedupe = stub_check_debt_dedupe_key(path, &user_id);
+                let ev = serde_json::json!({
+                    "type": "stub_check_debt",
+                    "agent_id": 0u64,
+                    "findings": result.findings.len(),
+                    "critical": summary.critical,
+                    "errors": summary.error,
+                    "warnings": summary.warning,
+                    "ludus_dedupe_id": dedupe,
+                });
+                if let Err(e) =
+                    vox_ludus::event_router::route_event_auto_user(db.as_ref(), &ev).await
+                {
+                    tracing::warn!(error = %e, "ludus route_event (stub_check_debt)");
                 }
             }
         }
-    } else {
-        println!(
-            "\n  {} Want extra rewards? Run {} to fight these bugs in a battle.",
-            "🔮".bright_magenta(),
-            "vox ludus battle start".bright_green()
-        );
     }
 
     if let Some(ref db) = db_opt {
@@ -471,4 +451,60 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+/// One teaching / debt signal per local day per scan root (idempotency key for `route_event`).
+fn stub_check_debt_dedupe_key(path: &std::path::Path, user_id: &str) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    user_id.hash(&mut h);
+    path.to_string_lossy().hash(&mut h);
+    let day = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() / 86_400)
+        .unwrap_or(0);
+    day.hash(&mut h);
+    h.finish()
+}
+
+fn print_stub_check_ludus_route(res: &vox_ludus::reward_policy::RouteResult) {
+    use owo_colors::OwoColorize;
+    let mut header = false;
+    if let Some(reward) = &res.reward {
+        if reward.xp > 0 || reward.crystals > 0 || reward.lumens != 0 || reward.grant_shield {
+            println!();
+            println!("{}", "🎉 Ludus — clean TOESTUB scan".bright_yellow().bold());
+            header = true;
+            if reward.xp > 0 {
+                println!("  +{} XP", reward.xp.to_string().bright_cyan());
+            }
+            if reward.crystals > 0 {
+                println!("  +{} 💎", reward.crystals.to_string().bright_cyan());
+            }
+            if reward.lumens > 0 {
+                println!("  +{} ✦", reward.lumens.to_string().bright_magenta());
+            } else if reward.lumens < 0 {
+                println!("  {} ✦", reward.lumens.to_string().bright_red());
+            }
+            if reward.grant_shield {
+                println!(
+                    "  {}",
+                    "🛡️ Streak shield granted".bright_green().bold()
+                );
+            }
+        }
+    }
+    if let Some((lvl, title)) = &res.leveled_up {
+        if !header {
+            println!();
+            println!("{}", "🎉 Ludus — clean TOESTUB scan".bright_yellow().bold());
+        }
+        println!(
+            "{}",
+            format!("  ⚡ LEVEL {}! You are now: {} ⚡", lvl, title)
+                .bright_yellow()
+                .bold()
+        );
+    }
 }

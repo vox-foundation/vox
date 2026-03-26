@@ -31,7 +31,8 @@ training_eligible: true
 
 The **VS Code extension** (`vox-vscode/`) is the **Single Source of Truth** for the Vox user-facing frontend experience. It integrates chat, planning (MCP), language support (LSP), and real-time visualization.
 
-- **Orchestrator Dashboard**: Standalone HTML/CSS visualization for agents and tasks has been relocated to **`tools/dashboard/`**.
+- **Extension ↔ MCP compatibility matrix and rollout checklist:** [vscode-mcp-compat.md](vscode-mcp-compat.md)
+- **HTTP dashboard** (`tools/dashboard/`): optional standalone visualization; **not** the maintained control plane. Ship MCP-driven behavior, parity checks, and capability UX in **`vox-vscode/`** first; keep the HTTP dashboard aligned only if you rely on it for demos or CI smoke.
 - **Unified Grammar**: Vocabulary is synchronized via **`tree-sitter-vox/GRAMMAR_SSOT.md`**.
 - **Retired**: Legacy `frontend/` (Next.js) and `packages/vox-ui/` have been removed.
 

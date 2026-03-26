@@ -178,6 +178,13 @@ impl Orchestrator {
         crate::sync_lock::rw_read(&self.task_assignments).clone()
     }
 
+    /// Agent currently assigned this task, if any (used before completion clears routing state).
+    pub fn agent_assigned_to_task(&self, task_id: TaskId) -> Option<AgentId> {
+        crate::sync_lock::rw_read(&self.task_assignments)
+            .get(&task_id)
+            .copied()
+    }
+
     /// Get the lifecycle timeline for a task (ingress → route → outcome), if recorded.
     pub fn task_trace(&self, task_id: TaskId) -> Option<Vec<TaskTraceStep>> {
         crate::sync_lock::rw_read(&self.task_traces)

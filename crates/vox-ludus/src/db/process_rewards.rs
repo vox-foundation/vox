@@ -8,11 +8,13 @@ use crate::companion::Companion;
 use super::collegium::{get_user_collegium, update_collegium_lumens};
 use super::companion::{list_companions, upsert_companion};
 use super::counters::{increment_counter, set_counter};
+use super::notifications::insert_notification;
 use super::profile::{
     get_profile, list_unlocked_achievements, record_level_up, unlock_achievement, upsert_profile,
 };
 use super::quest_battle::{count_quests, list_quests, upsert_quest};
 use super::teaching::insert_policy_snapshot;
+use crate::notifications::{Notification, NotificationType};
 
 async fn advance_quests(
     db: &Codex,
@@ -114,7 +116,8 @@ pub async fn process_event_rewards(
         use std::sync::{Mutex, OnceLock};
         static SESSION: OnceLock<Mutex<crate::reward_policy::SessionState>> = OnceLock::new();
         let session_lock = SESSION.get_or_init(|| Mutex::new(Default::default()));
-        let mode_mult = crate::config_gate::reward_multiplier();
+        let mode_mult = crate::config_gate::reward_multiplier()
+            * crate::config_gate::experiment_reward_multiplier();
         let streak_days = profile.streak.current_streak as u32;
         let mut base_rw = None;
         let mut rw = None;
@@ -136,6 +139,12 @@ pub async fn process_event_rewards(
             }
             if reward.crystals > 0 {
                 profile.add_crystals(reward.crystals);
+                profile_changed = true;
+            }
+            let learn_bonus =
+                crate::reward_policy::learning_mode_crystal_jitter(user_id, event_type, reward.crystals);
+            if learn_bonus > 0 {
+                profile.add_crystals(learn_bonus);
                 profile_changed = true;
             }
             if reward.lumens != 0 {
@@ -169,6 +178,13 @@ pub async fn process_event_rewards(
     // 5b. Record level up (now safe to await outside the sync lock)
     if let Some((lvl, ref title, xp)) = leveled_up_info {
         let _ = record_level_up(db, user_id, lvl, title, xp).await;
+        let notif = Notification::new(
+            user_id,
+            NotificationType::LevelUp,
+            format!("Level {lvl}"),
+            format!("You reached level {lvl} — {title}"),
+        );
+        let _ = insert_notification(db, &notif).await;
     }
     if let Some((base_xp, base_crystals, eff_mult, rxp, rcrystals, streak, grind_capped, rlumens)) =
         policy_snapshot
@@ -179,7 +195,7 @@ pub async fn process_event_rewards(
             event_type,
             base_xp,
             base_crystals,
-            &format!("{:?}", crate::config_gate::mode()),
+            &crate::config_gate::policy_snapshot_mode_label(),
             eff_mult,
             rxp,
             rcrystals,
@@ -218,6 +234,7 @@ pub async fn process_event_rewards(
             "populi_corpus_contributed" => vec!["corpus_contributions"],
             "build_clean" => vec!["green_builds"],
             "toestub_violations_fixed" => vec!["toestub_violations_fixed"],
+            "toestub_scan_clean" => vec!["toestub_workspace_clean"],
             "finetune_epoch" => vec!["finetune_epochs"],
             "inference_run" => vec!["inference_runs"],
             "daily_quest_completed" => vec!["daily_quests_completed"],
@@ -312,8 +329,20 @@ pub async fn process_event_rewards(
             advance_quests(db, &mut profile, user_id, crate::quest::QuestType::Battle).await;
             profile_changed = true;
         }
-        "task_started" => {
+        "task_started" | "task_submitted" => {
             companion.interact(Interaction::TaskAssigned);
+            companion_changed = true;
+        }
+        "lock_acquired" => {
+            companion.interact(Interaction::LockAcquired);
+            companion_changed = true;
+        }
+        "lock_released" => {
+            companion.interact(Interaction::Rest);
+            companion_changed = true;
+        }
+        "snapshot_captured" => {
+            companion.code_quality = (companion.code_quality + 1).min(100);
             companion_changed = true;
         }
         "task_failed" => {
@@ -347,8 +376,12 @@ pub async fn process_event_rewards(
             }
             profile_changed = true;
         }
-        "test_pass" | "test_coverage_improved" => {
+        "test_pass" | "test_coverage_improved" | "test_suite_green" => {
             advance_quests(db, &mut profile, user_id, crate::quest::QuestType::Testing).await;
+            profile_changed = true;
+        }
+        "doc_added" | "doc_coverage_100_pct" | "missing_docs_zero" => {
+            advance_quests(db, &mut profile, user_id, crate::quest::QuestType::DocSprint).await;
             profile_changed = true;
         }
 
@@ -386,8 +419,13 @@ pub async fn process_event_rewards(
             profile_changed = true;
             companion_changed = true;
         }
-        "unsafe_removed" | "security_review_passed" => {
+        "unsafe_removed" => {
             advance_quests(db, &mut profile, user_id, crate::quest::QuestType::Improve).await;
+            profile_changed = true;
+        }
+        "security_review_passed" => {
+            advance_quests(db, &mut profile, user_id, crate::quest::QuestType::Improve).await;
+            advance_quests(db, &mut profile, user_id, crate::quest::QuestType::Review).await;
             profile_changed = true;
         }
         "activity_changed" => {

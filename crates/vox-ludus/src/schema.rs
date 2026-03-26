@@ -113,12 +113,13 @@ CREATE TABLE IF NOT EXISTS gamify_policy_snapshots (
     event_type TEXT NOT NULL,
     base_xp INTEGER NOT NULL DEFAULT 0,
     base_crystals INTEGER NOT NULL DEFAULT 0,
-    mode TEXT NOT NULL DEFAULT 'balanced',
+    mode_label TEXT NOT NULL DEFAULT 'balanced',
     effective_multiplier REAL NOT NULL DEFAULT 1.0,
-    xp_awarded INTEGER NOT NULL DEFAULT 0,
-    crystals_awarded INTEGER NOT NULL DEFAULT 0,
+    awarded_xp INTEGER NOT NULL DEFAULT 0,
+    awarded_crystals INTEGER NOT NULL DEFAULT 0,
     streak_days INTEGER NOT NULL DEFAULT 0,
     grind_capped INTEGER NOT NULL DEFAULT 0,
+    lumens INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -180,9 +181,9 @@ ALTER TABLE gamify_quests ADD COLUMN status TEXT DEFAULT 'active';
 pub const SCHEMA_V10: &str = "
 CREATE TABLE IF NOT EXISTS gamify_counters (
     user_id TEXT NOT NULL,
-    counter_name TEXT NOT NULL,
+    name TEXT NOT NULL,
     count INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (user_id, counter_name)
+    PRIMARY KEY (user_id, name)
 );
 ";
 
@@ -198,7 +199,7 @@ ALTER TABLE gamify_periodic_rewards ADD COLUMN unlock_condition TEXT DEFAULT '\"
 pub const SCHEMA_V14: &str = "
 ALTER TABLE gamify_profiles ADD COLUMN lumens INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE gamify_profiles ADD COLUMN generosity_lumens INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE gamify_policy_snapshots ADD COLUMN lumens_awarded INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE gamify_policy_snapshots ADD COLUMN lumens INTEGER NOT NULL DEFAULT 0;
 ";
 
 /// V14b — LUDUS: Karma Cleanup (Redundant if V14 is fresh, but safe)
@@ -209,7 +210,7 @@ pub const SCHEMA_V14B: &str = "
 
 /// V15 — LUDUS: Collegium (Teams)
 pub const SCHEMA_V15: &str = "
-CREATE TABLE IF NOT EXISTS gamify_collegiums (
+CREATE TABLE IF NOT EXISTS gamify_collegium (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,

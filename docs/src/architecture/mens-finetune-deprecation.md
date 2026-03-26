@@ -9,13 +9,13 @@ training_eligible: true
 
 ## Stable
 
-- **`vox schola train`** with `--backend lora` and `--backend qlora`.
+- **`vox mens train`** with `--backend lora` and `--backend qlora`.
 - **`vox schola merge-qlora`** (alias **`merge-adapter`**).
 - **`vox mens merge-weights`** for Burn `*.bin` LoRA checkpoints.
 
 ## Deprecated / transitional
 
-- **`vox train --native-lora`**: use **`vox schola train --backend lora`** (stderr deprecation already emitted from dispatch).
+- **`vox train --native-lora`**: use **`vox mens train --backend lora`** (stderr deprecation already emitted from dispatch).
 - **Backend-only mental model**: prefer the **contract** fields (tokenizer mode, quant mode, adapter method) when scripting; CLI flags remain the user-facing surface until a preset/JSON contract ships.
 
 ## Timeline

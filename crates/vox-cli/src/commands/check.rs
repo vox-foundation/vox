@@ -19,6 +19,16 @@ pub async fn run(file: &Path, emit_training_jsonl: Option<&Path>) -> Result<()> 
         anyhow::bail!("Check failed with {error_count} error(s) and {warning_count} warning(s)");
     }
 
+    #[cfg(feature = "extras-ludus")]
+    {
+        if vox_ludus::config_gate::is_enabled() {
+            if let Ok(db) = vox_db::open_project_db().await {
+                let key = format!("vox-check:{}", file.display());
+                vox_ludus::lsp_telemetry::after_cli_check_clean(&db, &key).await;
+            }
+        }
+    }
+
     println!("Check passed with {warning_count} warning(s)");
     Ok(())
 }

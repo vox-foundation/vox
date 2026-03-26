@@ -3,6 +3,7 @@
 pub(crate) mod bounded_read;
 pub mod build_timings;
 mod check_links;
+mod command_sync;
 mod command_compliance;
 mod contracts_index;
 mod eval_matrix;

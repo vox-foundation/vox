@@ -12,7 +12,7 @@ This page documents what is implemented now in cloud-profile selection and what 
 
 ## Implemented behavior (code-aligned)
 
-- Local 4080-class training remains the baseline: `vox schola train --backend qlora --preset 4080`.
+- Local 4080-class training remains the baseline: `vox mens train --backend qlora --preset 4080`.
 - `DEFAULT_PRESET` is `4080` in `preset_schema`.
 - `4080` is an alias of `qwen_4080_16g` in in-code preset shaping.
 - `--preset auto` resolves from `mens/config/gpu-specs.yaml` (`presets` table) by VRAM fit.
@@ -30,7 +30,7 @@ This page documents what is implemented now in cloud-profile selection and what 
 |---|---|---|
 | Local workstation (4080 class) | Yes | Primary baseline; recommended default path. |
 | Local higher VRAM (24G/48G/80G) | Yes | Use explicit preset or `--preset auto`. |
-| `vox schola train --cloud ...` dispatch | Feature-gated | Requires `vox-cli` built with `cloud`; provider dispatch path exists but should be treated as additive. |
+| `vox mens train --cloud ...` dispatch | Feature-gated | Requires `vox-cli` built with `cloud`; provider dispatch path exists but should be treated as additive. |
 | Remote execution via Populi routing hints | Read-only scheduling signal | Hints enrich placement choices; execution remains local-safe unless explicitly extended. |
 
 ## Non-goals (current wave)

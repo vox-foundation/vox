@@ -12,7 +12,7 @@ use vox_tensor::train::Checkpoint;
 /// Merge Burn [`LoraVoxTransformer`] weights into a plain [`VoxTransformer`] and save as `model_merged.bin`.
 ///
 /// `rank` and `alpha` are reserved for future CLI overrides; architecture and LoRA hyperparameters are
-/// taken from `training_manifest.json` in the checkpoint’s parent directory (same layout as `vox schola train --backend lora`).
+/// taken from `training_manifest.json` in the checkpoint’s parent directory (same layout as `vox mens train --backend lora`).
 #[allow(unused_variables)]
 pub fn run_merge_weights(
     checkpoint: PathBuf,
@@ -44,7 +44,7 @@ pub fn run_merge_weights(
     if !checkpoint.is_file() {
         anyhow::bail!(
             "Checkpoint not found at {}.\n\
-             Pass a Burn LoRA `*.bin` from `vox schola train --backend lora` (with `training_manifest.json` in the same run directory).",
+             Pass a Burn LoRA `*.bin` from `vox mens train --backend lora` (with `training_manifest.json` in the same run directory).",
             checkpoint.display()
         );
     }

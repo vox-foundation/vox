@@ -158,6 +158,10 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         receiver_agent_id: AGENT.to_string(),
         message_type: "free_form".into(),
         payload: "mesh-early".into(),
+        idempotency_key: None,
+        privacy_class: None,
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
     })
     .await
     .expect("relay first A2A to mock control plane");
@@ -166,6 +170,10 @@ async fn a2a_inbox_merges_remote_mesh_control_plane_and_ack() {
         receiver_agent_id: AGENT.to_string(),
         message_type: "free_form".into(),
         payload: "mesh-late".into(),
+        idempotency_key: None,
+        privacy_class: None,
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
     })
     .await
     .expect("relay second A2A to mock control plane");

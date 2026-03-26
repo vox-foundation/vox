@@ -2,6 +2,95 @@
 
 use vox_config::config::GamifyMode;
 
+// ── Router / MCP parity ───────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    let uid = "dedupe-orchestrator-user";
+    let ev = serde_json::json!({
+        "type": "task_completed",
+        "success": true,
+        "agent_id": 7u64,
+        "ludus_dedupe_id": 9001u64,
+    });
+    let r1 = vox_ludus::event_router::route_event(&db, uid, &ev)
+        .await
+        .expect("r1");
+    let r2 = vox_ludus::event_router::route_event(&db, uid, &ev)
+        .await
+        .expect("r2");
+    let xp1 = r1.reward.map(|x| x.xp).unwrap_or(0);
+    let xp2 = r2.reward.map(|x| x.xp).unwrap_or(0);
+    assert!(xp1 > 0, "first application should grant XP (got {xp1})");
+    assert_eq!(xp2, 0, "second application with same ludus_dedupe_id must not grant XP");
+}
+
+#[tokio::test]
+async fn ludus_policy_snapshot_rows_track_events() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    let uid = vox_ludus::db::canonical_user_id();
+    let before = vox_ludus::db::list_recent_policy_snapshots(&db, &uid, 500)
+        .await
+        .expect("list")
+        .len();
+    let ev = serde_json::json!({
+        "type": "check_completed",
+        "success": true,
+        "agent_id": 0u64,
+    });
+    vox_ludus::event_router::route_event(&db, &uid, &ev)
+        .await
+        .expect("route");
+    let after = vox_ludus::db::list_recent_policy_snapshots(&db, &uid, 500)
+        .await
+        .expect("list2")
+        .len();
+    assert!(
+        after > before,
+        "expected policy snapshot row after rewarded event (before={before} after={after})"
+    );
+}
+
+#[tokio::test]
+async fn ludus_route_event_explicit_id_matches_auto_user_kpi() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    let uid = vox_ludus::db::canonical_user_id();
+    let ev = serde_json::json!({
+        "type": "check_completed",
+        "success": true,
+        "agent_id": 0u64,
+    });
+    vox_ludus::event_router::route_event_auto_user(&db, &ev)
+        .await
+        .expect("auto");
+    vox_ludus::event_router::route_event(&db, &uid, &ev)
+        .await
+        .expect("explicit");
+    let k = vox_ludus::db::load_kpi_summary(&db, &uid)
+        .await
+        .expect("kpi");
+    assert!(
+        k.events_recorded >= 2,
+        "both paths should attribute to canonical user (rows={})",
+        k.events_recorded
+    );
+}
+
+#[test]
+fn ludus_validate_event_payload_rejects_oversize_json() {
+    let filler = "x".repeat(300_000);
+    let ev = serde_json::json!({
+        "type": "task_completed",
+        "agent_id": 0u64,
+        "blob": filler,
+    });
+    assert!(
+        vox_ludus::ingest::validate_event_payload(&ev).is_err(),
+        "expected oversize payload to fail validation"
+    );
+}
+
 // ── Reward policy ─────────────────────────────────────────────────────────────
 
 #[test]
@@ -114,6 +203,7 @@ fn base_rewards_are_nonzero_for_known_events() {
     use vox_ludus::reward_policy::base_reward;
     let events = [
         "task_completed",
+        "task_submitted",
         "bug_fix",
         "snapshot_captured",
         "conflict_resolved",

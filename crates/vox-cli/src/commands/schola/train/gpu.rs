@@ -1,4 +1,4 @@
-//! GPU-enabled training path (`vox schola train` with `gpu` feature).
+//! GPU-enabled training path (`vox mens train` with `gpu` feature).
 
 use anyhow::Result;
 use std::path::PathBuf;

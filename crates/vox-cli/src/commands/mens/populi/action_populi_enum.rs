@@ -10,12 +10,12 @@
                   Quick start:\n\
                   \n  vox mens corpus extract .    # extract corpus from vox files\
                   \n  vox mens corpus pairs ...    # generate training pairs\
-                  \n  vox schola train --model Qwen/Qwen2.5-Coder-3B-Instruct \
+                  \n  vox mens train --model Qwen/Qwen2.5-Coder-3B-Instruct \
                   \n  vox mens pipeline            # Corpus → eval → optional native train\
                   \n  vox mens serve --model ...   # HTTP serve"
 )]
 pub enum PopuliAction {
-    /// Corpus extract/validate/pairs/eval and optional `vox schola train` (dogfood pipeline).
+    /// Corpus extract/validate/pairs/eval and optional `vox mens train` (dogfood pipeline).
     #[cfg(feature = "mens-base")]
     Pipeline {
         /// Directory for `train.jsonl` (default matches legacy PS1 `target/dogfood`).
@@ -30,7 +30,7 @@ pub enum PopuliAction {
         /// Stricter eval gate env for the train stage (`VOX_EVAL_STRICT`, min pass rate).
         #[arg(long, default_value_t = false)]
         strict_gate: bool,
-        /// Passed to `vox schola train --device` when training runs (default `best` in the pipeline runner).
+        /// Passed to `vox mens train --device` when training runs (default `best` in the pipeline runner).
         #[arg(long)]
         device: Option<String>,
         /// HuggingFace model repo override (e.g. Qwen/Qwen2.5-Coder-3B-Instruct).
@@ -263,7 +263,7 @@ pub enum PopuliAction {
     /// Serve a trained Mens checkpoint via HTTP (OpenAI-compatible API)
     #[cfg(feature = "gpu")]
     Serve {
-        /// Path to model checkpoint (.bin from `vox schola train`). Required for local.
+        /// Path to model checkpoint (.bin from `vox mens train`). Required for local.
         #[arg(long)]
         model: Option<PathBuf>,
         /// HTTP port to listen on
@@ -475,7 +475,7 @@ pub enum PopuliAction {
     #[cfg(feature = "gpu")]
     #[command(name = "eval-local")]
     EvalLocal {
-        /// Path to model checkpoint (.bin from `vox schola train`)
+        /// Path to model checkpoint (.bin from `vox mens train`)
         #[arg(long, required = true)]
         model: PathBuf,
         /// Path to heldout benchmark directory (default: mens/data/heldout_bench)

@@ -93,8 +93,8 @@ estimates based on published benchmarks for the underlying crates.
 
 | Operation | Crate | ~Throughput |
 |---|---|---|
-| `hash_fast` (XXH3-128, 4 KB) | `twox-hash 2.x` | ~60 GB/s |
-| `hash_fast` (XXH3-128, 64 B) | `twox-hash 2.x` | ~15 GB/s |
+| `hash_fast` (XXH3-128, 4 KB) | `xxhash-rust 0.8` (`xxh3`) | ~60 GB/s |
+| `hash_fast` (XXH3-128, 64 B) | `xxhash-rust 0.8` (`xxh3`) | ~15 GB/s |
 | `hash_secure` (BLAKE3, 4 KB) | `blake3 1.x` | ~14 GB/s |
 | `hash_secure` (BLAKE3, 64 B) | `blake3 1.x` | ~4 GB/s |
 | `uuid` | std (atomic+clock) | >10 M/s |
@@ -147,10 +147,23 @@ let ts: u64 = vox_now_ms();          // milliseconds since UNIX epoch
 
 | Crate | Version | License |
 |---|---|---|
-| `twox-hash` | `2.x` | MIT |
+| `xxhash-rust` | `0.8` (`xxh3` feature) | MIT |
 | `blake3` | `1.x` | Apache-2.0/CC0 |
 
-Both are added to the Vox workspace `Cargo.toml` and available in `vox-runtime`.
+Both are workspace dependencies in the root `Cargo.toml` and used by `vox-runtime`.
+
+---
+
+## Workspace hash algorithm map (Rust tooling)
+
+Vox uses several hashes outside the `std.hash_*` builtins. Do not swap algorithms for stored digests without a migration.
+
+| Family | Crate | Typical use |
+|--------|--------|-------------|
+| **XXH3** | `xxhash-rust` | Fast fingerprints (`vox-runtime` `hash_fast`, `vox-corpus` preflight, `vox run` script cache key, Ludus archetype bucketing, orchestrator planning rollout selector) |
+| **BLAKE3** | `blake3` | Content-addressable IDs (repository id, `hash_secure`, Populi attestation, research tooling) |
+| **SHA-256** | `sha2` | Published artifact checksums / bootstrap verify (interoperates with `sha256sum`) |
+| **SHA-3 / Keccak** | `sha3` | DB content hashing (e.g. SHA3-512 + Base32), schema manifest (Keccak256), oplog chains, publisher / webhook digests |
 
 ---
 

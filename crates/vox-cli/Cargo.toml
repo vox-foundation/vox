@@ -14,7 +14,7 @@ path = "src/main.rs"
 name = "vox-compilerd"
 path = "src/bin/vox-compilerd.rs"
 
-# Thin entrypoint: `vox-mens train` ≡ `vox schola train` (inserts the `mens` subcommand).
+# Thin entrypoint: `vox-mens …` ≡ `vox mens …` (inserts the `mens` subcommand).
 [[bin]]
 name = "vox-mens"
 path = "src/bin/vox-mens.rs"
@@ -29,7 +29,7 @@ mens-base = []
 database = ["vox-corpus/database"]
 # Speech-to-text (`vox oratio`, `vox speech`); pulls heavy `vox-oratio` / Candle deps.
 oratio = ["mens-base", "dep:vox-oratio"]
-# Native Burn LoRA training + HF metadata (`vox schola train`, probe, merge-weights, eval-local).
+# Native Burn LoRA training + HF metadata (`vox mens train`, probe, merge-weights, eval-local).
 gpu = [
     "mens-base",
     "dep:vox-populi",
@@ -50,7 +50,7 @@ cloud = ["gpu", "vox-populi/mens-cloud"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
-    "dep:twox-hash",
+    "dep:xxhash-rust",
     "dep:which",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
@@ -73,6 +73,8 @@ dashboard = []
 ars = ["dep:vox-ars", "dep:vox-skills"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
 extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
+# Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
+ludus-hud = ["extras-ludus", "dep:vox-orchestrator"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).
 live = ["dep:vox-orchestrator"]
 # Manage the DEI (Distributed Execution Intelligence) orchestrator.
@@ -116,7 +118,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 jsonschema = { workspace = true }
-sha2 = "0.10"
+sha2 = { workspace = true }
 tokio = { workspace = true }
 base64 = { workspace = true }
 vox-pm = { workspace = true }
@@ -126,7 +128,7 @@ vox-ludus = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-clavis = { workspace = true }
 vox-db = { path = "../vox-db" }
-vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube"] }
+vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
 vox-doc-inventory = { path = "../vox-doc-inventory" }
 vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
@@ -135,7 +137,6 @@ vox-populi = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-repository = { workspace = true }
 turso = { workspace = true }
-logos = { workspace = true }
 owo-colors = { workspace = true }
 comfy-table = { workspace = true, optional = true }
 chrono = { workspace = true }
@@ -157,7 +158,7 @@ vox-eval = { workspace = true, optional = true }
 vox-forge = { workspace = true, optional = true, features = ["github"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
-twox-hash = { version = "2", optional = true }
+xxhash-rust = { workspace = true, optional = true }
 which = { version = "8", optional = true }
 wasmtime = { version = "42.0.1", optional = true }
 wasmtime-wasi = { version = "42.0.1", optional = true }

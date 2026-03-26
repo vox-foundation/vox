@@ -15,6 +15,12 @@ transport = [
     "dep:tower-http",
     "dep:subtle",
     "dep:vox-scaling-policy",
+    "dep:jsonwebtoken",
+    "dep:ed25519-dalek",
+    "dep:blake3",
+    "dep:data-encoding",
+    "dep:base64",
+    "dep:tower_governor",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -69,6 +75,11 @@ tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
 tower-http = { version = "0.6.2", optional = true, features = ["trace", "request-id"] }
 subtle = { version = "2.6", optional = true }
+jsonwebtoken = { workspace = true, optional = true }
+ed25519-dalek = { workspace = true, optional = true }
+blake3 = { workspace = true, optional = true }
+data-encoding = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
 
 # Mens (optional)
 anyhow = { workspace = true, optional = true }
@@ -92,12 +103,19 @@ qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
 async-trait = { version = "0.1", optional = true }
 futures = { version = "0.3", optional = true }
+tower_governor = { version = "0.7", optional = true, features = ["axum"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
 serde_yaml = { workspace = true }
 tempfile = { workspace = true }
+jsonwebtoken = { workspace = true }
+ed25519-dalek = { workspace = true }
+blake3 = { workspace = true }
+data-encoding = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
 
 [lints]
 workspace = true

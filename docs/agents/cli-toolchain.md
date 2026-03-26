@@ -58,7 +58,7 @@ crates/
 | `vox container` | OCI container management |
 | `vox orchestrator` | Orchestrator task/lock management |
 | `vox db` | VoxDB management |
-| `vox gamify` | Gamification profile/quests/battles |
+| `vox ludus` | Gamification profile/quests/battles (`extras-ludus`) |
 | `vox skill` | Skill install/list/search |
 | `vox architect` | Governance checks |
 | `vox completions` | Shell completions |

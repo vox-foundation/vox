@@ -19,7 +19,7 @@ flate2 = "1.1.9"
 reqwest = { workspace = true, features = ["blocking"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sha2 = "0.10.9"
+sha2 = { workspace = true }
 tar = "0.4.45"
 zip = "8.4.0"
 

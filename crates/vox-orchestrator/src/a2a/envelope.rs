@@ -22,6 +22,15 @@ pub struct RemoteTaskEnvelope {
     pub capability_requirements_json: String,
     /// Opaque task payload contract for the receiver.
     pub payload: String,
+    /// Optional mesh privacy hint for downstream claim policy (`public`, `private`, `trusted`, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub privacy_class: Option<String>,
+    /// Populi tenancy scope when mirroring control-plane policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub populi_scope_id: Option<String>,
+    /// Originator wall clock when the envelope was emitted (unix ms).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub submitted_unix_ms: Option<u64>,
 }
 
 /// Ack payload for a remote task envelope.
@@ -40,6 +49,9 @@ pub struct RemoteTaskAck {
 pub struct RemoteTaskResult {
     /// Idempotency key from the original envelope.
     pub idempotency_key: String,
+    /// Originating orchestrator task id when the worker includes it (avoids parsing [`Self::idempotency_key`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<u64>,
     /// Whether remote execution succeeded.
     pub success: bool,
     /// Optional result payload.

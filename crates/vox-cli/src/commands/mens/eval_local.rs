@@ -21,7 +21,7 @@ pub fn run_eval_local(
 
     if !model.exists() {
         anyhow::bail!(
-            "Model checkpoint not found at {}.\n  Run `vox schola train` first.",
+            "Model checkpoint not found at {}.\n  Run `vox mens train` first.",
             model.display()
         );
     }

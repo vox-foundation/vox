@@ -55,10 +55,30 @@ pub enum LudusCli {
         example: Option<PathBuf>,
     },
     RewardClaim,
+    /// Enable Ludus and save to global config.
+    Enable,
+    /// Disable Ludus and save to global config.
+    Disable,
     Mode {
+        /// Show effective mode after env/session overrides (`VOX_LUDUS_SESSION_*`, kill-switch).
+        #[arg(long)]
+        effective: bool,
         #[arg(long)]
         set: Option<String>,
     },
+    /// Local KPI aggregates (policy snapshots + hint telemetry).
+    Metrics,
+    /// Short combined summary (profile + policy rows).
+    Digest,
+    /// Rolling 7-day KPI + notifications + policy awards.
+    DigestWeekly,
+    /// Recent reward-policy rows (transparency / debugging).
+    Audit {
+        #[arg(long, default_value_t = 24)]
+        limit: usize,
+    },
+    /// Copy `default` user progress into the local user when local has no profile.
+    ProfileMerge,
     LeaderboardShow {
         #[arg(long)]
         metric: String,
@@ -81,7 +101,11 @@ pub enum LudusCli {
         #[arg(long)]
         code_file: PathBuf,
     },
-    NotifyList,
+    NotifyList {
+        /// Mark notifications read after listing (default: peek only).
+        #[arg(long)]
+        read: bool,
+    },
     NotifyClear,
     Hint {
         #[arg(long)]
@@ -115,6 +139,9 @@ pub enum LudusCli {
         template: String,
     },
     ShieldUse,
+    /// Live terminal HUD over the in-process orchestrator (requires `ludus-hud`).
+    #[cfg(feature = "ludus-hud")]
+    Hud,
 }
 
 /// Dispatch `vox ludus …`.
@@ -155,7 +182,16 @@ pub async fn run(cmd: LudusCli) -> Result<()> {
             .await
         }
         LudusCli::RewardClaim => ludus::reward_claim().await,
-        LudusCli::Mode { set } => ludus::mode_command(set.as_deref()).await,
+        LudusCli::Enable => ludus::enable_ludus().await,
+        LudusCli::Disable => ludus::disable_ludus().await,
+        LudusCli::Mode { effective, set } => {
+            ludus::mode_command(set.as_deref(), effective).await
+        }
+        LudusCli::Metrics => ludus::metrics_show().await,
+        LudusCli::Digest => ludus::session_digest().await,
+        LudusCli::DigestWeekly => ludus::digest_weekly().await,
+        LudusCli::Audit { limit } => ludus::audit_show(limit).await,
+        LudusCli::ProfileMerge => ludus::profile_merge_from_default().await,
         LudusCli::LeaderboardShow { metric, limit } => {
             ludus::leaderboard_show(&metric, limit).await
         }
@@ -166,7 +202,7 @@ pub async fn run(cmd: LudusCli) -> Result<()> {
         LudusCli::ChallengeSubmit { id, code_file } => {
             ludus::challenge_submit(&id, &code_file).await
         }
-        LudusCli::NotifyList => ludus::notify_list().await,
+        LudusCli::NotifyList { read } => ludus::notify_list(read).await,
         LudusCli::NotifyClear => ludus::notify_clear().await,
         LudusCli::Hint { context } => ludus::hint_show(context.as_deref()).await,
         LudusCli::GlyphList { unlocked_only } => ludus::glyph_list(unlocked_only).await,
@@ -182,5 +218,7 @@ pub async fn run(cmd: LudusCli) -> Result<()> {
         LudusCli::PackList => ludus::pack_list().await,
         LudusCli::PackInit { template } => ludus::pack_init(&template).await,
         LudusCli::ShieldUse => ludus::shield_use().await,
+        #[cfg(feature = "ludus-hud")]
+        LudusCli::Hud => ludus::ludus_hud_run().await,
     }
 }

@@ -306,20 +306,9 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         } else if let Ok(path) = db.get_object_metadata("vox-workspace", "path").await {
             reg_pass = true;
             reg_detail = format!("registered at {}", path);
-        } else if let Ok(mut rows) = db
-            .connection()
-            .query(
-                "SELECT value FROM user_preferences WHERE key = ?1",
-                (key.clone(),),
-            )
-            .await
-        {
-            if let Ok(Some(row)) = rows.next().await {
-                if let Ok(val) = row.get::<String>(0) {
-                    reg_pass = true;
-                    reg_detail = format!("registered at {}", val);
-                }
-            }
+        } else if let Ok(Some(val)) = db.get_user_preference_value_by_key(&key).await {
+            reg_pass = true;
+            reg_detail = format!("registered at {}", val);
         }
     }
 

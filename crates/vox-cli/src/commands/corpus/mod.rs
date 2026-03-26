@@ -125,7 +125,7 @@ pub enum CorpusAction {
         #[arg(long)]
         print_summary: bool,
     },
-    /// Merge corpus sources defined in a mix config (same as `vox schola train` preflight)
+    /// Merge corpus sources defined in a mix config (same as `vox mens train` preflight)
     Mix {
         /// Path to mix YAML (default: `mens/config/mix.yaml`)
         #[arg(long, default_value = "mens/config/mix.yaml")]

@@ -21,6 +21,51 @@ pub struct YouTubeAuthConfig<'a> {
     pub refresh_token: &'a str,
 }
 
+/// Conservative cap per uploaded file (64 GiB — below YouTube API extremes; catches mistakes early).
+pub const YOUTUBE_ASSET_MAX_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
+/// Size, non-empty, extension heuristics before OAuth + upload I/O.
+pub fn precheck_video_upload(path: &Path) -> Result<(), anyhow::Error> {
+    if !path.is_file() {
+        return Err(anyhow!("youtube video payload missing: {}", path.display()));
+    }
+    let meta = std::fs::metadata(path)
+        .with_context(|| format!("youtube video metadata {}", path.display()))?;
+    let len = meta.len();
+    if len == 0 {
+        return Err(anyhow!("youtube payload is empty: {}", path.display()));
+    }
+    if len > YOUTUBE_ASSET_MAX_BYTES {
+        return Err(anyhow!(
+            "youtube payload too large (max {} bytes): {}",
+            YOUTUBE_ASSET_MAX_BYTES,
+            path.display()
+        ));
+    }
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "mp4" | "mov" | "webm" | "mkv" | "mpeg" | "mpg" | "m4v" | "avi" => {}
+        "" => {
+            return Err(anyhow!(
+                "youtube payload should use a known video extension (.mp4, .mov, .webm, ...): {}",
+                path.display()
+            ));
+        }
+        other => {
+            return Err(anyhow!(
+                "youtube payload extension {:?} is unusual for video upload (expected mp4/mov/webm/mkv/...): {}",
+                other,
+                path.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, Deserialize)]
 struct YouTubeTokenResponse {
     access_token: String,
@@ -66,9 +111,7 @@ pub async fn upload_video(
     repo_root: Option<&Path>,
 ) -> Result<String> {
     let path = resolve_video_path(&cfg.video_asset_ref, repo_root);
-    if !path.exists() || !path.is_file() {
-        return Err(anyhow!("youtube video payload missing: {}", path.display()));
-    }
+    precheck_video_upload(&path)?;
     let mime = mime_guess::from_path(&path)
         .first_raw()
         .unwrap_or("application/octet-stream")

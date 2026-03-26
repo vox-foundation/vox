@@ -498,7 +498,7 @@ benchmark estimates, collision avoidance design, and when to use each tier.
 
 ### `fn vox_hash_fast`
 
-Fast non-cryptographic hash using **XXH3-128** (twox-hash crate).
+Fast non-cryptographic hash using **XXH3-128** (`xxhash-rust` crate).
 
 ```rust
 pub fn vox_hash_fast(input: &str) -> String

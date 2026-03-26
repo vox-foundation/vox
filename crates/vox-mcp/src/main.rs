@@ -40,8 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!(?db_config, "connecting to database...");
             match vox_db::VoxDb::connect(db_config).await {
                 Ok(db) => {
-                    state = state.with_db(db);
-                    info!("database connected and linked to state");
+                    state = state.with_db_initialized(db).await;
+                    info!("database connected and linked to state (orchestrator schema synced)");
                 }
                 Err(e) => {
                     tracing::warn!(

@@ -29,6 +29,9 @@ pub struct RetrievalEvidenceEnvelope {
     pub memory_hit_count: usize,
     /// Number of knowledge graph rows returned from VoxDb.
     pub knowledge_hit_count: usize,
+    /// Ingested `search_document_chunks` hits (RAG corpus).
+    #[serde(default)]
+    pub chunk_hit_count: usize,
     /// Whether the vector leg contributed evidence.
     pub used_vector: bool,
     /// Whether BM25/keyword ranking contributed evidence.
@@ -39,6 +42,15 @@ pub struct RetrievalEvidenceEnvelope {
     pub contradiction_count: usize,
     /// Highest fused score in returned memory hits.
     pub top_score: Option<f64>,
+    /// Observed `PRAGMA journal_mode` when a DB was available (telemetry / routing hints).
+    #[serde(default)]
+    pub sqlite_journal_mode: Option<String>,
+    /// Whether compile options suggested FTS5 (see [`vox_db::capabilities::SqliteProbeSnapshot`]).
+    #[serde(default)]
+    pub sqlite_fts5_reported: Option<bool>,
+    /// Whether `PRAGMA foreign_keys` reported enforcement.
+    #[serde(default)]
+    pub sqlite_foreign_keys_on: Option<bool>,
 }
 
 /// Internal retrieval payload used by chat preamble and memory tools.
@@ -46,6 +58,7 @@ pub struct RetrievalEvidenceEnvelope {
 pub struct RetrievalBundle {
     pub memory_lines: Vec<String>,
     pub knowledge_lines: Vec<String>,
+    pub chunk_lines: Vec<String>,
     pub evidence: RetrievalEvidenceEnvelope,
 }
 
@@ -122,6 +135,12 @@ pub async fn run_retrieval_bundle(
     trigger: RetrievalTriggerMode,
     limit: usize,
 ) -> Result<RetrievalBundle, String> {
+    let sqlite_cap = match (&state.sqlite_capabilities, state.db.as_ref()) {
+        (Some(s), _) => Some(s.clone()),
+        (None, Some(db)) => db.sqlite_capabilities_snapshot().await.ok(),
+        _ => None,
+    };
+
     let cfg = memory_config_for_state(state);
     let mut engine = MemorySearchEngine::new();
     engine.index_dir(&cfg.log_dir);
@@ -194,7 +213,24 @@ pub async fn run_retrieval_bundle(
             .await
             .map_err(|e| e.to_string())?
             .into_iter()
-            .map(|(id, ntype, label)| format!("[node:{id}] {label} ({ntype})"))
+            .map(|(id, label, snippet)| {
+                let snip = snippet.replace('\n', " ");
+                format!("[node:{id}] {label} — {snip}")
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    let chunk_lines = if let Some(db) = state.db.as_ref() {
+        db.query_search_document_chunks(query, limit as i64)
+            .await
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|(chunk_id, doc_id, snippet, title)| {
+                let snip = snippet.replace('\n', " ");
+                format!("[chunk:{chunk_id} doc:{doc_id} title:{title}] {snip}")
+            })
             .collect::<Vec<_>>()
     } else {
         Vec::new()
@@ -222,19 +258,33 @@ pub async fn run_retrieval_bundle(
         "none"
     };
 
+    let (sqlite_journal_mode, sqlite_fts5_reported, sqlite_foreign_keys_on) =
+        sqlite_cap.map_or((None, None, None), |p| {
+            (
+                Some(p.journal_mode.clone()),
+                Some(p.fts5_reported),
+                Some(p.foreign_keys_on),
+            )
+        });
+
     Ok(RetrievalBundle {
         evidence: RetrievalEvidenceEnvelope {
             trigger,
             retrieval_tier: retrieval_tier.to_string(),
             memory_hit_count: memory_lines.len(),
             knowledge_hit_count: knowledge_lines.len(),
+            chunk_hit_count: chunk_lines.len(),
             used_vector,
             used_bm25,
             used_lexical_fallback: lexical_fallback_used,
             contradiction_count,
             top_score,
+            sqlite_journal_mode,
+            sqlite_fts5_reported,
+            sqlite_foreign_keys_on,
         },
         memory_lines,
         knowledge_lines,
+        chunk_lines,
     })
 }

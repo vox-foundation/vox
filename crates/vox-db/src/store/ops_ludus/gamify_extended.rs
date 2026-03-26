@@ -396,6 +396,67 @@ impl crate::VoxDb {
         Ok(affected as u64)
     }
 
+    // ── Teaching profiles (gamify_teaching_profiles) ─────────────────────────
+
+    /// Read teaching profile row (`stage`, `silenced`, `mistake_counts` JSON, `cooldowns` JSON).
+    pub async fn get_gamify_teaching_profile_row(
+        &self,
+        user_id: &str,
+    ) -> Result<
+        Option<(String, i64, String, String)>,
+        StoreError,
+    > {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT stage, silenced, mistake_counts, cooldowns
+             FROM gamify_teaching_profiles WHERE user_id = ?1",
+                params![user_id],
+            )
+            .await?;
+        Ok(if let Some(row) = rows.next().await? {
+            Some((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+            ))
+        } else {
+            None
+        })
+    }
+
+    /// Upsert teaching profile (same semantics as Ludus `upsert_teaching_profile`).
+    pub async fn upsert_gamify_teaching_profile(
+        &self,
+        user_id: &str,
+        stage: &str,
+        silenced: bool,
+        mistake_counts_json: &str,
+        cooldowns_json: &str,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO gamify_teaching_profiles (user_id, stage, silenced, mistake_counts, cooldowns)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(user_id) DO UPDATE SET
+            stage = excluded.stage,
+            silenced = excluded.silenced,
+            mistake_counts = excluded.mistake_counts,
+            cooldowns = excluded.cooldowns,
+            updated_at = datetime('now')",
+                params![
+                    user_id,
+                    stage,
+                    if silenced { 1i64 } else { 0i64 },
+                    mistake_counts_json,
+                    cooldowns_json,
+                ],
+            )
+            .await?;
+        Ok(())
+    }
+
     // ── Policy Snapshots (gamify_policy_snapshots) ────────────────────────────
 
     /// Insert a reward policy snapshot row.

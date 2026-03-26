@@ -27,8 +27,14 @@ training_eligible: true
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
 | `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
 | `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
+| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
-| `VOX_MESH_TOKEN` | Populi control-plane auth | Workflow-specific required | Mesh transport/auth |
+| `VOX_MESH_TOKEN` | Populi control-plane auth (legacy full-access token) | Workflow-specific required (any mesh-class token) | Mesh transport/auth |
+| `VOX_MESH_WORKER_TOKEN` | Worker-scoped populi HTTP bearer | Optional (advance pools) | `POST` join/heartbeat/inbox/ack |
+| `VOX_MESH_SUBMITTER_TOKEN` | Submitter-scoped populi HTTP bearer | Optional | `POST` A2A deliver only |
+| `VOX_MESH_ADMIN_TOKEN` | Mesh admin bearer | Optional | Full HTTP surface when configured |
+| `VOX_MESH_JWT_HMAC_SECRET` | HS256 key for mesh JWT bearer | Optional | JWT claims `role`, `jti`, `exp` |
+| `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Ed25519 verify key (hex or Standard base64) | Optional | Signed `job_result` / `job_fail` payloads |
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-runtime` auth gate |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
 
@@ -59,6 +65,15 @@ training_eligible: true
 - `VOX_SOCIAL_YOUTUBE_CLIENT_ID`
 - `VOX_SOCIAL_YOUTUBE_CLIENT_SECRET`
 - `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN`
+- `ZENODO_ACCESS_TOKEN`
+- `VOX_ZENODO_ACCESS_TOKEN`
+- `OPENREVIEW_EMAIL`
+- `VOX_OPENREVIEW_EMAIL`
+- `OPENREVIEW_PASSWORD`
+- `VOX_OPENREVIEW_PASSWORD`
+- `CROSSREF_PLUS_API_KEY`
+- `VOX_CROSSREF_PLUS_API_KEY`
+- `VOX_ARXIV_ASSIST_HANDOFF_SECRET`
 - `GROQ_API_KEY`
 - `VOX_GROQ_API_KEY`
 - `CEREBRAS_API_KEY`
@@ -87,6 +102,11 @@ training_eligible: true
 - `VOX_TURSO_TOKEN`
 - `TURSO_AUTH_TOKEN`
 - `VOX_MESH_TOKEN`
+- `VOX_MESH_WORKER_TOKEN`
+- `VOX_MESH_SUBMITTER_TOKEN`
+- `VOX_MESH_ADMIN_TOKEN`
+- `VOX_MESH_JWT_HMAC_SECRET`
+- `VOX_MESH_WORKER_RESULT_VERIFY_KEY`
 
 ## Resolution Precedence
 
@@ -112,7 +132,8 @@ For each managed secret ID:
 - `minimal_local_dev`: zero required cloud keys.
 - `minimal_cloud_dev`: OpenRouter only.
 - `gpu_cloud`: RunPod or Vast key (plus Together optional).
-- `publish_review`: GitHub token only.
+- `publish_review`: GitHub token required; Zenodo / OpenReview / Crossref / arXiv-assist secrets optional (see inventory table).
+- `mesh_roles`: worker or submitter mesh token (see `SecretBundle::MeshRoles` / SSOT mesh section).
 
 ## Transition and Deprecation Window Policy
 

@@ -17,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(outputChannel);
 
     // ── Core MCP Connection ──────────────────────────────────────────────
-    const mcp = new VoxMcpClient(outputChannel);
+    const mcp = new VoxMcpClient(outputChannel, ConfigManager.mcpServerPath);
     context.subscriptions.push({ dispose: () => mcp.dispose() });
 
     // Connect and start background services after VSCode is ready
@@ -70,13 +70,51 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('vox.debugMode', () => agentController.enableDebugMode()),
-        vscode.commands.registerCommand('vox.rebalance', () => agentController.rebalance()),
+        vscode.commands.registerCommand('vox.rebalance', async () => {
+            if (!mcp.isToolAvailable('vox_rebalance')) {
+                void vscode.window.showInformationMessage(
+                    'Rebalance requires `vox_rebalance` on the connected MCP server.',
+                );
+                return;
+            }
+            await agentController.rebalance();
+        }),
+        vscode.commands.registerCommand('vox.agent.spawn', async () => {
+            const name = await vscode.window.showInputBox({
+                title: 'Vox: Spawn agent',
+                prompt: 'Name for the new agent',
+                placeHolder: 'e.g. planner-1',
+            });
+            if (!name?.trim()) return;
+            if (!mcp.isToolAvailable('vox_spawn_agent')) {
+                void vscode.window.showWarningMessage(
+                    'Server does not advertise `vox_spawn_agent`.',
+                );
+                return;
+            }
+            const dynamic =
+                (await vscode.window.showQuickPick(['Standard', 'Dynamic (experimental)'], {
+                    placeHolder: 'Agent kind',
+                })) === 'Dynamic (experimental)';
+            const ok = await mcp.spawnAgent(name.trim(), dynamic);
+            if (ok != null) {
+                void vscode.window.showInformationMessage(`Spawned agent “${name.trim()}”.`);
+            } else {
+                void vscode.window.showWarningMessage('Spawn failed — see Vox output channel.');
+            }
+        }),
     );
 
     // ── Gamification HUD ─────────────────────────────────────────────────
-    const gamifyManager = new GamifyManager(mcp, state => {
-        sidebarProvider.postMessage({ type: 'gamifyUpdate', value: state });
-    });
+    const ludusStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 95);
+    context.subscriptions.push(ludusStatusBar);
+    const gamifyManager = new GamifyManager(
+        mcp,
+        state => {
+            sidebarProvider.postMessage({ type: 'gamifyUpdate', value: state });
+        },
+        ludusStatusBar,
+    );
     gamifyManager.start();
     context.subscriptions.push({ dispose: () => gamifyManager.stop() });
 
@@ -99,14 +137,11 @@ export function activate(context: vscode.ExtensionContext) {
             await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: '⟳ Vox is planning...', cancellable: false },
                 async () => {
-                    const result = await mcp.call<{ plan_md: string; tasks: unknown[]; written_to_disk: boolean }>(
-                        'vox_plan',
-                        {
-                            goal,
-                            write_to_disk: writeToDisk?.startsWith('Yes'),
-                            max_tasks: 40,
-                        }
-                    );
+                    const result = await mcp.planGoal({
+                        goal,
+                        write_to_disk: writeToDisk?.startsWith('Yes') ?? false,
+                        max_tasks: 40,
+                    });
 
                     if (!result?.plan_md) {
                         vscode.window.showWarningMessage('Vox could not generate a plan. Check MCP connection.');

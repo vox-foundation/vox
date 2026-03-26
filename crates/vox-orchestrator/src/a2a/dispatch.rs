@@ -2,7 +2,10 @@
 
 use crate::types::{A2AMessageType, AgentId, MessagePriority, ThreadId};
 
-use super::envelope::{DbA2AMessage, REMOTE_TASK_ENVELOPE_TYPE, RemoteTaskEnvelope};
+use super::envelope::{
+    DbA2AMessage, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskEnvelope,
+    RemoteTaskResult,
+};
 
 /// Relay a message to another mens node via HTTP.
 pub async fn relay_to_mesh(
@@ -18,6 +21,10 @@ pub async fn relay_to_mesh(
             receiver_agent_id: receiver.0.to_string(),
             message_type: msg_type.to_string(),
             payload: payload.into(),
+            idempotency_key: None,
+            privacy_class: None,
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
         })
         .await
         .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
@@ -37,10 +44,110 @@ pub async fn relay_remote_task_envelope(
             receiver_agent_id: receiver.0.to_string(),
             message_type: REMOTE_TASK_ENVELOPE_TYPE.to_string(),
             payload,
+            idempotency_key: Some(envelope.idempotency_key.clone()),
+            privacy_class: envelope.privacy_class.clone(),
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
         })
         .await
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+fn task_id_from_remote_mesh_idempotency(key: &str) -> Option<u64> {
+    let rest = key.strip_prefix("orch-remote-")?;
+    let (tid, _) = rest.split_once('-')?;
+    tid.parse().ok()
+}
+
+/// Poll the populi HTTP inbox for [`REMOTE_TASK_RESULT_TYPE`] rows and complete/fail local tasks.
+///
+/// `parent_inbox_agent_id` must match the **sender** agent id used when relaying
+/// [`RemoteTaskEnvelope`] so result deliveries addressed to the parent are visible here.
+pub async fn drain_populi_remote_task_results(
+    client: &vox_populi::http_client::PopuliHttpClient,
+    parent_inbox_agent_id: u64,
+    orchestrator: &crate::Orchestrator,
+) {
+    let Ok(inbox) = client
+        .relay_a2a_inbox(&parent_inbox_agent_id.to_string())
+        .await
+    else {
+        tracing::debug!(
+            parent_inbox_agent_id = parent_inbox_agent_id,
+            "populi remote result poll: inbox HTTP failed"
+        );
+        return;
+    };
+    for msg in inbox.messages {
+        if msg.message_type != REMOTE_TASK_RESULT_TYPE {
+            continue;
+        }
+        let Ok(result) = serde_json::from_str::<RemoteTaskResult>(&msg.payload) else {
+            tracing::debug!(
+                message_id = msg.id,
+                "populi remote result: skip invalid JSON payload"
+            );
+            continue;
+        };
+        let task_id = result
+            .task_id
+            .or_else(|| task_id_from_remote_mesh_idempotency(&result.idempotency_key));
+        let Some(tid) = task_id else {
+            tracing::debug!(
+                idempotency = %result.idempotency_key,
+                "populi remote result: could not resolve task id"
+            );
+            continue;
+        };
+        let task_id = crate::types::TaskId(tid);
+        let terminal_res = if result.success {
+            orchestrator.complete_task(task_id).await
+        } else {
+            let detail = result
+                .error
+                .clone()
+                .or(result.result.clone())
+                .unwrap_or_else(|| "remote task failed".to_string());
+            orchestrator.fail_task(task_id, detail).await
+        };
+
+        let should_ack = matches!(
+            &terminal_res,
+            Ok(()) | Err(crate::orchestrator::OrchestratorError::TaskNotFound(_))
+        );
+
+        match &terminal_res {
+            Ok(()) => {}
+            Err(crate::orchestrator::OrchestratorError::TaskNotFound(_)) => {
+                tracing::debug!(
+                    task_id = tid,
+                    message_id = msg.id,
+                    "populi remote result: task missing locally; acking stale inbox row"
+                );
+            }
+            Err(e) => {
+                tracing::debug!(
+                    error = %e,
+                    task_id = tid,
+                    message_id = msg.id,
+                    "populi remote result: terminal transition failed; leaving row for retry"
+                );
+            }
+        }
+
+        if should_ack
+            && let Err(e) = client
+                .relay_a2a_ack(&parent_inbox_agent_id.to_string(), msg.id)
+                .await
+        {
+            tracing::debug!(
+                error = %e,
+                message_id = msg.id,
+                "populi remote result: ack failed"
+            );
+        }
+    }
 }
 
 /// Send a message to the database with circuit breaker protection.

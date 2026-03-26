@@ -26,12 +26,14 @@ Gamification layer for the Vox programming language. Code companions, daily ques
 
 ## CLI Commands
 
+Exposed as **`vox ludus`** when the CLI is built with **`--features extras-ludus`** (see [`reference/cli.md`](../reference/cli.md)).
+
 ```bash
-vox gamify status              # Show your profile
-vox gamify companion list      # List code companions
-vox gamify companion adopt     # Adopt a new companion
-vox gamify quest list           # View daily quests
-vox gamify battle start         # Start a bug battle
+vox ludus status
+vox ludus companion-list
+vox ludus companion-create --name <NAME> --code-file <FILE>
+vox ludus quest-list
+vox ludus battle-start --companion-name <NAME>
 ```
 
 ## Design

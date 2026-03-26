@@ -57,7 +57,7 @@ training_eligible: true
 
 ## Related
 
-- **Native fine-tuning** (Burn LoRA / `vox schola train`): [`mens-training.md`](mens-training.md).
+- **Native fine-tuning** (Burn LoRA / `vox mens train`): [`mens-training.md`](mens-training.md).
 - **Mens chat tool allowlist**: `vox-tools` module **`mens_chat`** (`chat_tool_definitions` / `execute_tool_calls`), intersecting `vox-capability-registry` with `DirectToolExecutor` — **same MCP names** as `vox-mcp`. Callers (CLI, daemons, tests) import `vox_tools::mens_chat` when they need OpenAI-style tool JSON or in-process execution.
 
 ## Out of scope / deprecated

@@ -76,7 +76,12 @@ fn emit_hir_route_stmt(stmt: &HirStmt) -> String {
 /// Generate Express.js route handlers from Vox HTTP routes and server functions (HIR-first).
 pub fn generate_routes(hir: &HirModule) -> String {
     let routes = &hir.routes;
-    let server_fns = &hir.server_fns;
+    let server_fns: Vec<_> = hir
+        .server_fns
+        .iter()
+        .chain(hir.query_fns.iter())
+        .chain(hir.mutation_fns.iter())
+        .collect();
 
     if routes.is_empty() && server_fns.is_empty() {
         return String::new();
@@ -145,7 +150,7 @@ pub fn generate_routes(hir: &HirModule) -> String {
         out.push_str("});\n\n");
     }
 
-    for sf in server_fns {
+    for sf in &server_fns {
         let route_path = &sf.route_path;
         out.push_str(&format!(
             "app.post(\"{route_path}\", async (req: Request, res: Response) => {{\n"

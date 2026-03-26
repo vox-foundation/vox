@@ -470,7 +470,7 @@ pub(super) fn run_training_loop(
                     0.0
                 };
                 train_log::warn(&format!(
-                    "Training paused at step {global_step}. Resume with 'vox schola train --resume {}'",
+                    "Training paused at step {global_step}. Resume with 'vox mens train --resume {}'",
                     out.display()
                 ));
                 return Ok(crate::mens::tensor::backend::TrainingSummary {

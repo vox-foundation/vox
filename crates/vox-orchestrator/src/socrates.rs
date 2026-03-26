@@ -18,6 +18,9 @@ pub struct SessionRetrievalEnvelope {
     pub memory_hit_count: usize,
     #[serde(default)]
     pub knowledge_hit_count: usize,
+    /// Ingested `search_document_chunks` rows (RAG corpus) surfaced by MCP retrieval.
+    #[serde(default)]
+    pub chunk_hit_count: usize,
     #[serde(default)]
     pub used_vector: bool,
     #[serde(default)]
@@ -49,14 +52,17 @@ impl SessionRetrievalEnvelope {
     /// Maps envelope fields into task-level Socrates evidence (same contract as MCP bridging).
     #[must_use]
     pub fn to_task_context(&self) -> SocratesTaskContext {
-        let required_citations = if self.memory_hit_count == 0 && self.knowledge_hit_count == 0 {
+        let doc_graph_hits = self
+            .knowledge_hit_count
+            .saturating_add(self.chunk_hit_count);
+        let required_citations = if self.memory_hit_count == 0 && doc_graph_hits == 0 {
             1_u8
         } else {
             0_u8
         };
         let evidence_total = self
             .memory_hit_count
-            .saturating_add(self.knowledge_hit_count)
+            .saturating_add(doc_graph_hits)
             .min(u8::MAX as usize) as u8;
         SocratesTaskContext {
             risk_budget: "normal".to_string(),

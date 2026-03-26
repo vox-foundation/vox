@@ -10,6 +10,10 @@ pub(super) fn for_counter(counter: &str) -> Vec<(&'static str, u32)> {
             ("five_hundred_tasks", 500),
         ],
         "tasks_today" => vec![("task_in_a_day", 10)],
+        "tasks_submitted" => vec![("first_task_queued", 1), ("steady_queue", 25)],
+        "workspace_snapshots" => vec![("first_checkpoint", 1), ("checkpoint_habit", 50)],
+        "inter_agent_messages" => vec![("first_wave", 1), ("signal_traffic", 100)],
+        "vcs_locks_acquired" => vec![("first_exclusive_lock", 1), ("locksmith", 200)],
         "handoffs_completed" => vec![
             ("first_handoff", 1),
             ("ten_handoffs", 10),

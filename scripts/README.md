@@ -18,7 +18,7 @@ Policy: **`vox ci`** is canonical; scripts here are optional thin delegates — 
 | `populi_release_gate.sh` / `.ps1` (legacy wrappers) | **`vox ci mens-gate --profile m1m4`** |
 | `populi/release_training_gate.sh` / `.ps1`, `populi/release_ci_full_gate.ps1`, `populi/mens_gate_safe.ps1`, `populi/mens_gate_safe.sh` | `vox ci mens-gate --profile training` / `ci_full` (use **`mens_gate_safe.* --detach`** when the gate would exceed tool timeouts) |
 | `mens/release_training_gate.sh` / `.ps1` | Legacy forwards to `populi/release_training_gate.*` |
-| `run_qwen25_qlora_real_4080.ps1` | Optional **operator** helper: CUDA (or CPU Candle) build + background **`vox mens train --backend qlora …`**. Canonical train path in scripts is **`vox mens train`**; **`vox schola train`** is the thin Schola entry (see `docs/src/architecture/mens-training-ssot.md`). |
+| `run_qwen25_qlora_real_4080.ps1` | Optional **operator** helper: CUDA (or CPU Candle) build + background **`vox mens train --backend qlora …`**. Same argv as **`vox-mens train …`** (thin binary; see `docs/src/architecture/mens-training-ssot.md`). |
 | `populi/dogfood_qlora_cuda.ps1` | Dogfood QLoRA preset (**`vox mens train --background`** + `--log-dir`). |
 
 Full inventory: **`docs/src/architecture/script-surface-audit.md`**.

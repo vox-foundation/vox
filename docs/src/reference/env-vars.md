@@ -19,10 +19,27 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 | `VOX_DB_PATH` | Local database file path (`local` / replication features). |
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | **Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). |
 | `TURSO_URL` / `TURSO_AUTH_TOKEN` | **Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. |
+| `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | Integer ≥ 1: multiplier for brute-force embedding search window (`limit * mult`, capped). See [`capabilities`](../../../crates/vox-db/src/capabilities.rs). |
 
 **Precedence (remote):** `VOX_DB_URL`+`VOX_DB_TOKEN` → `VOX_TURSO_*` → `TURSO_*`. **Project VoxDb** (operational store + snippets/share) uses [`DbConfig::resolve_project_code_store_config`](../../../crates/vox-db/src/config.rs): empty env maps to the project-relative default store path, not the user-data default.
 
 See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
+
+## Ludus (`vox-ludus`, `vox ludus`)
+
+| Variable | Role |
+|----------|------|
+| `VOX_LUDUS_EMERGENCY_OFF` | When `1`/`true`/`yes`, hard-disables all Ludus side effects (rewards, teaching DB writes, overlays). See [`config_gate`](../../../crates/vox-ludus/src/config_gate.rs). |
+| `VOX_LUDUS_SESSION_ENABLED` | Session-only override: `true` / `false` toggles `gamify_enabled` without touching on-disk config. |
+| `VOX_LUDUS_SESSION_MODE` | `balanced` \| `serious` \| `learning` \| `off` (`off` disables for the session). |
+| `VOX_LUDUS_VERBOSITY` | `quiet` \| `normal` \| `rich` — CLI celebration / overlay verbosity. See [`output_policy`](../../../crates/vox-ludus/src/output_policy.rs). |
+| `VOX_LUDUS_MAX_MESSAGES_PER_HOUR` | Cap on bursty Ludus CLI messages per rolling hour (default `12`). |
+| `VOX_LUDUS_CHANNEL` | UX channel override: `off` \| `serious` \| `balanced` \| `digest-priority` (also `digest` / `digest_priority`). When unset, derived from [`GamifyMode`](../../../crates/vox-config/). `digest-priority` suppresses inline CLI celebrations; use `vox ludus digest-weekly` for summaries. |
+| `VOX_LUDUS_EXPERIMENT` | When non-empty: appended to `gamify_policy_snapshots.mode_label`, and scales teaching hint frequency (deterministic A/B multiplier from the string). |
+| `VOX_LUDUS_MCP_TOOL_ARGS` | How MCP tool call `args` are stored in routed Ludus events: `full` (default) \| `hash` \| `omit` (see [`mcp_privacy`](../../../crates/vox-ludus/src/mcp_privacy.rs), [`config_gate`](../../../crates/vox-ludus/src/config_gate.rs)). |
+| `VOX_LUDUS_EXPERIMENT_REWARD_MULT` | When set to a finite positive number (e.g. `1.1`), multiplies policy XP/crystal rewards in addition to mode + streak (Ludus experiment branch); unset keeps prior behavior. |
+| `VOX_LSP_LUDUS_EVENTS` | When `0`/`false`/`off`, disables Ludus `diagnostics_clean` emission from `vox-lsp` (project Codex must still open successfully). |
+| `VOX_LUDUS_ROUTE_LOG_SAMPLE` | Optional integer **N** ≥ 1: log roughly **1/N** `route_event` calls at `INFO` (`target = vox_ludus::route_event`) using a deterministic hash (user id + event type). |
 
 ## Repository root (`vox-repository`, `vox ci`)
 
@@ -51,9 +68,25 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](mens.md)). |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) to reduce expensive training placements under budget pressure. |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL` | When `1`/`true`, best-effort fan-out of [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) over populi A2A **after** local enqueue (local execution still owns the task). |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_RECEIVER_AGENT` | Destination **numeric** A2A agent id (string form) for experimental remote relay. |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT` | Originator agent id for relay (defaults to `1` when unset/invalid). |
+| `VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS` | When experimental remote execute is on, MCP polls populi A2A inbox for **`remote_task_result`** on this interval (default **5**). **`0`** disables the dedicated poller. Independent of **`VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS`**. |
 | `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
-| `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter: `local_ledger` (default) or `echo_ledger` (deterministic id, no external repository I/O). Unknown values error. |
+| `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter: `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
+| `VOX_SCHOLARLY_DISABLE` | When truthy (`1`, `true`, `yes`, `y`, `on`), blocks all scholarly submit/status paths. |
+| `VOX_SCHOLARLY_DISABLE_LIVE` | When truthy, blocks **live** adapters (Zenodo/OpenReview); local/echo ledgers still allowed. |
+| `VOX_SCHOLARLY_DISABLE_ZENODO` | Per-adapter kill-switch for Zenodo when truthy. |
+| `VOX_SCHOLARLY_DISABLE_OPENREVIEW` | Per-adapter kill-switch for OpenReview when truthy. |
+| `VOX_OPENREVIEW_API_BASE` / `OPENREVIEW_API_BASE` | Optional override for the OpenReview API v2 base URL (default `https://api2.openreview.net`). Used for mocks and self-hosted stacks; see [`api_base`](../../../crates/vox-publisher/src/scholarly/openreview.rs). |
+| `VOX_ZENODO_SANDBOX` | When truthy, Zenodo REST uses sandbox API host instead of production. |
+| `VOX_ZENODO_API_BASE` | Optional override for the Zenodo REST API root (e.g. `https://zenodo.org/api` or `https://sandbox.zenodo.org/api`). Used for mocks and non-standard endpoints; when unset, production vs sandbox follows `VOX_ZENODO_SANDBOX`. See [`ZenodoHttpClient::new`](../../../crates/vox-publisher/src/scholarly/zenodo.rs). |
+| `VOX_ZENODO_HTTP_MAX_ATTEMPTS` | Max attempts per Zenodo HTTP call (deposit create, get, bucket `PUT`, `publish`) for retryable errors (5xx, 429, timeouts). Integer **1–10**, default **3**. |
+| `VOX_ZENODO_ATTACH_MANIFEST_BODY` | When truthy, after creating a draft deposition, uploads `manifest.body_markdown` as `body.md` to `links.bucket` (Zenodo files API). |
+| `VOX_ZENODO_PUBLISH_DEPOSITION` | When truthy, calls deposit `publish` after file attach. Requires **`VOX_ZENODO_ATTACH_MANIFEST_BODY`** (Zenodo rejects publish with zero files). |
+| `VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS` | Max attempts per OpenReview HTTP call (`notes`, `notes/edits`) for retryable errors. Integer **1–10**, default **3**. |
+| `VOX_SCHOLARLY_JOB_LOCK_OWNER` | Optional lock-owner string for `external_submission_jobs` lease ticks (default `vox:<pid>`). |
 | `VOX_NEWS_SITE_BASE_URL` | Public site base URL for RSS links (overrides `[orchestrator.news].site_base_url`). |
 | `VOX_NEWS_RSS_FEED_PATH` | Repo-relative path to `feed.xml` (overrides `[orchestrator.news].rss_feed_path`). |
 | `VOX_NEWS_SCAN_RECURSIVE` | `0`/`1`: whether `NewsService` walks `news_dir` recursively (default `1`). |
@@ -98,11 +131,18 @@ Full table: [mens SSOT](mens.md). Common entries:
 |----------|------|
 | `VOX_MESH_ENABLED` | Enables mens registry publish and related hooks. |
 | `VOX_MESH_CONTROL_ADDR` | This process’s control plane URL (publish/join target). |
-| `VOX_MESH_TOKEN` / `VOX_MESH_SCOPE_ID` | Auth and tenancy for the control plane. |
+| `VOX_MESH_TOKEN` / `VOX_MESH_WORKER_TOKEN` / `VOX_MESH_SUBMITTER_TOKEN` / `VOX_MESH_ADMIN_TOKEN` | Populi control-plane bearer roles (Clavis SSOT); legacy single-token mode uses `VOX_MESH_TOKEN` only. See [mens SSOT](mens.md). |
+| `VOX_MESH_JWT_HMAC_SECRET` | Optional HS256 secret so clients can use `Authorization: Bearer <jwt>` with claims `role`, `jti`, `exp` (Clavis SSOT). |
+| `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Optional Ed25519 public key (hex or Standard base64) to verify signed `job_result` / `job_fail` deliveries (worker signs raw BLAKE3 digest). |
+| `VOX_MESH_SCOPE_ID` | Tenancy for join/heartbeat when enforced server-side. |
+| `VOX_MESH_A2A_LEASE_MS` | Inbox claim lease duration (default 120s, clamped). |
 | `VOX_MESH_MAX_STALE_MS` | Client-side staleness filter for mens snapshots (MCP). |
 | `VOX_MESH_CODEX_TELEMETRY` | Emit Codex `populi_control_event` rows when set. |
 | `VOX_MESH_HTTP_JOIN` | `0`/`false` disables MCP HTTP join to the control plane; see [mens SSOT](mens.md). |
 | `VOX_MESH_HTTP_HEARTBEAT_SECS` | MCP heartbeat interval after join (`0` = no background heartbeat). |
+| `VOX_MESH_HTTP_RATE_LIMIT` | When `1`/`true`/`on`/`yes`, enables per–client-IP HTTP rate limiting on **`vox populi serve`** (see `tower_governor` in `vox-populi` transport). |
+| `VOX_MESH_HTTP_RATE_LIMIT_PER_SEC` | Steady-state requests per second per key when rate limiting is on (default **50**). |
+| `VOX_MESH_HTTP_RATE_LIMIT_BURST` | Burst capacity (default scales with per-sec). |
 | `VOX_MESH_ADVERTISE_GPU` | Legacy: sets `gpu_cuda` on the host capability snapshot. |
 | `VOX_MESH_ADVERTISE_VULKAN` | Sets `gpu_vulkan`. |
 | `VOX_MESH_ADVERTISE_WEBGPU` | Sets `gpu_webgpu`. |

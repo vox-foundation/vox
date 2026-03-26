@@ -1,6 +1,6 @@
 //! Registry vs docs / lib.rs / compilerd / dei / script duals validators.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 use std::fs;
 use std::path::Path;
@@ -9,9 +9,50 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 use super::docs_sync::{markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::registry::RegistryFile;
+use crate::command_contract::{merged_feature_gate_from_vox_cli_ops, EMBEDDED_COMMAND_REGISTRY_YAML};
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
-const KNOWN_LATIN_NS: &[&str] = &["fabrica", "mens", "ars", "ci", "codex", "mens", "recensio"];
+const KNOWN_LATIN_NS: &[&str] = &["fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei"];
+
+fn normalize_lf(s: &str) -> String {
+    s.replace("\r\n", "\n").replace('\r', "\n")
+}
+
+/// Fail when the registry on disk disagrees with the `include_str!` embed (stale `vox` binary).
+pub(crate) fn check_command_registry_embed_matches_disk(repo_root: &Path) -> Result<()> {
+    let p = repo_root.join(super::registry::REGISTRY_REL);
+    let disk = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+    if normalize_lf(&disk) != normalize_lf(EMBEDDED_COMMAND_REGISTRY_YAML) {
+        return Err(anyhow!(
+            "{} does not match the vox-cli embedded registry — rebuild with `cargo build -p vox-cli` so `include_str!` picks up edits",
+            p.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Catalog `feature_gate` must match merged registry rows for each path (SSOT).
+pub(crate) fn check_catalog_feature_gates_match_registry(reg: &RegistryFile) -> Result<()> {
+    let vox_cli: Vec<crate::command_registry_model::RegistryOperation> = reg
+        .operations
+        .iter()
+        .filter(|o| o.surface == "vox-cli")
+        .cloned()
+        .collect();
+    let catalog = crate::command_catalog::build_catalog();
+    for e in &catalog.entries {
+        let merged = merged_feature_gate_from_vox_cli_ops(&vox_cli, &e.path);
+        if merged != e.feature_gate {
+            return Err(anyhow!(
+                "command catalog feature_gate {:?} for path {:?} != registry merge {:?}",
+                e.feature_gate,
+                e.path,
+                merged
+            ));
+        }
+    }
+    Ok(())
+}
 
 pub(crate) fn check_catalog_generation_smoke() -> Result<()> {
     let catalog = crate::command_catalog::build_catalog();

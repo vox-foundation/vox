@@ -257,9 +257,25 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
             let token_set = env_map
                 .get("VOX_MESH_TOKEN")
                 .is_some_and(|v| !v.trim().is_empty());
+            let worker_set = env_map
+                .get("VOX_MESH_WORKER_TOKEN")
+                .is_some_and(|v| !v.trim().is_empty());
+            let submitter_set = env_map
+                .get("VOX_MESH_SUBMITTER_TOKEN")
+                .is_some_and(|v| !v.trim().is_empty());
+            let admin_set = env_map
+                .get("VOX_MESH_ADMIN_TOKEN")
+                .is_some_and(|v| !v.trim().is_empty());
             let scope_set = env_map
                 .get("VOX_MESH_SCOPE_ID")
                 .is_some_and(|v| !v.trim().is_empty());
+            let mesh_auth_mode = if token_set && !worker_set && !submitter_set && !admin_set {
+                "legacy_mesh_only"
+            } else if token_set || worker_set || submitter_set || admin_set {
+                "role_mix"
+            } else {
+                "open"
+            };
 
             if json || global_json {
                 let out = serde_json::json!({
@@ -268,6 +284,10 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                     "health_ok": health_ok,
                     "security": {
                         "token_set": token_set,
+                        "worker_token_set": worker_set,
+                        "submitter_token_set": submitter_set,
+                        "admin_token_set": admin_set,
+                        "mesh_auth_mode": mesh_auth_mode,
                         "scope_set": scope_set
                     },
                     "overlay": diagnostics,
@@ -285,9 +305,13 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 }
                 println!("  health: {}", if health_ok { "ok" } else { "down" });
                 println!(
-                    "  security: token={}, scope={}",
-                    if token_set { "set" } else { "missing" },
-                    if scope_set { "set" } else { "missing" }
+                    "  security: mesh_auth_mode={} mesh_token={} worker={} submitter={} admin={} scope={}",
+                    mesh_auth_mode,
+                    if token_set { "set" } else { "off" },
+                    if worker_set { "set" } else { "off" },
+                    if submitter_set { "set" } else { "off" },
+                    if admin_set { "set" } else { "off" },
+                    if scope_set { "set" } else { "off" },
                 );
                 for diag in diagnostics {
                     println!(

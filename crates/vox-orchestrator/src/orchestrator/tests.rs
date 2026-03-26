@@ -59,6 +59,7 @@ mod orch_smoke {
             retrieval_tier: "hybrid".to_string(),
             memory_hit_count: 2,
             knowledge_hit_count: 1,
+            chunk_hit_count: 0,
             used_vector: true,
             used_bm25: true,
             used_lexical_fallback: false,

@@ -62,6 +62,28 @@ impl crate::VoxDb {
         Ok(())
     }
 
+    /// List `(name, hash)` from `names` for `namespace`, ordered by `name`.
+    pub async fn list_names_in_namespace(
+        &self,
+        namespace: &str,
+    ) -> Result<Vec<(String, String)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT name, hash FROM names WHERE namespace = ?1 ORDER BY name ASC",
+                params![namespace],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push((
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+            ));
+        }
+        Ok(out)
+    }
+
     /// Return `MAX(version)` from `schema_version`, or `0` if the table is empty.
     pub async fn schema_version(&self) -> Result<i64, StoreError> {
         let mut rows = self

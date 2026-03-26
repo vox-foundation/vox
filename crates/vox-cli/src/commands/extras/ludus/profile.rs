@@ -11,11 +11,21 @@ use super::db_util;
 
 /// Show the daily gamification digest.
 pub async fn morning_digest() -> Result<()> {
+    if !vox_ludus::config_gate::is_enabled() {
+        return Ok(());
+    }
+    if matches!(
+        vox_ludus::config_gate::ludus_channel(),
+        vox_ludus::config_gate::LudusChannel::DigestPriority
+    ) {
+        // Prefer `vox ludus digest-weekly` for digest-first users.
+        return Ok(());
+    }
     let db = match db_util::get_db().await {
         Ok(db) => db,
         Err(_) => return Ok(()),
     };
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     let mut profile = db::get_profile(&db, &user_id)
         .await
@@ -45,7 +55,7 @@ pub async fn morning_digest() -> Result<()> {
     let quests = db::list_quests(&db, &user_id).await.unwrap_or_default();
     println!("  {}", "📋 Active Quests for Today:".bold());
     if quests.is_empty() {
-        println!("    No quests generated yet. Do some coding or run `vox ludus quest-generate`!");
+        println!("    No quests generated yet. Do some coding or run `vox ludus quest-generate`.");
     } else {
         let active = quests.iter().filter(|q| !q.completed).count();
         if active == 0 {
@@ -89,7 +99,7 @@ pub async fn record_activity() -> Result<()> {
         Err(_) => return Ok(()),
     };
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = match db::get_profile(&db, &user_id).await.unwrap_or(None) {
         Some(p) => p,
         None => {
@@ -105,39 +115,41 @@ pub async fn record_activity() -> Result<()> {
     let _ = db::upsert_profile(&db, &profile).await;
 
     use vox_ludus::streak::StreakResult;
-    match result {
-        StreakResult::Continued { streak, bonus_xp } if streak > 1 => {
-            println!(
-                "  🔥 {} {} ({} XP)",
-                "Streak continued:".bright_yellow(),
-                streak,
-                bonus_xp.to_string().bright_cyan()
-            );
+    if vox_ludus::output_policy::should_emit_cli_celebration() {
+        match result {
+            StreakResult::Continued { streak, bonus_xp } if streak > 1 => {
+                println!(
+                    "  🔥 {} {} ({} XP)",
+                    "Streak continued:".bright_yellow(),
+                    streak,
+                    bonus_xp.to_string().bright_cyan()
+                );
+            }
+            StreakResult::SavedByGrace { streak, bonus_xp } => {
+                println!(
+                    "  🛡️ {} {} ({} XP)",
+                    "Streak saved by grace period:".bright_green(),
+                    streak,
+                    bonus_xp.to_string().bright_cyan()
+                );
+            }
+            StreakResult::BrokenReset { previous } if previous > 1 => {
+                println!(
+                    "  🌱 {} (previous run: {} days — new streak starts now)",
+                    "Streak paused".bright_yellow(),
+                    previous
+                );
+            }
+            _ => {}
         }
-        StreakResult::SavedByGrace { streak, bonus_xp } => {
-            println!(
-                "  🛡️ {} {} ({} XP)",
-                "Streak saved by grace period:".bright_green(),
-                streak,
-                bonus_xp.to_string().bright_cyan()
-            );
-        }
-        StreakResult::BrokenReset { previous } if previous > 1 => {
-            println!(
-                "  💔 {} (was {} days)",
-                "Streak broken".bright_red(),
-                previous
-            );
-        }
-        _ => {}
-    }
 
-    if profile.level > old_level {
-        println!(
-            "  🏆 {} You reached {}!",
-            "LEVEL UP!".bright_magenta().bold(),
-            format!("Level {}", profile.level).bright_yellow()
-        );
+        if profile.level > old_level {
+            println!(
+                "  🏆 {} You reached {}!",
+                "LEVEL UP!".bright_magenta().bold(),
+                format!("Level {}", profile.level).bright_yellow()
+            );
+        }
     }
 
     Ok(())
@@ -189,33 +201,15 @@ async fn record_cli_event_inner(
         return Ok(());
     }
 
-    // Update streak / daily activity
-    let mut profile = match vox_ludus::db::get_profile(&db, &user_id)
-        .await
-        .unwrap_or(None)
-    {
-        Some(p) => p,
-        None => {
-            let p = vox_ludus::profile::LudusProfile::new_default(&user_id);
-            let _ = vox_ludus::db::upsert_profile(&db, &p).await;
-            p
-        }
-    };
-    let old_level = profile.level;
-    profile.record_daily_activity();
-    let _ = vox_ludus::db::upsert_profile(&db, &profile).await;
+    let ludus_uid = vox_ludus::db::canonical_user_id();
 
-    if profile.level > old_level {
-        tracing::info!("[ludus] Level up! Now level {}", profile.level);
-    }
-
-    // Route the specific CLI event through the reward pipeline
+    // Single authority: `process_event_rewards` (via route_event) performs daily activity + profile XP.
     let event_json = serde_json::json!({
         "type": event_type,
         "success": success,
         "agent_id": 0u64,
     });
-    let _ = vox_ludus::event_router::route_event(&db, &user_id, &event_json).await;
+    let _ = vox_ludus::event_router::route_event(&db, &ludus_uid, &event_json).await;
 
     Ok(())
 }
@@ -223,7 +217,7 @@ async fn record_cli_event_inner(
 /// Display gamification status (profile overview).
 pub async fn status() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = match db::get_profile(&db, &user_id).await? {
         Some(p) => p,
         None => {
@@ -316,7 +310,7 @@ pub async fn feedback_rate(
     example: Option<&std::path::Path>,
 ) -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     let mut feedback = vox_ludus::feedback::AiFeedback::new(
         uuid::Uuid::new_v4().to_string(),
@@ -380,7 +374,7 @@ pub async fn feedback_rate(
 /// Claim available daily or weekly periodic rewards.
 pub async fn reward_claim() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     let weekly_reward = vox_ludus::periodic_reward::current_weekly_reward(&user_id);
 
@@ -458,9 +452,9 @@ pub async fn reward_claim() -> Result<()> {
     Ok(())
 }
 
-/// View or change the gamification mode.
-pub async fn mode_command(set: Option<&str>) -> Result<()> {
-    let mut cfg = vox_ludus::config_gate::load();
+/// View or change the gamification mode (`effective`: include session env overlay).
+pub async fn mode_command(set: Option<&str>, effective: bool) -> Result<()> {
+    let mut cfg = vox_ludus::config_gate::load_disk();
 
     if let Some(mode_str) = set {
         match mode_str.to_lowercase().as_str() {
@@ -494,20 +488,183 @@ pub async fn mode_command(set: Option<&str>) -> Result<()> {
         } else {
             "off".bright_red().to_string()
         };
-        println!("  Current mode: {}", status);
+        println!("  On-disk mode: {}", status);
+        if effective {
+            let eff = vox_ludus::config_gate::load_effective();
+            let eff_s = if eff.gamify_enabled {
+                eff.gamify_mode.as_config_str().bright_cyan().to_string()
+            } else {
+                "off".bright_red().to_string()
+            };
+            println!("  Effective mode (env/session): {}", eff_s);
+            println!(
+                "  {}",
+                "Session overrides: VOX_LUDUS_SESSION_ENABLED, VOX_LUDUS_SESSION_MODE"
+                    .dimmed()
+            );
+            println!(
+                "  {}",
+                "Emergency kill-switch: VOX_LUDUS_EMERGENCY_OFF=1".dimmed()
+            );
+        }
         println!(
             "  Change with: {}",
-            "vox ludus mode set <balanced|serious|learning|off>".dimmed()
+            "vox ludus mode --set <balanced|serious|learning|off>".dimmed()
         );
     }
 
     Ok(())
 }
 
+/// Persist-enable Ludus (keeps current mode).
+pub async fn enable_ludus() -> Result<()> {
+    let mut cfg = vox_ludus::config_gate::load_disk();
+    cfg.gamify_enabled = true;
+    cfg.save()
+        .map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
+    println!("  ✅ {}", "Ludus enabled (saved to config).".bright_green());
+    Ok(())
+}
+
+/// Persist-disable Ludus.
+pub async fn disable_ludus() -> Result<()> {
+    let mut cfg = vox_ludus::config_gate::load_disk();
+    cfg.gamify_enabled = false;
+    cfg.save()
+        .map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
+    println!("  ✅ {}", "Ludus disabled (saved to config).".bright_green());
+    Ok(())
+}
+
+/// Merge synthetic `default` profile into the current local user when local is empty.
+pub async fn profile_merge_from_default() -> Result<()> {
+    let db = db_util::get_db().await?;
+    let user_id = vox_db::paths::local_user_id();
+    if db::merge_default_profile_into_user(&db, &user_id).await? {
+        println!(
+            "  ✅ Merged Ludus progress from `default` into `{}`.",
+            user_id.bright_green()
+        );
+    } else {
+        println!(
+            "  ℹ️  No merge needed (local profile exists or `default` is empty)."
+        );
+    }
+    Ok(())
+}
+
+/// Recent reward-policy snapshots (how Ludus interpreted recent events).
+pub async fn audit_show(limit: usize) -> Result<()> {
+    let db = db_util::get_db().await?;
+    let user_id = vox_ludus::db::canonical_user_id();
+    let rows = db::list_recent_policy_snapshots(&db, &user_id, limit).await?;
+    println!("{}", "Ludus policy audit (recent awards)".bright_cyan().bold());
+    if rows.is_empty() {
+        println!("  (no policy snapshots yet — enable Ludus and generate events.)");
+        return Ok(());
+    }
+    for r in rows {
+        let cap = if r.grind_capped != 0 { " capped" } else { "" };
+        println!(
+            "  {:<22} {:>4} XP / {:>3} 💎  ×{:.2} [{}]{}  {}",
+            r.event_type.bright_white(),
+            r.awarded_xp,
+            r.awarded_crystals,
+            r.effective_multiplier,
+            r.mode_label.dimmed(),
+            cap.dimmed(),
+            r.created_at.dimmed()
+        );
+    }
+    Ok(())
+}
+
+/// Local KPI summary from policy snapshots + hint telemetry.
+pub async fn metrics_show() -> Result<()> {
+    let db = db_util::get_db().await?;
+    let user_id = vox_ludus::db::canonical_user_id();
+    let k = db::load_kpi_summary(&db, &user_id).await?;
+    println!("{}", "Ludus metrics (local user)".bright_cyan().bold());
+    println!("  Events (policy rows): {}", k.events_recorded);
+    println!("  Total XP awarded: {}", k.total_xp_awarded);
+    println!("  Total crystals: {}", k.total_crystals_awarded);
+    println!("  Grind-capped events: {}", k.grind_capped_events);
+    println!(
+        "  Avg effective multiplier: {:.2}",
+        k.avg_effective_multiplier
+    );
+    println!("  Hint telemetry rows: {}", k.hint_events_logged);
+    Ok(())
+}
+
+/// Short post-session digest: profile + KPI headliners.
+pub async fn session_digest() -> Result<()> {
+    let db = db_util::get_db().await?;
+    let user_id = vox_ludus::db::canonical_user_id();
+    let k = db::load_kpi_summary(&db, &user_id).await?;
+    let profile = db::get_profile(&db, &user_id)
+        .await?
+        .unwrap_or_else(|| LudusProfile::new_default(&user_id));
+    println!("{}", "═══ Ludus session digest ═══".bright_cyan());
+    println!(
+        "  {}  streak {}  💎{}  ✦{}",
+        profile.title().bright_yellow(),
+        profile.streak.current_streak,
+        profile.crystals,
+        profile.lumens
+    );
+    println!(
+        "  All-time policy events: {} ({} grind-capped)",
+        k.events_recorded, k.grind_capped_events
+    );
+    Ok(())
+}
+
+/// Rolling 7-day digest: KPI, unread notifications, recent policy awards.
+pub async fn digest_weekly() -> Result<()> {
+    let db = db_util::get_db().await?;
+    let user_id = vox_ludus::db::canonical_user_id();
+    let k = db::load_kpi_summary(&db, &user_id).await?;
+    let policy = db::list_policy_snapshots_since_days(&db, &user_id, 7, 48).await?;
+    let notes = db::list_unread_notifications(&db, &user_id, 20).await?;
+    println!("{}", "═══ Ludus 7-day digest ═══".bright_cyan().bold());
+    println!(
+        "  Policy rows (all-time): {}  |  grind-capped: {}  |  hints: {}",
+        k.events_recorded, k.grind_capped_events, k.hint_events_logged
+    );
+    println!(
+        "  Unread notifications: {}  |  policy events (7d window, capped): {}",
+        notes.len(),
+        policy.len()
+    );
+    if !notes.is_empty() {
+        println!("{}", "  Latest notifications:".dimmed());
+        for n in notes.iter().take(8) {
+            println!(
+                "    • {} — {}",
+                n.title.bright_white(),
+                n.message.dimmed()
+            );
+        }
+    }
+    if !policy.is_empty() {
+        println!("{}", "  Recent awards (7d):".dimmed());
+        for r in policy.iter().take(12) {
+            println!(
+                "    • {:<20} +{} XP  {}",
+                r.event_type,
+                r.awarded_xp,
+                r.created_at.dimmed()
+            );
+        }
+    }
+    Ok(())
+}
+
 /// Use a streak shield to protect your daily streak.
 pub async fn shield_use() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = db::get_profile(&db, &user_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Profile not found"))?;

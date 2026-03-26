@@ -246,18 +246,93 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
     }
 }
 
-/// Idempotent "fleet running" probe returning the current agent count.
-/// Report agent count for the embedded orchestrator (no separate process spawn in this crate).
+/// Truthful embedded-runtime probe: MCP holds the orchestrator in-process; separate
+/// `AgentFleet` loops are not started from this tool.
 pub async fn orchestrator_start(state: &ServerState) -> String {
-    let orch = &state.orchestrator;
+    use crate::params::OrchestratorRuntimeProbe;
 
-    // In a real execution, we would start AgentFleet by moving Orchestrator into it.
-    // However, since we hold it in ServerState inside a Mutex, we simply return
-    // that the orchestrator is running and report the number of agents.
-    let count = orch.agent_ids().len();
-    ToolResult::ok(format!(
-        "AgentFleet is running with {} active agents.",
-        count
-    ))
+    let orch = &state.orchestrator;
+    let agent_count = orch.agent_ids().len();
+    let registered_worker_processes =
+        vox_orchestrator::sync_lock::rw_read(&*orch.agent_handles).len();
+    let execution_mode = if registered_worker_processes > 0 {
+        "workers_attached"
+    } else {
+        "queue_only"
+    };
+    ToolResult::ok(OrchestratorRuntimeProbe {
+        honest_message: format!(
+            "Embedded orchestrator is active with {agent_count} agent queue(s); \
+             {registered_worker_processes} vox-runtime worker process handle(s) registered."
+        ),
+        agent_count,
+        registered_worker_processes,
+        execution_mode: execution_mode.to_string(),
+        agent_fleet_loop_running: false,
+        note: "vox_orchestrator_start does not spawn an out-of-process AgentFleet; \
+               tasks queue in-process until worker handles are registered.",
+    })
     .to_json()
+}
+
+/// Spawn a new orchestrator agent (optionally marked dynamic / auto-retire when idle).
+pub async fn spawn_agent(
+    state: &ServerState,
+    params: crate::params::SpawnAgentParams,
+) -> String {
+    let orch = &state.orchestrator;
+    let r = if params.dynamic.unwrap_or(false) {
+        orch.spawn_dynamic_agent(&params.name)
+    } else {
+        orch.spawn_agent(&params.name)
+    };
+    match r {
+        Ok(id) => ToolResult::ok(serde_json::json!({
+            "agent_id": id.0,
+            "name": params.name,
+            "dynamic": params.dynamic.unwrap_or(false),
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    }
+}
+
+/// Retire an agent (releases locks/affinity, drains queue metadata).
+pub async fn retire_agent(
+    state: &ServerState,
+    params: crate::params::AgentIdToolParams,
+) -> String {
+    let orch = &state.orchestrator;
+    match orch.retire_agent(vox_orchestrator::AgentId(params.agent_id)) {
+        Ok(remaining) => ToolResult::ok(serde_json::json!({
+            "agent_id": params.agent_id,
+            "remaining_tasks": remaining.len(),
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    }
+}
+
+/// Pause an agent's task queue.
+pub async fn pause_agent(
+    state: &ServerState,
+    params: crate::params::AgentIdToolParams,
+) -> String {
+    let orch = &state.orchestrator;
+    match orch.pause_agent(vox_orchestrator::AgentId(params.agent_id)) {
+        Ok(()) => ToolResult::ok(format!("Agent {} paused", params.agent_id)).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+    }
+}
+
+/// Resume a paused agent queue.
+pub async fn resume_agent(
+    state: &ServerState,
+    params: crate::params::AgentIdToolParams,
+) -> String {
+    let orch = &state.orchestrator;
+    match orch.resume_agent(vox_orchestrator::AgentId(params.agent_id)) {
+        Ok(()) => ToolResult::ok(format!("Agent {} resumed", params.agent_id)).to_json(),
+        Err(e) => ToolResult::<String>::err(e.to_string()).to_json(),
+    }
 }

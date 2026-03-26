@@ -92,6 +92,10 @@ pub enum Token {
     AtTest,
     #[token("@server")]
     AtServer,
+    #[token("@query")]
+    AtQuery,
+    #[token("@mutation")]
+    AtMutation,
     #[token("@table")]
     AtTable,
     #[token("@index")]
@@ -253,6 +257,8 @@ impl std::fmt::Display for Token {
             Token::AtExternal => write!(f, "@external"),
             Token::AtTest => write!(f, "@test"),
             Token::AtServer => write!(f, "@server"),
+            Token::AtQuery => write!(f, "@query"),
+            Token::AtMutation => write!(f, "@mutation"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtV0 => write!(f, "@v0"),

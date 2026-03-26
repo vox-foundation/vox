@@ -22,8 +22,11 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             HirHttpMethod::Delete => needs_delete = true,
         }
     }
-    // Server functions always use post
-    if !module.server_fns.is_empty() {
+    // Server functions, @query, and @mutation use POST + JSON body
+    if !module.server_fns.is_empty()
+        || !module.query_fns.is_empty()
+        || !module.mutation_fns.is_empty()
+    {
         needs_post = true;
     }
 
@@ -148,7 +151,10 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         out.push_str(&emit_db_setup(module));
     }
 
-    let has_routes = !module.routes.is_empty() || !module.server_fns.is_empty();
+    let has_routes = !module.routes.is_empty()
+        || !module.server_fns.is_empty()
+        || !module.query_fns.is_empty()
+        || !module.mutation_fns.is_empty();
 
     // Setup routes
     if has_routes {
@@ -173,6 +179,20 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             out.push_str(&format!(
                 "        .route(\"{}\", post(handle_sf_{}))\n",
                 sf.route_path, sf.name
+            ));
+        }
+        // `@query` — POST /api/query/<name>
+        for qf in &module.query_fns {
+            out.push_str(&format!(
+                "        .route(\"{}\", post(handle_q_{}))\n",
+                qf.route_path, qf.name
+            ));
+        }
+        // `@mutation` — POST /api/mutation/<name>
+        for mf in &module.mutation_fns {
+            out.push_str(&format!(
+                "        .route(\"{}\", post(handle_m_{}))\n",
+                mf.route_path, mf.name
             ));
         }
         out.push_str("        .fallback(serve_dispatch);\n\n");
@@ -205,7 +225,15 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
 
     // Generate server function handlers
     for sf in &module.server_fns {
-        out.push_str(&emit_server_fn_handler(sf, has_tables));
+        out.push_str(&emit_server_fn_handler(sf, has_tables, "handle_sf_", false));
+    }
+
+    for qf in &module.query_fns {
+        out.push_str(&emit_server_fn_handler(qf, has_tables, "handle_q_", false));
+    }
+
+    for mf in &module.mutation_fns {
+        out.push_str(&emit_server_fn_handler(mf, has_tables, "handle_m_", has_tables));
     }
 
     out
@@ -233,7 +261,7 @@ fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
 
     let mut has_return = false;
     for stmt in &route.body {
-        let emitted = emit_stmt(stmt, 1, true, false);
+        let emitted = emit_stmt(stmt, 1, true, false, false);
         if emitted.contains("return Json(") {
             has_return = true;
         }
@@ -247,9 +275,14 @@ fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
 }
 
 /// Generate an Axum handler for a server function.
-fn emit_server_fn_handler(sf: &HirServerFn, has_tables: bool) -> String {
+fn emit_server_fn_handler(
+    sf: &HirServerFn,
+    has_tables: bool,
+    name_prefix: &str,
+    wrap_mutation_tx: bool,
+) -> String {
     let mut out = String::new();
-    out.push_str(&format!("async fn handle_sf_{}(", sf.name));
+    out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Codex>>, ");
     }
@@ -263,16 +296,38 @@ fn emit_server_fn_handler(sf: &HirServerFn, has_tables: bool) -> String {
         ));
     }
 
-    let mut has_return = false;
-    for stmt in &sf.body {
-        let emitted = emit_stmt(stmt, 1, true, false);
-        if emitted.contains("return Json(") {
-            has_return = true;
+    if wrap_mutation_tx && has_tables {
+        out.push_str("    let db = (*db).clone();\n");
+        out.push_str("    match db.transaction(async move {\n");
+        let mut has_return = false;
+        for stmt in &sf.body {
+            let emitted = emit_stmt(stmt, 2, true, false, true);
+            if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
+                has_return = true;
+            }
+            out.push_str(&emitted);
         }
-        out.push_str(&emitted);
-    }
-    if !has_return {
-        out.push_str("    Json(serde_json::Value::Null)\n");
+        if !has_return {
+            out.push_str("        Ok(Json(serde_json::Value::Null))\n");
+        }
+        out.push_str("    }).await {\n");
+        out.push_str("        Ok(resp) => resp,\n");
+        out.push_str(
+            "        Err(e) => Json(serde_json::json!({\"error\": e.to_string()})),\n",
+        );
+        out.push_str("    }\n");
+    } else {
+        let mut has_return = false;
+        for stmt in &sf.body {
+            let emitted = emit_stmt(stmt, 1, true, false, false);
+            if emitted.contains("return Json(") {
+                has_return = true;
+            }
+            out.push_str(&emitted);
+        }
+        if !has_return {
+            out.push_str("    Json(serde_json::Value::Null)\n");
+        }
     }
     out.push_str("}\n\n");
     out

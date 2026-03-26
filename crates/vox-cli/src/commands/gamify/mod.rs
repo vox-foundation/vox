@@ -1,4 +1,4 @@
-//! `vox gamify` subcommands — profile, companions, quests, battles.
+//! Ludus helpers (profile, companions, quests, battles), invoked via **`vox ludus`** when `extras-ludus` is enabled.
 //!
 //! Wired as real modules (no `include!` shards). CLI entry may be added later; functions are used by tests and tooling.
 

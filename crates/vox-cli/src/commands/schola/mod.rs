@@ -1,4 +1,4 @@
-//! `vox schola train` / `vox schola merge-qlora` — native training and QLoRA merge helpers.
+//! `vox mens train` / merge-qlora — native training and QLoRA merge helpers (`commands::schola`).
 
 mod process_priority;
 

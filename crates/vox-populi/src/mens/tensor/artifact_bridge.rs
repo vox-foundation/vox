@@ -9,7 +9,7 @@
 /// Keep in sync with [`mens-training-ssot.md`](../../../../docs/src/architecture/mens-training-ssot.md) merge table.
 pub const MERGE_QLORA_REJECTS_BURN_BIN: &str = "`merge-qlora` expects a Candle **safetensors** adapter (`candle_qlora_adapter.safetensors`), \
      not a Burn LoRA **`*.bin`** checkpoint.\n\
-     For Burn checkpoints from `vox schola train --backend lora`, use **`vox mens merge-weights`** \
+     For Burn checkpoints from `vox mens train --backend lora`, use **`vox mens merge-weights`** \
      to produce `model_merged.bin`.\n\
      Burn LoRA targets attention Q/K/V separately; Candle v2 adapters use `midN` / `lm_head` names tied to \
      the qlora-rs projection stack — there is **no** supported automatic Burn→Candle adapter conversion.\n\

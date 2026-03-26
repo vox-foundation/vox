@@ -48,6 +48,7 @@ vox-ast
 vox-ars
 vox-bootstrap
 vox-capability-registry
+vox-clavis
 vox-cli
 vox-codegen-llvm
 vox-codegen-rust
@@ -86,6 +87,12 @@ vox-publisher
 vox-mens
 vox-repository
 vox-runtime
+vox-schola
+vox-scaling-policy
+vox-scientia-api
+vox-scientia-core
+vox-scientia-runtime
+vox-scientia-social
 vox-skills
 vox-socrates-policy
 vox-ssg
@@ -94,7 +101,6 @@ vox-tensor
 vox-test-harness
 vox-toestub
 vox-tools
-vox-schola
 vox-typeck
 vox-webhook
 vox-workflow-runtime

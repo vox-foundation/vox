@@ -177,6 +177,27 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
 
     for decl in &module.declarations {
         if let Decl::Table(t) = decl {
+            for field in &t.fields {
+                if field.name == "id" {
+                    diags.push(Diagnostic {
+                        message: format!(
+                            "Table '{}' declares a column `id`; Vox `@table` already adds a surrogate `_id` primary key. \
+                             Rename this field (e.g. `user_key`, `external_id`) to avoid LLM confusion with `_id`.",
+                            t.name
+                        ),
+                        span: field.span,
+                        severity: Severity::Warning,
+                        expected_type: None,
+                        found_type: None,
+                        context: None,
+                        suggestions: vec![
+                            "Omit a separate `id` and use `_id` in generated Rust/Turso rows.".into(),
+                            "Or rename to a non-reserved column name that is not `id`.".into(),
+                        ],
+                        category: DiagnosticCategory::Lint,
+                    });
+                }
+            }
             register_table(&mut env, t);
         }
     }

@@ -28,16 +28,16 @@ export class ModelRegistryClient {
         if (this._cache && Date.now() - this._cacheTs < ModelRegistryClient.CACHE_TTL_MS) {
             return this._cache;
         }
-        const result = await this._mcp.call<ModelSpec[]>('vox_list_models', {});
+        const result = await this._mcp.modelList();
         if (Array.isArray(result)) {
-            this._cache = result;
+            this._cache = result as ModelSpec[];
             this._cacheTs = Date.now();
         }
         return this._cache ?? [];
     }
 
     async suggestModel(taskCategory: string): Promise<ModelSpec | null> {
-        return this._mcp.call<ModelSpec>('vox_suggest_model', { task_category: taskCategory });
+        return this._mcp.suggestModel<ModelSpec>(taskCategory);
     }
 
     async getActive(): Promise<ModelSpec | null> {

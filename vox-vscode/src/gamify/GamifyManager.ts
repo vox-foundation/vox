@@ -10,12 +10,19 @@ export class GamifyManager {
     private _pollTimer?: NodeJS.Timeout;
     private _onUpdate: (state: GamifyState) => void;
     private _seenAchievements = new Set<string>();
+    private readonly _statusBar?: vscode.StatusBarItem;
 
     constructor(
         private readonly _mcp: VoxMcpClient,
         onUpdate: (state: GamifyState) => void,
+        ludusStatusBar?: vscode.StatusBarItem,
     ) {
         this._onUpdate = onUpdate;
+        this._statusBar = ludusStatusBar;
+        if (this._statusBar) {
+            this._statusBar.command = 'vox.focusSidebar';
+            this._statusBar.hide();
+        }
     }
 
     start(): void {
@@ -69,6 +76,25 @@ export class GamifyManager {
         }
 
         this._onUpdate(this._state);
+
+        if (this._statusBar) {
+            if (!ConfigManager.gamifyShowHud) {
+                this._statusBar.hide();
+            } else {
+                const st = this._streakLabel();
+                this._statusBar.text = `$(flame) Lv ${this._state.level} · ${st}`;
+                this._statusBar.tooltip = new vscode.MarkdownString(
+                    `**Ludus** — ${this._state.xp} XP, ${this._state.crystals ?? 0} crystals\n\n[Open sidebar](command:vox.focusSidebar)`,
+                );
+                this._statusBar.tooltip.isTrusted = true;
+                this._statusBar.show();
+            }
+        }
+    }
+
+    private _streakLabel(): string {
+        if (this._state.streak_frozen) return `${this._state.streak}d (frozen)`;
+        return `${this._state.streak}d`;
     }
 
     get state(): GamifyState { return this._state; }

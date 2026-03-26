@@ -39,12 +39,9 @@ export class StatusBarManager {
     }
 
     async refresh(): Promise<void> {
-        let budget: any = null;
-        if (this._mcp.connected) {
-            budget = await this._mcp.budgetStatus();
-        } else {
-            budget = await fetchVoxStatusRaw();
-        }
+        const budget: any = this._mcp.connected
+            ? await this._mcp.budgetStatus()
+            : await fetchVoxStatusRaw();
 
         const activeModelId = ConfigManager.activeModel;
 

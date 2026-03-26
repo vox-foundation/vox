@@ -8,7 +8,7 @@ training_eligible: true
 
 # VoxGiantia publication architecture (beginner map)
 
-Companion docs: [operator inputs vs derived fields](../how-to/scientia-publication-operator-inputs.md), [failure playbook](../reference/scientia-publication-playbook.md).
+Companion docs: [operator inputs vs derived fields](../how-to/scientia-publication-operator-inputs.md), [failure playbook](../reference/scientia-publication-playbook.md), [scholarly digest-bound invariants](scholarly-digest-approval-invariants.md), [external jobs schema plan](scholarly-external-schema-plan.md).
 
 This document explains, in practical terms, how VoxGiantia supports the goal:
 

@@ -25,6 +25,7 @@
     "status": "disabled"
   },
   "decision_reasons": {
-    "twitter": "policy_disabled"
+    "twitter": "policy_disabled",
+    "social_retry_max_attempts": "3"
   }
 }

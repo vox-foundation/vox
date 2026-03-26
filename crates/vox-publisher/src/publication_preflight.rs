@@ -7,13 +7,15 @@ use regex::Regex;
 use crate::publication::PublicationManifest;
 use crate::scientific_metadata::{METADATA_KEY_SCIENTIFIC, ScientificPublicationMetadata};
 
-/// Venue-sensitive strictness (`double_blind` adds anonymization checks on the body).
+/// Venue-sensitive strictness (`double_blind` anonymization; `metadata_complete` errors on thin metadata).
 #[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PreflightProfile {
     #[default]
     Default,
     DoubleBlind,
+    /// Errors when structured scholarly metadata is missing or insufficient for repository metadata exports.
+    MetadataComplete,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -45,6 +47,20 @@ fn email_pattern() -> &'static Regex {
     RE.get_or_init(|| {
         Regex::new(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
             .expect("email preflight regex")
+    })
+}
+
+/// ORCID id pattern (checksum digit may be `X`).
+fn orcid_id_pattern() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(concat!(
+            r"\b",
+            r"\d{4}-\d{4}-\d{4}-\d{3}",
+            r"[0-9X]",
+            r"\b"
+        ))
+        .expect("orcid id preflight regex")
     })
 }
 
@@ -138,10 +154,25 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
                 .as_ref()
                 .is_none_or(|s| s.trim().is_empty())
             {
+                if profile == PreflightProfile::MetadataComplete {
+                    findings.push(PreflightFinding {
+                        code: "license_required",
+                        severity: PreflightSeverity::Error,
+                        message: "scientific_publication.license_spdx is required for metadata_complete preflight".to_string(),
+                    });
+                } else {
+                    findings.push(PreflightFinding {
+                        code: "license_missing",
+                        severity: PreflightSeverity::Warning,
+                        message: "scientific_publication.license_spdx is unset (recommended for self-archiving and journals)".to_string(),
+                    });
+                }
+            }
+            if profile == PreflightProfile::MetadataComplete && sci.authors.is_empty() {
                 findings.push(PreflightFinding {
-                    code: "license_missing",
-                    severity: PreflightSeverity::Warning,
-                    message: "scientific_publication.license_spdx is unset (recommended for self-archiving and journals)".to_string(),
+                    code: "scientific_authors_required",
+                    severity: PreflightSeverity::Error,
+                    message: "metadata_complete requires at least one scientific_publication.authors entry".to_string(),
                 });
             }
             let repro_empty = sci.reproducibility.as_ref().is_none_or(|r| {
@@ -164,13 +195,23 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
             }
         }
         Ok(None) => {
-            findings.push(PreflightFinding {
-                code: "scientific_metadata_absent",
-                severity: PreflightSeverity::Warning,
-                message: format!(
-                    "no `{METADATA_KEY_SCIENTIFIC}` in metadata_json — add structured authors, license, and reproducibility for publication targets"
-                ),
-            });
+            if profile == PreflightProfile::MetadataComplete {
+                findings.push(PreflightFinding {
+                    code: "scientific_metadata_required",
+                    severity: PreflightSeverity::Error,
+                    message: format!(
+                        "metadata_complete requires `{METADATA_KEY_SCIENTIFIC}` in metadata_json"
+                    ),
+                });
+            } else {
+                findings.push(PreflightFinding {
+                    code: "scientific_metadata_absent",
+                    severity: PreflightSeverity::Warning,
+                    message: format!(
+                        "no `{METADATA_KEY_SCIENTIFIC}` in metadata_json — add structured authors, license, and reproducibility for publication targets"
+                    ),
+                });
+            }
         }
         Err(e) => findings.push(PreflightFinding {
             code: "scientific_metadata_invalid",
@@ -184,11 +225,19 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
         .as_deref()
         .is_none_or(|s| s.trim().is_empty())
     {
-        findings.push(PreflightFinding {
-            code: "abstract_missing",
-            severity: PreflightSeverity::Warning,
-            message: "abstract_text is empty (journals and arXiv expect an abstract)".to_string(),
-        });
+        if profile == PreflightProfile::MetadataComplete {
+            findings.push(PreflightFinding {
+                code: "abstract_required",
+                severity: PreflightSeverity::Error,
+                message: "abstract_text is required for metadata_complete preflight".to_string(),
+            });
+        } else {
+            findings.push(PreflightFinding {
+                code: "abstract_missing",
+                severity: PreflightSeverity::Warning,
+                message: "abstract_text is empty (journals and arXiv expect an abstract)".to_string(),
+            });
+        }
     }
 
     if let Some(c) = manifest.citations_json.as_deref() {
@@ -202,14 +251,32 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
         }
     }
 
-    if profile == PreflightProfile::DoubleBlind && email_pattern().is_match(&manifest.body_markdown)
-    {
-        findings.push(PreflightFinding {
-            code: "double_blind_email_in_body",
-            severity: PreflightSeverity::Error,
-            message: "email-like pattern in body_markdown — remove for double-blind submission"
-                .to_string(),
-        });
+    if profile == PreflightProfile::DoubleBlind {
+        let body = &manifest.body_markdown;
+        if email_pattern().is_match(body) {
+            findings.push(PreflightFinding {
+                code: "double_blind_email_in_body",
+                severity: PreflightSeverity::Error,
+                message: "email-like pattern in body_markdown — remove for double-blind submission"
+                    .to_string(),
+            });
+        }
+        if body.to_ascii_lowercase().contains("orcid.org") {
+            findings.push(PreflightFinding {
+                code: "double_blind_orcid_url_in_body",
+                severity: PreflightSeverity::Error,
+                message: "`orcid.org` reference in body_markdown — remove for double-blind submission"
+                    .to_string(),
+            });
+        }
+        if orcid_id_pattern().is_match(body) {
+            findings.push(PreflightFinding {
+                code: "double_blind_orcid_id_in_body",
+                severity: PreflightSeverity::Error,
+                message: "ORCID identifier pattern in body_markdown — remove for double-blind submission"
+                    .to_string(),
+            });
+        }
     }
 
     let err_n = findings
@@ -485,6 +552,51 @@ mod tests {
                 .iter()
                 .any(|f| f.code == "double_blind_email_in_body")
         );
+    }
+
+    #[test]
+    fn double_blind_flags_orcid_in_body() {
+        let m = sample_manifest(|x| {
+            x.body_markdown = "See also https://orcid.org/0000-0002-1825-0097".to_string();
+        });
+        let r = run_preflight(&m, PreflightProfile::DoubleBlind);
+        assert!(!r.ok);
+        assert!(
+            r.findings
+                .iter()
+                .any(|f| f.code == "double_blind_orcid_url_in_body")
+        );
+    }
+
+    #[test]
+    fn metadata_complete_errors_without_scientific_block() {
+        let m = sample_manifest(|_| {});
+        let r = run_preflight(&m, PreflightProfile::MetadataComplete);
+        assert!(!r.ok);
+        assert!(
+            r.findings
+                .iter()
+                .any(|f| f.code == "scientific_metadata_required")
+        );
+    }
+
+    #[test]
+    fn metadata_complete_ok_when_fully_populated() {
+        let sci = ScientificPublicationMetadata {
+            authors: vec![ScientificAuthor {
+                name: "Ada Lovelace".to_string(),
+                orcid: None,
+                affiliation: None,
+            }],
+            license_spdx: Some("MIT".to_string()),
+            ..Default::default()
+        };
+        let meta =
+            crate::scientific_metadata::build_scientia_metadata_json("t", None, Some(&sci), None)
+                .unwrap();
+        let m = sample_manifest(|x| x.metadata_json = Some(meta));
+        let r = run_preflight(&m, PreflightProfile::MetadataComplete);
+        assert!(r.ok, "{:?}", r.findings);
     }
 
     #[test]

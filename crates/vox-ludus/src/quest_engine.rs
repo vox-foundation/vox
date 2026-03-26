@@ -155,12 +155,11 @@ impl QuestArchetype {
 
     /// Derive today's archetype from the date and user_id hash (deterministic, daily rotation).
     pub fn today_for_user(user_id: &str) -> Self {
-        use std::hash::{Hash, Hasher};
+        use xxhash_rust::xxh3::xxh3_64;
         let today = crate::util::now_unix() / QUEST_EXPIRY_SECS;
-        let mut h = twox_hash::XxHash64::default();
-        today.hash(&mut h);
-        user_id.hash(&mut h);
-        let idx = (h.finish() as usize) % Self::ALL.len();
+        let key = format!("{today}\0{user_id}");
+        let h = xxh3_64(key.as_bytes());
+        let idx = (h as usize) % Self::ALL.len();
         Self::ALL[idx]
     }
 
@@ -373,7 +372,7 @@ fn archetype_quest(user_id: &str, archetype: QuestArchetype) -> Quest {
 fn deterministic_hint_for_issue(issue: &CodeIssue) -> Option<String> {
     match issue.kind {
         CodeIssueKind::Todo => Some(format!(
-            "Resolve the TODO at {}:{} to earn XP. Use `vox gamify quest-generate` to track progress.",
+            "Resolve the TODO at {}:{} to earn XP. Use `vox ludus quest-generate` to track progress.",
             issue.file_path.display(),
             issue.line
         )),

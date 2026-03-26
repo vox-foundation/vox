@@ -23,8 +23,11 @@ pub use pipeline::{ScriptTarget, generate, generate_script, generate_script_with
 mod tests {
     use super::*;
     use crate::ast::span::Span;
-    use crate::hir::{DefId, HirActor, HirModule, HirTable, HirTableField, HirType, HirWorkflow};
-    use emit::emit_table_struct;
+    use crate::hir::{
+        DefId, HirActor, HirExpr, HirModule, HirServerFn, HirStmt, HirTable, HirTableField, HirType,
+        HirWorkflow,
+    };
+    use emit::{emit_main, emit_table_struct};
 
     fn empty_module() -> HirModule {
         HirModule::default()
@@ -66,7 +69,7 @@ mod tests {
     #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
     fn emits_struct_and_patch_struct() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         assert!(out.contains("pub struct Task {"), "should emit Task struct");
         assert!(
             out.contains("pub struct TaskPatch {"),
@@ -86,7 +89,7 @@ mod tests {
     #[test]
     fn emits_id_field() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         assert!(
             out.contains("pub _id: Option<i64>"),
             "should emit _id Option<i64>"
@@ -97,7 +100,7 @@ mod tests {
     #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
     fn emits_all_typed_dsl_methods() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         // Typed DSL surface — these are the LLM-native methods
         assert!(out.contains("pub async fn all("), "should emit all()");
         assert!(
@@ -135,7 +138,7 @@ mod tests {
     #[test]
     fn emits_legacy_escape_hatch_methods() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         // Legacy compat — must remain as frozen escape hatches
         assert!(
             out.contains("pub async fn insert("),
@@ -146,19 +149,43 @@ mod tests {
             "should retain legacy get"
         );
         assert!(
-            out.contains("pub async fn query("),
-            "should retain escape-hatch query"
+            out.contains("pub async fn all("),
+            "should emit safe all()"
+        );
+        assert!(
+            out.contains("pub async fn unsafe_query_raw_clause("),
+            "should retain escape-hatch dynamic SQL (unsafe_query_raw_clause)"
         );
         assert!(
             out.contains("pub async fn delete("),
             "should retain legacy delete"
+        );
+        assert!(
+            out.contains("pub async fn count("),
+            "should emit safe count()"
+        );
+        assert!(
+            out.contains("pub async fn count_where("),
+            "should emit parameterized count_where()"
+        );
+        assert!(
+            out.contains("pub async fn all_order_limit("),
+            "should emit all_order_limit()"
+        );
+        assert!(
+            out.contains("pub async fn filter_where_order_limit("),
+            "should emit filter_where_order_limit()"
+        );
+        assert!(
+            out.contains("pub async fn filter_where("),
+            "should emit parameterized filter_where()"
         );
     }
 
     #[test]
     fn emits_correct_table_name_in_sql() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         assert!(
             out.contains("FROM task"),
             "SQL should reference lowercase table name 'task'"
@@ -174,10 +201,46 @@ mod tests {
     }
 
     #[test]
+    fn rejects_colliding_select_projection_suffixes() {
+        use super::emit::validate_db_projection_suffixes_unique;
+        let err = validate_db_projection_suffixes_unique(
+            "Task",
+            &[
+                vec!["x".into(), "y_z".into()],
+                vec!["x_y".into(), "z".into()],
+            ],
+        )
+        .expect_err("x_y_z projection suffix collision");
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("suffix") && msg.contains("Task"),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn emits_select_projection_helpers_when_configured() {
+        let table = simple_task_table();
+        let out = emit_table_struct(
+            &table,
+            &[vec!["title".into(), "done".into()]],
+        );
+        assert!(
+            out.contains("fn from_row_sel_title_done"),
+            "should emit from_row_sel_* for projection"
+        );
+        assert!(out.contains("all_proj_title_done"));
+        assert!(
+            out.contains("SELECT _id, title, done FROM task"),
+            "projection SQL should list explicit columns"
+        );
+    }
+
+    #[test]
     #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
     fn bool_field_maps_to_i64_in_from_row() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         // bool stored as i64 (0/1)
         assert!(
             out.contains("row.get::<i64>") && out.contains("!= 0"),
@@ -189,7 +252,7 @@ mod tests {
     #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
     fn option_field_maps_to_option_type_in_from_row() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         assert!(
             out.contains("row.get::<Option<i64>>"),
             "Option<int> should deserialize via Option<i64>"
@@ -199,7 +262,7 @@ mod tests {
     #[test]
     fn find_returns_bare_t_with_error_on_missing() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         // find must return Self with turso::Error if missing, per vox non-null policy
         assert!(
             out.contains("Result<Self, turso::Error>"),
@@ -211,7 +274,7 @@ mod tests {
     #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
     fn insert_typed_uses_turso_value_not_clone() {
         let table = simple_task_table();
-        let out = emit_table_struct(&table);
+        let out = emit_table_struct(&table, &[]);
         // insert_typed uses turso::Value, not .clone() raw value
         assert!(
             out.contains("turso::Value::Text(") || out.contains("turso::Value::Integer("),
@@ -283,6 +346,79 @@ mod tests {
         assert!(
             result.is_ok(),
             "native script with actor should not be blocked"
+        );
+    }
+
+    #[test]
+    fn emit_main_registers_query_and_mutation_routes() {
+        let sp = Span::new(0, 0);
+        let mut module = empty_module();
+        module.query_fns.push(HirServerFn {
+            id: DefId(10),
+            name: "q1".into(),
+            params: vec![],
+            return_type: None,
+            body: vec![HirStmt::Return {
+                value: Some(HirExpr::IntLit(0, sp)),
+                span: sp,
+            }],
+            route_path: "/api/query/q1".into(),
+            span: sp,
+        });
+        module.mutation_fns.push(HirServerFn {
+            id: DefId(11),
+            name: "m1".into(),
+            params: vec![],
+            return_type: None,
+            body: vec![HirStmt::Return {
+                value: Some(HirExpr::IntLit(0, sp)),
+                span: sp,
+            }],
+            route_path: "/api/mutation/m1".into(),
+            span: sp,
+        });
+
+        let out = emit_main(&module, "demo_pkg");
+        assert!(out.contains(
+            ".route(\"/api/query/q1\", post(handle_q_q1))"
+        ));
+        assert!(out.contains(
+            ".route(\"/api/mutation/m1\", post(handle_m_m1))"
+        ));
+        assert!(out.contains("async fn handle_q_q1("));
+        assert!(out.contains("async fn handle_m_m1("));
+    }
+
+    #[test]
+    fn emit_main_mutation_wraps_db_transaction_when_codex_present() {
+        let sp = Span::new(0, 0);
+        let mut module = empty_module();
+        module.tables.push(simple_task_table());
+        module.mutation_fns.push(HirServerFn {
+            id: DefId(11),
+            name: "m1".into(),
+            params: vec![],
+            return_type: None,
+            body: vec![HirStmt::Return {
+                value: Some(HirExpr::IntLit(0, sp)),
+                span: sp,
+            }],
+            route_path: "/api/mutation/m1".into(),
+            span: sp,
+        });
+
+        let out = emit_main(&module, "demo_pkg");
+        assert!(
+            out.contains("async fn handle_m_m1("),
+            "expected mutation handler: {out}"
+        );
+        assert!(
+            out.contains("match db.transaction(async move"),
+            "mutation with @table should wrap handler body in Codex::transaction: {out}"
+        );
+        assert!(
+            out.contains("return Ok(Json(serde_json::to_value"),
+            "mutation JSON returns should use Result for transactional handler: {out}"
         );
     }
 }

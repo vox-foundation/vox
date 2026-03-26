@@ -58,6 +58,8 @@ pub mod benchmark_telemetry;
 pub mod build_hints;
 /// Circuit breaker for write operations.
 pub mod circuit_breaker;
+/// Turso / search tuning helpers (`VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`, etc.).
+pub mod capabilities;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
 mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
@@ -65,6 +67,8 @@ mod codex_conversation_graph;
 pub mod schema;
 /// Idempotent fixes after baseline `CREATE IF NOT EXISTS` (column adds, renames).
 mod schema_cutover;
+/// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
+mod ludus_schema_cutover;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
 
@@ -138,11 +142,17 @@ pub use store::{
     A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
     BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry, CloudCostSummary,
     CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample,
-    CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, KnowledgeNodeSummary,
-    LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow,
-    PublicationManifestParams, PublicationManifestRow, PublicationMediaAssetParams,
-    PublicationMediaAssetRow, PublicationStatusEventRow, PublishArtifactParams, QuestionRow,
+    CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
+    ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
+    ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
+    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
+    LocalTrainRow, LogExecutionParams,
+    LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow, PlanSessionRow,
+    PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
+    PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
+    PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
+    PublishArtifactParams, QuestionRow,
     RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
     ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
     SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
@@ -172,6 +182,8 @@ pub struct VoxDb {
     pub(crate) conn: turso::Connection,
     pub(crate) sync_db: Option<turso::sync::Database>,
     pub(crate) breaker: std::sync::Arc<DbCircuitBreaker>,
+    /// Lazily filled by [`VoxDb::sqlite_capabilities_snapshot`](crate::VoxDb::sqlite_capabilities_snapshot).
+    pub(crate) sqlite_probe_cache: std::sync::Arc<tokio::sync::RwLock<Option<capabilities::SqliteProbeSnapshot>>>,
 }
 
 mod facade;

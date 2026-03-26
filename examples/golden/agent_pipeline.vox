@@ -1,32 +1,24 @@
 // ---
 // title: "Agent Pipeline Example"
-// description: "Multi-agent system with structured message types and worker actor state tracking."
+// description: "Structured task data as ADT plus actor message handler (core-parser form; actor block state is not in grammar yet)."
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [message, agent, @agent_def, on, state]
-// last_validated: 2026-03-24
+// constructs: [type, actor, on, fn, str]
+// last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Define a Vox message type and an agent definition for a multi-agent system
-message TaskMessage {
-    id: int
-    payload: str
-}
+// @training_prompt: Model task payloads as an ADT and handle them in an actor `on` handler.
+type TaskMessage =
+    | Msg(id: int, payload: str)
 
-@agent_def
-fn DataAgent() to str {
-    tools: [read_file]
-    memory: semantic
+fn data_agent_ready() to str {
     ret "Ready"
 }
 
-agent WorkerAgent {
-    state processed: int = 0
-    
-    on HandleTask(msg: TaskMessage) to str {
-        processed = processed + 1
-        ret "Task " + msg.id + " done"
+actor WorkerAgent {
+    on HandleTask(id: int, payload: str) to str {
+        ret "Task " + str(id) + " done"
     }
 }

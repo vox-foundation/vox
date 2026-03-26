@@ -34,7 +34,7 @@ fn argv_for_background_child(args: Vec<String>) -> Vec<String> {
     out
 }
 
-/// Spawn `vox schola train` in a background process with stdout/stderr redirected to a log file.
+/// Spawn `vox mens train` in a background process with stdout/stderr redirected to a log file.
 /// Parent returns immediately so the IDE or agent tool does not hit wall-clock timeouts; tail the log
 /// file to monitor progress. The child inherits the current environment (`VOX_*`, `RUST_LOG`, etc.).
 pub fn spawn_train_with_log(log_dir: PathBuf) -> Result<()> {

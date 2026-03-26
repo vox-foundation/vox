@@ -52,7 +52,7 @@ pub fn run_serve(config: &ServeConfig) -> Result<()> {
     if !config.model_path.exists() {
         anyhow::bail!(
             "Model checkpoint not found at {}.\n\
-             Run `vox schola train` first to produce a checkpoint.",
+             Run `vox mens train` first to produce a checkpoint.",
             config.model_path.display()
         );
     }

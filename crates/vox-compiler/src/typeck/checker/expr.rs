@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::ast::span::Span;
 use crate::hir::*;
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
@@ -9,6 +11,139 @@ use super::Checker;
 use super::match_exhaust::check_hir_match_exhaustiveness;
 
 impl<'a> Checker<'a> {
+    fn check_db_select_projection(
+        &mut self,
+        fields: &[(String, Ty)],
+        cols: &[String],
+        span: Span,
+    ) -> bool {
+        let mut ok = true;
+        if cols.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "db select(...) requires at least one column name".into(),
+                span,
+                self.source,
+            ));
+            return false;
+        }
+        let mut seen = HashSet::new();
+        for c in cols {
+            if !seen.insert(c.as_str()) {
+                self.diags.push(Diagnostic::error(
+                    format!("duplicate column '{c}' in select(...)"),
+                    span,
+                    self.source,
+                ));
+                ok = false;
+            }
+            if fields.iter().all(|(n, _)| n != c) {
+                self.diags.push(Diagnostic::error(
+                    format!("Unknown field '{c}' in select(...)"),
+                    span,
+                    self.source,
+                ));
+                ok = false;
+            }
+        }
+        if !ok {
+            return false;
+        }
+        ok
+    }
+
+    fn validate_db_predicate(
+        &mut self,
+        pred: &HirDbPredicate,
+        fields: &[(String, Ty)],
+        args: &[HirArg],
+        arg_ix: &mut usize,
+        table: &str,
+        span: Span,
+    ) -> bool {
+        let expect_value = |field: &str| -> Option<Ty> {
+            let (_, f_ty) = fields.iter().find(|(n, _)| n == field).cloned()?;
+            Some(f_ty)
+        };
+        match pred {
+            HirDbPredicate::Eq { field }
+            | HirDbPredicate::Neq { field }
+            | HirDbPredicate::Lt { field }
+            | HirDbPredicate::Lte { field }
+            | HirDbPredicate::Gt { field }
+            | HirDbPredicate::Gte { field }
+            | HirDbPredicate::Contains { field } => {
+                let Some(f_ty) = expect_value(field) else {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown field '{field}' on table '{table}' for predicate"),
+                        span,
+                        self.source,
+                    ));
+                    return false;
+                };
+                if *arg_ix >= args.len() {
+                    self.diags.push(Diagnostic::error(
+                        "db predicate/value mismatch (internal arg ordering error)".into(),
+                        span,
+                        self.source,
+                    ));
+                    return false;
+                }
+                let v_ty = self.check_expr(&args[*arg_ix].value);
+                *arg_ix += 1;
+                let _ = self.uf.unify(&f_ty, &v_ty);
+                true
+            }
+            HirDbPredicate::IsNull { field } => {
+                if expect_value(field).is_none() {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown field '{field}' on table '{table}' for predicate"),
+                        span,
+                        self.source,
+                    ));
+                    return false;
+                }
+                true
+            }
+            HirDbPredicate::In { field, arity } => {
+                let Some(f_ty) = expect_value(field) else {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown field '{field}' on table '{table}' for predicate"),
+                        span,
+                        self.source,
+                    ));
+                    return false;
+                };
+                if *arity == 0 {
+                    self.diags.push(Diagnostic::error(
+                        "db where(...): `in` must have at least one value".into(),
+                        span,
+                        self.source,
+                    ));
+                    return false;
+                }
+                for _ in 0..*arity {
+                    if *arg_ix >= args.len() {
+                        self.diags.push(Diagnostic::error(
+                            "db predicate/value mismatch (internal arg ordering error)".into(),
+                            span,
+                            self.source,
+                        ));
+                        return false;
+                    }
+                    let v_ty = self.check_expr(&args[*arg_ix].value);
+                    *arg_ix += 1;
+                    let _ = self.uf.unify(&f_ty, &v_ty);
+                }
+                true
+            }
+            HirDbPredicate::And(parts) | HirDbPredicate::Or(parts) => parts
+                .iter()
+                .all(|p| self.validate_db_predicate(p, fields, args, arg_ix, table, span)),
+            HirDbPredicate::Not(inner) => {
+                self.validate_db_predicate(inner, fields, args, arg_ix, table, span)
+            }
+        }
+    }
     pub fn check_expr(&mut self, expr: &HirExpr) -> Ty {
         match expr {
             HirExpr::IntLit(_, _) => Ty::Int,
@@ -99,6 +234,18 @@ impl<'a> Checker<'a> {
                 }
             }
             HirExpr::MethodCall(object, method, args, span) => {
+                if matches!(object.as_ref(), HirExpr::DbTableOp { .. })
+                    && matches!(method.as_str(), "limit" | "order_by")
+                {
+                    self.diags.push(Diagnostic::error(
+                        format!(
+                            "db query chaining via '.{method}(...)' is not supported yet; use typed db.Table operations directly"
+                        ),
+                        *span,
+                        self.source,
+                    ));
+                    return Ty::Error;
+                }
                 let obj_ty = self.check_expr(object);
                 let obj_ty = self.uf.resolve(&obj_ty);
                 if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
@@ -145,6 +292,258 @@ impl<'a> Checker<'a> {
                         self.source,
                     ));
                     Ty::Error
+                }
+            }
+
+            HirExpr::DbTableOp {
+                table,
+                op,
+                args,
+                select_cols,
+                order_by,
+                limit,
+                plan,
+                span,
+                ..
+            } => {
+                if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
+                    self.diags.push(Diagnostic {
+                        severity: Severity::Error,
+                        message: "`.query(clause)` builds dynamic SQL; prefer `.all()` or `.get(id)`. \
+                                  (This IR maps to `unsafe_query_raw_clause` in generated Rust.)"
+                            .into(),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        context: Some(Diagnostic::capture_context(self.source, *span)),
+                        suggestions: vec![
+                            "Use `db.Table.all()` for full scans.".into(),
+                            "Use `db.Table.get(id)` or `db.Table.find(id)` for primary-key reads.".into(),
+                        ],
+                        category: DiagnosticCategory::Lint,
+                    });
+                }
+                let Some(binding) = self.env.lookup(table) else {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown table '{table}' for db operation"),
+                        *span,
+                        self.source,
+                    ));
+                    return Ty::Error;
+                };
+                let obj_ty = binding.ty.clone();
+                if let Some(limit_expr) = limit {
+                    let lim_ty = self.check_expr(limit_expr.as_ref());
+                    let _ = self.uf.unify(&lim_ty, &Ty::Int);
+                }
+                if let Some(cols) = select_cols.as_ref() {
+                    if matches!(*op, HirDbTableOp::Count) {
+                        self.diags.push(Diagnostic::error(
+                            ".select(...) cannot be combined with `.count()`; use `.count()` on the table or filter without narrowing columns"
+                                .into(),
+                            *span,
+                            self.source,
+                        ));
+                        return Ty::Error;
+                    }
+                    if !matches!(*op, HirDbTableOp::All | HirDbTableOp::FilterRecord) {
+                        self.diags.push(Diagnostic::error(
+                            ".select(...) is only supported on db.Table.all() and db.Table.filter(...)"
+                                .into(),
+                            *span,
+                            self.source,
+                        ));
+                        return Ty::Error;
+                    }
+                    let Ty::Table(_, fields) = &obj_ty else {
+                        self.diags.push(Diagnostic::error(
+                            format!("Expected table type for db select on '{table}'"),
+                            *span,
+                            self.source,
+                        ));
+                        return Ty::Error;
+                    };
+                    if !self.check_db_select_projection(fields, cols, *span) {
+                        return Ty::Error;
+                    }
+                }
+                match *op {
+                    HirDbTableOp::FilterRecord => {
+                        let Ty::Table(_, fields) = &obj_ty else {
+                            self.diags.push(Diagnostic::error(
+                                format!("Expected table type for db filter on '{table}'"),
+                                *span,
+                                self.source,
+                            ));
+                            return Ty::Error;
+                        };
+                        if args.is_empty() && plan.as_ref().and_then(|p| p.predicate.as_ref()).is_none() {
+                            self.diags.push(Diagnostic::error(
+                                "db.Table.filter({ ... }) requires at least one field predicate"
+                                    .into(),
+                                *span,
+                                self.source,
+                            ));
+                            return Ty::Error;
+                        }
+                        if let Some(pred) = plan.as_ref().and_then(|p| p.predicate.as_ref()) {
+                            let mut arg_ix = 0usize;
+                            if !self.validate_db_predicate(pred, fields, args, &mut arg_ix, table, *span) {
+                                return Ty::Error;
+                            }
+                        } else {
+                            for arg in args {
+                                let Some(col) = arg.name.as_deref() else {
+                                    self.diags.push(Diagnostic::error(
+                                        "filter object keys must be field names (internal error)"
+                                            .into(),
+                                        *span,
+                                        self.source,
+                                    ));
+                                    return Ty::Error;
+                                };
+                                let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == col) else {
+                                    self.diags.push(Diagnostic::error(
+                                        format!("Unknown field '{col}' on table '{table}' for filter"),
+                                        *span,
+                                        self.source,
+                                    ));
+                                    return Ty::Error;
+                                };
+                                let v_ty = self.check_expr(&arg.value);
+                                let _ = self.uf.unify(f_ty, &v_ty);
+                            }
+                        }
+                        if let Some((col, _)) = order_by {
+                            if fields.iter().all(|(n, _)| n != col) {
+                                self.diags.push(Diagnostic::error(
+                                    format!(
+                                        "Unknown field '{col}' on table '{table}' for order_by"
+                                    ),
+                                    *span,
+                                    self.source,
+                                ));
+                                return Ty::Error;
+                            }
+                        }
+                        let record_ty = Ty::Record(fields.clone());
+                        Ty::Result(Box::new(Ty::List(Box::new(record_ty))))
+                    }
+                    HirDbTableOp::Count => {
+                        if order_by.is_some() || limit.is_some() {
+                            self.diags.push(Diagnostic::error(
+                                "db.Table.count() does not support order_by/limit modifiers".into(),
+                                *span,
+                                self.source,
+                            ));
+                            return Ty::Error;
+                        }
+                        if !args.is_empty() || plan.as_ref().and_then(|p| p.predicate.as_ref()).is_some() {
+                            let Ty::Table(_, fields) = &obj_ty else {
+                                self.diags.push(Diagnostic::error(
+                                    format!("Expected table type for db count on '{table}'"),
+                                    *span,
+                                    self.source,
+                                ));
+                                return Ty::Error;
+                            };
+                            if let Some(pred) = plan.as_ref().and_then(|p| p.predicate.as_ref()) {
+                                let mut arg_ix = 0usize;
+                                if !self.validate_db_predicate(
+                                    pred, fields, args, &mut arg_ix, table, *span,
+                                ) {
+                                    return Ty::Error;
+                                }
+                            } else {
+                                for arg in args {
+                                    let Some(col) = arg.name.as_deref() else {
+                                        self.diags.push(Diagnostic::error(
+                                            "count filter keys must be field names (internal error)"
+                                                .into(),
+                                            *span,
+                                            self.source,
+                                        ));
+                                        return Ty::Error;
+                                    };
+                                    let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == col) else {
+                                        self.diags.push(Diagnostic::error(
+                                            format!(
+                                                "Unknown field '{col}' on table '{table}' for count filter"
+                                            ),
+                                            *span,
+                                            self.source,
+                                        ));
+                                        return Ty::Error;
+                                    };
+                                    let v_ty = self.check_expr(&arg.value);
+                                    let _ = self.uf.unify(f_ty, &v_ty);
+                                }
+                            }
+                        }
+                        Ty::Result(Box::new(Ty::Int))
+                    }
+                    HirDbTableOp::Insert
+                    | HirDbTableOp::Get
+                    | HirDbTableOp::Delete
+                    | HirDbTableOp::All
+                    | HirDbTableOp::UnsafeQueryRawClause => {
+                        if matches!(
+                            op,
+                            HirDbTableOp::Insert
+                                | HirDbTableOp::Get
+                                | HirDbTableOp::Delete
+                                | HirDbTableOp::UnsafeQueryRawClause
+                        ) && (order_by.is_some() || limit.is_some())
+                        {
+                            self.diags.push(Diagnostic::error(
+                                "order_by/limit modifiers are only supported on db.Table.all()/filter(...)"
+                                    .into(),
+                                *span,
+                                self.source,
+                            ));
+                            return Ty::Error;
+                        }
+                        if let Some((col, _)) = order_by {
+                            if let Ty::Table(_, fields) = &obj_ty {
+                                if fields.iter().all(|(n, _)| n != col) {
+                                    self.diags.push(Diagnostic::error(
+                                        format!(
+                                            "Unknown field '{col}' on table '{table}' for order_by"
+                                        ),
+                                        *span,
+                                        self.source,
+                                    ));
+                                    return Ty::Error;
+                                }
+                            }
+                        }
+                        let method = match op {
+                            HirDbTableOp::Insert => "insert",
+                            HirDbTableOp::Get => "get",
+                            HirDbTableOp::Delete => "delete",
+                            HirDbTableOp::All => "all",
+                            HirDbTableOp::UnsafeQueryRawClause => "query",
+                            HirDbTableOp::FilterRecord | HirDbTableOp::Count => {
+                                unreachable!("handled in earlier match arms")
+                            }
+                        };
+                        if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
+                            let method_ty = self.uf.instantiate(&method_ty);
+                            if let Ty::Fn(params, ret) = method_ty {
+                                self.check_arguments(&params, args, *span);
+                                ret.as_ref().clone()
+                            } else {
+                                Ty::Error
+                            }
+                        } else {
+                            self.diags.push(Diagnostic::error(
+                                format!("Invalid db operation '{method}' on table '{table}'"),
+                                *span,
+                                self.source,
+                            ));
+                            Ty::Error
+                        }
+                    }
                 }
             }
 

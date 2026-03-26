@@ -34,6 +34,24 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             });
         }
     }
+    for s in &module.query_fns {
+        validate_name_and_params(&s.name, &s.params, s.span, "@query fn", &mut errors);
+        if s.route_path.is_empty() {
+            errors.push(HirValidationError {
+                message: "@query fn route_path is empty".into(),
+                span: s.span,
+            });
+        }
+    }
+    for s in &module.mutation_fns {
+        validate_name_and_params(&s.name, &s.params, s.span, "@mutation fn", &mut errors);
+        if s.route_path.is_empty() {
+            errors.push(HirValidationError {
+                message: "@mutation fn route_path is empty".into(),
+                span: s.span,
+            });
+        }
+    }
     for m in &module.mcp_tools {
         validate_fn(&m.func, "mcp tool", &mut errors);
     }

@@ -93,61 +93,81 @@ pub async fn vcs_status(state: &ServerState) -> String {
     ToolResult::ok(result).to_json()
 }
 
-/// Pull recent Gamify rows for every live agent plus in-memory `transient_events`.
+fn agent_id_from_kind_json(v: &serde_json::Value) -> u64 {
+    for key in ["agent_id", "from"] {
+        if let Some(n) = v.get(key).and_then(|x| x.as_u64()) {
+            return n;
+        }
+    }
+    if let Some(arr) = v.get("agent_ids").and_then(|x| x.as_array()) {
+        if let Some(first) = arr.first().and_then(|x| x.as_u64()) {
+            return first;
+        }
+    }
+    0
+}
+
+fn agent_event_to_record(
+    ev: &vox_orchestrator::AgentEvent,
+    repo_id: &str,
+) -> vox_ludus::db::AgentEventRecord {
+    let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
+    let event_type = kind_json
+        .get("type")
+        .and_then(|t| t.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let agent_id = agent_id_from_kind_json(&kind_json);
+    if let Some(obj) = kind_json.as_object_mut() {
+        obj.insert(
+            "repository_id".to_string(),
+            serde_json::Value::String(repo_id.to_string()),
+        );
+    }
+    let payload = serde_json::to_string(&kind_json).unwrap_or_default();
+    vox_ludus::db::AgentEventRecord {
+        id: ev.id.0 as i64,
+        agent_id: agent_id.to_string(),
+        event_type,
+        payload: Some(payload),
+        cli_version: None,
+        timestamp: ev.timestamp_ms.to_string(),
+    }
+}
+
+/// Pull recent Gamify rows when Codex is configured; **always** merges in-memory
+/// `transient_events` so clients without DB still see streaming/orchestrator events.
 pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> String {
+    let limit = params.limit.unwrap_or(50).max(1) as usize;
+    let mut all_events = Vec::new();
+
     if let Some(db) = &state.db {
-        let limit = params.limit.unwrap_or(50);
-        let mut all_events = Vec::new();
+        let lim_i64 = limit as i64;
         let agent_ids = {
             let orch = &state.orchestrator;
             orch.agent_ids()
         };
 
         for id in agent_ids {
-            if let Ok(records) = vox_ludus::db::get_events(db, &id.0.to_string(), Some(limit)).await
+            if let Ok(records) = vox_ludus::db::get_events(db, &id.0.to_string(), Some(lim_i64)).await
             {
                 all_events.extend(records);
             }
         }
-
-        let mut transient = Vec::new();
-        {
-            let mut q = state.transient_events.lock().await;
-            transient = std::mem::take(&mut *q);
-        }
-
-        let repo_id = state.repository.repository_id.clone();
-        for ev in transient {
-            let (agent_id, event_type) = match &ev.kind {
-                vox_orchestrator::AgentEventKind::TokenStreamed { agent_id, .. } => {
-                    (agent_id.0, "TokenStreamed")
-                }
-                _ => (0, "Unknown"),
-            };
-            let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
-            if let Some(obj) = kind_json.as_object_mut() {
-                obj.insert(
-                    "repository_id".to_string(),
-                    serde_json::Value::String(repo_id.clone()),
-                );
-            }
-            let payload = serde_json::to_string(&kind_json).unwrap_or_default();
-            all_events.push(vox_ludus::db::AgentEventRecord {
-                id: ev.id.0 as i64,
-                agent_id: agent_id.to_string(),
-                event_type: event_type.to_string(),
-                payload: Some(payload),
-                cli_version: None,
-                timestamp: ev.timestamp_ms.to_string(),
-            });
-        }
-
-        all_events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        all_events.truncate(limit as usize);
-        ToolResult::ok(all_events).to_json()
-    } else {
-        ToolResult::<String>::err("DB not configured").to_json()
     }
+
+    let repo_id = state.repository.repository_id.clone();
+    let transient = {
+        let mut q = state.transient_events.lock().await;
+        std::mem::take(&mut *q)
+    };
+    for ev in transient {
+        all_events.push(agent_event_to_record(&ev, &repo_id));
+    }
+
+    all_events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    all_events.truncate(limit);
+    ToolResult::ok(all_events).to_json()
 }
 
 /// Submit a task through the orchestrator (simpler shape than [`crate::params::SubmitTaskParams`]).

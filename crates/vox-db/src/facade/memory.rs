@@ -19,6 +19,17 @@ impl crate::VoxDb {
         self.query_knowledge_nodes(query, limit).await
     }
 
+    /// Full-text search over `search_document_chunks` (see [`crate::VoxDb::query_search_document_chunks`]).
+    ///
+    /// Returns `(chunk_id, document_id, body_snippet, document_title)` tuples.
+    pub async fn search_ingested_chunks(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<(i64, i64, String, String)>, StoreError> {
+        self.query_search_document_chunks(query, limit).await
+    }
+
     /// Vector similarity search in `embeddings` (optional `source_type` filter).
     pub async fn search_embeddings(
         &self,

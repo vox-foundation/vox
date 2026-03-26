@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::commands::corpus::CorpusAction;
 use crate::commands::mens::plan;
 
-/// CLI mapping for `vox schola train --backend` → [`vox_populi::mens::PopuliTrainBackend`].
+/// CLI mapping for `vox mens train --backend` → [`vox_populi::mens::PopuliTrainBackend`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum PopuliTrainBackendCli {
@@ -24,7 +24,7 @@ impl From<PopuliTrainBackendCli> for vox_populi::mens::PopuliTrainBackend {
     }
 }
 
-/// CLI mapping for `vox schola train --tokenizer` → [`vox_populi::mens::MensTokenizerMode`].
+/// CLI mapping for `vox mens train --tokenizer` → [`vox_populi::mens::MensTokenizerMode`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum MensTokenizerCli {
@@ -45,7 +45,7 @@ impl From<MensTokenizerCli> for vox_populi::mens::MensTokenizerMode {
     }
 }
 
-/// CLI mapping for `vox schola train --deployment-target` → [`vox_populi::mens::TrainingDeploymentTarget`].
+/// CLI mapping for `vox mens train --deployment-target` → [`vox_populi::mens::TrainingDeploymentTarget`].
 #[cfg(feature = "gpu")]
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
 pub enum TrainingDeploymentTargetCli {
@@ -105,7 +105,7 @@ pub enum PipelineStage {
     Mix,
     /// Replaying Arca telemetry into training pairs (`vox mens corpus replay`).
     Replay,
-    /// Native model training (`vox schola train`).
+    /// Native model training (`vox mens train`).
     Train,
 }
 

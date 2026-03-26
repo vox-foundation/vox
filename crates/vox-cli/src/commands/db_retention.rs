@@ -30,17 +30,3 @@ pub fn load_policy(path: &Path) -> anyhow::Result<RetentionPolicyFile> {
         .map_err(|e| anyhow::anyhow!("read retention policy {}: {e}", path.display()))?;
     serde_yaml::from_str(&raw).map_err(|e| anyhow::anyhow!("parse retention policy: {e}"))
 }
-
-pub(crate) fn sqlite_quote_ident(name: &str) -> String {
-    let mut s = String::with_capacity(name.len() + 2);
-    s.push('"');
-    for c in name.chars() {
-        if c == '"' {
-            s.push_str("\"\"");
-        } else {
-            s.push(c);
-        }
-    }
-    s.push('"');
-    s
-}

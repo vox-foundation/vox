@@ -13,7 +13,7 @@ training_eligible: true
 This runbook covers **two** native paths:
 
 1. **Production Qwen 2.5 (recommended for Qwen2.5-Coder-*)** — **Candle QLoRA** (`--backend qlora`, NF4 frozen bases via qlora-rs). Build with **`mens-candle-cuda`** on Windows/Linux when you have an NVIDIA GPU and CUDA toolkit available for `candle-core`.
-2. **Burn LoRA (GPT-2-shaped HF or Vox tokenizer)** — default `vox schola train` without `--backend qlora`; uses **wgpu** (Vulkan/DX12) on Windows.
+2. **Burn LoRA (GPT-2-shaped HF or Vox tokenizer)** — default `vox mens train` without `--backend qlora`; uses **wgpu** (Vulkan/DX12) on Windows.
 
 ## Recommended Path (Qwen2.5-Coder-3B, RTX 4080-class 16GB)
 
@@ -37,7 +37,7 @@ This runbook covers **two** native paths:
 ### Go-live checklist (local CUDA dogfood)
 
 1. **Shell**: VS Developer / MSVC environment so **`cargo vox-cuda-release`** (or `cargo check -p vox-cli --features gpu,mens-candle-cuda`) succeeds.
-2. **CLI**: `vox schola train --help` lists **`--qlora-*`** flags including **`--qlora-ce-last-k`**.
+2. **CLI**: `vox mens train --help` lists **`--qlora-*`** flags including **`--qlora-ce-last-k`**.
 3. **Corpus**: refresh `train.jsonl` or set **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the mix step is unnecessary.
 4. **Run**: canonical QLoRA command from above with **`--log-dir mens/runs/logs`** (or your path); tail the log.
 5. **Acceptance**: first log lines show **finite** loss; optional **`--qlora-ce-last-k 4`** for a stronger suffix LM signal (see SSOT).
@@ -47,7 +47,7 @@ This runbook covers **two** native paths:
 
 ## Burn LoRA path (non-Qwen or GPT-2-shaped HF)
 
-- Default: `vox schola train --data-dir target/dogfood --output-dir mens/runs/v1`
+- Default: `vox mens train --data-dir target/dogfood --output-dir mens/runs/v1`
 - Input contract: `target/dogfood/train.jsonl`
 - Backend: `wgpu` on Windows (Vulkan or DX12); no CUDA required for Burn
 
@@ -66,9 +66,9 @@ This runbook covers **two** native paths:
    .\target\release\vox.exe mens corpus pairs mens/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/
    # Rustdoc merge skipped: response is Rust prose, not Vox code
    ```
-3. Optional **Burn** GPU backend selection (passed to **`vox schola train --device`**; **`best`** is default):
+3. Optional **Burn** GPU backend selection (passed to **`vox mens train --device`**; **`best`** is default):
    ```powershell
-   # Prefer flags on the train command, not legacy env, for `vox schola train`:
+   # Prefer flags on the train command, not legacy env, for `vox mens train`:
    # --device best | vulkan | dx12 | cpu
    ```
 4. Optional training profile (RTX 4080 Super 16GB VRAM):
@@ -83,7 +83,7 @@ This runbook covers **two** native paths:
 
 Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny dogfood slice).
 
-1. **Build** release CLI with **`--features gpu`** (default is `mens-base` only; native train / QLoRA need the GPU feature stack). Add **`--features mens-dei`** only if you need legacy **`vox train`** (Together / **`--native`** Burn scratch; **`--provider local`** bails to **`vox schola train`**) or Mens DeI surfaces (`generate`, `review`, …):
+1. **Build** release CLI with **`--features gpu`** (default is `mens-base` only; native train / QLoRA need the GPU feature stack). Add **`--features mens-dei`** only if you need legacy **`vox train`** (Together / **`--native`** Burn scratch; **`--provider local`** bails to **`vox mens train`**) or Mens DeI surfaces (`generate`, `review`, …):
    ```powershell
    & "$env:USERPROFILE\.cargo\bin\cargo.exe" build -p vox-cli --release --features gpu
    ```
@@ -112,7 +112,7 @@ Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny d
      --device cuda `
      --background
    ```
-   **`--background`** alone attaches logs under **`mens/runs/logs`** (repo root when detected) and returns immediately; equivalent to **`--log-dir mens/runs/logs`**. On Windows the child process is spawned with **breakaway-from-job** flags to reduce IDE teardown killing the trainer. Tail: **`Get-Content mens/runs/logs/train_*.log -Wait -Tail 25`**. Alternatives: **`vox schola train … --background`**, or **`pwsh scripts/populi/release_training_gate.ps1`** only for CI gates (not full training).
+   **`--background`** alone attaches logs under **`mens/runs/logs`** (repo root when detected) and returns immediately; equivalent to **`--log-dir mens/runs/logs`**. On Windows the child process is spawned with **breakaway-from-job** flags to reduce IDE teardown killing the trainer. Tail: **`Get-Content mens/runs/logs/train_*.log -Wait -Tail 25`**. Alternatives: **`vox mens train … --background`**, or **`pwsh scripts/populi/release_training_gate.ps1`** only for CI gates (not full training).
 
    On OOM, use `--preset safe` / `4080_safe`, lower `--seq-len`, raise `--grad-accum`, lower `--rank`, or set `VOX_CANDLE_DEVICE=cpu` (slow).
 
@@ -174,7 +174,7 @@ Use this before claiming a full dogfood run is complete (CI cannot substitute fo
 
 1. **Corpus**: `mens corpus mix --config mens/config/mix.yaml` → copy/rename to **`target/dogfood/train.jsonl`** (preflight requires that filename in `--data-dir`).
 2. **Build**: **`cargo vox-cuda-release`** natively from a `vcvars64.bat` loaded interactive terminal (`nvcc` relies on absolute discovery and crashes in subshells).
-3. **Train**: `vox schola train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; add `--qlora-require-full-proxy-stack` for strict full proxy stack.
+3. **Train**: `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; add `--qlora-require-full-proxy-stack` for strict full proxy stack.
 4. **Artifacts**: Confirm **`candle_qlora_adapter.safetensors`**, **`candle_qlora_adapter_meta.json`**, **`populi_adapter_manifest_v3.json`**, **`training_manifest.json`**, **`telemetry.jsonl`** under the output dir.
 5. **Merge / serve**: Candle merge is **`vox schola merge-qlora`** (f32 shard subsets); **`vox mens serve`** stays Burn-only — see SSOT [Merge / export](../reference/mens-training.md#merge--export--inference).
 6. **Optional automation**: `scripts/run_qwen25_qlora_real_4080.ps1` builds (CUDA by default) and launches the canonical CLI in the background; see [scripts/README.md](../adr/README.md).

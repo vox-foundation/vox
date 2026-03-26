@@ -25,23 +25,47 @@ pub async fn handle_tool_call(
     let result = handle_tool_call_inner(state, name_canonical, args.clone()).await;
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
-    // Record tool telemetry in agent_events if DB is enabled
+    // Ludus: canonical reward path when enabled; raw telemetry when gamification is off.
     if let Some(db) = &state.db {
-        let mut payload = serde_json::json!({
-            "type": "tool_call",
+        let aid = agent_id
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0u64);
+        let args_stored = vox_ludus::mcp_privacy::prepare_mcp_tool_args_for_storage(&args);
+        let mut route_ev = serde_json::json!({
+            "type": "mcp_tool_called",
+            "agent_id": aid,
             "tool": name_canonical,
-            "args": args,
+            "args": args_stored,
             "duration_ms": duration_ms,
             "success": result.is_ok(),
             "repository_id": state.repository.repository_id,
         });
         if let Some(sid) = session_id {
-            payload["session_id"] = serde_json::Value::String(sid.to_string());
+            route_ev["session_id"] = serde_json::Value::String(sid.to_string());
         }
-
-        let agent_str = agent_id.unwrap_or("0");
-        let _ = vox_ludus::db::insert_event(db, agent_str, "tool_call", Some(&payload.to_string()))
+        if vox_ludus::config_gate::is_enabled() {
+            let _ = vox_ludus::event_router::route_event_auto_user(db, &route_ev).await;
+        } else {
+            let mut payload = serde_json::json!({
+                "type": "tool_call",
+                "tool": name_canonical,
+                "args": args_stored,
+                "duration_ms": duration_ms,
+                "success": result.is_ok(),
+                "repository_id": state.repository.repository_id,
+            });
+            if let Some(sid) = session_id {
+                payload["session_id"] = serde_json::Value::String(sid.to_string());
+            }
+            let agent_str = agent_id.unwrap_or("0");
+            let _ = vox_ludus::db::insert_event(
+                db,
+                agent_str,
+                "tool_call",
+                Some(&payload.to_string()),
+            )
             .await;
+        }
     }
 
     result
@@ -61,6 +85,26 @@ async fn handle_tool_call_inner(
         }
         "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
         "vox_orchestrator_start" => Ok(crate::dei_tools::orchestrator_start(state).await),
+        "vox_spawn_agent" => Ok(crate::dei_tools::spawn_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_retire_agent" => Ok(crate::dei_tools::retire_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_pause_agent" => Ok(crate::dei_tools::pause_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_resume_agent" => Ok(crate::dei_tools::resume_agent(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_complete_task" => {
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
         }
@@ -246,6 +290,76 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )
         .await),
+        "vox_scientia_publication_scholarly_remote_status" => Ok(
+            scientia_tools::vox_scientia_publication_scholarly_remote_status(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_scholarly_remote_status_sync_all" => Ok(
+            scientia_tools::vox_scientia_publication_scholarly_remote_status_sync_all(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_scholarly_remote_status_sync_batch" => Ok(
+            scientia_tools::vox_scientia_publication_scholarly_remote_status_sync_batch(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_arxiv_handoff_record" => Ok(
+            scientia_tools::vox_scientia_publication_arxiv_handoff_record(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_scholarly_staging_export" => Ok(
+            scientia_tools::vox_scientia_publication_scholarly_staging_export(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_external_jobs_due" => Ok(
+            scientia_tools::vox_scientia_publication_external_jobs_due(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_external_jobs_dead_letter" => Ok(
+            scientia_tools::vox_scientia_publication_external_jobs_dead_letter(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_external_jobs_replay" => Ok(
+            scientia_tools::vox_scientia_publication_external_jobs_replay(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_external_jobs_tick" => Ok(
+            scientia_tools::vox_scientia_publication_external_jobs_tick(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
+        "vox_scientia_publication_external_pipeline_metrics" => Ok(
+            scientia_tools::vox_scientia_publication_external_pipeline_metrics(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
         "vox_scientia_publication_media_upsert" => {
             Ok(scientia_tools::vox_scientia_publication_media_upsert(
                 state,
@@ -379,6 +493,40 @@ async fn handle_tool_call_inner(
 
         "vox_check_mood" => {
             Ok(crate::gamify::check_mood(state, serde_json::from_value(args)?).await)
+        }
+        "vox_ludus_notifications_list" => {
+            Ok(crate::gamify::ludus_notifications_list(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_ludus_progress_snapshot" => {
+            Ok(crate::gamify::ludus_progress_snapshot(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_ludus_notification_ack" => {
+            Ok(crate::gamify::ludus_notification_ack(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_ludus_notifications_ack_all" => Ok(crate::gamify::ludus_notifications_ack_all(state).await),
+        "vox_ludus_quest_list" => Ok(crate::gamify::ludus_quest_list(state, serde_json::from_value(args)?).await),
+        "vox_ludus_shop_catalog" => Ok(crate::gamify::ludus_shop_catalog(state, serde_json::from_value(args)?).await),
+        "vox_ludus_shop_buy" => Ok(crate::gamify::ludus_shop_buy(state, serde_json::from_value(args)?).await),
+        "vox_ludus_collegium_join" => {
+            Ok(crate::gamify::ludus_collegium_join(state, serde_json::from_value(args)?).await)
+        }
+        "vox_ludus_battle_start" => {
+            Ok(crate::gamify::ludus_battle_start(state, serde_json::from_value(args)?).await)
+        }
+        "vox_ludus_battle_submit" => {
+            Ok(crate::gamify::ludus_battle_submit(state, serde_json::from_value(args)?).await)
         }
         "vox_agent_status" => {
             Ok(crate::gamify::agent_status(state, serde_json::from_value(args)?).await)

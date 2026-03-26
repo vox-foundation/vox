@@ -16,10 +16,13 @@ use docs_sync::{read_cli_reference_for_compliance, read_env_vars_ssot_doc, read_
 use mcp_wiring::check_mcp_tool_wiring;
 use registry::{REGISTRY_REL, RegistryFile, SCHEMA_REL, validate_registry_against_json_schema};
 use validators::{
-    check_catalog_generation_smoke, check_compilerd, check_dei, check_env_var_ssot_index,
+    check_catalog_feature_gates_match_registry, check_catalog_generation_smoke, check_compilerd,
+    check_command_registry_embed_matches_disk, check_dei, check_env_var_ssot_index,
     check_reachability, check_ref_cli, check_registry_latin_and_handlers,
     check_root_readme_cli_drift, check_script_duals, check_vox_cli_lib,
 };
+
+use super::command_sync;
 
 /// Run all command-compliance checks from a repository root (directory containing `AGENTS.md`).
 pub fn run(repo_root: &Path) -> Result<()> {
@@ -76,6 +79,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
     check_mcp_tool_wiring(repo_root, &mcp_mod, &mcp_dispatch, &mcp_tool_aliases)?;
     check_script_duals(&reg, &duals_doc, &scripts_readme)?;
     check_catalog_generation_smoke()?;
+    check_command_registry_embed_matches_disk(repo_root)?;
+    check_catalog_feature_gates_match_registry(&reg)?;
+    command_sync::verify(repo_root)?;
     check_root_readme_cli_drift(&root_readme)?;
 
     println!(

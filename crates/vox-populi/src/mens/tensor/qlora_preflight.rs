@@ -1,4 +1,4 @@
-//! HF file checks before native Candle QLoRA (`vox schola train --backend qlora`).
+//! HF file checks before native Candle QLoRA (`vox mens train --backend qlora`).
 //!
 //! **Tokenizer contract:** `--backend qlora` requires [`MensTokenizerMode::Hf`] and a real
 //! Hugging Face `tokenizer.json` (download via `--model <repo>` or explicit path). The Burn LoRA

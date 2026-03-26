@@ -41,7 +41,7 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         target: 1,
         base_xp: 20,
         base_crystals: 12,
-        hint_template: "Use `vox gamify companion create` — try names like Scipio, Cato, or Livia",
+        hint_template: "Use `vox ludus companion create` — try names like Scipio, Cato, or Livia",
     },
     QuestTemplate {
         quest_type: QuestType::Create,
@@ -57,7 +57,7 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         target: 3,
         base_xp: 55,
         base_crystals: 30,
-        hint_template: "Vary the `language` field when using `vox gamify companion create`",
+        hint_template: "Vary the `language` field when using `vox ludus companion-create`",
     },
     // ── Review ────────────────────────────────────────
     QuestTemplate {
@@ -76,6 +76,14 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         base_crystals: 55,
         hint_template: "Quality over quantity — false positive flags reduce your review score",
     },
+    QuestTemplate {
+        quest_type: QuestType::Review,
+        description_template: "Complete a `security_review_passed` workflow once this week",
+        target: 1,
+        base_xp: 320,
+        base_crystals: 85,
+        hint_template: "Security review completion is a rare, high-signal event — pair it with checklist sign-off",
+    },
     // ── Battle ────────────────────────────────────────
     QuestTemplate {
         quest_type: QuestType::Battle,
@@ -83,7 +91,7 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         target: 1,
         base_xp: 40,
         base_crystals: 18,
-        hint_template: "Use `vox gamify battle start` and fix the compiler error before time runs out",
+        hint_template: "Use `vox ludus battle start` and fix the compiler error before time runs out",
     },
     QuestTemplate {
         quest_type: QuestType::Battle,
@@ -309,6 +317,14 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         base_xp: 250,
         base_crystals: 70,
         hint_template: "See examples/canonical/testing.vox for fixture/mock patterns",
+    },
+    QuestTemplate {
+        quest_type: QuestType::Testing,
+        description_template: "Earn a `test_suite_green` policy event once today (full suite clean)",
+        target: 1,
+        base_xp: 260,
+        base_crystals: 72,
+        hint_template: "Green tests from CI or `vox test` flows record `test_suite_green` via Ludus producers",
     },
     // ── Research ──────────────────────────────────────
     QuestTemplate {

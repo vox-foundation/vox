@@ -1,4 +1,4 @@
-//! Process priority helpers for `vox schola train`.
+//! Process priority helpers for `vox mens train`.
 //!
 //! When training while using the GPU for other work (browser, etc.), lowering
 //! process priority keeps the system responsive.

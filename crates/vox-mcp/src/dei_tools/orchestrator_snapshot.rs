@@ -17,6 +17,9 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         vcs_active_changes,
         populi_control_url,
         populi_http_timeout_ms,
+        registered_worker_processes,
+        execution_mode,
+        worker_runtime_attached,
     ) = {
         let orch = &state.orchestrator;
         let handle = orch.config_handle();
@@ -25,6 +28,14 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
             "read orchestrator config for vox_orchestrator_status",
         )?;
         let effective = cfg.scaling_threshold as f64 * cfg.scaling_profile.threshold_multiplier();
+        let registered_worker_processes =
+            vox_orchestrator::sync_lock::rw_read(&*orch.agent_handles).len();
+        let worker_runtime_attached = registered_worker_processes > 0;
+        let execution_mode = if worker_runtime_attached {
+            "workers_attached"
+        } else {
+            "queue_only"
+        };
         (
             orch.status(),
             Some(format!("{:?}", cfg.scaling_profile).to_lowercase()),
@@ -58,7 +69,17 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
             .len(),
             cfg.populi_control_url.clone(),
             cfg.populi_http_timeout_ms,
+            registered_worker_processes,
+            execution_mode.to_string(),
+            worker_runtime_attached,
         )
+    };
+
+    let db_configured = state.db.is_some();
+    let event_feed_mode = if db_configured {
+        "codex_and_transient"
+    } else {
+        "transient_only"
     };
 
     let populi_federation_cache = serde_json::to_value(
@@ -218,6 +239,11 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         mesh_snapshot,
         populi_federation_cache,
         planning,
+        execution_mode,
+        worker_runtime_attached,
+        registered_worker_processes,
+        db_configured,
+        event_feed_mode: event_feed_mode.to_string(),
     };
 
     Ok(ToolResult::ok(response).to_json())

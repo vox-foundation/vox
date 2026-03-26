@@ -226,6 +226,39 @@ pub struct AgentInfo {
     pub paused: bool,
 }
 
+/// Structured `vox_orchestrator_start` payload (honest about in-process orchestrator limits).
+#[derive(Debug, Serialize)]
+pub struct OrchestratorRuntimeProbe {
+    /// Human-readable summary for operators.
+    pub honest_message: String,
+    /// Number of registered agent queues.
+    pub agent_count: usize,
+    /// [`Orchestrator::agent_handles`] entries (vox-runtime worker processes), if any.
+    pub registered_worker_processes: usize,
+    /// `queue_only` or `workers_attached`.
+    pub execution_mode: String,
+    /// Always false today: MCP does not start the standalone `AgentFleet` loop here.
+    pub agent_fleet_loop_running: bool,
+    /// Static note for clients that assumed a separate fleet process.
+    pub note: &'static str,
+}
+
+/// Spawn a new orchestrator agent queue.
+#[derive(Debug, Deserialize)]
+pub struct SpawnAgentParams {
+    /// Display name for the agent / queue.
+    pub name: String,
+    /// When true, use [`Orchestrator::spawn_dynamic_agent`] (auto-retire when idle).
+    pub dynamic: Option<bool>,
+}
+
+/// Single `agent_id` argument for lifecycle helpers.
+#[derive(Debug, Deserialize)]
+pub struct AgentIdToolParams {
+    /// Target agent id.
+    pub agent_id: u64,
+}
+
 /// High-level orchestrator snapshot for MCP status tools.
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
@@ -269,6 +302,16 @@ pub struct StatusResponse {
     /// Optional planning summary from persisted plan sessions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub planning: Option<serde_json::Value>,
+    /// `queue_only` unless at least one vox-runtime worker handle is registered.
+    pub execution_mode: String,
+    /// True when `registered_worker_processes > 0`.
+    pub worker_runtime_attached: bool,
+    /// Count of registered vox-runtime process handles.
+    pub registered_worker_processes: usize,
+    /// Whether Codex / Turso (`VoxDb`) is attached to this MCP server.
+    pub db_configured: bool,
+    /// `codex_and_transient` when DB is set; otherwise `transient_only` for poll_events.
+    pub event_feed_mode: String,
 }
 
 /// Single LSP-style diagnostic for validate-file responses.

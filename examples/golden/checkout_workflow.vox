@@ -1,11 +1,11 @@
 // ---
 // title: "Checkout Workflow Example"
-// description: "Durable checkout workflow with idempotent charge_card activity and Result pattern matching."
+// description: "Durable checkout workflow with idempotent charge_card activity and Result match."
 // syntax_version: "0.8"
 // status: golden
 // category: example
 // constructs: [activity, workflow, Result, match]
-// last_validated: 2026-03-24
+// last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
@@ -20,7 +20,7 @@ activity charge_card(amount: int) to Result[str] {
 workflow checkout(amount: int) to str {
     let result = charge_card(amount)
     match result {
-        Ok(tx) -> "Success: " + tx,
+        Ok(tx) -> "Success: " + tx
         Error(msg) -> "Failed: " + msg
     }
 }

@@ -3,7 +3,7 @@
 use clap::Subcommand;
 use std::path::PathBuf;
 
-use super::types::{DbPreflightProfileCli, PublicationPrepareBodyCli};
+use super::types::{ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli};
 
 /// Subcommands for `vox db`.
 #[derive(Subcommand)]
@@ -27,6 +27,21 @@ pub enum DbCli {
         /// Source file defining compiler entities.
         #[arg(long)]
         file: Option<PathBuf>,
+    },
+    /// Print lowered DB query plans (`HirDbQueryPlan`) from a `.vox` file
+    Explain {
+        /// Source file defining query functions.
+        #[arg(long)]
+        file: Option<PathBuf>,
+        /// Optional query function name filter.
+        #[arg(long)]
+        query: Option<String>,
+        /// Emit compact JSON instead of pretty JSON (ignored with `--jsonl`).
+        #[arg(long, default_value_t = false)]
+        compact: bool,
+        /// Emit one JSON object per query-plan row (newline-delimited JSON for piping).
+        #[arg(long, default_value_t = false)]
+        jsonl: bool,
     },
     /// Print sample rows from a table
     Sample {
@@ -329,6 +344,16 @@ pub enum DbCli {
         #[arg(long)]
         publication_id: String,
     },
+    /// Write scholarly staging files (`body.md`, `CITATION.cff`, `crossref_work.json`, optional `zenodo.json`) under `--output-dir`.
+    #[command(name = "publication-scholarly-staging-export")]
+    PublicationScholarlyStagingExport {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long)]
+        output_dir: PathBuf,
+        #[arg(long, value_enum)]
+        venue: ScholarlyVenueCli,
+    },
     /// Evaluate [`vox_publisher::publication_worthiness`] against a metrics JSON file (stdout only).
     #[command(name = "publication-worthiness-evaluate")]
     PublicationWorthinessEvaluate {
@@ -349,12 +374,15 @@ pub enum DbCli {
         #[arg(long)]
         approver: String,
     },
-    /// Submit a prepared publication using the local scholarly adapter.
+    /// Submit a prepared publication using the scholarly adapter (`--adapter` or `VOX_SCHOLARLY_ADAPTER`).
     #[command(name = "publication-submit-local")]
     PublicationSubmitLocal {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+        /// Override adapter: `local_ledger`, `echo_ledger`, `zenodo`, `openreview` (default: env).
+        #[arg(long)]
+        adapter: Option<String>,
     },
     /// Print publication manifest, approvals, and scholarly submission rows.
     #[command(name = "publication-status")]
@@ -362,6 +390,94 @@ pub enum DbCli {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+    },
+    /// Poll remote repository status for a scholarly submission (latest row, or match `--external-submission-id`).
+    #[command(name = "publication-scholarly-remote-status")]
+    PublicationScholarlyRemoteStatus {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Restrict to this `scholarly_submissions.external_submission_id` (e.g. Zenodo deposition id, OpenReview note id).
+        #[arg(long)]
+        external_submission_id: Option<String>,
+    },
+    /// Poll remote status for every stored scholarly submission on this publication.
+    #[command(name = "publication-scholarly-remote-status-sync-all")]
+    PublicationScholarlyRemoteStatusSyncAll {
+        #[arg(long)]
+        publication_id: String,
+    },
+    /// Batch remote status poll: sync-all for each distinct publication (by recent scholarly submission activity).
+    #[command(name = "publication-scholarly-remote-status-sync-batch")]
+    PublicationScholarlyRemoteStatusSyncBatch {
+        #[arg(long, default_value_t = 25)]
+        limit: i64,
+        /// Run the batch this many times (supervised worker; default 1).
+        #[arg(long, default_value_t = 1)]
+        iterations: u32,
+        /// Seconds to sleep between iterations (0 = no pause; max 3600).
+        #[arg(long, default_value_t = 0)]
+        interval_secs: u64,
+    },
+    /// Append-only operator milestone for arXiv-assist handoff (does not change manifest `state`).
+    #[command(name = "publication-arxiv-handoff-record")]
+    PublicationArxivHandoffRecord {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long)]
+        stage: ArxivHandoffStageCli,
+        /// Operator id or handle (logged in event detail).
+        #[arg(long)]
+        operator: Option<String>,
+        /// Free-form note (logged in event detail).
+        #[arg(long)]
+        note: Option<String>,
+        /// Required when `stage` is `published` (e.g. `arXiv:2501.01234v1`).
+        #[arg(long)]
+        arxiv_id: Option<String>,
+    },
+    /// List `external_submission_jobs` rows due for retry (queued or retryable_failed with elapsed `next_retry_at_ms`).
+    #[command(name = "publication-external-jobs-due")]
+    PublicationExternalJobsDue {
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    /// List `external_submission_jobs` in terminal `failed` state (dead-letter).
+    #[command(name = "publication-external-jobs-dead-letter")]
+    PublicationExternalJobsDeadLetter {
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    /// Requeue one dead-letter job (`failed` → `queued`) by primary key for the next worker tick.
+    #[command(name = "publication-external-jobs-replay")]
+    PublicationExternalJobsReplay {
+        #[arg(long)]
+        job_id: i64,
+    },
+    /// Run one batch of due scholarly submit jobs (preflight, lease, submit with job.adapter).
+    #[command(name = "publication-external-jobs-tick")]
+    PublicationExternalJobsTick {
+        #[arg(long, default_value_t = 10)]
+        limit: i64,
+        /// Worker lease duration in milliseconds (5s–1h).
+        #[arg(long, default_value_t = 120_000)]
+        lock_ttl_ms: i64,
+        /// Override lock owner id (default: `vox:<pid>` or `VOX_SCHOLARLY_JOB_LOCK_OWNER`).
+        #[arg(long)]
+        lock_owner: Option<String>,
+        /// Process this many back-to-back ticks (default 1; max 10000).
+        #[arg(long, default_value_t = 1)]
+        iterations: u32,
+        /// Seconds between ticks when `iterations` > 1 (max 3600).
+        #[arg(long, default_value_t = 0)]
+        interval_secs: u64,
+    },
+    /// Read-only JSON rollup: scholarly external jobs, attempts, status snapshots, submission rows, and publication attempts (by channel).
+    #[command(name = "publication-external-pipeline-metrics")]
+    PublicationExternalPipelineMetrics {
+        /// Lower bound for time-windowed series: now minus this many hours (0 = since Unix epoch). Clamped to 8760 (one year). Default 168 (7 days).
+        #[arg(long, default_value_t = 168)]
+        since_hours: i64,
     },
     /// Upsert one publication media asset row.
     #[command(name = "publication-media-upsert")]

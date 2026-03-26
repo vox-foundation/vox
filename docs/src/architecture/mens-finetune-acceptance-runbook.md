@@ -29,8 +29,8 @@ training_eligible: true
 | 8 | `cargo test -p vox-mens --features train --test candle_burn_nf4_dequant_lm_reference_parity` | Tier B: NF4 round-trip then shared f32 LM-linear parity |
 | 9 | `cargo test -p vox-tensor --features gpu --lib linear_warmup_sequence_matches` | LR warmup matches Burn linear scheduler |
 | 10 | `cargo test -p vox-cli merge_` | merge guards + merge-qlora roundtrip + Burn `*.bin` rejection on merge-qlora |
-| 11 | `vox schola train --backend lora --data-dir … --output-dir …` | Completes, `training_manifest.json` has `execution_kernel` = `burn_lora` |
-| 12 | `vox schola train --backend qlora --tokenizer hf --model <hf> …` | Completes, `populi_adapter_manifest_v3.json` written |
+| 11 | `vox mens train --backend lora --data-dir … --output-dir …` | Completes, `training_manifest.json` has `execution_kernel` = `burn_lora` |
+| 12 | `vox mens train --backend qlora --tokenizer hf --model <hf> …` | Completes, `populi_adapter_manifest_v3.json` written |
 | 13 | `vox ci mens-gate --profile m1m4` (or `cargo run -p vox-cli -- ci mens-gate --profile m1m4` in CI) | M1–M4 subset + corpus `tool_trace` mix tests pass |
 
 ## Sign-off

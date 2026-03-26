@@ -237,6 +237,55 @@ impl crate::VoxDb {
         }
     }
 
+    /// Read `user_preferences.value` for an exact `key` (any `user_id`), or `None` if missing.
+    ///
+    /// Used by `vox doctor` for legacy rows keyed by dotted paths (e.g. `project.vox-workspace.path`).
+    pub async fn get_user_preference_value_by_key(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT value FROM user_preferences WHERE key = ?1 LIMIT 1",
+                params![key],
+            )
+            .await?;
+        match rows.next().await? {
+            Some(row) => Ok(Some(
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+            )),
+            None => Ok(None),
+        }
+    }
+
+    /// `agent_reliability` rows with `reliability >= min_reliability`, highest first.
+    pub async fn list_agent_reliability_above(
+        &self,
+        min_reliability: f64,
+        limit: i64,
+    ) -> Result<Vec<(String, f64, i64, i64)>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT agent_id, reliability, success_count, failure_count
+             FROM agent_reliability WHERE reliability >= ?1 ORDER BY reliability DESC LIMIT ?2",
+                params![min_reliability, lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push((
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+            ));
+        }
+        Ok(out)
+    }
+
     /// List all `agent_sessions` rows with status = 'active'.
     /// Returns (session_id, agent_id, task_snapshot) triples.
     pub async fn list_active_sessions(

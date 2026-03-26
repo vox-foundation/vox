@@ -110,6 +110,28 @@ pub fn generate_script_with_target(
                     .join(", ")
             ));
         }
+        if !module.query_fns.is_empty() {
+            unsupported.push(format!(
+                "@query functions are not supported in WASI mode: {}",
+                module
+                    .query_fns
+                    .iter()
+                    .map(|s| s.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !module.mutation_fns.is_empty() {
+            unsupported.push(format!(
+                "@mutation functions are not supported in WASI mode: {}",
+                module
+                    .mutation_fns
+                    .iter()
+                    .map(|s| s.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
         if !module.mcp_tools.is_empty() {
             unsupported.push(format!(
                 "MCP tools are not supported in WASI mode: {}",

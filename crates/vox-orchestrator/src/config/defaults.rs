@@ -68,6 +68,10 @@ pub(super) fn default_populi_poll_interval_secs() -> u64 {
     30
 }
 
+pub(super) fn default_populi_remote_result_poll_interval_secs() -> u64 {
+    5
+}
+
 pub(super) fn default_populi_http_timeout_ms() -> u64 {
     10_000
 }

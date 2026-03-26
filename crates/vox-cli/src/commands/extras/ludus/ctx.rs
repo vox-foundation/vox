@@ -4,7 +4,7 @@
 //! ## Before
 //! ```ignore
 //! let db = db_util::get_db().await?;
-//! let user_id = vox_db::paths::local_user_id();
+//! let user_id = vox_ludus::db::canonical_user_id();
 //! let mut profile = db::get_profile(&db, &user_id)
 //!     .await.unwrap_or_default()
 //!     .unwrap_or_else(|| LudusProfile::new_default(&user_id));
@@ -38,7 +38,7 @@ impl LudusContext {
     /// so that time-based regeneration is always current.
     pub async fn load() -> Result<Self> {
         let db = db_util::get_db().await?;
-        let user_id = vox_db::paths::local_user_id();
+        let user_id = vox_ludus::db::canonical_user_id();
         let mut profile = db::get_profile(&db, &user_id)
             .await
             .unwrap_or_default()

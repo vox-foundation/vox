@@ -1,6 +1,6 @@
 # Production mix for Mens QLoRA: primary train.jsonl + tool-trace supervision rows.
 # Run from repo root: `vox mens corpus mix --config mens/config/mix.yaml`
-# `vox schola train` auto-runs mix when this file exists and copies output to `--data-dir/train.jsonl`.
+# `vox mens train` auto-runs mix when this file exists and copies output to `--data-dir/train.jsonl`.
 
 sources:
   - path: mens/data/train.jsonl

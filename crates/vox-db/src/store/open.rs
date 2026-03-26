@@ -65,6 +65,7 @@ impl crate::VoxDb {
             conn,
             sync_db: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
     }
 
@@ -124,6 +125,7 @@ impl crate::VoxDb {
             conn,
             sync_db: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
     }
 
@@ -138,6 +140,7 @@ impl crate::VoxDb {
             conn,
             sync_db: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
     }
 
@@ -171,6 +174,7 @@ impl crate::VoxDb {
             conn,
             sync_db: Some(db),
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
     }
 
@@ -193,6 +197,7 @@ impl crate::VoxDb {
             conn,
             sync_db: Some(db),
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
     }
 

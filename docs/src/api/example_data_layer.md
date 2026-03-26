@@ -7,6 +7,8 @@ training_eligible: true
 ---
 # Example: Data layer example — typed record store with Convex-inspired API.
 
+> **Canonical Turso/Rust surface:** [`reference/vox-db-language-surface`](../reference/vox-db-language-surface.md) and [`examples/golden/crud_api.vox`](../../../examples/golden/crud_api.vox). This page keeps a Convex-shaped sketch for TS codegen; `db.query(Task)` is not the Rust/Vox HIR path.
+
 ```vox
 // Data layer example — typed record store with Convex-inspired API.
 // Tables are defined with @table, indexes with @index.

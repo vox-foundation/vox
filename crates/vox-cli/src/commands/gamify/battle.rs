@@ -2,7 +2,6 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
-use turso::params;
 use vox_ludus::{LudusProfile, battle::Battle, db, quest};
 
 use super::activity::get_db;
@@ -11,7 +10,7 @@ use super::activity::get_db;
 pub async fn battle_start(companion_name: &str) -> Result<()> {
     let db_conn = get_db().await?;
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
 
     let companions = db::list_companions(&db_conn, &user_id).await?;
     let companion = match companions.into_iter().find(|c| c.name == companion_name) {
@@ -100,7 +99,7 @@ pub async fn battle_start(companion_name: &str) -> Result<()> {
     println!(
         "  Submit your fix with: {}",
         format!(
-            "vox gamify battle submit --companion {} --code <FILE>",
+            "vox ludus battle-submit --companion-name {} --code-file <FILE>",
             companion_name
         )
         .bright_green()
@@ -114,7 +113,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
     let db_conn = get_db().await?;
     let code = read_utf8_path_capped(code_file)?;
 
-    let user_id = vox_db::paths::local_user_id();
+    let user_id = vox_ludus::db::canonical_user_id();
     let mut profile = match db::get_profile(&db_conn, &user_id).await? {
         Some(p) => p,
         None => LudusProfile::new_default(&user_id),
@@ -143,7 +142,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
             println!(
                 "  ❌ No active battle found for {}. Start one with {}!",
                 companion_name.bright_white().bold(),
-                "vox gamify battle start".bright_green()
+                "vox ludus battle-start --companion-name <NAME>".bright_green()
             );
             return Ok(());
         }
@@ -191,11 +190,19 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
         db::upsert_profile(&db_conn, &profile).await?;
         db::upsert_companion(&db_conn, &companion).await?;
 
-        // Update battle record
-        db_conn.connection().execute(
-            "UPDATE gamify_battles SET success = 1, crystals_earned = ?1, xp_earned = ?2, submitted_code = ?3 WHERE id = ?4",
-            params![battle.crystals_earned as i64, battle.xp_earned as i64, battle.submitted_code.clone(), battle.id.clone()]
-        ).await?;
+        // Update battle record (Arca SQL lives in vox-db)
+        const BATTLE_DURATION_SECS: i64 = 60;
+        db_conn
+            .update_gamify_battle(
+                battle.id.as_str(),
+                battle.submitted_code.as_deref(),
+                true,
+                battle.crystals_earned as i64,
+                battle.xp_earned as i64,
+                BATTLE_DURATION_SECS,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         for q in &quests {
             db::upsert_quest(&db_conn, q).await?;

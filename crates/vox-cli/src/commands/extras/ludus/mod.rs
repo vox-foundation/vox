@@ -7,6 +7,8 @@ mod collegium;
 mod companion;
 mod ctx;
 mod db_util;
+#[cfg(feature = "ludus-hud")]
+mod hud;
 mod pack;
 mod profile;
 mod progress;
@@ -26,14 +28,17 @@ pub use companion::{
 };
 pub use pack::{pack_init, pack_list};
 pub use profile::{
-    feedback_rate, mode_command, morning_digest, record_activity, record_cli_event_fire_and_forget,
-    reward_claim, shield_use, status,
+    audit_show, digest_weekly, disable_ludus, enable_ludus, feedback_rate, metrics_show,
+    mode_command, morning_digest, profile_merge_from_default, record_activity,
+    record_cli_event_fire_and_forget, reward_claim, session_digest, shield_use, status,
 };
 pub use progress::render_progress_bar;
 pub use quests_notifications::{
     glyph_list, hint_show, leaderboard_show, notify_clear, notify_list, quest_generate, quest_list,
 };
 pub use shop::{shop_buy, shop_list};
+#[cfg(feature = "ludus-hud")]
+pub use hud::run as ludus_hud_run;
 
 /// Print a formatted terminal toast for gamification rewards and level-ups.
 pub fn print_route_result(res: &vox_ludus::reward_policy::RouteResult) {
