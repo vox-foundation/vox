@@ -89,6 +89,11 @@ impl StubDetector {
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
 
+            // Same-line suppressions (see also `scaling` detector pattern).
+            if line.contains("toestub-ignore(all)") || line.contains("toestub-ignore(stub)") {
+                continue;
+            }
+
             // Skip known false positive strings in our own prompts and tests
             if line.contains("DEAD-CODE:")
                 || line.contains("DEAD PATTERNS:")

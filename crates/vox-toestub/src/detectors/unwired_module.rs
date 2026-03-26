@@ -76,6 +76,9 @@ impl UnwiredModuleDetector {
                     is_used = true;
                 }
             }
+            if crate::run_context::workspace_crate_refs_mod(&file.path, mod_name.as_str()) {
+                is_used = true;
+            }
 
             if !is_used {
                 findings.push(Finding {

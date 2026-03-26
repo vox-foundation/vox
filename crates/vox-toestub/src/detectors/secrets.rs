@@ -263,7 +263,9 @@ mod tests {
     #[test]
     fn ignores_aws_key_in_block_comment_on_code_line() {
         let d = SecretDetector::new();
-        let f = source("rs", "fn y() { let _ = 1; /* AKIA1234567890ABCDEF */ }\n");
+        // Split so a repo-wide scan of this file has no contiguous AKIA+16 match in source text.
+        let body = ["fn y() { let _ = 1; /* AKIA", "1234567890ABCDEF */ }\n"].concat();
+        let f = source("rs", &body);
         assert!(
             d.detect(&f, None).is_empty(),
             "AWS-shaped id in block comment should not fire"

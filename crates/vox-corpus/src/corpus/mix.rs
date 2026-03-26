@@ -12,6 +12,11 @@
 //! JSON Schema: `mens/schemas/tool_trace_record.schema.json`; example JSONL: `mens/data/tool_traces.example.jsonl`.
 //! They become `prompt`/`response` rows with `category` `tool_trace` (use `--context-filter tool_trace` in training
 //! to select only these rows).
+//!
+//! ## `record_format: speech_to_code`
+//!
+//! Lines are JSON objects with `refined_transcript` (spoken intent) and `vox_code` (validated .vox source), optional
+//! `transcript_alternatives` and `repair_metadata`. See `mens/schemas/speech_to_code_trace.schema.json`.
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -30,6 +35,9 @@ fn json_or_string_fragment(raw: &str) -> serde_json::Value {
 
 /// Prepended to `noisy_text` when normalizing `asr_refine` rows.
 pub const ASR_REFINE_INSTRUCTION: &str = "Correct the following noisy transcript, preserving intent. Fix phonetic errors, restore punctuation, and normalize code identifiers.\n\n";
+
+/// Instruction prefix for speech-to-code SFT rows (`record_format: speech_to_code`).
+pub const SPEECH_TO_CODE_INSTRUCTION: &str = "Given the following spoken request, emit valid Vox source that satisfies it. Preserve identifiers and paths mentioned in the transcript.\n\nTranscript:\n";
 
 /// One JSONL source file and its repeat weight for [`run_mix`].
 #[derive(Debug, Deserialize)]
@@ -198,6 +206,58 @@ pub fn normalize_training_jsonl_line(
                 row.insert(
                     "category".to_string(),
                     serde_json::Value::String("asr_refine".into()),
+                );
+            }
+            if let Some(r) = v.get("rating").filter(|x| !x.is_null()) {
+                row.insert("rating".to_string(), r.clone());
+            }
+            serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
+        }
+        Some("speech_to_code") => {
+            let v: serde_json::Value =
+                serde_json::from_str(trimmed).map_err(|e| format!("invalid json: {e}"))?;
+            if v.get("prompt").and_then(|x| x.as_str()).is_some()
+                && v.get("response").and_then(|x| x.as_str()).is_some()
+            {
+                return Ok(trimmed.to_string());
+            }
+            let transcript = v
+                .get("refined_transcript")
+                .or_else(|| v.get("transcript"))
+                .and_then(|x| x.as_str())
+                .ok_or_else(|| "speech_to_code: missing refined_transcript".to_string())?;
+            let code = v
+                .get("vox_code")
+                .or_else(|| v.get("code"))
+                .and_then(|x| x.as_str())
+                .ok_or_else(|| "speech_to_code: missing vox_code".to_string())?;
+            let mut prompt = format!("{SPEECH_TO_CODE_INSTRUCTION}{transcript}");
+            if let Some(serde_json::Value::Array(alts)) = v.get("transcript_alternatives") {
+                let joined: Vec<String> = alts
+                    .iter()
+                    .filter_map(|x| x.as_str().map(str::to_string))
+                    .collect();
+                if !joined.is_empty() {
+                    prompt.push_str("\n\nAlternatives:\n");
+                    for a in joined {
+                        prompt.push_str("- ");
+                        prompt.push_str(&a);
+                        prompt.push('\n');
+                    }
+                }
+            }
+            let mut row = serde_json::Map::new();
+            row.insert("prompt".to_string(), serde_json::Value::String(prompt));
+            row.insert(
+                "response".to_string(),
+                serde_json::Value::String(code.to_string()),
+            );
+            if let Some(c) = v.get("category").filter(|x| !x.is_null()) {
+                row.insert("category".to_string(), c.clone());
+            } else {
+                row.insert(
+                    "category".to_string(),
+                    serde_json::Value::String("speech_to_code".into()),
                 );
             }
             if let Some(r) = v.get("rating").filter(|x| !x.is_null()) {
@@ -467,6 +527,19 @@ mod tests {
         let out = normalize_training_jsonl_line(raw, Some("tool_trace")).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["response"].as_str(), Some("Done."));
+    }
+
+    #[test]
+    fn speech_to_code_normalizes_to_training_pair_shape() {
+        let raw = r#"{"refined_transcript":"add a hello function","vox_code":"fn hello() { }","rating":5}"#;
+        let out = normalize_training_jsonl_line(raw, Some("speech_to_code")).expect("ok");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let prompt = v["prompt"].as_str().unwrap();
+        assert!(prompt.contains("add a hello function"));
+        assert!(prompt.starts_with("Given the following spoken"));
+        assert_eq!(v["response"].as_str(), Some("fn hello() { }"));
+        assert_eq!(v["rating"].as_u64(), Some(5));
+        assert_eq!(v["category"].as_str(), Some("speech_to_code"));
     }
 
     #[test]

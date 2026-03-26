@@ -62,12 +62,18 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
     let ctx =
         vox_oratio::refine::CorrectionContext::from_runtime(&rtc, profile, debug_parser_payload);
     let detail = vox_oratio::transcribe_path_detailed(&full, &ctx, language_hint.as_deref())?;
+    let correlation_id = vox_oratio::trace::new_correlation_id();
     let mut out = json!({
         "path": full,
+        "correlation_id": correlation_id,
         "raw_text": detail.raw_text,
         "refined_text": detail.refined_text,
         "text": detail.refined_text,
         "confidence": detail.confidence,
+        "clarification_recommended": vox_oratio::clarification_recommended(
+            detail.confidence,
+            rtc.routing.tool_route_min_confidence,
+        ),
     });
     if debug_parser_payload {
         out["correction_trace"] = json!(detail.correction_trace);
@@ -107,10 +113,18 @@ fn protected_tokens_preserved(original: &str, corrected: &str) -> bool {
         let mod_like = raw.contains("::");
         if flag_like || path_like || mod_like {
             if !corrected.contains(raw) {
+                let redacted = if path_like {
+                    Path::new(raw.trim_matches(|c| c == '`' || c == '"'))
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("(path)")
+                } else {
+                    raw
+                };
                 tracing::debug!(
                     target: "vox_mcp_oratio",
                     stage = "llm_pass",
-                    missing_token = raw,
+                    missing_token_redacted = redacted,
                     "protected token not preserved in LLM correction"
                 );
                 return false;
@@ -458,10 +472,51 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         )?;
     }
 
+    let correlation_id = vox_oratio::trace::new_correlation_id();
+    let intent_envelope = if matches!(route.mode, vox_oratio::RouteMode::Tool) && route.action != "none"
+    {
+        let intent_confidence = route
+            .payload
+            .get("intent_confidence")
+            .and_then(|v| v.as_f64())
+            .map(|x| x as f32)
+            .unwrap_or(0.0);
+        let env = vox_oratio::build_intent_envelope(
+            &route.action,
+            &session.text,
+            intent_confidence,
+            session.confidence,
+        );
+        let gaps = vox_oratio::missing_slot_ids(&env);
+        let slot_hint = vox_oratio::clarification_prompt_for_slots(&env).map(str::to_string);
+        Some((env, slot_hint, gaps))
+    } else {
+        None
+    };
+
     let mut response = json!({
+        "correlation_id": correlation_id,
         "session": session,
         "route": route,
+        "clarification_recommended": vox_oratio::clarification_recommended(
+            session.confidence,
+            rtc.routing.tool_route_min_confidence,
+        ),
     });
+    if let Some((env, slot_hint, gaps)) = intent_envelope {
+        response["intent_envelope"] = serde_json::to_value(&env)?;
+        response["speech_escalation_recommended"] =
+            json!(vox_oratio::speech_escalation_recommended(
+                env.intent_confidence,
+                env.transcript_confidence
+            ));
+        if !gaps.is_empty() {
+            response["intent_slot_gaps"] = json!(gaps);
+        }
+        if let Some(h) = slot_hint {
+            response["slot_clarification"] = json!(h);
+        }
+    }
     response["llm_refinement"] = llm_block;
     if debug_parser_payload {
         response["runtime_config"] = vox_oratio::runtime_config_diagnostic_json(&rtc);

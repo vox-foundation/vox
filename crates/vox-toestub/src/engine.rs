@@ -89,6 +89,37 @@ struct PreludeAllowFile {
     idents: Vec<String>,
 }
 
+fn collect_workspace_crate_mod_refs(files: &[crate::rules::SourceFile]) -> HashMap<String, HashSet<String>> {
+    let re_crate = regex::Regex::new(r"\bcrate::([a-zA-Z_][a-zA-Z0-9_]*)").expect("valid regex");
+    let re_super = regex::Regex::new(r"\bsuper::([a-zA-Z_][a-zA-Z0-9_]*)").expect("valid regex");
+    let mut out: HashMap<String, HashSet<String>> = HashMap::new();
+    for f in files {
+        if f.language != Language::Rust {
+            continue;
+        }
+        let Some(key) = crate::run_context::workspace_crate_key(&f.path) else {
+            continue;
+        };
+        for cap in re_crate.captures_iter(&f.content) {
+            if let Some(m) = cap.get(1) {
+                let name = m.as_str();
+                if !matches!(name, "self" | "super" | "crate") {
+                    out.entry(key.clone()).or_default().insert(name.to_string());
+                }
+            }
+        }
+        for cap in re_super.captures_iter(&f.content) {
+            if let Some(m) = cap.get(1) {
+                let name = m.as_str();
+                if !matches!(name, "self" | "super" | "crate") {
+                    out.entry(key.clone()).or_default().insert(name.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 fn merge_prelude_allowlist(roots: &[PathBuf], explicit: Option<&Path>) -> HashSet<String> {
     let mut out = HashSet::new();
     let mut try_load = |p: &Path| {
@@ -148,14 +179,6 @@ impl ToestubEngine {
             &roots,
             self.config.prelude_allowlist_path.as_deref(),
         );
-        let _run_ctx_guard =
-            crate::run_context::RunContextGuard::new(crate::run_context::RunContext {
-                canary_crates: self.config.canary_crates.clone(),
-                tests_mode: self.config.tests_mode,
-                prelude_allow_idents: prelude,
-                feature_flags: self.config.feature_flags.iter().cloned().collect(),
-                unresolved_callee_counts: std::collections::HashMap::new(),
-            });
         let suppression_store = match crate::suppression::SuppressionStore::load_optional(
             self.config.suppression_path.as_deref(),
         ) {
@@ -173,6 +196,17 @@ impl ToestubEngine {
             self.config.languages.clone(),
         );
         let files = scanner.scan();
+        let workspace_crate_mod_refs = collect_workspace_crate_mod_refs(&files);
+
+        let _run_ctx_guard =
+            crate::run_context::RunContextGuard::new(crate::run_context::RunContext {
+                canary_crates: self.config.canary_crates.clone(),
+                tests_mode: self.config.tests_mode,
+                prelude_allow_idents: prelude,
+                feature_flags: self.config.feature_flags.iter().cloned().collect(),
+                unresolved_callee_counts: std::collections::HashMap::new(),
+                workspace_crate_mod_refs,
+            });
 
         // 2. Run each rule on each file (one Rust parse + token map per file)
         let mut all_findings: Vec<Finding> = Vec::new();

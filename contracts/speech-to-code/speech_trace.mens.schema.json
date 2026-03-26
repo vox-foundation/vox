@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/schemas/speech-to-code/speech_trace.mens.schema.json",
+  "title": "SpeechToCodeMensTrainingTrace",
+  "description": "MENS / corpus export: base speech telemetry trace plus required vox_code for supervised speech-to-code rows.",
+  "type": "object",
+  "required": ["schema_version", "session_id", "refined_transcript", "vox_code"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "correlation_id": { "type": "string" },
+    "session_id": { "type": "string" },
+    "raw_transcript": { "type": "string" },
+    "refined_transcript": { "type": "string" },
+    "transcript_alternatives": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "vox_code": { "type": "string" },
+    "intent_action": { "type": "string" },
+    "intent_slots": { "type": "object" },
+    "repair_attempts": { "type": "integer", "minimum": 0 },
+    "compile_ok": { "type": "boolean" },
+    "rating": { "type": "number" },
+    "failure_category": {
+      "type": "string",
+      "enum": [
+        "acoustic",
+        "lexical",
+        "syntactic",
+        "semantic",
+        "orchestration",
+        "unknown"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

@@ -39,7 +39,7 @@ anyhow           = { workspace = true }
 thiserror        = { workspace = true }
 reqwest          = { workspace = true }
 vox-toestub      = { workspace = true }
-vox-oratio       = { path = "../vox-oratio" }
+vox-oratio       = { path = "../vox-oratio", features = ["compiler-rerank"] }
 turso            = { workspace = true }
 
 # MCP protocol

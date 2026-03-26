@@ -15,6 +15,111 @@ use crate::runtime_config::OratioRuntimeConfig;
 enum IntentKind {
     None,
     OratioStatus,
+    CodeCreate,
+    CodeEdit,
+    ExplainCode,
+    RunCheck,
+}
+
+/// Alphanumeric / underscore tokens (hybrid classifier: avoids `exchange` → `change ` false positives).
+fn word_tokens(lower: &str) -> Vec<&str> {
+    lower
+        .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .filter(|t| !t.is_empty())
+        .collect()
+}
+
+fn tokens_contain_consecutive(tokens: &[&str], phrase: &[&str]) -> bool {
+    if phrase.is_empty() || phrase.len() > tokens.len() {
+        return false;
+    }
+    'outer: for start in 0..=(tokens.len() - phrase.len()) {
+        for i in 0..phrase.len() {
+            if tokens[start + i] != phrase[i] {
+                continue 'outer;
+            }
+        }
+        return true;
+    }
+    false
+}
+
+fn classify_speech_code_intent(lower: &str, compact: &str) -> Option<(IntentKind, f32)> {
+    let tokens = word_tokens(lower);
+
+    let create_phrases: &[&[&str]] = &[
+        &["create", "a", "function"],
+        &["create", "function"],
+        &["new", "function"],
+        &["add", "a", "function"],
+        &["add", "function"],
+        &["write", "a", "function"],
+        &["generate", "code"],
+        &["create", "file"],
+        &["new", "file"],
+        &["add", "file"],
+    ];
+    for ph in create_phrases {
+        if tokens_contain_consecutive(&tokens, ph) {
+            return Some((IntentKind::CodeCreate, 0.74));
+        }
+    }
+    let create_hits = [
+        "create a function",
+        "create function",
+        "new function",
+        "add a function",
+        "add function",
+        "write a function",
+        "generate code",
+        "create file",
+        "new file",
+        "add file",
+    ];
+    for h in create_hits {
+        if lower.contains(h) {
+            return Some((IntentKind::CodeCreate, 0.72));
+        }
+    }
+    let create_compact = [
+        "createfunction",
+        "newfunction",
+        "addfunction",
+        "generatecode",
+        "createfile",
+    ];
+    for h in create_compact {
+        if compact.contains(h) {
+            return Some((IntentKind::CodeCreate, 0.62));
+        }
+    }
+
+    let edit_words = [
+        "edit", "change", "modify", "update", "refactor", "rename", "replace",
+    ];
+    if edit_words.iter().any(|w| tokens.iter().any(|t| *t == *w)) {
+        return Some((IntentKind::CodeEdit, 0.7));
+    }
+
+    if tokens.first().copied() == Some("explain")
+        || tokens_contain_consecutive(&tokens, &["what", "does"])
+        || tokens_contain_consecutive(&tokens, &["how", "does"])
+    {
+        return Some((IntentKind::ExplainCode, 0.66));
+    }
+    let test_hits = [
+        "run test",
+        "run the test",
+        "cargo test",
+        "run checks",
+        "type check",
+    ];
+    for h in test_hits {
+        if lower.contains(h) {
+            return Some((IntentKind::RunCheck, 0.7));
+        }
+    }
+    None
 }
 
 fn classify_intent(transcript: &str) -> (IntentKind, f32) {
@@ -53,7 +158,22 @@ fn classify_intent(transcript: &str) -> (IntentKind, f32) {
         return (IntentKind::OratioStatus, 0.55);
     }
 
+    if let Some((k, c)) = classify_speech_code_intent(&lower, &compact) {
+        return (k, c);
+    }
+
     (IntentKind::None, 0.35)
+}
+
+fn intent_action_id(intent: IntentKind) -> &'static str {
+    match intent {
+        IntentKind::None => "none",
+        IntentKind::OratioStatus => "oratio.status",
+        IntentKind::CodeCreate => "speech.intent.code_create",
+        IntentKind::CodeEdit => "speech.intent.code_edit",
+        IntentKind::ExplainCode => "speech.intent.explain_code",
+        IntentKind::RunCheck => "speech.intent.run_check",
+    }
 }
 
 fn chat_sessions() -> &'static Mutex<HashMap<String, Vec<String>>> {
@@ -160,7 +280,14 @@ pub fn route_transcript_with_options(
                 };
             }
             let (intent, route_conf) = classify_intent(transcript);
-            if matches!(intent, IntentKind::OratioStatus) {
+            if matches!(
+                intent,
+                IntentKind::OratioStatus
+                    | IntentKind::CodeCreate
+                    | IntentKind::CodeEdit
+                    | IntentKind::ExplainCode
+                    | IntentKind::RunCheck
+            ) {
                 let blended = (transcript_confidence * 0.5 + route_conf * 0.5).clamp(0.0, 1.0);
                 if blended < min_c {
                     return RouteResponse {
@@ -174,15 +301,29 @@ pub fn route_transcript_with_options(
                         }),
                     };
                 }
+                if matches!(intent, IntentKind::OratioStatus) {
+                    return RouteResponse {
+                        mode,
+                        action: "oratio.status".to_string(),
+                        status: "executed".to_string(),
+                        payload: serde_json::json!({
+                            "summary": crate::transcript_status(),
+                            "candle": crate::candle_backend_status_json(),
+                            "intent_confidence": route_conf,
+                            "blended_confidence": blended,
+                        }),
+                    };
+                }
                 return RouteResponse {
                     mode,
-                    action: "oratio.status".to_string(),
-                    status: "executed".to_string(),
+                    action: intent_action_id(intent).to_string(),
+                    status: "intent_matched".to_string(),
                     payload: serde_json::json!({
-                        "summary": crate::transcript_status(),
-                        "candle": crate::candle_backend_status_json(),
+                        "intent": intent_action_id(intent),
+                        "transcript": transcript,
                         "intent_confidence": route_conf,
                         "blended_confidence": blended,
+                        "note": "Downstream MCP/planner should validate slots and invoke codegen tools",
                     }),
                 };
             }
@@ -290,6 +431,46 @@ mod tests {
         let out_low =
             route_transcript_with_options(RouteMode::Tool, "s2", "oratio status", 0.1, &rt);
         assert_eq!(out_low.status, "below_tool_confidence");
+    }
+
+    #[test]
+    fn tool_mode_matches_code_create_intent() {
+        let rt = OratioRuntimeConfig::default();
+        let out = route_transcript_with_options(
+            RouteMode::Tool,
+            "sid",
+            "please create a function called main",
+            0.9,
+            &rt,
+        );
+        assert_eq!(out.action, "speech.intent.code_create");
+        assert_eq!(out.status, "intent_matched");
+    }
+
+    #[test]
+    fn exchange_does_not_false_trigger_code_edit() {
+        let rt = OratioRuntimeConfig::default();
+        let out = route_transcript_with_options(
+            RouteMode::Tool,
+            "ex",
+            "exchange rate helper in the module",
+            0.95,
+            &rt,
+        );
+        assert_ne!(out.action, "speech.intent.code_edit");
+    }
+
+    #[test]
+    fn explicit_change_triggers_code_edit() {
+        let rt = OratioRuntimeConfig::default();
+        let out = route_transcript_with_options(
+            RouteMode::Tool,
+            "ch",
+            "change the return type to int",
+            0.95,
+            &rt,
+        );
+        assert_eq!(out.action, "speech.intent.code_edit");
     }
 
     #[test]

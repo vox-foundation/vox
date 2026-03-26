@@ -6,7 +6,9 @@ edition.workspace = true
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
 tower-lsp = "0.20"
 tower-lsp-server = { workspace = true }
 vox-config = { path = "../vox-config" }

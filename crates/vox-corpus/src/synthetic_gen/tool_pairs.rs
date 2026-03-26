@@ -8,4 +8,4 @@ use super::{
     EXAMPLE_TASKS, SyntheticGenConfig, emit_tool_pair, name_hash, rng::Rng, templates::TEMPLATES,
 };
 
-include!("_tool_pairs_body.rs");
+include!("bodies/_tool_pairs_body.rs");

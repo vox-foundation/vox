@@ -9,4 +9,4 @@ use super::{
     tool_pairs::example_args_for_tool,
 };
 
-include!("_skill_orch_body.rs");
+include!("bodies/_skill_orch_body.rs");

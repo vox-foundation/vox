@@ -8,8 +8,9 @@ use vox_compiler::ast::expr::Expr;
 use vox_compiler::ast::stmt::Stmt;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::diagnostics::Severity;
 use vox_compiler::typeck::typecheck_ast_module;
+use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
+use vox_compiler::typeck::diagnostics::Severity;
 
 pub mod bounded_fs;
 pub mod completions;
@@ -21,40 +22,55 @@ pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32) {
     vox_compiler::ast::span::byte_offset_to_line_col_zero_based(text, index)
 }
 
-/// Run lexer → parser → typecheck and return LSP diagnostics (no side effects).
-pub fn validate_document(text: &str) -> Vec<Diagnostic> {
+fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
+    let (sl, sc) = byte_index_to_line_col(text, err.span.start);
+    let (el, ec) = byte_index_to_line_col(text, err.span.end);
+    let start = Position {
+        line: sl,
+        character: sc,
+    };
+    let end = Position {
+        line: el,
+        character: ec,
+    };
+    Diagnostic {
+        range: Range { start, end },
+        severity: Some(match err.severity {
+            Severity::Error => DiagnosticSeverity::ERROR,
+            Severity::Warning => DiagnosticSeverity::WARNING,
+        }),
+        code: None,
+        code_description: None,
+        source: Some("vox-lsp".to_string()),
+        message: err.message,
+        related_information: None,
+        tags: None,
+        data: None,
+    }
+}
+
+fn validate_document_impl(text: &str, include_hir: bool) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let tokens = lex(text);
     match parse(tokens) {
         Ok(module) => {
             diagnostics.extend(mesh_workflow_env_warnings(text, &module));
-            let type_errors = typecheck_ast_module(text, &module);
-            for err in type_errors {
-                let (sl, sc) = byte_index_to_line_col(text, err.span.start);
-                let (el, ec) = byte_index_to_line_col(text, err.span.end);
-                let start = Position {
-                    line: sl,
-                    character: sc,
-                };
-                let end = Position {
-                    line: el,
-                    character: ec,
-                };
-                diagnostics.push(Diagnostic {
-                    range: Range { start, end },
-                    severity: Some(match err.severity {
-                        Severity::Error => DiagnosticSeverity::ERROR,
-                        Severity::Warning => DiagnosticSeverity::WARNING,
-                    }),
-                    code: None,
-                    code_description: None,
-                    source: Some("vox-lsp".to_string()),
-                    message: err.message,
-                    related_information: None,
-                    tags: None,
-                    data: None,
-                });
+            let mut type_errors = typecheck_ast_module(text, &module);
+            if include_hir {
+                let hir = vox_compiler::hir::lower_module(&module);
+                for e in vox_compiler::hir::validate_module(&hir) {
+                    type_errors.push(TypeckDiagnostic::hir_invariant(
+                        e.message,
+                        e.span,
+                        text,
+                    ));
+                }
             }
+            diagnostics.extend(
+                type_errors
+                    .into_iter()
+                    .map(|err| typeck_diagnostic_to_lsp(text, err)),
+            );
         }
         Err(parse_errors) => {
             for err in parse_errors {
@@ -81,6 +97,23 @@ pub fn validate_document(text: &str) -> Vec<Diagnostic> {
         }
     }
     diagnostics
+}
+
+/// Run lexer → parser → typecheck and return LSP diagnostics (no side effects).
+///
+/// Note: This does **not** run HIR structural validation. For parity with the CLI
+/// frontend (`run_frontend_str`), use [`validate_document_with_hir`].
+pub fn validate_document(text: &str) -> Vec<Diagnostic> {
+    validate_document_impl(text, false)
+}
+
+/// Full frontend validation: lexer → parser → typecheck → HIR lower → HIR validate.
+///
+/// Matches the diagnostic shape produced by `vox-cli` `run_frontend_str` for type/HIR issues
+/// (parse errors are always surfaced as errors).
+#[must_use]
+pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
+    validate_document_impl(text, true)
 }
 
 fn vox_populi_enabled_from_env() -> bool {

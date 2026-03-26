@@ -281,11 +281,18 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         .unwrap_or_else(|_| default_revision_for_model(&model_id).to_string());
 
     let pcm = pcm_decode_to_16k_mono(path)?;
+    let budget_ms = std::env::var("VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(25u64);
+    let (pcm, pre_diag) =
+        crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
     tracing::debug!(
         target: "vox_oratio_whisper",
         path = %path.display(),
         samples = pcm.len(),
-        "Decoded audio payload"
+        ?pre_diag,
+        "Decoded audio payload (after optional acoustic preprocess)"
     );
     if pcm.is_empty() {
         anyhow::bail!("no audio samples decoded from {}", path.display());

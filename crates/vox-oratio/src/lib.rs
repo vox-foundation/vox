@@ -9,20 +9,47 @@
 mod language;
 mod runtime_config;
 
+pub mod acoustic_preprocess;
+
+pub use acoustic_preprocess::{AcousticPreprocessDiagnostics, preprocess_audio_pcm_f32_reported};
+pub mod contextual_bias;
+
 #[cfg(feature = "stt-candle")]
 mod backends;
 
 pub mod eval;
+pub mod failure_taxonomy;
 pub mod refine;
 pub mod routing;
 pub mod session;
+pub mod streaming_partial;
+pub mod tiering;
+pub mod transcript_rerank;
+pub mod speech_intent;
+pub mod speech_lexicon;
+pub mod speech_normalize;
+pub mod speech_policy;
+pub mod trace;
 pub mod traits;
 
 #[cfg(feature = "stt-candle")]
 pub use backends::candle_whisper::{
-    ENV_CUDA, ENV_MODEL, ENV_REVISION, LanguageEnvOverride, candle_backend_status_json,
-    transcribe_audio_file, transcribe_audio_file_with_language,
+    ENV_CUDA, ENV_MODEL, ENV_REVISION, LanguageEnvOverride, transcribe_audio_file,
+    transcribe_audio_file_with_language,
 };
+
+/// JSON status for the Candle backend (CPU/GPU feature flags, model env).
+#[must_use]
+pub fn candle_backend_status_json() -> serde_json::Value {
+    #[cfg(feature = "stt-candle")]
+    {
+        backends::candle_whisper::candle_backend_status_json()
+    }
+    #[cfg(not(feature = "stt-candle"))]
+    {
+        serde_json::json!({ "stt_candle": false })
+    }
+}
 
 pub use routing::{RouteMode, RouteResponse, route_transcript, route_transcript_with_options};
 pub use runtime_config::{
@@ -37,4 +64,15 @@ pub use session::{
 };
 pub use traits::{
     TranscribeDetail, Transcript, transcribe_path, transcribe_path_detailed, transcript_status,
+};
+pub use speech_intent::{
+    build_intent_envelope, clarification_prompt_for_slots, missing_slot_ids, SpeechIntentAction,
+    SpeechIntentEnvelope,
+};
+pub use speech_policy::clarification_recommended;
+pub use streaming_partial::{should_commit_partial, StreamingStabilizationConfig};
+pub use tiering::{speech_cache_key, speech_escalation_recommended};
+pub use transcript_rerank::{
+    pick_best_transcript_index, pick_best_transcript_index_with_raw, rerank_candidates_best_first,
+    rerank_candidates_best_first_with_context, rerank_candidates_best_first_with_raw,
 };

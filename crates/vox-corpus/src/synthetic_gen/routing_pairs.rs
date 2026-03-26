@@ -6,4 +6,4 @@ use serde_json::json;
 
 use super::{SyntheticGenConfig, emit_line, name_hash, rng::Rng};
 
-include!("_routing_body.rs");
+include!("bodies/_routing_body.rs");

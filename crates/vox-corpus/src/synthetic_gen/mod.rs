@@ -182,7 +182,7 @@ pub use routing_pairs::{
 };
 pub use telemetry_pairs::generate_telemetry_interpretation_pairs;
 
-include!("_generate_all_mod.inc");
+include!("bodies/_generate_all_mod.inc");
 
 #[cfg(test)]
 mod tests;

@@ -43,6 +43,8 @@ pub mod memory;
 pub mod models;
 /// Shared `ToolResult` envelope and Deserialize/Serialize shapes for MCP tool arguments.
 pub mod params;
+/// Speech-to-code grammar / constrained-decode hooks (scaffold).
+pub mod speech_constraints;
 /// Best-effort mens registry publish on MCP startup (`VOX_MESH_ENABLED`).
 pub mod populi_startup;
 /// Bulletin-board Q&A between agents (ask, answer, pending, broadcast).

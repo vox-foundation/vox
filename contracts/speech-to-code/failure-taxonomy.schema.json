@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/schemas/speech-to-code/failure-taxonomy.schema.json",
+  "title": "SpeechToCodeFailureCategory",
+  "type": "string",
+  "enum": [
+    "acoustic",
+    "lexical",
+    "syntactic",
+    "semantic",
+    "orchestration",
+    "unknown"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/schemas/speech-to-code/kpi-baseline.schema.json",
+  "title": "SpeechToCodeKpiBaseline",
+  "type": "object",
+  "required": ["schema_version", "captured_at_utc"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "captured_at_utc": { "type": "string", "format": "date-time" },
+    "correlation_id": { "type": "string" },
+    "wer": { "type": "number", "minimum": 0, "maximum": 1 },
+    "cer": { "type": "number", "minimum": 0, "maximum": 1 },
+    "compile_pass_at_1": { "type": "number", "minimum": 0, "maximum": 1 },
+    "compile_pass_at_k": { "type": "number", "minimum": 0, "maximum": 1 },
+    "semantic_pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "latency_ms_median": { "type": "number", "minimum": 0 },
+    "latency_ms_p95": { "type": "number", "minimum": 0 },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": true
+}

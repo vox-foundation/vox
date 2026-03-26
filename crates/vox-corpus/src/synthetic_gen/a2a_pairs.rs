@@ -9,4 +9,4 @@ use super::{
     templates::TEMPLATES,
 };
 
-include!("_a2a_pairs_body.rs");
+include!("bodies/_a2a_pairs_body.rs");

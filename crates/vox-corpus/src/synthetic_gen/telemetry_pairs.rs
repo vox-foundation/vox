@@ -6,4 +6,4 @@ use serde_json::json;
 
 use super::{SyntheticGenConfig, emit_line};
 
-include!("_telemetry_pairs.inc");
+include!("bodies/_telemetry_pairs.inc");

@@ -6,4 +6,4 @@ use serde_json::json;
 
 use super::{SyntheticGenConfig, emit_line, name_hash, rng::Rng, templates::TEMPLATES};
 
-include!("_workflow_body.rs");
+include!("bodies/_workflow_body.rs");

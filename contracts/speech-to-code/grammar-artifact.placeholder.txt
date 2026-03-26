@@ -1,0 +1,2 @@
+# Legacy pointer — use `vox_grammar_artifact.json` (keywords/decorators/punctuators) + `vox-cli`/lexer tests.
+# MCP merges a short hint from that artifact into `generate_vox_code` when present.

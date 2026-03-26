@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/schemas/speech-to-code/lexicon.schema.json",
+  "title": "SpeechToCodeLexicon",
+  "type": "object",
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["canonical"],
+        "properties": {
+          "canonical": { "type": "string" },
+          "aliases": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "pronunciation_hints": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

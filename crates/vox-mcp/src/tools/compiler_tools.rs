@@ -6,6 +6,8 @@
 //! Subprocess and file reads use Tokio async I/O so [`super::handle_tool_call`] does not block
 //! the runtime. TOESTUB runs inside [`tokio::task::spawn_blocking`] because the engine is synchronous.
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use crate::params::{
@@ -13,6 +15,16 @@ use crate::params::{
 };
 use crate::server::ServerState;
 use tower_lsp::lsp_types::DiagnosticSeverity;
+
+fn hir_error_signature(errors: &[&tower_lsp::lsp_types::Diagnostic]) -> u64 {
+    let mut h = DefaultHasher::new();
+    for e in errors {
+        e.message.hash(&mut h);
+        e.range.start.line.hash(&mut h);
+        e.range.start.character.hash(&mut h);
+    }
+    h.finish()
+}
 
 async fn record_expensive_op(state: &ServerState) {
     if let Ok(mut sm) = state.session_manager.try_lock() {
@@ -60,7 +72,15 @@ pub async fn validate_file(params: ValidateFileParams) -> String {
         }
     };
 
-    let diagnostics = vox_lsp::validate_document(&text);
+    let correlation_id = vox_oratio::trace::new_correlation_id();
+    tracing::debug!(
+        target: "vox_mcp_speech",
+        correlation_id = %correlation_id,
+        path = %params.path,
+        bytes = text.len(),
+        "validate_file: running HIR validation"
+    );
+    let diagnostics = vox_lsp::validate_document_with_hir(&text);
     let infos: Vec<DiagnosticInfo> = diagnostics
         .iter()
         .map(|d| DiagnosticInfo {
@@ -82,6 +102,8 @@ pub async fn validate_file(params: ValidateFileParams) -> String {
     ToolResult::ok(ValidateResponse {
         count: infos.len(),
         diagnostics: infos,
+        hir_validation_included: true,
+        correlation_id: Some(correlation_id),
     })
     .to_json()
 }
@@ -317,22 +339,32 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .get("max_retries")
         .and_then(|v| v.as_u64())
         .unwrap_or(2)
-        .min(5);
+        .min(crate::speech_constraints::SPEECH_CODE_MAX_REPAIR_ATTEMPTS as u64);
 
     if prompt.is_empty() {
         return ToolResult::<String>::err("Missing 'prompt' parameter").to_json();
     }
 
     let mut current_prompt = prompt.to_string();
-    let mut retry_count = 0;
+    let mut retry_count = 0u64;
+    let mut prev_error_sig: Option<u64> = None;
+
+    let grammar_addon =
+        crate::speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
+    let decode_policy = crate::speech_constraints::ConstrainedDecodePolicy::from_env();
+    decode_policy.note_delegation_target();
 
     loop {
+        let hint_stub = crate::speech_constraints::TypeHintStub::default();
         let system_prompt = format!(
             "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
              Rules:\n\
              - Only output the code, no explanation.\n\
              - Wrap in a ```vox code block.\n\
+             {}{}\
              {}\n",
+            grammar_addon,
+            hint_stub.system_prompt_addon(),
             crate::tools::chat_tools::ANTI_LAZINESS_RIDER
         );
 
@@ -411,7 +443,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             return ToolResult::ok(completion).to_json();
         }
 
-        let diagnostics = vox_lsp::validate_document(&completion);
+        let diagnostics = vox_lsp::validate_document_with_hir(&completion);
         let errors: Vec<_> = diagnostics
             .iter()
             .filter(|d| d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR))
@@ -420,6 +452,15 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         if errors.is_empty() {
             return ToolResult::ok(completion).to_json();
         }
+
+        let sig = hir_error_signature(&errors);
+        if prev_error_sig == Some(sig) {
+            return ToolResult::<String>::err(format!(
+                "repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"
+            ))
+            .to_json();
+        }
+        prev_error_sig = Some(sig);
 
         retry_count += 1;
         if retry_count > max_retries {
@@ -435,6 +476,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         let mut feedback = String::from(
             "\n\nThe previous generation had these errors. Fix them and re-generate ONLY the corrected .vox code:\n",
         );
+        if let Some(e) = errors.first() {
+            feedback.push_str(&format!(
+                "\nApply a **minimal-span** edit first around line {} col {} — preserve the rest of the program unless a shared fix is required.\n",
+                e.range.start.line + 1,
+                e.range.start.character + 1
+            ));
+        }
         for (i, err) in errors.iter().enumerate() {
             feedback.push_str(&format!(
                 "{}. [L{}:C{}] {}\n",

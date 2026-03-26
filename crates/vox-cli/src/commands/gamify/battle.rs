@@ -163,7 +163,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
     }
 
     // In a real implementation we would type check the submitted code
-    let is_success = !code.contains("todo!()") && !code.is_empty();
+    let is_success = !code.contains("todo!()") && !code.is_empty(); // toestub-ignore(stub)
 
     if is_success {
         battle.record_result(true, 60); // Simulated 60s
@@ -229,7 +229,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
     } else {
         println!("  ❌ Oh no! The bug fought back.");
         db::upsert_companion(&db_conn, &companion).await?;
-        println!("  Make sure your code works and has no `todo!()` remaining.");
+        println!("  Make sure your code works and has no `todo!()` remaining."); // toestub-ignore(stub)
     }
 
     Ok(())

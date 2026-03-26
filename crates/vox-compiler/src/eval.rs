@@ -70,113 +70,113 @@ fn get_vox_constructs() -> &'static HashMap<&'static str, Regex> {
         let mut m = HashMap::new();
         m.insert(
             "type",
-            Regex::new(r"(?m)^\s*type\s+\w+\s*=").expect("vox-eval static regex: type"),
+            Regex::new(r"(?m)^\s*type\s+\w+\s*=").expect("vox-eval static regex: type"), // OnceLock
         );
         m.insert(
             "fn",
-            Regex::new(r"(?m)^\s*(?:@\w+\s+)?fn\s+\w+").expect("vox-eval static regex: fn"),
+            Regex::new(r"(?m)^\s*(?:@\w+\s+)?fn\s+\w+").expect("vox-eval static regex: fn"), // OnceLock
         );
         m.insert(
             "actor",
-            Regex::new(r"(?m)^\s*actor\s+\w+").expect("vox-eval static regex: actor"),
+            Regex::new(r"(?m)^\s*actor\s+\w+").expect("vox-eval static regex: actor"), // OnceLock
         );
         m.insert(
             "workflow",
-            Regex::new(r"(?m)^\s*workflow\s+\w+").expect("vox-eval static regex: workflow"),
+            Regex::new(r"(?m)^\s*workflow\s+\w+").expect("vox-eval static regex: workflow"), // OnceLock
         );
         m.insert(
             "activity",
-            Regex::new(r"(?m)^\s*activity\s+\w+").expect("vox-eval static regex: activity"),
+            Regex::new(r"(?m)^\s*activity\s+\w+").expect("vox-eval static regex: activity"), // OnceLock
         );
         m.insert(
             "component",
-            Regex::new(r"@component").expect("vox-eval static regex: component"),
+            Regex::new(r"@component").expect("vox-eval static regex: component"), // OnceLock
         );
         m.insert(
             "table",
-            Regex::new(r"@table").expect("vox-eval static regex: table"),
+            Regex::new(r"@table").expect("vox-eval static regex: table"), // OnceLock
         );
         m.insert(
             "query",
-            Regex::new(r"@query").expect("vox-eval static regex: query"),
+            Regex::new(r"@query").expect("vox-eval static regex: query"), // OnceLock
         );
         m.insert(
             "mutation",
-            Regex::new(r"@mutation").expect("vox-eval static regex: mutation"),
+            Regex::new(r"@mutation").expect("vox-eval static regex: mutation"), // OnceLock
         );
         m.insert(
             "action",
-            Regex::new(r"@action").expect("vox-eval static regex: action"),
+            Regex::new(r"@action").expect("vox-eval static regex: action"), // OnceLock
         );
         m.insert(
             "server",
-            Regex::new(r"@server").expect("vox-eval static regex: server"),
+            Regex::new(r"@server").expect("vox-eval static regex: server"), // OnceLock
         );
         m.insert(
             "test",
-            Regex::new(r"@test").expect("vox-eval static regex: test"),
+            Regex::new(r"@test").expect("vox-eval static regex: test"), // OnceLock
         );
         m.insert(
             "mcp_tool",
-            Regex::new(r"@mcp\.tool").expect("vox-eval static regex: mcp_tool"),
+            Regex::new(r"@mcp\.tool").expect("vox-eval static regex: mcp_tool"), // OnceLock
         );
         m.insert(
             "mcp_resource",
-            Regex::new(r"@mcp\.resource").expect("vox-eval static regex: mcp_resource"),
+            Regex::new(r"@mcp\.resource").expect("vox-eval static regex: mcp_resource"), // OnceLock
         );
         m.insert(
             "agent_def",
-            Regex::new(r"@agent_def").expect("vox-eval static regex: agent_def"),
+            Regex::new(r"@agent_def").expect("vox-eval static regex: agent_def"), // OnceLock
         );
         m.insert(
             "skill",
-            Regex::new(r"@skill").expect("vox-eval static regex: skill"),
+            Regex::new(r"@skill").expect("vox-eval static regex: skill"), // OnceLock
         );
         m.insert(
             "routes",
-            Regex::new(r"(?m)^routes:").expect("vox-eval static regex: routes"),
+            Regex::new(r"(?m)^routes:").expect("vox-eval static regex: routes"), // OnceLock
         );
         m.insert(
             "style",
-            Regex::new(r"(?m)^style:").expect("vox-eval static regex: style"),
+            Regex::new(r"(?m)^style:").expect("vox-eval static regex: style"), // OnceLock
         );
         m.insert(
             "http",
-            Regex::new(r"(?i)^http\s+(get|post|put|delete)").expect("vox-eval static regex: http"),
+            Regex::new(r"(?i)^http\s+(get|post|put|delete)").expect("vox-eval static regex: http"), // OnceLock
         );
         m.insert(
             "message",
-            Regex::new(r"(?m)^\s*message\s+\w+").expect("vox-eval static regex: message"),
+            Regex::new(r"(?m)^\s*message\s+\w+").expect("vox-eval static regex: message"), // OnceLock
         );
         m.insert(
             "match",
-            Regex::new(r"(?m)^\s*match\s+").expect("vox-eval static regex: match"),
+            Regex::new(r"(?m)^\s*match\s+").expect("vox-eval static regex: match"), // OnceLock
         );
         m.insert(
             "import",
-            Regex::new(r"(?m)^\s*import\s+").expect("vox-eval static regex: import"),
+            Regex::new(r"(?m)^\s*import\s+").expect("vox-eval static regex: import"), // OnceLock
         );
         m.insert(
             "let",
-            Regex::new(r"(?m)^\s*let\s+").expect("vox-eval static regex: let"),
+            Regex::new(r"(?m)^\s*let\s+").expect("vox-eval static regex: let"), // OnceLock
         );
         m.insert(
             "ret",
-            Regex::new(r"(?m)^\s*ret\s+").expect("vox-eval static regex: ret"),
+            Regex::new(r"(?m)^\s*ret\s+").expect("vox-eval static regex: ret"), // OnceLock
         );
         m.insert(
             "assert",
-            Regex::new(r"\bassert\(").expect("vox-eval static regex: assert"),
+            Regex::new(r"\bassert\(").expect("vox-eval static regex: assert"), // OnceLock
         );
         m.insert(
             "spawn",
-            Regex::new(r"\bspawn\(").expect("vox-eval static regex: spawn"),
+            Regex::new(r"\bspawn\(").expect("vox-eval static regex: spawn"), // OnceLock
         );
         m.insert(
             "with_expr",
-            Regex::new(r"\bwith\s*\{").expect("vox-eval static regex: with_expr"),
+            Regex::new(r"\bwith\s*\{").expect("vox-eval static regex: with_expr"), // OnceLock
         );
-        m.insert("v0", Regex::new(r"@v0").expect("vox-eval static regex: v0"));
+        m.insert("v0", Regex::new(r"@v0").expect("vox-eval static regex: v0")); // OnceLock
         m
     })
 }

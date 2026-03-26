@@ -1,7 +1,12 @@
 {
   "version": 1,
   "idents": [
+    "allow",
+    "augment_prompt",
     "drop",
-    "allow"
+    "emit_expr",
+    "emit_line",
+    "get_tensor",
+    "pred"
   ]
 }

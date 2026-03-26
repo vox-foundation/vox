@@ -7,6 +7,68 @@ use serde::{Deserialize, Serialize};
 
 use crate::refine::{CorrectionContext, CorrectionTrace};
 
+fn contextual_bias_phrases_for_session() -> Vec<String> {
+    const DEFAULT_MAX: usize = 256;
+    let max_phrases: usize = std::env::var("VOX_ORATIO_MAX_BIAS_PHRASES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_MAX);
+    let contextual_on = match std::env::var("VOX_ORATIO_CONTEXTUAL_BIAS") {
+        Ok(s) if s == "0" || s.eq_ignore_ascii_case("false") => false,
+        _ => true,
+    };
+    if !contextual_on {
+        return Vec::new();
+    }
+    let mut lex_phrases = Vec::new();
+    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
+        let path = std::path::Path::new(p.trim());
+        if let Ok(bytes) = std::fs::read(path) {
+            if let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
+                lex_phrases = lex.bias_phrases_sorted(max_phrases);
+            }
+        }
+    }
+    let extra: Vec<String> = std::env::var("VOX_ORATIO_SESSION_HOTWORDS")
+        .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
+        .unwrap_or_default();
+    crate::contextual_bias::merge_bias_phrases(lex_phrases, &extra, max_phrases)
+}
+
+fn finalize_after_refine(raw_text: String, refined: crate::refine::RefineOutput) -> TranscribeDetail {
+    let refined_after_lex = apply_optional_project_lexicon(&refined.text);
+    let bias = contextual_bias_phrases_for_session();
+    let candidates = crate::transcript_rerank::rerank_candidates_best_first_with_context(
+        crate::transcript_rerank::build_transcript_candidates(&raw_text, &refined_after_lex),
+        &bias,
+        Some(raw_text.as_str()),
+    );
+    let refined_text = candidates
+        .first()
+        .cloned()
+        .unwrap_or_else(|| refined_after_lex.clone());
+    let n_best = (candidates.len() > 1).then_some(candidates);
+    TranscribeDetail {
+        raw_text,
+        refined_text,
+        confidence: refined.confidence,
+        correction_trace: refined.trace,
+        n_best,
+    }
+}
+
+fn apply_optional_project_lexicon(text: &str) -> String {
+    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
+        let path = std::path::Path::new(p.trim());
+        if let Ok(bytes) = std::fs::read(path) {
+            if let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
+                return lex.apply(text);
+            }
+        }
+    }
+    text.to_string()
+}
+
 /// File- or segment-level transcription result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Transcript {
@@ -35,6 +97,9 @@ pub struct TranscribeDetail {
     pub confidence: f32,
     /// Trace of applied refinement rules.
     pub correction_trace: Vec<CorrectionTrace>,
+    /// When the STT backend exposes alternatives, list them here (best-first). Usually `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n_best: Option<Vec<String>>,
 }
 
 impl TranscribeDetail {
@@ -78,12 +143,7 @@ pub fn transcribe_path_detailed(
         let raw_text = std::fs::read_to_string(path)
             .with_context(|| format!("read transcript fixture {}", path.display()))?;
         let refined = crate::refine::refine_transcript(&raw_text, ctx);
-        return Ok(TranscribeDetail {
-            raw_text,
-            refined_text: refined.text.clone(),
-            confidence: refined.confidence,
-            correction_trace: refined.trace,
-        });
+        return Ok(finalize_after_refine(raw_text, refined));
     }
 
     #[cfg(feature = "stt-candle")]
@@ -96,12 +156,7 @@ pub fn transcribe_path_detailed(
             let raw_text =
                 crate::transcribe_audio_file_with_language(path, whisper_lang.as_deref())?;
             let refined = crate::refine::refine_transcript(&raw_text, ctx);
-            return Ok(TranscribeDetail {
-                raw_text,
-                refined_text: refined.text.clone(),
-                confidence: refined.confidence,
-                correction_trace: refined.trace,
-            });
+            return Ok(finalize_after_refine(raw_text, refined));
         }
     }
 

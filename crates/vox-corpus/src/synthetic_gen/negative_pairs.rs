@@ -6,4 +6,4 @@ use serde_json::json;
 
 use super::{SyntheticGenConfig, emit_line};
 
-include!("_negative_pairs.inc");
+include!("bodies/_negative_pairs.inc");

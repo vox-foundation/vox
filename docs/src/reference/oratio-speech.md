@@ -2,7 +2,7 @@
 title: "Oratio & speech SSOT (Candle Whisper, no whisper.cpp)"
 description: "Official documentation for Oratio & speech SSOT (Candle Whisper, no whisper.cpp) for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
 # Oratio & speech SSOT (Candle Whisper, no whisper.cpp)
@@ -50,13 +50,14 @@ training_eligible: true
 ## How (contracts)
 
 - **Build check:** `cargo check -p vox-oratio --features stt-candle`; for the **`vox`** CLI Oratio commands, `cargo check -p vox-cli --features oratio` (Oratio is **not** in default **`mens-base`**).
-- **Env**: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, `VOX_ORATIO_CUDA` (feature-gated), `VOX_ORATIO_WORKSPACE` (HTTP path resolution), `VOX_DASH_HOST` / `VOX_DASH_PORT` (dashboard bind). Optional **runtime TOML**: set **`VOX_ORATIO_CONFIG`** to a file with flat keys (`capture_timeout_ms`, `max_duration_ms`, `inference_deadline_ms`, `heartbeat_ms`, refine/routing/HF/LLM tunables — see `crates/vox-oratio/src/runtime_config.rs`). Env overrides file (**precedence: CLI args → env → file → defaults** for programmatic surfaces; CLI flags win on `vox oratio listen`). With the **`cuda`** feature, default inference is **CPU** until **`VOX_ORATIO_CUDA=1`**; status JSON includes **`cuda_feature_enabled`**, **`cuda_requested_via_env`**, **`inference_note`**. **`RUST_LOG=vox_oratio_gpu=info`** emits **`oratio_inference_cpu_default`** vs **`oratio_inference_gpu`** on first session load.
+- **Env**: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, `VOX_ORATIO_CUDA` (feature-gated), `VOX_ORATIO_WORKSPACE` (HTTP path resolution), `VOX_DASH_HOST` / `VOX_DASH_PORT` (dashboard bind), **`VOX_ORATIO_SPEECH_LEXICON_PATH`** (optional JSON lexicon per `contracts/speech-to-code/lexicon.schema.json`, applied after refine). **Contextual bias / rerank**: `VOX_ORATIO_CONTEXTUAL_BIAS` (`0`/`false` to disable), `VOX_ORATIO_SESSION_HOTWORDS` (comma-separated boosts), `VOX_ORATIO_MAX_BIAS_PHRASES` (cap). **Acoustic preprocess (Whisper path)**: `VOX_ORATIO_ACOUSTIC_PREPROCESS` (`none|peak_normalize`), `VOX_ORATIO_ACOUSTIC_PREPROCESS_BUDGET_MS` (default ~25ms wall budget; returns original PCM if exceeded). **Streaming stubs** (for live clients): `VOX_ORATIO_STREAM_PARTIAL_QUIET_MS`, `VOX_ORATIO_STREAM_MAX_WAIT_MS` — see `vox_oratio::StreamingStabilizationConfig`. Optional **runtime TOML**: set **`VOX_ORATIO_CONFIG`** to a file with flat keys (`capture_timeout_ms`, `max_duration_ms`, `inference_deadline_ms`, `heartbeat_ms`, refine/routing/HF/LLM tunables — see `crates/vox-oratio/src/runtime_config.rs`). Env overrides file (**precedence: CLI args → env → file → defaults** for programmatic surfaces; CLI flags win on `vox oratio listen`). With the **`cuda`** feature, default inference is **CPU** until **`VOX_ORATIO_CUDA=1`**; status JSON includes **`cuda_feature_enabled`**, **`cuda_requested_via_env`**, **`inference_note`**. **`RUST_LOG=vox_oratio_gpu=info`** emits **`oratio_inference_cpu_default`** vs **`oratio_inference_gpu`** on first session load.
 - **Session payloads** (CLI `listen`, MCP `vox_oratio_transcribe` / `vox_oratio_listen`, `vox-tools` direct executor) support: `timeout_ms` (UX / capture contract), `max_duration_ms` (session wall cap), optional `inference_deadline_ms` (transcribe+refine post-hoc cap), `heartbeat_ms`, `language_hint`, `profile` (`conservative|balanced|aggressive`), `route_mode` (`none|tool|chat|orchestrator`), `debug_parser_payload`. Responses may include **`language_diagnostics`**, **`deadline_diagnostics`**, and MCP **`runtime_config`** when debugging.
 - **HTTP transcribe body**: `{"path":"relative-or-absolute"}`.
 - **Mix YAML**: optional per-source `record_format: asr_refine`.
 
 ## Related
 
+- **Speech-to-code pipeline** (MCP validation parity, corpus `speech_to_code`, KPI contracts): [`speech-to-code-pipeline.md`](speech-to-code-pipeline.md).
 - **Native fine-tuning** (Burn LoRA / `vox mens train`): [`mens-training.md`](mens-training.md).
 - **Mens chat tool allowlist**: `vox-tools` module **`mens_chat`** (`chat_tool_definitions` / `execute_tool_calls`), intersecting `vox-capability-registry` with `DirectToolExecutor` — **same MCP names** as `vox-mcp`. Callers (CLI, daemons, tests) import `vox_tools::mens_chat` when they need OpenAI-style tool JSON or in-process execution.
 

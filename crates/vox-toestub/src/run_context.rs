@@ -4,6 +4,18 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
+/// `crates/<workspace-member>/` key from a source path, if present.
+pub(crate) fn workspace_crate_key(path: &Path) -> Option<String> {
+    let s = path.to_string_lossy().replace('\\', "/");
+    let parts: Vec<&str> = s.split('/').collect();
+    for (i, seg) in parts.iter().enumerate() {
+        if *seg == "crates" && i + 1 < parts.len() {
+            return Some(parts[i + 1].to_string());
+        }
+    }
+    None
+}
+
 /// How TOESTUB treats Rust files under `tests/` directories (integration / nested test trees).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ToestubTestsMode {
@@ -28,6 +40,8 @@ pub struct RunContext {
     pub feature_flags: HashSet<String>,
     /// Per-callee occurrence counts this run (for hotlist / diagnostics).
     pub(crate) unresolved_callee_counts: HashMap<String, usize>,
+    /// For each workspace member under `crates/<name>/`, module names referenced as `crate::<name>` anywhere in that crate's scanned Rust sources (cross-file wiring for [`unwired/module`]).
+    pub workspace_crate_mod_refs: HashMap<String, HashSet<String>>,
 }
 
 impl Default for RunContext {
@@ -38,6 +52,7 @@ impl Default for RunContext {
             prelude_allow_idents: HashSet::new(),
             feature_flags: HashSet::new(),
             unresolved_callee_counts: HashMap::new(),
+            workspace_crate_mod_refs: HashMap::new(),
         }
     }
 }
@@ -129,6 +144,17 @@ pub fn feature_enabled(flag: &str) -> bool {
         .expect("run_context lock")
         .feature_flags
         .contains(flag)
+}
+
+/// True if any scanned Rust file in the same workspace crate references `crate::<mod_name>::…` / `crate::<mod_name>;` / `use crate::<mod_name>`.
+pub fn workspace_crate_refs_mod(declaring_file: &Path, mod_name: &str) -> bool {
+    let Some(key) = workspace_crate_key(declaring_file) else {
+        return false;
+    };
+    let g = state().lock().expect("run_context lock");
+    g.workspace_crate_mod_refs
+        .get(&key)
+        .is_some_and(|s| s.contains(mod_name))
 }
 
 /// Record an unresolved callee for hotlist telemetry (best-effort).

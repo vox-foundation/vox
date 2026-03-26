@@ -6,4 +6,4 @@ use serde_json::json;
 
 use super::{CLI_COMMANDS, SyntheticGenConfig, emit_line};
 
-include!("_cli_pairs.inc");
+include!("bodies/_cli_pairs.inc");

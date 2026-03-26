@@ -340,4 +340,10 @@ pub struct ValidateResponse {
     pub count: usize,
     /// Diagnostic list.
     pub diagnostics: Vec<DiagnosticInfo>,
+    /// When true, diagnostics include HIR invariant validation (CLI `run_frontend_str` parity).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub hir_validation_included: bool,
+    /// Optional correlation ID for speech-to-code / MCP tracing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<String>,
 }
