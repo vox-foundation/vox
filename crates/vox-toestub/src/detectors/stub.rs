@@ -1,4 +1,6 @@
-use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_non_code};
+use crate::rules::{
+    DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_non_code,
+};
 use regex::Regex;
 
 /// Detects `todo!()`, `unimplemented!()`, `panic!("not implemented")`,
@@ -18,6 +20,66 @@ impl Default for StubDetector {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// `Regex::find` match counts only when the match starts in a **code** span (not string/comment).
+fn stub_regex_match_in_code(
+    file: &SourceFile,
+    line_num: usize,
+    line: &str,
+    re: &Regex,
+    rust_ctx: Option<&crate::analysis::RustFileContext>,
+) -> bool {
+    re.find_iter(line).any(|m| {
+        !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+    })
+}
+
+/// Line-comment scan for work markers: keep ordinary `//` / `#` lines; rustdoc defers to code spans
+/// so inline `` code `` samples in `///` docs do not false-positive.
+fn stub_todo_comment_line_matches(
+    file: &SourceFile,
+    line_num: usize,
+    line: &str,
+    re: &Regex,
+    rust_ctx: Option<&crate::analysis::RustFileContext>,
+) -> bool {
+    if !re.is_match(line) {
+        return false;
+    }
+    let t = line.trim_start();
+    if t.starts_with("///") || t.starts_with("//!") {
+        return re.find_iter(line).any(|m| {
+            !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+        });
+    }
+    if t.starts_with("//")
+        || (t.starts_with('#') && !t.starts_with("#["))
+    {
+        return true;
+    }
+    re.find_iter(line).any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
+}
+
+fn placeholder_matches_line(
+    file: &SourceFile,
+    line_num: usize,
+    line: &str,
+    re: &Regex,
+    rust_ctx: Option<&crate::analysis::RustFileContext>,
+) -> bool {
+    if !re.is_match(line) {
+        return false;
+    }
+    let t = line.trim_start();
+    // Ordinary `//` / block-comment lines (shouty fix-me / all-caps place-holder markers).
+    // Rustdoc (`///`, `//!`) may echo those words in prose — defer to code-span check only.
+    if (t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!"))
+        || t.starts_with('*')
+    {
+        return true;
+    }
+    stub_regex_match_in_code(file, line_num, line, re, rust_ctx)
 }
 
 /// True when `stub` appears as its own word but not as the `stub-check` feature name.
@@ -41,6 +103,16 @@ fn bare_stub_word_not_stub_check(
             continue;
         }
         let after = idx + 4;
+        // `stub::foo` module paths and `mod stub` / `pub mod stub` declarations.
+        if after + 1 < bytes.len() && bytes[after] == b':' && bytes[after + 1] == b':' {
+            i = idx + 1;
+            continue;
+        }
+        let before_trim = line[..idx].trim_end();
+        if before_trim.ends_with("mod") {
+            i = idx + 1;
+            continue;
+        }
         // Markdown inline code like `stub` is not prose placeholder text.
         if idx > 0 && bytes[idx - 1] == b'`' {
             i = idx + 1;
@@ -73,7 +145,7 @@ impl StubDetector {
             py_pass_stub: Regex::new(r"^\s*pass\s*$").expect("valid regex"),
             ts_throw_not_impl: Regex::new(r#"throw\s+new\s+Error\s*\(\s*["']not\s+implemented"#)
                 .expect("valid regex"),
-            // Avoid matching the English word "placeholder"; require shouty PLACEHOLDER.
+            // Avoid matching the common noun "place-holder"; require shouty all-caps marker token only.
             generic_placeholder: Regex::new(r"(?i:\bFIXME\b)|\bPLACEHOLDER\b")
                 .expect("valid regex"),
             stub_comment: Regex::new(r"(?i)//\s*TODO\b|#\s*TODO\b").expect("valid regex"),
@@ -103,7 +175,7 @@ impl StubDetector {
                 continue;
             }
 
-            if self.rust_todo.is_match(line) {
+            if stub_regex_match_in_code(file, line_num, line, &self.rust_todo, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -112,7 +184,8 @@ impl StubDetector {
                     Some("Replace `todo!()` with the actual implementation.".into()),
                 ));
             }
-            if self.rust_unimplemented.is_match(line) {
+            if stub_regex_match_in_code(file, line_num, line, &self.rust_unimplemented, rust_ctx)
+            {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -121,7 +194,8 @@ impl StubDetector {
                     Some("Implement the function body or remove the stub.".into()),
                 ));
             }
-            if self.rust_panic_not_impl.is_match(line) {
+            if stub_regex_match_in_code(file, line_num, line, &self.rust_panic_not_impl, rust_ctx)
+            {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -133,7 +207,7 @@ impl StubDetector {
                     ),
                 ));
             }
-            if self.generic_placeholder.is_match(line)
+            if placeholder_matches_line(file, line_num, line, &self.generic_placeholder, rust_ctx)
                 || bare_stub_word_not_stub_check(file, line_num, line, rust_ctx)
             {
                 findings.push(self.make_finding(
@@ -144,7 +218,7 @@ impl StubDetector {
                     Some("Replace placeholders with actual implementation or high-quality documentation.".into()),
                 ));
             }
-            if self.stub_comment.is_match(line) {
+            if stub_todo_comment_line_matches(file, line_num, line, &self.stub_comment, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,

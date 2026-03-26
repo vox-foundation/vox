@@ -94,6 +94,7 @@ db/publication-prepare-validated
 db/publication-publish
 db/publication-retry-failed
 db/publication-route-simulate
+db/publication-scholarly-pipeline-run
 db/publication-scholarly-remote-status
 db/publication-scholarly-remote-status-sync-all
 db/publication-scholarly-remote-status-sync-batch
@@ -173,6 +174,7 @@ scientia/publication-external-pipeline-metrics
 scientia/publication-preflight
 scientia/publication-prepare
 scientia/publication-prepare-validated
+scientia/publication-scholarly-pipeline-run
 scientia/publication-scholarly-remote-status
 scientia/publication-scholarly-remote-status-sync-all
 scientia/publication-scholarly-remote-status-sync-batch

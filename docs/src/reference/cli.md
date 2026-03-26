@@ -247,13 +247,14 @@ Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` /
   - `vox scientia publication-status --publication-id <id>`
   - `vox scientia publication-scholarly-remote-status --publication-id <id> [--external-submission-id <id>]` (poll remote scholarly repository / deposit state for a stored submission)
   - `vox scientia publication-scholarly-remote-status-sync-all --publication-id <id>` (poll remote status for every `scholarly_submissions` row on that publication)
-  - `vox scientia publication-scholarly-remote-status-sync-batch [--limit <n>] [--iterations <n>] [--interval-secs <s>]` (batch sync across publications ranked by recent submission activity; optional bounded loop for supervised workers)
+  - `vox scientia publication-scholarly-remote-status-sync-batch [--limit <n>] [--iterations <n>] [--interval-secs <s>] [--max-runtime-secs <s>] [--jitter-secs <s>]` (batch sync across publications ranked by recent submission activity; optional bounded loop for supervised workers)
   - `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo|open-review|arxiv-assist` (write venue-scoped scholarly staging artifacts under `output-dir` and validate layout; Zenodo adds `zenodo.json`, arXiv assist adds `arxiv_handoff.json`; mirrors `vox db publication-scholarly-staging-export`)
+  - `vox scientia publication-scholarly-pipeline-run --publication-id <id> [--preflight-profile default|double-blind|metadata-complete] [--dry-run] [--staging-output-dir <dir> --venue zenodo|open-review|arxiv-assist] [--adapter <kind>]` (preflight → dual-approval gate → optional staging export → scholarly submit unless `--dry-run`; mirrors `vox db publication-scholarly-pipeline-run`)
   - `vox scientia publication-arxiv-handoff-record --publication-id <id> --stage <staging-exported|…|published> [--operator <id>] [--note <text>] [--arxiv-id <id>]` (append-only operator milestone for arXiv assist; `published` requires `--arxiv-id`)
   - `vox scientia publication-external-jobs-due [--limit <n>]` (list external submission jobs due for retry/tick)
   - `vox scientia publication-external-jobs-dead-letter [--limit <n>]` (list terminal `failed` external submission jobs)
   - `vox scientia publication-external-jobs-replay --job-id <id>` (requeue one dead-letter job to `queued`)
-  - `vox scientia publication-external-jobs-tick [--limit <n>] [--lock-ttl-ms <ms>] [--lock-owner <id>] [--iterations <n>] [--interval-secs <s>]` (advance external submission worker queue; optional repeated ticks)
+  - `vox scientia publication-external-jobs-tick [--limit <n>] [--lock-ttl-ms <ms>] [--lock-owner <id>] [--iterations <n>] [--interval-secs <s>] [--max-runtime-secs <s>] [--jitter-secs <s>]` (advance external submission worker queue; optional repeated ticks)
   - `vox scientia publication-external-pipeline-metrics [--since-hours <h>]` (read-only JSON rollup: jobs, attempts, snapshots, scholarly rows, `publication_attempts` by channel; mirrors `vox db publication-external-pipeline-metrics`)
 
 Connection resolution matches `vox db` (`VOX_DB_*`, …). The publication flow uses digest-bound dual approvals before scholarly submission.

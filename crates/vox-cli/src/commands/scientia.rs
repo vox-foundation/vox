@@ -153,6 +153,10 @@ pub enum ScientiaCmd {
         iterations: u32,
         #[arg(long, default_value_t = 0)]
         interval_secs: u64,
+        #[arg(long)]
+        max_runtime_secs: Option<u64>,
+        #[arg(long, default_value_t = 0)]
+        jitter_secs: u64,
     },
     /// Record an arXiv-assist operator milestone (append-only audit trail).
     #[command(name = "publication-arxiv-handoff-record")]
@@ -197,6 +201,26 @@ pub enum ScientiaCmd {
         iterations: u32,
         #[arg(long, default_value_t = 0)]
         interval_secs: u64,
+        #[arg(long)]
+        max_runtime_secs: Option<u64>,
+        #[arg(long, default_value_t = 0)]
+        jitter_secs: u64,
+    },
+    /// One-command scholarly path: preflight, dual approval, optional staging, submit (same as `vox db publication-scholarly-pipeline-run`).
+    #[command(name = "publication-scholarly-pipeline-run")]
+    PublicationScholarlyPipelineRun {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
+        preflight_profile: DbPreflightProfileCli,
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        #[arg(long)]
+        staging_output_dir: Option<std::path::PathBuf>,
+        #[arg(long, value_enum)]
+        venue: Option<ScholarlyVenueCli>,
+        #[arg(long)]
+        adapter: Option<String>,
     },
     /// JSON rollup of external scholarly pipeline metrics (see `vox db publication-external-pipeline-metrics`).
     #[command(name = "publication-external-pipeline-metrics")]
@@ -310,10 +334,14 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             limit,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
         } => DbCli::PublicationScholarlyRemoteStatusSyncBatch {
             limit,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
         },
         ScientiaCmd::PublicationArxivHandoffRecord {
             publication_id,
@@ -343,12 +371,31 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             lock_owner,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
         } => DbCli::PublicationExternalJobsTick {
             limit,
             lock_ttl_ms,
             lock_owner,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
+        },
+        ScientiaCmd::PublicationScholarlyPipelineRun {
+            publication_id,
+            preflight_profile,
+            dry_run,
+            staging_output_dir,
+            venue,
+            adapter,
+        } => DbCli::PublicationScholarlyPipelineRun {
+            publication_id,
+            preflight_profile,
+            dry_run,
+            staging_output_dir,
+            venue,
+            adapter,
         },
         ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
             DbCli::PublicationExternalPipelineMetrics { since_hours }

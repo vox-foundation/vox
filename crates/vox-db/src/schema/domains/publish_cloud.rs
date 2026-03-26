@@ -138,6 +138,8 @@ CREATE TABLE IF NOT EXISTS publication_attempts (
 CREATE INDEX IF NOT EXISTS idx_publication_attempts_pub_attempted
     ON publication_attempts(publication_id, attempted_at_ms);
 
+-- scholarly_submissions.status: remote/venue-specific strings (normalized by adapter). Future optional CHECK
+-- should validate non-empty; avoid constraining to a closed set without adapter-aware migration.
 CREATE TABLE IF NOT EXISTS scholarly_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     publication_id TEXT NOT NULL,
@@ -179,6 +181,9 @@ CREATE TABLE IF NOT EXISTS publication_status_events (
     recorded_at_ms INTEGER NOT NULL
 );
 
+-- external_submission_jobs.status (operational queue; migration-safe vocabulary):
+--   queued | running | retryable_failed | failed | succeeded
+-- Future: add CHECK(status IN (...)) once all readers/writers enforce the same set.
 CREATE TABLE IF NOT EXISTS external_submission_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     publication_id TEXT NOT NULL,

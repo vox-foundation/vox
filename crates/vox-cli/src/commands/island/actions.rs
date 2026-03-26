@@ -40,19 +40,19 @@ pub(super) async fn generate(
     // 1. Generate TSX (cache-aware)
     let tsx_path = v0::generate_island_tsx(prompt, name, root, image, force).await?;
 
-    // 2. Emit @island stub from inferred prop types
+    // 2. Emit @island island block from inferred prop types
     let tsx = read_utf8_path_capped_async(&tsx_path)
         .await
         .with_context(|| format!("Cannot read generated TSX: {}", tsx_path.display()))?;
-    let stub = v0::emit_island_stub(&tsx, name, target);
+    let island_block = v0::emit_island_stub(&tsx, name, target);
 
-    // 3. Write stub to target .vox file or print for manual integration
+    // 3. Write island block to target .vox file or print for manual integration
     if let Some(vox_file) = target {
-        inject_or_update_island_stub(vox_file, name, &stub).await?;
+        inject_or_update_island_stub(vox_file, name, &island_block).await?;
         println!("📝 Updated {}", vox_file.display());
     } else {
         println!("\n── @island stub ─────────────────────────────────────────");
-        println!("{stub}");
+        println!("{island_block}");
         println!("─────────────────────────────────────────────────────────");
         println!("💡 Paste the stub above into your .vox file, or use:");
         println!("   vox island generate {name} -p '...' --target <file.vox>");

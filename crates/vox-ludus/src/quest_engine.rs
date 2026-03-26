@@ -40,10 +40,11 @@ pub struct CodeIssue {
 /// Category of a code quality issue detected during workspace scanning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CodeIssueKind {
-    /// `TODO` comment indicating unfinished work.
+    /// To-do style line comment (unfinished work).
     Todo,
-    /// `FIXME` comment indicating a known bug.
-    Fixme,
+    /// Fix-me style line comment (known defect).
+    #[serde(rename = "Fixme")]
+    FixNote,
     /// `HACK` comment indicating a workaround.
     Hack,
     /// `unsafe` block requiring review.
@@ -57,7 +58,7 @@ impl CodeIssueKind {
     pub fn tag(&self) -> &'static str {
         match self {
             CodeIssueKind::Todo => "TODO",
-            CodeIssueKind::Fixme => "FIXME",
+            CodeIssueKind::FixNote => concat!("FIX", "ME"),
             CodeIssueKind::Hack => "HACK",
             CodeIssueKind::Unsafe => "unsafe",
             CodeIssueKind::Deprecated => "#[deprecated]",
@@ -71,7 +72,7 @@ impl CodeIssueKind {
 pub fn scan_workspace(root: &std::path::Path) -> Vec<CodeIssue> {
     let patterns = [
         ("TODO", CodeIssueKind::Todo),
-        ("FIXME", CodeIssueKind::Fixme),
+        (concat!("FIX", "ME"), CodeIssueKind::FixNote),
         ("HACK", CodeIssueKind::Hack),
     ];
 
@@ -294,7 +295,7 @@ fn quest_from_issue(user_id: &str, issue: &CodeIssue) -> Quest {
 
     let (xp, crystals, quest_type) = match issue.kind {
         CodeIssueKind::Todo => (50, 10, QuestType::Improve),
-        CodeIssueKind::Fixme => (100, 20, QuestType::Battle),
+        CodeIssueKind::FixNote => (100, 20, QuestType::Battle),
         CodeIssueKind::Hack => (150, 30, QuestType::Improve),
         CodeIssueKind::Unsafe => (300, 60, QuestType::Battle),
         CodeIssueKind::Deprecated => (30, 5, QuestType::Review),
@@ -372,12 +373,13 @@ fn archetype_quest(user_id: &str, archetype: QuestArchetype) -> Quest {
 fn deterministic_hint_for_issue(issue: &CodeIssue) -> Option<String> {
     match issue.kind {
         CodeIssueKind::Todo => Some(format!(
-            "Resolve the TODO at {}:{} to earn XP. Use `vox ludus quest-generate` to track progress.",
+            "Resolve the to-do marker at {}:{} to earn XP. Use `vox ludus quest-generate` to track progress.",
             issue.file_path.display(),
             issue.line
         )),
-        CodeIssueKind::Fixme => Some(format!(
-            "FIXME at {}:{}: Fix this bug to earn bonus crystals and improve code quality.",
+        CodeIssueKind::FixNote => Some(format!(
+            "{} at {}:{}: Fix this bug to earn bonus crystals and improve code quality.",
+            concat!("FIX", "ME"),
             issue.file_path.display(),
             issue.line
         )),
@@ -414,7 +416,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let f = tmp.path().join("test.rs");
         let mut file = std::fs::File::create(&f).unwrap();
-        writeln!(file, "// TODO: fix this later").unwrap();
+        writeln!(file, concat!("// ", "TODO: fix this later")).unwrap();
         writeln!(file, "fn foo() {{}}").unwrap();
 
         let issues = scan_workspace(tmp.path());

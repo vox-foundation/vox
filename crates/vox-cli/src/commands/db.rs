@@ -1,7 +1,7 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
 use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
-use crate::commands::db_cli::ArxivHandoffStageCli;
+use crate::commands::db_cli::{ArxivHandoffStageCli, ScholarlyVenueCli};
 use crate::commands::db_retention;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -979,6 +979,108 @@ pub async fn publication_scholarly_staging_export(
     Ok(())
 }
 
+/// One-shot scholarly pipeline: local preflight, dual-approval gate, optional staging export, then digest-bound submit.
+pub async fn publication_scholarly_pipeline_run(
+    publication_id: &str,
+    preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
+    dry_run: bool,
+    staging_output_dir: Option<&std::path::Path>,
+    venue: Option<ScholarlyVenueCli>,
+    adapter: Option<&str>,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let manifest = vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    };
+    let report = vox_publisher::publication_preflight::run_preflight(&manifest, preflight_profile);
+    if !report.ok {
+        anyhow::bail!(
+            "scholarly pipeline preflight failed (readiness {}):\n{}",
+            report.readiness_score,
+            serde_json::to_string_pretty(&report)?
+        );
+    }
+    let digest = row.content_sha3_256.clone();
+    let dual = db
+        .has_dual_publication_approval_for_digest(publication_id, &digest)
+        .await?;
+    if !dual {
+        anyhow::bail!(
+            "scholarly pipeline requires two distinct digest-bound approvers before staging export / submit"
+        );
+    }
+    let mut stages: Vec<String> = vec!["preflight_ok".into(), "dual_approval_ok".into()];
+
+    match (venue, staging_output_dir) {
+        (Some(v), Some(out)) => {
+            if dry_run {
+                stages.push(format!(
+                    "staging_skipped_dry_run venue={} dir={}",
+                    v.to_venue().as_str(),
+                    out.display()
+                ));
+            } else {
+                publication_scholarly_staging_export(publication_id, out, v.to_venue()).await?;
+                stages.push("staging_exported".into());
+            }
+        }
+        (None, Some(_)) => {
+            anyhow::bail!("--staging-output-dir requires --venue");
+        }
+        (Some(_), None) => {
+            anyhow::bail!("--venue requires --staging-output-dir (or omit both)");
+        }
+        (None, None) => {}
+    }
+
+    if dry_run {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "dry_run": true,
+                "publication_id": publication_id,
+                "digest": digest,
+                "stages": stages,
+                "preflight_report": report,
+            }))?
+        );
+        return Ok(());
+    }
+
+    let receipt = vox_publisher::scholarly_external_jobs::publication_scholarly_submit_with_ledger(
+        &db,
+        publication_id,
+        adapter,
+    )
+    .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "pipeline_completed": true,
+            "publication_id": publication_id,
+            "digest": digest,
+            "stages": stages,
+            "submission": {
+                "adapter": receipt.adapter,
+                "external_submission_id": receipt.external_submission_id,
+                "status": receipt.status,
+            }
+        }))?
+    );
+    Ok(())
+}
+
 /// Record one digest-bound publication approval.
 pub async fn publication_approve(publication_id: &str, approver: &str) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
@@ -1110,9 +1212,12 @@ pub async fn publication_scholarly_remote_status_sync_batch(
     limit: i64,
     iterations: u32,
     interval_secs: u64,
+    max_runtime_secs: Option<u64>,
+    jitter_secs: u64,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let v = if iterations <= 1 && interval_secs == 0 {
+    let v = if iterations <= 1 && interval_secs == 0 && max_runtime_secs.is_none() && jitter_secs == 0
+    {
         vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch(&db, limit)
             .await
     } else {
@@ -1121,6 +1226,8 @@ pub async fn publication_scholarly_remote_status_sync_batch(
             limit,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
         )
         .await
     }
@@ -1259,9 +1366,11 @@ pub async fn publication_external_jobs_tick(
     lock_owner: Option<&str>,
     iterations: u32,
     interval_secs: u64,
+    max_runtime_secs: Option<u64>,
+    jitter_secs: u64,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    if iterations <= 1 && interval_secs == 0 {
+    if iterations <= 1 && interval_secs == 0 && max_runtime_secs.is_none() && jitter_secs == 0 {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
@@ -1292,6 +1401,8 @@ pub async fn publication_external_jobs_tick(
         lock_owner,
         iterations,
         interval_secs,
+        max_runtime_secs,
+        jitter_secs,
     )
     .await?;
     println!("{}", serde_json::to_string_pretty(&v)?);

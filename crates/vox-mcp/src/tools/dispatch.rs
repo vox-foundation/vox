@@ -360,6 +360,13 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        "vox_scientia_publication_scholarly_pipeline_run" => Ok(
+            scientia_tools::vox_scientia_publication_scholarly_pipeline_run(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await,
+        ),
         "vox_scientia_publication_media_upsert" => {
             Ok(scientia_tools::vox_scientia_publication_media_upsert(
                 state,

@@ -418,6 +418,12 @@ pub enum DbCli {
         /// Seconds to sleep between iterations (0 = no pause; max 3600).
         #[arg(long, default_value_t = 0)]
         interval_secs: u64,
+        /// Stop early after this many wall-clock seconds (loop mode only; max 86400).
+        #[arg(long)]
+        max_runtime_secs: Option<u64>,
+        /// Extra seconds 0..=interval added via subsecond hash jitter (loop mode only; capped at interval).
+        #[arg(long, default_value_t = 0)]
+        jitter_secs: u64,
     },
     /// Append-only operator milestone for arXiv-assist handoff (does not change manifest `state`).
     #[command(name = "publication-arxiv-handoff-record")]
@@ -471,6 +477,31 @@ pub enum DbCli {
         /// Seconds between ticks when `iterations` > 1 (max 3600).
         #[arg(long, default_value_t = 0)]
         interval_secs: u64,
+        /// Stop early after this wall-clock budget (loop mode only; max 86400).
+        #[arg(long)]
+        max_runtime_secs: Option<u64>,
+        /// Jitter bound added to each interval sleep in loop mode (0 = off).
+        #[arg(long, default_value_t = 0)]
+        jitter_secs: u64,
+    },
+    /// One-shot scholarly pipeline: manifest preflight, dual-approval gate, optional staging export, then submit.
+    #[command(name = "publication-scholarly-pipeline-run")]
+    PublicationScholarlyPipelineRun {
+        #[arg(long)]
+        publication_id: String,
+        #[arg(long, value_enum, default_value_t = DbPreflightProfileCli::Default)]
+        preflight_profile: DbPreflightProfileCli,
+        /// Evaluate preflight + approval (+ optional staging) without calling submit.
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        /// When set with `--venue`, write staging bundle under this directory.
+        #[arg(long)]
+        staging_output_dir: Option<PathBuf>,
+        #[arg(long, value_enum)]
+        venue: Option<ScholarlyVenueCli>,
+        /// Passed through to submit (`VOX_SCHOLARLY_ADAPTER` when omitted).
+        #[arg(long)]
+        adapter: Option<String>,
     },
     /// Read-only JSON rollup: scholarly external jobs, attempts, status snapshots, submission rows, and publication attempts (by channel).
     #[command(name = "publication-external-pipeline-metrics")]

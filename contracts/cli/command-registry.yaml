@@ -51,6 +51,7 @@ operations:
   - { surface: vox-cli, path: [scientia, publication-scholarly-remote-status-sync-batch], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-arxiv-handoff-record], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-scholarly-staging-export], status: active, latin_ns: codex, ref_cli_required: true }
+  - { surface: vox-cli, path: [scientia, publication-scholarly-pipeline-run], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-external-jobs-due], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-external-jobs-dead-letter], status: active, latin_ns: codex, ref_cli_required: true }
   - { surface: vox-cli, path: [scientia, publication-external-jobs-replay], status: active, latin_ns: codex, ref_cli_required: true }

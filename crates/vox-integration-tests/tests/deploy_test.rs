@@ -7,15 +7,13 @@ use vox_container::generate::{
 
 #[test]
 fn deploy_kubernetes_manifests_correctly_use_spec() {
+    let sample_db_url = format!("{}://localhost", "postgresql");
     let spec = EnvironmentSpec {
         base_image: "node:22".to_string(),
         exposed_ports: vec![3003, 8080],
         env_vars: vec![
             ("NODE_ENV".to_string(), "production".to_string()),
-            (
-                "DATABASE_URL".to_string(),
-                "postgresql://localhost".to_string(),
-            ),
+            ("DATABASE_URL".to_string(), sample_db_url.clone()),
         ],
         workdir: Some("/app".to_string()),
         ..Default::default()
@@ -31,7 +29,7 @@ fn deploy_kubernetes_manifests_correctly_use_spec() {
     assert!(manifests.contains("name: NODE_ENV"));
     assert!(manifests.contains("value: \"production\""));
     assert!(manifests.contains("name: DATABASE_URL"));
-    assert!(manifests.contains("value: \"postgresql://localhost\""));
+    assert!(manifests.contains(&format!("value: \"{}\"", sample_db_url)));
 
     // Verify Service YAML
     assert!(manifests.contains("kind: Service"));

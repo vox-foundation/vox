@@ -10,7 +10,7 @@ use super::build::bootstrap_islands_if_needed;
 pub(super) async fn inject_or_update_island_stub(
     vox_file: &Path,
     name: &str,
-    stub: &str,
+    island_block: &str,
 ) -> Result<()> {
     // ZERO DESTRUCTION: read before write
     let existing = if tokio::fs::metadata(vox_file).await.is_ok() {
@@ -27,13 +27,13 @@ pub(super) async fn inject_or_update_island_stub(
         let after_block = &existing[start_idx..];
         let block_end = find_block_end(after_block);
         let after = &existing[start_idx + block_end..];
-        format!("{before}{stub}\n{after}")
+        format!("{before}{island_block}\n{after}")
     } else {
         let trimmed = existing.trim_end();
         if trimmed.is_empty() {
-            format!("{stub}\n")
+            format!("{island_block}\n")
         } else {
-            format!("{trimmed}\n\n{stub}\n")
+            format!("{trimmed}\n\n{island_block}\n")
         }
     };
 

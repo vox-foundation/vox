@@ -4,7 +4,8 @@ mod lanes;
 
 use crate::command_catalog;
 use crate::latin_cmd;
-use crate::{Cli, CodexCmd, GlobalOpts, VoxCliRoot};
+use crate::codex_cmd::CodexCmd;
+use crate::{Cli, GlobalOpts, VoxCliRoot};
 
 use lanes::{cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd};
 #[cfg(feature = "ars")]

@@ -9,6 +9,7 @@ use vox_db::{
 
 use crate::publication::PublicationManifest;
 use crate::scholarly::{self, ScholarlyError, ScholarlySubmissionReceipt};
+use crate::scholarly_remote_status::{map_scholarly_remote_to_job_status, ScholarlyRemoteStatusMap};
 
 /// `VOX_SCHOLARLY_ADAPTER` (default `local_ledger`), or non-empty `adapter_override` (trimmed, ASCII lowercased).
 pub fn resolve_scholarly_adapter_kind(adapter_override: Option<&str>) -> String {
@@ -106,8 +107,8 @@ pub async fn publication_scholarly_submit_with_ledger(
 
 /// After polling remote status, refresh [`external_submission_jobs`] for the submit idempotency key when a row exists.
 ///
-/// Updates `metadata_json` from `remote_detail_json` when provided. Maps obvious terminal remotes to `succeeded` / `failed`;
-/// otherwise preserves the existing job `status`.
+/// Updates `metadata_json` from `remote_detail_json` when provided. Uses [`map_scholarly_remote_to_job_status`] for
+/// adapter-aware terminal detection; preserves the existing job `status` when the remote is non-terminal or unknown.
 pub async fn sync_external_job_after_remote_status(
     db: &VoxDb,
     publication_id: &str,
@@ -115,7 +116,7 @@ pub async fn sync_external_job_after_remote_status(
     adapter: &str,
     remote_status: &str,
     remote_detail_json: Option<&str>,
-) -> Result<bool> {
+) -> Result<(bool, Option<ScholarlyRemoteStatusMap>)> {
     let adapter_norm = adapter.trim().to_ascii_lowercase();
     let idem = scholarly::scholarly_idempotency_key(
         &adapter_norm,
@@ -128,13 +129,17 @@ pub async fn sync_external_job_after_remote_status(
         .await
         .map_err(|e| anyhow!("{e}"))?
     else {
-        return Ok(false);
+        return Ok((false, None));
     };
-    let r = remote_status.trim().to_ascii_lowercase();
-    let job_status = match r.as_str() {
-        "done" | "published" | "accepted" => "succeeded",
-        "rejected" | "failed" | "error" | "deleted" => "failed",
-        _ => job.status.as_str(),
+    let mapped = map_scholarly_remote_to_job_status(
+        adapter_norm.as_str(),
+        remote_status,
+        job.status.as_str(),
+    );
+    let job_status = if mapped.preserve_prior_job_status {
+        job.status.as_str()
+    } else {
+        mapped.job_status.as_str()
     };
     let next_retry = if job_status == "succeeded" || job_status == "failed" {
         None
@@ -159,7 +164,7 @@ pub async fn sync_external_job_after_remote_status(
     })
     .await
     .map_err(|e| anyhow!("{e}"))?;
-    Ok(true)
+    Ok((true, Some(mapped)))
 }
 
 /// Poll adapter remote status, persist snapshot, patch `scholarly_submissions`, and sync `external_submission_jobs` when present.
@@ -195,7 +200,7 @@ pub async fn poll_scholarly_remote_status_persist(
     )
     .await
     .map_err(|e| anyhow!("{e}"))?;
-    let job_synced = sync_external_job_after_remote_status(
+    let (job_synced, job_status_map) = sync_external_job_after_remote_status(
         db,
         publication_id,
         sub_row.content_sha3_256.as_str(),
@@ -211,6 +216,7 @@ pub async fn poll_scholarly_remote_status_persist(
         "remote": remote,
         "external_status_snapshot_saved": true,
         "external_submission_job_synced": job_synced,
+        "external_job_status_map": job_status_map,
     }))
 }
 
@@ -274,26 +280,56 @@ pub async fn poll_scholarly_remote_status_batch(
     }))
 }
 
+fn loop_sleep_interval(base_secs: u64, jitter_secs: u64) -> std::time::Duration {
+    let base = base_secs.min(3_600);
+    let jcap = jitter_secs.min(base);
+    let jitter = if jcap == 0 {
+        0_u64
+    } else {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos() as u64 % (jcap + 1))
+            .unwrap_or(0)
+    };
+    std::time::Duration::from_secs(base.saturating_add(jitter.min(base)))
+}
+
 /// Run [`poll_scholarly_remote_status_batch`] multiple times with an optional pause (supervised worker / cron alternative).
 pub async fn poll_scholarly_remote_status_batch_loop(
     db: &VoxDb,
     publication_limit: i64,
     iterations: u32,
     interval_secs: u64,
+    max_runtime_secs: Option<u64>,
+    jitter_secs: u64,
 ) -> Result<Value> {
     let iterations = iterations.max(1).min(10_000);
     let interval_secs = interval_secs.min(3_600);
+    let jitter_secs = jitter_secs.min(3_600);
+    let max_runtime = max_runtime_secs.map(|m| m.min(86_400));
+    let started = std::time::Instant::now();
     let mut runs: Vec<Value> = Vec::new();
+    let mut done = 0_u32;
     for i in 0..iterations {
+        if let Some(limit_s) = max_runtime {
+            if started.elapsed().as_secs() >= limit_s {
+                break;
+            }
+        }
         if i > 0 && interval_secs > 0 {
-            tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+            tokio::time::sleep(loop_sleep_interval(interval_secs, jitter_secs)).await;
         }
         let v = poll_scholarly_remote_status_batch(db, publication_limit).await?;
         runs.push(v);
+        done += 1;
     }
     Ok(serde_json::json!({
-        "iterations": iterations,
+        "iterations_requested": iterations,
+        "iterations_completed": done,
         "interval_secs": interval_secs,
+        "jitter_secs": jitter_secs,
+        "max_runtime_secs": max_runtime,
+        "elapsed_ms": started.elapsed().as_millis() as u64,
         "runs": runs,
     }))
 }
@@ -306,13 +342,24 @@ pub async fn run_external_submit_jobs_tick_loop(
     lock_owner: Option<&str>,
     iterations: u32,
     interval_secs: u64,
+    max_runtime_secs: Option<u64>,
+    jitter_secs: u64,
 ) -> Result<Value> {
     let iterations = iterations.max(1).min(10_000);
     let interval_secs = interval_secs.min(3_600);
+    let jitter_secs = jitter_secs.min(3_600);
+    let max_runtime = max_runtime_secs.map(|m| m.min(86_400));
+    let started = std::time::Instant::now();
     let mut runs: Vec<Value> = Vec::new();
+    let mut done = 0_u32;
     for i in 0..iterations {
+        if let Some(limit_s) = max_runtime {
+            if started.elapsed().as_secs() >= limit_s {
+                break;
+            }
+        }
         if i > 0 && interval_secs > 0 {
-            tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+            tokio::time::sleep(loop_sleep_interval(interval_secs, jitter_secs)).await;
         }
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -325,10 +372,15 @@ pub async fn run_external_submit_jobs_tick_loop(
             "lock_ttl_ms": out.lock_ttl_ms,
             "results": out.results,
         }));
+        done += 1;
     }
     Ok(serde_json::json!({
-        "iterations": iterations,
+        "iterations_requested": iterations,
+        "iterations_completed": done,
         "interval_secs": interval_secs,
+        "jitter_secs": jitter_secs,
+        "max_runtime_secs": max_runtime,
+        "elapsed_ms": started.elapsed().as_millis() as u64,
         "runs": runs,
     }))
 }
@@ -569,6 +621,8 @@ pub async fn run_external_submit_jobs_tick(
             results.push(serde_json::json!({
                 "job_id": job.id,
                 "outcome": "claim_lost",
+                "current_lock_owner": job.lock_owner,
+                "lock_expires_at_ms": job.lock_expires_at_ms,
             }));
             continue;
         }

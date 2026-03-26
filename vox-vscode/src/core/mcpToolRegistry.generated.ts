@@ -175,6 +175,7 @@ export const MCP_CANONICAL_TOOL_NAMES = [
     "vox_scientia_publication_external_jobs_dead_letter",
     "vox_scientia_publication_external_jobs_replay",
     "vox_scientia_publication_external_jobs_tick",
+    "vox_scientia_publication_scholarly_pipeline_run",
     "vox_scientia_publication_external_pipeline_metrics",
     "vox_scientia_publication_media_upsert",
     "vox_scientia_publication_media_list",

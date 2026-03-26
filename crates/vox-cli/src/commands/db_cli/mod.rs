@@ -225,8 +225,17 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             limit,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
         } => {
-            db::publication_scholarly_remote_status_sync_batch(limit, iterations, interval_secs).await
+            db::publication_scholarly_remote_status_sync_batch(
+                limit,
+                iterations,
+                interval_secs,
+                max_runtime_secs,
+                jitter_secs,
+            )
+            .await
         }
         DbCli::PublicationArxivHandoffRecord {
             publication_id,
@@ -259,6 +268,8 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             lock_owner,
             iterations,
             interval_secs,
+            max_runtime_secs,
+            jitter_secs,
         } => {
             db::publication_external_jobs_tick(
                 limit,
@@ -266,6 +277,26 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 lock_owner.as_deref(),
                 iterations,
                 interval_secs,
+                max_runtime_secs,
+                jitter_secs,
+            )
+            .await
+        }
+        DbCli::PublicationScholarlyPipelineRun {
+            publication_id,
+            preflight_profile,
+            dry_run,
+            staging_output_dir,
+            venue,
+            adapter,
+        } => {
+            db::publication_scholarly_pipeline_run(
+                &publication_id,
+                preflight_profile.into(),
+                dry_run,
+                staging_output_dir.as_deref(),
+                venue,
+                adapter.as_deref(),
             )
             .await
         }

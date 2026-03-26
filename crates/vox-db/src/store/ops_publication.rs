@@ -224,6 +224,23 @@ impl VoxDb {
         response_fingerprint: Option<&str>,
         metadata_json: Option<&str>,
     ) -> Result<(), StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT publication_id, content_sha3_256 FROM scholarly_submissions
+                 WHERE adapter = ?1 AND external_submission_id = ?2",
+                (adapter.to_string(), external_submission_id.to_string()),
+            )
+            .await?;
+        if let Some(r) = rows.first() {
+            let ex_pub: String = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let ex_dig: String = r.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            if ex_pub != publication_id || ex_dig != content_sha3_256 {
+                return Err(StoreError::UpsertIdentityMismatch(format!(
+                    "scholarly_submissions (adapter={adapter}, external_submission_id={external_submission_id}) \
+                     is bound to publication_id={ex_pub} digest={ex_dig}; refused publication_id={publication_id} digest={content_sha3_256}"
+                )));
+            }
+        }
         let ts = now_ms();
         self.conn
             .execute(
@@ -481,6 +498,32 @@ impl VoxDb {
         &self,
         p: ExternalSubmissionJobUpsertParams<'_>,
     ) -> Result<i64, StoreError> {
+        if p.attempt_count < 0 {
+            return Err(StoreError::Db(
+                "external_submission_jobs.attempt_count must be >= 0".into(),
+            ));
+        }
+        if let Some(existing) = self
+            .get_external_submission_job_by_idempotency_key(p.idempotency_key)
+            .await?
+        {
+            if existing.publication_id != p.publication_id
+                || existing.content_sha3_256 != p.content_sha3_256
+                || existing.adapter != p.adapter
+                || existing.operation != p.operation
+            {
+                return Err(StoreError::UpsertIdentityMismatch(format!(
+                    "external_submission_jobs.idempotency_key={} already maps to \
+                     publication_id={} digest={} adapter={} operation={}; \
+                     upsert refused mismatched identity",
+                    p.idempotency_key,
+                    existing.publication_id,
+                    existing.content_sha3_256,
+                    existing.adapter,
+                    existing.operation,
+                )));
+            }
+        }
         let ts = now_ms();
         self.conn
             .execute(
@@ -1066,6 +1109,15 @@ impl VoxDb {
         &self,
         since_ms: i64,
     ) -> Result<serde_json::Value, StoreError> {
+        fn percentile_from_sorted(sorted: &[i64], p: f64) -> Option<f64> {
+            if sorted.is_empty() {
+                return None;
+            }
+            let idx = ((sorted.len() - 1) as f64 * p).round() as usize;
+            let idx = idx.min(sorted.len() - 1);
+            Some(sorted[idx] as f64)
+        }
+
         let generated_at_ms = now_ms();
         let jobs_by_status_rows = self
             .query_all(
@@ -1080,6 +1132,19 @@ impl VoxDb {
             jobs_by_status.insert(k, serde_json::json!(n));
         }
 
+        let jobs_by_status_win = self
+            .query_all(
+                "SELECT status, COUNT(*) FROM external_submission_jobs WHERE updated_at_ms >= ?1 GROUP BY status ORDER BY status",
+                (since_ms,),
+            )
+            .await?;
+        let mut by_status_in_window = serde_json::Map::new();
+        for r in jobs_by_status_win {
+            let k: String = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let n: i64 = r.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            by_status_in_window.insert(k, serde_json::json!(n));
+        }
+
         let adapter_status_rows = self
             .query_all(
                 "SELECT adapter, status, COUNT(*) FROM external_submission_jobs GROUP BY adapter, status ORDER BY adapter, status",
@@ -1089,6 +1154,21 @@ impl VoxDb {
         let mut by_adapter_status = Vec::new();
         for r in adapter_status_rows {
             by_adapter_status.push(serde_json::json!({
+                "adapter": r.get::<String>(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                "status": r.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                "count": r.get::<i64>(2).map_err(|e| StoreError::Db(e.to_string()))?,
+            }));
+        }
+
+        let adapter_status_win = self
+            .query_all(
+                "SELECT adapter, status, COUNT(*) FROM external_submission_jobs WHERE updated_at_ms >= ?1 GROUP BY adapter, status ORDER BY adapter, status",
+                (since_ms,),
+            )
+            .await?;
+        let mut by_adapter_status_in_window = Vec::new();
+        for r in adapter_status_win {
+            by_adapter_status_in_window.push(serde_json::json!({
                 "adapter": r.get::<String>(0).map_err(|e| StoreError::Db(e.to_string()))?,
                 "status": r.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?,
                 "count": r.get::<i64>(2).map_err(|e| StoreError::Db(e.to_string()))?,
@@ -1115,6 +1195,51 @@ impl VoxDb {
             .first()
             .and_then(|r| r.get::<Option<f64>>(0).ok().flatten());
 
+        let lat_all = self
+            .query_all(
+                "SELECT updated_at_ms - created_at_ms FROM external_submission_jobs WHERE status IN ('succeeded','failed') AND updated_at_ms >= ?1 AND updated_at_ms >= created_at_ms",
+                (since_ms,),
+            )
+            .await?;
+        let mut lat_ms: Vec<i64> = lat_all
+            .into_iter()
+            .filter_map(|r| r.get::<i64>(0).ok())
+            .collect();
+        lat_ms.sort_unstable();
+        let p50 = percentile_from_sorted(&lat_ms, 0.50);
+        let p90 = percentile_from_sorted(&lat_ms, 0.90);
+        let p99 = percentile_from_sorted(&lat_ms, 0.99);
+
+        let term_ratio_rows = self
+            .query_all(
+                "SELECT adapter,
+                        SUM(CASE WHEN status = 'succeeded' THEN 1 ELSE 0 END) AS ok_ct,
+                        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS fail_ct
+                 FROM external_submission_jobs
+                 WHERE status IN ('succeeded','failed') AND updated_at_ms >= ?1
+                 GROUP BY adapter ORDER BY adapter",
+                (since_ms,),
+            )
+            .await?;
+        let mut per_adapter_terminal = Vec::new();
+        for r in term_ratio_rows {
+            let adapter: String = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let ok_ct: i64 = r.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let fail_ct: i64 = r.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let denom = ok_ct + fail_ct;
+            let success_ratio = if denom > 0 {
+                Some(ok_ct as f64 / denom as f64)
+            } else {
+                None
+            };
+            per_adapter_terminal.push(serde_json::json!({
+                "adapter": adapter,
+                "terminal_succeeded": ok_ct,
+                "terminal_failed": fail_ct,
+                "success_ratio": success_ratio,
+            }));
+        }
+
         let attempt_total_rows = self
             .query_all(
                 "SELECT COUNT(*), COALESCE(SUM(retryable), 0) FROM external_submission_attempts WHERE attempted_at_ms >= ?1",
@@ -1128,6 +1253,37 @@ impl VoxDb {
         } else {
             (0_i64, 0_i64)
         };
+
+        let retry_ratio_rows = self
+            .query_all(
+                "SELECT j.adapter AS adapter,
+                        COUNT(*) AS attempts,
+                        COALESCE(SUM(a.retryable), 0) AS retryable_ct
+                 FROM external_submission_attempts a
+                 JOIN external_submission_jobs j ON j.id = a.job_id
+                 WHERE a.attempted_at_ms >= ?1
+                 GROUP BY j.adapter
+                 ORDER BY j.adapter",
+                (since_ms,),
+            )
+            .await?;
+        let mut per_adapter_attempt_retry_ratio = Vec::new();
+        for r in retry_ratio_rows {
+            let adapter: String = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let attempts: i64 = r.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let retryable_ct: i64 = r.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let ratio = if attempts > 0 {
+                Some(retryable_ct as f64 / attempts as f64)
+            } else {
+                None
+            };
+            per_adapter_attempt_retry_ratio.push(serde_json::json!({
+                "adapter": adapter,
+                "attempts_in_window": attempts,
+                "retryable_attempts_in_window": retryable_ct,
+                "retry_ratio": ratio,
+            }));
+        }
 
         let err_class_rows = self
             .query_all(
@@ -1170,6 +1326,21 @@ impl VoxDb {
             }));
         }
 
+        let sub_win = self
+            .query_all(
+                "SELECT adapter, status, COUNT(*) FROM scholarly_submissions WHERE updated_at_ms >= ?1 GROUP BY adapter, status ORDER BY adapter, status",
+                (since_ms,),
+            )
+            .await?;
+        let mut scholarly_by_adapter_status_in_window = Vec::new();
+        for r in sub_win {
+            scholarly_by_adapter_status_in_window.push(serde_json::json!({
+                "adapter": r.get::<String>(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                "status": r.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                "count": r.get::<i64>(2).map_err(|e| StoreError::Db(e.to_string()))?,
+            }));
+        }
+
         let pub_attempt_rows = self
             .query_all(
                 "SELECT channel, COUNT(*) FROM publication_attempts WHERE attempted_at_ms >= ?1 GROUP BY channel ORDER BY COUNT(*) DESC",
@@ -1184,23 +1355,34 @@ impl VoxDb {
         }
 
         Ok(serde_json::json!({
+            "metrics_schema_version": 2_i64,
             "generated_at_ms": generated_at_ms,
             "since_ms": since_ms,
             "external_submission_jobs": {
                 "by_status": jobs_by_status,
+                "by_status_in_window": by_status_in_window,
                 "by_adapter_status": by_adapter_status,
+                "by_adapter_status_in_window": by_adapter_status_in_window,
                 "avg_terminal_latency_ms_in_window": {
                     "succeeded": avg_latency_succeeded_ms,
                     "failed": avg_latency_failed_ms,
                 },
+                "terminal_latency_ms_percentiles_in_window": {
+                    "p50": p50,
+                    "p90": p90,
+                    "p99": p99,
+                },
+                "per_adapter_terminal_ratio_in_window": per_adapter_terminal,
             },
             "external_submission_attempts": {
                 "total_in_window": attempts_total,
                 "retryable_in_window": attempts_retryable,
                 "by_error_class": by_error_class,
+                "per_adapter_retry_ratio_in_window": per_adapter_attempt_retry_ratio,
             },
             "external_status_snapshots_in_window": snapshots_since,
             "scholarly_submissions_by_adapter_status": scholarly_by_adapter_status,
+            "scholarly_submissions_by_adapter_status_in_window": scholarly_by_adapter_status_in_window,
             "publication_attempts_in_window_by_channel": publication_attempts_by_channel,
         }))
     }

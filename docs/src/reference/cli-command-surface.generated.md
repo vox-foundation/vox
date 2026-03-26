@@ -4,7 +4,7 @@
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml).
 
-**schema_version:** `1` · **vox-cli operations:** 125
+**schema_version:** `1` · **vox-cli operations:** 126
 
 | Path | Status | Feature gate | Latin ns | Catalog group |
 |------|--------|--------------|----------|----------------|
@@ -118,6 +118,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox scientia publication-preflight` | active | — | codex | — |
 | `vox scientia publication-prepare` | active | — | codex | — |
 | `vox scientia publication-prepare-validated` | active | — | codex | — |
+| `vox scientia publication-scholarly-pipeline-run` | active | — | codex | — |
 | `vox scientia publication-scholarly-remote-status` | active | — | codex | — |
 | `vox scientia publication-scholarly-remote-status-sync-all` | active | — | codex | — |
 | `vox scientia publication-scholarly-remote-status-sync-batch` | active | — | codex | — |

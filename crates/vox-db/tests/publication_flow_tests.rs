@@ -1,8 +1,7 @@
 use vox_db::{
     DbConfig, ExternalStatusSnapshotParams, ExternalSubmissionAttemptParams,
     ExternalSubmissionJobUpsertParams, PublicationExternalLinkUpsertParams,
-    PublicationExternalRevisionUpsertParams, PublicationManifestParams,
-    VoxDb,
+    PublicationExternalRevisionUpsertParams, PublicationManifestParams, StoreError, VoxDb,
 };
 
 #[tokio::test]
@@ -641,6 +640,7 @@ async fn summarize_scholarly_external_pipeline_metrics_rollup() {
         .summarize_scholarly_external_pipeline_metrics(0)
         .await
         .unwrap();
+    assert_eq!(v["metrics_schema_version"].as_i64(), Some(2));
     let jobs = v["external_submission_jobs"]["by_status"]
         .as_object()
         .expect("by_status object");
@@ -657,4 +657,110 @@ async fn summarize_scholarly_external_pipeline_metrics_rollup() {
         .as_object()
         .unwrap();
     assert_eq!(ch.get("reddit").and_then(|x| x.as_i64()), Some(1));
+    assert!(v["external_submission_jobs"]["by_status_in_window"].is_object());
+    assert!(v["external_submission_jobs"]["terminal_latency_ms_percentiles_in_window"].is_object());
+}
+
+#[tokio::test]
+async fn external_submission_job_upsert_rejects_identity_mismatch() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    db.upsert_publication_manifest(PublicationManifestParams {
+        publication_id: "idem-pub",
+        content_type: "scientia",
+        source_ref: None,
+        title: "t",
+        author: "a",
+        abstract_text: None,
+        body_markdown: "b",
+        citations_json: None,
+        metadata_json: None,
+        content_sha3_256: "dig-a",
+        state: "draft",
+    })
+    .await
+    .unwrap();
+
+    let idem = "stable-idem-key";
+    db.upsert_external_submission_job(ExternalSubmissionJobUpsertParams {
+        publication_id: "idem-pub",
+        content_sha3_256: "dig-a",
+        adapter: "zenodo",
+        operation: "submit",
+        idempotency_key: idem,
+        status: "queued",
+        lock_owner: None,
+        lock_expires_at_ms: None,
+        next_retry_at_ms: None,
+        attempt_count: 0,
+        last_error_class: None,
+        last_error_message: None,
+        metadata_json: None,
+    })
+    .await
+    .unwrap();
+
+    let err = db
+        .upsert_external_submission_job(ExternalSubmissionJobUpsertParams {
+            publication_id: "idem-pub",
+            content_sha3_256: "dig-b",
+            adapter: "zenodo",
+            operation: "submit",
+            idempotency_key: idem,
+            status: "queued",
+            lock_owner: None,
+            lock_expires_at_ms: None,
+            next_retry_at_ms: None,
+            attempt_count: 0,
+            last_error_class: None,
+            last_error_message: None,
+            metadata_json: None,
+        })
+        .await
+        .unwrap_err();
+    assert!(matches!(err, StoreError::UpsertIdentityMismatch(_)));
+}
+
+#[tokio::test]
+async fn scholarly_submission_upsert_rejects_identity_mismatch() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    db.upsert_publication_manifest(PublicationManifestParams {
+        publication_id: "ss-pub-a",
+        content_type: "scientia",
+        source_ref: None,
+        title: "t",
+        author: "a",
+        abstract_text: None,
+        body_markdown: "b",
+        citations_json: None,
+        metadata_json: None,
+        content_sha3_256: "dig-a",
+        state: "draft",
+    })
+    .await
+    .unwrap();
+    db.upsert_scholarly_submission(
+        "ss-pub-a",
+        "dig-a",
+        "zenodo",
+        "dep-1",
+        "draft",
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let err = db
+        .upsert_scholarly_submission(
+            "ss-pub-b",
+            "dig-a",
+            "zenodo",
+            "dep-1",
+            "draft",
+            None,
+            None,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(err, StoreError::UpsertIdentityMismatch(_)));
 }

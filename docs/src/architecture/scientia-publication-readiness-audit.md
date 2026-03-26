@@ -12,6 +12,7 @@ Primary companion SSOT documents:
 
 - `docs/src/architecture/scientia-publication-automation-ssot.md`
 - `docs/src/reference/scientia-publication-worthiness-rules.md`
+- `docs/src/reference/scientia-ssot-handbook.md` (glossary, status vocabulary, checklists, SLOs)
 
 ## Goal and scope
 
@@ -58,9 +59,9 @@ It also defines the implementation gap between where the codebase is now and wha
 - Durable ledger tables for manifest, approvals, attempts, scholarly submissions, and status events.
 - CLI and MCP both expose the same lifecycle primitives.
 
-### Current hard limit
+### Current adapter reality (2026-03)
 
-The only scholarly adapter in code is local and deterministic (`local_ledger`). There is no live integration for journals, preprint servers, or DOI registration services.
+Code ships `local_ledger`, `echo_ledger`, and credentialed **`zenodo`** / **`openreview`** adapters behind `VOX_SCHOLARLY_ADAPTER`, plus operator-assisted **arXiv** via staging export + handoff events. Journal portals (ScholarOne, native TMLR UI-only flows) and automated `Crossref` deposit remain out of scope until wired.
 
 ### Phase 0 metadata (implemented)
 
@@ -234,7 +235,9 @@ codexLedger --> readinessReports[ReadinessAndOpsReports]
 
 **Legacy / restricted:** Treat echo-only and dry-run paths as non-production. Shared developer profiles must not embed production Zenodo/OpenReview tokens.
 
-**Operational metrics:** `vox scientia publication-external-pipeline-metrics` (alias: `vox db publication-external-pipeline-metrics`) returns a read-only JSON rollup: job counts by status and adapter, attempt/retry totals and `error_class` histogram in a sliding window (`--since-hours`, default 7d), snapshot activity, scholarly submission rows, and `publication_attempts` counts by channel. Approximate terminal latency uses `updated_at_ms - created_at_ms` on terminal job rows inside the same window.
+**Operational metrics:** `vox scientia publication-external-pipeline-metrics` (alias: `vox db publication-external-pipeline-metrics`) returns a read-only JSON rollup: job counts by status and adapter (plus in-window slices), attempt/retry totals, `error_class` histogram, terminal latency averages and p50/p90/p99 in the window, per-adapter terminal success and retry ratios (`metrics_schema_version` **2**), snapshot activity, scholarly submission rows (in-window slice), and `publication_attempts` counts by channel. **KPI baselines:** capture periodic snapshots of this JSON (e.g. weekly) for regression review.
+
+**Fast local acceptance slice:** `pwsh -File scripts/scientia/acceptance_matrix.ps1` runs publication DB integration tests and `scholarly_remote_status` unit tests.
 
 ## Conclusion
 

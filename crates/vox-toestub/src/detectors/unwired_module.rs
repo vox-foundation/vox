@@ -49,6 +49,13 @@ impl UnwiredModuleDetector {
                 if line.trim_start().starts_with("pub") {
                     continue;
                 }
+                // `#[cfg(test)] mod tests;` is never referenced in-lib; integration tests live in `tests/`.
+                if name.as_str() == "tests"
+                    && i > 0
+                    && file.lines[i - 1].contains("cfg(test)")
+                {
+                    continue;
+                }
                 declared_mods.push((name.as_str().to_string(), i + 1));
             }
             for caps in self.rust_use_stmt.captures_iter(line) {

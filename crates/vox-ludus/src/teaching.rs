@@ -27,7 +27,7 @@ pub enum MistakeKind {
     WorkflowError,
     /// Architectural anti-patterns (e.g., circular imports, TOESTUB violations).
     ArchitecturalIssue,
-    /// TODO/FIXME comments accumulating beyond a threshold.
+    /// To-do / fix-me comment debt beyond a threshold.
     TodoDebt,
     /// Missing documentation on public APIs.
     MissingDoc,

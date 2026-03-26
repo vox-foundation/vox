@@ -15,6 +15,9 @@ pub enum StoreError {
     /// Requested row or binding was missing.
     #[error("Not found: {0}")]
     NotFound(String),
+    /// Stable identity columns would change for an existing natural key (`idempotency_key` / adapter id).
+    #[error("upsert_identity_mismatch: {0}")]
+    UpsertIdentityMismatch(String),
     /// JSON or other serialization failed.
     #[error("Serialization error: {0}")]
     Serialization(String),

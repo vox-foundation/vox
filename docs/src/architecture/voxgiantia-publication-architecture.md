@@ -8,7 +8,7 @@ training_eligible: true
 
 # VoxGiantia publication architecture (beginner map)
 
-Companion docs: [operator inputs vs derived fields](../how-to/scientia-publication-operator-inputs.md), [failure playbook](../reference/scientia-publication-playbook.md), [scholarly digest-bound invariants](scholarly-digest-approval-invariants.md), [external jobs schema plan](scholarly-external-schema-plan.md).
+Companion docs: [SCIENTIA SSOT handbook](../reference/scientia-ssot-handbook.md), [operator inputs vs derived fields](../how-to/scientia-publication-operator-inputs.md), [failure playbook](../reference/scientia-publication-playbook.md), [scholarly digest-bound invariants](scholarly-digest-approval-invariants.md), [external jobs schema plan](scholarly-external-schema-plan.md).
 
 This document explains, in practical terms, how VoxGiantia supports the goal:
 
@@ -105,7 +105,7 @@ Centralized switching primitives make behavior deterministic across interfaces.
 
 ## Current gaps (post–routing hardening)
 
-- **Scholarly:** `local_ledger` (default) and `echo_ledger` (deterministic, no external network); `VOX_SCHOLARLY_ADAPTER` rejects unknown values (no silent stub).
+- **Scholarly:** `local_ledger` (default), `echo_ledger` (no network), and credentialed `zenodo` / `openreview` when enabled; `VOX_SCHOLARLY_ADAPTER` rejects unknown values (no silent stub). Status sync maps remote states via `scholarly_remote_status` before updating `external_submission_jobs`.
 - **crates.io:** schema/contract allow payloads; runtime stays explicit dry-run / not-implemented style outcomes until a real adapter ships.
 - **Policy knobs:** `retry_profile` / `approval_required` in `distribution_policy` are mainly contract/documentation; live gating is digest + armed + DB (see gate module)—do not assume `approval_required: false` bypasses Codex approvals.
 - **Worthiness:** orchestrator news enforces optional global floors; CLI and MCP compute the same aggregate score from the default contract + manifest preflight, set `PublisherConfig.worthiness_score` for per-channel policy floors, and can **block live publish** when enforcement enabled (`VOX_SOCIAL_WORTHINESS_*` and/or `[news].worthiness_*` on MCP).

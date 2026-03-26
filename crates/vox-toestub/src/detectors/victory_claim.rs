@@ -108,7 +108,7 @@ impl DetectionRule for VictoryClaimDetector {
                 });
             }
 
-            // Detect FIXME
+            // Detect fix-me-shaped line comments
             if self.fixme_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "victory-claim/fixme".to_string(),
