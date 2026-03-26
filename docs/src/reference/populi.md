@@ -1,14 +1,14 @@
 ---
-title: "Mens SSOT (CPU-first)"
-description: "Official documentation for Mens SSOT (CPU-first) for the Vox language. Detailed technical reference, architecture guides, and implementat"
+title: "Mesh / Populi SSOT (CPU-first)"
+description: "Official documentation for mesh (Populi) runtime, env vars, and HTTP control plane (CPU-first)."
 category: "reference"
 last_updated: 2026-03-24
 training_eligible: true
 ---
 
-# Mens SSOT (CPU-first)
+# Mesh / Populi SSOT (CPU-first)
 
-Vox **mens** is **opt-in at runtime**: default single-node behaviour is unchanged until operators set the variables below or use `vox populi` (requires `vox-cli` Cargo feature **`populi`**; enables `vox-populi` in the CLI binary).
+The **mesh** (Populi) layer is **opt-in at runtime**: default single-node behaviour is unchanged until operators set the variables below or use `vox populi` (requires `vox-cli` Cargo feature **`populi`**; enables `vox-populi` in the CLI binary).
 
 ## A2A acknowledgment vs Ludus notification ACK
 
@@ -112,13 +112,13 @@ For **multi-node** pools, align **`VOX_MESH_LABELS`**, **`[mens].labels`**, and 
 
 ## Observability
 
-- **Tracing target `vox.mens`**: registry publish success logs `path` and `node_id` from **`vox run`** (`crates/vox-cli/src/commands/run.rs`); failures at `debug` only (best-effort).
+- **Tracing target `vox.populi`**: registry publish success logs `path` and `node_id` from **`vox run`** (`crates/vox-cli/src/commands/run.rs`); failures at `debug` only (best-effort).
 - **HTTP**: `tower-http` **`TraceLayer`** and **`SetRequestIdLayer`** (`x-request-id`) wrap the control-plane router for request-scoped logs.
 - **`vox run`**: mens registry is published once at the start of the shared `run` entrypoint so **app** and **script** modes (and **`vox-compilerd`** `run`) behave consistently when **`VOX_MESH_ENABLED`** is set. When a client-suitable control URL is set (**`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** / **`VOX_MESH_CONTROL_ADDR`**) and **`VOX_MESH_HTTP_JOIN`** is not disabled, it also performs the same **`POST /v1/populi/join`** (+ optional heartbeat) path as **`vox-mcp`** via [`vox_populi::http_lifecycle`](../../../crates/vox-populi/src/http_lifecycle.rs).
 
 ### Metrics
 
-- **Today:** structured logs under tracing target **`vox.mens`** (see above) plus optional Codex rows typed **`populi_control_event`** when **`VOX_MESH_CODEX_TELEMETRY`** is enabled — append path in [`populi_registry_telemetry.rs`](../../../crates/vox-db/src/populi_registry_telemetry.rs) / [`populi_control_telemetry.rs`](../../../crates/vox-db/src/populi_control_telemetry.rs).
+- **Today:** structured logs under tracing target **`vox.populi`** (see above) plus optional Codex rows typed **`populi_control_event`** when **`VOX_MESH_CODEX_TELEMETRY`** is enabled — append path in [`populi_registry_telemetry.rs`](../../../crates/vox-db/src/populi_registry_telemetry.rs) / [`populi_control_telemetry.rs`](../../../crates/vox-db/src/populi_control_telemetry.rs).
 - **Mesh queues:** `tracing::debug!` lines note **policy skips** when a public worker attempts to claim a private/trusted A2A row (histogram wiring is deferred).
 - **Future:** Prometheus-style counters or OpenTelemetry spans on control-plane routes (**`/v1/populi/join`**, etc.) could sit behind the **`transport`** feature and dedicated env toggles if SRE needs SLO dashboards; not required for the baseline CPU-first mens story.
 

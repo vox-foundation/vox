@@ -1,34 +1,34 @@
 ---
 title: "Crate topology buckets"
-description: "Official documentation for Crate topology buckets for the Vox language. Detailed technical reference, architecture guides, and implementa"
+description: "Like-with-like map for workspace crates under crates/* and major modules."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-26
 training_eligible: true
 ---
 
 # Crate topology buckets
 
-Aggressive **like-with-like** map for every workspace member under `crates/*` (excludes `[workspace.exclude]`:
-`vox-dei`, `vox-py`, `vox-wasm`). **`vox-codegen-html`** was removed from the exclude list—use **`vox-ssg`** for static HTML shells. Use this when deciding where new code lives or which crate to depend on.
+**Like-with-like** map for workspace members under `crates/*`. Root `[workspace.exclude]` is only **`vox-dei`** and the stub **`vox-py`** tree (no `Cargo.toml`). Use this when choosing dependencies and file placement.
 
-| Bucket | Crates | Build / ownership notes |
-|--------|--------|---------------------------|
-| **Compiler core** | `vox-lexer`, `vox-parser`, `vox-ast`, `vox-hir`, `vox-typeck`, `vox-fmt` | Tight pipeline; keep independent for incremental builds. |
-| **Codegen** | `vox-codegen-rust`, `vox-codegen-ts`, `vox-codegen-llvm`, `vox-codegen-wasm` | Backends isolated from ML and heavy I/O. |
-| **Data plane** | `vox-db`, `vox-pm`, `vox-codex` (compat re-export over `vox-db`) | Canonical API: **`vox_db::VoxDb`**. `vox-codex` is legacy import path only. |
-| **Repository / workspace** | `vox-repository`, `vox-config` | Repo root, `repository_id`, `Vox.toml` — do not reimplement layout detection in random CLI modules. |
-| **Runtime / HTTP** | `vox-runtime`, `vox-codex-api` | Axum/Tokio surfaces; optional `database` feature on runtime. |
-| **ML / training** | `vox-mens`, `vox-tensor`, `vox-corpus`, `vox-oratio` | Heavy deps; gate behind **`vox-cli`** features `gpu`, `oratio`, `mens-candle-cuda`. |
-| **Agent / MCP / orchestration** | `vox-mcp`, `vox-orchestrator`, `vox-ars`, `vox-tools`, `vox-capability-registry` | Tooling and routing; optional in default CLI. |
-| **Quality / policy** | `vox-toestub`, `vox-socrates-policy`, `vox-eval`, `vox-doc-inventory` | CI, lint policy, doc SSOT generation. |
-| **Integration / harness** | `vox-integration-tests`, `vox-test-harness` | Not part of default `vox-cli` graph. |
-| **Infra / misc** | `vox-cli`, `vox-lsp`, `vox-bootstrap`, `vox-container`, `vox-doc-pipeline`, `vox-forge`, `vox-gamify`, `vox-git`, `vox-ludus`, `vox-skills`, `vox-ssg`, `vox-storage`, `vox-webhook` | `vox-cli` fans out by feature; keep **default** lane lean. |
+| Bucket | Crates / location | Notes |
+|--------|-------------------|--------|
+| **Compiler pipeline** | **`vox-compiler`** | Monolith: `lexer`, `parser`, `ast`, `hir`, `typeck`, `fmt`, `codegen_rust`, `codegen_ts`, `web_ir`, etc. — not separate workspace crates. |
+| **Data / Codex** | `vox-db`, `vox-pm` | Canonical DB facade: **`vox_db::VoxDb`**. Schema SSOT in `vox-db` + `vox-pm` artifacts. |
+| **Mesh + native ML** | **`vox-populi`**, `vox-tensor`, `vox-corpus`, `vox-oratio` | **Populi** = mesh/registry/HTTP (`transport`). **Mens** ML = `vox_populi::mens` (+ features `mens-train`, `mens-gpu`, …). Gate via **`vox-cli`** `populi`, `gpu`, `oratio`, `mens-candle-cuda`. |
+| **Repository / config** | `vox-repository`, `vox-config` | `Vox.toml`, `repository_id` — do not reimplement layout detection ad hoc. |
+| **Runtime** | `vox-runtime` | Actor / workflow helpers; optional `database` feature. |
+| **HTTP dashboards / Codex APIs** | **`vox-db`** + **`vox-cli`** | Historical name `vox-codex-api` is **not** a package; HTTP helpers live in **`vox-db`** and CLI feature gates. |
+| **Agent / MCP / orchestration** | `vox-mcp`, `vox-orchestrator`, `vox-ars`, `vox-tools`, `vox-capability-registry`, `vox-workflow-runtime` | Tooling and routing; often feature-gated in CLI. |
+| **Quality / policy** | `vox-toestub`, `vox-socrates-policy`, `vox-eval`, `vox-doc-inventory`, `vox-scaling-policy` | CI and doc SSOT. |
+| **Integration** | `vox-integration-tests`, `vox-test-harness` | Not in default `vox-cli` dependency graph. |
+| **Product / CLI / tooling** | `vox-cli`, `vox-lsp`, `vox-bootstrap`, `vox-container`, `vox-doc-pipeline`, `vox-forge`, `vox-git`, `vox-ludus`, `vox-skills`, `vox-ssg`, `vox-webhook`, `vox-schola`, `vox-protocol`, `vox-publisher`, `vox-scientia-*` | **`vox-cli`** fans out by feature; keep default builds lean. |
 
-## Anti-patterns (aggressive)
+## Anti-patterns
 
-- New `vox_codex::` imports in workspace crates — use **`vox_db::`**.
+- New `vox_codex::` imports — use **`vox_db::`**.
 - Heavy ML deps on `vox-lsp` or default `vox-cli` without a feature gate.
 - Duplicating `repository_id` / repo-root logic outside **`vox-repository`**.
+- Docs or scripts referring to removed package names **`vox-mens`** / **`vox-codex-api`** — use **`vox-populi`** and **`vox-db`** (see [nomenclature migration map](nomenclature-migration-map.md)).
 
 ## See also
 

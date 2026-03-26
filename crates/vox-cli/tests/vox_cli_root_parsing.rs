@@ -33,7 +33,7 @@ fn parse_secrets_alias_routes_to_clavis_doctor() {
     assert!(matches!(
         r.cmd,
         Cli::Clavis {
-            cmd: ClavisCmd::Doctor { .. }
+            cmd: ClavisCmd::Status { .. }
         }
     ));
 }

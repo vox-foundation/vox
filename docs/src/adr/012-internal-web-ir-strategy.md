@@ -14,13 +14,17 @@ training_eligible: true
 
 ---
 
+## Codegen naming (TypeScript / React)
+
+Emitted TS/React identifiers should follow **English-first** naming where practical; stable `data-vox-*` DOM contracts remain until a versioned WebIR migration replaces them. Avoid **duplicate `Vox` tokens** in generated symbol names (`VoxVox*`). Details and side-by-side status: [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md#nomenclature-for-emitted-typescript--react).
+
 ## Context
 
 Vox frontend generation is currently split across mixed representations:
 
-- Path C reactive components emit from HIR (`reactive.rs`, `hir_emit.rs`).
+- Path C reactive components emit from HIR (`reactive.rs`, `hir_emit/mod.rs`).
 - `@component` legacy path still retains AST-shaped data (`HirComponent(pub ComponentDecl)`) in `hir/nodes/decl.rs`.
-- JSX/island rewriting lives in multiple emitters (`codegen_ts/jsx.rs` and `codegen_ts/hir_emit.rs`).
+- JSX/island rewriting lives in multiple emitters (`codegen_ts/jsx.rs` and `codegen_ts/hir_emit/mod.rs`).
 - Islands hydration contract is tied to generated mount attributes and client template behavior (`data-vox-island`, `data-prop-*`, `island-mount.tsx`).
 
 This yields higher maintenance cost, divergence risk, and higher k-complexity for AI-first authoring.
@@ -31,6 +35,12 @@ This yields higher maintenance cost, divergence risk, and higher k-complexity fo
 
 Canonical mapping and full legacy registry:
 [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+Quantified token+grammar+escape-hatch delta:
+[WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+Reproducible counting appendix:
+[K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
+Ordered file-operation roadmap:
+[Operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
 
 ### Current island schema (implemented)
 
@@ -39,7 +49,7 @@ Source anchors:
 - `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_island`)
 - `crates/vox-compiler/src/ast/decl/ui.rs` (`IslandDecl`, `IslandProp`)
 - `crates/vox-compiler/src/hir/lower/mod.rs` (`Decl::Island -> HirIsland`)
-- `crates/vox-compiler/src/codegen_ts/hir_emit.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
 - `crates/vox-cli/src/templates/islands.rs` (runtime hydration parse)
 
 Current shape:
@@ -166,10 +176,35 @@ Each strategy is scored using:
 | migration safety | 10 | 9 | 6 | 2 |
 | **Weighted total (/100)** | **100** | **58.0** | **82.5** | **71.5** |
 
+### Numeric rationale (worked example tie-in)
+
+The canonical worked app quantification in the side-by-side doc reports:
+
+- `tokenSurfaceScore`: `92 -> 68` (`-26.1%`)
+- `grammarBranchScore`: `11 -> 7` (`-36.4%`)
+- `escapeHatchPenalty`: `4 -> 1` (`-75.0%`)
+- `kComposite`: `50.45 -> 36.60` (`-27.5%`)
+
+How this maps to scorecard criteria:
+
+1. `k-complexity reduction` (weight 25)
+   - Rationale for Path B score `9/10`: nearly one-third composite reduction on parser-valid full-stack slice while preserving React interop boundary.
+2. `maintainability` (weight 20)
+   - Rationale for Path B score `8/10`: `grammarBranchScore` reduction correlates with fewer semantic ownership points (`jsx.rs`/`hir_emit/mod.rs` convergence into WebIR lowering).
+3. `non-nullability/safety` (weight 15)
+   - Rationale for Path B score `8/10`: explicit `FieldOptionality` + planned pre-emit validation moves ambiguity resolution earlier than string-print stages.
+4. `React ecosystem interop` (weight 20)
+   - Rationale for Path B score `9/10`: keeps compatibility surfaces (`data-vox-island`, React/TanStack emit targets) during migration instead of runtime replacement.
+
+Confidence tags:
+
+- High: parser-valid syntax boundaries, current output evidence, current WebIR module existence.
+- Medium: projected gains from full validator and emitter cutover not yet complete in main path.
+
 ### Measurable baselines and targets
 
 1. Duplicate emitter paths
-   - Baseline: dual JSX/island pathways across `jsx.rs` and `hir_emit.rs`.
+   - Baseline: dual JSX/island pathways across `jsx.rs` and `hir_emit/mod.rs`.
    - Target: one canonical island rewrite surface in WebIR printer path.
 2. Framework-shaped constructs in `.vox`
    - Baseline: mixed legacy hook/JSX influence.

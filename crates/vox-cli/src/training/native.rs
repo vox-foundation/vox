@@ -17,7 +17,7 @@ use vox_tensor::vox_nn::cross_entropy_loss;
 
 /// A native transformer model for Vox dogfood training.
 #[derive(BurnModule, Debug)]
-pub struct VoxTransformer<B: Backend> {
+pub struct CliDogfoodTransformer<B: Backend> {
     embedding: burn::nn::Embedding<B>,
     blocks: Vec<TransformerBlock<B>>,
     norm: burn::nn::LayerNorm<B>,
@@ -33,7 +33,7 @@ struct TransformerBlock<B: Backend> {
     norm2: burn::nn::LayerNorm<B>,
 }
 
-impl<B: Backend> VoxTransformer<B> {
+impl<B: Backend> CliDogfoodTransformer<B> {
     pub fn new(
         device: &B::Device,
         vocab_size: usize,
@@ -123,7 +123,7 @@ pub async fn run_training(data_dir: &Path, output_dir: Option<&Path>) -> Result<
     let n_layers = 12;
     let n_heads = 8;
     let mut model =
-        VoxTransformer::<ADBackend>::new(&device, VOCAB_SIZE, d_model, n_heads, n_layers);
+        CliDogfoodTransformer::<ADBackend>::new(&device, VOCAB_SIZE, d_model, n_heads, n_layers);
 
     let mut optim = AdamW::new();
     let initial_lr = 5e-5;
@@ -249,7 +249,7 @@ mod tests {
         let n_layers = 2; // small model for test
 
         let model =
-            VoxTransformer::<TestBackend>::new(&device, vocab_size, d_model, n_heads, n_layers);
+            CliDogfoodTransformer::<TestBackend>::new(&device, vocab_size, d_model, n_heads, n_layers);
 
         // Dummy input [batch=2, seq_len=10]
         let input_data: Vec<i32> = (0..20).collect();

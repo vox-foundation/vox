@@ -9,7 +9,7 @@ use vox_populi::mens::tensor::LoraVoxTransformer;
 use vox_populi::mens::tensor::manifest;
 use vox_tensor::train::Checkpoint;
 
-/// Merge Burn [`LoraVoxTransformer`] weights into a plain [`VoxTransformer`] and save as `model_merged.bin`.
+/// Merge Burn [`LoraVoxTransformer`] weights into a plain Populi [`vox_populi::mens::tensor::burn_stack::VoxTransformer`] and save as `model_merged.bin`.
 ///
 /// `rank` and `alpha` are reserved for future CLI overrides; architecture and LoRA hyperparameters are
 /// taken from `training_manifest.json` in the checkpoint’s parent directory (same layout as `vox mens train --backend lora`).

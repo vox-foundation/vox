@@ -15,7 +15,7 @@ Vox needs a **CPU-first** mens: workers advertise capabilities and can federate 
 ## Decision
 
 1. **In-tree control plane (phase 3 baseline):** **HTTP** (`axum`) on a configurable bind address (`VOX_MESH_CONTROL_ADDR` for clients; `vox populi serve --bind` for servers) with JSON bodies (`NodeRecord`, `PopuliRegistryFile`). Operations: **health** (`GET /health`, unauthenticated), **join**, **heartbeat**, **list**, **leave**.
-2. **Security:** **TLS termination** (mTLS at reverse proxy / sidecar) remains an operator concern. **`VOX_MESH_TOKEN`**: when set, the in-process server requires `Authorization: Bearer <token>` on mens API routes except **`GET /health`** (never logged); clients use the same env for outbound calls (`PopuliHttpClient::with_env_token`). **`VOX_MESH_SCOPE_ID`**: when set on the server, **join** and **heartbeat** require matching `NodeRecord.scope_id` ([mens SSOT](../reference/mens.md)).
+2. **Security:** **TLS termination** (mTLS at reverse proxy / sidecar) remains an operator concern. **`VOX_MESH_TOKEN`**: when set, the in-process server requires `Authorization: Bearer <token>` on mens API routes except **`GET /health`** (never logged); clients use the same env for outbound calls (`PopuliHttpClient::with_env_token`). **`VOX_MESH_SCOPE_ID`**: when set on the server, **join** and **heartbeat** require matching `NodeRecord.scope_id` ([mens SSOT](../reference/populi.md)).
 3. **Future evolution:** If WAN gossip or stream multiplexing requires it, evaluate **QUIC** or **gRPC over TLS** as a **replacement** transport behind the same logical operations (join / heartbeat / list), not an additional default stack.
 
 ## Consequences

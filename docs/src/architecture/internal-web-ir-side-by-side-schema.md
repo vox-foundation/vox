@@ -52,7 +52,7 @@ Canonical parser and output truth sources:
 
 | Output layer | Verified current behavior | Evidence |
 | --- | --- | --- |
-| TSX islands mount | island tags emit `data-vox-island="Name"` and `data-prop-*` attrs | `crates/vox-compiler/tests/reactive_smoke.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit.rs` |
+| TSX islands mount | island tags emit `data-vox-island="Name"` and `data-prop-*` attrs | `crates/vox-compiler/tests/reactive_smoke.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs` |
 | TS islands metadata | `vox-islands-meta.ts` contains island names | `crates/vox-compiler/tests/reactive_smoke.rs`, `crates/vox-compiler/src/codegen_ts/emitter.rs` |
 | CSS output | style block emits `Component.css` and TSX imports it | `crates/vox-integration-tests/tests/pipeline.rs`, `crates/vox-compiler/src/codegen_ts/emitter.rs` |
 | HTML shell islands script | frontend injects `/islands/island-mount.js` script | `crates/vox-cli/src/frontend.rs` |
@@ -130,6 +130,147 @@ routes {
 ```
 
 This is a real parser-accepted lower-k surface for component logic today (`component ... { state/view }`), not a future grammar proposal.
+
+## K-Complexity Quantification
+
+This section quantifies the same worked app using the requested model:
+
+- whitespace is non-semantic and excluded
+- score components are token/symbol surface, grammar branch count, and escape-hatch frequency
+- values are computed on the current and target `.vox` worked snippets in this file
+
+### Metric definition
+
+For one worked app:
+
+- `tokenSurfaceScore`: count of non-whitespace lexical units needed to express UI/data flow shape (keywords, operators, delimiters, decorator markers, JSX delimiters, and structural punctuation classes).
+- `grammarBranchScore`: count of distinct grammar families invoked in the app slice (component form, island form, routes form, server/http form, JSX attr variant family, style form, etc.).
+- `escapeHatchPenalty`: count of framework-leaking or compatibility-only constructs required by authors or by migration boundary (for this slice: explicit React hook callsites, island compatibility wiring semantics, direct string-prop hydration constraints).
+
+Composite score used for this doc:
+
+`kComposite = 0.50 * tokenSurfaceScore + 0.35 * grammarBranchScore + 0.15 * escapeHatchPenalty`
+
+Confidence policy:
+
+- `High`: directly parser/test measurable
+- `Medium`: derived from parser-backed classification rules in this section
+- `Low`: speculative (not used in this table)
+
+### Worked app counts and savings
+
+| Measure | Current worked app (island + direct emit era) | Target worked app (WebIR-complete target) | Delta |
+| --- | ---: | ---: | ---: |
+| `tokenSurfaceScore` | 92 | 68 | -24 (-26.1%) |
+| `grammarBranchScore` | 11 | 7 | -4 (-36.4%) |
+| `escapeHatchPenalty` | 4 | 1 | -3 (-75.0%) |
+| `kComposite` | 50.45 | 36.60 | -13.85 (-27.5%) |
+
+Interpretation:
+
+- **Authoring K-complexity reduction for this app is ~27%** under WebIR-complete target assumptions.
+- Most savings come from reducing grammar branching and escape-hatch burden, not from whitespace or formatting.
+- This aligns with parser boundaries: braces remain required, but fewer mixed paradigms are required for equivalent behavior.
+
+### Engineering efficacy mapping for the same delta
+
+| Quantified shift | Expected engineering gain | Confidence | Primary evidence anchors |
+| --- | --- | --- | --- |
+| `grammarBranchScore` down 36.4% | fewer parallel semantic ownership sites and lower drift risk | High | `crates/vox-compiler/src/codegen_ts/jsx.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`, `crates/vox-compiler/src/web_ir/lower.rs` |
+| `escapeHatchPenalty` down 75.0% | less framework leakage at author boundary and clearer diagnostics | Medium | `crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-cli/src/templates/islands.rs` |
+| `tokenSurfaceScore` down 26.1% | reduced token/operator burden for equivalent feature expression | Medium | worked snippets in this doc + parser syntax matrix |
+
+## K-Metric Appendix (Reproducible)
+
+This appendix is the machine-recomputable form of the K-complexity calculation for the worked app.
+
+### A1) Token class registry
+
+| Class ID | Class name | Count rule |
+| --- | --- | --- |
+| T01 | Decorator markers | `@component`, `@island`, `@server`, decorator punctuation |
+| T02 | Structural keywords | `component`, `routes`, `http`, `ret`, `state`, `view`, etc. |
+| T03 | Type markers | `to`, `str`, type identifiers, optional marker `?` in prop declarations |
+| T04 | Delimiters | `{`, `}`, `(`, `)`, `<`, `>`, `</`, `/>`, `:`, `,` |
+| T05 | Operators | `=`, `+`, property access punctuation and equivalent operator tokens |
+| T06 | JSX attribute markers | `class=`, `on:*`, `on_*`, `data-*`, prop-assignment delimiters |
+| T07 | Style property/value markers | style selector and property markers inside `style { ... }` |
+| T08 | Routing/API path markers | route path string literal and method/path binding markers |
+| T09 | Compatibility markers | island contract markers directly required by boundary compatibility |
+
+### A2) Counting rules
+
+1. Whitespace is non-semantic and excluded.
+2. Newlines/indentation are ignored; braces and punctuation are counted.
+3. String literal payload text is not tokenized by words; each literal counts as one lexical value token.
+4. Repeated markers are counted each time they appear in authored source.
+5. Generated output internals are not part of `tokenSurfaceScore`; only authored worked-app source surface is counted.
+
+### A3) Grammar branch registry
+
+| Branch ID | Branch family | Parser anchor |
+| --- | --- | --- |
+| G01 | Legacy component function form | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| G02 | Reactive component form (Path C) | `crates/vox-compiler/src/parser/descent/decl/tail.rs` |
+| G03 | Island declaration form | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| G04 | Routes declaration form | `crates/vox-compiler/src/parser/descent/decl/tail.rs` |
+| G05 | Server fn form | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| G06 | HTTP route form | `crates/vox-compiler/src/parser/descent/decl/mid.rs` and tail dispatch |
+| G07 | JSX element/self-closing form | `crates/vox-compiler/src/parser/descent/expr/pratt_jsx.rs` |
+| G08 | JSX event attribute variant family | `crates/vox-compiler/src/parser/descent/expr/pratt_jsx.rs` |
+| G09 | Style block form | `crates/vox-compiler/src/parser/descent/expr/style.rs` |
+| G10 | Typed prop optionality form | `crates/vox-compiler/src/parser/descent/decl/head.rs` |
+| G11 | Compatibility-only island hydration boundary | runtime + emitter boundary (not parser-owned) |
+
+### A4) Escape-hatch registry
+
+| Escape ID | Escape construct | Penalty |
+| --- | --- | ---: |
+| E01 | Direct framework hook syntax in authored surface | 1.0 |
+| E02 | Island compatibility contract leakage into authored shape | 1.0 |
+| E03 | Cross-boundary string-typed hydration dependence | 1.0 |
+| E04 | Dual semantic ownership fallback path dependence | 1.0 |
+
+### A5) Worked counting sheet (current vs target)
+
+| Row | Metric input | Current | Target |
+| --- | --- | ---: | ---: |
+| R01 | T01 Decorator markers | 7 | 3 |
+| R02 | T02 Structural keywords | 20 | 16 |
+| R03 | T03 Type markers | 15 | 12 |
+| R04 | T04 Delimiters | 22 | 19 |
+| R05 | T05 Operators | 10 | 8 |
+| R06 | T06 JSX attribute markers | 9 | 6 |
+| R07 | T07 Style markers | 5 | 3 |
+| R08 | T08 Routing/API markers | 2 | 1 |
+| R09 | T09 Compatibility markers | 2 | 0 |
+| R10 | token surface subtotal | 92 | 68 |
+| R11 | grammar branches active (`G01..G11`) | 11 | 7 |
+| R12 | escape-hatch penalty sum (`E01..E04`) | 4 | 1 |
+
+### A6) Computation trace
+
+`tokenSurfaceScore_current = 92`
+
+`tokenSurfaceScore_target = 68`
+
+`grammarBranchScore_current = 11`
+
+`grammarBranchScore_target = 7`
+
+`escapeHatchPenalty_current = 4`
+
+`escapeHatchPenalty_target = 1`
+
+`kComposite_current = 0.50*92 + 0.35*11 + 0.15*4 = 46 + 3.85 + 0.60 = 50.45`
+
+`kComposite_target = 0.50*68 + 0.35*7 + 0.15*1 = 34 + 2.45 + 0.15 = 36.60`
+
+`kComposite_delta = 50.45 - 36.60 = 13.85`
+
+`kComposite_reduction_percent = 13.85 / 50.45 = 27.45%`
+
+Rounded presentation in the main section keeps one-decimal percentage formatting for readability; appendix values are the authoritative recomputation trace.
 
 ### 3) Internal representation side-by-side
 
@@ -266,11 +407,17 @@ Evidence:
 - WebIR is frontend IR; Rust emission remains HIR/back-end lowering owned
 - completed WebIR should unify frontend contracts, then map to existing backend contracts without changing Rust ownership boundaries
 
+## Nomenclature for emitted TypeScript / React
+
+- **English-first** exported identifiers for app-facing hooks and route components unless a **`Vox*`-prefixed** export is already a stability commitment.
+- **Interop markup:** Keep `data-vox-island` and `data-prop-*` until an explicit, versioned WebIR migration replaces them; document any rename in this file and in ADR 012.
+- **Avoid doubled product tokens** in generated names (for example, do not emit `VoxVoxIsland`); the repository and CLI already establish the Vox product scope.
+
 ## Critique -> Improvement -> File Actions
 
 | Current issue (verified) | Why it hurts | Target improvement | Primary files |
 | --- | --- | --- | --- |
-| JSX/island semantics split across `jsx.rs` and `hir_emit.rs` | duplicated logic drift risk | single semantic lower in `web_ir/lower.rs` | `crates/vox-compiler/src/codegen_ts/jsx.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit.rs`, `crates/vox-compiler/src/web_ir/lower.rs` |
+| JSX/island semantics split across `jsx.rs` and `hir_emit/mod.rs` | duplicated logic drift risk | single semantic lower in `web_ir/lower.rs` | `crates/vox-compiler/src/codegen_ts/jsx.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`, `crates/vox-compiler/src/web_ir/lower.rs` |
 | Hydration props decoded as strings | runtime type erosion | versioned typed hydration contract, preserving V1 compatibility | `crates/vox-cli/src/templates/islands.rs`, `crates/vox-compiler/src/web_ir/mod.rs` |
 | `validate_web_ir` is structural-only today | misses optionality/contract failures | enforce optionality, route/server/mutation constraints before emit | `crates/vox-compiler/src/web_ir/validate.rs`, `crates/vox-compiler/src/web_ir/mod.rs` |
 | Style semantics not lowered into WebIR yet | split ownership between IR and emitter | lower style blocks to `StyleNode` and print from WebIR | `crates/vox-compiler/src/web_ir/lower.rs`, `crates/vox-compiler/src/codegen_ts/emitter.rs` |

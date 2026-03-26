@@ -1,6 +1,6 @@
 use crate::ast::span::Span;
 use crate::hir::*;
-use crate::typeck::diagnostics::{Diagnostic, Severity};
+use crate::typeck::diagnostics::{Diagnostic, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind};
 use crate::typeck::ty::Ty;
 
@@ -149,7 +149,7 @@ impl<'a> Checker<'a> {
             if let Err(msg) = self.uf.unify(e, &a_ty) {
                 let arg_span = hir_expr_span(&a.value);
                 self.diags.push(Diagnostic {
-                    severity: Severity::Error,
+                    severity: TypeckSeverity::Error,
                     message: format!("Argument type mismatch: {msg}"),
                     span: arg_span,
                     expected_type: Some(format!("{e:?}")),

@@ -11,14 +11,17 @@ A centralized registry of technical terms and concepts used within the Vox proje
 
 ## Named surfaces (language product terms)
 
-These names are **canonical in documentation** (code paths and env vars may still use historical identifiers such as `vox-mens` or `VOX_MESH_*`):
+**English-first in docs:** prefer **mesh**, **model**, **secrets**, **speech** for concepts; **Populi**, **Mens**, **Clavis**, **Oratio**, **Schola** remain valid **product / CLI** names. See [Nomenclature migration map](../architecture/nomenclature-migration-map.md).
 
-| Name | Meaning | Typical CLI / crate touchpoints |
-|------|---------|--------------------------------|
-| **Populi** | The **mesh**: multi-node coordination, local registry file, HTTP control plane, join/heartbeat. | `vox populi`, crate **`vox-populi`**, Cargo feature **`populi`**, `VOX_MESH_*` |
-| **Mens** | The **model**: native ML stack, checkpoints, LoRA/QLoRA weights, inference/training targets for the language model. | `vox mens` (when feature-gated), crate **`vox-mens`**, paths under **`mens/`** for data |
-| **Oratio** | **Speech** (speech-to-text and related audio UX), not general “ML.” | `vox oratio` / `vox speech`, crate **`vox-oratio`** |
-| **Schola** | **Training**: the fine-tuning / curriculum surface (`vox schola …`), distinct from the **Mens** model artifacts. | `vox mens train`, merge/eval helpers under **`schola`** |
+Legacy identifiers (`VOX_MESH_*`, `vox_populi::mens::*`, historical `vox-mens` in old prose) are listed in that map.
+
+| Canonical (English) | Meaning | CLI / crate touchpoints |
+|---------------------|---------|-------------------------|
+| **mesh** (alias **Populi**) | Multi-node coordination, local registry, HTTP control plane. | `vox populi`, **`vox-populi`**, feature **`populi`**, `VOX_MESH_*` |
+| **model** (alias **Mens**) | Native ML stack, checkpoints, LoRA/QLoRA. | `vox mens`, **`vox-populi`** (`mens` module), paths **`mens/`** |
+| **secrets** (alias **Clavis**) | Credential resolver / doctor workflows. | `vox clavis` (alias grouping), **`vox-clavis`** |
+| **speech** (alias **Oratio**) | STT / audio UX. | `vox oratio` / `vox speech`, **`vox-oratio`** |
+| **training** (alias **Schola**) | Curriculum / fine-tuning CLI. | `vox schola …`, helpers under **`vox-schola`** |
 
 ## A
 ### Actor
@@ -126,7 +129,7 @@ The gamification and reward subsystem for AI agents within the Vox DEI orchestra
 ### MCP (Model Context Protocol)
 An open protocol that enables AI models to interact with local tools and data. Vox generates MCP tool schemas via `@mcp.tool`.
 ### Mens
-The **model** stack: native ML artifacts and runtime in **`vox-mens`** (weights, QLoRA, probes). Distinct from **Populi** (mesh), **Schola** (training CLI), and **Oratio** (speech).
+The **model** stack: native ML in **`vox-populi`** (`mens::tensor`, weights, QLoRA, probes). Distinct from **Populi** (mesh), **Schola** (training CLI), and **Oratio** (speech).
 ### Populi
 The **mesh** layer: optional multi-node coordination (local registry JSON, HTTP control plane, join/heartbeat). See **`vox populi`** and **`vox-populi`**. Not the same as the **Mens** model stack.
 
@@ -138,7 +141,7 @@ The specific 4-bit quantization format used by Vox Mens to compress base model w
 
 ## O
 ### OpenClaw
-The underlying specification standard for AI agent skills and dependency resolution.
+**SSOT (long form):** [OpenClaw competitive analysis](expl-openclaw-analysis.md). **Summary:** Open-source **TypeScript** agent platform (hub-and-spoke gateway: chat channels, LLM routing, local tools). **ClawHub** is its public skills marketplace; that name refers to the ecosystem, not a Vox crate. Vox integrates read-only/import flows via **`vox openclaw`** (feature **`ars`**) and HTTP clients in **`vox-ars`**; OpenClaw is **not** a Vox specification or first-party product.
 ### Option[T]
 The safe alternative to null in Vox. A container that either holds a value (`Some(T)`) or nothing (`None`).
 ### Oratio

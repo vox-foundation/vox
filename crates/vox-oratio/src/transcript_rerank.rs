@@ -54,7 +54,7 @@ fn vox_frontend_penalty(source: &str) -> (u8, u32) {
     use vox_compiler::hir::validate_module;
     use vox_compiler::lexer::lex;
     use vox_compiler::parser::parse;
-    use vox_compiler::typeck::diagnostics::Severity;
+    use vox_compiler::typeck::diagnostics::TypeckSeverity;
     use vox_compiler::typeck::typecheck_ast_module;
 
     let tokens = lex(source);
@@ -64,8 +64,8 @@ fn vox_frontend_penalty(source: &str) -> (u8, u32) {
     let mut penalty: u32 = 0;
     for d in typecheck_ast_module(source, &module) {
         match d.severity {
-            Severity::Error => penalty = penalty.saturating_add(100),
-            Severity::Warning => penalty = penalty.saturating_add(1),
+            TypeckSeverity::Error => penalty = penalty.saturating_add(100),
+            TypeckSeverity::Warning => penalty = penalty.saturating_add(1),
         }
     }
     let hir = lower_module(&module);

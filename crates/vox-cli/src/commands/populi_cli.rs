@@ -42,8 +42,8 @@ pub enum PopuliCli {
         json: bool,
     },
     /// Print local env and on-disk registry snapshot.
-    #[command(name = "local-status")]
-    LocalStatus {
+    #[command(name = "registry-snapshot", visible_alias = "local-status")]
+    RegistrySnapshot {
         /// Override registry file (default: `VOX_MESH_REGISTRY_PATH` or `~/.vox/cache/mens/local-registry.json`).
         #[arg(long)]
         registry: Option<PathBuf>,
@@ -93,7 +93,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             crate::commands::populi_lifecycle::run(PopuliLifecycleCmd::Status { json }, global_json)
                 .await
         }
-        PopuliCli::LocalStatus { registry, json } => {
+        PopuliCli::RegistrySnapshot { registry, json } => {
             let path = registry.unwrap_or_else(vox_populi::local_registry_path);
             let reg = vox_populi::LocalRegistry::new(path.clone());
             let file = reg.load()?;
@@ -114,7 +114,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 });
                 println!("{}", serde_json::to_string_pretty(&v)?);
             } else {
-                println!("Mens env:");
+                println!("Mesh env:");
                 println!("  VOX_MESH_ENABLED: {}", env.enabled);
                 if let Some(ref id) = env.node_id {
                     println!("  VOX_MESH_NODE_ID: {id}");

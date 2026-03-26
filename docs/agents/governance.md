@@ -72,6 +72,12 @@ crates/vox-mcp/src/tools/
   mod.rs
 ```
 
+## Nomenclature (English-first + CLI aliases)
+
+- **SSOT:** [Nomenclature migration map](../src/architecture/nomenclature-migration-map.md) — canonical English terms, Latin CLI aliases, and retired identifiers (`vox-mens`, phantom crate names, broken doc links).
+- **Mesh vs model:** use **mesh** / **Populi** for coordination; **model** / **Mens** for the ML stack. Do not call the mesh control plane “mens” in new docs.
+- **CLI:** prefer documented English command names; Latin routes (`fabrica`, `clavis`, `oratio`, …) remain discoverability aliases.
+
 ## Naming Enforcement
 
 Generic names are **strictly forbidden**:

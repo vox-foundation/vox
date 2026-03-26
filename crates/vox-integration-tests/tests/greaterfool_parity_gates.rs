@@ -4,7 +4,7 @@ use vox_compiler::codegen_rust::{emit::emit_api_client, generate as generate_rus
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_module;
 
 const REFERENCE_SRC: &str = include_str!("fixtures/greaterfool_reference.vox");
@@ -17,7 +17,7 @@ fn greaterfool_reference_passes_pipeline() {
     let diagnostics = typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == Severity::Error)
+        .filter(|d| d.severity == TypeckSeverity::Error)
         .collect();
     assert!(
         errors.is_empty(),
@@ -87,7 +87,7 @@ fn compression_layer_pipeline_is_low_k_and_compiles() {
     let diagnostics = typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == Severity::Error)
+        .filter(|d| d.severity == TypeckSeverity::Error)
         .collect();
     assert!(
         errors.is_empty(),

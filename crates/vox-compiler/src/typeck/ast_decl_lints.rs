@@ -3,7 +3,7 @@
 use crate::ast::decl::{ComponentDecl, Decl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::types::TypeExpr;
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppressed};
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
 
@@ -80,7 +80,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
                 si.index_name, si.table_name
             ),
             span: si.span,
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             expected_type: None,
             found_type: None,
             context: None,
@@ -97,7 +97,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
                 si.index_name, si.table_name
             ),
             span: si.span,
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             expected_type: None,
             found_type: None,
             context: None,
@@ -114,7 +114,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
                 si.index_name, si.table_name, si.search_field
             ),
             span: si.span,
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             expected_type: None,
             found_type: None,
             context: None,
@@ -131,7 +131,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
                 si.index_name, si.search_field, field_ty
             ),
             span: si.span,
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             expected_type: Some("str".into()),
             found_type: Some(format!("{field_ty:?}")),
             context: None,
@@ -150,7 +150,7 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
     for stmt in &f.body {
         for_each_vox_hook_call_in_stmt(stmt, &mut |name, span| {
             diags.push(Diagnostic {
-                severity: Severity::Warning,
+                severity: TypeckSeverity::Warning,
                 message: format!(
                     "React-style hook `{name}` in @component — prefer Path C `component` / `@component Name(...) {{ state ... }}` for lower K-complexity"
                 ),
@@ -186,7 +186,7 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                             t.name
                         ),
                         span: field.span,
-                        severity: Severity::Warning,
+                        severity: TypeckSeverity::Warning,
                         expected_type: None,
                         found_type: None,
                         context: None,
@@ -215,7 +215,7 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                     diags.push(Diagnostic {
                         message: format!("@index references unknown table '{}'", idx.table_name),
                         span: idx.span,
-                        severity: Severity::Error,
+                        severity: TypeckSeverity::Error,
                         expected_type: None,
                         found_type: None,
                         context: None,

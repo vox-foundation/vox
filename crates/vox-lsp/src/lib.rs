@@ -10,7 +10,7 @@ use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::typecheck_ast_module;
 use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
-use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 
 pub mod bounded_fs;
 pub mod completions;
@@ -36,8 +36,8 @@ fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
     Diagnostic {
         range: Range { start, end },
         severity: Some(match err.severity {
-            Severity::Error => DiagnosticSeverity::ERROR,
-            Severity::Warning => DiagnosticSeverity::WARNING,
+            TypeckSeverity::Error => DiagnosticSeverity::ERROR,
+            TypeckSeverity::Warning => DiagnosticSeverity::WARNING,
         }),
         code: None,
         code_description: None,

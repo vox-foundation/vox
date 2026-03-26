@@ -8,7 +8,7 @@ training_eligible: true
 
 # Cross-platform Vox — runbook
 
-This page ties together **how Vox is meant to run** on servers, generated apps, and mobile-adjacent clients. It complements [deployment compose SSOT](../reference/deployment-compose.md), [mobile / edge AI SSOT](../reference/mobile-edge-ai.md), and [mens SSOT](../reference/mens.md).
+This page ties together **how Vox is meant to run** on servers, generated apps, and mobile-adjacent clients. It complements [deployment compose SSOT](../reference/deployment-compose.md), [mobile / edge AI SSOT](../reference/mobile-edge-ai.md), and [mens SSOT](../reference/populi.md).
 
 ## Lane S — Server script / worker
 
@@ -48,7 +48,7 @@ Images are **operator-defined tags** unless your registry publishes blessed name
 
 Prefer **runtime environment** when behavior is already gated in-tree:
 
-- **Mens:** `VOX_MESH_ENABLED`, `VOX_ORCHESTRATOR_MESH_CONTROL_URL`, `VOX_MESH_HTTP_JOIN`, `VOX_MESH_TOKEN`, etc. — [mens SSOT](../reference/mens.md).
+- **Mens:** `VOX_MESH_ENABLED`, `VOX_ORCHESTRATOR_MESH_CONTROL_URL`, `VOX_MESH_HTTP_JOIN`, `VOX_MESH_TOKEN`, etc. — [mens SSOT](../reference/populi.md).
 - **Inference / routing:** `VOX_INFERENCE_PROFILE` — [mobile / edge AI SSOT](../reference/mobile-edge-ai.md), [environment variables SSOT](../reference/env-vars.md).
 
 Rebuild with different `VOX_CLI_FEATURES` only when you need **code paths** that are not linked in the default binary (e.g. **`mens`**, **`script-execution`**).
@@ -56,6 +56,6 @@ Rebuild with different `VOX_CLI_FEATURES` only when you need **code paths** that
 ## Related
 
 - [Deployment compose SSOT](../reference/deployment-compose.md)
-- [Mens SSOT](../reference/mens.md)
+- [Mens SSOT](../reference/populi.md)
 - [Mobile / edge AI SSOT](../reference/mobile-edge-ai.md)
 - [Vox full-stack web UI SSOT](../reference/vox-web-stack.md)

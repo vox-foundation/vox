@@ -38,7 +38,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
-        CiCmd::NoVoxDeiImport => check_no_vox_dei(&root),
+        CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::CheckSummaryDrift => {
             let cargo = cargo_bin();
             let st = Command::new(&cargo)
@@ -97,7 +97,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
-        CiCmd::PopuliGate {
+        CiCmd::MeshGate {
             profile,
             isolated_runner,
             windows_isolated_runner,

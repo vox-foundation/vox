@@ -196,7 +196,7 @@ pub(crate) static SEMANTIC_GROUPS: &[(u32, &str, SemanticMatcher)] = &[
             "crates/vox-dei/",
             "crates/vox-codex/",
             "crates/vox-capability-registry/",
-            "crates/vox-codex-api/",
+            "crates/vox-db/",
         ]),
     ),
     // ── CLI (big, always last of must-haves) ────────────────────────────────

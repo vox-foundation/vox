@@ -12,7 +12,7 @@ use std::path::Path;
 use vox_compiler::ast::decl::Module;
 use vox_compiler::hir::HirModule;
 use vox_compiler::typeck::Diagnostic;
-use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -42,7 +42,7 @@ impl FrontendResult {
     pub fn error_count(&self) -> usize {
         self.diagnostics
             .iter()
-            .filter(|d| d.severity == Severity::Error)
+            .filter(|d| d.severity == TypeckSeverity::Error)
             .count()
     }
 
@@ -50,7 +50,7 @@ impl FrontendResult {
     pub fn warning_count(&self) -> usize {
         self.diagnostics
             .iter()
-            .filter(|d| d.severity == Severity::Warning)
+            .filter(|d| d.severity == TypeckSeverity::Warning)
             .count()
     }
 
@@ -151,8 +151,8 @@ pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
             let code = format!("E{:04}", i + 1);
             let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
             let sev = match d.severity {
-                Severity::Error => "error",
-                Severity::Warning => "warning",
+                TypeckSeverity::Error => "error",
+                TypeckSeverity::Warning => "warning",
             };
             eprintln!(
                 "{sev}[{code}]: {} at {}:{}:{}",

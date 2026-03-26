@@ -103,13 +103,13 @@ impl AutoFixer for StubAutoFixer {
 mod tests {
     use super::*;
     use crate::ast::span::Span;
-    use crate::typeck::diagnostics::{DiagnosticCategory, Severity};
+    use crate::typeck::diagnostics::{DiagnosticCategory, TypeckSeverity};
 
     #[test]
     fn stub_autofixer_one_fix_per_diagnostic() {
         let fixer = StubAutoFixer::default();
         let diags = vec![Diagnostic {
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             message: "Undefined x".to_string(),
             span: Span { start: 0, end: 1 },
             expected_type: None,
@@ -128,7 +128,7 @@ mod tests {
     fn rule_based_autofixer_falls_back_without_suggestion() {
         let fixer = RuleBasedAutoFixer::default();
         let diags = vec![Diagnostic {
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             message: "Type mismatch".to_string(),
             span: Span { start: 0, end: 1 },
             expected_type: None,

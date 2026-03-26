@@ -7,6 +7,14 @@ training_eligible: true
 ---
 # Crate API: vox-mcp
 
+## MCP tool and Rust type naming
+
+| Layer | Convention |
+|-------|-------------|
+| **Tool names** (wire / `tools/list`) | Lowercase **`vox_*`** snake_case per [`tools/mod.rs`](../../../crates/vox-mcp/src/tools/mod.rs) `TOOL_REGISTRY`. Do not repeat the word `vox` twice in one tool id (server is already Vox). |
+| **Rust param structs** | Legacy: `VoxScientia*`, `VoxNews*`. **New code:** prefer shorter aliases when added (`Scientia*`, `News*`) — same `serde` + `schemars` shape, **no JSON change**. |
+| **CLI** | See [CLI reference](../reference/cli.md); Scientia publication commands live under `vox scientia …` (English canonical). |
+
 ## Authoritative sources
 
 | Topic | Location |
@@ -35,7 +43,7 @@ Codex-attached deployments pair MCP LLM calls with [`BudgetGate`](../../../crate
 
 ### Mens + MCP startup
 
-When **`VOX_MESH_ENABLED=1`**, the **`vox-mcp`** binary calls `vox_populi::publish_local_registry_best_effort()` after DB connect (same pattern as **`vox run`**), then best-effort **`POST /v1/populi/join`** when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base ([`normalize_http_control_base`](../../../crates/vox-populi/src/lib.rs)), plus periodic **`POST /v1/populi/heartbeat`** (see **`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`** on [mens SSOT](../reference/mens.md)). Optional Codex rows: **`VOX_MESH_CODEX_TELEMETRY`**, **`mesh_http_join_ok` / `mesh_http_join_err`**. Docker: [mens SSOT](../reference/mens.md) (`VOX_MESH_MESH_SIDECAR`, `docker/vox-entrypoint.sh`).
+When **`VOX_MESH_ENABLED=1`**, the **`vox-mcp`** binary calls `vox_populi::publish_local_registry_best_effort()` after DB connect (same pattern as **`vox run`**), then best-effort **`POST /v1/populi/join`** when **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** or **`VOX_MESH_CONTROL_ADDR`** normalizes to a non-bind-all HTTP(S) base ([`normalize_http_control_base`](../../../crates/vox-populi/src/lib.rs)), plus periodic **`POST /v1/populi/heartbeat`** (see **`VOX_MESH_HTTP_JOIN`**, **`VOX_MESH_HTTP_HEARTBEAT_SECS`** on [mens SSOT](../reference/populi.md)). Optional Codex rows: **`VOX_MESH_CODEX_TELEMETRY`**, **`mesh_http_join_ok` / `mesh_http_join_err`**. Docker: [mens SSOT](../reference/populi.md) (`VOX_MESH_MESH_SIDECAR`, `docker/vox-entrypoint.sh`).
 
 ## Process model
 

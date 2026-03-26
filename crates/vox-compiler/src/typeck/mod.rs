@@ -38,7 +38,7 @@ pub mod unify;
 pub use builtins::BuiltinTypes;
 pub use checker::{Checker, typecheck_hir};
 /// A single semantic diagnostic (error or warning) produced during type checking.
-pub use diagnostics::{Diagnostic, DiagnosticCategory, Severity};
+pub use diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 pub use env::TypeEnv;
 pub use ty::ty_display;
 pub use unify::InferenceContext;

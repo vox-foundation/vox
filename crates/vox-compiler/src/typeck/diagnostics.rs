@@ -24,9 +24,9 @@ pub fn msg_record_size_mismatch(expected: usize, found: usize) -> String {
     format!("Record size mismatch: expected {expected}, found {found}")
 }
 
-/// Type checking diagnostic severity.
+/// Type checking diagnostic severity (distinct from lint / TOESTUB severities).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-pub enum Severity {
+pub enum TypeckSeverity {
     Error,
     Warning,
 }
@@ -55,7 +55,7 @@ pub enum DiagnosticCategory {
 /// A structured diagnostic emitted by the type checker and related frontend passes.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Diagnostic {
-    pub severity: Severity,
+    pub severity: TypeckSeverity,
     pub message: String,
     pub span: Span,
     pub expected_type: Option<String>,
@@ -73,7 +73,7 @@ impl Diagnostic {
     #[must_use]
     pub fn error(message: String, span: Span, source: &str) -> Self {
         Self {
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             message,
             span,
             expected_type: None,
@@ -88,7 +88,7 @@ impl Diagnostic {
     #[must_use]
     pub fn warning(message: String, span: Span, source: &str) -> Self {
         Self {
-            severity: Severity::Warning,
+            severity: TypeckSeverity::Warning,
             message,
             span,
             expected_type: None,
@@ -103,7 +103,7 @@ impl Diagnostic {
     #[must_use]
     pub fn hir_invariant(message: String, span: Span, source: &str) -> Self {
         Self {
-            severity: Severity::Error,
+            severity: TypeckSeverity::Error,
             message,
             span,
             expected_type: None,

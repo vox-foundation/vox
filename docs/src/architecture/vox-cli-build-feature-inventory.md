@@ -15,9 +15,9 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 | Feature | Default | Compile impact (high level) |
 |---------|---------|-------------------------------|
 | *(none)* | when using `--no-default-features` | Compiler pipeline + `vox-db` + **`vox-corpus`** + **`vox-runtime`** (always linked for training JSONL / grammar paths); **no** `vox mens …` surface (`mens-base` off) and **no** Oratio / native train |
-| `mens-base` | **yes** | Marker: enables `vox mens …` CLI (corpus commands, etc.) without `vox-mens` / Oratio — **`vox-corpus` / `vox-runtime` are not feature-gated** |
+| `mens-base` | **yes** | Marker: enables `vox mens …` CLI (corpus commands, etc.) without linking **`vox-populi`** ML / Oratio — **`vox-corpus` / `vox-runtime` are not feature-gated** |
 | `oratio` | **no** (opt-in) | `mens-base` + `vox-oratio` (Candle Whisper STT) — heavy; enables **`vox oratio`** / **`vox speech`** |
-| `gpu` | **no** (opt-in) | Adds `vox-mens` + `vox-tensor` with `train` / HF / Candle QLoRA stack — **largest** incremental cost |
+| `gpu` | **no** (opt-in) | Adds **`vox-populi`** (`mens`, `mens-train`, …) + **`vox-tensor`** — **largest** incremental cost |
 
 ## Optional features (alphabetical by concern)
 
@@ -33,7 +33,7 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 | `live` | `vox-orchestrator` |
 | `populi` | `vox-populi` + `transport` (axum / reqwest / tokio) — **`vox populi status` / `serve`** |
 | `workflow-runtime` | `mens-dei` + `vox-workflow-runtime` — interpreted **`vox mens workflow run`** (separate from **`populi`**; add **`populi`** if you need the HTTP registry / control-plane CLI) |
-| `mens-candle-cuda` | `gpu` + `vox-mens/candle-qlora-cuda` (nvcc / CUDA toolkit at build time) |
+| `mens-candle-cuda` | `gpu` + `vox-populi/mens-candle-qlora-cuda` (nvcc / CUDA toolkit at build time) |
 | `mens-candle-metal` | `gpu` + Metal Candle stack (macOS) |
 | `mens-dei` | `vox-tensor/train` without full Mens (legacy `vox train` path) |
 | `mens-qlora` | Alias for **`gpu`** (QLoRA is in the `train` feature chain) |
@@ -52,17 +52,16 @@ Single place to see **which Cargo features pull which dependency blocks** and ho
 
 | Bucket | Crates | Rationale |
 |--------|--------|-----------|
-| Compiler front | `vox-lexer`, `vox-parser`, `vox-ast`, `vox-hir`, `vox-typeck` | Tight pipeline; parallel incremental builds |
-| Codegen | `vox-codegen-rust`, `vox-codegen-ts`, `vox-codegen-llvm`, `vox-codegen-wasm` | Backends isolated from CLI features |
-| Data plane | `vox-db`, `vox-pm`, `vox-codex` (compat facade over `vox-db`) | Turso / Arca / Codex naming SSOT |
-| ML / training | `vox-mens`, `vox-tensor`; `vox-corpus` linked always, native stack gated behind **`gpu`** | Keep Burn/Candle off default lane; corpus types shared |
+| Compiler | **`vox-compiler`** (lexer/parser/HIR/typeck/codegen modules) | Monolith crate |
+| Data plane | `vox-db`, `vox-pm` | Turso / Arca / Codex **`vox_db::VoxDb`** |
+| ML / training | **`vox-populi`** (`mens` + mesh), `vox-tensor`; `vox-corpus` linked always; native stack gated behind **`gpu`** | Former **`vox-mens`** absorbed into **`vox-populi`** |
 | Agent / MCP | `vox-mcp`, `vox-orchestrator`, `vox-repository` | Optional tooling surfaces |
 
 ## Keyring / secrets
 
-OS keyring helpers live on **`vox-db`** as `vox_db::secrets`. The `vox-codex` crate re-exports them for the historical `vox_codex::secrets` path.
+OS keyring helpers live on **`vox-db`** as `vox_db::secrets`.
 
 ## Measuring build time
 
-- Local / CI: `vox ci build-timings` (human table or `--json`). Add **`--crates`** for extra isolated `cargo check -p …` lanes (`vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`) — see [crate-build-lanes migration](crate-build-lanes-migration.md).
+- Local / CI: `vox ci build-timings` (human table or `--json`). Add **`--crates`** for extra isolated `cargo check -p …` lanes (`vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`) — see [crate-build-lanes migration](crate-build-lanes-migration.md).
 - CUDA lane is skipped unless `nvcc` is on `PATH` (same policy as `vox ci cuda-features`).

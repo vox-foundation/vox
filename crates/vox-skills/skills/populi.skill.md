@@ -1,6 +1,6 @@
 ---
-id = "vox.mens"
-name = "Vox Mens (registry + labels)"
+id = "vox.populi"
+name = "Vox Populi (mesh registry + labels)"
 version = "0.1.0"
 author = "vox-team"
 description = "Align mens node labels with orchestrator task hints and inspect local/remote registry visibility."
@@ -10,7 +10,7 @@ tags = ["mens", "labels", "gpu", "federation", "workers"]
 permissions = ["db_read"]
 ---
 
-# Vox Mens Skill
+# Vox Populi (mesh) skill
 
 Use this when tasks must land on **specific worker pools** (CPU vs GPU, region, pool name) in a **multi-process** setup.
 

@@ -9,7 +9,7 @@ training_eligible: true
 
 ## What changed
 
-- **`vox mens train`** still uses `--backend lora|qlora`, but validation is **contract-first** inside `vox-mens` (`FineTuneContract`, `ExecutionPlanner`, `preflight_train`).
+- **`vox mens train`** still uses `--backend lora|qlora`, but validation is **contract-first** inside **`vox-populi`** (`FineTuneContract`, `ExecutionPlanner`, `preflight_train`).
 - **`--tokenizer hf`** is valid with **`--backend lora`** when the HF `config.json` is **GPT-2-shaped** (see planner gate). Llama/Mistral/Qwen layouts → **`--backend qlora`** until Burn HF parity lands.
 - **Telemetry** adds stable keys under `telemetry_schema` (`execution_kernel`, `telemetry_schema` version, `candle_compat_mode` for Candle).
 - **Training manifest** may include `manifest_schema_version`, `execution_kernel`, `finetune_contract_digest` (older runs default via serde).

@@ -22,7 +22,9 @@ pub use discover::{discover_repository, discover_repository_or_fallback};
 pub use error::RepositoryError;
 pub use git_root::find_git_work_tree;
 pub use id::compute_repository_id;
-pub use populi_toml::{VoxMeshToml, VoxMeshTomlError, read_vox_populi_toml};
+pub use populi_toml::{
+    MeshToml, MeshTomlError, VoxMeshToml, VoxMeshTomlError, read_vox_populi_toml,
+};
 pub use resolve::{
     VOX_REPO_ROOT_ENV, find_cargo_workspace_root, find_cargo_workspace_root_from,
     find_project_manifest_root, resolve_from_cargo_workspace, resolve_repo_root_for_ci,

@@ -43,7 +43,7 @@ async fn mesh_publish_best_effort_for_run() {
             match vox_populi::publish_local_registry_best_effort() {
                 Ok(()) => {
                     tracing::info!(
-                        target: "vox.mens",
+                        target: "vox.populi",
                         path = %path.display(),
                         node_id = node_id.as_deref().unwrap_or("(generated)"),
                         "mens registry publish (vox run)"
@@ -56,7 +56,7 @@ async fn mesh_publish_best_effort_for_run() {
                 }
                 Err(e) => {
                     tracing::debug!(
-                        target: "vox.mens",
+                        target: "vox.populi",
                         error = %e,
                         "mens registry publish failed (best-effort)"
                     );

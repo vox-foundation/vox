@@ -15,8 +15,14 @@ Design rationale and migration direction for internal frontend IR boundaries:
 [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
 Execution detail and weighted rollout tasks:
 [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+Ordered file-operation sequence and dependency graph:
+[WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
 Precise current-vs-target representation mapping:
 [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+Quantified K-complexity and efficacy deltas:
+[WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+Reproducible token/branch/escape-hatch counting appendix:
+[WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 
 ## Purpose
 

@@ -97,6 +97,13 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
 fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
     const WORKFLOW_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
     const DOC_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
+    // Retired crate paths / broken SSOT links — see `docs/src/architecture/nomenclature-migration-map.md`.
+    const NOMENCLATURE_DOC_BANNED: &[&str] = &[
+        "reference/mens.md",
+        "reference/mens-ssot.md",
+        "crates/vox-mens/",
+        "crates/vox-codex-api/",
+    ];
 
     let wf_dir = root.join(".github/workflows");
     if wf_dir.is_dir() {
@@ -135,6 +142,15 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
                 if text.contains(b) {
                     return Err(anyhow!(
                         "{}: stale reference {:?} — removed from tree; update docs",
+                        p.display(),
+                        b
+                    ));
+                }
+            }
+            for b in NOMENCLATURE_DOC_BANNED {
+                if text.contains(b) {
+                    return Err(anyhow!(
+                        "{}: nomenclature drift {:?} — use canonical crate paths (see docs/src/architecture/nomenclature-migration-map.md)",
                         p.display(),
                         b
                     ));

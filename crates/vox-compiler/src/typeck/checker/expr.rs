@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::ast::span::Span;
 use crate::hir::*;
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind};
 use crate::typeck::registration::resolve_hir_type;
 use crate::typeck::ty::Ty;
@@ -159,7 +159,7 @@ impl<'a> Checker<'a> {
                 if let Some(binding) = self.env.lookup(name) {
                     if binding.is_deprecated {
                         self.diags.push(Diagnostic {
-                            severity: Severity::Warning,
+                            severity: TypeckSeverity::Warning,
                             message: format!("'{name}' is deprecated"),
                             span: *span,
                             expected_type: None,
@@ -308,7 +308,7 @@ impl<'a> Checker<'a> {
             } => {
                 if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
                     self.diags.push(Diagnostic {
-                        severity: Severity::Error,
+                        severity: TypeckSeverity::Error,
                         message: "`.query(clause)` builds dynamic SQL; prefer `.all()` or `.get(id)`. \
                                   (This IR maps to `unsafe_query_raw_clause` in generated Rust.)"
                             .into(),

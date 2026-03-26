@@ -56,7 +56,7 @@ fn validate_vox(source: &str) -> Result<()> {
         let msgs: Vec<String> = result
             .diagnostics
             .iter()
-            .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
+            .filter(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
             .map(|d| d.message.clone())
             .collect();
         anyhow::bail!(

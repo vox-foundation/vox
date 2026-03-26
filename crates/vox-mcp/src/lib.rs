@@ -1,5 +1,8 @@
 //! Vox MCP Server — Model Context Protocol (stdio) for Vox: orchestrator, Codex/Turso tools, LLM
-//! bridge, and Mens-adjacent registry surfaces.
+//! bridge, and mesh/Mens registry surfaces.
+//!
+//! **OpenClaw / ClawHub:** External TypeScript agent platform and skills marketplace; not part of this
+//! crate. See `docs/src/explanation/expl-openclaw-analysis.md` and CLI `vox openclaw` (`vox-ars`).
 //!
 //! **Docs SSOT:** tool names in [`tools::TOOL_REGISTRY`]; per-tool JSON
 //! schemas live in `tools/input_schemas.rs` (`tool_input_schema`, wired from `server`). Long-form: mdBook
@@ -62,8 +65,9 @@ pub mod tools;
 /// Wasmtime loader for MCP servers compiled to WebAssembly (optional feature).
 pub mod wasm;
 
-// Re-export common types
-/// Re-exports [`crate::params`] (`ToolResult`, task types, status DTOs).
-pub use params::*;
-/// Re-exports [`crate::server`] (`ServerState`, `VoxMcpServer`).
-pub use server::*;
+// Re-export selected crate-root types (avoid `pub use ...::*` ambiguity).
+pub use params::{
+    AgentInfo, CancelTaskParams, DrainAgentParams, MapAgentSessionParams, ReorderTaskParams,
+    StatusResponse, ToolResult,
+};
+pub use server::{tool_json_envelope_is_error, ServerState, VoxMcpServer};

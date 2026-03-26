@@ -1,23 +1,20 @@
-//! `vox openclaw` — OpenClaw gateway integration, skill import, and approval management.
+//! `vox openclaw` — OpenClaw / ClawHub gateway integration, skill import, and approval management.
 //!
-//! Provides CLI commands for:
-//! - Connecting to a live OpenClaw or ClawHub gateway
-//! - Importing skills from remote instances into the Vox ARS registry
-//! - Listing and resolving pending approval requests from the approval broker
+//! **Terminology SSOT:** [`docs/src/explanation/expl-openclaw-analysis.md`](../../../../docs/src/explanation/expl-openclaw-analysis.md) (what OpenClaw and ClawHub are; Vox is a consumer, not the platform vendor).
+//!
+//! CLI responsibilities:
+//! - Connect to a live OpenClaw or ClawHub-compatible gateway
+//! - Import skills into the Vox ARS registry
+//! - List and resolve pending approval requests from the approval broker
 
-use clap::Parser;
+use clap::Subcommand;
 use vox_ars::{OpenClawClient, OpenClawRemoteConfig};
 use vox_skills::new_registry_arc;
 
 // ── Subcommand Enum ────────────────────────────────────────────────────────────
 
 /// Subcommands for `vox openclaw`.
-#[derive(Parser)]
-#[command(
-    name = "openclaw",
-    alias = "oc",
-    about = "OpenClaw gateway integration: skill import, remote listing, and approval broker"
-)]
+#[derive(Subcommand)]
 pub enum OpenClawAction {
     /// Import a skill from a remote OpenClaw gateway or ClawHub registry by slug.
     ///

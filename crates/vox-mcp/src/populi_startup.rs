@@ -19,7 +19,7 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
     match vox_populi::publish_local_registry_best_effort() {
         Ok(()) => {
             tracing::info!(
-                target: "vox.mens",
+                target: "vox.populi",
                 path = %path.display(),
                 node_id = node_id.as_deref().unwrap_or("(generated)"),
                 "mens registry publish (vox-mcp)"
@@ -33,7 +33,7 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
         }
         Err(e) => {
             tracing::debug!(
-                target: "vox.mens",
+                target: "vox.populi",
                 error = %e,
                 "mens registry publish failed (best-effort)"
             );
@@ -44,13 +44,13 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
     match populi_http_join_best_effort(record, "vox-mcp").await {
         PopuliHttpJoinSpawnOutcome::Skipped => {
             tracing::debug!(
-                target: "vox.mens",
+                target: "vox.populi",
                 "populi HTTP join skipped (disabled or no control base)"
             );
         }
         PopuliHttpJoinSpawnOutcome::Joined { base, node_id } => {
             tracing::info!(
-                target: "vox.mens",
+                target: "vox.populi",
                 control_base = %base,
                 node_id = %node_id,
                 "populi HTTP join established (vox-mcp)"
@@ -66,7 +66,7 @@ pub async fn publish_mesh_on_mcp_start(state: &ServerState) {
         }
         PopuliHttpJoinSpawnOutcome::Failed { base, node_id, err } => {
             tracing::warn!(
-                target: "vox.mens",
+                target: "vox.populi",
                 control_base = %base,
                 node_id = %node_id,
                 error = %err,

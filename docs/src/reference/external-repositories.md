@@ -53,6 +53,6 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
 ## Related
 
 - [`orchestration-unified.md`](orchestration-unified.md) — MCP/DeI plan alignment, migration flags, benchmark telemetry env.
-- [`mens.md`](mens.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
+- [`mens.md`](populi.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
 - ADR 004 (`docs/src/adr/004-codex-arca-turso.md`) — Codex env and Turso.
 - `AGENTS.md` §2.2.2 — short agent-oriented summary.

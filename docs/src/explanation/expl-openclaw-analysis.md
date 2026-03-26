@@ -7,13 +7,15 @@ training_eligible: true
 ---
 # OpenClaw Competitive Analysis
 
+> **Canonical definition (Vox docs):** OpenClaw is an **open-source TypeScript agent platform**—a self-hosted gateway connecting chat platforms to LLMs with local tool access. **ClawHub** denotes its public **skills marketplace** (community skill bundles and discovery). Vox does not ship OpenClaw; integration is via **`vox openclaw`** (CLI, feature **`ars`**) and **`vox_ars::OpenClawClient`**. The short glossary entry cross-links here as SSOT.
+>
 > **Status**: Research document — Feb 2026
 >
-> Compares the OpenClaw autonomous AI agent platform with Vox's agentic infrastructure to identify adoption opportunities and improvement areas.
+> Compares the OpenClaw platform with Vox's agentic infrastructure to identify adoption opportunities and improvement areas.
 
 ## What is OpenClaw?
 
-OpenClaw is an open-source autonomous AI agent platform (200k+ GitHub stars) by Peter Steinberger, built in TypeScript. It is a self-hosted "operating system for AI agents" — a hub-and-spoke gateway connecting chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage) to LLMs (Claude, GPT, Gemini, local models) with full local tool access (shell, browser, files).
+OpenClaw is an open-source autonomous AI agent platform (large public GitHub footprint) by Peter Steinberger, built in TypeScript. It is often described as a self-hosted "operating system for AI agents" — a hub-and-spoke gateway connecting chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage) to LLMs (Claude, GPT, Gemini, local models) with full local tool access (shell, browser, files).
 
 ## Architectural Comparison
 

@@ -113,8 +113,9 @@ impl From<ProfileArg> for vox_clavis::Profile {
 
 #[derive(Subcommand, Debug)]
 pub enum ClavisCmd {
-    /// Show secret readiness for a workflow.
-    Doctor {
+    /// Show secret readiness for a workflow (credentials / env resolution).
+    #[command(name = "status", visible_alias = "doctor")]
+    Status {
         #[arg(long, value_enum, default_value_t = WorkflowArg::Chat)]
         workflow: WorkflowArg,
         #[arg(long, value_enum, default_value_t = ProfileArg::Dev)]
@@ -141,7 +142,7 @@ pub enum ClavisCmd {
 
 pub async fn run(cmd: ClavisCmd) -> Result<()> {
     match cmd {
-        ClavisCmd::Doctor {
+        ClavisCmd::Status {
             workflow,
             profile,
             mode,

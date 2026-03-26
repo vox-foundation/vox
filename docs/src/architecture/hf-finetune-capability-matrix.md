@@ -7,7 +7,7 @@ training_eligible: true
 ---
 # HF fine-tuning capability matrix (code-grounded)
 
-Single control plane: `crates/vox-mens/src/tensor/finetune_contract.rs` (`FineTuneContract`) + `execution_planner.rs` (`ExecutionPlanner`). Execution kernels: **Burn (wgpu LoRA)** vs **Candle (qlora-rs NF4)**.
+Single control plane: [`crates/vox-populi/src/mens/tensor/finetune_contract.rs`](../../../crates/vox-populi/src/mens/tensor/finetune_contract.rs) (`FineTuneContract`) + `execution_planner.rs` (`ExecutionPlanner`). Execution kernels: **Burn (wgpu LoRA)** vs **Candle (qlora-rs NF4)**.
 
 | Capability | Burn kernel (`PopuliTrainBackend::BurnLora`) | Candle kernel (`PopuliTrainBackend::CandleQlora`) |
 |------------|---------------------------------------------|--------------------------------------------------|
@@ -29,8 +29,8 @@ Single control plane: `crates/vox-mens/src/tensor/finetune_contract.rs` (`FineTu
 
 | Build | Notes |
 |-------|--------|
-| `vox-mens/gpu` | Burn + `tokenizers` + `safetensors` for HF-aware Burn path. |
-| `vox-mens/train` | `gpu` + `candle-qlora` + qlora-rs (CLI default native stack). |
+| `vox-populi/mens-gpu` | Burn + `tokenizers` + `safetensors` for HF-aware Burn path. |
+| `vox-populi/mens-train` | `mens-gpu` + `candle-qlora` + qlora-rs (CLI **`gpu`** feature pulls this chain). |
 
 ## Related
 

@@ -4,7 +4,7 @@
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml).
 
-**schema_version:** `1` · **vox-cli operations:** 126
+**schema_version:** `1` · **vox-cli operations:** 127
 
 | Path | Status | Feature gate | Latin ns | Catalog group |
 |------|--------|--------------|----------|----------------|
@@ -31,8 +31,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox ci grammar-drift` | active | — | — | — |
 | `vox ci line-endings` | active | — | — | — |
 | `vox ci manifest` | active | — | — | — |
-| `vox ci mens-gate` | active | — | — | — |
-| `vox ci no-vox-dei-import` | active | — | — | — |
+| `vox ci mesh-gate` | active | — | — | — |
+| `vox ci no-dei-import` | active | — | — | — |
 | `vox ci release-build` | active | — | — | — |
 | `vox ci repo-guards` | active | — | — | — |
 | `vox ci scaling-audit` | active | — | — | — |
@@ -47,10 +47,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox ci workflow-scripts` | active | — | — | — |
 | `vox clavis` | active | — | ars | — |
 | `vox clavis backend-status` | active | — | ars | — |
-| `vox clavis doctor` | active | — | ars | — |
 | `vox clavis get` | active | — | ars | — |
 | `vox clavis migrate-auth-store` | active | — | ars | — |
 | `vox clavis set` | active | — | ars | — |
+| `vox clavis status` | active | — | ars | — |
 | `vox codex` | active | — | codex | — |
 | `vox codex cutover` | active | — | codex | — |
 | `vox codex export-legacy` | active | — | codex | — |
@@ -100,7 +100,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox oratio` | active | oratio | fabrica | oratio |
 | `vox populi` | active | populi | — | — |
 | `vox populi down` | active | populi | — | — |
-| `vox populi local-status` | active | populi | — | — |
+| `vox populi registry-snapshot` | active | populi | — | — |
 | `vox populi serve` | active | populi | — | — |
 | `vox populi status` | active | populi | — | — |
 | `vox populi up` | active | populi | — | — |
@@ -115,6 +115,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox scientia publication-external-jobs-replay` | active | — | codex | — |
 | `vox scientia publication-external-jobs-tick` | active | — | codex | — |
 | `vox scientia publication-external-pipeline-metrics` | active | — | codex | — |
+| `vox scientia publication-openreview-profile` | active | — | codex | — |
 | `vox scientia publication-preflight` | active | — | codex | — |
 | `vox scientia publication-prepare` | active | — | codex | — |
 | `vox scientia publication-prepare-validated` | active | — | codex | — |

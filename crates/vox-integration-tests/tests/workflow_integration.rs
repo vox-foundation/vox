@@ -2,7 +2,7 @@
 
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_module;
 
 fn check_src(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
@@ -14,14 +14,14 @@ fn check_src(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check_src(src)
         .into_iter()
-        .filter(|d| d.severity == Severity::Error)
+        .filter(|d| d.severity == TypeckSeverity::Error)
         .collect()
 }
 
 fn warnings(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check_src(src)
         .into_iter()
-        .filter(|d| d.severity == Severity::Warning)
+        .filter(|d| d.severity == TypeckSeverity::Warning)
         .collect()
 }
 
@@ -271,7 +271,7 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
     let diags = vox_compiler::typeck::typecheck_module(&module, src);
     let type_errors: Vec<_> = diags
         .iter()
-        .filter(|d| d.severity == Severity::Error)
+        .filter(|d| d.severity == TypeckSeverity::Error)
         .collect();
     assert!(
         type_errors.is_empty(),

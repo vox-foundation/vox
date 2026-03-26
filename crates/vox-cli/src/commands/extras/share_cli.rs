@@ -1,11 +1,11 @@
 //! Clap surface for `vox share`.
 
-use clap::Parser;
+use clap::Subcommand;
 
 use anyhow::Result;
 
 /// Subcommands for `vox share`.
-#[derive(Parser)]
+#[derive(Subcommand)]
 pub enum ShareCli {
     /// Publish an artifact (stub).
     Publish {
@@ -40,8 +40,9 @@ pub enum ShareCli {
         #[arg(default_value = "all")]
         artifact_type: String,
     },
-    /// Submit a review (stub).
-    Review {
+    /// Submit feedback / rating for an artifact (stub).
+    #[command(name = "feedback", visible_alias = "review")]
+    Feedback {
         /// Stable artifact ID.
         #[arg(required = true)]
         artifact_id: String,
@@ -78,7 +79,7 @@ pub async fn run(cmd: ShareCli) -> Result<()> {
         }
         ShareCli::Search { query } => share::search(&query).await,
         ShareCli::List { artifact_type } => share::list(&artifact_type).await,
-        ShareCli::Review {
+        ShareCli::Feedback {
             artifact_id,
             rating,
             comment,

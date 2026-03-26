@@ -1,6 +1,6 @@
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::{DiagnosticCategory, Severity, typecheck_module};
+use vox_compiler::typeck::{DiagnosticCategory, TypeckSeverity, typecheck_module};
 
 fn diagnostics_for(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     let tokens = lex(source);
@@ -19,7 +19,7 @@ fn db_table_query_clause_is_lint_error() {
 "#;
     let diags = diagnostics_for(src);
     assert!(diags.iter().any(|d| {
-        d.severity == Severity::Error
+        d.severity == TypeckSeverity::Error
             && d.category == DiagnosticCategory::Lint
             && d.message.contains(".query(clause)")
     }));
@@ -36,7 +36,7 @@ fn query_decl_rejects_insert_write_ops() {
 "#;
     let diags = diagnostics_for(src);
     assert!(diags.iter().any(|d| {
-        d.severity == Severity::Error
+        d.severity == TypeckSeverity::Error
             && d.category == DiagnosticCategory::Lint
             && d.message.contains("must be read-only")
     }));
@@ -52,7 +52,7 @@ fn q() to int {
 "#;
     let diags = diagnostics_for(src);
     assert!(!diags.iter().any(|d| {
-        d.severity == Severity::Error
+        d.severity == TypeckSeverity::Error
             && d.message.contains("db query chaining via '.limit(...)' is not supported yet")
     }));
 }
@@ -67,7 +67,7 @@ fn q() to int {
 "#;
     let diags = diagnostics_for(src);
     assert!(
-        !diags.iter().any(|d| d.severity == Severity::Error),
+        !diags.iter().any(|d| d.severity == TypeckSeverity::Error),
         "unexpected errors: {diags:?}"
     );
 }
@@ -82,7 +82,7 @@ fn q() to int {
 "#;
     let diags = diagnostics_for(src);
     assert!(
-        !diags.iter().any(|d| d.severity == Severity::Error),
+        !diags.iter().any(|d| d.severity == TypeckSeverity::Error),
         "unexpected errors: {diags:?}"
     );
 }

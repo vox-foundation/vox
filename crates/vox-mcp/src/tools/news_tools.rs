@@ -53,6 +53,9 @@ pub struct VoxNewsTestSyndicateParams {
     pub content: String,
 }
 
+/// Preferred Rust alias (same JSON shape as [`VoxNewsTestSyndicateParams`]).
+pub type NewsTestSyndicateParams = VoxNewsTestSyndicateParams;
+
 pub async fn vox_news_test_syndicate(
     _state: &ServerState,
     params: VoxNewsTestSyndicateParams,

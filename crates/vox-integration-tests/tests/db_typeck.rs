@@ -2,7 +2,7 @@
 
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_module;
 
 fn check(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
@@ -14,7 +14,7 @@ fn check(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
     check(src)
         .into_iter()
-        .filter(|d| d.severity == Severity::Error)
+        .filter(|d| d.severity == TypeckSeverity::Error)
         .collect()
 }
 

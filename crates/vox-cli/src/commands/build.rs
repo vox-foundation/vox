@@ -32,13 +32,13 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     let diagnostics = vox_compiler::typeck::typecheck_ast_module(&source, &module);
     let has_errors = diagnostics
         .iter()
-        .any(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error);
+        .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error);
     for d in &diagnostics {
         match d.severity {
-            vox_compiler::typeck::diagnostics::Severity::Error => {
+            vox_compiler::typeck::diagnostics::TypeckSeverity::Error => {
                 eprintln!("error: {} at {:?}", d.message, d.span)
             }
-            vox_compiler::typeck::diagnostics::Severity::Warning => {
+            vox_compiler::typeck::diagnostics::TypeckSeverity::Warning => {
                 eprintln!("warning: {} at {:?}", d.message, d.span)
             }
         }

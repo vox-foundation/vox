@@ -307,6 +307,7 @@ pub enum Cli {
     },
     /// OpenClaw / ClawHub gateway (skill import, approvals); requires `--features ars`
     #[cfg(feature = "ars")]
+    #[command(visible_alias = "oc")]
     Openclaw {
         /// Action.
         #[command(subcommand)]
@@ -426,7 +427,7 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
 /// Run as `vox mens …` while the process argv is `vox-mens …` (inserts the `mens` subcommand).
 ///
 /// Used by the **`vox-mens`** binary (`required-features = ["mens-base"]`).
-pub async fn run_vox_cli_populi_prefixed() -> anyhow::Result<()> {
+pub async fn run_vox_cli_mens_prefixed() -> anyhow::Result<()> {
     let mut args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
         anyhow::bail!(

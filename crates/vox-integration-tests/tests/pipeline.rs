@@ -112,7 +112,7 @@ fn pipeline_typecheck_has_no_errors() {
     let diagnostics = typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
+        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
         .collect();
     assert!(
         errors.is_empty(),
@@ -429,7 +429,7 @@ fn pipeline_table_typecheck_no_errors() {
     let diagnostics = typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
+        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
         .collect();
     assert!(
         errors.is_empty(),
@@ -767,7 +767,7 @@ fn chatbot_full_pipeline_e2e() {
     let diagnostics = vox_compiler::typeck::typecheck_module(&module, "");
     let errors: Vec<_> = diagnostics
         .iter()
-        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::Severity::Error)
+        .filter(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
         .collect();
     assert!(
         errors.is_empty(),

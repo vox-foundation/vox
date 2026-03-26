@@ -50,7 +50,7 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 - Templates: `crates/vox-cli/src/templates/` (`spa.rs`, `tanstack.rs`, `islands.rs`; `package.json`, Vite config, islands bootstrap).
 - Frontend build: `crates/vox-cli/src/frontend.rs` (`build_islands_if_present`).
 - v0: `crates/vox-cli/src/v0.rs`, `crates/vox-cli/src/v0_tsx_normalize.rs`.
-- React hook mapping / `@component fn` emission: `crates/vox-compiler/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-compiler/src/codegen_ts/reactive.rs`, `hir_emit.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). TanStack Start literals: `codegen_ts/tanstack_start.rs`. Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
+- React hook mapping / `@component fn` emission: `crates/vox-compiler/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-compiler/src/codegen_ts/reactive.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). TanStack Start literals: `codegen_ts/tanstack_start.rs`. Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
 - **`vox run` auto mode**: `crates/vox-cli/src/commands/run.rs` + `commands/runtime/run/run.rs` — default is an `@page` scan in the first 8 KiB; override with **`[web] run_mode`** in `Vox.toml` (`auto` \| `app` \| `script`) or env **`VOX_WEB_RUN_MODE`** (same values; parsed in `vox-config`).
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
 - **`@island`**: lexer/parser → `Decl::Island`; codegen emits **`vox-islands-meta.ts`** and rewrites matching JSX tags to **`<div data-vox-island=\"Name\" data-prop-*={...} />`** for `islands/src/island-mount.tsx` hydration (implementations under `islands/`). SSG HTML shells still come from **`vox-ssg`** + `routes:`.
@@ -66,7 +66,10 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 - [ADR 010 — TanStack web spine](../adr/010-tanstack-web-spine.md) — decisions (topology, examples, v0, `vox-codegen-html` retirement).
 - [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md) — ranked trade-offs and migration plan for compiler-owned frontend IR while keeping React ecosystem interop.
 - [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md) — weighted execution plan and staged task quotas for compiler migration.
+- [WebIR operations catalog (OP-0001..OP-0320)](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — ordered, file-by-file operation map with complexity/test/token budgets.
 - [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md) — parser-grounded current-vs-target full-stack representation mapping.
+- [WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification) — token+grammar+escape-hatch delta for the canonical worked app.
+- [WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible) — reproducible class registries, worked counts, and equation trace.
 
 ## Examples (canonical `.vox` shape)
 
@@ -78,5 +81,5 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 - [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md) — build outputs, Express `server.ts` opt-in, containers.
 - [`cli.md`](cli.md) — CLI including `vox island` (feature `island`) and `vox populi` (feature `populi`).
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — dev topology during SSR adoption.
-- [Mens SSOT](mens.md) — worker/runtime mens registry and HTTP control plane; not emitted by `vox-codegen-*` (operator env only).
+- [Mens SSOT](populi.md) — worker/runtime mens registry and HTTP control plane; not emitted by `vox-codegen-*` (operator env only).
 - [`AGENTS.md`](../../../AGENTS.md) — architecture index.

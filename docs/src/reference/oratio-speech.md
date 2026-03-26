@@ -19,7 +19,7 @@ training_eligible: true
 | **`vox-oratio`** | Candle Whisper, symphonia decode, `transcribe_path`, `eval` (WER/CER), env `VOX_ORATIO_*`. |
 | **`vox-cli`** `vox oratio` | CLI transcription + status + sessionized `listen` flow (Enter-or-timeout, correction profile, route mode). |
 | **`vox-mcp`** | `vox_oratio_transcribe` (thin STT + refine), `vox_oratio_listen` (session + route + optional LLM polish), `vox_oratio_status` (+ JSON schemas in tool registry). |
-| **`vox-codex-api`** | `GET /api/audio/status`, `POST /api/audio/transcribe`; binary **`vox-codex-dashboard`**. |
+| **`vox-db` + HTTP/OpenAPI** | Codex/audio routes per [`codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) — no `vox-codex-api` package (see [Codex HTTP API](codex-http-api.md)). |
 | **Typeck / codegen** | Builtin **`Speech`**, **`Speech.transcribe(path) → Result[str]`** → `vox_oratio::transcribe_path` + refined text. |
 | **Corpus mix** | `record_format: asr_refine` + schema **`mens/schemas/asr_refine_pairs.schema.json`**. |
 | **LSP** | Hover for **`Speech`**; **`transcribe`** only when the line looks like **`Speech.transcribe`** (`builtin_hover_markdown_in_line`). |
@@ -28,7 +28,7 @@ training_eligible: true
 
 ## Who / when
 
-- **Implementers**: compiler (`vox-typeck`, `vox-codegen-rust`, `vox-codegen-ts`, `vox-lsp`), product surfaces (`vox-cli`, `vox-mcp`, `vox-codex-api`), data (`vox-corpus` mix).
+- **Implementers**: **`vox-compiler`** (typeck, codegen), `vox-lsp`, `vox-cli`, `vox-mcp`, `vox-db`, `vox-corpus`.
 - **When to touch**: any change to Oratio env vars, transcript shape, HTTP contract, or builtin `Speech` API.
 
 ## Where (files)
@@ -37,10 +37,10 @@ training_eligible: true
 - `crates/vox-cli/src/commands/oratio_cmd.rs`
 - `crates/vox-mcp/src/tools/oratio_tools.rs`, `mod.rs` (registry + schemas)
 - `crates/vox-capability-registry/`, `crates/vox-tools/` (`mens_chat` + `DirectToolExecutor`; Mens chat ∩ executor)
-- `crates/vox-codex-api/src/lib.rs`, `src/bin/codex_dashboard.rs`, `Cargo.toml` (`[[bin]]`)
-- `crates/vox-typeck/src/builtins.rs` — `Speech` / `SpeechModule` / `transcribe`
-- `crates/vox-codegen-rust/src/emit.rs` — `Cargo.toml` template + `MethodCall` for `Speech`
-- `crates/vox-codegen-ts/src/jsx.rs`, `component.rs` — `Speech.transcribe` stub
+- `crates/vox-db/src/` — Codex store + readiness helpers consumed by HTTP surfaces.
+- `crates/vox-compiler/src/typeck/` — `Speech` / builtins.
+- `crates/vox-compiler/src/codegen_rust/` — `Cargo.toml` template + `MethodCall` for `Speech`
+- `crates/vox-compiler/src/codegen_ts/` — `Speech.transcribe` stub
 - `crates/vox-lsp/src/lib.rs` — `word_at_position`, `line_has_speech_transcribe`, `builtin_hover_markdown_in_line`; `main.rs` — hover
 - `examples/oratio/codexAudioTranscribe.ts`, `examples/oratio/README.md`
 - `crates/vox-corpus/src/corpus/mix.rs` — `record_format`, `normalize_training_jsonl_line`

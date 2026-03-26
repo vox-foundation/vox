@@ -146,8 +146,14 @@ Normative strategy for reducing frontend emitter complexity while preserving Rea
 [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
 Detailed implementation sequencing and weighted task quotas:
 [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+Ordered file-by-file execution map:
+[WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
 Canonical current-vs-target representation mapping:
 [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+Quantified K-complexity delta for the canonical worked app:
+[WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+Reproducible per-token-class computation:
+[WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 
 ---
 

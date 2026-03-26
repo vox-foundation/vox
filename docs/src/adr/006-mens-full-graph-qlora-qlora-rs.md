@@ -41,9 +41,9 @@ Product goals (Phase 2c) require **deeper** use of base weights: per-layer atten
 
 ## Consequences
 
-- Root [`Cargo.toml`](../../../Cargo.toml) must keep `qlora-rs` workspace pin aligned with `vox-mens` optional dep.
+- Root [`Cargo.toml`](../../../Cargo.toml) must keep `qlora-rs` workspace pin aligned with **`vox-populi`** optional deps (`mens-candle-qlora`).
 - SSOT: [`mens-training.md`](../reference/mens-training.md) and [`ref-cli.md`](../reference/cli.md) must list `merge-qlora` and `--qlora-no-double-quant`.
-- CI: `cargo test -p vox-mens --features train` and targeted `vox-cli` tests cover export/merge smoke paths.
+- CI: `cargo test -p vox-populi --features mens-train` and targeted `vox-cli` tests cover export/merge smoke paths.
 
 ## References
 

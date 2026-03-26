@@ -7,6 +7,8 @@ training_eligible: true
 ---
 # Crate API: vox-py
 
+**Workspace:** `crates/vox-py` is currently **`[workspace.exclude]`** in the repo root `Cargo.toml` (not built in default `cargo check --workspace`). This page documents **expected PyO3 patterns** when the crate is enabled locally.
+
 ## Internal Developer Guide: PyO3 Bound API Patterns
 
 The `vox-py` crate has been upgraded to PyO3 0.22+, which deprecates the old unconstrained lifetime API in favor of the new `Bound<'py, T>` "Bound API" patterns. This provides better memory safety and prevents GIL-related lifetime issues.

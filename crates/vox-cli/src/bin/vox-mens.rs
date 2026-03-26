@@ -6,5 +6,5 @@
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    vox_cli::run_vox_cli_populi_prefixed().await
+    vox_cli::run_vox_cli_mens_prefixed().await
 }

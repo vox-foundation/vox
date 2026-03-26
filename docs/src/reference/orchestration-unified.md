@@ -27,7 +27,7 @@ On **`Orchestrator::spawn_agent`**, each new [`AgentQueue`](../../../crates/vox-
 
 Routing reads **`capability_requirements`** on tasks and applies GPU / VRAM / **`min_cpu_cores`** / **`prefer_gpu_compute`** soft penalties in `crates/vox-orchestrator/src/services/routing.rs` (mens / Mens-style training hints).
 
-See also [mens SSOT](mens.md) for `VOX_MESH_*` and local registry.
+See also [mens SSOT](populi.md) for `VOX_MESH_*` and local registry.
 
 ## Environment and config
 
@@ -74,14 +74,14 @@ Boolean fields use Rust `bool` parsing (`true` / `false` only). Invalid values l
 |----------|---------|
 | `VOX_BENCHMARK_TELEMETRY` | When `1` / `true`, CLI benchmark entry points append `benchmark_event` rows via `VoxDb::record_benchmark_event`. |
 | `VOX_WORKFLOW_JOURNAL_CODEX` | When `1` / `true`, after `vox workflow run` / `vox mens workflow run` ( **`workflow-runtime`** ), append interpreted journal rows via `VoxDb::record_workflow_journal_entry` (session `workflow:<repository_id>`, metric `workflow_journal_entry`). Rows include **`ActivityStarted` / `ActivityCompleted`** and per-step payloads (e.g. **`MeshActivity`**) with **`activity_id`** when provided in `with { activity_id: … }`. |
-| `VOX_MESH_MAX_STALE_MS` | Client-side filter for mens node lists in MCP snapshots (see [mens SSOT](mens.md)). |
+| `VOX_MESH_MAX_STALE_MS` | Client-side filter for mens node lists in MCP snapshots (see [mens SSOT](populi.md)). |
 | `VOX_MESH_CODEX_TELEMETRY` | When `1` / `true`, append `populi_control_event` rows via `VoxDb::record_populi_control_event` (session `mens:<repository_id>`): after **`vox run`** local registry publish when the CLI was built with **`populi`** (includes `vox-populi`), after **`vox-mcp`** startup publish when mens is enabled, and after MCP **`vox_orchestrator_status`** mens HTTP snapshot when Codex is connected. Implementation: [`vox_db::populi_registry_telemetry`](../../../crates/vox-db/src/populi_registry_telemetry.rs). **Never** stores `VOX_MESH_TOKEN`. |
 | `VOX_MCP_LLM_COST_EVENTS` | Optional override for MCP LLM [`CostIncurred`](../../../crates/vox-orchestrator/src/events.rs) bus events vs Codex-only accounting; see [`vox-mcp.md`](../api/vox-mcp.md#llm-model-routing-modelstoml). |
 | `VOX_REPOSITORY_ROOT` | Optional directory for `repository_id` discovery in benchmark telemetry (and other CLI paths that adopt the same pattern); align with MCP’s discovered repo root when subprocess CWD differs. |
 
 **TOML:** under `[orchestrator]`, set `orchestration_migration = { orchestration_v2_enabled = true, … }` (field names match `OrchestrationMigrationFlags` in `crates/vox-orchestrator/src/contract.rs`). When v2 is enabled, MCP `vox_submit_task` success JSON may include **`orchestration_contract`: `"v2"`** as a client hint.
 
-Optional **`[mens]`** in `Vox.toml` merges mens scope/URL/labels for CLI and MCP (see [mens SSOT](mens.md)); **env wins** per field when set.
+Optional **`[mens]`** in `Vox.toml` merges mens scope/URL/labels for CLI and MCP (see [mens SSOT](populi.md)); **env wins** per field when set.
 
 Effective Socrates thresholds still merge from `vox-socrates-policy` with optional overrides in `OrchestratorConfig::socrates_policy` — no literal drift outside the policy crate + merge logic.
 

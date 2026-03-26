@@ -16,7 +16,7 @@ Proposed / documentation-only — **no in-tree hosted control plane** in this mi
 
 Self-hosted mens today uses:
 
-- Optional **`VOX_MESH_TOKEN`** and **`VOX_MESH_SCOPE_ID`** for LAN/small-team isolation ([mens SSOT](../reference/mens.md)).
+- Optional **`VOX_MESH_TOKEN`** and **`VOX_MESH_SCOPE_ID`** for LAN/small-team isolation ([mens SSOT](../reference/populi.md)).
 - HTTP control plane in-process (`vox populi serve`) or behind a TLS terminator ([ADR 008](008-mens-transport.md)).
 
 Product demand may include a **managed** mens (discovery, quotas, org billing) without operators running their own control plane on the public internet.
@@ -40,5 +40,5 @@ Product demand may include a **managed** mens (discovery, quotas, org billing) w
 
 ## Related
 
-- [Mens SSOT](../reference/mens.md)
+- [Mens SSOT](../reference/populi.md)
 - [ADR 008 — Mens transport](008-mens-transport.md)

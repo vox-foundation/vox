@@ -3,18 +3,18 @@
 //! Provides typed helpers over `Vec<Diagnostic>` so test files don't
 //! repeat the same filter/map patterns.
 
-use vox_compiler::typeck::{Diagnostic, diagnostics::Severity};
+use vox_compiler::typeck::{Diagnostic, diagnostics::TypeckSeverity};
 
 /// Returns `true` if `diags` contains at least one error-severity diagnostic.
 pub fn has_error(diags: &[Diagnostic]) -> bool {
-    diags.iter().any(|d| d.severity == Severity::Error)
+    diags.iter().any(|d| d.severity == TypeckSeverity::Error)
 }
 
 /// Returns the `message` field of every error-severity diagnostic in `diags`.
 pub fn error_messages(diags: &[Diagnostic]) -> Vec<String> {
     diags
         .iter()
-        .filter(|d| d.severity == Severity::Error)
+        .filter(|d| d.severity == TypeckSeverity::Error)
         .map(|d| d.message.clone())
         .collect()
 }
@@ -23,7 +23,7 @@ pub fn error_messages(diags: &[Diagnostic]) -> Vec<String> {
 pub fn warning_messages(diags: &[Diagnostic]) -> Vec<String> {
     diags
         .iter()
-        .filter(|d| d.severity == Severity::Warning)
+        .filter(|d| d.severity == TypeckSeverity::Warning)
         .map(|d| d.message.clone())
         .collect()
 }

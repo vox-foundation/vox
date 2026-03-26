@@ -17,7 +17,7 @@ operations:
   - { surface: vox-cli, path: [lsp], status: active, latin_ns: fabrica, handler_rust: commands::lsp }
   - { surface: vox-cli, path: [doctor], status: active, latin_ns: diag, handler_rust: commands::diagnostics::doctor }
   - { surface: vox-cli, path: [clavis], status: active, latin_ns: ars, handler_rust: commands::clavis }
-  - { surface: vox-cli, path: [clavis, doctor], status: active, latin_ns: ars, ref_cli_required: true }
+  - { surface: vox-cli, path: [clavis, status], status: active, latin_ns: ars, ref_cli_required: true }
   - { surface: vox-cli, path: [clavis, set], status: active, latin_ns: ars, ref_cli_required: true }
   - { surface: vox-cli, path: [clavis, get], status: active, latin_ns: ars, ref_cli_required: true }
   - { surface: vox-cli, path: [clavis, backend-status], status: active, latin_ns: ars, ref_cli_required: true }
@@ -64,14 +64,14 @@ operations:
   - { surface: vox-cli, path: [ci, check-docs-ssot], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, check-codex-ssot], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, feature-matrix], status: active, reachability_required: false }
-  - { surface: vox-cli, path: [ci, no-vox-dei-import], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, no-dei-import], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, doc-inventory], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, eval-matrix], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, eval-matrix, verify], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, eval-matrix, run], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, workflow-scripts], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, line-endings], status: active, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-gate], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, mesh-gate], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, toestub-self-apply], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, toestub-scoped], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scaling-audit], status: active, reachability_required: false }
@@ -129,7 +129,7 @@ operations:
   - { surface: vox-cli, path: [train], status: deprecated, latin_ns: mens, feature_gate: "gpu+mens-dei", handler_rust: commands::ai::train, ref_cli_required: true }
   - { surface: vox-cli, path: [populi], status: active, feature_gate: populi, handler_rust: commands::populi_cli, ref_cli_required: true }
   - { surface: vox-cli, path: [populi, status], status: active, feature_gate: populi, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, local-status], status: active, feature_gate: populi, ref_cli_required: true }
+  - { surface: vox-cli, path: [populi, registry-snapshot], status: active, feature_gate: populi, ref_cli_required: true }
   - { surface: vox-cli, path: [populi, serve], status: active, feature_gate: populi, ref_cli_required: true }
   - { surface: vox-cli, path: [populi, up], status: active, feature_gate: populi, ref_cli_required: true }
   - { surface: vox-cli, path: [populi, down], status: active, feature_gate: populi, ref_cli_required: true }
@@ -169,13 +169,13 @@ script_duals:
   - { script_glob: scripts/check_codex_ssot.*, canonical_cli: "vox ci check-codex-ssot" }
   - { script_glob: scripts/verify_workspace_manifest.sh, canonical_cli: "vox ci manifest" }
   - { script_glob: scripts/check_vox_cli_feature_matrix.sh, canonical_cli: "vox ci feature-matrix" }
-  - { script_glob: scripts/check_vox_cli_no_vox_dei.sh, canonical_cli: "vox ci no-vox-dei-import" }
+  - { script_glob: scripts/check_vox_cli_no_vox_dei.sh, canonical_cli: "vox ci no-dei-import" }
   - { script_glob: scripts/check_cuda_feature_builds.sh, canonical_cli: "vox ci cuda-features" }
   - { script_glob: scripts/quality/toestub_scoped.sh, canonical_cli: "vox ci toestub-scoped" }
-  - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci mens-gate --profile m1m4" }
-  - { script_glob: scripts/populi/release_training_gate.*, canonical_cli: "vox ci mens-gate --profile training" }
-  - { script_glob: scripts/populi/release_ci_full_gate.ps1, canonical_cli: "vox ci mens-gate --profile ci_full" }
-  - { script_glob: scripts/populi/mens_gate_safe.ps1, canonical_cli: "vox ci mens-gate --profile <training|ci_full|m1m4>" }
+  - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci mesh-gate --profile m1m4" }
+  - { script_glob: scripts/populi/release_training_gate.*, canonical_cli: "vox ci mesh-gate --profile training" }
+  - { script_glob: scripts/populi/release_ci_full_gate.ps1, canonical_cli: "vox ci mesh-gate --profile ci_full" }
+  - { script_glob: scripts/populi/mens_gate_safe.ps1, canonical_cli: "vox ci mesh-gate --profile <training|ci_full|m1m4>" }
 
 # Names must appear in docs/src/reference/env-vars-ssot.md (Web / codegen / dev topology).
 env_var_ssot_index:

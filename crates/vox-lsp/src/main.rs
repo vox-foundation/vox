@@ -11,7 +11,7 @@ use tracing::info;
 
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::diagnostics::Severity;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_module;
 
 static LUDUS_PROJECT_DB: OnceLock<Mutex<Option<Arc<vox_db::VoxDb>>>> = OnceLock::new();
@@ -304,8 +304,8 @@ impl Backend {
                     diagnostics.push(Diagnostic {
                         range: Range { start, end },
                         severity: Some(match err.severity {
-                            Severity::Error => DiagnosticSeverity::ERROR,
-                            Severity::Warning => DiagnosticSeverity::WARNING,
+                            TypeckSeverity::Error => DiagnosticSeverity::ERROR,
+                            TypeckSeverity::Warning => DiagnosticSeverity::WARNING,
                         }),
                         code: None,
                         code_description: None,

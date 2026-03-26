@@ -62,10 +62,10 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT` | Weight for reliability blend (default in config: `1.0`). |
 | `VOX_ORCHESTRATOR_LOG_LEVEL` | Tracing/log level string. |
 | `VOX_ORCHESTRATOR_FALLBACK_SINGLE` | Ambiguous routing → single agent. |
-| `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | Base URL of the mens HTTP control plane for **read-only** node snapshots in MCP/orchestrator (e.g. `http://mens-ctrl:9847`). See [mens SSOT](mens.md), [deployment compose SSOT](deployment-compose.md). |
+| `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | Base URL of the mens HTTP control plane for **read-only** node snapshots in MCP/orchestrator (e.g. `http://mens-ctrl:9847`). See [mens SSOT](populi.md), [deployment compose SSOT](deployment-compose.md). |
 | `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
 | `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mens control-plane requests. |
-| `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](mens.md)). |
+| `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](populi.md)). |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE` | Soft scalar (`0.0-1.0`) to reduce expensive training placements under budget pressure. |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL` | When `1`/`true`, best-effort fan-out of [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) over populi A2A **after** local enqueue (local execution still owns the task). |
@@ -131,20 +131,20 @@ Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates
 
 ## Mens (`vox-populi`, orchestrator probe)
 
-Full table: [mens SSOT](mens.md). Common entries:
+Full table: [mens SSOT](populi.md). Common entries:
 
 | Variable | Role |
 |----------|------|
 | `VOX_MESH_ENABLED` | Enables mens registry publish and related hooks. |
 | `VOX_MESH_CONTROL_ADDR` | This process’s control plane URL (publish/join target). |
-| `VOX_MESH_TOKEN` / `VOX_MESH_WORKER_TOKEN` / `VOX_MESH_SUBMITTER_TOKEN` / `VOX_MESH_ADMIN_TOKEN` | Populi control-plane bearer roles (Clavis SSOT); legacy single-token mode uses `VOX_MESH_TOKEN` only. See [mens SSOT](mens.md). |
+| `VOX_MESH_TOKEN` / `VOX_MESH_WORKER_TOKEN` / `VOX_MESH_SUBMITTER_TOKEN` / `VOX_MESH_ADMIN_TOKEN` | Populi control-plane bearer roles (Clavis SSOT); legacy single-token mode uses `VOX_MESH_TOKEN` only. See [mens SSOT](populi.md). |
 | `VOX_MESH_JWT_HMAC_SECRET` | Optional HS256 secret so clients can use `Authorization: Bearer <jwt>` with claims `role`, `jti`, `exp` (Clavis SSOT). |
 | `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Optional Ed25519 public key (hex or Standard base64) to verify signed `job_result` / `job_fail` deliveries (worker signs raw BLAKE3 digest). |
 | `VOX_MESH_SCOPE_ID` | Tenancy for join/heartbeat when enforced server-side. |
 | `VOX_MESH_A2A_LEASE_MS` | Inbox claim lease duration (default 120s, clamped). |
 | `VOX_MESH_MAX_STALE_MS` | Client-side staleness filter for mens snapshots (MCP). |
 | `VOX_MESH_CODEX_TELEMETRY` | Emit Codex `populi_control_event` rows when set. |
-| `VOX_MESH_HTTP_JOIN` | `0`/`false` disables MCP HTTP join to the control plane; see [mens SSOT](mens.md). |
+| `VOX_MESH_HTTP_JOIN` | `0`/`false` disables MCP HTTP join to the control plane; see [mens SSOT](populi.md). |
 | `VOX_MESH_HTTP_HEARTBEAT_SECS` | MCP heartbeat interval after join (`0` = no background heartbeat). |
 | `VOX_MESH_HTTP_RATE_LIMIT` | When `1`/`true`/`on`/`yes`, enables per–client-IP HTTP rate limiting on **`vox populi serve`** (see `tower_governor` in `vox-populi` transport). |
 | `VOX_MESH_HTTP_RATE_LIMIT_PER_SEC` | Steady-state requests per second per key when rate limiting is on (default **50**). |
@@ -159,7 +159,7 @@ Full table: [mens SSOT](mens.md). Common entries:
 
 | Variable | Role |
 |----------|------|
-| `VOX_GPU_MODEL` | With `VOX_GPU_VRAM_MB`, overrides [`probe_gpu`](../../../crates/vox-mens/src/tensor/device.rs) (CI / headless / Android host injection). |
+| `VOX_GPU_MODEL` | With `VOX_GPU_VRAM_MB`, overrides [`probe_gpu`](../../../crates/vox-populi/src/mens/tensor/device.rs) (CI / headless / Android host injection). |
 | `VOX_GPU_VRAM_MB` | Paired with `VOX_GPU_MODEL` for VRAM heuristics. |
 
 ## CI / diagnostics

@@ -29,8 +29,8 @@ pub enum CiCmd {
     #[command(name = "feature-matrix")]
     FeatureMatrix,
     /// Fail if `vox-cli` sources import `vox_dei::`.
-    #[command(name = "no-vox-dei-import")]
-    NoVoxDeiImport,
+    #[command(name = "no-dei-import", visible_alias = "no-vox-dei-import")]
+    NoDeiImport,
     /// Run `vox-doc-pipeline --check` to verify SUMMARY.md matches docs/src
     CheckSummaryDrift,
     /// Build all documentation artifacts
@@ -65,9 +65,9 @@ pub enum CiCmd {
         #[arg(long)]
         base: Option<String>,
     },
-    /// Run Mens gate steps from `scripts/populi/gates.yaml` (with legacy fallback).
-    #[command(name = "mens-gate")]
-    PopuliGate {
+    /// Run mesh / Populi CI gate steps from `scripts/populi/gates.yaml` (with legacy fallback).
+    #[command(name = "mesh-gate", visible_alias = "mens-gate")]
+    MeshGate {
         /// Profile name: `m1m4` or `training`.
         #[arg(long, default_value = "m1m4")]
         profile: String,

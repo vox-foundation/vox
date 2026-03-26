@@ -3,7 +3,7 @@
 use crate::ast::span::Span;
 use crate::hir::*;
 use crate::typeck::builtins::BuiltinTypes;
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, Severity};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::registration::{register_hir_module, resolve_hir_type};
 use crate::typeck::ty::Ty;
@@ -284,7 +284,7 @@ impl<'a> Checker<'a> {
     fn enforce_query_read_only(&mut self, sf: &HirServerFn) {
         if Self::contains_db_write_or_unsafe_in_stmts(&sf.body) {
             self.diags.push(Diagnostic {
-                severity: Severity::Error,
+                severity: TypeckSeverity::Error,
                 message: format!(
                     "@query '{}' must be read-only; use @mutation for db.insert/db.delete or raw `.query(...)`",
                     sf.name

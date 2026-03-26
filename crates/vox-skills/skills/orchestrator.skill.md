@@ -28,7 +28,7 @@ Provides full access to the multi-agent task orchestration system.
 
 ## Mens alignment
 
-For **multi-node** or **GPU-pool** routing hints, keep **`vox_submit_task` → `capabilities.labels`** in sync with worker **`VOX_MESH_LABELS`** / **`Vox.toml` `[mens].labels`**. See the **`vox.mens`** built-in skill and **`docs/src/architecture/mens-ssot.md`**.
+For **multi-node** or **GPU-pool** routing hints, keep **`vox_submit_task` → `capabilities.labels`** in sync with worker **`VOX_MESH_LABELS`** / **`Vox.toml` `[mesh]` or `[mens]`** (legacy) **`.labels`**. See the built-in mesh skill and **`docs/src/reference/populi.md`**.
 
 ## Usage
 

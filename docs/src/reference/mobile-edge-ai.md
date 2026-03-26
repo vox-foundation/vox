@@ -8,7 +8,7 @@ training_eligible: true
 
 # Mobile and edge AI — SSOT
 
-This page is the **single place** for how Vox treats **Android / iOS / browser** relative to desktop Mens training, **Ollama**, **mens** coordination, and **GPU** advertisement. It complements [Mens training SSOT](mens-training.md), [mens SSOT](mens.md), and [unified orchestration](orchestration-unified.md).
+This page is the **single place** for how Vox treats **Android / iOS / browser** relative to desktop Mens training, **Ollama**, **mens** coordination, and **GPU** advertisement. It complements [Mens training SSOT](mens-training.md), [mens SSOT](populi.md), and [unified orchestration](orchestration-unified.md).
 
 ## Non-goals (near term)
 
@@ -91,11 +91,11 @@ Mens nodes embed [`TaskCapabilityHints`](../../../crates/vox-orchestrator/src/co
 - **Additive:** `VOX_MESH_ADVERTISE_VULKAN`, `VOX_MESH_ADVERTISE_WEBGPU`, `VOX_MESH_ADVERTISE_NPU` (each `1` / `true`) set the matching capability flags.
 - **Class label:** `VOX_MESH_DEVICE_CLASS` — optional free-form hint (`server`, `desktop`, `mobile`, `browser`, …) stored in `TaskCapabilityHints.device_class`.
 
-See [mens SSOT](mens.md) for the full `VOX_MESH_*` table.
+See [mens SSOT](populi.md) for the full `VOX_MESH_*` table.
 
 ## GPU probing (Mens vs mens)
 
-- **Mens training** uses [`probe_gpu`](../../../crates/vox-mens/src/tensor/device.rs) for VRAM heuristics. Overrides: **`VOX_GPU_MODEL`**, **`VOX_GPU_VRAM_MB`**. **Windows:** `wmic`; **Linux:** best-effort `nvidia-smi` / `lspci`. **Android / iOS:** no in-crate probe — the **host app** should set env overrides or pass capabilities into mens JSON.
+- **Mens training** uses [`probe_gpu`](../../../crates/vox-populi/src/mens/tensor/device.rs) for VRAM heuristics. Overrides: **`VOX_GPU_MODEL`**, **`VOX_GPU_VRAM_MB`**. **Windows:** `wmic`; **Linux:** best-effort `nvidia-smi` / `lspci`. **Android / iOS:** no in-crate probe — the **host app** should set env overrides or pass capabilities into mens JSON.
 - **Mens** does not require Mens; capability flags come from **env + host** as above.
 
 ## Related

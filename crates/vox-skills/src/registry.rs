@@ -109,15 +109,18 @@ impl SkillRegistry {
     }
 
     /// Uninstall a skill by ID.
+    ///
+    /// **`vox.mens`** targets the same stored manifest as **`vox.populi`** (legacy id).
     pub async fn uninstall(&self, id: &str) -> Result<UninstallResult, SkillError> {
+        let canonical = if id == "vox.mens" { "vox.populi" } else { id };
         let was_installed = {
             let mut skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
-            skills.remove(id).is_some()
+            skills.remove(canonical).is_some()
         };
         if was_installed {
-            info!(skill = %id, "Skill uninstalled");
+            info!(skill = %canonical, "Skill uninstalled");
             if let Some(db) = self.get_db() {
-                let id_owned = id.to_string();
+                let id_owned = canonical.to_string();
                 tokio::spawn(async move {
                     let _ = db.unpublish_skill(&id_owned).await;
                 });
@@ -158,9 +161,17 @@ impl SkillRegistry {
     }
 
     /// Get a specific skill by ID.
+    ///
+    /// **`vox.mens`** resolves to **`vox.populi`** if present (bundled mesh skill id migration).
     pub fn get(&self, id: &str) -> Option<SkillManifest> {
         let skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
-        skills.get(id).cloned()
+        skills.get(id).cloned().or_else(|| {
+            if id == "vox.mens" {
+                skills.get("vox.populi").cloned()
+            } else {
+                None
+            }
+        })
     }
 
     /// Load all skills from the Codex `skill_manifests` table into memory.

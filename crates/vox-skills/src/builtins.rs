@@ -61,7 +61,7 @@ mod tests {
         assert!(ids.contains(&"vox.memory"));
         assert!(ids.contains(&"vox.git"));
         assert!(ids.contains(&"vox.orchestrator"));
-        assert!(ids.contains(&"vox.mens"));
+        assert!(ids.contains(&"vox.populi"));
         assert!(ids.contains(&"vox.v0"));
     }
 
@@ -72,7 +72,8 @@ mod tests {
         assert_eq!(count, 7);
         assert!(reg.get("vox.compiler").is_some());
         assert!(reg.get("vox.memory").is_some());
-        assert!(reg.get("vox.mens").is_some());
+        assert!(reg.get("vox.populi").is_some());
+        assert!(reg.get("vox.mens").is_some()); // legacy id alias → vox.populi
     }
 
     #[tokio::test]

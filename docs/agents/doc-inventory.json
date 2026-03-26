@@ -6952,7 +6952,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/codegen_ts/schema.rs",
+      "path": "crates/vox-compiler/src/codegen_ts/schema/mod.rs",
       "kind": "rust",
       "lines_total": 563,
       "lines_triple_slash": 9,
@@ -11330,15 +11330,26 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/codegen_ts/hir_emit.rs",
+      "path": "crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs",
       "kind": "rust",
-      "lines_total": 447,
-      "lines_triple_slash": 1,
+      "lines_total": 425,
+      "lines_triple_slash": 3,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-compiler/src/codegen_ts/hir_emit/state_deps.rs",
+      "kind": "rust",
+      "lines_total": 128,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "state dependency extraction"
     },
     {
       "path": "crates/vox-populi/src/mens/tensor/lora/part_gpu_tests.rs",

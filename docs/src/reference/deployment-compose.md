@@ -31,7 +31,7 @@ training_eligible: true
 ## Environment SSOT (Compose-friendly)
 
 - **Codex / Turso:** `VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_DB_PATH` — [env-vars SSOT](env-vars.md), [ADR 004](../adr/004-codex-arca-turso-ssot.md).
-- **Mens:** full `VOX_MESH_*` table — [mens SSOT](mens.md). Optional **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** for MCP to read mens nodes (see [`examples/mens-compose.yml`](../../../docker-compose.yml)). With a client-suitable URL, **`vox-mcp`** also **HTTP join/heartbeat** to the control plane (see mens SSOT **`VOX_MESH_HTTP_*`**).
+- **Mens:** full `VOX_MESH_*` table — [mens SSOT](populi.md). Optional **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** for MCP to read mens nodes (see [`examples/mens-compose.yml`](../../../docker-compose.yml)). With a client-suitable URL, **`vox-mcp`** also **HTTP join/heartbeat** to the control plane (see mens SSOT **`VOX_MESH_HTTP_*`**).
 - **Optional mens env block (one text SSOT):** [`docker/vox-compose-mens-environment.block.yaml`](../../../docker/vox-compose-mens-environment.block.yaml) — embedded into generated Compose in `vox-container`; keep [`examples/mens-compose.yml`](../../../docker-compose.yml) semantically aligned (comments in that file point here).
 - **Inference / mobile:** `VOX_INFERENCE_PROFILE` and LAN/cloud patterns — [mobile / edge AI SSOT](mobile-edge-ai.md) (phones do **not** run this `Dockerfile`).
 
@@ -55,7 +55,7 @@ training_eligible: true
 - [Cross-platform Vox — lanes & Docker matrix (SSOT)](../architecture/vox-cross-platform-runbook.md) — script worker vs app vs mobile; feature matrix.
 - [How to deploy](../how-to/how-to-deploy.md) — `vox deploy`, `Vox.toml`, registry login.
 - [Zig-inspired deployment](../explanation/zig-inspired-deployment.md) — unified `vox deploy` targets and crates.
-- [Mens SSOT](mens.md), [orchestration unified SSOT](orchestration-unified.md).
+- [Mens SSOT](populi.md), [orchestration unified SSOT](orchestration-unified.md).
 - [Mobile / edge AI SSOT](mobile-edge-ai.md).
 
 ## Do’s and don’ts (short)

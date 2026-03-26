@@ -44,19 +44,12 @@ Classification for code and docs that do not match the **minimal shipped `vox` C
 `scripts/check_docs_ssot.sh` (or `scripts/check_docs_ssot.ps1` on Windows) requires every `crates/*/Cargo.toml` package name to appear **exactly once** between the markers below (one crate per line).
 
 <!-- workspace-crates-start -->
-vox-ast
 vox-ars
 vox-bootstrap
 vox-capability-registry
 vox-clavis
 vox-cli
-vox-codegen-llvm
-vox-codegen-rust
-vox-codegen-ts
-vox-codegen-wasm
 vox-compiler
-vox-codex
-vox-codex-api
 vox-config
 vox-container
 vox-corpus
@@ -65,30 +58,24 @@ vox-dei
 vox-doc-inventory
 vox-doc-pipeline
 vox-eval
-vox-fmt
 vox-forge
-vox-gamify
 vox-git
-vox-hir
 vox-integration-tests
-vox-lexer
 vox-lsp
 vox-ludus
 vox-mcp
 vox-mcp-meta
 vox-mcp-registry
-vox-populi
 vox-oratio
 vox-orchestrator
-vox-parser
 vox-pm
+vox-populi
 vox-protocol
 vox-publisher
-vox-mens
 vox-repository
 vox-runtime
-vox-schola
 vox-scaling-policy
+vox-schola
 vox-scientia-api
 vox-scientia-core
 vox-scientia-runtime
@@ -96,12 +83,10 @@ vox-scientia-social
 vox-skills
 vox-socrates-policy
 vox-ssg
-vox-storage
 vox-tensor
 vox-test-harness
 vox-toestub
 vox-tools
-vox-typeck
 vox-webhook
 vox-workflow-runtime
 <!-- workspace-crates-end -->

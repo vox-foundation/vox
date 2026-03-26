@@ -36,7 +36,10 @@ The final phase where LIR is converted into source files:
 
 For frontend IR layering and migration phases, see [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
 For detailed implementation sequencing, see [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+For ordered file-by-file migration operations, see [WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
 For exact current-vs-target representation mapping, see [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+For quantified token+grammar+escape-hatch savings on the canonical app, see [WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+For reproducible counting registries and equation trace, see [WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 
 ## 5. Why Lowering Matters?
 
