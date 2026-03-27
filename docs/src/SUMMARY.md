@@ -214,6 +214,7 @@
 - [Hashing & Identity Builtins](reference/ref-builtins-hashing.md)
 - [Information-theoretic questioning protocol](reference/information-theoretic-questioning.md)
 - [Language ergonomics principles](reference/language-ergonomics-principles.md)
+- [Syntax K complexity telemetry (WebIR + emit)](reference/syntax-k-complexity.md)
 - [MENS curriculum — speech-to-code stages](reference/mens-speech-curriculum.md)
 - [MENS findings: Composer and Kimi (2026)](architecture/mens-composer-kimi-findings-2026.md)
 - [Mens / HF fine-tune — LLM PR checklist](architecture/mens-llm-pr-checklist.md)

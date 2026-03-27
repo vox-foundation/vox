@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
-use candle_core::{DType, Device};
+use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use peft_rs::training::{AdapterTrainingConfig, LrSchedule};
 use qlora_rs::QLoraConfig;
@@ -32,6 +32,7 @@ use tokenizers::Tokenizer;
 
 pub(super) use super::candle_qlora_merge::QloraAdapterMetaV2;
 use super::device::DeviceKind;
+use super::hf_load::HfArchitecture;
 use super::qlora_preflight::preflight_native_qlora;
 use super::train_jsonl_preflight::preflight_train_jsonl;
 use super::train_log;
@@ -44,6 +45,39 @@ pub const ENV_CANDLE_DEVICE: &str = "VOX_CANDLE_DEVICE";
 
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
+
+pub(super) enum TrainGraphModel {
+    Qwen2(crate::mens::tensor::candle_model_qwen::Qwen2Model),
+    Qwen35(crate::mens::tensor::candle_model_qwen::Qwen35Model),
+}
+
+impl TrainGraphModel {
+    pub fn forward(&self, input_ids: &Tensor) -> anyhow::Result<Tensor> {
+        match self {
+            Self::Qwen2(m) => Ok(m.forward(input_ids)?),
+            Self::Qwen35(m) => Ok(m.forward(input_ids)?),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Qwen35CutoverMode {
+    Shadow,
+    Default,
+    Enforced,
+}
+
+fn qwen35_cutover_mode() -> Qwen35CutoverMode {
+    match std::env::var("VOX_QWEN35_NATIVE_CUTOVER")
+        .unwrap_or_else(|_| "default".to_string())
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "shadow" => Qwen35CutoverMode::Shadow,
+        "enforced" => Qwen35CutoverMode::Enforced,
+        _ => Qwen35CutoverMode::Default,
+    }
+}
 
 // ── DB message bus ────────────────────────────────────────────────────────────
 
@@ -108,6 +142,21 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
     }
 }
 
+fn synthesize_rope_inv_freq(head_dim: usize, rope_theta: Option<f64>, device: &Device) -> Result<Tensor> {
+    let half = head_dim / 2;
+    if half == 0 {
+        anyhow::bail!("invalid head_dim={} for RoPE synthesis", head_dim);
+    }
+    let theta = rope_theta.unwrap_or(10_000.0) as f32;
+    let hd = head_dim as f32;
+    let mut vals = Vec::with_capacity(half);
+    for i in 0..half {
+        let exponent = (2.0_f32 * i as f32) / hd;
+        vals.push(1.0_f32 / theta.powf(exponent));
+    }
+    Ok(Tensor::from_vec(vals, (half,), device)?)
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 /// Main entry point for `--backend qlora` training, called from [`super::backend_candle_qlora`].
@@ -157,12 +206,41 @@ pub fn run_candle_qlora_train(
     let bundle = preflight_native_qlora(config).map_err(|e| {
         anyhow::anyhow!("Model preflight failed: {e}. Ensure you have run 'vox mens download --model <name>' and that tokenizer.json + safetensors are present.")
     })?;
+    let cutover = qwen35_cutover_mode();
+    if bundle.layout.architecture == HfArchitecture::Qwen2 {
+        match cutover {
+            Qwen35CutoverMode::Shadow => train_log::warn(
+                "qwen2 detected while VOX_QWEN35_NATIVE_CUTOVER=shadow; allowing legacy path with warning.",
+            ),
+            Qwen35CutoverMode::Default => {
+                let allow_legacy = std::env::var("VOX_ALLOW_QWEN2_NATIVE")
+                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false);
+                if !allow_legacy {
+                    anyhow::bail!(
+                        "qwen2 native path is disabled by default during qwen3_5 cutover. \
+                         Set VOX_ALLOW_QWEN2_NATIVE=1 for temporary override, or run with a qwen3_5 base. \
+                         To hard-enforce, set VOX_QWEN35_NATIVE_CUTOVER=enforced."
+                    );
+                }
+                train_log::warn(
+                    "qwen2 native override enabled via VOX_ALLOW_QWEN2_NATIVE=1 while cutover mode is default.",
+                );
+            }
+            Qwen35CutoverMode::Enforced => {
+                anyhow::bail!(
+                    "qwen2 native path is disabled (VOX_QWEN35_NATIVE_CUTOVER=enforced). \
+                     Use qwen3_5 checkpoints or downgrade cutover mode for rollback."
+                );
+            }
+        }
+    }
 
     let n_layer = bundle.layout.num_hidden_layers;
     if config.qlora_lm_head_only {
         anyhow::bail!(
             "Candle QLoRA: `--qlora-lm-head-only` (partial adapter stack) is not implemented; \
-             omit the flag to train the full proxy stack (depth {} layers).",
+             omit the flag to train the full graph (depth {} layers).",
             n_layer
         );
     }
@@ -234,7 +312,10 @@ pub fn run_candle_qlora_train(
     // ── GQA-aware dimensions ─────────────────────────────────────────────────
     let n_heads = bundle.layout.num_attention_heads;
     let n_kv_heads = bundle.layout.num_key_value_heads;
-    let head_dim = bundle.d_model / n_heads;
+    let head_dim = bundle
+        .layout
+        .head_dim
+        .unwrap_or_else(|| bundle.d_model / n_heads.max(1));
     let kv_dim = n_kv_heads * head_dim;
 
     // ── mmap base weights ─────────────────────────────────────────────────────
@@ -270,9 +351,17 @@ pub fn run_candle_qlora_train(
     let mut trainer = QLoraTrainer::new(train_cfg, device.clone());
 
     // ── Build transformer graph ───────────────────────────────────────────────
-    let mut model_layers = Vec::with_capacity(bundle.layout.num_hidden_layers);
+    let mut model_layers_qwen2 = Vec::with_capacity(bundle.layout.num_hidden_layers);
+    let mut model_layers_qwen35 = Vec::with_capacity(bundle.layout.num_hidden_layers);
     let mut adapter_layer_order: Vec<String> = Vec::new();
     let mut base_key_map: HashMap<String, String> = HashMap::new();
+    let synthesized_rope_inv_freq =
+        synthesize_rope_inv_freq(head_dim, bundle.layout.rope_theta, &device).ok();
+    if synthesized_rope_inv_freq.is_some() {
+        train_log::info(
+            "RoPE inv_freq tensors are optional in some HF shards; using synthesized inv_freq from config rope_theta when per-layer tensors are absent.",
+        );
+    }
 
     let (final_norm, lm_head) = {
         let vb = trainer.var_builder();
@@ -282,9 +371,22 @@ pub fn run_candle_qlora_train(
         ));
 
         for i in 0..bundle.layout.num_hidden_layers {
+            let layer_prefix = format!("{}.{}", bundle.layout.namespace_prefix, i);
+            let layer_type = bundle
+                .layout
+                .layer_types
+                .get(i)
+                .map(String::as_str)
+                .unwrap_or("full_attention");
+            let is_qwen35 = bundle.layout.architecture == HfArchitecture::Qwen35;
+            if is_qwen35 && layer_type != "full_attention" && layer_type != "linear_attention" {
+                anyhow::bail!(
+                    "qwen3_5 layer_types[{i}]={layer_type:?} is unsupported at runtime; expected `full_attention` or `linear_attention`."
+                );
+            }
             // ── Layer norms ───────────────────────────────────────────────────
-            let ln1_key = format!("model.layers.{i}.input_layernorm.weight");
-            let ln2_key = format!("model.layers.{i}.post_attention_layernorm.weight");
+            let ln1_key = format!("{layer_prefix}.input_layernorm.weight");
+            let ln2_key = format!("{layer_prefix}.post_attention_layernorm.weight");
             let w_ln1 = vb_mmap
                 .get(bundle.d_model, &ln1_key)?
                 .to_dtype(DType::F32)?;
@@ -294,63 +396,230 @@ pub fn run_candle_qlora_train(
             let ln1 = candle_nn::RmsNorm::new(w_ln1, 1e-6);
             let ln2 = candle_nn::RmsNorm::new(w_ln2, 1e-6);
 
-            // ── Attention projections (GQA-correct K/V shapes) ────────────────
-            let q_key = format!("model.layers.{i}.self_attn.q_proj.weight");
-            let k_key = format!("model.layers.{i}.self_attn.k_proj.weight");
-            let v_key = format!("model.layers.{i}.self_attn.v_proj.weight");
-            let o_key = format!("model.layers.{i}.self_attn.o_proj.weight");
+            // ── Attention projections (full or hybrid-linear) ────────────────
+            let mut qwen2_attn: Option<crate::mens::tensor::candle_model_qwen::Qwen2Attention> =
+                None;
+            let mut qwen35_attn: Option<
+                crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock,
+            > = None;
+            if is_qwen35 && layer_type == "linear_attention" {
+                let qkv_key = format!("{layer_prefix}.linear_attn.in_proj_qkv.weight");
+                let z_key = format!("{layer_prefix}.linear_attn.in_proj_z.weight");
+                let b_key = format!("{layer_prefix}.linear_attn.in_proj_b.weight");
+                let a_key = format!("{layer_prefix}.linear_attn.in_proj_a.weight");
+                let o_key = format!("{layer_prefix}.linear_attn.out_proj.weight");
+                let conv_key = format!("{layer_prefix}.linear_attn.conv1d.weight");
+                let dt_key = format!("{layer_prefix}.linear_attn.dt_bias");
+                let alog_key = format!("{layer_prefix}.linear_attn.A_log");
+                let norm_key = format!("{layer_prefix}.linear_attn.norm.weight");
 
-            let w_q = vb_mmap
-                .get((bundle.d_model, bundle.d_model), &q_key)?
-                .to_dtype(DType::F32)?;
-            let w_k = vb_mmap
-                .get((kv_dim, bundle.d_model), &k_key)?
-                .to_dtype(DType::F32)?;
-            let w_v = vb_mmap
-                .get((kv_dim, bundle.d_model), &v_key)?
-                .to_dtype(DType::F32)?;
-            let w_o = vb_mmap
-                .get((bundle.d_model, bundle.d_model), &o_key)?
-                .to_dtype(DType::F32)?;
+                let linear_key_heads = bundle.layout.linear_num_key_heads.unwrap_or(n_heads);
+                let linear_value_heads = bundle.layout.linear_num_value_heads.unwrap_or(n_heads);
+                let linear_key_dim = bundle.layout.linear_key_head_dim.unwrap_or(head_dim);
+                let linear_value_dim = bundle.layout.linear_value_head_dim.unwrap_or(head_dim);
+                let q_dim = linear_key_heads * linear_key_dim;
+                let k_dim = linear_key_heads * linear_key_dim;
+                let v_dim = linear_value_heads * linear_value_dim;
+                let qkv_rows = q_dim + k_dim + v_dim;
+                let w_qkv = vb_mmap
+                    .get((qkv_rows, bundle.d_model), &qkv_key)?
+                    .to_dtype(DType::F32)?;
+                let w_z = vb_mmap
+                    .get((v_dim, bundle.d_model), &z_key)?
+                    .to_dtype(DType::F32)?;
+                let w_b = vb_mmap
+                    .get((linear_value_heads, bundle.d_model), &b_key)?
+                    .to_dtype(DType::F32)?;
+                let w_a = vb_mmap
+                    .get((linear_value_heads, bundle.d_model), &a_key)?
+                    .to_dtype(DType::F32)?;
+                let w_o = vb_mmap
+                    .get((bundle.d_model, v_dim), &o_key)?
+                    .to_dtype(DType::F32)?;
+                let w_conv = vb_mmap
+                    .get((qkv_rows, 1, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)), &conv_key)
+                    .or_else(|_| vb_mmap.get((qkv_rows, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)), &conv_key))?
+                    .to_dtype(DType::F32)?;
+                let conv_weight = if w_conv.rank() == 3 {
+                    w_conv.squeeze(1)?
+                } else {
+                    w_conv
+                };
+                let dt_bias = vb_mmap
+                    .get(linear_value_heads, &dt_key)?
+                    .to_dtype(DType::F32)?;
+                let a_log = vb_mmap
+                    .get(linear_value_heads, &alog_key)?
+                    .to_dtype(DType::F32)?;
+                let norm_w = vb_mmap
+                    .get(linear_value_dim, &norm_key)?
+                    .to_dtype(DType::F32)?;
 
-            let q_label = format!("l{i}.q");
-            let k_label = format!("l{i}.k");
-            let v_label = format!("l{i}.v");
-            let o_label = format!("l{i}.o");
+                let qkv_label = format!("l{i}.lin_qkv");
+                let z_label = format!("l{i}.lin_z");
+                let b_label = format!("l{i}.lin_b");
+                let a_label = format!("l{i}.lin_a");
+                let o_label = format!("l{i}.lin_o");
 
-            let q_proj = QuantizedLinear::from_weight_with_varbuilder(
-                &w_q,
-                None,
-                &qlora_cfg,
-                vb.pp(&q_label),
-            )?;
-            let k_proj = QuantizedLinear::from_weight_with_varbuilder(
-                &w_k,
-                None,
-                &qlora_cfg,
-                vb.pp(&k_label),
-            )?;
-            let v_proj = QuantizedLinear::from_weight_with_varbuilder(
-                &w_v,
-                None,
-                &qlora_cfg,
-                vb.pp(&v_label),
-            )?;
-            let o_proj = QuantizedLinear::from_weight_with_varbuilder(
-                &w_o,
-                None,
-                &qlora_cfg,
-                vb.pp(&o_label),
-            )?;
+                let qkv_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_qkv, None, &qlora_cfg, vb.pp(&qkv_label))?;
+                let z_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_z,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&z_label),
+                )?;
+                let b_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_b,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&b_label),
+                )?;
+                let a_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_a,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&a_label),
+                )?;
+                let out_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+                adapter_layer_order.push(qkv_label.clone());
+                base_key_map.insert(qkv_label, qkv_key);
+                adapter_layer_order.push(z_label.clone());
+                base_key_map.insert(z_label, z_key);
+                adapter_layer_order.push(b_label.clone());
+                base_key_map.insert(b_label, b_key);
+                adapter_layer_order.push(a_label.clone());
+                base_key_map.insert(a_label, a_key);
+                adapter_layer_order.push(o_label.clone());
+                base_key_map.insert(o_label, o_key);
 
-            for (lbl, bk) in [
-                (&q_label, &q_key),
-                (&k_label, &k_key),
-                (&v_label, &v_key),
-                (&o_label, &o_key),
-            ] {
-                adapter_layer_order.push(lbl.clone());
-                base_key_map.insert(lbl.clone(), bk.clone());
+                qwen35_attn = Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Linear(
+                    crate::mens::tensor::candle_model_qwen::Qwen35LinearAttention {
+                        qkv_proj,
+                        z_proj,
+                        b_proj,
+                        a_proj,
+                        out_proj,
+                        conv_weight,
+                        dt_bias,
+                        a_log,
+                        norm: candle_nn::RmsNorm::new(norm_w, 1e-6),
+                        num_k_heads: linear_key_heads,
+                        num_v_heads: linear_value_heads,
+                        head_k_dim: linear_key_dim,
+                        head_v_dim: linear_value_dim,
+                    },
+                ));
+            } else if is_qwen35 {
+                let q_key = format!("{layer_prefix}.self_attn.q_proj.weight");
+                let k_key = format!("{layer_prefix}.self_attn.k_proj.weight");
+                let v_key = format!("{layer_prefix}.self_attn.v_proj.weight");
+                let o_key = format!("{layer_prefix}.self_attn.o_proj.weight");
+
+                let q_rows = n_heads * head_dim;
+                let q_fallback_rows = q_rows.saturating_mul(2);
+                let mut w_q = vb_mmap
+                    .get((q_rows, bundle.d_model), &q_key)
+                    .or_else(|_| vb_mmap.get((q_fallback_rows, bundle.d_model), &q_key))?
+                    .to_dtype(DType::F32)?;
+                if w_q.dim(0)? > q_rows {
+                    w_q = w_q.narrow(0, 0, q_rows)?;
+                }
+                let w_k = vb_mmap
+                    .get((kv_dim, bundle.d_model), &k_key)?
+                    .to_dtype(DType::F32)?;
+                let w_v = vb_mmap
+                    .get((kv_dim, bundle.d_model), &v_key)?
+                    .to_dtype(DType::F32)?;
+                let w_o = vb_mmap
+                    .get((bundle.d_model, q_rows), &o_key)?
+                    .to_dtype(DType::F32)?;
+
+                let q_label = format!("l{i}.q");
+                let k_label = format!("l{i}.k");
+                let v_label = format!("l{i}.v");
+                let o_label = format!("l{i}.o");
+
+                let q_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_q, None, &qlora_cfg, vb.pp(&q_label))?;
+                let k_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_k, None, &qlora_cfg, vb.pp(&k_label))?;
+                let v_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_v, None, &qlora_cfg, vb.pp(&v_label))?;
+                let o_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+
+                for (lbl, bk) in [
+                    (&q_label, &q_key),
+                    (&k_label, &k_key),
+                    (&v_label, &v_key),
+                    (&o_label, &o_key),
+                ] {
+                    adapter_layer_order.push(lbl.clone());
+                    base_key_map.insert(lbl.clone(), bk.clone());
+                }
+                let attn = crate::mens::tensor::candle_model_qwen::Qwen2Attention {
+                    q_proj,
+                    k_proj,
+                    v_proj,
+                    o_proj,
+                    n_heads,
+                    n_kv_heads,
+                    head_dim,
+                };
+                qwen35_attn = Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Full(attn));
+            } else {
+                let q_key = format!("{layer_prefix}.self_attn.q_proj.weight");
+                let k_key = format!("{layer_prefix}.self_attn.k_proj.weight");
+                let v_key = format!("{layer_prefix}.self_attn.v_proj.weight");
+                let o_key = format!("{layer_prefix}.self_attn.o_proj.weight");
+
+                let w_q = vb_mmap
+                    .get((bundle.d_model, bundle.d_model), &q_key)?
+                    .to_dtype(DType::F32)?;
+                let w_k = vb_mmap
+                    .get((kv_dim, bundle.d_model), &k_key)?
+                    .to_dtype(DType::F32)?;
+                let w_v = vb_mmap
+                    .get((kv_dim, bundle.d_model), &v_key)?
+                    .to_dtype(DType::F32)?;
+                let w_o = vb_mmap
+                    .get((bundle.d_model, bundle.d_model), &o_key)?
+                    .to_dtype(DType::F32)?;
+
+                let q_label = format!("l{i}.q");
+                let k_label = format!("l{i}.k");
+                let v_label = format!("l{i}.v");
+                let o_label = format!("l{i}.o");
+
+                let q_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_q, None, &qlora_cfg, vb.pp(&q_label))?;
+                let k_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_k, None, &qlora_cfg, vb.pp(&k_label))?;
+                let v_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_v, None, &qlora_cfg, vb.pp(&v_label))?;
+                let o_proj =
+                    QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+
+                for (lbl, bk) in [
+                    (&q_label, &q_key),
+                    (&k_label, &k_key),
+                    (&v_label, &v_key),
+                    (&o_label, &o_key),
+                ] {
+                    adapter_layer_order.push(lbl.clone());
+                    base_key_map.insert(lbl.clone(), bk.clone());
+                }
+                qwen2_attn = Some(crate::mens::tensor::candle_model_qwen::Qwen2Attention {
+                    q_proj,
+                    k_proj,
+                    v_proj,
+                    o_proj,
+                    n_heads,
+                    n_kv_heads,
+                    head_dim,
+                });
             }
 
             // ── MLP projections ───────────────────────────────────────────────
@@ -358,9 +627,9 @@ pub fn run_candle_qlora_train(
                 .layout
                 .intermediate_size
                 .unwrap_or(bundle.d_model * 4);
-            let gate_key = format!("model.layers.{i}.mlp.gate_proj.weight");
-            let up_key = format!("model.layers.{i}.mlp.up_proj.weight");
-            let down_key = format!("model.layers.{i}.mlp.down_proj.weight");
+            let gate_key = format!("{layer_prefix}.mlp.gate_proj.weight");
+            let up_key = format!("{layer_prefix}.mlp.up_proj.weight");
+            let down_key = format!("{layer_prefix}.mlp.down_proj.weight");
 
             let w_gate = vb_mmap
                 .get((inter_sz, bundle.d_model), &gate_key)?
@@ -405,37 +674,70 @@ pub fn run_candle_qlora_train(
             }
 
             // ── RoPE frequency table (optional per-layer) ─────────────────────
-            let inv_key = format!("model.layers.{i}.self_attn.rotary_emb.inv_freq");
-            let inv_freq = vb_mmap
-                .get((head_dim / 2,), &inv_key)
-                .ok()
-                .and_then(|t| t.to_dtype(DType::F32).ok());
+            let rope_dim_base = if is_qwen35 && layer_type == "linear_attention" {
+                bundle.layout.linear_key_head_dim.unwrap_or(head_dim)
+            } else {
+                head_dim
+            };
+            let rope_dim = if let Some(frac) = bundle.layout.rope_partial_rotary_factor {
+                let d = ((rope_dim_base as f64) * frac).round() as usize;
+                d.max(2).min(rope_dim_base)
+            } else {
+                rope_dim_base
+            };
+            let rope_half = (rope_dim / 2).max(1);
+            let inv_candidates = if is_qwen35 && layer_type == "linear_attention" {
+                vec![format!("{layer_prefix}.linear_attn.rotary_emb.inv_freq")]
+            } else {
+                vec![
+                    format!("{layer_prefix}.self_attn.rotary_emb.inv_freq"),
+                    format!("{layer_prefix}.linear_attn.rotary_emb.inv_freq"),
+                ]
+            };
+            let inv_freq = inv_candidates
+                .iter()
+                .find_map(|inv_key| {
+                    vb_mmap
+                        .get((rope_half,), inv_key)
+                        .ok()
+                        .and_then(|t| t.to_dtype(DType::F32).ok())
+                })
+                .or_else(|| synthesize_rope_inv_freq(rope_dim, bundle.layout.rope_theta, &device).ok())
+                .or_else(|| synthesized_rope_inv_freq.clone());
 
-            model_layers.push(crate::mens::tensor::candle_model_qwen::Qwen2Layer {
-                input_layernorm: ln1,
-                self_attn: crate::mens::tensor::candle_model_qwen::Qwen2Attention {
-                    q_proj,
-                    k_proj,
-                    v_proj,
-                    o_proj,
-                    n_heads,
-                    n_kv_heads,
-                    head_dim,
-                },
-                post_attention_layernorm: ln2,
-                mlp: crate::mens::tensor::candle_model_qwen::Qwen2MLP {
-                    gate_proj,
-                    up_proj,
-                    down_proj,
-                },
-                inv_freq,
-            });
+            let mlp = crate::mens::tensor::candle_model_qwen::Qwen2MLP {
+                gate_proj,
+                up_proj,
+                down_proj,
+            };
+            if let Some(attn) = qwen2_attn {
+                model_layers_qwen2.push(crate::mens::tensor::candle_model_qwen::Qwen2Layer {
+                    input_layernorm: ln1,
+                    self_attn: attn,
+                    post_attention_layernorm: ln2,
+                    mlp,
+                    inv_freq,
+                });
+            } else if let Some(attn) = qwen35_attn {
+                model_layers_qwen35.push(crate::mens::tensor::candle_model_qwen::Qwen35Layer {
+                    input_layernorm: ln1,
+                    attention: attn,
+                    post_attention_layernorm: ln2,
+                    mlp,
+                    inv_freq,
+                });
+            }
         }
 
         // ── Final norm + LM head (weight-tied to embeddings) ─────────────────
-        let fnorm_w = vb_mmap
-            .get(bundle.d_model, "model.norm.weight")?
-            .to_dtype(DType::F32)?;
+        let fnorm_w = if bundle.layout.architecture == HfArchitecture::Qwen35 {
+            vb_mmap
+                .get(bundle.d_model, "model.language_model.norm.weight")
+                .or_else(|_| vb_mmap.get(bundle.d_model, "model.norm.weight"))?
+                .to_dtype(DType::F32)?
+        } else {
+            vb_mmap.get(bundle.d_model, "model.norm.weight")?.to_dtype(DType::F32)?
+        };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
         let w_lm = wte.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
@@ -456,11 +758,21 @@ pub fn run_candle_qlora_train(
         .init_optimizer(&[])
         .context("init qlora optimizer")?;
 
-    let model = crate::mens::tensor::candle_model_qwen::Qwen2Model {
-        embed_tokens: wte,
-        layers: model_layers,
-        norm: final_norm,
-        lm_head,
+    let model = match bundle.layout.architecture {
+        HfArchitecture::Qwen35 => TrainGraphModel::Qwen35(
+            crate::mens::tensor::candle_model_qwen::Qwen35Model {
+                embed_tokens: wte,
+                layers: model_layers_qwen35,
+                norm: final_norm,
+                lm_head,
+            },
+        ),
+        _ => TrainGraphModel::Qwen2(crate::mens::tensor::candle_model_qwen::Qwen2Model {
+            embed_tokens: wte,
+            layers: model_layers_qwen2,
+            norm: final_norm,
+            lm_head,
+        }),
     };
 
     // ── Async VoxDB writer ────────────────────────────────────────────────────

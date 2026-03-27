@@ -53,6 +53,7 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
+        config.base_model.clone(),
         adapter_provenance_from_config(config),
     )
 }
@@ -132,10 +133,10 @@ pub(super) fn finalize_training_run(
         base_key_map: base_key_map.clone(),
         base_model: config.base_model.clone(),
     };
-    std::fs::write(
-        out.join("adapter_meta_v2.json"),
-        serde_json::to_string_pretty(&meta)?,
-    )?;
+    let meta_json = serde_json::to_string_pretty(&meta)?;
+    std::fs::write(out.join("adapter_meta_v2.json"), &meta_json)?;
+    // Legacy alias retained for older serve/merge call-sites.
+    std::fs::write(out.join("meta.json"), &meta_json)?;
     let adapter_manifest_v3 = build_adapter_manifest_v3(
         bundle.vocab,
         bundle.d_model,

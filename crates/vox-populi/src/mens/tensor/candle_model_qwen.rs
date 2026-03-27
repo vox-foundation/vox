@@ -335,6 +335,349 @@ impl Qwen2Model {
     }
 }
 
+// ── Qwen3.5 Hybrid attention/model ───────────────────────────────────────────
+
+/// qwen3_5 linear-attention block using combined QKV projection.
+pub struct Qwen35LinearAttention {
+    /// Combined QKV projection (`key_dim + key_dim + value_dim`, d_model).
+    pub qkv_proj: QuantizedLinear,
+    /// Gating projection (`in_proj_z`).
+    pub z_proj: QuantizedLinear,
+    /// Beta projection (`in_proj_b`).
+    pub b_proj: QuantizedLinear,
+    /// A/dt projection (`in_proj_a`).
+    pub a_proj: QuantizedLinear,
+    /// Output projection.
+    pub out_proj: QuantizedLinear,
+    /// Depthwise causal conv weights from `linear_attn.conv1d.weight`, shape [conv_dim, kernel].
+    pub conv_weight: Tensor,
+    /// Per-head delta-rule parameters from HF weights.
+    pub dt_bias: Tensor,
+    pub a_log: Tensor,
+    /// RMSNorm-gated output stage.
+    pub norm: RmsNorm,
+    pub num_k_heads: usize,
+    pub num_v_heads: usize,
+    pub head_k_dim: usize,
+    pub head_v_dim: usize,
+}
+
+impl Qwen35LinearAttention {
+    fn repeat_heads_bshd(x: &Tensor, n_rep: usize) -> Result<Tensor> {
+        if n_rep == 1 {
+            return Ok(x.clone());
+        }
+        let (b, s, h, d) = x.dims4()?;
+        x.unsqueeze(3)?
+            .expand((b, s, h, n_rep, d))?
+            .reshape((b, s, h * n_rep, d))
+    }
+
+    fn l2norm_last(x: &Tensor, eps: f64) -> Result<Tensor> {
+        let d = x.dim(candle_core::D::Minus1)?;
+        let sq = x.broadcast_mul(x)?;
+        let sq = sq.sum_keepdim(candle_core::D::Minus1)?;
+        let inv = (sq / (d as f64))?.broadcast_add(&Tensor::new(eps as f32, x.device())?)?;
+        let inv = inv.sqrt()?.recip()?;
+        x.broadcast_mul(&inv)
+    }
+
+    /// Depthwise causal conv + SiLU over `[batch, seq, channels]`.
+    fn causal_depthwise_conv_silu(x: &Tensor, conv_weight: &Tensor) -> Result<Tensor> {
+        let (b, s, c) = x.dims3()?;
+        let k = conv_weight.dim(1)?;
+        let dev = x.device();
+        let mut steps = Vec::with_capacity(s);
+        for t in 0..s {
+            let mut acc = Tensor::zeros((b, c), DType::F32, dev)?;
+            for j in 0..k {
+                if t < j {
+                    continue;
+                }
+                let x_t = x.narrow(1, t - j, 1)?.squeeze(1)?;
+                let w = conv_weight.narrow(1, j, 1)?.squeeze(1)?;
+                let prod = x_t.broadcast_mul(&w.unsqueeze(0)?)?;
+                acc = (acc + prod)?;
+            }
+            steps.push(candle_nn::ops::silu(&acc)?);
+        }
+        Tensor::stack(&steps, 1)
+    }
+
+    pub fn forward(
+        &self,
+        x: &Tensor,
+        pos: usize,
+        inv_freq: Option<&Tensor>,
+        state_cache: Option<&mut Tensor>,
+    ) -> Result<Tensor> {
+        let (b, seq_len, _d_model) = x.dims3()?;
+        let device = x.device();
+        let qkv = self
+            .qkv_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+        let mixed_qkv = Self::causal_depthwise_conv_silu(&qkv, &self.conv_weight)?;
+
+        let key_dim = self.num_k_heads * self.head_k_dim;
+        let value_dim = self.num_v_heads * self.head_v_dim;
+        let expected_total = key_dim + key_dim + value_dim;
+        let got_total = mixed_qkv.dim(candle_core::D::Minus1)?;
+        if got_total != expected_total {
+            return Err(candle_core::Error::Msg(format!(
+                "qwen3_5 linear_attention qkv dim mismatch: expected {expected_total}, got {got_total}",
+            )));
+        }
+
+        let query = mixed_qkv
+            .narrow(candle_core::D::Minus1, 0, key_dim)?
+            .reshape((b, seq_len, self.num_k_heads, self.head_k_dim))?;
+        let key = mixed_qkv
+            .narrow(candle_core::D::Minus1, key_dim, key_dim)?
+            .reshape((b, seq_len, self.num_k_heads, self.head_k_dim))?;
+        let value = mixed_qkv
+            .narrow(candle_core::D::Minus1, key_dim + key_dim, value_dim)?
+            .reshape((b, seq_len, self.num_v_heads, self.head_v_dim))?;
+
+        let z = self
+            .z_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+            .reshape((b, seq_len, self.num_v_heads, self.head_v_dim))?;
+        let beta = candle_nn::ops::sigmoid(
+            &self
+                .b_proj
+                .forward(x)
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))?,
+        )?
+        .reshape((b, seq_len, self.num_v_heads))?;
+        let a = self
+            .a_proj
+            .forward(x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+            .reshape((b, seq_len, self.num_v_heads))?;
+
+        let a_log = self.a_log.to_dtype(DType::F32)?;
+        let dt_bias = self.dt_bias.to_dtype(DType::F32)?;
+        let g_pre = (a.broadcast_add(&dt_bias.reshape((1, 1, self.num_v_heads))?)?).to_dtype(DType::F32)?;
+        let g_soft = (g_pre.exp()?.broadcast_add(&Tensor::new(1f32, device)?)?).log()?;
+        let g = g_soft
+            .broadcast_mul(&a_log.exp()?.reshape((1, 1, self.num_v_heads))?)?
+            .neg()?;
+
+        let mut query = Self::l2norm_last(&query, 1e-6)?;
+        let mut key = Self::l2norm_last(&key, 1e-6)?;
+        if self.num_v_heads > self.num_k_heads {
+            let rep = self.num_v_heads / self.num_k_heads;
+            query = Self::repeat_heads_bshd(&query, rep)?;
+            key = Self::repeat_heads_bshd(&key, rep)?;
+        }
+
+        let mut state = if let Some(state_prev) = state_cache.as_ref() {
+            (**state_prev).clone()
+        } else {
+            Tensor::zeros(
+                (b, self.num_v_heads, self.head_k_dim, self.head_v_dim),
+                DType::F32,
+                device,
+            )?
+        };
+        let mut outs = Vec::with_capacity(seq_len);
+        for t in 0..seq_len {
+            let q_t = query.narrow(1, t, 1)?.squeeze(1)?;
+            let k_t = key.narrow(1, t, 1)?.squeeze(1)?;
+            let v_t = value.narrow(1, t, 1)?.squeeze(1)?;
+            let g_t = g.narrow(1, t, 1)?.squeeze(1)?;
+            let beta_t = beta.narrow(1, t, 1)?.squeeze(1)?;
+
+            let g_scale = g_t.exp()?.reshape((b, self.num_v_heads, 1, 1))?;
+            state = state.broadcast_mul(&g_scale)?;
+
+            let k_col = k_t.unsqueeze(candle_core::D::Minus1)?;
+            let kv_mem = state
+                .transpose(2, 3)?
+                .contiguous()?
+                .matmul(&k_col)?
+                .squeeze(candle_core::D::Minus1)?;
+            let delta = v_t
+                .broadcast_sub(&kv_mem)?
+                .broadcast_mul(&beta_t.unsqueeze(candle_core::D::Minus1)?)?;
+            let delta_row = delta.unsqueeze(2)?;
+            let upd = k_col.matmul(&delta_row)?;
+            state = (state + upd)?;
+
+            let out_t = state
+                .transpose(2, 3)?
+                .contiguous()?
+                .matmul(&q_t.unsqueeze(candle_core::D::Minus1)?)?
+                .squeeze(candle_core::D::Minus1)?;
+            outs.push(out_t);
+        }
+
+        if let Some(state_prev) = state_cache {
+            *state_prev = state.clone();
+        }
+
+        let mut y = Tensor::stack(&outs, 1)?;
+        if let Some(inv_freq) = inv_freq {
+            // Native path: apply rotary to q/k at load-time semantics; we preserve positional offset
+            // threading here for future decode/cached calls.
+            let _ = (inv_freq, pos);
+        }
+        let y_flat = y.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
+        let z_flat = z.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
+        let y_norm = self.norm.forward(&y_flat)?;
+        let y_gate = y_norm.broadcast_mul(&candle_nn::ops::silu(&z_flat)?)?;
+        y = y_gate.reshape((b, seq_len, value_dim))?;
+
+        self.out_proj
+            .forward(&y)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))
+    }
+}
+
+pub enum Qwen35AttentionBlock {
+    Full(Qwen2Attention),
+    Linear(Qwen35LinearAttention),
+}
+
+pub struct Qwen35Layer {
+    pub input_layernorm: RmsNorm,
+    pub attention: Qwen35AttentionBlock,
+    pub post_attention_layernorm: RmsNorm,
+    pub mlp: Qwen2MLP,
+    pub inv_freq: Option<Tensor>,
+}
+
+impl Qwen35Layer {
+    pub fn forward(
+        &self,
+        x: &Tensor,
+        pos: usize,
+        kv_cache: Option<&mut Qwen35LayerCache>,
+    ) -> Result<Tensor> {
+        let residual = x;
+        let h = self.input_layernorm.forward(x)?;
+        let h = match &self.attention {
+            Qwen35AttentionBlock::Full(a) => {
+                let cache = match kv_cache {
+                    Some(Qwen35LayerCache::Full(kv)) => Some(kv),
+                    Some(Qwen35LayerCache::Linear(_)) => {
+                        return Err(candle_core::Error::Msg(
+                            "qwen3_5 cache mismatch: full-attention layer received linear cache"
+                                .to_string(),
+                        ));
+                    }
+                    None => None,
+                };
+                a.forward(&h, pos, self.inv_freq.as_ref(), cache)?
+            }
+            Qwen35AttentionBlock::Linear(a) => {
+                let cache = match kv_cache {
+                    Some(Qwen35LayerCache::Linear(state)) => Some(state),
+                    Some(Qwen35LayerCache::Full(_)) => {
+                        return Err(candle_core::Error::Msg(
+                            "qwen3_5 cache mismatch: linear-attention layer received KV cache"
+                                .to_string(),
+                        ));
+                    }
+                    None => None,
+                };
+                a.forward(&h, pos, self.inv_freq.as_ref(), cache)?
+            }
+        };
+        let x = (residual + h)?;
+
+        let residual = &x;
+        let h = self.post_attention_layernorm.forward(&x)?;
+        let h = self.mlp.forward(&h)?;
+        residual + h
+    }
+}
+
+pub struct Qwen35Model {
+    pub embed_tokens: Tensor,
+    pub layers: Vec<Qwen35Layer>,
+    pub norm: RmsNorm,
+    pub lm_head: QuantizedLinear,
+}
+
+impl Qwen35Model {
+    pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        for layer in &self.layers {
+            x = layer.forward(&x, 0, None)?;
+        }
+        let x = self.norm.forward(&x)?;
+        self.lm_head
+            .forward(&x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))
+    }
+
+    pub fn forward_with_cache(
+        &self,
+        input_ids: &Tensor,
+        pos: usize,
+        cache: &mut Qwen35ForwardCache,
+    ) -> Result<Tensor> {
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        for (i, layer) in self.layers.iter().enumerate() {
+            let slot = cache.layers.get_mut(i).ok_or_else(|| {
+                candle_core::Error::Msg(format!("qwen3_5 cache missing slot for layer {i}"))
+            })?;
+            if slot.is_none() {
+                *slot = Some(match &layer.attention {
+                    Qwen35AttentionBlock::Full(a) => Qwen35LayerCache::Full((
+                        Tensor::zeros((b, a.n_kv_heads, 0, a.head_dim), DType::F32, x.device())?,
+                        Tensor::zeros((b, a.n_kv_heads, 0, a.head_dim), DType::F32, x.device())?,
+                    )),
+                    Qwen35AttentionBlock::Linear(a) => Qwen35LayerCache::Linear(Tensor::zeros(
+                        (b, a.num_v_heads, a.head_k_dim, a.head_v_dim),
+                        DType::F32,
+                        x.device(),
+                    )?),
+                });
+            }
+            x = layer.forward(&x, pos, slot.as_mut())?;
+        }
+        let x = self.norm.forward(&x)?;
+        self.lm_head
+            .forward(&x)
+            .map_err(|e| candle_core::Error::Msg(e.to_string()))
+    }
+}
+
+pub enum Qwen35LayerCache {
+    Full((Tensor, Tensor)),
+    Linear(Tensor),
+}
+
+pub struct Qwen35ForwardCache {
+    pub layers: Vec<Option<Qwen35LayerCache>>,
+}
+
+impl Qwen35ForwardCache {
+    pub fn new(n_layers: usize) -> Self {
+        let mut layers = Vec::with_capacity(n_layers);
+        layers.resize_with(n_layers, || None);
+        Self { layers }
+    }
+}
+
 /// KV cache for efficient autoregressive generation.
 pub struct ForwardCache {
     /// Vector of (Key, Value) status tensors per layer.
@@ -353,6 +696,7 @@ impl ForwardCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use qlora_rs::qlora::QLoraConfig;
 
     /// Verify causal_mask has −∞ above diagonal and 0 on/below.
     #[test]
@@ -394,5 +738,61 @@ mod tests {
         let t = Tensor::zeros((2, 3, 5, 7), DType::F32, &device).unwrap();
         let r = repeat_kv(&t, 1).unwrap();
         assert_eq!(r.dims(), t.dims());
+    }
+
+    #[test]
+    fn qwen35_linear_attention_forward_and_cache_progression() {
+        let device = Device::Cpu;
+        let qcfg = QLoraConfig::default();
+        let d_model = 64usize;
+        let key_heads = 2usize;
+        let value_heads = 4usize;
+        let head_k_dim = 8usize;
+        let head_v_dim = 8usize;
+        let key_dim = key_heads * head_k_dim;
+        let value_dim = value_heads * head_v_dim;
+        let qkv_rows = key_dim + key_dim + value_dim;
+
+        let w_qkv = Tensor::randn(0f32, 0.01f32, (qkv_rows, d_model), &device).unwrap();
+        let w_z = Tensor::randn(0f32, 0.01f32, (value_dim, d_model), &device).unwrap();
+        let w_b = Tensor::randn(0f32, 0.01f32, (value_heads, d_model), &device).unwrap();
+        let w_a = Tensor::randn(0f32, 0.01f32, (value_heads, d_model), &device).unwrap();
+        let w_o = Tensor::randn(0f32, 0.01f32, (d_model, value_dim), &device).unwrap();
+        let conv = Tensor::randn(0f32, 0.01f32, (qkv_rows, 4usize), &device).unwrap();
+        let dt_bias = Tensor::zeros((value_heads,), DType::F32, &device).unwrap();
+        let a_log = Tensor::zeros((value_heads,), DType::F32, &device).unwrap();
+        let norm_w = Tensor::ones((head_v_dim,), DType::F32, &device).unwrap();
+
+        let attn = Qwen35LinearAttention {
+            qkv_proj: QuantizedLinear::from_weight(&w_qkv, None, &qcfg, &device).unwrap(),
+            z_proj: QuantizedLinear::from_weight(&w_z, None, &qcfg, &device).unwrap(),
+            b_proj: QuantizedLinear::from_weight(&w_b, None, &qcfg, &device).unwrap(),
+            a_proj: QuantizedLinear::from_weight(&w_a, None, &qcfg, &device).unwrap(),
+            out_proj: QuantizedLinear::from_weight(&w_o, None, &qcfg, &device).unwrap(),
+            conv_weight: conv,
+            dt_bias,
+            a_log,
+            norm: RmsNorm::new(norm_w, 1e-6),
+            num_k_heads: key_heads,
+            num_v_heads: value_heads,
+            head_k_dim,
+            head_v_dim,
+        };
+
+        let x_full = Tensor::randn(0f32, 1f32, (1usize, 3usize, d_model), &device).unwrap();
+        let y_full = attn.forward(&x_full, 0, None, None).unwrap();
+        assert_eq!(y_full.dims(), &[1, 3, d_model]);
+
+        let mut state = Tensor::zeros(
+            (1usize, value_heads, head_k_dim, head_v_dim),
+            DType::F32,
+            &device,
+        )
+        .unwrap();
+        let x_tok1 = x_full.narrow(1, 0, 1).unwrap();
+        let x_tok2 = x_full.narrow(1, 1, 1).unwrap();
+        let _ = attn.forward(&x_tok1, 0, None, Some(&mut state)).unwrap();
+        let _ = attn.forward(&x_tok2, 1, None, Some(&mut state)).unwrap();
+        assert_eq!(state.dims(), &[1, value_heads, head_k_dim, head_v_dim]);
     }
 }

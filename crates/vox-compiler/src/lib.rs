@@ -13,6 +13,7 @@ pub mod lexer;
 pub mod parser;
 pub mod react_bridge;
 pub mod serialization;
+pub mod syntax_k;
 pub mod typeck;
 pub mod web_ir;
 pub mod web_prefixes;

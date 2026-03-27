@@ -22,7 +22,7 @@ training_eligible: true
 - **Contract-first control plane** (in `vox-populi::mens::tensor`): **`FineTuneContract`** + **`ExecutionPlanner`** + **`preflight_train`** gate impossible combos before kernels run (`finetune_contract.rs`, `execution_planner.rs`, `preflight_train.rs`). **Preflight output schema (F04, extend alongside code):** [`contracts/mens/training-preflight.schema.json`](../../../contracts/mens/training-preflight.schema.json). After a successful `preflight_for_contract` inside `run_mens_training`, the trainer writes **`training-preflight.json`** next to run artifacts when an output directory is set (fields: `schema_version`, `contract_digest`, `execution_kernel`, optional `notes`). Capability table: [hf-finetune-capability-matrix.md](../architecture/hf-finetune-capability-matrix.md). Gap labels: [hf-finetune-gap-matrix.md](hf-finetune-gap-matrix.md).
 - **Honest execution-kernel split**:
   - **Burn + wgpu LoRA** (`--backend lora`): default **`VoxTokenizer`** JSONL; optional **`--tokenizer hf`** for **GPT-2-shaped** HF configs + ChatML-supervised HF tokenization + optional **embed warm-start** (`burn_hf_load.rs`). **Not** NF4 QLoRA.
-  - **Candle + qlora-rs** (`--backend qlora`, `--tokenizer hf`): **NF4-quantized** trainable stack: when every expected **block output projection** (`o_proj` / GPT-2 `h.{L}.attn.c_proj.weight`) is present in the HF shards, **`training_step_lm`** runs **sequentially** through those layers plus the **tied LM head**; otherwise **LM-head-only** (backward compatible). **Context embeddings** stay **mmap `f32`** (`index_select`). Same **`--device`** story: CUDA / Metal with **`mens-candle-cuda`** / **`mens-candle-metal`**, else CPU; **`VOX_CANDLE_DEVICE=cpu`** forces CPU. Telemetry includes **`execution_kernel`**, **`telemetry_schema`**, and **`candle_compat_mode`** for Candle transitional scope.
+  - **Candle + qlora-rs** (`--backend qlora`, `--tokenizer hf`): **NF4-quantized full-graph training** over loaded decoder blocks with trainable LoRA adapters. Current trainer path is full graph only (LM-head-only/partial-depth flags are parsed for contract compatibility but rejected at runtime). **Context embeddings** stay **mmap `f32`** (`index_select`). Same **`--device`** story: CUDA / Metal with **`mens-candle-cuda`** / **`mens-candle-metal`**, else CPU; **`VOX_CANDLE_DEVICE=cpu`** forces CPU. Telemetry includes **`execution_kernel`**, **`telemetry_schema`**, and **`candle_compat_mode`** for cutover observability.
 - **Remaining gaps (explicit)**: full **causal NF4** blocks in Candle (see [candle-full-graph-feasibility.md](../architecture/candle-full-graph-feasibility.md)); Burn **`LoraAttention::merge`** requires **`use_rope == false`** (GPT-2-style); RoPE stacks must stay **unmerged** or use native LoRA modules at serve time. **Double quant:** `QLoraConfig.quantization.double_quant` defaults **on**; CLI **`--qlora-no-double-quant`** disables for ablation. See [ADR 006 (full-graph)](../adr/006-mens-full-graph-qlora-qlora-rs.md) and [ADR 007 (API gate)](../adr/007-qlora-rs-multi-layer-training-api.md).
 - **GPU visibility (Burn)**: stderr + **`burn_wgpu_device`** under **`vox_mens_gpu`**.
 - **CI / CUDA**: When **`nvcc`** is on `PATH`, CI runs **`scripts/check_cuda_feature_builds.sh`**. See [`ci/runner-contract.md`](../ci/runner-contract.md#optional-cuda-compile-gate).
@@ -104,7 +104,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 
 ## Full-graph QLoRA design (Phase 2c)
 
-**Architecture gate (2026-03):** [ADR 007](../adr/007-qlora-rs-multi-layer-training-api.md) records audit of **qlora-rs 1.0.5**: `QLoraTrainer::training_step_lm` accepts **`&[&QuantizedLinear]`** and applies them **sequentially** in one forward/backward; `init_optimizer` trains **all** LoRA parameters registered via **`trainer.var_builder()`**. **Approach A** — expand in-tree graph with **public APIs only** (no fork) unless a future qlora-rs change breaks this contract.
+**Architecture gate (2026-03):** [ADR 007](../adr/007-qlora-rs-multi-layer-training-api.md) records the qlora-rs API surface audit used by the native trainer. Keep this ADR in sync with any future trainer graph changes.
 
 **HF layout:** `vox_mens::tensor::hf_load::HfTransformerLayout` parses `config.json` (`model_type`, `architectures`, `hidden_size`, `num_attention_heads`, `num_hidden_layers`, `vocab_size`) for Llama/Mistral/Qwen-style and GPT-2-shaped configs. `qlora_preflight` checks **`hidden_size` matches** the embedding tensor width discovered in safetensors.
 
@@ -113,14 +113,14 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 - **Build**: `cargo check -p vox-populi --features mens-train` (pulls qlora-rs + candle trainer path). Optional CUDA lane: `--features mens-train,mens-candle-qlora-cuda`.
   > [!IMPORTANT]
   > **Windows MSVC/NVCC constraint**: Building the CUDA `candle-kernels` completely fails if executed through a nested subshell (e.g. `cmd.exe /c "vcvars64.bat && cargo build"`). The inner `bindgen_cuda` executable natively drops nested path states, leading to an immediate `'cl.exe' is not recognized` failure. You **must** interactively open the VS Developer Command Prompt or physically run `vcvars64.bat` in your persistent PowerShell window before typing cargo commands for CUDA.
-- **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-populi` optional deps. **`[patch.crates-io]`** (`patches/qlora-rs-1.0.5`, see `VOX_PATCH.md`) adds **RMSNorm (γ=1) between stacked projections** in `training_step_lm` and **gradient-accumulation scaling** for LM steps — upstream `qlora-rs` alone can report **~1e20 CE** on deep Vox `o_proj` proxy stacks (no residual / norm between layers).
+- **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-populi` optional deps. Keep notes in `VOX_PATCH.md` synchronized with whichever qlora-rs patches are active for trainer stability.
 - **Input**: `train.jsonl` (and `mens/config/training_contract.yaml` / preflight overrides).
 - **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys.
 
 ## Training objective mismatch (Burn vs Candle)
 
 - **Burn (`--backend lora`)**: full-graph **f32** causal LM on wgpu (or NdArray in tests). Objective = standard next-token CE over the whole decoder graph you enabled.
-- **Candle (`--backend qlora`)**: **NF4** frozen bases via qlora-rs; forward uses **`training_step_lm`** over the **supported bounded proxy graph** (see [candle-full-graph-feasibility.md](../architecture/candle-full-graph-feasibility.md)): LM head always; optional middle `o_proj` / `c_proj` stack when shards are complete. **Not** a full causal NF4 decoder — **non-goal** until a future full-graph milestone; inference must not assume full-transformer logits.
+- **Candle (`--backend qlora`)**: **NF4** frozen bases via qlora-rs with a full-forward training graph over loaded decoder blocks; loss is masked next-token CE on supervised suffix positions (`--qlora-ce-last-k`).
 - **Operator impact**: do **not** expect loss / perplexity curves to match Burn. Use `training_manifest.json` **`candle_qlora_graph_id`**, **`candle_qlora_ce_last_k`**, **`training_objective_note`**, telemetry, and tiered **parity tests** (`candle_burn_*`) for **shared f32 primitives** only — not end-to-end NF4-vs-Burn LM identity.
 
 ## Burn LoRA vs Candle QLoRA — which path, when (4080 Super and beyond)
@@ -131,9 +131,9 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 
 | Goal | Prefer |
 |------|--------|
-| **Train a real Hugging Face base** (e.g. Qwen2.5-Coder) on **16G VRAM** with industry-style **NF4 + LoRA** | **Candle QLoRA** (`--backend qlora`, `--tokenizer hf`, `--model …`, CUDA build) |
+| **Train a real Hugging Face base** (e.g. Qwen3.5-4B-Instruct) on **16G VRAM** with industry-style **NF4 + LoRA** | **Candle QLoRA** (`--backend qlora`, `--tokenizer hf`, `--model …`, CUDA build) |
 | **Full in-tree f32 causal LM** on **VoxTokenizer JSONL** (docs/examples → pairs), **merge → `vox mens serve`** without an external runtime | **Burn LoRA** (`--backend lora`, legacy path) |
-| **Apples-to-apples loss** with “full decoder” next-token CE on the **same** architecture | **Burn** on the **small** Vox causal stack; Candle QLoRA is a **bounded proxy graph** (LM head + optional `o_proj`/`c_proj` stack), not a full NF4 transformer (see [candle-full-graph-feasibility.md](../architecture/candle-full-graph-feasibility.md)) |
+| **Apples-to-apples loss** with “full decoder” next-token CE on the **same** architecture | **Burn** is still the easiest controlled parity lane for the in-tree small model; Candle QLoRA is optimized for real HF checkpoints |
 
 So: **QLoRA is “better” for large-model, VRAM-efficient fine-tuning on shipped HF weights.** **Burn LoRA is “better” for the closed Vox corpus loop and first-class serve/merge in this repo.** You may run **both** in a serious program: Burn for **syntax/docs/tooling-shaped** adapters on the native head; QLoRA for **Qwen-class** behavior on HF bases.
 
@@ -156,9 +156,9 @@ So: **QLoRA is “better” for large-model, VRAM-efficient fine-tuning on shipp
 
 | Strengths | Weaknesses |
 |-----------|------------|
-| **NF4 base + trainable LoRA** on **real** HF shards; **VRAM-efficient** vs full fine-tune; matches **operator expectations** for “train Qwen locally”. | Forward is **not** a full causal NF4 decoder; **proxy stack** + **`training_step_lm`** semantics — see objective mismatch above and ADR 006/007. |
+| **NF4 base + trainable LoRA** on **real** HF shards; **VRAM-efficient** vs full fine-tune; matches **operator expectations** for “train Qwen locally”. | Native qwen3_5 hybrid path is now enforced in Candle; keep eval-local quality checks in your promotion gate for each model tier. |
 | **NVIDIA CUDA** (and Metal) **first-class** when built with **`mens-candle-cuda`** / **`mens-candle-metal`**. | **`vox mens serve`** does **not** load **`merge-qlora`** outputs; use **vLLM / Ollama / HF** (or export pipeline TBD) for merged **f32** shards. |
-| Strong **preflight** (`qlora_preflight`) catches tokenizer / embedding width / shard key issues **before** long runs. | **Shard key completeness** drives **full proxy** vs **LM-head-only**; **`--qlora-require-full-proxy-stack`** can hard-fail when keys are missing. |
+| Strong **preflight** (`qlora_preflight`) catches tokenizer / embedding width / shard key issues **before** long runs. | **`--qlora-require-full-proxy-stack`** is intentionally strict and can hard-fail when shard coverage is incomplete. |
 | **Preset family** (`qwen_4080_16g`, `4080`, etc.) tuned for **16G** cards. | **Patch + contract** coupling: in-tree **`qlora-rs`** patch for stable deep stacks; upgrade pins need care (`VOX_PATCH.md`). |
 
 ### Last-minute flight check (before a “real” training push)
@@ -179,8 +179,14 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 
 - **Preset**: **`qwen_4080_16g`** (rank 16, seq 384, batch 1, grad_accum 8). CLI **`--preset 4080`** is an **alias** of the same profile (default **`DEFAULT_PRESET`** is **`4080`**).
 - **Compile check (CUDA Candle stack)**: `cargo check -p vox-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).
-- **Train (Qwen2.5-Coder-3B example)**:
-  `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen2.5-Coder-3B-Instruct --data-dir target/dogfood --output-dir mens/runs/qwen25_qlora --device cuda --qlora-require-full-proxy-stack`
+- **Train (Qwen3.5-4B example)**:
+  `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g --model Qwen/Qwen3.5-4B --data-dir target/dogfood --output-dir mens/runs/qwen35_qlora --device cuda --qlora-require-full-proxy-stack`
+- **Qwen3.5 ladder guidance (text native phase):**
+  - `Qwen/Qwen3.5-0.8B`: use `--preset qwen_4080_16g` (or `--preset auto`), allow longer seq where VRAM permits.
+  - `Qwen/Qwen3.5-2B`: same preset family; keep moderate sequence lengths for throughput.
+  - `Qwen/Qwen3.5-4B`: canonical 4080 dogfood baseline in this repo.
+  - `Qwen/Qwen3.5-9B`: use tighter sequence and higher grad accumulation on 16G; promote on 24G+ tiers.
+  - Multimodal training/inference is an explicit next phase and is not included in current native text acceptance.
 - **`--device cuda`** without **`mens-candle-cuda`** fails fast at CLI with rebuild instructions.
 - **Local-first safety knobs**: `--require-gpu` fails if runtime resolves to CPU; `--allow-cpu-fallback=false` disables automatic fallback for `--device best`.
 - **CPU smoke**: `VOX_CANDLE_DEVICE=cpu` forces Candle on CPU for debugging.
@@ -189,13 +195,13 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
   - **Train**: `vox mens train … --background` or `vox mens train … --log-dir mens/runs/logs` — parent exits immediately; monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`).
   - **CUDA `cargo` build**: normal terminal or `Tee-Object`; detached build: [`scripts/populi/cursor_background_cuda_build_detached.ps1`](../../../scripts/populi/cursor_background_cuda_build_detached.ps1) (and `scripts/mens/…` copies if present). Example train launcher: [`scripts/populi/cursor_background_train_example.ps1`](../../../scripts/populi/cursor_background_train_example.ps1).
   - **Skip corpus mix** (optional): `VOX_TRAIN_SKIP_CORPUS_MIX=1` skips the pre-train `mix` refresh when you already have the desired `train.jsonl` or need a shorter path under automation.
-- **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached.
+- **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached. Syntax-K runs can be routed independently with **`VOX_SYNTAX_K_TELEMETRY=1`** (`metric_type = syntax_k_event`, session `syntaxk:<repository_id>`), with fallback to `VOX_BENCHMARK_TELEMETRY` when unset.
 - **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped.
-- **Bounded proxy forward (supported; in-tree qlora-rs patch)**: `training_step_lm` uses **pre-norm residual** middle blocks `h ← h + (1/√n_mid)·F(RMSNorm(h))` and scales again by **`1/√n_mid`** before the LM head so deep `o_proj` stacks stay **finite** and trainable. Merge and serve paths must use the **same** graph as training (manifest records **`candle_qlora_graph_id`**). This is **not** a full transformer residual path inside attention/FFN — see feasibility doc.
-- **Suffix CE (`--qlora-ce-last-k K`)**: default **`1`** = predict the **last** token from `E[t-1]` only. **`K > 1`** runs one `training_step_lm` per row for each target index `t` in **`max(1, L−K) .. L−1`**, i.e. next-token CE on the **last K positions** of the (trimmed) sequence — closer to standard LM on a suffix, at **~K×** optimizer micro-steps per JSONL row. Capped vs **`seq_len`** at CLI.
+- **Full-graph forward (current implementation)**: one forward pass per row/micro-batch item over loaded decoder layers, then masked CE on supervised suffix positions.
+- **Suffix CE (`--qlora-ce-last-k K`)**: default **`64`**. `K=0` uses all supervised assistant positions; `K>0` uses only the last `K` supervised positions from the trimmed sequence.
 - **Depth ablation (CLI + digest)**: **`--qlora-proxy-max-layers N`** and **`--qlora-lm-head-only`** still feed **contract digest / planner / preflight** (`candle_qlora_proxy_stack_complete`, graph id). **Candle training rejects** LM-head-only, `proxy_max_layers=0`, and any cap **below** model depth; run without those flags (or set the cap **≥** `num_hidden_layers`) so the trainer runs the **full** proxy graph and the manifest matches execution.
 - **Debug**: **`VOX_QLORA_DEBUG_NORMS=1`** prints mean-|activation| after each middle block (stderr; local ablation only).
-- **Stable dogfood (QLoRA)**: if CE is still pathological, keep **`--qlora-lm-head-only`** as the **operator escape hatch** (preferred over env; survives `--log-dir` re-spawn). Env **`VOX_QLORA_LM_HEAD_ONLY=1`** remains for ad-hoc runs.
+- **Deferred flags**: `--qlora-lm-head-only` and partial-depth `--qlora-proxy-max-layers` are intentionally not implemented in the current full-graph trainer; keep them for contract/rollout compatibility only.
 
 ## Pre-push release gate (acceptance matrix)
 
@@ -240,6 +246,11 @@ Use a small, repeatable local harness before promoting new training knobs:
 Promotion criteria should require non-regressing baseline quality while improving trajectory metrics.
 
 ## Rollout gates and env toggles
+
+- `VOX_QWEN35_NATIVE_CUTOVER`
+  - `shadow`: allow qwen2 with warning, qwen3_5 preferred.
+  - `default` (default): qwen3_5 preferred; qwen2 requires `VOX_ALLOW_QWEN2_NATIVE=1`.
+  - `enforced`: reject qwen2 native training.
 
 - `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL`
   - Enables training-task specific route scoring (still local execution only).

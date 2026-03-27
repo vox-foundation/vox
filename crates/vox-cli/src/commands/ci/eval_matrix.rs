@@ -26,6 +26,7 @@ const PKG_VOX_MCP: &str = "vox-mcp";
 const PKG_VOX_RUNTIME: &str = "vox-runtime";
 const PKG_VOX_ORCHESTRATOR: &str = "vox-orchestrator";
 const PKG_VOX_DOC_INVENTORY: &str = "vox-doc-inventory";
+const PKG_VOX_COMPILER: &str = "vox-compiler";
 const FEAT_GPU: &str = "gpu";
 const FEAT_POPULI_MENS_HF_HUB: &str = "mens,mens-hf-hub";
 
@@ -39,6 +40,9 @@ const FILTER_MCP_LANGUAGE_SURFACE: &str = "introspection_tools::tests::language_
 const FILTER_MCP_TOOL_DISPATCH: &str = "test_mcp_tool_dispatch";
 const FILTER_DOC_INVENTORY_RELEVANCE: &str = "relevance_score";
 const FILTER_MENS_HUB_TESTS: &str = "mens::hub::tests";
+const FILTER_COMPILER_SYNTAX_K_GOLDEN: &str = "all_golden_vox_examples_parse_and_lower";
+const FILTER_COMPILER_SYNTAX_K_PARITY: &str = "syntax_k_artifact_for_parity_chain";
+const FILTER_COMPILER_SYNTAX_K_GATE: &str = "syntax_k_regression_gate_observe_only";
 
 /// Every `benchmark_classes` id in the matrix + JSON Schema enum; sorted lexicographically.
 pub(crate) const BENCHMARK_CLASS_IDS: &[&str] = &[
@@ -47,6 +51,9 @@ pub(crate) const BENCHMARK_CLASS_IDS: &[&str] = &[
     "vox_cli_dispatch_dei_schema",
     "vox_cli_gpu_check",
     "vox_cli_mens_gpu_tests",
+    "vox_compiler_syntax_k_emit",
+    "vox_compiler_syntax_k_regression_gate",
+    "vox_compiler_syntax_k_webir",
     "vox_doc_inventory_relevance_score",
     "vox_mcp_introspection_language_surface",
     "vox_mcp_route_telemetry_parity",
@@ -125,6 +132,17 @@ pub fn run_executions(repo_root: &Path, milestone_filter: Option<&str>) -> Resul
             }
             println!("  class: {class}");
             run_benchmark_class(repo_root, class)?;
+            if class.starts_with("vox_compiler_syntax_k_") {
+                crate::benchmark_telemetry::record_syntax_k_opt_blocking(
+                    class,
+                    "eval-matrix",
+                    None,
+                    Some(serde_json::json!({
+                        "status": "ok",
+                        "runner": "vox ci eval-matrix"
+                    })),
+                );
+            }
             seen.insert(class.clone());
         }
     }
@@ -233,6 +251,18 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
                 PKG_VOX_DOC_INVENTORY,
                 FILTER_DOC_INVENTORY_RELEVANCE,
             ],
+        ),
+        "vox_compiler_syntax_k_webir" => cargo_test_nocapture(
+            repo_root,
+            &["test", "-p", PKG_VOX_COMPILER, FILTER_COMPILER_SYNTAX_K_GOLDEN],
+        ),
+        "vox_compiler_syntax_k_emit" => cargo_test_nocapture(
+            repo_root,
+            &["test", "-p", PKG_VOX_COMPILER, FILTER_COMPILER_SYNTAX_K_PARITY],
+        ),
+        "vox_compiler_syntax_k_regression_gate" => cargo_test_nocapture(
+            repo_root,
+            &["test", "-p", PKG_VOX_COMPILER, FILTER_COMPILER_SYNTAX_K_GATE],
         ),
         "contracts_eval_benchmark_matrix_schema" => run_verify(repo_root),
         // In-process: avoids `cargo run -p vox-cli` replacing `vox.exe` (Windows file-lock errors).

@@ -20,6 +20,9 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, merge_v2] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, qlora_preflight] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, last_hidden_shape_is_d_model] }
+      - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, qwen35_linear_attention_forward_and_cache_progression] }
+      - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, resolve_adapter_meta_prefers_v2_then_legacy] }
+      - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, qwen35_native_parity] }
       - { command: cargo, args: [test, -p, vox-corpus, --lib, tool_trace_] }
   m1m4:
     steps:
@@ -29,6 +32,9 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, last_hidden_shape_is_d_model] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_nf4_dequant_lm_reference_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, qwen35_linear_attention_forward_and_cache_progression] }
+      - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, resolve_adapter_meta_prefers_v2_then_legacy] }
+      - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, qwen35_native_parity] }
       - { command: cargo, args: [test, -p, vox-cli, merge_] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_f32_matmul_parity] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, candle_burn_f32_linear_lm_logits_parity] }

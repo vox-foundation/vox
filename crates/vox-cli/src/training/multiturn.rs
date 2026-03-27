@@ -78,6 +78,7 @@ pub fn generate_multiturn_pairs(
             "instruction": follow_up,
             "output": code,
             "category": construct,
+            "difficulty": crate::training::construct_difficulty(construct),
             "source": source,
             "rating": 4,
             "turn": 2,

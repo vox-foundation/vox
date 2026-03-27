@@ -116,37 +116,40 @@ pub async fn run(
                     // Extract from .vox examples
                     let examples_dir = PathBuf::from("examples");
                     if examples_dir.is_dir() {
-                        let _ = crate::commands::corpus::run(
+                        crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::Extract {
                                 dir: examples_dir,
                                 output: validated.clone(),
                             },
                         )
-                        .await;
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline extract examples failed: {e}"))?;
                     }
 
                     // Extract from Rust source
                     let crates_dir = PathBuf::from("crates");
                     if crates_dir.is_dir() {
-                        let _ = crate::commands::corpus::run(
+                        crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::ExtractRs {
                                 dir: crates_dir,
                                 output: PathBuf::from("mens/data/mix_sources/rust_source.jsonl"),
                             },
                         )
-                        .await;
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline extract rust failed: {e}"))?;
                     }
 
                     // Extract from documentation
                     let docs_dir = PathBuf::from("docs/src");
                     if docs_dir.is_dir() {
-                        let _ = crate::commands::corpus::run(
+                        crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::ExtractDocs {
                                 dir: docs_dir,
                                 output: PathBuf::from("mens/data/mix_sources/docs.jsonl"),
                             },
                         )
-                        .await;
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline extract docs failed: {e}"))?;
                     }
                 }
             }
@@ -205,6 +208,36 @@ pub async fn run(
                 if !dry_run {
                     let mix_config = PathBuf::from("mens/config/mix.yaml");
                     if mix_config.is_file() {
+                        if let Ok(cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_config)
+                            && let Some(primary) = cfg.sources.first()
+                        {
+                            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                            let primary_resolved = cwd.join(&primary.path);
+                            if primary_resolved != train_jsonl {
+                                tracing::warn!(
+                                    mix_primary = %primary_resolved.display(),
+                                    active_train_jsonl = %train_jsonl.display(),
+                                    "pipeline mix source mismatch; syncing active train.jsonl into mix primary source path"
+                                );
+                                if train_jsonl.is_file() {
+                                    if let Some(parent) = primary_resolved.parent() {
+                                        std::fs::create_dir_all(parent)?;
+                                    }
+                                    std::fs::copy(&train_jsonl, &primary_resolved).map_err(|e| {
+                                        anyhow::anyhow!(
+                                            "pipeline mix sync failed ({} -> {}): {e}",
+                                            train_jsonl.display(),
+                                            primary_resolved.display()
+                                        )
+                                    })?;
+                                } else {
+                                    tracing::warn!(
+                                        "active train.jsonl does not exist yet at {}; continuing with configured mix sources",
+                                        train_jsonl.display()
+                                    );
+                                }
+                            }
+                        }
                         crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Mix {
                             config: mix_config,
                             allow_missing_sources: true,
@@ -220,7 +253,7 @@ pub async fn run(
                         let device = device.clone().unwrap_or_else(|| "best".into());
                         let target_model = model
                             .clone()
-                            .unwrap_or_else(|| "Qwen/Qwen2.5-Coder-3B-Instruct".into());
+                            .unwrap_or_else(|| "Qwen/Qwen3-4B-Instruct-2507".into());
                         let target_preset = preset.clone().or_else(|| Some("qwen_4080_16g".into()));
 
                         // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.

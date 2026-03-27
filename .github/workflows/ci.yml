@@ -152,6 +152,11 @@ jobs:
       - name: Populi CI gate matrix (single manifest)
         run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
 
+      - name: Qwen3.5 native ladder contract checks (0.8B/2B/4B/9B schema parity)
+        run: |
+          cargo test -p vox-populi --features "mens,mens-train" --test qwen35_native_parity
+          cargo test -p vox-populi --features "mens,mens-train" --lib qwen35_linear_attention_forward_and_cache_progression
+
   # GitHub-hosted exception: needs stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)

@@ -15,6 +15,9 @@ pub fn initial_training_manifest(
         candle_graph_id,
         candle_middle_active,
         candle_ce_k,
+        candle_arch,
+        candle_linear_layers,
+        candle_full_layers,
         objective,
     ) = match kernel {
         InitialTrainingKernel::BurnLora => (
@@ -23,23 +26,25 @@ pub fn initial_training_manifest(
             None,
             None,
             1usize,
+            None,
+            None,
+            None,
             Some(BURN_OBJECTIVE.to_string()),
         ),
         InitialTrainingKernel::CandleQlora {
             proxy_stack_complete,
             middle_layers_active,
             ce_last_k,
+            architecture,
+            linear_layers,
+            full_layers,
         } => {
             let k = ce_last_k;
-            let graph_id = if middle_layers_active > 0 && proxy_stack_complete {
-                "proxy_stack_v1_residual"
-            } else {
-                "lm_head_only"
-            };
+            let graph_id = "full_graph_v1";
             let obj = if k == 0 {
-                "candle_qlora_proxy_v1_full_assistant_ce".to_string()
+                "candle_qlora_full_graph_full_assistant_ce".to_string()
             } else {
-                format!("candle_qlora_proxy_v1_k{k}")
+                format!("candle_qlora_full_graph_k{k}")
             };
             (
                 Some("candle_qlora".into()),
@@ -47,6 +52,9 @@ pub fn initial_training_manifest(
                 Some(graph_id.to_string()),
                 Some(middle_layers_active),
                 k,
+                Some(architecture),
+                linear_layers,
+                full_layers,
                 Some(obj),
             )
         }
@@ -87,6 +95,9 @@ pub fn initial_training_manifest(
         candle_qlora_graph_id: candle_graph_id,
         candle_qlora_middle_layers_active: candle_middle_active,
         candle_qlora_ce_last_k: candle_ce_k,
+        candle_qlora_architecture: candle_arch,
+        candle_qlora_linear_layers: candle_linear_layers,
+        candle_qlora_full_layers: candle_full_layers,
         training_objective_note: objective,
         training_deployment_target: run.training_deployment_target.clone(),
         training_deployment_note: run.training_deployment_note.clone(),
@@ -104,7 +115,7 @@ fn default_manifest_schema_v1() -> u32 {
 }
 
 fn default_candle_qlora_ce_last_k() -> usize {
-    1
+    64
 }
 
 fn default_trajectory_tool_trace_boost() -> f32 {

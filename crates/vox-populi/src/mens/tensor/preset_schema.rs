@@ -52,14 +52,107 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "4080",
     "4080_safe",
     "qwen_4080_16g",
+    "qwen_small_8g",
+    "qwen_rtx3090_24g",
+    "qwen_a100_80g",
     "a100",
     "default",
     "distributed",
     "mobile_edge",
 ];
 
-fn base_for_name(name: &str) -> TrainPresetProfile {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum QwenSizeClass {
+    S0p8,
+    S2,
+    S4,
+    S9,
+    Other,
+}
+
+fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
+    let m = model_hint?.to_ascii_lowercase();
+    if !m.contains("qwen") {
+        return None;
+    }
+    if m.contains("0.8b") {
+        return Some(QwenSizeClass::S0p8);
+    }
+    if m.contains("2b") {
+        return Some(QwenSizeClass::S2);
+    }
+    if m.contains("4b") {
+        return Some(QwenSizeClass::S4);
+    }
+    if m.contains("9b") {
+        return Some(QwenSizeClass::S9);
+    }
+    Some(QwenSizeClass::Other)
+}
+
+fn apply_qwen_size_ladder_policy(
+    mut p: TrainPresetProfile,
+    class: QwenSizeClass,
+    vram_mb: u64,
+) -> TrainPresetProfile {
+    match class {
+        QwenSizeClass::S0p8 => {
+            p.rank = p.rank.min(16);
+            p.alpha = p.alpha.min(32.0);
+            p.seq_len = p.seq_len.clamp(384, 1024);
+            p.batch_size = p.batch_size.max(2);
+            p.grad_accum = p.grad_accum.max(4);
+        }
+        QwenSizeClass::S2 => {
+            p.rank = p.rank.min(16);
+            p.alpha = p.alpha.min(32.0);
+            p.seq_len = p.seq_len.clamp(320, 768);
+            p.batch_size = p.batch_size.max(1);
+            p.grad_accum = p.grad_accum.max(6);
+        }
+        QwenSizeClass::S4 => {
+            // Keep current 4080-class defaults; only enforce safe floors.
+            p.batch_size = p.batch_size.max(1);
+            p.grad_accum = p.grad_accum.max(8);
+        }
+        QwenSizeClass::S9 => {
+            // 9B requires a tighter envelope on 16G class cards.
+            p.rank = p.rank.min(8);
+            p.alpha = p.alpha.min(16.0);
+            if vram_mb <= 16_384 {
+                p.seq_len = p.seq_len.min(256);
+                p.batch_size = 1;
+                p.grad_accum = p.grad_accum.max(16);
+                p.lr = p.lr.min(1.0e-4);
+            } else if vram_mb <= 24_576 {
+                p.seq_len = p.seq_len.min(384);
+                p.batch_size = p.batch_size.min(1);
+                p.grad_accum = p.grad_accum.max(12);
+            } else {
+                p.seq_len = p.seq_len.min(512);
+                p.grad_accum = p.grad_accum.max(8);
+            }
+        }
+        QwenSizeClass::Other => {}
+    }
+    p
+}
+
+/// Canonicalize historical aliases to the current preset SSOT names.
+fn normalize_preset_name(name: &str) -> &str {
     match name {
+        // Legacy aliases still emitted by some autodetect paths.
+        "qwen_small_8g" => "safe",
+        "qwen_rtx3090_24g" => "4080",
+        "qwen_a100_80g" => "a100",
+        // Historical generic alias kept as the 4080-class default.
+        "default" => "4080",
+        other => other,
+    }
+}
+
+fn base_for_name(name: &str) -> TrainPresetProfile {
+    match normalize_preset_name(name) {
         "tiny" => TrainPresetProfile {
             rank: 4,
             alpha: 8.0,
@@ -166,8 +259,9 @@ pub fn resolve_effective_profile(
     sample_count: Option<usize>,
     overrides: CliOverrides,
 ) -> TrainPresetProfile {
+    let model_hint = std::env::var("VOX_BASE_MODEL").ok();
     let env_p = std::env::var("VOX_TRAIN_PROFILE").ok();
-    let name = preset.or(env_p.as_deref()).unwrap_or(DEFAULT_PRESET);
+    let name = normalize_preset_name(preset.or(env_p.as_deref()).unwrap_or(DEFAULT_PRESET));
 
     let mut p = if name == "auto" {
         if let Some(specs) = load_gpu_specs() {
@@ -224,6 +318,10 @@ pub fn resolve_effective_profile(
     }
     if let Some(l) = overrides.lr {
         p.lr = l;
+    }
+
+    if let Some(class) = detect_qwen_size_class(model_hint.as_deref()) {
+        p = apply_qwen_size_ladder_policy(p, class, device.vram_mb);
     }
 
     let _ = probe_gpu();
@@ -306,6 +404,24 @@ mod preset_tests {
     fn known_presets_include_4080_family() {
         assert!(KNOWN_PRESETS.contains(&"4080"));
         assert!(KNOWN_PRESETS.contains(&"qwen_4080_16g"));
+    }
+
+    #[test]
+    fn legacy_qwen_aliases_map_to_current_profiles() {
+        let small = base_for_name("qwen_small_8g");
+        let safe = base_for_name("safe");
+        assert_eq!(small.seq_len, safe.seq_len);
+        assert_eq!(small.rank, safe.rank);
+
+        let midsize = base_for_name("qwen_rtx3090_24g");
+        let p4080 = base_for_name("4080");
+        assert_eq!(midsize.seq_len, p4080.seq_len);
+        assert_eq!(midsize.rank, p4080.rank);
+
+        let big = base_for_name("qwen_a100_80g");
+        let a100 = base_for_name("a100");
+        assert_eq!(big.seq_len, a100.seq_len);
+        assert_eq!(big.rank, a100.rank);
     }
 
     #[test]

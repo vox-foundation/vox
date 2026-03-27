@@ -38,6 +38,9 @@
       "id": "m4-intelligence",
       "name": "Tool surface, prompts, language introspection",
       "benchmark_classes": [
+        "vox_compiler_syntax_k_webir",
+        "vox_compiler_syntax_k_emit",
+        "vox_compiler_syntax_k_regression_gate",
         "vox_mcp_introspection_language_surface",
         "vox_mcp_tool_dispatch_smoke"
       ],

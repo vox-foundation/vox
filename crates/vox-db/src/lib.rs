@@ -107,6 +107,7 @@ pub mod schema_digest;
 /// OS keyring helpers for API tokens and similar secrets.
 pub mod secrets;
 mod socrates_telemetry;
+pub mod syntax_k_telemetry;
 mod sync_invocables;
 pub mod toestub_store;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
@@ -140,6 +141,7 @@ pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, genera
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
+pub use syntax_k_telemetry::SyntaxKEventMeta;
 pub use store::{
     A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
     BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,

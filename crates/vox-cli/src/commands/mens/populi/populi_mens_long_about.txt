@@ -5,6 +5,6 @@ Quick start:
 
   vox mens corpus extract .    # extract corpus from vox files
   vox mens corpus pairs ...    # generate training pairs
-  vox mens train --model Qwen/Qwen2.5-Coder-3B-Instruct
+  vox mens train --model Qwen/Qwen3-4B-Instruct-2507
   vox mens pipeline            # Corpus → eval → optional native train
   vox mens serve --model ...   # HTTP serve

@@ -25,7 +25,7 @@ pub enum PopuliAction {
         /// Passed to `vox mens train --device` when training runs (default `best` in the pipeline runner).
         #[arg(long)]
         device: Option<String>,
-        /// HuggingFace model repo override (e.g. Qwen/Qwen2.5-Coder-3B-Instruct).
+        /// HuggingFace model repo override (e.g. Qwen/Qwen3-4B-Instruct-2507).
         #[arg(long)]
         model: Option<String>,
         /// Number of training epochs (default: 3).
@@ -48,7 +48,7 @@ pub enum PopuliAction {
     /// Fine-tune: Burn LoRA (`--backend lora`) or Candle HF-embed adapter (`--backend qlora` + `--tokenizer hf`).
     #[cfg(feature = "gpu")]
     Train {
-        /// HuggingFace model repo to fine-tune (e.g. Qwen/Qwen2.5-Coder-3B-Instruct).
+        /// HuggingFace model repo to fine-tune (e.g. Qwen/Qwen3-4B-Instruct-2507).
         /// When set, weights are downloaded natively via hf-hub before training.
         #[arg(long)]
         model: Option<String>,
@@ -98,7 +98,7 @@ pub enum PopuliAction {
         /// Minimum quality rating (1-5) to include. 0 = all. Default 3 matches mix.
         #[arg(long)]
         min_rating: Option<u8>,
-        /// O029: Preset: tiny, safe, 4080 / qwen_4080_16g, mobile_edge (implies `--deployment-target mobile_edge`), …
+        /// O029: Preset: tiny, safe, 4080 / qwen_4080_16g, a100, mobile_edge (implies `--deployment-target mobile_edge`), or auto.
         #[arg(long)]
         preset: Option<String>,
         /// Train for workstation (default) or mobile edge export (requires `--device cpu`; see mobile-edge-ai SSOT).
@@ -132,16 +132,16 @@ pub enum PopuliAction {
         /// Disable qlora-rs double quantization of NF4 scales (default: double quant **on** for smaller VRAM).
         #[arg(long)]
         qlora_no_double_quant: bool,
-        /// Candle QLoRA: abort preflight unless every expected per-layer output projection (`o_proj` / GPT-2 `c_proj`) exists in safetensors (full proxy stack vs LM-head-only).
+        /// Candle QLoRA: strict preflight for full-graph training (requires expected projection/block tensors in safetensors).
         #[arg(long)]
         qlora_require_full_proxy_stack: bool,
-        /// Candle QLoRA: skip the `o_proj` proxy stack; train the tied LM-head adapter only (stable CE on dogfood; see mens-training-ssot.md).
+        /// Candle QLoRA: reserved/deferred flag for LM-head-only mode; currently rejected by trainer (full graph only).
         #[arg(long)]
         qlora_lm_head_only: bool,
         /// Candle QLoRA: abort an epoch if skipped pairs / pair visits exceed this rate (0.0–1.0).
         #[arg(long)]
         qlora_max_skip_rate: Option<f32>,
-        /// Candle QLoRA: max middle `o_proj` layers in the proxy stack (ablation / VRAM). Omit for full stack when keys are complete; `0` = LM-head-only.
+        /// Candle QLoRA: reserved/deferred partial-depth flag; values below model depth are currently rejected by trainer.
         #[arg(long)]
         qlora_proxy_max_layers: Option<usize>,
         /// Candle QLoRA: next-token CE on the last **K** positions per JSONL row (default 64). Capped by effective `--seq-len` and 64.
@@ -232,7 +232,7 @@ pub enum PopuliAction {
     /// Invokes `uv run python mens/scripts/quantized_train.py` with env vars.
     /// Emits structured logs; writes manifest/metrics to output dir.
     TrainUv {
-        /// HuggingFace model ID (e.g. Qwen/Qwen2.5-Coder-3B-Instruct)
+        /// HuggingFace model ID (e.g. Qwen/Qwen3-4B-Instruct-2507)
         #[arg(long)]
         model: Option<String>,
         /// Directory containing train.jsonl

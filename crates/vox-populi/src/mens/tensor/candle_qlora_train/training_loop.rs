@@ -25,7 +25,7 @@ use crate::mens::tensor::{
 #[allow(clippy::too_many_arguments)]
 pub(super) fn run_training_loop(
     trainer: &mut QLoraTrainer,
-    model: crate::mens::tensor::candle_model_qwen::Qwen2Model,
+    model: super::TrainGraphModel,
     bundle: &QloraEmbedBundle,
     out: &Path,
     config: &LoraTrainingConfig,
@@ -55,8 +55,24 @@ pub(super) fn run_training_loop(
         );
     }
 
-    // Partial proxy / LM-head-only requests fail early in `run_candle_qlora_train`; this loop always runs the full graph.
-    let proxy_stack_complete = true;
+    // The trainer always runs a full forward graph; this flag tracks middle-projection key completeness in base shards.
+    let proxy_stack_complete = match crate::mens::tensor::candle_qlora_weights::tensor_keys_union(
+        &bundle.weight_paths,
+    ) {
+        Ok(present) => {
+            let cov = crate::mens::tensor::candle_qlora_weights::middle_projection_coverage(
+                &bundle.layout,
+                &present,
+            );
+            cov.expected == 0 || cov.complete
+        }
+        Err(err) => {
+            train_log::warn(&format!(
+                "Could not recompute middle projection coverage for manifest: {err}"
+            ));
+            false
+        }
+    };
 
     // ── Resume detection ─────────────────────────────────────────────────────
     let mut start_epoch = 1usize;
@@ -101,7 +117,26 @@ pub(super) fn run_training_loop(
             resume_shuffled_indices = None;
             resume_pair_offset = 0;
         } else {
-            resume_shuffled_indices = Some(ckpt.shuffled_indices);
+            let (validated_indices, dropped_bad_indices) =
+                sanitize_resume_indices(&ckpt.shuffled_indices, pairs.len());
+            if dropped_bad_indices > 0 {
+                train_log::warn(&format!(
+                    "Resume checkpoint shuffled_indices dropped {} out-of-range/duplicate entries; reshuffling current epoch.",
+                    dropped_bad_indices
+                ));
+                resume_shuffled_indices = None;
+                resume_pair_offset = 0;
+            } else if validated_indices.len() != pairs.len() {
+                train_log::warn(&format!(
+                    "Resume checkpoint shuffled_indices length {} does not match current dataset size {}; reshuffling current epoch.",
+                    validated_indices.len(),
+                    pairs.len()
+                ));
+                resume_shuffled_indices = None;
+                resume_pair_offset = 0;
+            } else {
+                resume_shuffled_indices = Some(validated_indices);
+            }
         }
     }
 
@@ -122,6 +157,27 @@ pub(super) fn run_training_loop(
                 proxy_stack_complete,
                 middle_layers_active: bundle.layout.num_hidden_layers,
                 ce_last_k: config.qlora_ce_last_k,
+                architecture: match bundle.layout.architecture {
+                    crate::mens::tensor::hf_load::HfArchitecture::Qwen35 => "qwen3_5".to_string(),
+                    crate::mens::tensor::hf_load::HfArchitecture::Qwen2 => "qwen2".to_string(),
+                    crate::mens::tensor::hf_load::HfArchitecture::Gpt2 => "gpt2".to_string(),
+                },
+                linear_layers: Some(
+                    bundle
+                        .layout
+                        .layer_types
+                        .iter()
+                        .filter(|t| t.as_str() == "linear_attention")
+                        .count(),
+                ),
+                full_layers: Some(
+                    bundle
+                        .layout
+                        .layer_types
+                        .iter()
+                        .filter(|t| t.as_str() == "full_attention")
+                        .count(),
+                ),
             },
         ),
     )?;
@@ -195,7 +251,7 @@ pub(super) fn run_training_loop(
         let mut epoch_steps = 0u32;
 
         let pair_start = if epoch == start_epoch {
-            resume_pair_offset
+            resume_pair_offset.min(shuffled_indices.len())
         } else {
             0
         };
@@ -317,7 +373,13 @@ pub(super) fn run_training_loop(
                 let w_t = candle_core::Tensor::new(&[w], device)?;
                 let loss = loss.broadcast_mul(&w_t)?;
 
-                let loss_scalar = loss.to_scalar::<f32>()?;
+                let loss_scalar = match loss.rank() {
+                    0 => loss.to_scalar::<f32>()?,
+                    1 if loss.dim(0)? == 1 => loss.squeeze(0)?.to_scalar::<f32>()?,
+                    r => {
+                        anyhow::bail!("unexpected loss rank: expected scalar or [1], got rank={r}")
+                    }
+                };
                 if !loss_scalar.is_finite() {
                     train_log::warn(&format!(
                         "⚠ Non-finite loss before backward at epoch {} step {} (skip update); try --lr or check data",
@@ -567,6 +629,24 @@ fn build_epoch_shuffled_indices(
     idx
 }
 
+fn sanitize_resume_indices(indices: &[usize], pair_count: usize) -> (Vec<usize>, usize) {
+    if indices.is_empty() {
+        return (Vec::new(), 0);
+    }
+    let mut seen = vec![false; pair_count];
+    let mut out = Vec::with_capacity(indices.len());
+    let mut dropped = 0usize;
+    for &idx in indices {
+        if idx >= pair_count || seen[idx] {
+            dropped += 1;
+            continue;
+        }
+        seen[idx] = true;
+        out.push(idx);
+    }
+    (out, dropped)
+}
+
 fn trajectory_weight_for_pair(pair: &TrainingPair, config: &LoraTrainingConfig) -> (f64, bool) {
     if !config.trajectory_weighting_enabled {
         return (1.0, false);
@@ -631,7 +711,8 @@ fn build_train_step_payload(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_epoch_shuffled_indices, build_train_step_payload, trajectory_weight_for_pair,
+        build_epoch_shuffled_indices, build_train_step_payload, sanitize_resume_indices,
+        trajectory_weight_for_pair,
     };
     use rand::SeedableRng;
     use vox_tensor::data::TrainingPair;
@@ -653,6 +734,13 @@ mod tests {
         let expect = build_epoch_shuffled_indices(2, 1, 6, &None, &mut rng_b);
         assert_eq!(got, expect);
         assert!(!got.is_empty());
+    }
+
+    #[test]
+    fn sanitize_resume_indices_rejects_out_of_bounds_and_duplicates() {
+        let (indices, dropped) = sanitize_resume_indices(&[3, 1, 3, 5, 0], 4);
+        assert_eq!(indices, vec![3, 1, 0]);
+        assert_eq!(dropped, 2);
     }
 
     #[test]

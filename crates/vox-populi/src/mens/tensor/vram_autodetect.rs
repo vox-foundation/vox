@@ -50,7 +50,7 @@ pub fn get_system_vram_gb() -> Option<f32> {
 
 /// Select the best training preset for the detected hardware.
 ///
-/// Returns a preset name matching `mens/config/presets.yaml` keys.
+/// Returns a preset name matching `preset_schema.rs` known aliases.
 /// Returns `None` when CUDA is not in use or VRAM is too low.
 pub fn auto_preset(device_is_cuda: bool, vram_gb: Option<f32>) -> Option<&'static str> {
     if !device_is_cuda {
@@ -58,10 +58,10 @@ pub fn auto_preset(device_is_cuda: bool, vram_gb: Option<f32>) -> Option<&'stati
     }
     match vram_gb {
         Some(v) if v < 6.0 => None, // Too small for QLoRA
-        Some(v) if v < 10.0 => Some("qwen_small_8g"),
+        Some(v) if v < 10.0 => Some("safe"),
         Some(v) if v <= 16.0 => Some("qwen_4080_16g"),
-        Some(v) if v <= 24.0 => Some("qwen_rtx3090_24g"),
-        Some(_) => Some("qwen_a100_80g"),
+        Some(v) if v <= 24.0 => Some("4080"),
+        Some(_) => Some("a100"),
         None => None,
     }
 }
@@ -89,8 +89,8 @@ mod tests {
     #[test]
     fn auto_preset_maps_correctly() {
         assert_eq!(auto_preset(true, Some(16.0)), Some("qwen_4080_16g"));
-        assert_eq!(auto_preset(true, Some(8.0)), Some("qwen_small_8g"));
-        assert_eq!(auto_preset(true, Some(80.0)), Some("qwen_a100_80g"));
+        assert_eq!(auto_preset(true, Some(8.0)), Some("safe"));
+        assert_eq!(auto_preset(true, Some(80.0)), Some("a100"));
         assert_eq!(auto_preset(false, Some(16.0)), None);
         assert_eq!(auto_preset(true, Some(4.0)), None);
     }

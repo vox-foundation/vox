@@ -153,6 +153,33 @@ pub async fn run_train(
 
             let mix_yaml = root.join("mens/config/mix.yaml");
             if mix_yaml.exists() {
+                if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_yaml)
+                    && let Some(primary) = mix_cfg.sources.first()
+                {
+                    let primary_path = root.join(&primary.path);
+                    let final_train_path = data_dir.join("train.jsonl");
+                    if primary_path != final_train_path {
+                        eprintln!(
+                            "  {} mix primary source mismatch: {} vs {} (syncing active train file)",
+                            "⚠".yellow(),
+                            primary_path.display(),
+                            final_train_path.display()
+                        );
+                        if final_train_path.is_file() {
+                            if let Some(parent) = primary_path.parent() {
+                                let _ = std::fs::create_dir_all(parent);
+                            }
+                            if let Err(e) = std::fs::copy(&final_train_path, &primary_path) {
+                                eprintln!(
+                                    "  {} Failed to sync active train file into mix source {}: {}",
+                                    "⚠️".yellow(),
+                                    primary_path.display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
                 eprintln!("  {} Running corpus mix...", "🔄".cyan());
                 if let Err(e) = vox_corpus::corpus::run_mix(&mix_yaml) {
                     eprintln!("  {} Mix failed: {}", "⚠️".yellow(), e);

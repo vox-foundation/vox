@@ -21,9 +21,9 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     --backend qlora `
     --tokenizer hf `
     --preset qwen_4080_16g `
-    --model Qwen/Qwen2.5-Coder-3B-Instruct `
+    --model Qwen/Qwen3.5-4B `
     --data-dir target/dogfood `
-    --output-dir mens/runs/qwen25_qlora_dogfood `
+    --output-dir mens/runs/qwen35_qlora_dogfood `
     --device cuda `
     --qlora-require-full-proxy-stack `
     --background `

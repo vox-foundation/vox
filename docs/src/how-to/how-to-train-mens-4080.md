@@ -12,10 +12,10 @@ training_eligible: true
 
 This runbook covers **two** native paths:
 
-1. **Production Qwen 2.5 (recommended for Qwen2.5-Coder-*)** — **Candle QLoRA** (`--backend qlora`, NF4 frozen bases via qlora-rs). Build with **`mens-candle-cuda`** on Windows/Linux when you have an NVIDIA GPU and CUDA toolkit available for `candle-core`.
+1. **Production Qwen 3.5 (recommended for Qwen3.5-4B-Instruct)** — **Candle QLoRA** (`--backend qlora`, NF4 frozen bases via qlora-rs). Build with **`mens-candle-cuda`** on Windows/Linux when you have an NVIDIA GPU and CUDA toolkit available for `candle-core`.
 2. **Burn LoRA (GPT-2-shaped HF or Vox tokenizer)** — default `vox mens train` without `--backend qlora`; uses **wgpu** (Vulkan/DX12) on Windows.
 
-## Recommended Path (Qwen2.5-Coder-3B, RTX 4080-class 16GB)
+## Recommended Path (Qwen3.5-4B, RTX 4080-class 16GB)
 
 - **Build** (CUDA): from repo root, **`cargo vox-cuda-release`** (alias in `.cargo/config.toml` — same as `cargo build -p vox-cli --release --features gpu,mens-candle-cuda`). 
   > [!WARNING]
@@ -26,13 +26,13 @@ This runbook covers **two** native paths:
   .\target\release\vox.exe mens train `
     --backend qlora --tokenizer hf `
     --preset qwen_4080_16g `
-    --model Qwen/Qwen2.5-Coder-3B-Instruct `
+    --model Qwen/Qwen3.5-4B `
     --data-dir target/dogfood `
-    --output-dir mens/runs/qwen25_qlora `
+    --output-dir mens/runs/qwen35_qlora `
     --device cuda `
     --qlora-require-full-proxy-stack
   ```
-  Drop `--qlora-require-full-proxy-stack` only if you intentionally want **LM-head-only** QLoRA when shards lack per-layer `o_proj` keys.
+  `--qlora-require-full-proxy-stack` is recommended for strict shard completeness on native qwen3_5 runs. LM-head-only mode is currently deferred/not implemented in the native trainer.
 - **Artifacts**: `candle_qlora_adapter.safetensors`, `candle_qlora_adapter_meta.json`, `populi_adapter_manifest_v3.json`, `training_manifest.json`, `telemetry.jsonl`.
 ### Go-live checklist (local CUDA dogfood)
 
@@ -106,7 +106,7 @@ Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny d
    .\target\release\vox.exe mens train `
      --backend qlora --tokenizer hf `
      --preset qwen_4080_16g `
-     --model Qwen/Qwen2.5-Coder-3B-Instruct `
+    --model Qwen/Qwen3.5-4B `
      --data-dir target/dogfood `
      --output-dir mens/runs/rtx4080_full `
      --device cuda `
@@ -174,13 +174,13 @@ Use this before claiming a full dogfood run is complete (CI cannot substitute fo
 
 1. **Corpus**: `mens corpus mix --config mens/config/mix.yaml` → copy/rename to **`target/dogfood/train.jsonl`** (preflight requires that filename in `--data-dir`).
 2. **Build**: **`cargo vox-cuda-release`** natively from a `vcvars64.bat` loaded interactive terminal (`nvcc` relies on absolute discovery and crashes in subshells).
-3. **Train**: `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; add `--qlora-require-full-proxy-stack` for strict full proxy stack.
+3. **Train**: `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; keep `--qlora-require-full-proxy-stack` on for strict native shard completeness.
 4. **Artifacts**: Confirm **`candle_qlora_adapter.safetensors`**, **`candle_qlora_adapter_meta.json`**, **`populi_adapter_manifest_v3.json`**, **`training_manifest.json`**, **`telemetry.jsonl`** under the output dir.
 5. **Merge / serve**: Candle merge is **`vox schola merge-qlora`** (f32 shard subsets); **`vox mens serve`** stays Burn-only — see SSOT [Merge / export](../reference/mens-training.md#merge--export--inference).
-6. **Optional automation**: `scripts/run_qwen25_qlora_real_4080.ps1` builds (CUDA by default) and launches the canonical CLI in the background; see [scripts/README.md](../adr/README.md).
+6. **Optional automation**: `scripts/populi/dogfood_qlora_cuda.ps1` builds (CUDA by default) and launches the canonical CLI in the background; see [scripts/README.md](../../../scripts/README.md).
 
 ## See Also
 
 - [Native ML Training Pipeline](../explanation/expl-ml-pipeline.md)
 - [How To: Publish Mens to Hugging Face](../reference/mens-cloud-gpu.md)
-- [scripts/README.md](../adr/README.md) — thin delegates + optional RTX 4080 QLoRA helper script
+- [scripts/README.md](../../../scripts/README.md) — thin delegates + optional RTX 4080 QLoRA helper script

@@ -168,6 +168,23 @@ fn candle_proxy_stack_status(
     #[cfg(feature = "mens-candle-qlora")]
     {
         let layout = super::hf_load::HfTransformerLayout::from_config_path(config_path)?;
+        if layout.architecture == HfArchitecture::Qwen35 {
+            if layout.layer_types.len() != layout.num_hidden_layers {
+                anyhow::bail!(
+                    "qwen3_5 planner preflight: layer_types length {} does not match num_hidden_layers {} in {}",
+                    layout.layer_types.len(),
+                    layout.num_hidden_layers,
+                    config_path.display()
+                );
+            }
+            for (idx, ty) in layout.layer_types.iter().enumerate() {
+                if ty != "full_attention" && ty != "linear_attention" {
+                    anyhow::bail!(
+                        "qwen3_5 planner preflight: unsupported layer_types[{idx}]={ty:?}; expected `full_attention` or `linear_attention`."
+                    );
+                }
+            }
+        }
         let present = super::candle_qlora_weights::tensor_keys_union(shards)?;
         let cov = super::candle_qlora_weights::middle_projection_coverage(&layout, &present);
         if cov.expected == 0 {

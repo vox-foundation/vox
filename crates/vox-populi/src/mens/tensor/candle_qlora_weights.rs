@@ -17,6 +17,14 @@ use std::collections::HashSet;
 pub struct MiddleProjectionCoverage {
     pub matched: usize,
     pub expected: usize,
+    /// qwen3_5: matched linear-attention middle projections.
+    pub linear_matched: usize,
+    /// qwen3_5: expected linear-attention middle projections.
+    pub linear_expected: usize,
+    /// qwen3_5: matched full-attention middle projections.
+    pub full_matched: usize,
+    /// qwen3_5: expected full-attention middle projections.
+    pub full_expected: usize,
     /// `true` when `expected == 0` or every expected key is present in `present`.
     pub complete: bool,
 }
@@ -32,16 +40,47 @@ pub fn middle_projection_coverage(
         return MiddleProjectionCoverage {
             matched: 0,
             expected: 0,
+            linear_matched: 0,
+            linear_expected: 0,
+            full_matched: 0,
+            full_expected: 0,
             complete: true,
         };
     }
-    let matched = expected_keys
-        .iter()
-        .filter(|k| present.contains(k.as_str()))
-        .count();
+    let mut matched = 0usize;
+    let mut linear_expected = 0usize;
+    let mut linear_matched = 0usize;
+    let mut full_expected = 0usize;
+    let mut full_matched = 0usize;
+    for (idx, key) in expected_keys.iter().enumerate() {
+        let is_linear = layout
+            .layer_types
+            .get(idx)
+            .map(|t| t == "linear_attention")
+            .unwrap_or(false);
+        let has = present.contains(key.as_str());
+        if has {
+            matched += 1;
+        }
+        if is_linear {
+            linear_expected += 1;
+            if has {
+                linear_matched += 1;
+            }
+        } else {
+            full_expected += 1;
+            if has {
+                full_matched += 1;
+            }
+        }
+    }
     MiddleProjectionCoverage {
         matched,
         expected: n_exp,
+        linear_matched,
+        linear_expected,
+        full_matched,
+        full_expected,
         complete: matched == n_exp,
     }
 }

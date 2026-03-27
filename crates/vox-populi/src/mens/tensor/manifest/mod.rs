@@ -124,7 +124,7 @@ pub struct TrainingManifest {
     /// Hex digest of the full [`super::finetune_contract::FineTuneContract`] at plan time (`finetune_contract_digest`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finetune_contract_digest: Option<String>,
-    /// Candle QLoRA: optimizer steps that completed (`training_step_lm` success).
+    /// Candle QLoRA: optimizer steps that completed in the native training loop.
     #[serde(default)]
     pub candle_qlora_training_steps_executed: u64,
     /// Candle QLoRA: pairs skipped because last token id was out of vocab.
@@ -136,18 +136,27 @@ pub struct TrainingManifest {
     /// Candle QLoRA: pairs skipped because encoded context was shorter than 2 tokens (cannot form a next-token target).
     #[serde(default)]
     pub candle_qlora_skips_short_seq: u64,
-    /// Candle QLoRA: whether full middle projection stack was used (same as trainer `use_o_proj_stack`).
+    /// Candle QLoRA: whether all expected middle projection keys were present in base shards.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candle_qlora_proxy_stack_complete: Option<bool>,
-    /// Candle QLoRA: bounded graph id (`proxy_stack_v1_residual` vs `lm_head_only`).
+    /// Candle QLoRA execution graph id (for objective/telemetry compatibility across trainer revisions).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candle_qlora_graph_id: Option<String>,
-    /// Candle QLoRA: middle projection layers active in the stacked forward (`0` = LM-head-only path).
+    /// Candle QLoRA: middle projection layers expected by layout inventory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candle_qlora_middle_layers_active: Option<usize>,
     /// Candle QLoRA: suffix CE — last **K** token positions per row (`1` = last token only).
     #[serde(default = "default_candle_qlora_ce_last_k")]
     pub candle_qlora_ce_last_k: usize,
+    /// Candle QLoRA architecture label (`qwen2` / `qwen3_5`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candle_qlora_architecture: Option<String>,
+    /// qwen3_5 hybrid layout: count of linear-attention layers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candle_qlora_linear_layers: Option<usize>,
+    /// qwen3_5 hybrid layout: count of full-attention layers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candle_qlora_full_layers: Option<usize>,
     /// Training objective hint for operators (kernel-specific).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub training_objective_note: Option<String>,
@@ -251,14 +260,17 @@ impl InitialManifestRun {
 }
 
 /// Which native kernel is writing the first `training_manifest.json` (kernel-specific notes / Candle fields).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum InitialTrainingKernel {
     BurnLora,
-    /// `proxy_stack_complete` / `middle_layers_active` match the trainer stack; `ce_last_k` is the suffix CE width.
+    /// `proxy_stack_complete` captures preflight key coverage; `ce_last_k` is suffix CE width.
     CandleQlora {
         proxy_stack_complete: bool,
         middle_layers_active: usize,
         ce_last_k: usize,
+        architecture: String,
+        linear_layers: Option<usize>,
+        full_layers: Option<usize>,
     },
 }
 include!("part_build.rs");

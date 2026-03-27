@@ -15,14 +15,18 @@ use std::path::PathBuf;
 use anyhow::Context;
 use safetensors::SafeTensors;
 
-use super::hf_load::HfTransformerLayout;
+use super::hf_load::{HfArchitecture, HfTransformerLayout};
 use super::operator_messages::{
     self, QLORA_NEEDS_HF_WEIGHTS, QLORA_NEEDS_TOKENIZER_PATH, QLORA_REQUIRES_HF_TOKENIZER,
 };
 use super::training_config::{LoraTrainingConfig, MensTokenizerMode};
 
-/// Prefer `wte` (GPT-2) before `embed_tokens` (Llama/Qwen) when both exist anywhere in the shard list.
-const EMBED_KEYS: &[&str] = &["wte.weight", "model.embed_tokens.weight"];
+/// Prefer `wte` (GPT-2) before `embed_tokens` when both exist anywhere in the shard list.
+const EMBED_KEYS: &[&str] = &[
+    "wte.weight",
+    "model.embed_tokens.weight",
+    "model.language_model.embed_tokens.weight",
+];
 
 /// Scan all shards: first **valid** rank-2 table in key order (`wte` then `embed_tokens`).
 /// If a preferred key exists but is not rank-2, fail (do not fall back silently).
@@ -88,6 +92,162 @@ pub struct QloraEmbedBundle {
     pub layout: HfTransformerLayout,
 }
 
+fn qwen35_rope_candidates(layout: &HfTransformerLayout, layer_idx: usize) -> Vec<String> {
+    let prefix = format!("{}.{}", layout.namespace_prefix, layer_idx);
+    vec![
+        format!("{prefix}.self_attn.rotary_emb.inv_freq"),
+        format!("{prefix}.linear_attn.rotary_emb.inv_freq"),
+    ]
+}
+
+fn warn_on_missing_qwen35_rope_keys(
+    layout: &HfTransformerLayout,
+    present: &std::collections::HashSet<String>,
+) {
+    if layout.architecture != HfArchitecture::Qwen35 {
+        return;
+    }
+    let mut missing: Vec<String> = Vec::new();
+    for layer_idx in 0..layout.num_hidden_layers {
+        let candidates = qwen35_rope_candidates(layout, layer_idx);
+        if !candidates.iter().any(|k| present.contains(k)) {
+            missing.push(format!("layer {layer_idx}: one of {:?}", candidates));
+        }
+    }
+    if !missing.is_empty() {
+        super::train_log::warn(&format!(
+            "qwen3_5 RoPE tensors (`inv_freq`) are missing for {} layer(s) in shards; trainer will synthesize rotary frequencies from config `rope_theta` when available. Missing (up to 8): {:?}",
+            missing.len(),
+            missing.into_iter().take(8).collect::<Vec<_>>()
+        ));
+    }
+}
+
+fn first_tensor_shape(
+    weight_paths: &[PathBuf],
+    key: &str,
+) -> anyhow::Result<Option<Vec<usize>>> {
+    for wp in weight_paths {
+        let bytes =
+            std::fs::read(wp).with_context(|| format!("read weight shard {}", wp.display()))?;
+        let st = SafeTensors::deserialize(&bytes).with_context(|| format!("parse {}", wp.display()))?;
+        if let Ok(t) = st.tensor(key) {
+            return Ok(Some(t.shape().to_vec()));
+        }
+    }
+    Ok(None)
+}
+
+fn expect_shape_exact(
+    weight_paths: &[PathBuf],
+    key: &str,
+    expected: &[usize],
+) -> anyhow::Result<()> {
+    if let Some(found) = first_tensor_shape(weight_paths, key)? {
+        if found != expected {
+            anyhow::bail!(
+                "qwen3_5 shape mismatch for `{}`: expected {:?}, found {:?}",
+                key,
+                expected,
+                found
+            );
+        }
+    }
+    Ok(())
+}
+
+fn expect_shape_one_of(
+    weight_paths: &[PathBuf],
+    key: &str,
+    expected: &[Vec<usize>],
+) -> anyhow::Result<()> {
+    if let Some(found) = first_tensor_shape(weight_paths, key)?
+        && !expected.iter().any(|e| e == &found)
+    {
+        anyhow::bail!(
+            "qwen3_5 shape mismatch for `{}`: expected one of {:?}, found {:?}",
+            key,
+            expected,
+            found
+        );
+    }
+    Ok(())
+}
+
+fn validate_qwen35_linear_shapes(bundle: &QloraEmbedBundle) -> anyhow::Result<()> {
+    if bundle.layout.architecture != HfArchitecture::Qwen35 {
+        return Ok(());
+    }
+    let n_heads = bundle.layout.num_attention_heads.max(1);
+    let head_dim = bundle.layout.head_dim.unwrap_or(bundle.layout.hidden_size / n_heads);
+    let key_heads = bundle.layout.linear_num_key_heads.unwrap_or(n_heads);
+    let value_heads = bundle.layout.linear_num_value_heads.unwrap_or(n_heads);
+    let key_dim = bundle.layout.linear_key_head_dim.unwrap_or(head_dim);
+    let value_dim = bundle.layout.linear_value_head_dim.unwrap_or(head_dim);
+    let value_total = value_heads * value_dim;
+    let qkv_rows = (key_heads * key_dim * 2) + value_total;
+    let conv_k = bundle.layout.linear_conv_kernel_dim.unwrap_or(4);
+
+    for i in 0..bundle.layout.num_hidden_layers {
+        let p = format!("{}.{}", bundle.layout.namespace_prefix, i);
+        let ty = bundle
+            .layout
+            .layer_types
+            .get(i)
+            .map(String::as_str)
+            .unwrap_or("full_attention");
+        if ty != "linear_attention" {
+            continue;
+        }
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.in_proj_qkv.weight"),
+            &[qkv_rows, bundle.layout.hidden_size],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.in_proj_z.weight"),
+            &[value_total, bundle.layout.hidden_size],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.in_proj_a.weight"),
+            &[value_heads, bundle.layout.hidden_size],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.in_proj_b.weight"),
+            &[value_heads, bundle.layout.hidden_size],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.out_proj.weight"),
+            &[bundle.layout.hidden_size, value_total],
+        )?;
+        expect_shape_one_of(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.conv1d.weight"),
+            &[vec![qkv_rows, 1, conv_k], vec![qkv_rows, conv_k]],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.dt_bias"),
+            &[value_heads],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.A_log"),
+            &[value_heads],
+        )?;
+        expect_shape_exact(
+            &bundle.weight_paths,
+            &format!("{p}.linear_attn.norm.weight"),
+            &[value_dim],
+        )?;
+    }
+    Ok(())
+}
+
 /// Fail fast unless HF tokenizer + safetensors shards contain a supported embedding matrix.
 pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<QloraEmbedBundle> {
     if !matches!(config.tokenizer_mode, MensTokenizerMode::Hf) {
@@ -140,7 +300,7 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
         );
     }
 
-    let bundle = QloraEmbedBundle {
+    let mut bundle = QloraEmbedBundle {
         weight_paths: weight_paths.clone(),
         config_path: config_path.clone(),
         tokenizer_path: tok_path.clone(),
@@ -152,6 +312,17 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
 
     let present = super::candle_qlora_weights::tensor_keys_union(&bundle.weight_paths)
         .context("read safetensors key union for Candle QLoRA preflight")?;
+    if bundle.layout.architecture == HfArchitecture::Qwen35 {
+        let configured_probe = format!("{}.0.input_layernorm.weight", bundle.layout.namespace_prefix);
+        if !present.contains(&configured_probe)
+            && present.contains("model.layers.0.input_layernorm.weight")
+        {
+            super::train_log::warn(
+                "qwen3_5 layout namespace override: using `model.layers` keys from shards instead of `model.language_model.layers`.",
+            );
+            bundle.layout.namespace_prefix = "model.layers".to_string();
+        }
+    }
     let cov = super::candle_qlora_weights::middle_projection_coverage(&bundle.layout, &present);
     let n_mid = cov.expected;
     let matched_mid = cov.matched;
@@ -163,7 +334,7 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
         anyhow::bail!(
             "Candle QLoRA strict proxy stack: need all {} per-layer output-projection weights in shards; found {}. \
              Missing (up to 32): {:?}. \
-             Next: pass complete HF `model*.safetensors`, or omit `--qlora-require-full-proxy-stack` for LM-head-only training. \
+             Next: pass complete HF `model*.safetensors` for full-stack training. \
              See {}.",
             n_mid,
             matched_mid,
@@ -172,8 +343,53 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
         );
     }
 
+    if bundle.layout.architecture == HfArchitecture::Qwen35 {
+        let bad_layer_types: Vec<String> = bundle
+            .layout
+            .layer_types
+            .iter()
+            .enumerate()
+            .filter(|(_, ty)| {
+                let t = ty.as_str();
+                t != "full_attention" && t != "linear_attention"
+            })
+            .map(|(idx, ty)| format!("layer {idx}: {ty}"))
+            .collect();
+        if !bad_layer_types.is_empty() {
+            anyhow::bail!(
+                "Unsupported qwen3_5 layer type(s): {:?}. Supported values are `full_attention` and `linear_attention`.",
+                bad_layer_types
+            );
+        }
+        if bundle.layout.layer_types.len() != bundle.layout.num_hidden_layers {
+            anyhow::bail!(
+                "qwen3_5 config mismatch: layer_types length {} does not match num_hidden_layers {}.",
+                bundle.layout.layer_types.len(),
+                bundle.layout.num_hidden_layers
+            );
+        }
+        validate_qwen35_linear_shapes(&bundle)?;
+        warn_on_missing_qwen35_rope_keys(&bundle.layout, &present);
+    }
+
     let full = super::candle_qlora_weights::ordered_full_block_weight_keys(&bundle.layout);
     let matched_full = full.iter().filter(|k| present.contains(k.as_str())).count();
+    if config.qlora_require_full_proxy_stack && matched_full < full.len() {
+        let missing_full: Vec<String> = full
+            .iter()
+            .filter(|k| !present.contains(k.as_str()))
+            .take(32)
+            .cloned()
+            .collect();
+        anyhow::bail!(
+            "Candle QLoRA strict full-graph preflight: only {}/{} required block tensors were found. \
+             Missing (up to 32): {:?}. \
+             Next: pass a complete HF shard set from one revision (config + tokenizer + safetensors).",
+            matched_full,
+            full.len(),
+            missing_full
+        );
+    }
     let sample = super::candle_qlora_weights::sample_present_keys_sorted_from_present(&present, 24);
     tracing::info!(
         target: "vox_populi::mens::qlora_preflight",
@@ -368,6 +584,44 @@ mod tests {
         assert_eq!(b.d_model, 7);
         assert_eq!(b.layout.hidden_size, 7);
         assert_eq!(b.layout.model_type, "qwen2");
+    }
+
+    #[test]
+    fn preflight_ok_with_qwen35_language_model_embed_tokens_weight() {
+        let dir = tempdir().expect("tempdir");
+        let tok = dir.path().join("tokenizer.json");
+        std::fs::write(&tok, "{}").expect("tokenizer");
+        let cfg_path = dir.path().join("config.json");
+        std::fs::write(
+            &cfg_path,
+            r#"{"model_type":"qwen3_5","text_config":{"hidden_size":7,"num_attention_heads":1,"num_hidden_layers":1,"vocab_size":5,"layer_types":["full_attention"]}}"#,
+        )
+        .expect("config");
+        let st_embed = dir.path().join("embed.safetensors");
+        write_minimal_safetensors(
+            &st_embed,
+            "model.language_model.embed_tokens.weight",
+            5,
+            7,
+        );
+        let st_rope = dir.path().join("rope.safetensors");
+        let rope_raw: Vec<u8> = vec![0u8; 3 * 4];
+        write_tensor_view(
+            &st_rope,
+            "model.language_model.layers.0.self_attn.rotary_emb.inv_freq",
+            vec![3],
+            &rope_raw,
+        );
+
+        let c = LoraTrainingConfig {
+            tokenizer_mode: MensTokenizerMode::Hf,
+            tokenizer_path: Some(tok),
+            base_model_paths: Some((vec![st_embed, st_rope], cfg_path)),
+            ..Default::default()
+        };
+        let b = preflight_native_qlora(&c).expect("preflight");
+        assert_eq!(b.embed_key, "model.language_model.embed_tokens.weight");
+        assert_eq!(b.layout.architecture, super::HfArchitecture::Qwen35);
     }
 
     #[test]

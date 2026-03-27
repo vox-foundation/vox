@@ -51,7 +51,7 @@ fn initial_training_manifest_burn_wires_kernel_and_candle_defaults() {
     assert_eq!(m.candle_qlora_proxy_stack_complete, None);
     assert_eq!(m.candle_qlora_graph_id.as_deref(), None);
     assert_eq!(m.candle_qlora_middle_layers_active, None);
-    assert_eq!(m.candle_qlora_ce_last_k, 1);
+    assert_eq!(m.candle_qlora_ce_last_k, 64);
     assert_eq!(m.candle_qlora_training_steps_executed, 0);
     assert_eq!(m.grad_accum, 3);
     assert_eq!(m.train_file, "train.jsonl");
@@ -102,16 +102,19 @@ fn initial_training_manifest_candle_sets_proxy_and_objective() {
             proxy_stack_complete: true,
             middle_layers_active: 3,
             ce_last_k: 1,
+            architecture: "qwen3_5".to_string(),
+            linear_layers: Some(2),
+            full_layers: Some(1),
         },
     );
     assert_eq!(m_stack.execution_kernel.as_deref(), Some("candle_qlora"));
     assert_eq!(
         m_stack.training_objective_note.as_deref(),
-        Some("candle_qlora_proxy_v1_k1")
+        Some("candle_qlora_full_graph_k1")
     );
     assert_eq!(
         m_stack.candle_qlora_graph_id.as_deref(),
-        Some("proxy_stack_v1_residual")
+        Some("full_graph_v1")
     );
     assert_eq!(m_stack.candle_qlora_middle_layers_active, Some(3));
     assert_eq!(m_stack.candle_qlora_ce_last_k, 1);
@@ -132,11 +135,14 @@ fn initial_training_manifest_candle_sets_proxy_and_objective() {
             proxy_stack_complete: true,
             middle_layers_active: 2,
             ce_last_k: 8,
+            architecture: "qwen3_5".to_string(),
+            linear_layers: Some(1),
+            full_layers: Some(1),
         },
     );
     assert_eq!(
         m_k8.training_objective_note.as_deref(),
-        Some("candle_qlora_proxy_v1_k8")
+        Some("candle_qlora_full_graph_k8")
     );
     assert_eq!(m_k8.candle_qlora_ce_last_k, 8);
 
@@ -154,10 +160,13 @@ fn initial_training_manifest_candle_sets_proxy_and_objective() {
             proxy_stack_complete: false,
             middle_layers_active: 0,
             ce_last_k: 1,
+            architecture: "qwen2".to_string(),
+            linear_layers: Some(0),
+            full_layers: Some(2),
         },
     );
     assert_eq!(m_lm.candle_qlora_proxy_stack_complete, Some(false));
-    assert_eq!(m_lm.candle_qlora_graph_id.as_deref(), Some("lm_head_only"));
+    assert_eq!(m_lm.candle_qlora_graph_id.as_deref(), Some("full_graph_v1"));
     assert_eq!(m_lm.candle_qlora_middle_layers_active, Some(0));
 }
 
@@ -240,7 +249,10 @@ fn training_manifest_roundtrip_grad_accum() {
         candle_qlora_proxy_stack_complete: None,
         candle_qlora_graph_id: None,
         candle_qlora_middle_layers_active: None,
-        candle_qlora_ce_last_k: 1,
+        candle_qlora_ce_last_k: 64,
+        candle_qlora_architecture: None,
+        candle_qlora_linear_layers: None,
+        candle_qlora_full_layers: None,
         training_objective_note: None,
         training_deployment_target: None,
         training_deployment_note: None,

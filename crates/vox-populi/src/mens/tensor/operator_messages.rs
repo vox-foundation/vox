@@ -32,7 +32,7 @@ pub const MOBILE_EDGE_TRAINING_MANIFEST_NOTE: &str = "mobile_edge: train off-dev
 pub const MOBILE_EDGE_REQUIRES_CPU_DEVICE: &str = "`--deployment-target mobile_edge` (or `--preset mobile_edge`) requires `--device cpu` so adapters are not tied to desktop GPU stacks. See docs/src/architecture/mobile-edge-ai-ssot.md.";
 
 /// Planner: `--qlora-require-full-proxy-stack` conflicts with mobile edge export gates.
-pub const MOBILE_EDGE_REJECTS_FULL_PROXY_STACK: &str = "mobile_edge deployment target rejects `--qlora-require-full-proxy-stack` (use LM-head or bounded stack for edge-sized exports). See docs/src/architecture/mobile-edge-ai-ssot.md.";
+pub const MOBILE_EDGE_REJECTS_FULL_PROXY_STACK: &str = "mobile_edge deployment target rejects `--qlora-require-full-proxy-stack` in the current full-graph trainer path. Use workstation-targeted training and convert artifacts for edge deployment separately. See docs/src/architecture/mobile-edge-ai-ssot.md.";
 
 /// Planner: sequence length cap for mobile edge.
 pub fn mobile_edge_seq_len_cap(got: usize) -> String {

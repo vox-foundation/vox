@@ -78,7 +78,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             crate::commands::schola::train::run_train(
                 PopuliTrainBackendCli::Qlora.into(),
-                Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
+                Some("Qwen/Qwen3.5-4B".into()),
                 "cuda".into(),
                 data_dir,
                 output_dir,
@@ -102,11 +102,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Some(0.05),                        // validation_split_ratio
                 MensTokenizerCli::Hf.into(),
                 false, // qlora_no_double_quant
-                false, // qlora_require_full_proxy_stack
+                true, // qlora_require_full_proxy_stack
                 None,  // qlora_max_skip_rate
                 false, // qlora_lm_head_only
                 None,  // qlora_proxy_max_layers
-                16,    // qlora_ce_last_k
+                64,    // qlora_ce_last_k
                 Some(checkpoint_every),
                 force_restart,
                 false, // curriculum (dogfood default: off)

@@ -92,11 +92,11 @@ pub struct LoraTrainingConfig {
     pub qlora_require_full_proxy_stack: bool,
     /// Candle QLoRA: abort training when skip rate (skipped pairs / pair visits) exceeds this value in an epoch.
     pub qlora_max_skip_rate: Option<f32>,
-    /// Candle QLoRA: skip `o_proj` proxy stack; train tied LM-head `QuantizedLinear` only (stable CE on dogfood).
+    /// Candle QLoRA: reserved/deferred LM-head-only mode; current trainer rejects this and runs full graph only.
     pub qlora_lm_head_only: bool,
-    /// Candle QLoRA: cap how many ordered middle `o_proj` layers are stacked before the LM head (`None` = all when stack is used; `0` = LM-head-only).
+    /// Candle QLoRA: reserved/deferred partial-depth cap; current trainer rejects values below model depth.
     pub qlora_proxy_max_layers: Option<usize>,
-    /// Candle QLoRA: next-token CE over the last **K** positions per JSONL row (default 1).
+    /// Candle QLoRA: next-token CE over the last **K** positions per JSONL row (default 64).
     pub qlora_ce_last_k: usize,
     /// Steps between mid-epoch checkpoints. None means only epoch-boundary checkpoints.
     pub checkpoint_every: Option<usize>,
@@ -160,7 +160,7 @@ impl Default for LoraTrainingConfig {
             qlora_max_skip_rate: None,
             qlora_lm_head_only: false,
             qlora_proxy_max_layers: None,
-            qlora_ce_last_k: 16,
+            qlora_ce_last_k: 64,
             checkpoint_every: Some(500),
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),

@@ -33,6 +33,26 @@ impl QloraAdapterMetaV2 {
     pub const VERSION: u32 = 2;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum AdapterFamily {
+    Gpt2Like,
+    Qwen2Like,
+    Qwen35Like,
+    Unknown,
+}
+
+fn family_from_base_key(key: &str) -> AdapterFamily {
+    if key.starts_with("h.") || key == "wte.weight" {
+        AdapterFamily::Gpt2Like
+    } else if key.starts_with("model.language_model.") {
+        AdapterFamily::Qwen35Like
+    } else if key.starts_with("model.layers.") || key.starts_with("model.embed_tokens.") {
+        AdapterFamily::Qwen2Like
+    } else {
+        AdapterFamily::Unknown
+    }
+}
+
 /// `W' = W + (B @ A) * (alpha / rank)` in f32 (PEFT scaling).
 pub fn lora_delta_f32(
     lora_a: &Tensor,
@@ -119,6 +139,32 @@ pub fn merge_qlora_v2_into_base_subset(
 
     let alpha = meta.alpha as f64;
     let rank = meta.rank;
+
+    let mut inferred_family = AdapterFamily::Unknown;
+    let mut family_keys: HashMap<AdapterFamily, Vec<String>> = HashMap::new();
+    for key in meta.base_key_map.values() {
+        let fam = family_from_base_key(key);
+        family_keys.entry(fam).or_default().push(key.clone());
+        if fam == AdapterFamily::Unknown {
+            continue;
+        }
+        if inferred_family == AdapterFamily::Unknown {
+            inferred_family = fam;
+            continue;
+        }
+        if inferred_family != fam {
+            let mut summary: Vec<String> = family_keys
+                .iter()
+                .filter(|(family, _)| **family != AdapterFamily::Unknown)
+                .map(|(family, keys)| format!("{family:?}:{}", keys.len()))
+                .collect();
+            summary.sort();
+            anyhow::bail!(
+                "adapter base_key_map mixes incompatible model families ({summary:?}); refusing cross-family merge. \
+                 Next: regenerate adapter metadata from one base model family and ensure `layer_order`/`base_key_map` come from the same training run."
+            );
+        }
+    }
 
     let mut buffers: Vec<(String, Vec<u8>, Vec<usize>)> = Vec::new();
 

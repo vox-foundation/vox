@@ -58,7 +58,7 @@ pub fn generate_error_recovery_pairs(
         (
             "loss: NaN (training step 42)",
             "training_nan_loss",
-            "NaN loss indicates numerical instability. Try: (1) lower learning rate (2e-4 → 5e-5), (2) enable gradient clipping if available, (3) check training data for malformed rows (very long sequences, encoding errors), (4) use --qlora-lm-head-only as escape hatch for deep proxy stacks.",
+            "NaN loss indicates numerical instability. Try: (1) lower learning rate (2e-4 -> 5e-5), (2) enable gradient clipping if available, (3) check training data for malformed rows (very long sequences, encoding errors), (4) reduce --qlora-ce-last-k or sequence length and verify shard/key completeness in preflight.",
         ),
     ];
 

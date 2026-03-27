@@ -16,6 +16,9 @@ pub struct BenchmarkListParams {
     /// Max rows (default 50).
     #[serde(default = "default_limit")]
     pub limit: i64,
+    /// Metric type selector: `benchmark_event` (default) or `syntax_k_event`.
+    #[serde(default)]
+    pub metric_type: Option<String>,
 }
 
 fn default_limit() -> i64 {
@@ -32,8 +35,17 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
         .to_json();
     };
     let rid = state.repository.repository_id.clone();
+    let metric_type = params
+        .metric_type
+        .as_deref()
+        .unwrap_or("benchmark_event")
+        .to_string();
+    let session_prefix = match metric_type.as_str() {
+        "syntax_k_event" => format!("syntaxk:{rid}"),
+        _ => format!("bench:{rid}"),
+    };
     match db
-        .list_research_metrics_by_type("benchmark_event", &format!("bench:{rid}"), params.limit)
+        .list_research_metrics_by_type(&metric_type, &session_prefix, params.limit)
         .await
     {
         Ok(rows) => ToolResult::ok(rows).to_json(),
@@ -48,6 +60,12 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
 pub struct BenchmarkRecordParams {
     /// Benchmark name (e.g., "build_time", "eval_p95").
     pub name: String,
+    /// Fixture id for syntax-k events (`benchmark_event` ignores this).
+    #[serde(default)]
+    pub fixture_id: Option<String>,
+    /// Metric type selector: `benchmark_event` (default) or `syntax_k_event`.
+    #[serde(default)]
+    pub metric_type: Option<String>,
     /// Metric value (f64), e.g., duration in seconds.
     pub value: Option<f64>,
     /// Optional structured details (JSON).
@@ -64,10 +82,26 @@ pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams
         .to_json();
     };
     let rid = state.repository.repository_id.clone();
-    match db
-        .record_benchmark_event(&rid, &params.name, params.value, params.details)
-        .await
-    {
+    let metric_type = params
+        .metric_type
+        .as_deref()
+        .unwrap_or("benchmark_event")
+        .to_string();
+    let res = match metric_type.as_str() {
+        "syntax_k_event" => db
+            .record_syntax_k_event(
+                &rid,
+                &params.name,
+                params.fixture_id.as_deref().unwrap_or("manual"),
+                params.value,
+                params.details,
+            )
+            .await,
+        _ => db
+            .record_benchmark_event(&rid, &params.name, params.value, params.details)
+            .await,
+    };
+    match res {
         Ok(_) => ToolResult::ok("Recorded.").to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json()

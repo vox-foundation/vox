@@ -10302,13 +10302,17 @@ name = "vox-compiler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bzip2",
+ "flate2",
  "logos",
  "miette",
  "regex",
  "serde",
  "serde_json",
+ "sha3",
  "thiserror 1.0.69",
  "vox-eval",
+ "zstd",
 ]
 
 [[package]]

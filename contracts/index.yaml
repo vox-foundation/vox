@@ -50,6 +50,14 @@ contracts:
     enforced_by:
       - vox ci eval-matrix
 
+  - id: eval-syntax-k-event-schema
+    path: contracts/eval/syntax-k-event.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for syntax_k_event telemetry payloads in research_metrics.metadata_json.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: contracts-index
     path: contracts/index.yaml
     owner: platform-ci

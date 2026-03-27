@@ -22,6 +22,8 @@ pub struct PopuliAdapterManifestV3 {
     pub d_model: usize,
     pub rank: usize,
     pub alpha: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_model: Option<String>,
     /// Optional lineage metadata preserved with exported adapters.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provenance: Option<AdapterProvenanceFields>,
@@ -70,6 +72,7 @@ impl PopuliAdapterManifestV3 {
         d_model: usize,
         rank: usize,
         alpha: usize,
+        base_model: Option<String>,
         provenance: Option<AdapterProvenanceFields>,
     ) -> Self {
         Self {
@@ -88,6 +91,7 @@ impl PopuliAdapterManifestV3 {
             d_model,
             rank,
             alpha,
+            base_model,
             provenance,
         }
     }
@@ -113,7 +117,7 @@ pub fn to_qlora_meta_v2_for_merge(
         alpha: m.alpha,
         layer_order: m.layer_order.clone(),
         base_key_map: m.base_key_map.clone(),
-        base_model: None,
+        base_model: m.base_model.clone(),
     })
 }
 
@@ -131,6 +135,7 @@ pub fn from_qlora_meta_v2(
         v2.d_model,
         v2.rank,
         v2.alpha,
+        v2.base_model.clone(),
         None,
     )
 }
@@ -156,6 +161,7 @@ mod tests {
             32,
             4,
             8,
+            Some("Qwen/Qwen3.5-4B".into()),
             None,
         );
         let json = serde_json::to_string(&m).expect("ser");
@@ -180,6 +186,7 @@ mod tests {
             8,
             4,
             8,
+            None,
             None,
         );
         m.quant.double_quant = false;
@@ -208,6 +215,7 @@ mod tests {
             8,
             4,
             8,
+            Some("Qwen/Qwen3.5-4B".into()),
             Some(provenance.clone()),
         );
         let json = serde_json::to_string(&m).expect("ser");

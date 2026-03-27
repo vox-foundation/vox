@@ -12,6 +12,9 @@ pub fn middle_block_projection_key(arch: HfArchitecture, layer: usize) -> String
     match arch {
         HfArchitecture::Gpt2 => format!("h.{layer}.attn.c_proj.weight"),
         HfArchitecture::Qwen2 => format!("model.layers.{layer}.self_attn.o_proj.weight"),
+        HfArchitecture::Qwen35 => {
+            format!("model.language_model.layers.{layer}.self_attn.o_proj.weight")
+        }
     }
 }
 
@@ -29,6 +32,21 @@ pub fn layer_attention_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<St
             format!("model.layers.{layer}.self_attn.v_proj.weight"),
             middle_block_projection_key(arch, layer),
         ],
+        HfArchitecture::Qwen35 => vec![
+            format!("model.language_model.layers.{layer}.self_attn.q_proj.weight"),
+            format!("model.language_model.layers.{layer}.self_attn.k_proj.weight"),
+            format!("model.language_model.layers.{layer}.self_attn.v_proj.weight"),
+            format!("model.language_model.layers.{layer}.self_attn.o_proj.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.in_proj_qkv.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.in_proj_z.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.in_proj_a.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.in_proj_b.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.out_proj.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.conv1d.weight"),
+            format!("model.language_model.layers.{layer}.linear_attn.dt_bias"),
+            format!("model.language_model.layers.{layer}.linear_attn.A_log"),
+            format!("model.language_model.layers.{layer}.linear_attn.norm.weight"),
+        ],
     }
 }
 
@@ -45,6 +63,11 @@ pub fn layer_mlp_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String> 
             format!("model.layers.{layer}.mlp.up_proj.weight"),
             format!("model.layers.{layer}.mlp.down_proj.weight"),
         ],
+        HfArchitecture::Qwen35 => vec![
+            format!("model.language_model.layers.{layer}.mlp.gate_proj.weight"),
+            format!("model.language_model.layers.{layer}.mlp.up_proj.weight"),
+            format!("model.language_model.layers.{layer}.mlp.down_proj.weight"),
+        ],
     }
 }
 
@@ -56,6 +79,10 @@ pub fn layer_rope_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>
         HfArchitecture::Qwen2 => vec![format!(
             "model.layers.{layer}.self_attn.rotary_emb.inv_freq"
         )],
+        HfArchitecture::Qwen35 => vec![
+            format!("model.language_model.layers.{layer}.self_attn.rotary_emb.inv_freq"),
+            format!("model.language_model.layers.{layer}.linear_attn.rotary_emb.inv_freq"),
+        ],
     }
 }
 
@@ -73,7 +100,99 @@ pub fn layer_norm_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>
             format!("model.layers.{layer}.input_layernorm.weight"),
             format!("model.layers.{layer}.post_attention_layernorm.weight"),
         ],
+        HfArchitecture::Qwen35 => vec![
+            format!("model.language_model.layers.{layer}.input_layernorm.weight"),
+            format!("model.language_model.layers.{layer}.post_attention_layernorm.weight"),
+        ],
     }
+}
+
+fn qwen35_layer_type(layout: &HfTransformerLayout, layer: usize) -> &str {
+    layout
+        .layer_types
+        .get(layer)
+        .map(String::as_str)
+        .unwrap_or("full_attention")
+}
+
+fn layer_prefix(layout: &HfTransformerLayout, layer: usize) -> String {
+    format!("{}.{}", layout.namespace_prefix, layer)
+}
+
+fn middle_projection_key_for_layout(layout: &HfTransformerLayout, layer: usize) -> String {
+    match layout.architecture {
+        HfArchitecture::Qwen35 => {
+            let p = layer_prefix(layout, layer);
+            if qwen35_layer_type(layout, layer) == "linear_attention" {
+                format!("{p}.linear_attn.out_proj.weight")
+            } else {
+                format!("{p}.self_attn.o_proj.weight")
+            }
+        }
+        _ => middle_block_projection_key(layout.architecture, layer),
+    }
+}
+
+fn attention_weight_keys_for_layout(layout: &HfTransformerLayout, layer: usize) -> Vec<String> {
+    if layout.architecture != HfArchitecture::Qwen35 {
+        return layer_attention_weight_keys(layout.architecture, layer);
+    }
+    let p = layer_prefix(layout, layer);
+    if qwen35_layer_type(layout, layer) == "linear_attention" {
+        vec![
+            format!("{p}.linear_attn.in_proj_qkv.weight"),
+            format!("{p}.linear_attn.in_proj_z.weight"),
+            format!("{p}.linear_attn.in_proj_a.weight"),
+            format!("{p}.linear_attn.in_proj_b.weight"),
+            format!("{p}.linear_attn.out_proj.weight"),
+            format!("{p}.linear_attn.conv1d.weight"),
+            format!("{p}.linear_attn.dt_bias"),
+            format!("{p}.linear_attn.A_log"),
+            format!("{p}.linear_attn.norm.weight"),
+        ]
+    } else {
+        vec![
+            format!("{p}.self_attn.q_proj.weight"),
+            format!("{p}.self_attn.k_proj.weight"),
+            format!("{p}.self_attn.v_proj.weight"),
+            format!("{p}.self_attn.o_proj.weight"),
+        ]
+    }
+}
+
+fn mlp_weight_keys_for_layout(layout: &HfTransformerLayout, layer: usize) -> Vec<String> {
+    if layout.architecture != HfArchitecture::Qwen35 {
+        return layer_mlp_weight_keys(layout.architecture, layer);
+    }
+    let p = layer_prefix(layout, layer);
+    vec![
+        format!("{p}.mlp.gate_proj.weight"),
+        format!("{p}.mlp.up_proj.weight"),
+        format!("{p}.mlp.down_proj.weight"),
+    ]
+}
+
+fn rope_weight_keys_for_layout(layout: &HfTransformerLayout, layer: usize) -> Vec<String> {
+    if layout.architecture != HfArchitecture::Qwen35 {
+        return layer_rope_weight_keys(layout.architecture, layer);
+    }
+    let p = layer_prefix(layout, layer);
+    if qwen35_layer_type(layout, layer) == "linear_attention" {
+        vec![format!("{p}.linear_attn.rotary_emb.inv_freq")]
+    } else {
+        vec![format!("{p}.self_attn.rotary_emb.inv_freq")]
+    }
+}
+
+fn norm_weight_keys_for_layout(layout: &HfTransformerLayout, layer: usize) -> Vec<String> {
+    if layout.architecture != HfArchitecture::Qwen35 {
+        return layer_norm_weight_keys(layout.architecture, layer);
+    }
+    let p = layer_prefix(layout, layer);
+    vec![
+        format!("{p}.input_layernorm.weight"),
+        format!("{p}.post_attention_layernorm.weight"),
+    ]
 }
 
 /// All non-embedding tensor name **candidates** for a full transformer (attention + MLP per layer).
@@ -81,10 +200,10 @@ pub fn layer_norm_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>
 pub fn ordered_full_block_weight_keys(layout: &HfTransformerLayout) -> Vec<String> {
     let mut v = Vec::new();
     for i in 0..layout.dims.n_layer {
-        v.extend(layer_attention_weight_keys(layout.architecture, i));
-        v.extend(layer_mlp_weight_keys(layout.architecture, i));
-        v.extend(layer_rope_weight_keys(layout.architecture, i));
-        v.extend(layer_norm_weight_keys(layout.architecture, i));
+        v.extend(attention_weight_keys_for_layout(layout, i));
+        v.extend(mlp_weight_keys_for_layout(layout, i));
+        v.extend(rope_weight_keys_for_layout(layout, i));
+        v.extend(norm_weight_keys_for_layout(layout, i));
     }
     v
 }
@@ -93,7 +212,7 @@ pub fn ordered_full_block_weight_keys(layout: &HfTransformerLayout) -> Vec<Strin
 #[must_use]
 pub fn ordered_middle_projection_keys(layout: &HfTransformerLayout) -> Vec<String> {
     (0..layout.dims.n_layer)
-        .map(|i| middle_block_projection_key(layout.architecture, i))
+        .map(|i| middle_projection_key_for_layout(layout, i))
         .collect()
 }
 
@@ -220,5 +339,30 @@ mod tests {
         let v = ordered_full_block_weight_keys(&layout);
         assert!(v.iter().any(|k| k.contains("attn.c_attn")));
         assert!(v.iter().any(|k| k.contains("mlp.c_fc")));
+    }
+
+    #[test]
+    fn qwen35_middle_projection_uses_layer_type() {
+        let layout = HfTransformerLayout::from_config_json_str(
+            r#"{
+              "model_type":"qwen3_5",
+              "text_config":{
+                "hidden_size":64,
+                "num_attention_heads":4,
+                "num_hidden_layers":2,
+                "vocab_size":1000,
+                "layer_types":["linear_attention","full_attention"]
+              }
+            }"#,
+        )
+        .expect("qwen3_5 config");
+        let keys = ordered_middle_projection_keys(&layout);
+        assert_eq!(
+            keys,
+            vec![
+                "model.language_model.layers.0.linear_attn.out_proj.weight",
+                "model.language_model.layers.1.self_attn.o_proj.weight",
+            ]
+        );
     }
 }

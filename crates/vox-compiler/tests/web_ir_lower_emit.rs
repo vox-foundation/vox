@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// Serializes `VOX_WEBIR_VALIDATE` emitter tests — env is process-global.
@@ -15,6 +16,10 @@ use vox_compiler::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::{HirModule, HirReactiveMember, lower_module};
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
+use vox_compiler::syntax_k::{
+    SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes, measure_syntax_k_event,
+    sha3_hex,
+};
 use vox_compiler::web_ir::emit_tsx::{emit_component_view_tsx, emit_component_view_tsx_with_stats};
 use vox_compiler::web_ir::lower::{lower_hir_to_web_ir, lower_hir_to_web_ir_with_summary};
 use vox_compiler::web_ir::validate::{
@@ -1260,4 +1265,131 @@ component Hi() {
     let web = lower_hir_to_web_ir(&hir);
     let tsx = emit_component_view_tsx(&web, "Hi").expect("tsx");
     assert!(tsx.contains("hello"));
+}
+
+fn syntax_k_output_root() -> PathBuf {
+    if let Ok(dir) = std::env::var("CARGO_TARGET_DIR")
+        && !dir.trim().is_empty()
+    {
+        return PathBuf::from(dir).join("benchmarks/syntax-k/parity");
+    }
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/benchmarks/syntax-k/parity")
+        .to_path_buf()
+}
+
+/// Observe-only syntax-K artifact generation for a representative parity fixture.
+#[test]
+fn syntax_k_artifact_for_parity_chain() {
+    let fixture_id = "op_s_parity_chain";
+    let module = parse(lex(OP_S_PARITY_CHAIN_FIXTURE)).expect("parse parity chain");
+    let hir = lower_module(&module);
+    let (web, lower_summary) = lower_hir_to_web_ir_with_summary(&hir);
+    let (diags, validate_metrics) = validate_web_ir_with_metrics(&web);
+    assert!(diags.is_empty(), "{diags:?}");
+
+    let web_ir_bytes = canonical_web_ir_bytes(&web).expect("canonical web ir bytes");
+    let source_hash = sha3_hex(OP_S_PARITY_CHAIN_FIXTURE.as_bytes());
+    let web_ir_hash = sha3_hex(&web_ir_bytes);
+    let web_event = measure_syntax_k_event(SyntaxKInput {
+        fixture_id,
+        target_kind: "webir_json",
+        bytes: &web_ir_bytes,
+        source_hash: Some(&source_hash),
+        web_ir_hash: Some(&web_ir_hash),
+        baseline_bytes: None,
+        support_metrics: Some(serde_json::json!({
+            "web_ir_lower_summary": {
+                "client_route_trees": lower_summary.client_route_trees,
+                "http_loader_contracts": lower_summary.http_loader_contracts,
+                "server_fn_contracts": lower_summary.server_fn_contracts,
+                "query_fn_contracts": lower_summary.query_fn_contracts,
+                "mutation_contracts": lower_summary.mutation_contracts,
+                "reactive_components": lower_summary.reactive_components,
+                "classic_component_views_lowered": lower_summary.classic_component_views_lowered,
+                "classic_components_deferred": lower_summary.classic_components_deferred,
+                "style_rules_lowered": lower_summary.style_rules_lowered,
+                "dom_expr_fallbacks": lower_summary.dom_expr_fallbacks,
+                "lowering_diagnostics": lower_summary.lowering_diagnostics
+            },
+            "web_ir_validate_metrics": {
+                "view_roots_walked": validate_metrics.view_roots_walked,
+                "dom_nodes_traversed": validate_metrics.dom_nodes_traversed,
+                "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
+                "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
+                "style_nodes_checked": validate_metrics.style_nodes_checked,
+                "island_mounts_checked": validate_metrics.island_mounts_checked
+            }
+        })),
+    })
+    .expect("syntax-k web event");
+
+    let mut emitted = Vec::<(String, String)>::new();
+    for (name, _) in &web.view_roots {
+        if let Some(tsx) = emit_component_view_tsx(&web, name) {
+            emitted.push((format!("{name}.tsx"), tsx));
+        }
+    }
+    let emitted_bytes = canonical_emitted_files_bytes(&emitted);
+    let emit_event = measure_syntax_k_event(SyntaxKInput {
+        fixture_id,
+        target_kind: "emit_tsx_preview",
+        bytes: &emitted_bytes,
+        source_hash: Some(&source_hash),
+        web_ir_hash: Some(&web_ir_hash),
+        baseline_bytes: None,
+        support_metrics: Some(serde_json::json!({
+            "emitted_file_count": emitted.len()
+        })),
+    })
+    .expect("syntax-k emit event");
+
+    let payload = serde_json::to_vec_pretty(&serde_json::json!({
+        "schema_version": 1,
+        "fixture_id": fixture_id,
+        "events": [web_event, emit_event]
+    }))
+    .expect("artifact json");
+    let out_dir = syntax_k_output_root();
+    std::fs::create_dir_all(&out_dir).expect("mkdir syntax-k parity");
+    let out_path = out_dir.join("op_s_parity_chain.json");
+    std::fs::write(&out_path, payload).expect("write syntax-k parity artifact");
+}
+
+/// Observe-only gate by default; optional hard threshold under `VOX_SYNTAX_K_GATE=enforce`.
+#[test]
+fn syntax_k_regression_gate_observe_only() {
+    let mode = std::env::var("VOX_SYNTAX_K_GATE").unwrap_or_else(|_| "observe".to_string());
+    let source = r#"
+component Gate() {
+    state n: int = 0
+    view: <div>{n}</div>
+}
+"#;
+    let hir = lower_module(&parse(lex(source)).expect("parse"));
+    let web = lower_hir_to_web_ir(&hir);
+    let bytes = canonical_web_ir_bytes(&web).expect("canonical web_ir");
+    let evt = measure_syntax_k_event(SyntaxKInput {
+        fixture_id: "syntax_k_gate_smoke",
+        target_kind: "webir_json",
+        bytes: &bytes,
+        source_hash: Some(&sha3_hex(source.as_bytes())),
+        web_ir_hash: Some(&sha3_hex(&bytes)),
+        baseline_bytes: None,
+        support_metrics: None,
+    })
+    .expect("measure syntax_k gate smoke");
+
+    if mode == "enforce" {
+        let threshold = std::env::var("VOX_SYNTAX_K_MAX_BYTES")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(usize::MAX);
+        assert!(
+            evt.k_est_bytes <= threshold,
+            "syntax-k gate: k_est_bytes {} exceeds threshold {}",
+            evt.k_est_bytes,
+            threshold
+        );
+    }
 }

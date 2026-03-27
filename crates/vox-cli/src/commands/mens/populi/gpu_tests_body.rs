@@ -279,6 +279,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         d,
         rank,
         alpha,
+        Some("Qwen/Qwen3.5-4B".into()),
         Some(provenance.clone()),
     );
     assert_eq!(v3.provenance, Some(provenance));

@@ -4,7 +4,6 @@ use candle_core::Device;
 use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
-use crate::mens::tensor::candle_model_qwen::Qwen2Model;
 use crate::mens::tensor::{
     train_log, training_config::LoraTrainingConfig, training_text::plain_system_prompt_response,
 };
@@ -14,7 +13,7 @@ pub(super) fn run_validation_pass(
     eval_pairs: &[TrainingPair],
     tokenizer: &Tokenizer,
     device: &Device,
-    model: &Qwen2Model,
+    model: &super::TrainGraphModel,
     system_prompt: &str,
     config: &LoraTrainingConfig,
 ) -> (f64, u32) {
@@ -80,7 +79,23 @@ pub(super) fn run_validation_pass(
                                 candle_core::Tensor::new(1f32, device).unwrap()
                             }))
                         })
-                    && let Ok(loss_val) = loss.to_scalar::<f32>()
+                    && let Ok(loss_val) = (match loss.rank() {
+                        0 => loss.to_scalar::<f32>(),
+                        1 => loss
+                            .dim(0)
+                            .and_then(|d0| {
+                                if d0 == 1 {
+                                    loss.squeeze(0)?.to_scalar::<f32>()
+                                } else {
+                                    Err(candle_core::Error::Msg(format!(
+                                        "unexpected rank-1 loss shape [{d0}]"
+                                    )))
+                                }
+                            }),
+                        r => Err(candle_core::Error::Msg(format!(
+                            "unexpected validation loss rank {r}"
+                        ))),
+                    })
                 {
                     val_loss_sum += -loss_val as f64;
                     val_steps += 1;
