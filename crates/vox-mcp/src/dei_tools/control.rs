@@ -1,4 +1,5 @@
 use super::params::{AgentEventsParams, CostHistoryParams, QueueStatusParams};
+use crate::server::mcp_agent_fleet_env_enabled;
 use crate::sync_poison::{poison_rw_read, poison_rw_write};
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::{AgentId, TaskId};
@@ -299,8 +300,8 @@ pub async fn config_set(state: &ServerState, params: serde_json::Value) -> Strin
     }
 }
 
-/// Truthful embedded-runtime probe: MCP holds the orchestrator in-process; separate
-/// `AgentFleet` loops are not started from this tool.
+/// Truthful embedded-runtime probe: MCP holds the orchestrator in-process and may run the
+/// embedded [`AgentFleet`](vox_orchestrator::runtime::AgentFleet) loop (see `VOX_MCP_AGENT_FLEET`).
 pub async fn orchestrator_start(state: &ServerState) -> String {
     use crate::params::OrchestratorRuntimeProbe;
 
@@ -313,6 +314,7 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
     } else {
         "queue_only"
     };
+    let fleet_on = mcp_agent_fleet_env_enabled();
     ToolResult::ok(OrchestratorRuntimeProbe {
         honest_message: format!(
             "Embedded orchestrator is active with {agent_count} agent queue(s); \
@@ -321,9 +323,14 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
         agent_count,
         registered_worker_processes,
         execution_mode: execution_mode.to_string(),
-        agent_fleet_loop_running: false,
-        note: "vox_orchestrator_start does not spawn an out-of-process AgentFleet; \
-               tasks queue in-process until worker handles are registered.",
+        agent_fleet_loop_running: fleet_on,
+        note: if fleet_on {
+            "Embedded AgentFleet runs in-process when VOX_MCP_AGENT_FLEET is enabled (default). \
+             Disable with VOX_MCP_AGENT_FLEET=0. sync_fleet registers workers so task submit can wake ProcessQueue."
+        } else {
+            "VOX_MCP_AGENT_FLEET disabled: AgentFleet loop not started at MCP boot; queues only \
+             drain if worker handles are registered another way."
+        },
     })
     .to_json()
 }

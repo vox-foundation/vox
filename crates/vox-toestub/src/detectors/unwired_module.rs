@@ -89,14 +89,12 @@ impl UnwiredModuleDetector {
         let n = mod_name;
         let mut paths = vec![base.join(format!("{n}.rs")), base.join(n).join("mod.rs")];
         let fname = declaring_file.file_name().and_then(|s| s.to_str());
-        if fname != Some("mod.rs") {
-            if let Some(stem) = declaring_file.file_stem().and_then(|s| s.to_str()) {
-                if stem != "lib" {
+        if fname != Some("mod.rs")
+            && let Some(stem) = declaring_file.file_stem().and_then(|s| s.to_str())
+                && stem != "lib" {
                     paths.push(base.join(stem).join(format!("{n}.rs")));
                     paths.push(base.join(stem).join(n).join("mod.rs"));
                 }
-            }
-        }
         paths.iter().any(|p| p.is_file())
     }
 

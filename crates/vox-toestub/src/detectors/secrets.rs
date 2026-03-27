@@ -105,8 +105,8 @@ impl SecretDetector {
             }
         }
 
-        if let Some(m) = self.generic_secret.find(line) {
-            if !skip_if_comment(m.start()) {
+        if let Some(m) = self.generic_secret.find(line)
+            && !skip_if_comment(m.start()) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -114,10 +114,9 @@ impl SecretDetector {
                     Severity::Error,
                 ));
             }
-        }
 
-        if let Some(m) = self.jwt_token.find(line) {
-            if !skip_if_comment(m.start()) {
+        if let Some(m) = self.jwt_token.find(line)
+            && !skip_if_comment(m.start()) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -125,7 +124,6 @@ impl SecretDetector {
                     Severity::Error,
                 ));
             }
-        }
 
         findings
     }

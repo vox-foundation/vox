@@ -136,7 +136,6 @@ fabrica/fmt
 fabrica/run
 fabrica/test
 fmt
-install
 lock
 login
 logout
@@ -171,6 +170,7 @@ pm/cache
 pm/cache/clear
 pm/cache/status
 pm/info
+pm/mirror
 pm/publish
 pm/search
 pm/vendor

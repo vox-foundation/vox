@@ -1,6 +1,7 @@
 use crate::cli_actions::WorkflowAction;
 use anyhow::{Context, Result};
 use std::path::Path;
+use vox_db::LogExecutionParams;
 
 /// Dispatch workflow actions.
 pub async fn run(action: WorkflowAction) -> Result<()> {
@@ -207,7 +208,7 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
                 act_id: &str,
             ) -> anyhow::Result<()> {
                 if let Some(db) = &self.db {
-                    let p = vox_pm::LogExecutionParams {
+                    let p = LogExecutionParams {
                         workflow_id: wf,
                         agent_id: None,
                         skill_id: None,
@@ -234,7 +235,7 @@ pub async fn run_workflow(file: &Path, workflow_name: &str, args_json: &str) -> 
             ) -> anyhow::Result<()> {
                 if let Some(db) = &self.db {
                     let out_json = res.to_string();
-                    let p = vox_pm::LogExecutionParams {
+                    let p = LogExecutionParams {
                         workflow_id: wf,
                         agent_id: None,
                         skill_id: None,

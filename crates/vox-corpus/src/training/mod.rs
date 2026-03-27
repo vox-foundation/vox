@@ -1,6 +1,7 @@
 //! Training path SSOT: canonical directories, workspace discovery, prompts, and train preflight.
 
 pub mod contract;
+pub mod mix_prepare;
 pub mod preflight;
 
 /// Default directory for merged `train.jsonl` (matches corpus merge output).

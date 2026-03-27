@@ -11,7 +11,7 @@ training_eligible: true
 This revision applies the following product decisions as hard constraints:
 
 - Python/UV is not retained as a Vox platform packaging/runtime lane.
-- `vox install` is retired from package-management semantics.
+- `vox install` is removed from package-management semantics (Phase B).
 - Vox uses a hybrid package command model:
   - Top-level common dependency verbs (`add/remove/update/lock/sync`).
   - Advanced and governance operations under `vox pm ...`.
@@ -31,7 +31,7 @@ This rewrite corrects those gaps and converts findings into implementation-grade
 
 - Repo audit focused on active code paths and command contracts:
   - [crates/vox-cli/src/lib.rs](../../../crates/vox-cli/src/lib.rs)
-  - [crates/vox-cli/src/commands/install.rs](../../../crates/vox-cli/src/commands/install.rs)
+  - [crates/vox-cli/src/commands/lock.rs](../../../crates/vox-cli/src/commands/lock.rs)
   - [crates/vox-cli/src/commands/update.rs](../../../crates/vox-cli/src/commands/update.rs)
   - [crates/vox-cli/src/commands/add.rs](../../../crates/vox-cli/src/commands/add.rs)
   - [crates/vox-cli/src/commands/remove.rs](../../../crates/vox-cli/src/commands/remove.rs)
@@ -49,9 +49,9 @@ This rewrite corrects those gaps and converts findings into implementation-grade
 
 ### Command surface and namespace
 
-- `Install` is a top-level CLI variant in [crates/vox-cli/src/lib.rs](../../../crates/vox-cli/src/lib.rs), and marked `active` in [contracts/cli/command-registry.yaml](../../../contracts/cli/command-registry.yaml).
-- Runtime behavior for `vox install` is an explicit hard error in [crates/vox-cli/src/commands/install.rs](../../../crates/vox-cli/src/commands/install.rs).
-- `add/remove/update/vendor` implementation files exist in `commands/`, but they are not wired as first-class public modules in [crates/vox-cli/src/commands/mod.rs](../../../crates/vox-cli/src/commands/mod.rs).
+- **Phase B:** `vox install` is **not** a CLI subcommand; it does not appear in [crates/vox-cli/src/lib.rs](../../../crates/vox-cli/src/lib.rs) or [contracts/cli/command-registry.yaml](../../../contracts/cli/command-registry.yaml) (use **`vox add`** / **`vox lock`** / **`vox sync`** / **`vox pm`** — see [pm-migration-2026.md](../reference/pm-migration-2026.md)).
+- **Historical (pre‑2026 wave):** `Install` had been a hidden migration-error variant; that shim is removed.
+- `add/remove/update/lock/sync/pm` are first-class in [crates/vox-cli/src/commands/mod.rs](../../../crates/vox-cli/src/commands/mod.rs).
 - CLI design rules already call out the anti-pattern of near-synonyms (`update` vs `upgrade`) in [docs/src/reference/cli.md](../reference/cli.md).
 
 ### PM core capabilities already present
@@ -229,7 +229,7 @@ A successful PM redesign must satisfy all of:
 
 ## Implementation closure (tracked in-tree)
 
-As of the 2026 packaging execution wave: hybrid top-level + **`vox pm`** grammar is shipped; **`vox install`** is a deterministic migration error with contract-tested copy; **`update`** vs **`upgrade`** split includes CI validators; **`Lockfile`** TOML round-trips **`path`/`git`/`registry`** sources; **`vox pm mirror`** supports **`--file`** and **`--from-registry`** for the local PM index; integration tests cover path graph, registry stub, frozen **`sync`**, **`pm-provenance`**, and optional **`workflow_dispatch`** fixture workflow — see [`reference/pm-migration-2026.md`](../reference/pm-migration-2026.md) and [`vox-packaging-full-implementation-plan-2026.md`](vox-packaging-full-implementation-plan-2026.md).
+As of the 2026 packaging execution wave: hybrid top-level + **`vox pm`** grammar is shipped; **`vox install`** is **removed** from the CLI and registry (scripts must migrate — see [`reference/pm-migration-2026.md`](../reference/pm-migration-2026.md)); **`update`** vs **`upgrade`** split includes CI validators; **`Lockfile`** TOML round-trips **`path`/`git`/`registry`** sources; **`vox pm mirror`** supports **`--file`** and **`--from-registry`** for the local PM index; integration tests cover path graph, registry stub, frozen **`sync`**, **`pm-provenance`**, and optional **`workflow_dispatch`** fixture workflow — see [`vox-packaging-full-implementation-plan-2026.md`](vox-packaging-full-implementation-plan-2026.md).
 
 ## Bibliography (core)
 

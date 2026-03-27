@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn supported_targets_nonempty_unique() {
         assert!(!SUPPORTED_RELEASE_TARGETS.is_empty());
-        let mut v: Vec<_> = SUPPORTED_RELEASE_TARGETS.iter().copied().collect();
+        let mut v = SUPPORTED_RELEASE_TARGETS.to_vec();
         let n = v.len();
         v.sort_unstable();
         v.dedup();

@@ -5,6 +5,7 @@
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
 pub mod add;
+pub mod remove;
 /// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;
@@ -52,8 +53,6 @@ pub use extras::ars;
 pub mod fmt;
 /// `vox info` — package metadata from registry / local Arca store (`vox-pm`).
 pub mod info;
-/// Retired `vox install` shim (migration errors only).
-pub mod install;
 /// Web island UI creation handler (`vox island`).
 #[cfg(feature = "island")]
 pub mod island;
@@ -88,10 +87,6 @@ pub mod upgrade;
 /// Ludus gamification systems logic wrapper.
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
-/// Ludus companion / quest / battle helpers used by **`vox ludus`** (`extras-ludus`).
-#[cfg(feature = "extras-ludus")]
-pub mod gamify;
-pub mod remove;
 /// AI-powered CodeRabbit review adapter (`vox review`).
 #[cfg(any(feature = "mens-dei", feature = "coderabbit"))]
 pub mod review;

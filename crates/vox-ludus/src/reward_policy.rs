@@ -253,7 +253,7 @@ pub fn learning_mode_crystal_jitter(
     user_id.hash(&mut h);
     day.hash(&mut h);
     event_type.hash(&mut h);
-    (h.finish() % 4) as u64
+    h.finish() % 4
 }
 
 // ── Policy engine ─────────────────────────────────────────

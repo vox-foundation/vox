@@ -253,7 +253,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             if cloud != "local" {
                 #[cfg(feature = "cloud")]
                 {
-                    use vox_populi::mens::cloud::{CloudJobSpec, CloudResolver, JobKind};
+                    use vox_populi::mens::cloud::CloudJobSpec;
                     let config = vox_populi::mens::cloud::CloudProviderConfig::default();
                     let rt = _max_runtime_secs.ok_or_else(|| {
                         anyhow::anyhow!("--max-runtime-secs is REQUIRED for cloud serve")

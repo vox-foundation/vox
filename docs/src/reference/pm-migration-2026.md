@@ -8,7 +8,7 @@ training_eligible: true
 
 # Package management migration (2026)
 
-This note is the **operator-facing mapping** for the packaging redesign (hybrid top-level + **`vox pm`**, strict **`update`** vs **`upgrade`**, retired **`vox install`**, and **no supported Python/uv PM path**). Authoritative semantics: [`cli.md`](cli.md) § Package management, [`vox-packaging-implementation-blueprint.md`](../architecture/vox-packaging-implementation-blueprint.md), and `contracts/cli/command-registry.yaml`.
+This note is the **operator-facing mapping** for the packaging redesign (hybrid top-level + **`vox pm`**, strict **`update`** vs **`upgrade`**, **`vox install`** removed as a package verb, and **no supported Python/uv PM path**). Authoritative semantics: [`cli.md`](cli.md) § Package management, [`vox-packaging-implementation-blueprint.md`](../architecture/vox-packaging-implementation-blueprint.md), and `contracts/cli/command-registry.yaml`.
 
 ## Command substitutions
 
@@ -32,5 +32,5 @@ This note is the **operator-facing mapping** for the packaging redesign (hybrid 
 
 ## See also
 
-- [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md) — ecosystem entry and retired **`vox install`** note.
+- [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md) — ecosystem entry and **`vox install`** removal note.
 - [`cli-command-surface.generated.md`](cli-command-surface.generated.md) — generated status table (`vox ci command-sync --write`).

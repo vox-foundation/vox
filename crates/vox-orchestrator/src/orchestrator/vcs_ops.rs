@@ -44,7 +44,7 @@ impl crate::orchestrator::Orchestrator {
             let prefetched: Vec<(PathBuf, Option<Vec<u8>>)> =
                 paths.iter().map(|p| (p.clone(), None)).collect();
             let mut store = crate::sync_lock::rw_write(&*self.snapshot_store);
-            return store.take_snapshot_prefetched(agent_id, &prefetched, desc);
+            store.take_snapshot_prefetched(agent_id, &prefetched, desc)
         }
 
         #[cfg(not(test))]

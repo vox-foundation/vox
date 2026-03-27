@@ -125,31 +125,20 @@ pub async fn run(args: Args) -> Result<()> {
         lr,
     };
 
-    // ── Corpus preflight ──────────────────────────────────────────────────────
+    // ── Corpus preflight (shared mix / train-input prep with `vox mens train`) ──
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
-    let mix_config = workspace_root
-        .as_ref()
-        .map(|r| r.join("mens/config/mix.yaml"));
-    let mut contract_override: Option<PathBuf> = None;
-    let skip_mix = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
-
-    if !skip_mix
-        && let Some(ref cfg_path) = mix_config
-        && cfg_path.exists()
-    {
+    let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
+    let mix_path =
+        vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref());
+    if !skip_mix && mix_path.is_file() {
         eprintln!("  🔄 Running corpus mix to refresh training data...");
-        if let Err(e) = vox_corpus::corpus::run_mix(cfg_path) {
-            eprintln!("  ⚠ Mix failed ({e}); continuing with existing corpus");
-        } else if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(cfg_path) {
-            let cwd = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
-            let mix_output = cwd.join(&mix_cfg.output);
-            if mix_output.exists() {
-                contract_override = Some(mix_output);
-            }
-        }
     }
+    let contract_override = vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
+        workspace_root.as_deref(),
+        &data_dir,
+        skip_mix,
+        true,
+    )?;
 
     let resolved = vox_corpus::training::preflight::validate_train_preflight(
         &data_dir,
@@ -176,57 +165,44 @@ pub async fn run(args: Args) -> Result<()> {
 
     if let Some(ref repo_id) = model {
         eprintln!("  📥 Downloading from HuggingFace: {}", repo_id);
-        let repo_id = repo_id.clone();
-        let repo_id_for_download = repo_id.clone();
-        let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let result = rt.block_on(vox_populi::mens::hub::download_model(&repo_id_for_download));
-            let _ = tx.send(result);
-        });
-        match rx
-            .recv()
-            .map_err(|_| anyhow::anyhow!("HF download thread exited"))?
-        {
-            Ok(files) if files.is_safetensors() => {
-                eprintln!("  ✓ Cached at {}", files.cache_dir.display());
-                base_model_paths = Some((files.weights.clone(), files.config.clone()));
-                tokenizer_path = files.tokenizer.clone();
-                if let Ok(arch) =
-                    vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config)
-                {
-                    let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
-                        &files.config,
-                        arch,
-                    )
-                    .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
-                    let est_mb = vox_populi::mens::estimate_training_vram_mb_qlora(
-                        cfg.n_embd,
-                        cfg.n_head,
-                        cfg.n_layer,
-                        cfg.vocab_size,
-                        profile.batch_size,
-                        profile.seq_len,
-                    );
-                    if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
-                        eprintln!(
-                            "  ⚠ VRAM risk: est. {est_mb} MB > 85% of {} MB — try --preset safe",
-                            gpu_info.vram_mb
-                        );
-                    } else if gpu_info.vram_mb > 0 {
-                        eprintln!(
-                            "  ✓ VRAM: est. ~{est_mb} MB / {} MB available",
-                            gpu_info.vram_mb
-                        );
-                    }
-                }
-            }
-            Ok(_) => anyhow::bail!(
-                "HF model `{repo_id}` has no safetensors; QLoRA requires safetensors base weights."
-            ),
-            Err(e) => anyhow::bail!(
+        let files = vox_populi::mens::hub::download_model_blocking(repo_id).map_err(|e| {
+            anyhow::anyhow!(
                 "HF download failed for `{repo_id}` ({e}). Set HF token env vars and retry."
-            ),
+            )
+        })?;
+        if !files.is_safetensors() {
+            anyhow::bail!(
+                "HF model `{repo_id}` has no safetensors; QLoRA requires safetensors base weights."
+            );
+        }
+        eprintln!("  ✓ Cached at {}", files.cache_dir.display());
+        base_model_paths = Some((files.weights.clone(), files.config.clone()));
+        tokenizer_path = files.tokenizer.clone();
+        if let Ok(arch) = vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config) {
+            let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
+                &files.config,
+                arch,
+            )
+            .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
+            let est_mb = vox_populi::mens::estimate_training_vram_mb_qlora(
+                cfg.n_embd,
+                cfg.n_head,
+                cfg.n_layer,
+                cfg.vocab_size,
+                profile.batch_size,
+                profile.seq_len,
+            );
+            if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
+                eprintln!(
+                    "  ⚠ VRAM risk: est. {est_mb} MB > 85% of {} MB — try --preset safe",
+                    gpu_info.vram_mb
+                );
+            } else if gpu_info.vram_mb > 0 {
+                eprintln!(
+                    "  ✓ VRAM: est. ~{est_mb} MB / {} MB available",
+                    gpu_info.vram_mb
+                );
+            }
         }
     }
 

@@ -104,7 +104,6 @@ pub fn zenodo_deposition_metadata(manifest: &PublicationManifest) -> serde_json:
 }
 
 /// Pretty JSON for a sidecar `.zenodo.json` file (same envelope as [`zenodo_deposition_metadata`]).
-#[must_use]
 pub fn zenodo_json_pretty(manifest: &PublicationManifest) -> Result<String, serde_json::Error> {
     serde_json::to_string_pretty(&zenodo_deposition_create_body(manifest))
 }

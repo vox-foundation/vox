@@ -13,7 +13,7 @@ training_eligible: true
 
 | Path | Train (CLI) | Merge | Serve in-tree |
 |------|-------------|-------|----------------|
-| **Candle QLoRA** | `vox mens train --backend qlora --tokenizer hf …` | `vox schola merge-qlora` (alias `merge-adapter`) → f32 subset shards | **No** — use vLLM/Ollama/HF (or external OpenAI-compatible stack); `vox mens serve` does not load QLoRA merge outputs |
+| **Candle QLoRA** | `vox mens train --backend qlora --tokenizer hf …` | **`vox mens merge-qlora`** / **`vox schola merge-qlora`** (alias `merge-adapter`) → f32 subset shards | **No** — use vLLM/Ollama/HF (or external OpenAI-compatible stack); `vox mens serve` does not load QLoRA merge outputs |
 | **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — `vox mens serve` (`execution-api`) loads `*.bin` / merged Burn checkpoints |
 
 ## Why
@@ -72,10 +72,17 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 | **`vox train`** | Legacy: **`--provider local`** bails with the canonical **`vox mens train --backend qlora …`** command (no shipped `train_qlora.vox`). **`--native`** uses the old Burn scratch trainer when built with **`mens-dei`**. Together remote unchanged. |
 | **`vox mens train-uv`** | **Retired** — bails; use **`vox mens train --backend qlora`**. |
 
+## Data prep orchestration (SSOT)
+
+- **Mix + train input**: `vox_corpus::training::mix_prepare` — refresh `mens/config/mix.yaml`, optional sync of `data_dir/train.jsonl` into the mix **primary** source path (workspace-relative), resolve mixed output relative to **workspace root** (not mutable CWD). Used by `vox mens train` (`schola/train/gpu.rs`), `vox-schola train`, and the **Mix** stage of `vox mens pipeline`.
+- **Pipeline / stale-regen**: after `vox mens pipeline` has already run **Mix**, `train_arm` copies the mixed artifact into `data_dir/train.jsonl` via `copy_mix_output_to_train_jsonl` and sets `VOX_TRAIN_SKIP_CORPUS_MIX=1` so training does **not** run mix twice.
+- **Hugging Face base weights**: `vox_populi::mens::hub::download_model_blocking` — shared blocking download used by CLI GPU train and `vox-schola train` (same behavior as the previous per-call-site `Runtime::block_on` threads).
+- **Normative CLI for operators**: **`vox mens train`**; **`vox-schola`** remains a specialized binary for the same Candle QLoRA path with a narrower flag surface.
+
 ## Who / when
 
-- **Implementers**: `vox-populi` (`mens::tensor`), `vox-cli` (`commands/schola/train/*`, `commands/mens/populi/*`), `vox-schola` (`src/train.rs`), corpus preflight (`vox-corpus::training`).
-- **When to touch**: training knobs, telemetry keys, CLI flags, qlora-rs / Candle versions, or merge/export behavior.
+- **Implementers**: `vox-populi` (`mens::tensor`, `mens::hub`), `vox-cli` (`commands/schola/train/*`, `commands/mens/populi/*`, `commands/mens/pipeline.rs`), `vox-schola` (`src/train.rs`), corpus preflight + mix (`vox-corpus::training`, `vox-corpus::training::mix_prepare`).
+- **When to touch**: training knobs, telemetry keys, CLI flags, qlora-rs / Candle versions, merge/export behavior, or corpus/mix/train-input resolution.
 
 ## Where (files)
 
@@ -99,6 +106,8 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 - `crates/vox-cli/src/commands/schola/train.rs` — `run_train` → `run_mens_training`
 - `crates/vox-schola/src/train.rs` — standalone `vox-schola train` QLoRA path
 - `crates/vox-cli/src/commands/mens/mod.rs` — `train-uv` **retired** (inline bail; use `vox mens train --backend qlora`)
+- `crates/vox-corpus/src/training/mix_prepare.rs` — Mens mix + primary-source sync + copy helpers (workspace-root SSOT)
+- `crates/vox-populi/src/mens/hub.rs` — `download_model_blocking` (HF snapshot for training)
 - `AGENTS.md` § 2.2.3, `docs/src/ref-cli.md` (Mens), `docs/src/expl-ml-pipeline.md` (train matrix)
 - Plans: `.cursor/plans/native_qlora_ssot_dea968e4.plan.md`, `.cursor/plans/qlora_ssot_grounded_plan_cc5501f2.plan.md`
 

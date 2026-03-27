@@ -1,0 +1,11 @@
+{
+  "construct_coverage": 14,
+  "construct_coverage_pct": 31.11111111111111,
+  "construct_total": 45,
+  "format_validity": 1.0,
+  "quality_proxy": 0.5447470817120622,
+  "run_id": "eval_20260327T160059Z",
+  "safety_rejection_rate": 0.0,
+  "total_samples": 257,
+  "vox_parse_rate": 0.5447470817120622
+}

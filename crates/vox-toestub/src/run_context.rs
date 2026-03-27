@@ -31,6 +31,7 @@ pub enum ToestubTestsMode {
 /// When set to a non-empty list, enhanced detector paths apply only under `crates/<name>/`.
 /// `None` or empty list ⇒ unrestricted (full rollout).
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct RunContext {
     pub canary_crates: Option<Vec<String>>,
     pub tests_mode: ToestubTestsMode,
@@ -44,18 +45,6 @@ pub struct RunContext {
     pub workspace_crate_mod_refs: HashMap<String, HashSet<String>>,
 }
 
-impl Default for RunContext {
-    fn default() -> Self {
-        Self {
-            canary_crates: None,
-            tests_mode: ToestubTestsMode::default(),
-            prelude_allow_idents: HashSet::new(),
-            feature_flags: HashSet::new(),
-            unresolved_callee_counts: HashMap::new(),
-            workspace_crate_mod_refs: HashMap::new(),
-        }
-    }
-}
 
 static RUN_STATE: OnceLock<Mutex<RunContext>> = OnceLock::new();
 

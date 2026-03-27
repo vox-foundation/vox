@@ -4,7 +4,7 @@
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml).
 
-**schema_version:** `1` · **vox-cli operations:** 146
+**schema_version:** `1` · **vox-cli operations:** 154
 
 | Path | Status | Feature gate | Latin ns | Catalog group |
 |------|--------|--------------|----------|----------------|
@@ -71,10 +71,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox db prune-plan` | active | — | codex | — |
 | `vox dei` | active | dei | dei | — |
 | `vox dev` | active | — | fabrica | — |
+| `vox diag` | active | — | diag | — |
 | `vox doctor` | active | — | diag | — |
 | `vox fabrica` | active | — | fabrica | — |
 | `vox fmt` | active | — | fabrica | — |
-| `vox install` | retired | — | pm | — |
 | `vox island` | active | island | — | — |
 | `vox live` | active | live | — | — |
 | `vox lock` | active | — | pm | — |
@@ -86,20 +86,28 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox mens` | active | — | mens | — |
 | `vox mens` | active | mens-base|gpu | mens | — |
 | `vox mens bench-completion` | active | mens-base | mens | — |
+| `vox mens check` | active | mens-dei | mens | — |
 | `vox mens corpus` | active | mens-base | mens | — |
 | `vox mens eval-gate` | active | mens-base | mens | — |
 | `vox mens eval-local` | active | gpu | mens | — |
+| `vox mens fix` | active | mens-dei | mens | — |
+| `vox mens generate` | active | mens-dei | mens | — |
 | `vox mens merge-qlora` | active | gpu | mens | — |
 | `vox mens merge-weights` | active | gpu | mens | — |
 | `vox mens pipeline` | active | mens-base | mens | — |
 | `vox mens plan` | active | mens-base | mens | — |
 | `vox mens probe` | active | gpu | mens | — |
+| `vox mens review` | active | mens-dei | mens | — |
 | `vox mens serve` | active | gpu | mens | — |
 | `vox mens status` | active | mens-base | mens | — |
 | `vox mens system-prompt-template` | active | mens-base | mens | — |
 | `vox mens train` | active | gpu | mens | — |
 | `vox mens train-uv` | retired | mens-base | mens | — |
 | `vox mens watch-telemetry` | active | mens-base | mens | — |
+| `vox mens workflow check` | active | mens-dei | mens | — |
+| `vox mens workflow inspect` | active | mens-dei | mens | — |
+| `vox mens workflow list` | active | mens-dei | mens | — |
+| `vox mens workflow run` | active | mens-dei | mens | — |
 | `vox openclaw` | active | ars | ars | — |
 | `vox oratio` | active | oratio | fabrica | oratio |
 | `vox pm` | active | — | pm | — |

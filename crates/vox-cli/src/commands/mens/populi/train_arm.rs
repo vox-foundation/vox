@@ -111,9 +111,7 @@ pub async fn run_train(
             vox_corpus::corpus::preflight::corpus_is_fresh(root, &fp_file)
         };
 
-        let skip_regen = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX")
-            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
+        let skip_regen = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
         if !is_fresh && !skip_regen {
             eprintln!(
                 "  {} Stale corpus detected (fingerprint: {}). Regenerating...",
@@ -151,60 +149,37 @@ pub async fn run_train(
                 eprintln!("  {} Corpus extraction pipeline completed.", "✓".green());
             }
 
-            let mix_yaml = root.join("mens/config/mix.yaml");
-            if mix_yaml.exists() {
-                if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_yaml)
-                    && let Some(primary) = mix_cfg.sources.first()
-                {
-                    let primary_path = root.join(&primary.path);
-                    let final_train_path = data_dir.join("train.jsonl");
-                    if primary_path != final_train_path {
+            let mix_yaml = root.join(vox_corpus::training::mix_prepare::MIX_CONFIG_REL);
+            if mix_yaml.is_file() {
+                match vox_corpus::training::mix_prepare::copy_mix_output_to_train_jsonl(
+                    root,
+                    &data_dir,
+                    &mix_yaml,
+                ) {
+                    Ok(true) => {
                         eprintln!(
-                            "  {} mix primary source mismatch: {} vs {} (syncing active train file)",
-                            "⚠".yellow(),
-                            primary_path.display(),
-                            final_train_path.display()
+                            "  {} Mixed data ready at: {}",
+                            "✓".green(),
+                            data_dir.join("train.jsonl").display()
                         );
-                        if final_train_path.is_file() {
-                            if let Some(parent) = primary_path.parent() {
-                                let _ = std::fs::create_dir_all(parent);
-                            }
-                            if let Err(e) = std::fs::copy(&final_train_path, &primary_path) {
-                                eprintln!(
-                                    "  {} Failed to sync active train file into mix source {}: {}",
-                                    "⚠️".yellow(),
-                                    primary_path.display(),
-                                    e
-                                );
-                            }
+                        #[allow(unsafe_code)]
+                        unsafe {
+                            std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
                         }
                     }
-                }
-                eprintln!("  {} Running corpus mix...", "🔄".cyan());
-                if let Err(e) = vox_corpus::corpus::run_mix(&mix_yaml) {
-                    eprintln!("  {} Mix failed: {}", "⚠️".yellow(), e);
-                } else if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_yaml) {
-                    let mixed_path = root.join(&mix_cfg.output);
-                    let final_train_path = data_dir.join("train.jsonl");
-                    if mixed_path.exists() {
-                        if let Err(e) = std::fs::copy(&mixed_path, &final_train_path) {
-                            eprintln!(
-                                "  {} Failed to copy mix to {}: {}",
-                                "⚠️".yellow(),
-                                final_train_path.display(),
-                                e
-                            );
-                        } else {
-                            eprintln!(
-                                "  {} Mixed data ready at: {}",
-                                "✓".green(),
-                                final_train_path.display()
-                            );
-                            #[allow(unsafe_code)]
-                            unsafe {
-                                std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
-                            }
-                        }
+                    Ok(false) => {
+                        eprintln!(
+                            "  {} Mix output not found after pipeline; check {}",
+                            "⚠️".yellow(),
+                            mix_yaml.display()
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "  {} Failed to copy mixed corpus to train.jsonl: {}",
+                            "⚠️".yellow(),
+                            e
+                        );
                     }
                 }
             }

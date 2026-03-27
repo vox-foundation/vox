@@ -2,8 +2,8 @@
   "schema": "vox_mens_checkpoint_v1",
   "run_id": "20260327T131818Z",
   "epoch": 1,
-  "global_step": 42,
-  "pair_offset": 43,
+  "global_step": 182,
+  "pair_offset": 183,
   "shuffled_indices": [
     8522,
     2712,
@@ -41161,8 +41161,8 @@
     5490
   ],
   "rng_seed": 42,
-  "adapter_path": "mens/runs/qwen35_qlora_smoke35_v4\\checkpoint_step_42.safetensors",
-  "last_loss": 40.389256,
-  "wall_seconds_elapsed": 2348.6571076,
-  "saved_at_utc": "~20539d 14:08:46 UTC (unix epoch offset)"
+  "adapter_path": "mens/runs/qwen35_qlora_smoke35_v4\\checkpoint_step_182.safetensors",
+  "last_loss": 37.01454,
+  "wall_seconds_elapsed": 10299.4715515,
+  "saved_at_utc": "~20539d 16:21:17 UTC (unix epoch offset)"
 }

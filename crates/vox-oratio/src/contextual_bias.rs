@@ -57,7 +57,7 @@ pub fn merge_bias_phrases(
 /// Parse comma-separated session hotwords from env-style strings.
 #[must_use]
 pub fn parse_hotword_csv(raw: &str) -> Vec<String> {
-    raw.split(|c| c == ',' || c == ';' || c == '\n')
+    raw.split([',', ';', '\n'])
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(str::to_string)

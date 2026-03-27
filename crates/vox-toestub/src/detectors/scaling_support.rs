@@ -89,8 +89,8 @@ pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
     }
     impl<'ast> Visit<'ast> for FsReadVisitor<'_> {
         fn visit_expr_call(&mut self, c: &'ast syn::ExprCall) {
-            if let Expr::Path(p) = c.func.as_ref() {
-                if path_expr_is_fs_unbounded_read(p) {
+            if let Expr::Path(p) = c.func.as_ref()
+                && path_expr_is_fs_unbounded_read(p) {
                     let span = c.span();
                     let line = span.start().line;
                     let column = span.start().column;
@@ -112,7 +112,6 @@ pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
                         })),
                     });
                 }
-            }
             visit::visit_expr_call(self, c);
         }
     }

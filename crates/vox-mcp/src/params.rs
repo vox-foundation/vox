@@ -267,7 +267,7 @@ pub struct OrchestratorRuntimeProbe {
     pub registered_worker_processes: usize,
     /// `queue_only` or `workers_attached`.
     pub execution_mode: String,
-    /// Always false today: MCP does not start the standalone `AgentFleet` loop here.
+    /// True when `VOX_MCP_AGENT_FLEET` enables the embedded AgentFleet supervisor loop (default).
     pub agent_fleet_loop_running: bool,
     /// Static note for clients that assumed a separate fleet process.
     pub note: &'static str,

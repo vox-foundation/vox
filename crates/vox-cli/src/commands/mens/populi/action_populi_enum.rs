@@ -227,10 +227,8 @@ pub enum PopuliAction {
         force_restart: bool,
     },
 
-    /// Run UV-managed Python quantized training (bitsandbytes/Unsloth-style).
-    ///
-    /// Invokes `uv run python mens/scripts/quantized_train.py` with env vars.
-    /// Emits structured logs; writes manifest/metrics to output dir.
+    /// Retired: UV/Python quantized training path removed; dispatch prints migration guidance.
+    /// Use native **`vox mens train`** (QLoRA) or follow docs for your GPU setup.
     TrainUv {
         /// HuggingFace model ID (e.g. Qwen/Qwen3-4B-Instruct-2507)
         #[arg(long)]

@@ -106,6 +106,7 @@ futures = { version = "0.3", optional = true }
 tower_governor = { version = "0.7", optional = true, features = ["axum"] }
 
 [dev-dependencies]
+jsonschema = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
 serde_yaml = { workspace = true }

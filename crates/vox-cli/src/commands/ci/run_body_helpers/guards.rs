@@ -110,11 +110,36 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
         })?;
         return Ok(out);
     }
+    // CI: set `VOX_SECRET_GUARD_GIT_REF` to a two-dot or three-dot range (e.g.
+    // `origin/main...HEAD` on pull requests, `${{ github.event.before }}...${{ github.sha }}` on push).
+    // Default `git diff HEAD` is empty on clean checkouts — avoid a no-op guard.
+    if let Ok(spec) = std::env::var("VOX_SECRET_GUARD_GIT_REF") {
+        let spec = spec.trim();
+        if !spec.is_empty() {
+            let output = std::process::Command::new("git")
+                .current_dir(root)
+                .args(["diff", "--name-only", "--diff-filter=AMR", spec])
+                .output()
+                .with_context(|| format!("git diff for secret-env-guard ({spec})"))?;
+            if !output.status.success() {
+                return Err(anyhow!(
+                    "git diff failed while checking secret env usage (range={spec})"
+                ));
+            }
+            return Ok(String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .map(str::trim)
+                .filter(|l| l.ends_with(".rs"))
+                .map(std::string::ToString::to_string)
+                .collect());
+        }
+    }
+
     let output = std::process::Command::new("git")
         .current_dir(root)
         .args(["diff", "--name-only", "--diff-filter=AMR", "HEAD"])
         .output()
-        .context("run git diff for secret guard")?;
+        .context("run git diff HEAD for secret guard")?;
     if !output.status.success() {
         return Err(anyhow!("git diff failed while checking secret env usage"));
     }

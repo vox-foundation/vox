@@ -233,11 +233,13 @@ mod tests {
 
     #[test]
     fn adapter_manifest_v3_carries_lineage_from_training_config() {
-        let mut cfg = LoraTrainingConfig::default();
-        cfg.base_model_family = Some("kimi-k2.5".into());
-        cfg.upstream_model_id = Some("moonshotai/Kimi-K2.5".into());
-        cfg.license_class = Some("modified-mit".into());
-        cfg.attribution_required = true;
+        let cfg = LoraTrainingConfig {
+            base_model_family: Some("kimi-k2.5".into()),
+            upstream_model_id: Some("moonshotai/Kimi-K2.5".into()),
+            license_class: Some("modified-mit".into()),
+            attribution_required: true,
+            ..Default::default()
+        };
 
         let mut key_map = HashMap::new();
         key_map.insert("lm_head".into(), "wte.weight".into());

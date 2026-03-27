@@ -19,9 +19,10 @@ use validators::{
     check_catalog_feature_gates_match_registry, check_catalog_generation_smoke,
     check_command_registry_embed_matches_disk, check_compilerd, check_dei,
     check_dockerfiles_cargo_locked_policy, check_env_var_ssot_index, check_install_policy_surfaces,
-    check_packaging_pm_docs_no_resurrected_uv_copies, check_reachability, check_ref_cli,
-    check_registry_latin_and_handlers, check_root_readme_cli_drift, check_script_duals,
-    check_upgrade_toolchain_only, check_vox_cli_lib,
+    check_operator_docs_no_legacy_vox_install_pm_nudge,
+    check_packaging_pm_docs_no_resurrected_uv_copies, check_project_pm_commands_no_toolchain_lane,
+    check_reachability, check_ref_cli, check_registry_latin_and_handlers,
+    check_root_readme_cli_drift, check_script_duals, check_upgrade_toolchain_only, check_vox_cli_lib,
 };
 
 use super::command_sync;
@@ -75,7 +76,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
     check_vox_cli_lib(&reg, &lib_rs)?;
     check_install_policy_surfaces(repo_root)?;
     check_upgrade_toolchain_only(repo_root)?;
+    check_project_pm_commands_no_toolchain_lane(repo_root)?;
     check_dockerfiles_cargo_locked_policy(repo_root)?;
+    check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root)?;
     check_packaging_pm_docs_no_resurrected_uv_copies(repo_root)?;
     check_registry_latin_and_handlers(&reg, &vox_cli_src)?;
     check_ref_cli(&reg, &ref_cli)?;

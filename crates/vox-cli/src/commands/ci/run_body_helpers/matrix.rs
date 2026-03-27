@@ -136,7 +136,7 @@ pub(crate) fn run_mens_gate(root: &Path, profile: &str, opts: &MensGateOpts) -> 
 fn run_mens_gate_isolated(root: &Path, profile: &str, opts: &MensGateOpts) -> Result<()> {
     #[cfg(windows)]
     {
-        return run_mens_gate_windows_isolated(root, profile, opts);
+        run_mens_gate_windows_isolated(root, profile, opts)
     }
     #[cfg(unix)]
     {
@@ -213,7 +213,7 @@ fn run_mens_gate_windows_isolated(root: &Path, profile: &str, opts: &MensGateOpt
         let log_out = Arc::clone(&log);
         let h_out = thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 println!("{line}");
                 if let Ok(mut w) = log_out.lock() {
                     let _ = writeln!(w, "{line}");
@@ -225,7 +225,7 @@ fn run_mens_gate_windows_isolated(root: &Path, profile: &str, opts: &MensGateOpt
         let log_err = Arc::clone(&log);
         let h_err = thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 eprintln!("{line}");
                 if let Ok(mut w) = log_err.lock() {
                     let _ = writeln!(w, "{line}");
@@ -322,7 +322,7 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
         let log_out = Arc::clone(&log);
         let h_out = thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 println!("{line}");
                 if let Ok(mut w) = log_out.lock() {
                     let _ = writeln!(w, "{line}");
@@ -334,7 +334,7 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
         let log_err = Arc::clone(&log);
         let h_err = thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 eprintln!("{line}");
                 if let Ok(mut w) = log_err.lock() {
                     let _ = writeln!(w, "{line}");

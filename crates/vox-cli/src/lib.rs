@@ -261,9 +261,6 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::UpgradeToolchainArgs,
     },
-    /// Retired — use `vox add` / `vox sync` / `vox pm`.
-    #[command(name = "install", hide = true)]
-    InstallRetired { package_name: Option<String> },
     /// Deprecated compatibility command; use `vox clavis set` instead.
     Login {
         /// Registry name (for example `google`, `openrouter`, `voxpm`).

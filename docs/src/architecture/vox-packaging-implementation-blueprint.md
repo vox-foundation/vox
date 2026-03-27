@@ -2,7 +2,7 @@
 title: "Vox packaging implementation blueprint"
 description: "Tactical migration blueprint for hard Python retirement, hybrid Vox package commands, and strict install/update/upgrade namespace policy."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: 2026-03-27
 training_eligible: true
 ---
 
@@ -68,26 +68,23 @@ This is a planning blueprint, not the execution checklist. The execution checkli
 
 | Current surface | Current state | Target surface | Migration action |
 | --- | --- | --- | --- |
-| `vox install` | active command entry, runtime stub | retired package verb | keep transitional error-only alias with migration text, then remove |
+| `vox install` | removed (Phase B) | — | no CLI subcommand / no registry row; see [`pm-migration-2026.md`](../reference/pm-migration-2026.md) |
 | `commands/add.rs` | implemented but not first-class wired | `vox add` | wire to CLI and command registry |
 | `commands/remove.rs` | implemented but not first-class wired | `vox remove` | wire to CLI and command registry |
 | `commands/update.rs` | implemented but not first-class wired | `vox update` | wire, add explicit lock policy semantics |
 | `vox pm vendor` | copies `.vox_modules/dl` for offline builds | shipped under **`vox pm`** | duplicate `commands/vendor.rs` removed |
-| `train-uv` | retired in runtime and registry | removed lane | remove residual docs/code references |
+| `train-uv` | retired in runtime and registry | `vox mens train --backend qlora` | keep `retired` registry row + bail message; docs cite QLoRA path only |
 
 ## Compatibility and deprecation policy
 
-### Phase A: compatibility error aliases
+### Phase A: compatibility error aliases *(completed; superseded by Phase B)*
 
-- Keep `vox install` only as an explicit error with actionable migration:
-  - suggest `vox add`, `vox sync`, `vox pm ...`.
-- Keep deprecation horizon explicit in docs.
+- Transitional hidden `vox install` returned a deterministic migration error.
 
-### Phase B: hard removal
+### Phase B: hard removal *(closed in-tree)*
 
-- Remove `Install` variant from CLI enum.
-- Remove command registry active row for `install`.
-- Remove stale references in docs/tests/tooltips.
+- `Install` / `InstallRetired` removed from the CLI enum; registry row removed; `commands/install.rs` deleted.
+- User-facing docs reference [`pm-migration-2026.md`](../reference/pm-migration-2026.md); `vox ci command-compliance` includes `check_operator_docs_no_legacy_vox_install_pm_nudge`.
 
 ## Package lifecycle architecture
 
@@ -174,7 +171,7 @@ Stability rule: these lanes must not change baseline `import rust:<crate>` seman
 ### R1: CLI breakage
 
 - Risk: users/scripts still call `vox install`.
-- Mitigation: transitional error alias with exact replacement commands and docs migration matrix.
+- Mitigation: Phase B removal surfaces a normal clap unknown-subcommand; migration matrix + CI doc guard forbid resurrecting “run `vox install`” PM guidance outside arch/migration pages.
 
 ### R2: partial retirement drift
 

@@ -15,7 +15,7 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn json_obj<'a>(v: &'a serde_json::Value) -> &'a serde_json::Map<String, serde_json::Value> {
+fn json_obj(v: &serde_json::Value) -> &serde_json::Map<String, serde_json::Value> {
     v.as_object().expect("expected JSON object")
 }
 

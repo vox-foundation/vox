@@ -8,7 +8,7 @@ Total Tools: 102
 | `vox_submit_task` | Submit a new task to the orchestrator. Routes to the best agent by file affinity. |
 | `vox_task_status` | Get the current status of a specific task by ID. |
 | `vox_orchestrator_status` | Get a full snapshot of the orchestrator state: agents, queues, and completed tasks. |
-| `vox_orchestrator_start` | Start the AgentFleet runtime programmatically from an OpenCode session. |
+| `vox_orchestrator_start` | Probe embedded orchestrator/worker readiness; AgentFleet is in-process when `VOX_MCP_AGENT_FLEET` is enabled (default). |
 | `vox_complete_task` | Mark a task as completed, releasing its file locks. |
 | `vox_fail_task` | Mark a task as failed with a reason string. |
 | `vox_check_file_owner` | Check which agent currently owns a given file path. |

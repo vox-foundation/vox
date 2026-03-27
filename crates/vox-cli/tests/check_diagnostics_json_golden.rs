@@ -16,11 +16,10 @@ fn golden_path() -> PathBuf {
 fn normalize_diagnostic_json(mut v: serde_json::Value) -> serde_json::Value {
     if let serde_json::Value::Array(ref mut arr) = v {
         for item in arr.iter_mut() {
-            if let Some(obj) = item.as_object_mut() {
-                if let Some(serde_json::Value::String(path)) = obj.get_mut("file") {
+            if let Some(obj) = item.as_object_mut()
+                && let Some(serde_json::Value::String(path)) = obj.get_mut("file") {
                     *path = path.replace('\\', "/");
                 }
-            }
         }
     }
     v

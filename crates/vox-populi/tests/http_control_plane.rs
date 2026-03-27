@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+#![allow(clippy::await_holding_lock)] // Env lock serializes transport tests across whole async bodies.
 #![cfg(feature = "transport")]
 
 use std::net::{Ipv4Addr, SocketAddr};

@@ -188,7 +188,7 @@ impl HfTransformerLayout {
     }
 }
 
-fn qwen35_text_config<'a>(v: &'a Value, architecture: HfArchitecture) -> Option<&'a Value> {
+fn qwen35_text_config(v: &Value, architecture: HfArchitecture) -> Option<&Value> {
     if architecture == HfArchitecture::Qwen35 {
         return v.get("text_config");
     }

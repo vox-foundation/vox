@@ -1,4 +1,4 @@
-//! Shared DB access for gamify commands.
+//! Shared DB access for Ludus CLI commands (`vox ludus`, `extras-ludus`).
 
 use anyhow::Result;
 use vox_db::Codex;

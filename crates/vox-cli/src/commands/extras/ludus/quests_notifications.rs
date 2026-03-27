@@ -170,8 +170,8 @@ pub async fn leaderboard_show(metric: &str, limit: usize) -> Result<()> {
     Ok(())
 }
 
-/// List pending notifications.
-pub async fn notify_list() -> Result<()> {
+/// List pending notifications. When `mark_read`, marks all listed rows read after printing.
+pub async fn notify_list(mark_read: bool) -> Result<()> {
     let db = db_util::get_db().await?;
     let user_id = vox_ludus::db::canonical_user_id();
     let notifications = db::list_unread_notifications(&db, &user_id, 10).await?;

@@ -369,7 +369,7 @@ pub(super) fn run_training_loop(
                     .flatten_all()?;
                 let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
                 // Invert sign (log_softmax is negative) and apply trajectory sample weight.
-                let w = (-1.0_f64 * sample_weight) as f32;
+                let w = -sample_weight as f32;
                 let w_t = candle_core::Tensor::new(&[w], device)?;
                 let loss = loss.broadcast_mul(&w_t)?;
 

@@ -19,9 +19,8 @@ const CORPUS: &[&str] = &[
 
 #[test]
 fn parser_corpus_does_not_panic() {
-    for (i, src) in CORPUS.iter().enumerate() {
+    for src in CORPUS {
         let tokens = lex(src);
         let _ = parse(tokens);
-        assert!(true, "corpus slice {i} should complete without panic");
     }
 }

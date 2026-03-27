@@ -609,7 +609,7 @@ component C() {
         None => unsafe { std::env::remove_var(KEY) },
     }
     assert!(
-        after.legacy_env_disabled >= before.legacy_env_disabled + 1,
+        after.legacy_env_disabled > before.legacy_env_disabled,
         "expected LegacyEnvDisabled tally after view emit, before={before:?} after={after:?}"
     );
 }

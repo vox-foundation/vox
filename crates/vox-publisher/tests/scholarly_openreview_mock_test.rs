@@ -1,4 +1,5 @@
 //! OpenReview scholarly adapter against a local mock HTTP server (`VOX_OPENREVIEW_API_BASE` / `OPENREVIEW_API_BASE`).
+#![allow(clippy::await_holding_lock)] // Tests serialize env + mock via std mutex; guard held for whole async body.
 
 mod common;
 

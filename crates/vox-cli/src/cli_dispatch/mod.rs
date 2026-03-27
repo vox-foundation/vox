@@ -110,9 +110,6 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Upgrade { args } => {
             crate::commands::upgrade::run(&args, global.json).await?;
         }
-        Cli::InstallRetired { package_name } => {
-            crate::commands::install::run_retired(package_name).await?;
-        }
         Cli::Login {
             registry,
             token,

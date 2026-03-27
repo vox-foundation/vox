@@ -2,6 +2,7 @@
 //! plus a **local TCP stub** for registry `download` JSON (no external network).
 //!
 //! Uses process cwd because handlers resolve `Vox.toml` / `vox.lock` relative to `.`.
+#![allow(clippy::await_holding_lock)] // `PM_WORKDIR_GUARD` serializes cwd-sensitive PM tests across awaits.
 
 use serial_test::serial;
 use std::fs;

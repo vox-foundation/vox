@@ -208,6 +208,22 @@ pub fn ordered_full_block_weight_keys(layout: &HfTransformerLayout) -> Vec<Strin
     v
 }
 
+/// Like [`ordered_full_block_weight_keys`], but for **strict** QLoRA preflight shard checks.
+///
+/// **Qwen3.5** Hugging Face checkpoints usually omit per-layer `*.rotary_emb.inv_freq`; the Candle
+/// trainer synthesizes RoPE from `rope_theta` in `config.json`. Requiring those tensors here caused
+/// false failures with `--qlora-require-full-proxy-stack` on official `Qwen/Qwen3.5-*` weights.
+#[must_use]
+pub fn ordered_full_block_weight_keys_strict_preflight(
+    layout: &HfTransformerLayout,
+) -> Vec<String> {
+    let mut keys = ordered_full_block_weight_keys(layout);
+    if layout.architecture == HfArchitecture::Qwen35 {
+        keys.retain(|k| !k.ends_with("rotary_emb.inv_freq"));
+    }
+    keys
+}
+
 /// Ordered candidate keys from layer `0 .. n_layer-1` (Candle o_proj proxy stack).
 #[must_use]
 pub fn ordered_middle_projection_keys(layout: &HfTransformerLayout) -> Vec<String> {
@@ -364,5 +380,33 @@ mod tests {
                 "model.language_model.layers.1.self_attn.o_proj.weight",
             ]
         );
+    }
+
+    #[test]
+    fn qwen35_strict_preflight_keys_omit_synthesizable_rope_inv_freq() {
+        let layout = HfTransformerLayout::from_config_json_str(
+            r#"{
+              "model_type":"qwen3_5",
+              "text_config":{
+                "hidden_size":64,
+                "num_attention_heads":4,
+                "num_hidden_layers":2,
+                "vocab_size":1000,
+                "layer_types":["linear_attention","full_attention"]
+              }
+            }"#,
+        )
+        .expect("qwen3_5 config");
+        let full = ordered_full_block_weight_keys(&layout);
+        let strict = ordered_full_block_weight_keys_strict_preflight(&layout);
+        assert!(
+            full.iter().any(|k| k.ends_with("rotary_emb.inv_freq")),
+            "full key list should still mention inv_freq for docs/diagnostics"
+        );
+        assert!(
+            !strict.iter().any(|k| k.ends_with("rotary_emb.inv_freq")),
+            "strict preflight must not require HF inv_freq shards for Qwen3.5"
+        );
+        assert_eq!(full.len() - strict.len(), 2);
     }
 }

@@ -96,7 +96,7 @@ clippy:
   extends: .base
   stage: check
   script:
-    - cargo clippy --workspace -- -D warnings
+    - cargo clippy --workspace --all-targets -- -D warnings
 
 # ── test ──────────────────────────────────────────────────────────────────
 test:
@@ -325,5 +325,5 @@ docker-vox-image-smoke:
     - |
       for i in $(seq 1 30); do docker info && break || sleep 1; done
     - docker build -t vox:ci-smoke .
-    - docker build --build-arg VOX_CLI_FEATURES=mesh,script-execution -t vox:ci-mesh .
+    - docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh .
   allow_failure: true

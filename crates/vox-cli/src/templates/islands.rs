@@ -183,7 +183,7 @@ pub fn islands_props_from_element_ts() -> &'static str {
 /// Hydrates `[data-vox-island="Name"]` nodes from built island modules (also built as **`island-mount.js`**).
 pub fn islands_island_mount_tsx() -> &'static str {
     static FULL: OnceLock<&'static str> = OnceLock::new();
-    *FULL.get_or_init(|| {
+    FULL.get_or_init(|| {
         Box::leak(
             [
                 ISLAND_MOUNT_PRE,

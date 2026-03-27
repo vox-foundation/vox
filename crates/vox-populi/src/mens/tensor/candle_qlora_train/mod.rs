@@ -250,14 +250,13 @@ pub fn run_candle_qlora_train(
              omit the flag for a full stack."
         );
     }
-    if let Some(cap) = config.qlora_proxy_max_layers {
-        if cap < n_layer {
+    if let Some(cap) = config.qlora_proxy_max_layers
+        && cap < n_layer {
             anyhow::bail!(
                 "Candle QLoRA: `--qlora-proxy-max-layers={cap}` is less than model depth ({n_layer}); \
                  partial-stack training is not implemented. Omit the flag or set the cap to at least {n_layer}."
             );
         }
-    }
 
     let tokenizer = Tokenizer::from_file(&bundle.tokenizer_path)
         .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;

@@ -34,7 +34,6 @@ struct CitationCffRoot {
 ///
 /// Authors are taken from `metadata_json.scientific_publication.authors` when present; otherwise a
 /// single author uses [`PublicationManifest::author`].
-#[must_use]
 pub fn render_citation_cff(manifest: &PublicationManifest) -> Result<String, serde_yaml::Error> {
     let scientific = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
         .ok()

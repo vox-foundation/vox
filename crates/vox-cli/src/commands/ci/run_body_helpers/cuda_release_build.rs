@@ -46,7 +46,7 @@ pub(crate) fn run_cuda_release_build(root: &Path, log_dir: PathBuf) -> Result<()
     let h_out = {
         let log = Arc::clone(&log);
         thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().flatten() {
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                 println!("{line}");
                 if let Ok(mut w) = log.lock() {
                     let _ = writeln!(w, "{line}");
@@ -58,7 +58,7 @@ pub(crate) fn run_cuda_release_build(root: &Path, log_dir: PathBuf) -> Result<()
     let h_err = {
         let log = Arc::clone(&log);
         thread::spawn(move || {
-            for line in BufReader::new(stderr).lines().flatten() {
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
                 eprintln!("{line}");
                 if let Ok(mut w) = log.lock() {
                     let _ = writeln!(w, "{line}");

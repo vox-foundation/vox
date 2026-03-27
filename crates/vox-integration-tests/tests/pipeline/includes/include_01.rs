@@ -905,7 +905,7 @@ fn assert_mixed_surface_codegen_core_files() {
         let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
         for needle in ["Dash.tsx", "Shell.tsx", "App.tsx", "vox-islands-meta.ts"] {
             assert!(
-                names.iter().any(|n| *n == needle),
+                names.contains(&needle),
                 "expected {needle} in {:?}",
                 names
             );

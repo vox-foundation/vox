@@ -82,13 +82,12 @@ impl<'ast> Visit<'ast> for Collector {
     }
 
     fn visit_expr_call(&mut self, c: &'ast ExprCall) {
-        if let Expr::Path(ExprPath { path, .. }) = c.func.as_ref() {
-            if path.segments.len() == 1 && path.segments[0].arguments.is_empty() {
+        if let Expr::Path(ExprPath { path, .. }) = c.func.as_ref()
+            && path.segments.len() == 1 && path.segments[0].arguments.is_empty() {
                 let seg = &path.segments[0];
                 let line = seg.ident.span().start().line;
                 self.call_sites.insert((line, seg.ident.to_string()));
             }
-        }
         visit::visit_expr_call(self, c);
     }
 }

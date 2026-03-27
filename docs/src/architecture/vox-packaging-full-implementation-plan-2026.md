@@ -2,7 +2,7 @@
 title: "Vox packaging full implementation plan 2026"
 description: "Execution-grade implementation plan for Cargo-first Vox package management, hard Python retirement, and CLI namespace unification."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: 2026-03-27
 training_eligible: true
 ---
 
@@ -11,7 +11,7 @@ training_eligible: true
 Execute a full package-management redesign in Vox with these non-negotiable constraints:
 
 - Python/UV package/runtime lanes are fully retired.
-- `vox install` is retired as a package verb.
+- `vox install` is removed as a package verb (Phase B — no CLI subcommand).
 - Package workflow uses a hybrid CLI model:
   - top-level common dependency operations,
   - advanced operations under `vox pm`.
@@ -90,7 +90,7 @@ Define canonical command grammar in code, command registry, and docs so later wi
 1. Add top-level CLI variants for `add/remove/update/lock/sync` in `Cli` enum.
 2. Add `Pm` subcommand root in `Cli` enum for advanced operations.
 3. Reserve `Upgrade` variant semantics for toolchain lane.
-4. Keep `Install` temporarily only if needed for migration aliasing in WP4.
+4. **`Install` / `install` are absent after WP4 Phase B** (no migration alias in CLI or registry).
 5. Register new paths and statuses in command registry.
 
 ### WP1 behavior requirements
@@ -203,30 +203,27 @@ Remove `install` as a package-management action and provide explicit migration g
 
 ### WP4 files to edit
 
-- `crates/vox-cli/src/lib.rs`
-- `crates/vox-cli/src/commands/install.rs`
-- `crates/vox-cli/src/main.rs`
-- `contracts/cli/command-registry.yaml`
-- `docs/src/reference/cli.md`
+- `crates/vox-cli/src/lib.rs` *(Phase B: no `Install` / `InstallRetired` variant)*
+- `crates/vox-cli/src/main.rs`, `crates/vox-cli/src/cli_dispatch/mod.rs`, `crates/vox-cli/src/commands/mod.rs`
+- `contracts/cli/command-registry.yaml` *(no `install` row)*
+- `docs/src/reference/cli.md`, `pm-migration-2026.md`, packaging research/plan cross-links
 - Any stale message paths (for example vendor/audit hints)
 
 ### WP4 implementation steps
 
-1. Transitional step:
-   - keep `vox install` as error-only alias with migration text to `add/sync/pm`.
-2. Final step:
-   - remove `Install` variant and registry active status.
+1. **Phase A (done earlier):** hidden error-only alias with migration text.
+2. **Phase B (closed in-tree):** remove `Install*` variant, remove `commands/install.rs`, drop registry row, refresh docs — `vox install` is an **unrecognized subcommand** (`vox_cli_root_parsing::install_subcommand_removed_phase_b`).
 3. Replace stale references to “run vox install first”.
 
 ### WP4 behavior requirements
 
-- User gets deterministic migration instructions.
-- No hidden install behavior remains.
+- Operators use [`pm-migration-2026.md`](../reference/pm-migration-2026.md) for substitutions; clap errors list valid subcommands.
+- No `install` package verb remains in CLI or registry.
 
 ### WP4 acceptance tests
 
-- Snapshot test for retired command output text.
-- Search-based guard test: no doc/help text suggesting install for PM flow.
+- Integration test: `vox install` fails at parse time (removed subcommand).
+- Search-based guard: `check_operator_docs_no_legacy_vox_install_pm_nudge` in `vox ci command-compliance` (forbids `run vox install` / `vox install first` outside migration/arch pages).
 
 ### WP4 rollback trigger
 
@@ -403,7 +400,8 @@ Finalize migration with enforceable parity between code, registry, and docs.
 ### WP9 behavior requirements
 
 - No command drift between parser, registry, and docs.
-- Retired commands provide deterministic migration instructions.
+- **Removed** surfaces (e.g. package-management `vox install`) are absent from the CLI/registry; operators use [`pm-migration-2026.md`](../reference/pm-migration-2026.md).
+- **Retired** surfaces still enumerated (e.g. `vox mens train-uv`) return deterministic errors with replacement verbs and stay `retired` in `command-registry.yaml`.
 
 ### WP9 acceptance tests
 

@@ -302,7 +302,7 @@ pub async fn poll_scholarly_remote_status_batch_loop(
     max_runtime_secs: Option<u64>,
     jitter_secs: u64,
 ) -> Result<Value> {
-    let iterations = iterations.max(1).min(10_000);
+    let iterations = iterations.clamp(1, 10_000);
     let interval_secs = interval_secs.min(3_600);
     let jitter_secs = jitter_secs.min(3_600);
     let max_runtime = max_runtime_secs.map(|m| m.min(86_400));
@@ -310,11 +310,10 @@ pub async fn poll_scholarly_remote_status_batch_loop(
     let mut runs: Vec<Value> = Vec::new();
     let mut done = 0_u32;
     for i in 0..iterations {
-        if let Some(limit_s) = max_runtime {
-            if started.elapsed().as_secs() >= limit_s {
+        if let Some(limit_s) = max_runtime
+            && started.elapsed().as_secs() >= limit_s {
                 break;
             }
-        }
         if i > 0 && interval_secs > 0 {
             tokio::time::sleep(loop_sleep_interval(interval_secs, jitter_secs)).await;
         }
@@ -344,7 +343,7 @@ pub async fn run_external_submit_jobs_tick_loop(
     max_runtime_secs: Option<u64>,
     jitter_secs: u64,
 ) -> Result<Value> {
-    let iterations = iterations.max(1).min(10_000);
+    let iterations = iterations.clamp(1, 10_000);
     let interval_secs = interval_secs.min(3_600);
     let jitter_secs = jitter_secs.min(3_600);
     let max_runtime = max_runtime_secs.map(|m| m.min(86_400));
@@ -352,11 +351,10 @@ pub async fn run_external_submit_jobs_tick_loop(
     let mut runs: Vec<Value> = Vec::new();
     let mut done = 0_u32;
     for i in 0..iterations {
-        if let Some(limit_s) = max_runtime {
-            if started.elapsed().as_secs() >= limit_s {
+        if let Some(limit_s) = max_runtime
+            && started.elapsed().as_secs() >= limit_s {
                 break;
             }
-        }
         if i > 0 && interval_secs > 0 {
             tokio::time::sleep(loop_sleep_interval(interval_secs, jitter_secs)).await;
         }
@@ -592,7 +590,7 @@ pub async fn run_external_submit_jobs_tick(
         .filter(|s| !s.is_empty())
         .map(ToString::to_string)
         .unwrap_or_else(default_scholarly_job_lock_owner);
-    let lim = limit.max(1).min(500);
+    let lim = limit.clamp(1, 500);
     let jobs = db
         .list_external_submission_jobs_due(now_ms, lim)
         .await

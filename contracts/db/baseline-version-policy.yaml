@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 38
+  repository_baseline_integer: 41
   # Keccak-256 hex digest of concatenated domain DDL from SCHEMA_FRAGMENTS (see schema_baseline_digest_hex).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

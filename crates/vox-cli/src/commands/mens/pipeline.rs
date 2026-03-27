@@ -185,7 +185,7 @@ pub async fn run(
                             crate::commands::corpus::CorpusAction::Pairs {
                                 input: validated.clone(),
                                 output: train_jsonl.clone(),
-                                docs: Some(PathBuf::from("docs/src")),
+                                docs: vec![PathBuf::from("docs/src")],
                             },
                         )
                         .await?;
@@ -206,38 +206,15 @@ pub async fn run(
             }
             PipelineStage::Mix => {
                 if !dry_run {
-                    let mix_config = PathBuf::from("mens/config/mix.yaml");
+                    let ws = vox_corpus::training::contract::find_workspace_root();
+                    let mix_config =
+                        vox_corpus::training::mix_prepare::resolve_mix_config_path(ws.as_deref());
                     if mix_config.is_file() {
-                        if let Ok(cfg) = vox_corpus::corpus::MixConfigSchema::load(&mix_config)
-                            && let Some(primary) = cfg.sources.first()
-                        {
-                            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                            let primary_resolved = cwd.join(&primary.path);
-                            if primary_resolved != train_jsonl {
-                                tracing::warn!(
-                                    mix_primary = %primary_resolved.display(),
-                                    active_train_jsonl = %train_jsonl.display(),
-                                    "pipeline mix source mismatch; syncing active train.jsonl into mix primary source path"
-                                );
-                                if train_jsonl.is_file() {
-                                    if let Some(parent) = primary_resolved.parent() {
-                                        std::fs::create_dir_all(parent)?;
-                                    }
-                                    std::fs::copy(&train_jsonl, &primary_resolved).map_err(|e| {
-                                        anyhow::anyhow!(
-                                            "pipeline mix sync failed ({} -> {}): {e}",
-                                            train_jsonl.display(),
-                                            primary_resolved.display()
-                                        )
-                                    })?;
-                                } else {
-                                    tracing::warn!(
-                                        "active train.jsonl does not exist yet at {}; continuing with configured mix sources",
-                                        train_jsonl.display()
-                                    );
-                                }
-                            }
-                        }
+                        vox_corpus::training::mix_prepare::sync_mix_primary_with_train_jsonl(
+                            ws.as_deref(),
+                            &data_dir,
+                            &mix_config,
+                        )?;
                         crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Mix {
                             config: mix_config,
                             allow_missing_sources: true,

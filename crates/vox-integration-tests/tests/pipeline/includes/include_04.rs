@@ -139,7 +139,7 @@ component T() {
         generate(&hir).expect("codegen with VOX_WEBIR_EMIT_REACTIVE_VIEWS=1");
         let after = reactive_view_bridge_stats();
         assert!(
-            after.web_ir_view_emitted >= before.web_ir_view_emitted + 1,
+            after.web_ir_view_emitted > before.web_ir_view_emitted,
             "expected WebIrViewEmitted after parity match; before={before:?} after={after:?}"
         );
     });

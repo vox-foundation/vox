@@ -159,7 +159,7 @@ impl VoxDb {
         before_ms_inclusive: i64,
         limit: i64,
     ) -> Result<Vec<ExternalSubmissionJobRow>, StoreError> {
-        let lim = limit.max(1).min(500);
+        let lim = limit.clamp(1, 500);
         let rows = self
             .query_all(
                 "SELECT id, publication_id, content_sha3_256, adapter, operation, idempotency_key,
@@ -207,7 +207,7 @@ impl VoxDb {
         &self,
         limit: i64,
     ) -> Result<Vec<ExternalSubmissionJobRow>, StoreError> {
-        let lim = limit.max(1).min(500);
+        let lim = limit.clamp(1, 500);
         let rows = self
             .query_all(
                 "SELECT id, publication_id, content_sha3_256, adapter, operation, idempotency_key,

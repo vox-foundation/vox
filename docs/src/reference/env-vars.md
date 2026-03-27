@@ -138,6 +138,7 @@ Wall-time and attention telemetry for information-theoretic clarification (chat,
 | `VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION` | When **`0`** or **`false`**, questioning debits apply only to the **per-`session_id`** tally. When **unset** or any other value, the same milliseconds also increment the orchestrator [`BudgetManager`](../../../crates/vox-orchestrator/src/budget.rs) global **`AttentionBudget::spent_ms`** (see [`add_questioning_attention_debit_ms`](../../../crates/vox-orchestrator/src/budget.rs)); this does **not** emit an interrupt EWMA event. Implemented in [`ServerState::record_questioning_attention_spend`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
 | `VOX_QUESTIONING_MAX_ATTENTION_MS` | Optional **unsigned** cap (milliseconds) for the per-session clarification attention analogue. **Unset** or invalid → `QuestioningPolicy::default().max_clarification_attention_ms`. Used by [`questioning_attention_bounds`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
 | `VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE` | When truthy, allows orchestrator **task submit** via MCP to skip the “pending Socrates clarification” gate (operator / CI escape hatch). See [`task_tools`](../../../crates/vox-mcp/src/tools/task_tools.rs). |
+| `VOX_MCP_AGENT_FLEET` | When **unset** or truthy, **vox-mcp** spawns the embedded `AgentFleet` loop (`sync_fleet` + periodic `tick`) so vox-runtime worker handles are registered and queued tasks receive `ProcessQueue` wakes (**default on**). Set **`0`**, **`false`**, **`no`**, or **`off`** to disable. See [`spawn_embedded_agent_fleet_if_enabled`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
 
 **MCP tools (VoxDb required for persistence):** `vox_questioning_pending` (unanswered assistant questions + structured `question_options` and session `belief_state_json`), `vox_questioning_submit_answer`, `vox_questioning_sync_ssot`. Canonical names: [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml). Protocol SSOT: [Information-theoretic questioning](information-theoretic-questioning.md).
 
@@ -192,6 +193,7 @@ Full table: [mens SSOT](populi.md). Common entries:
 
 | Variable | Role |
 |----------|------|
+| `VOX_SECRET_GUARD_GIT_REF` | Git revision range for **`vox ci secret-env-guard`** on clean checkouts (e.g. `origin/main...HEAD` on PRs, `${{ github.event.before }}...${{ github.sha }}` on push). Avoids an empty diff scope when `git diff` would otherwise scan nothing. See [`guards.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs). |
 | `VOX_BUILD_TIMINGS_BUDGET_WARN` | Soft budget warnings for **`vox ci build-timings`**. |
 | `SKIP_CUDA_FEATURE_CHECK` | Skip optional `nvcc` gates (documented escape hatch in [runner contract](../ci/runner-contract.md)). |
 

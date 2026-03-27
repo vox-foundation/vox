@@ -49,7 +49,7 @@ Explicit advanced verbs (registry parity): **`vox pm search`**, **`vox pm info`*
 
 Git-source note: `vox sync` and `vox pm verify` do not fetch/verify git payloads in-repo yet. They fail fast by default; for explicit operator bypass in controlled environments set `VOX_PM_ALLOW_GIT_UNVERIFIED=1`.
 
-**Retired:** **`vox install`** (hidden) — use **`vox add`**, **`vox lock`**, **`vox sync`**, and **`vox pm`** instead.
+**Removed:** the old **`vox install`** package verb — use **`vox add`**, **`vox lock`**, **`vox sync`**, and **`vox pm`** instead (`vox install` is an unrecognized subcommand).
 
 **Migration note (old → new verbs):** [`pm-migration-2026.md`](pm-migration-2026.md).
 
@@ -142,7 +142,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`, `vox-cli --features oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-drift` | Compare/update grammar fingerprint; `--emit github` / `--emit gitlab` for CI |
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards (GitLab parity) |
-| `secret-env-guard [--all]` | Fails if Rust files add direct managed-secret env reads outside allowed modules (default changed-files; `--all` scans all crates). |
+| `secret-env-guard [--all]` | Fails if Rust files add direct managed-secret env reads outside allowed modules (default: `git diff` changed files; set **`VOX_SECRET_GUARD_GIT_REF`** to a merge-base range on clean CI checkouts; `--all` scans all crates). |
 | `clavis-parity` | Verifies Clavis managed secret names are synchronized with `docs/src/reference/clavis-ssot.md`. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, and script duals — blocks orphan CLI drift |
@@ -228,7 +228,7 @@ Runs `build`, then **`cargo test`** in `target/generated`.
 
 ### `vox fmt <file>`
 
-**Placeholder.** The formatter is not wired to the current AST; the command performs a no-op read/write path check. Stderr notes this unless `VOX_SILENT_STUB_FMT=1`. Use `vox-fmt` directly in development if you are working on the formatter crate.
+Formats a **`.vox`** file using [`vox_compiler::fmt::try_format`](../../../crates/vox-compiler/src/fmt/mod.rs): parse → pretty-print → **re-parse** (fail-closed). Writes in place via a temp file + rename (see [`commands/fmt.rs`](../../../crates/vox-cli/src/commands/fmt.rs)). **`--check`**: exit non-zero if the file would change (CI-friendly). Constructs the formatter cannot print yet surface as **parse** errors once the printer/AST diverges; expand coverage in `vox-compiler` `fmt/` over time.
 
 ### `vox doctor`
 
@@ -246,10 +246,6 @@ Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podm
 Build: `cargo build -p vox-cli --features codex` for the extended path.
 
 ## Tooling
-
-### `vox install` (retired)
-
-Hidden compatibility entry: **deterministic migration error** — use **`vox add`**, **`vox lock`**, **`vox sync`**, and **`vox pm`** (see [Package management](#package-management-vox-pm) above).
 
 ### `vox db`
 
@@ -363,7 +359,9 @@ Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited.
 
 ## Mens / DeI (feature-gated)
 
-**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA; same intent as **`vox-mens` shim** (`vox mens …`)), **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`**, **`vox mens eval-local`**.
+**Normative semantics** (defaults, train / merge / serve matrix, data-prep SSOT, deferred trainer flags): **[`reference/mens-training.md`](mens-training.md)**. This section lists **CLI surfaces and build features** only; do not treat it as a second SSOT for training behavior.
+
+**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA; same intent as **`vox-mens` shim** (`vox mens …`)), **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`**, **`vox mens eval-local`**, **`vox mens generate`**, **`vox mens review`**, **`vox mens check`**, **`vox mens fix`**, **`vox mens workflow list`**, **`vox mens workflow inspect`**, **`vox mens workflow check`**, **`vox mens workflow run`**.
 
 With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox oratio`** (alias **`vox speech`**) requires **`--features oratio`** (STT stack; separate from the **`mens`** command tree). **Native train** / **serve** / **probe** / **merge-weights** / **merge-qlora** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-mens`** shim binary inserts the **`mens`** subcommand for argv ergonomics — use **`vox oratio`** for speech. `cargo build -p vox-cli --features mens-base`; add **`oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../architecture/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP/OpenAI-compatible API) requires **`gpu`** (Axum/control-plane pieces may additionally need **`execution-api`** for other REST surfaces — see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 
@@ -445,7 +443,6 @@ Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 | `vox run` | `src/commands/run.rs` |
 | `vox bundle` | `src/commands/bundle.rs` |
 | `vox fmt` | `src/commands/fmt.rs` |
-| `vox install` (retired / hidden) | `src/commands/install.rs` |
 | `vox lsp` | `src/commands/lsp.rs` |
 | `vox architect` | `src/commands/diagnostics/tools/architect.rs` (features **`codex`** and/or **`stub-check`**) |
 
@@ -566,7 +563,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `dev` | default | `commands::dev` |
 | `live` | `live` | `commands::live` |
 | `bundle` | default | `commands::bundle` |
-| `fmt` | default | `commands::fmt` (not implemented; fails with doc pointer; see `ref-cli.md`) |
+| `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
 | `add` | default | `commands::add` |
 | `remove` | default | `commands::remove` |
 | `update` | default | `commands::update` |
@@ -574,7 +571,6 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `sync` | default | `commands::sync` |
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `pm` | default | `commands::pm` |
-| `install` | default | `commands::install` (**retired** hidden shim; migration error) |
 | `login` | default | `commands::login` (deprecated compatibility shim) |
 | `logout` | default | `commands::logout` (deprecated compatibility shim) |
 | `lsp` | default | `commands::lsp` |

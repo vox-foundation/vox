@@ -2,8 +2,7 @@
 //!
 //! Generates a chain of CodeRabbit PRs comparing local state (WIP) against an older commit.
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use vox_forge::GitForgeProvider;
@@ -11,8 +10,8 @@ use vox_forge::github::GitHubProvider;
 use vox_git::GitBridge;
 
 use super::{
-    github, limits, path_policy,
-    semantic_planner::{SemanticManifest, SemanticPlanner, SemanticSubmitConfig},
+    path_policy,
+    semantic_planner::{SemanticPlanner, SemanticSubmitConfig},
 };
 
 /// Run historical submit: stash local state in a WIP commit, get diff against `hist_sha`,

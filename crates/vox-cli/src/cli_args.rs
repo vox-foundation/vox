@@ -95,6 +95,9 @@ pub struct BundleArgs {
 pub struct FmtArgs {
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Exit with error if the file would be reformatted (does not write).
+    #[arg(long, default_value_t = false)]
+    pub check: bool,
 }
 
 /// `vox doctor` / `vox mens doctor`

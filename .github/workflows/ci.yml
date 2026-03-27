@@ -53,8 +53,22 @@ jobs:
         run: cargo run -p vox-cli --quiet -- ci command-compliance
 
       - name: Clavis SSOT parity + secret direct-read guard
+        shell: bash
         run: |
+          set -euo pipefail
           cargo run -p vox-cli --quiet -- ci clavis-parity
+          # Meaningful diff scope on clean checkouts (default `git diff HEAD` scans nothing in CI).
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=256
+            export VOX_SECRET_GUARD_GIT_REF="origin/${{ github.base_ref }}...HEAD"
+          else
+            BEFORE="${{ github.event.before }}"
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE" ]; then
+              export VOX_SECRET_GUARD_GIT_REF="HEAD~1...HEAD"
+            else
+              export VOX_SECRET_GUARD_GIT_REF="${{ github.event.before }}...${{ github.sha }}"
+            fi
+          fi
           cargo run -p vox-cli --quiet -- ci secret-env-guard
 
       - name: Contracts index + scaling policy SSOT
@@ -87,7 +101,7 @@ jobs:
         run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
 
       - name: Lint Check (Clippy)
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       # Scoped TOESTUB: enforce-warn (critical-only) after false-positive burn-down; override `--mode` locally if needed.
       - name: TOESTUB (scoped)
@@ -151,11 +165,6 @@ jobs:
 
       - name: Populi CI gate matrix (single manifest)
         run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
-
-      - name: Qwen3.5 native ladder contract checks (0.8B/2B/4B/9B schema parity)
-        run: |
-          cargo test -p vox-populi --features "mens,mens-train" --test qwen35_native_parity
-          cargo test -p vox-populi --features "mens,mens-train" --lib qwen35_linear_attention_forward_and_cache_progression
 
   # GitHub-hosted exception: needs stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   web-vite-build-smoke:
@@ -222,4 +231,4 @@ jobs:
         run: docker build -t vox:ci-smoke .
       # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
       - name: docker build mesh worker image (mesh + script-execution)
-        run: docker build --build-arg VOX_CLI_FEATURES=mesh,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
+        run: docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .

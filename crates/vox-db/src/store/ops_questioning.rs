@@ -479,7 +479,7 @@ impl crate::VoxDb {
                             .map(|o| (o.option_id.clone(), uniform))
                             .collect();
                     }
-                    let lik_mul = 1.0_f64 + eig_bits.max(0.0).min(8.0);
+                    let lik_mul = 1.0_f64 + eig_bits.clamp(0.0, 8.0);
                     let mut updated: HashMap<String, f64> = HashMap::new();
                     for (oid, p) in mass {
                         let l = if oid == sel { lik_mul } else { 1.0 };

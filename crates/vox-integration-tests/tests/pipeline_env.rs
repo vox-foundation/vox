@@ -1,4 +1,5 @@
 //! Shared env guard + chatbot fixture for pipeline integration tests (`tests/pipeline.rs`).
+#![allow(unsafe_code)] // `std::env::set_var` / `remove_var` are `unsafe` (Rust 2024); mutation is serialized by [`ENV_MUTEX`].
 
 use std::ffi::OsString;
 use std::sync::Mutex;

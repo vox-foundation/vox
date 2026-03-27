@@ -43,7 +43,7 @@ This runbook covers **two** native paths:
 5. **Acceptance**: first log lines show **finite** loss; optional **`--qlora-ce-last-k 4`** for a stronger suffix LM signal (see SSOT).
 6. Thin wrapper (optional): [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1).
 
-- **Merge (Candle)**: `vox schola merge-qlora …` produces **f32 safetensors** subsets — not Burn `*.bin`. **`vox mens serve` (Burn)** loads LoRA or merged **Burn** checkpoints; it does **not** load Candle merge-qlora safetensors. For querying merged QLoRA weights, use an external stack (e.g. export to HF/Ollama) or keep the **adapter** path your inference tool supports.
+- **Merge (Candle)**: in-tree **`vox mens merge-qlora`** (alias **`merge-adapter`**) or **`vox schola merge-qlora`** — same merge surface; produces **f32 safetensors** subsets — not Burn `*.bin`. See the SSOT train → merge → serve table in [`mens-training.md`](../reference/mens-training.md). **`vox mens serve` (Burn)** loads LoRA or merged **Burn** checkpoints; it does **not** load Candle merge-qlora safetensors. For querying merged QLoRA weights, use an external stack (e.g. export to HF/Ollama) or keep the **adapter** path your inference tool supports.
 
 ## Burn LoRA path (non-Qwen or GPT-2-shaped HF)
 

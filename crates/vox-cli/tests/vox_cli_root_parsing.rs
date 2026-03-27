@@ -183,23 +183,16 @@ fn parse_pm_subcommands() {
 }
 
 #[test]
-fn parse_retired_install_hidden() {
-    let r = VoxCliRoot::try_parse_from(["vox", "install", "legacy-pkg"]).expect("install parse");
-    assert!(matches!(r.cmd, Cli::InstallRetired { .. }));
-}
-
-#[tokio::test]
-async fn install_retired_message_lists_replacement_verbs() {
-    let err = vox_cli::commands::install::run_retired(Some("legacy-pkg".into()))
-        .await
-        .expect_err("retired install errors");
-    let msg = err.to_string();
-    for needle in ["vox add", "vox lock", "vox sync", "vox pm", "legacy-pkg"] {
-        assert!(
-            msg.contains(needle),
-            "migration message should mention `{needle}`:\n{msg}"
-        );
-    }
+fn install_subcommand_removed_phase_b() {
+    let err = match VoxCliRoot::try_parse_from(["vox", "install", "legacy-pkg"]) {
+        Ok(_) => panic!("expected parse failure for removed subcommand `install`"),
+        Err(e) => e,
+    };
+    let msg = err.to_string().to_lowercase();
+    assert!(
+        msg.contains("install") && (msg.contains("unrecognized") || msg.contains("unexpected")),
+        "clap should reject removed subcommand `install`: {msg}"
+    );
 }
 
 #[test]

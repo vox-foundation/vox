@@ -7,7 +7,7 @@
       "id": "baseline-integer-docs-drift",
       "severity": "low",
       "status": "mitigated",
-      "summary": "Policy SSOT: contracts/db/baseline-version-policy.yaml + check-codex-ssot alignment; OpenAPI and architecture docs updated toward manifest integer 38.",
+      "summary": "Policy SSOT: contracts/db/baseline-version-policy.yaml + check-codex-ssot alignment; OpenAPI and architecture docs updated toward manifest BASELINE_VERSION (see crates/vox-db/src/schema/manifest.rs).",
       "code_refs": ["crates/vox-db/src/schema/manifest.rs"],
       "doc_refs": [
         "docs/src/architecture/codex-vnext-schema.md",

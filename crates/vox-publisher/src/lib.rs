@@ -803,8 +803,8 @@ impl Publisher {
                     missing_asset = true;
                 }
                 let mut youtube_precheck_failed = false;
-                if !missing_asset {
-                    if let Err(e) = adapters::youtube::precheck_video_upload(&resolved) {
+                if !missing_asset
+                    && let Err(e) = adapters::youtube::precheck_video_upload(&resolved) {
                         result.youtube = ChannelOutcome::Failed {
                             code: "youtube_precheck_failed".to_string(),
                             message: e.to_string(),
@@ -812,7 +812,6 @@ impl Publisher {
                         };
                         youtube_precheck_failed = true;
                     }
-                }
                 if !missing_asset
                     && !youtube_precheck_failed
                     && let (Some(client_id), Some(client_secret), Some(refresh_token)) = (

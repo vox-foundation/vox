@@ -120,11 +120,10 @@ impl SuppressionStore {
             if !e.path_matcher.is_match(Path::new(rel.as_str())) {
                 continue;
             }
-            if let Some(ln) = e.line {
-                if finding.line != ln {
+            if let Some(ln) = e.line
+                && finding.line != ln {
                     continue;
                 }
-            }
             return true;
         }
         false

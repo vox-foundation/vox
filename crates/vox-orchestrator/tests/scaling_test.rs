@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use vox_orchestrator::config::OrchestratorConfig;
 use vox_orchestrator::orchestrator::Orchestrator;
 use vox_orchestrator::runtime::AgentFleet;
@@ -15,7 +14,7 @@ async fn test_dynamic_scaling_and_retirement() {
     config.scaling_threshold = 2; // Spawn if > 2 tasks per agent
     config.idle_retirement_ms = 100; // Fast retirement for test
 
-    let orch = Arc::new(Mutex::new(Orchestrator::new(config)));
+    let orch = Arc::new(Orchestrator::new(config));
     let scheduler = Arc::new(Scheduler::new());
     let fleet = AgentFleet::new(
         scheduler.clone(),
@@ -24,35 +23,28 @@ async fn test_dynamic_scaling_and_retirement() {
     );
 
     // 1. Initial state: 0 agents (fleet sync will spawn 1 default if needed, or check_scaling will)
-    {
-        let o = orch.lock().await;
-        // In this test environment, we might need at least one agent to start
-        o.spawn_agent("default").unwrap();
-    }
+    orch.spawn_agent("default").unwrap();
 
     fleet.sync_fleet().await;
-    assert_eq!(orch.lock().await.agent_ids().len(), 1);
+    assert_eq!(orch.agent_ids().len(), 1);
 
     // 2. Add tasks to trigger scaling
-    {
-        let o = orch.lock().await;
-        for i in 0..10 {
-            o.submit_task(
-                format!("task-{}", i),
-                vec![],
-                Some(TaskPriority::Normal),
-                None,
-            )
-            .await
-            .unwrap();
-        }
+    for i in 0..10 {
+        orch.submit_task(
+            format!("task-{}", i),
+            vec![],
+            Some(TaskPriority::Normal),
+            None,
+        )
+        .await
+        .unwrap();
     }
 
     // 3. Run scaling check
     fleet.check_scaling().await;
 
     // Should have spawned more agents (up to 4)
-    let agent_count = orch.lock().await.agent_ids().len();
+    let agent_count = orch.agent_ids().len();
     assert!(
         agent_count > 1,
         "Should have scaled up, found {} agents",
@@ -62,13 +54,12 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 4. Mark tasks as complete to trigger retirement
     {
-        let o = orch.lock().await;
-        let ids = o.agent_ids();
+        let ids = orch.agent_ids();
         for id in ids {
-            if let Some(q) = o.get_agent_queue_mut(id) {
+            if let Some(q) = orch.get_agent_queue_mut(id) {
                 let tasks = q.write().unwrap().drain_tasks();
                 for t in tasks {
-                    o.complete_task(t.id).await.ok();
+                    orch.complete_task(t.id).await.ok();
                 }
             }
         }
@@ -82,7 +73,7 @@ async fn test_dynamic_scaling_and_retirement() {
     fleet.check_scaling().await;
 
     // Should have scaled down to min_agents
-    let final_count = orch.lock().await.agent_ids().len();
+    let final_count = orch.agent_ids().len();
     assert_eq!(
         final_count, 1,
         "Should have scaled down to 1, found {}",

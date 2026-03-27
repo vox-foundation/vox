@@ -390,7 +390,6 @@ pub struct ValidationFinding {
 }
 
 /// Validate staging directory contents against the venue plan.
-#[must_use]
 pub fn validate_scholarly_staging(
     out_dir: &Path,
     venue: ScholarlyVenue,
@@ -498,9 +497,9 @@ fn content_checks(
         }
         _ => {}
     }
-    if matches!(venue, ScholarlyVenue::Zenodo) && relative_path == "zenodo.json" {
-        if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-            if val.get("metadata").and_then(|m| m.as_object()).is_none() {
+    if matches!(venue, ScholarlyVenue::Zenodo) && relative_path == "zenodo.json"
+        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes)
+            && val.get("metadata").and_then(|m| m.as_object()).is_none() {
                 out.push(ValidationFinding {
                     code: "staging_zenodo_json_shape",
                     message: format!(
@@ -509,10 +508,8 @@ fn content_checks(
                     ),
                 });
             }
-        }
-    }
-    if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_handoff.json" {
-        if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+    if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_handoff.json"
+        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes) {
             let ok = val.get("schema_version").is_some()
                 && val
                     .get("workflow")
@@ -538,7 +535,6 @@ fn content_checks(
                 });
             }
         }
-    }
     if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_bundle.tar.gz" {
         for f in validate_arxiv_submission_tar_gz(&bytes) {
             if f.code == "arxiv_bundle_not_gzip" {

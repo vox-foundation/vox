@@ -69,7 +69,7 @@ pub async fn route_event(
                 if let Some(t) = event_json.get("type").and_then(|v| v.as_str()) {
                     t.hash(&mut h);
                 }
-                if h.finish() % n == 0 {
+                if h.finish().is_multiple_of(n) {
                     tracing::info!(
                         target: "vox_ludus::route_event",
                         user_id = %user_id,

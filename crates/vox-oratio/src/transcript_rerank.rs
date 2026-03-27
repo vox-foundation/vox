@@ -159,7 +159,7 @@ pub fn rerank_candidates_best_first_with_context(
             sb.cmp(&sa)
         });
         candidates.extend(tail);
-        return candidates;
+        candidates
     }
     #[cfg(not(feature = "compiler-rerank"))]
     {

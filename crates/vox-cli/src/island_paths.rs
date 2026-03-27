@@ -27,12 +27,9 @@ pub fn resolve_island_package_root(repo_root: &Path) -> Option<PathBuf> {
         repo_root.join("islands"),
         repo_root.join("packages").join("islands"),
     ];
-    for p in candidates {
-        if p.join("package.json").is_file() {
-            return Some(p);
-        }
-    }
-    None
+    candidates
+        .into_iter()
+        .find(|p| p.join("package.json").is_file())
 }
 
 /// **`…/src/`** under [`island_package_root`].

@@ -7,7 +7,7 @@ use crate::commands::pm_lifecycle::{self, DEFAULT_REGISTRY_BASE};
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use vox_pm::{PublishDependency, PublishRequest, RegistryClient, content_hash};
 
 /// Advanced PM subcommands (registry, cache, verification).
@@ -284,7 +284,7 @@ pub async fn run(cmd: PmCli) -> Result<()> {
     Ok(())
 }
 
-fn vendor_copy_tree(src: &PathBuf, dst: &PathBuf) -> Result<()> {
+fn vendor_copy_tree(src: &Path, dst: &Path) -> Result<()> {
     for e in walkdir::WalkDir::new(src).min_depth(1) {
         let e = e?;
         let path = e.path();

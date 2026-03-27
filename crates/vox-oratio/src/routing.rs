@@ -97,7 +97,7 @@ fn classify_speech_code_intent(lower: &str, compact: &str) -> Option<(IntentKind
     let edit_words = [
         "edit", "change", "modify", "update", "refactor", "rename", "replace",
     ];
-    if edit_words.iter().any(|w| tokens.iter().any(|t| *t == *w)) {
+    if edit_words.iter().any(|w| tokens.contains(w)) {
         return Some((IntentKind::CodeEdit, 0.7));
     }
 

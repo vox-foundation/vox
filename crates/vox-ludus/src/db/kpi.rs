@@ -79,7 +79,7 @@ pub async fn list_policy_snapshots_since_days(
     days: u32,
     limit: usize,
 ) -> Result<Vec<PolicySnapshotRow>> {
-    let days_i = days.max(1).min(3660);
+    let days_i = days.clamp(1, 3660);
     let rel = format!("-{days_i} days");
     let lim = limit.clamp(1, 500) as i64;
     let rows = db

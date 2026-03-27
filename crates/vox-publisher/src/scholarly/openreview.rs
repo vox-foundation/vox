@@ -65,11 +65,11 @@ fn merge_openreview_config(
         .unwrap_or_default();
     let mut readers: Option<Vec<String>> = None;
 
-    if let Some(meta) = manifest.metadata_json.as_deref() {
-        if let Ok(root) = serde_json::from_str::<ManifestMetadataOpenReviewRoot>(meta) {
-            if let Some(or) = root.openreview {
-                if invitation.is_empty() {
-                    if let Some(s) = or
+    if let Some(meta) = manifest.metadata_json.as_deref()
+        && let Ok(root) = serde_json::from_str::<ManifestMetadataOpenReviewRoot>(meta)
+            && let Some(or) = root.openreview {
+                if invitation.is_empty()
+                    && let Some(s) = or
                         .invitation
                         .as_deref()
                         .map(str::trim)
@@ -77,9 +77,8 @@ fn merge_openreview_config(
                     {
                         invitation = s.to_string();
                     }
-                }
-                if signature.is_empty() {
-                    if let Some(s) = or
+                if signature.is_empty()
+                    && let Some(s) = or
                         .signature
                         .as_deref()
                         .map(str::trim)
@@ -87,7 +86,6 @@ fn merge_openreview_config(
                     {
                         signature = s.to_string();
                     }
-                }
                 if let Some(r) = or.readers.filter(|x| !x.is_empty()) {
                     let r: Vec<String> = r
                         .into_iter()
@@ -99,8 +97,6 @@ fn merge_openreview_config(
                     }
                 }
             }
-        }
-    }
 
     if invitation.is_empty() {
         return Err(ScholarlyError::Config {
@@ -134,7 +130,6 @@ pub struct OpenReviewSubmitProfileExport {
 }
 
 /// Merge `VOX_OPENREVIEW_*` / `OPENREVIEW_*` with `metadata_json.openreview` (same rules as submit).
-#[must_use]
 pub fn export_openreview_submit_profile(
     manifest: &PublicationManifest,
 ) -> Result<OpenReviewSubmitProfileExport, ScholarlyError> {

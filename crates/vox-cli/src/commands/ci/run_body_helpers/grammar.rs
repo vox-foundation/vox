@@ -10,24 +10,36 @@ use super::hash::sha256_hex_lower;
 pub(crate) fn run_grammar_drift(root: &Path, emit: Option<GrammarDriftEmit>) -> Result<()> {
     let prompt = crate::training::generate_system_prompt();
     let fingerprint = sha256_hex_lower(prompt.as_bytes());
-    let path = root.join("mens/data/grammar_fingerprint.txt");
-    let stored = if path.is_file() {
-        read_utf8_path_capped(&path)
+    let path_mens = root.join("mens/data/grammar_fingerprint.txt");
+    let path_populi = root.join("populi/data/grammar_fingerprint.txt");
+    let read_one = |p: &Path| -> String {
+        if !p.is_file() {
+            return String::new();
+        }
+        read_utf8_path_capped(p)
+            .map(|s| s.trim().to_string())
             .unwrap_or_default()
-            .trim()
-            .to_string()
+    };
+    let stored_mens = read_one(&path_mens);
+    let stored_populi = read_one(&path_populi);
+    let stored = if !stored_mens.is_empty() {
+        stored_mens
     } else {
-        String::new()
+        stored_populi
     };
     let drift = fingerprint != stored;
     if drift {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
+        let content = format!("{fingerprint}\n");
+        for path in [&path_mens, &path_populi] {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(path, &content)?;
         }
-        fs::write(&path, format!("{fingerprint}\n"))?;
         eprintln!(
-            "Grammar drift detected (fingerprint changed). Updated {}.",
-            path.display()
+            "Grammar drift detected (fingerprint changed). Updated {} and {}.",
+            path_mens.display(),
+            path_populi.display()
         );
     } else {
         eprintln!("No grammar drift detected.");

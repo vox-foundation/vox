@@ -7,7 +7,9 @@ use super::mcp_wiring::{check_mcp_tool_wiring, extract_mcp_handler_tools};
 use super::registry::{extract_mcp_registry_tool_names, parse_mcp_registry_yaml};
 use super::validators::{
     check_dockerfiles_cargo_locked_policy, check_install_policy_surfaces,
-    check_packaging_pm_docs_no_resurrected_uv_copies, check_upgrade_toolchain_only, kebab_to_pascal,
+    check_operator_docs_no_legacy_vox_install_pm_nudge,
+    check_packaging_pm_docs_no_resurrected_uv_copies,
+    check_project_pm_commands_no_toolchain_lane, check_upgrade_toolchain_only, kebab_to_pascal,
 };
 
 #[test]
@@ -17,6 +19,24 @@ fn upgrade_rs_stays_toolchain_only() {
         .nth(2)
         .expect("repo root above crates/vox-cli");
     check_upgrade_toolchain_only(root).expect("upgrade.rs PM isolation");
+}
+
+#[test]
+fn project_pm_files_avoid_toolchain_lane() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    check_project_pm_commands_no_toolchain_lane(root).expect("WP5 add/remove/update/lock/sync");
+}
+
+#[test]
+fn operator_docs_avoid_legacy_vox_install_pm_nudge() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    check_operator_docs_no_legacy_vox_install_pm_nudge(root).expect("WP4 doc guard");
 }
 
 #[test]

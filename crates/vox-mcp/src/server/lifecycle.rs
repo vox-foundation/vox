@@ -17,6 +17,47 @@ use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 use vox_socrates_policy::QuestioningPolicy;
 
 /// When `Vox.toml` declares a non-empty `affinity_groups` array, use it; otherwise derive from repo layout.
+/// When truthy (default if unset), MCP spawns [`vox_orchestrator::runtime::AgentFleet`] so queued
+/// tasks receive `ProcessQueue` wakes from registered worker actors.
+///
+/// Disable with `VOX_MCP_AGENT_FLEET=0`, `false`, `no`, or `off`.
+pub fn mcp_agent_fleet_env_enabled() -> bool {
+    match std::env::var("VOX_MCP_AGENT_FLEET") {
+        Ok(v) => {
+            let v = v.trim();
+            if v.is_empty() {
+                return true;
+            }
+            !(v == "0"
+                || v.eq_ignore_ascii_case("false")
+                || v.eq_ignore_ascii_case("no")
+                || v.eq_ignore_ascii_case("off"))
+        }
+        Err(_) => true,
+    }
+}
+
+fn spawn_embedded_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
+    if !mcp_agent_fleet_env_enabled() {
+        tracing::info!(
+            "VOX_MCP_AGENT_FLEET disabled: orchestrator task queues will not auto-drain in-process"
+        );
+        return;
+    }
+    let scheduler = Arc::new(vox_runtime::scheduler::Scheduler::new());
+    let fleet = vox_orchestrator::runtime::AgentFleet::new(
+        scheduler,
+        orchestrator,
+        Arc::new(vox_orchestrator::runtime::StubTaskProcessor),
+    );
+    tokio::spawn(async move {
+        tracing::info!(
+            "VOX_MCP_AGENT_FLEET: embedded AgentFleet loop running (sync_fleet + tick + scaling)"
+        );
+        fleet.run().await;
+    });
+}
+
 fn affinity_groups_for_repository(
     repository: &vox_repository::RepositoryContext,
 ) -> AffinityGroupRegistry {
@@ -137,6 +178,7 @@ impl ServerState {
         state.spawn_orchestrator_event_log_sink();
         state.spawn_populi_federation_poller();
         state.spawn_populi_remote_result_poller();
+        spawn_embedded_agent_fleet_if_enabled(state.orchestrator.clone());
         state
     }
 

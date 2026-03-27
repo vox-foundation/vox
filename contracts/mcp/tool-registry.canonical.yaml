@@ -10,7 +10,7 @@ tools:
   - name: "vox_orchestrator_status"
     description: "Get a full snapshot of the orchestrator state: agents, queues, and completed tasks."
   - name: "vox_orchestrator_start"
-    description: "Start the AgentFleet runtime programmatically from a Vox agent session."
+    description: "Probe embedded orchestrator + worker readiness. AgentFleet runs in-process when VOX_MCP_AGENT_FLEET is enabled (default); this tool does not spawn a separate process."
   - name: "vox_spawn_agent"
     description: "Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire)."
   - name: "vox_retire_agent"

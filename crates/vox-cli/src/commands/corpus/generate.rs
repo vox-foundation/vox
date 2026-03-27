@@ -209,7 +209,11 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Path>) -> Result<()> {
+pub(super) async fn run_pairs(
+    input: &Path,
+    output: &Path,
+    docs_dirs: &[std::path::PathBuf],
+) -> Result<()> {
     if tokio::fs::metadata(input).await.is_err() {
         anyhow::bail!("Input file not found: {}", input.display());
     }
@@ -303,12 +307,17 @@ pub(super) async fn run_pairs(input: &Path, output: &Path, docs_dir: Option<&Pat
         }
     }
 
-    if let Some(docs) = docs_dir {
-        let docs = docs.to_path_buf();
-        let doc_pairs = tokio::task::spawn_blocking(move || extract_doc_pairs(&docs))
+    for docs in docs_dirs {
+        let docs_for_task = docs.clone();
+        let docs_label = docs_for_task.display().to_string();
+        let doc_pairs = tokio::task::spawn_blocking(move || extract_doc_pairs(&docs_for_task))
             .await
             .map_err(|e| anyhow::anyhow!("extract_doc_pairs join: {e}"))?;
-        println!("  Extracted {} pairs from documentation", doc_pairs.len());
+        println!(
+            "  Extracted {} pairs from documentation ({})",
+            doc_pairs.len(),
+            docs_label
+        );
         all_pairs.extend(doc_pairs);
     }
 

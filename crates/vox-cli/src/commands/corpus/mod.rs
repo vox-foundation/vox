@@ -18,7 +18,7 @@ use anyhow::Result;
 use clap::Parser;
 
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
-pub(crate) use stats::{TrainEvalMetrics, eval_metrics, run_benchmark_gate};
+pub(crate) use stats::{eval_metrics, run_benchmark_gate};
 
 /// Subcommands for invoking native Mens training data pipelines.
 #[derive(Parser)]
@@ -84,9 +84,9 @@ pub enum CorpusAction {
         /// Output training JSONL file
         #[arg(short, long, default_value = "target/dogfood/train.jsonl")]
         output: std::path::PathBuf,
-        /// Documentation directory to extract additional pairs from
-        #[arg(long)]
-        docs: Option<std::path::PathBuf>,
+        /// Documentation root(s) for additional fenced `vox` pairs (repeatable; merged)
+        #[arg(long, action = clap::ArgAction::Append)]
+        docs: Vec<std::path::PathBuf>,
     },
     /// Replay Arca telemetry into Mens training pairs
     Replay {
@@ -186,7 +186,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             input,
             output,
             docs,
-        } => generate::run_pairs(&input, &output, docs.as_deref()).await,
+        } => generate::run_pairs(&input, &output, &docs).await,
         CorpusAction::Prompt { output } => generate::run_prompt(&output).await,
         CorpusAction::Eval {
             input,

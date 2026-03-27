@@ -38,6 +38,24 @@ fn github_ci_populi_gate_is_unified() {
 }
 
 #[test]
+fn github_ci_no_duplicate_mens_populi_gate_tests_after_manifest() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    if yml.contains("ci mens-gate --profile ci_full") {
+        assert!(
+            !yml.contains("--test qwen35_native_parity"),
+            "qwen35_native_parity is in scripts/populi/gates.yaml (ci_full); do not re-invoke in ci.yml"
+        );
+        assert!(
+            !yml.contains("qwen35_linear_attention_forward_and_cache_progression"),
+            "qwen35_linear_attention tests are in gates.yaml (ci_full); do not duplicate in ci.yml"
+        );
+    }
+}
+
+#[test]
 fn github_ci_runs_llvm_cov_and_coverage_gates() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

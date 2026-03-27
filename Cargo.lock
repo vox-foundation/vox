@@ -10694,6 +10694,7 @@ dependencies = [
  "ed25519-dalek",
  "futures",
  "hf-hub",
+ "jsonschema",
  "jsonwebtoken",
  "peft-rs",
  "qlora-rs",

@@ -64,6 +64,7 @@ pub fn auth_allows_admin_route(ctx: PopuliAuthContext) -> bool {
 
 /// Resolved populi bearer material from Clavis / env (captured at router build time).
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub struct PopuliMeshAuthRuntime {
     mesh: Option<Arc<str>>,
     worker: Option<Arc<str>>,
@@ -73,17 +74,6 @@ pub struct PopuliMeshAuthRuntime {
     pub(crate) jwt_hmac: Option<Arc<str>>,
 }
 
-impl Default for PopuliMeshAuthRuntime {
-    fn default() -> Self {
-        Self {
-            mesh: None,
-            worker: None,
-            submitter: None,
-            admin: None,
-            jwt_hmac: None,
-        }
-    }
-}
 
 #[derive(Debug, Deserialize)]
 struct MeshJwtClaims {

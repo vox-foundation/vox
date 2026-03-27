@@ -82,7 +82,9 @@ pub async fn run() -> Result<()> {
     // Check lockfile exists
     let lock_path = PathBuf::from("vox.lock");
     if !lock_path.exists() {
-        println!("  ⚠ No vox.lock found — run `vox install` to generate one");
+        println!(
+            "  ⚠ No vox.lock found — run `vox lock` after `vox add …`, or `vox sync` to materialize"
+        );
         issues += 1;
     }
 

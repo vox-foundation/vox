@@ -2,7 +2,7 @@
 # Cross-platform lanes, feature matrix, and env toggles: docs/src/architecture/vox-cross-platform-runbook.md
 # Usage:
 #   docker build -t vox .
-#   docker build -t vox:mesh --build-arg VOX_CLI_FEATURES=mesh,script-execution .
+#   docker build -t vox:mesh --build-arg VOX_CLI_FEATURES=populi,script-execution .
 #   docker run -e GEMINI_API_KEY=... -p 3000:3000 vox
 #
 # Optional mesh HTTP control plane + MCP in one container:

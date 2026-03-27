@@ -43,7 +43,7 @@ pub fn run_toolchain_upgrade(args: &UpgradeToolchainArgs, json_output: bool) -> 
         allow_pre,
         &auth,
     )
-    .map_err(|e| map_self_update(e))?;
+    .map_err(map_self_update)?;
 
     let Some(candidate) = candidate else {
         return emit_up_to_date(json_output, current_str, &triple, provider.describe());

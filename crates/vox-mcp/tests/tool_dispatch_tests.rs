@@ -97,7 +97,7 @@ async fn test_scientia_scholarly_staging_export_writes_files() {
         source_ref: None,
         title: "Staging tool test",
         author: "Vox",
-        abstract_text: Some("Abstract".into()),
+        abstract_text: Some("Abstract"),
         body_markdown: "# Hello",
         citations_json: None,
         metadata_json: Some(r#"{"syndication":{"dry_run":true,"rss":false}}"#),
@@ -125,7 +125,7 @@ async fn test_scientia_scholarly_staging_export_writes_files() {
     let names: Vec<&str> = written.iter().filter_map(|v| v.as_str()).collect();
     assert!(names.contains(&"body.md"));
     assert!(names.contains(&"CITATION.cff"));
-    assert!(!names.iter().any(|n| *n == "zenodo.json"));
+    assert!(!names.contains(&"zenodo.json"));
     assert!(out.path().join("body.md").is_file());
 }
 

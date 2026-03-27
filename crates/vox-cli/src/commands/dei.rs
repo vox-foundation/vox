@@ -2,7 +2,7 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_orchestrator::{
-    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskId, TaskPriority,
+    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
 };
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
@@ -99,7 +99,7 @@ pub async fn status() -> Result<()> {
 /// `vox orchestrator submit` — manually submit a task.
 pub async fn submit(description: &str, files: &[String], priority: Option<&str>) -> Result<()> {
     let config = load_config();
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
 
     let file_manifest: Vec<FileAffinity> = files.iter().map(FileAffinity::write).collect();
 
@@ -152,7 +152,7 @@ pub async fn queue(agent_id: u64) -> Result<()> {
 /// `vox orchestrator rebalance` — trigger manual rebalancing.
 pub async fn rebalance() -> Result<()> {
     let config = load_config();
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
 
     let moved = orch.rebalance();
     if moved > 0 {
@@ -217,7 +217,7 @@ pub async fn config() -> Result<()> {
 /// `vox orchestrator pause` — pause an agent.
 pub async fn pause(agent_id: u64) -> Result<()> {
     let config = load_config();
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     let id = AgentId(agent_id);
 
     match orch.pause_agent(id) {
@@ -231,7 +231,7 @@ pub async fn pause(agent_id: u64) -> Result<()> {
 /// `vox orchestrator resume` — resume an agent.
 pub async fn resume(agent_id: u64) -> Result<()> {
     let config = load_config();
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
     let id = AgentId(agent_id);
 
     match orch.resume_agent(id) {
@@ -275,17 +275,21 @@ pub async fn load() -> Result<()> {
 /// `vox orchestrator undo` — undo the last N operations.
 pub async fn undo(count: usize) -> Result<()> {
     let config = load_config();
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
 
-    // Ensure VoxDb is connected for DB undo
     if let Ok(store) = vox_db::VoxDb::open_default().await {
-        orch.set_code_store(store);
+        let _ = orch.init_db(std::sync::Arc::new(store)).await;
     }
 
     let mut successful = 0;
     for _ in 0..count {
         // Find the last NON-UNDONE operation from the history (newest first)
-        if let Some(op) = orch.oplog().history().iter().rev().find(|e| !e.undone) {
+        if let Some(op) = vox_orchestrator::sync_lock::rw_read(&*orch.oplog)
+            .history()
+            .iter()
+            .rev()
+            .find(|e| !e.undone)
+        {
             let id = op.id;
             // op.description is &String here, need to clone before it's borrowed mutably
             let desc = op.description.clone();
@@ -329,17 +333,21 @@ pub async fn undo(count: usize) -> Result<()> {
 /// `vox orchestrator redo` — redo the last N undone operations.
 pub async fn redo(count: usize) -> Result<()> {
     let config = load_config();
-    let mut orch = Orchestrator::new(config);
+    let orch = Orchestrator::new(config);
 
-    // Ensure VoxDb is connected for DB redo
     if let Ok(store) = vox_db::VoxDb::open_default().await {
-        orch.set_code_store(store);
+        let _ = orch.init_db(std::sync::Arc::new(store)).await;
     }
 
     let mut successful = 0;
     for _ in 0..count {
         // Find the last operation that was undone (redo-able)
-        if let Some(op) = orch.oplog().history().iter().rev().find(|e| e.undone) {
+        if let Some(op) = vox_orchestrator::sync_lock::rw_read(&*orch.oplog)
+            .history()
+            .iter()
+            .rev()
+            .find(|e| e.undone)
+        {
             let id = op.id;
             let desc = op.description.clone();
             match orch.redo_operation(id).await {

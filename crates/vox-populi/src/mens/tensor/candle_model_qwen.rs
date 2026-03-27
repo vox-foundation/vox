@@ -536,6 +536,7 @@ impl Qwen35LinearAttention {
     }
 }
 
+#[allow(clippy::large_enum_variant)] // Hot-path layout; boxing would add indirection on every forward.
 pub enum Qwen35AttentionBlock {
     Full(Qwen2Attention),
     Linear(Qwen35LinearAttention),

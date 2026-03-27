@@ -1,13 +1,14 @@
 //! Pretty-print / minimally format Vox source by round-tripping parse → string.
 //!
-//! On parse failure the original `source` is returned unchanged so editors can format incomplete buffers.
+//! - [`format`] returns the original buffer when parsing fails (editor-safe soft mode).
+//! - [`try_format`] is **fail-closed**: returns parse/round-trip errors for tooling (`vox fmt`).
 
 mod expr;
 mod printer;
 mod stmt;
 
 use crate::lexer::lex;
-use crate::parser::parse;
+use crate::parser::{ParseError, parse};
 
 /// Format `source` when it parses cleanly; otherwise return `source` unchanged.
 pub fn format(source: &str) -> String {
@@ -20,6 +21,17 @@ pub fn format(source: &str) -> String {
     let mut printer = printer::Printer::new();
     printer.print_module(&module);
     printer.finish().trim_end().to_string() + "\n"
+}
+
+/// Parse, print, and **re-parse** output. Fails if the source is invalid or the printer loses validity.
+pub fn try_format(source: &str) -> Result<String, Vec<ParseError>> {
+    let tokens = lex(source);
+    let module = parse(tokens)?;
+    let mut printer = printer::Printer::new();
+    printer.print_module(&module);
+    let out = printer.finish().trim_end().to_string() + "\n";
+    parse(lex(&out)).map(|_| ())?;
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -73,6 +85,14 @@ mod tests {
     ret x + y
 }\n",
         );
+    }
+
+    #[test]
+    fn try_format_matches_soft_format_when_valid() {
+        let src = "fn add(x: int, y: int) to int {\n    ret x + y\n}\n";
+        let soft = format(src);
+        let strict = try_format(src).expect("try_format");
+        assert_eq!(soft, strict);
     }
 
     #[test]

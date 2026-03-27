@@ -109,6 +109,19 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     })
 }
 
+/// Block on [`download_model`] using a dedicated runtime (sync training / CLI entrypoints).
+pub fn download_model_blocking(repo_id: &str) -> anyhow::Result<DownloadedModelFiles> {
+    let repo_id = repo_id.to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("tokio Runtime::new for hf download");
+        let result = rt.block_on(download_model(&repo_id));
+        let _ = tx.send(result);
+    });
+    rx.recv()
+        .map_err(|_| anyhow::anyhow!("HF download thread exited without sending result"))?
+}
+
 #[cfg(all(test, feature = "mens-hf-hub"))]
 #[allow(unsafe_code)] // Serialized env mutation for token sync tests (Rust 2024 `set_var` safety).
 mod tests {

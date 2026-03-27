@@ -64,21 +64,18 @@ impl TokenMap {
             if bytes[i] == b'b'
                 && bytes.get(i + 1) == Some(&b'"')
                 && bytes.get(i + 2) != Some(&b'"')
-            {
-                if let Some(end) = scan_normal_string(bytes, i + 1) {
+                && let Some(end) = scan_normal_string(bytes, i + 1) {
                     spans.push((i, end, NonCodeKind::String));
                     i = end;
                     continue;
                 }
-            }
             // Normal " string
-            if bytes[i] == b'"' {
-                if let Some(end) = scan_normal_string(bytes, i) {
+            if bytes[i] == b'"'
+                && let Some(end) = scan_normal_string(bytes, i) {
                     spans.push((i, end, NonCodeKind::String));
                     i = end;
                     continue;
                 }
-            }
             i += 1;
         }
         merge_spans_kind(&mut spans);

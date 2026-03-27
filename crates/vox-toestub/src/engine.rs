@@ -125,13 +125,11 @@ fn collect_workspace_crate_mod_refs(
 fn merge_prelude_allowlist(roots: &[PathBuf], explicit: Option<&Path>) -> HashSet<String> {
     let mut out = HashSet::new();
     let mut try_load = |p: &Path| {
-        if let Ok(raw) = crate::bounded_fs::read_utf8_path_capped(p) {
-            if let Ok(doc) = serde_json::from_str::<PreludeAllowFile>(&raw) {
-                if doc.version == 1 {
-                    out.extend(doc.idents.into_iter());
+        if let Ok(raw) = crate::bounded_fs::read_utf8_path_capped(p)
+            && let Ok(doc) = serde_json::from_str::<PreludeAllowFile>(&raw)
+                && doc.version == 1 {
+                    out.extend(doc.idents);
                 }
-            }
-        }
     };
     if let Some(p) = explicit {
         try_load(p);

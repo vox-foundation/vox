@@ -212,7 +212,7 @@ impl VoxDb {
         &self,
         limit: i64,
     ) -> Result<Vec<String>, StoreError> {
-        let lim = limit.max(1).min(500);
+        let lim = limit.clamp(1, 500);
         let rows = self
             .query_all(
                 "SELECT publication_id FROM scholarly_submissions

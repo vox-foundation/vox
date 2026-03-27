@@ -80,7 +80,7 @@ Implemented in tree:
 
 - **TOESTUB god-object detector** uses **non-blank** line counts (aligned with this checklist and PowerShell scan).
 - **`vox-cli` CI:** `run_body_helpers/` explicit modules (`hash`, `grammar`, `guards`, `docs`, `matrix`, `timings`, `cuda`) + `#[path = …]` from `run_body.rs` (avoids `ci/run_body/run_body_helpers/` submodule pitfall). Removed `run_body_helpers_part*.rs`.
-- **`vox-cli` gamify:** `commands/gamify/` (`activity`, `battle`, `companions`, `quests`, `render`) behind `extras-ludus`; removed `gamify.rs` + `gamify_includes/`.
+- **`vox-cli` Ludus:** game flows live under `commands/extras/ludus/` + `vox-ludus`; the old duplicate `commands/gamify/` tree was removed (SSOT: **`vox ludus`** with `extras-ludus`).
 - **`vox-populi` transport:** `transport/{auth,store,handlers,router}.rs` (removed `part_*.rs` includes).
 - **`vox-corpus` synthetic_gen:** explicit modules (`tool_pairs`, `a2a_pairs`, `workflow_pairs`, `orchestrator_pairs`, `web_pairs`, `negative_pairs`, `agent_pairs`, `cli_pairs`, `script_pairs`, `routing_pairs`, `error_recovery_pairs`, `multi_agent_pairs`, `telemetry_pairs`) + shared `emit_line` / `emit_tool_pair` in `mod.rs`; body text remains in `_*` include fragments; `generate_all` via `_generate_all_mod.inc`; `rng.rs` / `templates.rs`; `tests.rs` sibling module. Removed `gen_impl.rs` and `part_01.rs`…`part_05.rs`.
 - **Workflow:** `.github/workflows/ml_data_extraction.yml` triggers on `crates/vox-cli/src/commands/corpus/**` (replaces stale single-file path).

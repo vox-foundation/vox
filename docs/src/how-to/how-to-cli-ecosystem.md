@@ -83,7 +83,7 @@ See [Language Server](#language-server-lsp) below for details.
 
 ### Package management (`vox add` / `vox sync` / `vox pm`)
 
-**`vox install` is retired** (hidden shim → deterministic migration error). Use **`vox add`**, **`vox lock`**, **`vox sync`**, and **`vox pm`** per [`reference/cli.md`](../reference/cli.md); see the full mapping in [`pm-migration-2026.md`](../reference/pm-migration-2026.md).
+**`vox install` is removed** (no CLI subcommand). Use **`vox add`**, **`vox lock`**, **`vox sync`**, and **`vox pm`** per [`reference/cli.md`](../reference/cli.md); see the full mapping in [`pm-migration-2026.md`](../reference/pm-migration-2026.md).
 
 ### `vox vendor`
 

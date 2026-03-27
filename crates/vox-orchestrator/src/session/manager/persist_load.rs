@@ -31,8 +31,8 @@ impl SessionManager {
             }
             // One logical JSONL row can contain multiple concatenated objects if writers interleave
             // before newline (stress / coverage); stream-parse every value on the line.
-            let mut iter = serde_json::Deserializer::from_str(line).into_iter::<SessionEvent>();
-            while let Some(ev) = iter.next() {
+            let iter = serde_json::Deserializer::from_str(line).into_iter::<SessionEvent>();
+            for ev in iter {
                 let event: SessionEvent = ev.map_err(SessionError::Serialize)?;
                 match event {
                     SessionEvent::Created {

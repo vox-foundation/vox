@@ -18,6 +18,7 @@ pub struct ModelRegistry {
 }
 
 impl ModelRegistry {
+    #[cfg_attr(test, allow(dead_code))] // Called from `new` only outside `cfg(test)` (avoids network in unit tests).
     fn maybe_refresh_openrouter_models(&mut self) {
         // Avoid `block_on` on a thread that already drives a Tokio runtime (e.g. `#[tokio::test]`,
         // `cargo nextest`): that panics with "Cannot start a runtime from within a runtime". Run the

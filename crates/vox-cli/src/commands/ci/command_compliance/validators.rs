@@ -419,6 +419,39 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Project dependency commands (`add` / `remove` / `update` / `lock` / `sync`) must not invoke the
+/// Vox toolchain self-upgrade lane (WP5 symmetry with [`check_upgrade_toolchain_only`]).
+pub(crate) fn check_project_pm_commands_no_toolchain_lane(repo_root: &Path) -> Result<()> {
+    const FILES: &[&str] = &[
+        "crates/vox-cli/src/commands/add.rs",
+        "crates/vox-cli/src/commands/remove.rs",
+        "crates/vox-cli/src/commands/update.rs",
+        "crates/vox-cli/src/commands/lock.rs",
+        "crates/vox-cli/src/commands/sync.rs",
+    ];
+    const FORBIDDEN: &[&str] = &[
+        "toolchain_upgrade",
+        "run_toolchain_upgrade",
+        "repo_upgrade",
+        "self_update",
+        "UpgradeToolchainArgs",
+        "vox_install_policy::",
+    ];
+    for rel in FILES {
+        let p = repo_root.join(rel);
+        let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        for needle in FORBIDDEN {
+            if s.contains(needle) {
+                return Err(anyhow!(
+                    "{}: project PM command file must not reference toolchain upgrade / install-policy (`{needle}`) — use only `vox_pm` / `pm_lifecycle` (WP5)",
+                    p.display()
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// `vox upgrade` must not import or call project PM / lockfile APIs (WP5 namespace split).
 pub(crate) fn check_upgrade_toolchain_only(repo_root: &Path) -> Result<()> {
     let p = repo_root.join("crates/vox-cli/src/commands/upgrade.rs");
@@ -485,6 +518,57 @@ pub(crate) fn check_dockerfiles_cargo_locked_policy(repo_root: &Path) -> Result<
             }
         }
     }
+    Ok(())
+}
+
+/// Forbid legacy “run/use `vox install` for packages” nudges outside explicit migration/arch pages (WP4).
+pub(crate) fn check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root: &Path) -> Result<()> {
+    use std::fs;
+    const BAD: &[&str] = &[
+        "run `vox install`",
+        "run vox install",
+        "`vox install` first",
+        "vox install first",
+    ];
+    let docs_src = repo_root.join("docs/src");
+    if !docs_src.is_dir() {
+        return Ok(());
+    }
+    fn allowed(rel_posix: &str) -> bool {
+        rel_posix.contains("architecture/vox-packaging")
+            || rel_posix == "reference/pm-migration-2026.md"
+            || rel_posix == "reference/cli.md"
+    }
+    fn walk(dir: &Path, docs_src: &Path, bad: &[&str]) -> Result<()> {
+        for e in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+            let e = e?;
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, docs_src, bad)?;
+            } else if p.extension().and_then(|x| x.to_str()) == Some("md") {
+                let rel_posix = p
+                    .strip_prefix(docs_src)
+                    .unwrap_or(&p)
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                if allowed(&rel_posix) {
+                    continue;
+                }
+                let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+                let lower = s.to_lowercase();
+                for b in bad {
+                    if lower.contains(&b.to_lowercase()) {
+                        return Err(anyhow!(
+                            "{}: forbidden legacy PM phrase `{b}` (WP4) — document `vox add` / `vox lock` / `vox sync` / `vox pm` instead; migration table: docs/src/reference/pm-migration-2026.md",
+                            p.display()
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    walk(&docs_src, &docs_src, BAD)?;
     Ok(())
 }
 

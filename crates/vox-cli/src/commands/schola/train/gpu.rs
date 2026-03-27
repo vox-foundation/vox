@@ -49,40 +49,27 @@ pub(super) async fn run_gpu_training(
     use owo_colors::OwoColorize;
 
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
-    let mix_config_path: Option<std::path::PathBuf> = workspace_root
-        .as_ref()
-        .map(|r| r.join("mens/config/mix.yaml"));
-    let skip_mix = std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
+    let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
     if skip_mix {
         eprintln!(
             "  {} Skipping corpus mix (`VOX_TRAIN_SKIP_CORPUS_MIX`); using train file under data-dir",
             "⏭".cyan()
         );
     }
-    let mut contract_override = None;
-    if let Some(ref cfg_path) = mix_config_path {
-        if !skip_mix && cfg_path.exists() {
-            eprintln!(
-                "  {} Running corpus mix to refresh training data...",
-                "🔄".cyan()
-            );
-            if let Err(e) = vox_corpus::corpus::run_mix(cfg_path) {
-                eprintln!(
-                    "  {} Mix failed ({}); continuing with existing corpus",
-                    "⚠".yellow(),
-                    e
-                );
-            } else if let Ok(mix_cfg) = vox_corpus::corpus::MixConfigSchema::load(cfg_path) {
-                let cwd = std::env::current_dir().unwrap_or_else(|_| data_dir.clone());
-                let mix_output = cwd.join(&mix_cfg.output);
-                if mix_output.exists() {
-                    contract_override = Some(mix_output);
-                }
-            }
-        }
+    let mix_path =
+        vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref());
+    if !skip_mix && mix_path.is_file() {
+        eprintln!(
+            "  {} Running corpus mix to refresh training data...",
+            "🔄".cyan()
+        );
     }
+    let contract_override = vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
+        workspace_root.as_deref(),
+        &data_dir,
+        skip_mix,
+        true,
+    )?;
 
     let resolved = vox_corpus::training::preflight::validate_train_preflight(
         &data_dir,
@@ -169,83 +156,68 @@ pub(super) async fn run_gpu_training(
             "📥".cyan(),
             repo_id
         );
-        let repo_id = repo_id.clone();
-        let repo_id_for_download = repo_id.clone();
-        let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let result = rt.block_on(vox_populi::mens::hub::download_model(&repo_id_for_download));
-            let _ = tx.send(result);
-        });
-        let download_result = rx
-            .recv()
-            .map_err(|_| anyhow::anyhow!("HF download thread exited without sending"))?;
-        match download_result {
-            Ok(files) if files.is_safetensors() => {
-                base_model_paths = Some((files.weights.clone(), files.config.clone()));
-                tokenizer_path = files.tokenizer.clone();
-                eprintln!("  {} Cached at {}", "✓".green(), files.cache_dir.display());
-
-                if let Ok(arch) =
-                    vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config)
-                {
-                    eprintln!("  {} Architecture: {:?}", "📐".cyan(), arch);
-                    let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
-                        &files.config,
-                        arch,
-                    )
-                    .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
-                    let tokenizer_src = tokenizer_path
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_else(|| "Vox (built-in)".to_string());
-                    eprintln!("  {} Tokenizer: {}", "🔤".cyan(), tokenizer_src);
-                    let est_mb = if matches!(
-                        train_backend,
-                        vox_populi::mens::PopuliTrainBackend::CandleQlora
-                    ) {
-                        vox_populi::mens::estimate_training_vram_mb_qlora(
-                            cfg.n_embd,
-                            cfg.n_head,
-                            cfg.n_layer,
-                            cfg.vocab_size,
-                            profile.batch_size,
-                            profile.seq_len,
-                        )
-                    } else {
-                        vox_populi::mens::estimate_training_vram_mb(
-                            cfg.n_embd,
-                            cfg.n_head,
-                            cfg.n_layer,
-                            cfg.vocab_size,
-                            profile.batch_size,
-                            profile.seq_len,
-                        )
-                    };
-                    if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
-                        eprintln!(
-                            "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",
-                            "⚠".yellow(),
-                            est_mb,
-                            gpu_info.vram_mb
-                        );
-                    } else if gpu_info.vram_mb > 0 {
-                        eprintln!(
-                            "  {} VRAM: est. ~{} MB / {} MB available",
-                            "✓".green(),
-                            est_mb,
-                            gpu_info.vram_mb
-                        );
-                    }
-                }
-            }
-            Ok(_) => anyhow::bail!(
+        let files = vox_populi::mens::hub::download_model_blocking(repo_id).map_err(|e| {
+            anyhow::anyhow!(
+                "HF download failed for `{repo_id}` ({e}). \
+                 Set HF token env vars if this is a gated repo and retry."
+            )
+        })?;
+        if !files.is_safetensors() {
+            anyhow::bail!(
                 "HF model `{repo_id}` has no safetensors; QLoRA requires safetensors base weights."
-            ),
-            Err(e) => {
-                anyhow::bail!(
-                    "HF download failed for `{repo_id}` ({e}). \
-                     Set HF token env vars if this is a gated repo and retry."
+            );
+        }
+        base_model_paths = Some((files.weights.clone(), files.config.clone()));
+        tokenizer_path = files.tokenizer.clone();
+        eprintln!("  {} Cached at {}", "✓".green(), files.cache_dir.display());
+
+        if let Ok(arch) = vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config) {
+            eprintln!("  {} Architecture: {:?}", "📐".cyan(), arch);
+            let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
+                &files.config,
+                arch,
+            )
+            .map_err(|e| anyhow::anyhow!("HF config: {}", e))?;
+            let tokenizer_src = tokenizer_path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "Vox (built-in)".to_string());
+            eprintln!("  {} Tokenizer: {}", "🔤".cyan(), tokenizer_src);
+            let est_mb = if matches!(
+                train_backend,
+                vox_populi::mens::PopuliTrainBackend::CandleQlora
+            ) {
+                vox_populi::mens::estimate_training_vram_mb_qlora(
+                    cfg.n_embd,
+                    cfg.n_head,
+                    cfg.n_layer,
+                    cfg.vocab_size,
+                    profile.batch_size,
+                    profile.seq_len,
+                )
+            } else {
+                vox_populi::mens::estimate_training_vram_mb(
+                    cfg.n_embd,
+                    cfg.n_head,
+                    cfg.n_layer,
+                    cfg.vocab_size,
+                    profile.batch_size,
+                    profile.seq_len,
+                )
+            };
+            if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
+                eprintln!(
+                    "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",
+                    "⚠".yellow(),
+                    est_mb,
+                    gpu_info.vram_mb
+                );
+            } else if gpu_info.vram_mb > 0 {
+                eprintln!(
+                    "  {} VRAM: est. ~{} MB / {} MB available",
+                    "✓".green(),
+                    est_mb,
+                    gpu_info.vram_mb
                 );
             }
         }

@@ -269,7 +269,7 @@ impl UnresolvedRefDetector {
         let ast_hints = if crate::run_context::enhanced_unresolved_for_path(&file.path) {
             rust_ctx
                 .and_then(|ctx| ctx.ast.as_ref().ok())
-                .map(|ast| unresolved_ast::analyze_rust_ast(ast))
+                .map(unresolved_ast::analyze_rust_ast)
         } else {
             None
         };
@@ -335,7 +335,7 @@ impl UnresolvedRefDetector {
 
                     // Skip well-known functions, macros (ending with `!`), and locals
                     if Self::is_well_known_fn(name)
-                        || defined_fns.contains(&name.to_string())
+                        || defined_fns.contains(name)
                         || name.starts_with('_')
                     {
                         continue;
@@ -352,13 +352,12 @@ impl UnresolvedRefDetector {
 
                     // When syn succeeded, only flag calls the AST actually recorded as `ExprCall`.
                     // Cuts regex-only matches (macros, odd spans, doc examples) that slip past token maps.
-                    if let Some(h) = &ast_hints {
-                        if !h.call_sites.contains(&(i + 1, name.to_string()))
+                    if let Some(h) = &ast_hints
+                        && !h.call_sites.contains(&(i + 1, name.to_string()))
                             && !crate::run_context::feature_enabled("unresolved-regex-fallback")
                         {
                             continue;
                         }
-                    }
 
                     // Imports: syn `UseTree` ∪ legacy substring scan (parse-fallback / edge cases).
                     let has_import = ast_hints

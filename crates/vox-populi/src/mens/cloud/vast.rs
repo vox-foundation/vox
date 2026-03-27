@@ -41,7 +41,8 @@ struct VastOffer {
     reliability2: Option<f64>,
     /// Highest CUDA version tested (e.g. `12.4`).
     cuda_max_good: Option<f64>,
-    /// GPU utilization percentage [0, 100] — NOT [0, 1].
+    /// GPU utilization percentage [0, 100] — NOT [0, 1] (reserved for future offer ranking).
+    #[allow(dead_code)]
     gpu_utilization: Option<f64>,
 }
 

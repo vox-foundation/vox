@@ -10,13 +10,13 @@ use anyhow::{Context, bail};
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use uuid::Uuid;
 
+#[path = "populi_lifecycle_cmd.rs"]
 mod populi_lifecycle_cmd;
 
-pub use populi_lifecycle_cmd::PopuliLifecycleCmd;
-use populi_lifecycle_cmd::{
-    OverlayDiagnostics, OverlayProvider, OverlayProviderArg, PopuliConnectivityMode,
-    PopuliDaemonState,
+pub use populi_lifecycle_cmd::{
+    OverlayProvider, OverlayProviderArg, PopuliConnectivityMode, PopuliLifecycleCmd,
 };
+use populi_lifecycle_cmd::{OverlayDiagnostics, PopuliDaemonState};
 
 pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<()> {
     match cmd {

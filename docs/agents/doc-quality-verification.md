@@ -48,7 +48,7 @@ Use **`symbol_hints`** + **`quality_tag`** in [doc-inventory.json](doc-inventory
 | Metric | Before | After |
 |--------|--------|-------|
 | Inventory `hotspot_tier` for touched paths | | |
-| `cargo clippy --workspace -- -D warnings` | pass/fail | pass/fail |
+| `cargo clippy --workspace --all-targets -- -D warnings` | pass/fail | pass/fail |
 | Notes (SSOT links added, files deleted) | | |
 
 ## Related

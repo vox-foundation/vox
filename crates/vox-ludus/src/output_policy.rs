@@ -51,10 +51,7 @@ pub fn cli_celebrations_allowed() -> bool {
     if !config_gate::overlays_enabled() {
         return false;
     }
-    match ludus_verbosity() {
-        "quiet" => false,
-        _ => true,
-    }
+    !matches!(ludus_verbosity(), "quiet")
 }
 
 /// Rate-limit bursty CLI messages; returns `false` if the hourly budget is exhausted.

@@ -134,7 +134,7 @@ pub(super) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             commands::bundle::run(&a.file, &a.out_dir, a.target.as_deref(), a.release).await?;
         }
         FabricaCmd::Fmt(a) => {
-            commands::fmt::run(&a.file, false)?;
+            commands::fmt::run(&a.file, a.check)?;
         }
         #[cfg(feature = "script-execution")]
         FabricaCmd::Script(a) => {

@@ -13,21 +13,20 @@ fn contextual_bias_phrases_for_session() -> Vec<String> {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_MAX);
-    let contextual_on = match std::env::var("VOX_ORATIO_CONTEXTUAL_BIAS") {
-        Ok(s) if s == "0" || s.eq_ignore_ascii_case("false") => false,
-        _ => true,
-    };
+    let contextual_on = !matches!(
+        std::env::var("VOX_ORATIO_CONTEXTUAL_BIAS"),
+        Ok(s) if s == "0" || s.eq_ignore_ascii_case("false")
+    );
     if !contextual_on {
         return Vec::new();
     }
     let mut lex_phrases = Vec::new();
     if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
         let path = std::path::Path::new(p.trim());
-        if let Ok(bytes) = std::fs::read(path) {
-            if let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
+        if let Ok(bytes) = std::fs::read(path)
+            && let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
                 lex_phrases = lex.bias_phrases_sorted(max_phrases);
             }
-        }
     }
     let extra: Vec<String> = std::env::var("VOX_ORATIO_SESSION_HOTWORDS")
         .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
@@ -63,11 +62,10 @@ fn finalize_after_refine(
 fn apply_optional_project_lexicon(text: &str) -> String {
     if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
         let path = std::path::Path::new(p.trim());
-        if let Ok(bytes) = std::fs::read(path) {
-            if let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
+        if let Ok(bytes) = std::fs::read(path)
+            && let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
                 return lex.apply(text);
             }
-        }
     }
     text.to_string()
 }

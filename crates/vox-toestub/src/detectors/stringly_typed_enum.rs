@@ -123,7 +123,7 @@ impl StringlyTypedEnumDetector {
                         }
                         j += 1;
                     }
-                    out.extend(std::iter::repeat(b' ').take(j.saturating_sub(i)));
+                    out.extend(std::iter::repeat_n(b' ', j.saturating_sub(i)));
                     i = j;
                     continue;
                 }
@@ -150,7 +150,7 @@ impl StringlyTypedEnumDetector {
                         _ => i += 1,
                     }
                 }
-                out.extend(std::iter::repeat(b' ').take(i.saturating_sub(start)));
+                out.extend(std::iter::repeat_n(b' ', i.saturating_sub(start)));
                 continue;
             }
             out.push(b[i]);

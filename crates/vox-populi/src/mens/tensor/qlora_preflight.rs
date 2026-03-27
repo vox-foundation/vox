@@ -143,8 +143,8 @@ fn expect_shape_exact(
     key: &str,
     expected: &[usize],
 ) -> anyhow::Result<()> {
-    if let Some(found) = first_tensor_shape(weight_paths, key)? {
-        if found != expected {
+    if let Some(found) = first_tensor_shape(weight_paths, key)?
+        && found != expected {
             anyhow::bail!(
                 "qwen3_5 shape mismatch for `{}`: expected {:?}, found {:?}",
                 key,
@@ -152,7 +152,6 @@ fn expect_shape_exact(
                 found
             );
         }
-    }
     Ok(())
 }
 
@@ -372,7 +371,8 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
         warn_on_missing_qwen35_rope_keys(&bundle.layout, &present);
     }
 
-    let full = super::candle_qlora_weights::ordered_full_block_weight_keys(&bundle.layout);
+    let full =
+        super::candle_qlora_weights::ordered_full_block_weight_keys_strict_preflight(&bundle.layout);
     let matched_full = full.iter().filter(|k| present.contains(k.as_str())).count();
     if config.qlora_require_full_proxy_stack && matched_full < full.len() {
         let missing_full: Vec<String> = full

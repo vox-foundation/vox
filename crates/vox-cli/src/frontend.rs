@@ -280,7 +280,7 @@ pub fn npm_install_and_build(app_dir: &Path) -> Result<()> {
         }
     }
 
-    try_pnpm_routes_gen(app_dir, &pnpm)?;
+    try_pnpm_routes_gen(app_dir, pnpm)?;
 
     println!("  Building frontend assets...");
     let build_status = std::process::Command::new(pnpm)

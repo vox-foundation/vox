@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 /// Action labels aligned with [`crate::routing`] tool-route ids.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum SpeechIntentAction {
     /// Oratio / STT status probe.
     OratioStatus,
@@ -17,14 +18,10 @@ pub enum SpeechIntentAction {
     /// Run tests or checks.
     RunCheck,
     /// No confident classification.
+    #[default]
     None,
 }
 
-impl Default for SpeechIntentAction {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 /// Slots and confidence for downstream codegen tools.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
