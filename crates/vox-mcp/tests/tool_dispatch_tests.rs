@@ -122,10 +122,7 @@ async fn test_scientia_scholarly_staging_export_writes_files() {
     let val: serde_json::Value = serde_json::from_str(&result).expect("valid json");
     assert_eq!(val["success"], true);
     let written = val["data"]["written"].as_array().expect("written array");
-    let names: Vec<&str> = written
-        .iter()
-        .filter_map(|v| v.as_str())
-        .collect();
+    let names: Vec<&str> = written.iter().filter_map(|v| v.as_str()).collect();
     assert!(names.contains(&"body.md"));
     assert!(names.contains(&"CITATION.cff"));
     assert!(!names.iter().any(|n| *n == "zenodo.json"));
@@ -175,8 +172,12 @@ async fn scholarly_staging_mcp_written_matches_submission_package() {
         dir_direct.path(),
     )
     .expect("direct write");
-    submission_package::validate_scholarly_staging(dir_direct.path(), ScholarlyVenue::OpenReview, &manifest)
-        .expect("direct validate");
+    submission_package::validate_scholarly_staging(
+        dir_direct.path(),
+        ScholarlyVenue::OpenReview,
+        &manifest,
+    )
+    .expect("direct validate");
 
     let dir_mcp = tempfile::tempdir().expect("tempdir2");
     let state = ServerState::new_test().await.with_db(db);
@@ -220,9 +221,13 @@ async fn scholarly_staging_mcp_written_matches_submission_package_zenodo() {
         license_spdx: Some("MIT".to_string()),
         ..Default::default()
     };
-    let meta =
-        vox_publisher::scientific_metadata::build_scientia_metadata_json("p", None, Some(&sci), None)
-            .expect("meta");
+    let meta = vox_publisher::scientific_metadata::build_scientia_metadata_json(
+        "p",
+        None,
+        Some(&sci),
+        None,
+    )
+    .expect("meta");
     let meta_s = meta.clone();
     let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
     let publication_id = "parity-staging-zenodo";
@@ -261,8 +266,12 @@ async fn scholarly_staging_mcp_written_matches_submission_package_zenodo() {
         dir_direct.path(),
     )
     .expect("direct write");
-    submission_package::validate_scholarly_staging(dir_direct.path(), ScholarlyVenue::Zenodo, &manifest)
-        .expect("direct validate");
+    submission_package::validate_scholarly_staging(
+        dir_direct.path(),
+        ScholarlyVenue::Zenodo,
+        &manifest,
+    )
+    .expect("direct validate");
 
     let dir_mcp = tempfile::tempdir().expect("tempdir2");
     let state = ServerState::new_test().await.with_db(db);
@@ -502,13 +511,9 @@ async fn poll_events_succeeds_without_db_using_transient_buffer() {
 #[tokio::test]
 async fn cost_history_accepts_buckets_alias() {
     let state = ServerState::new_test().await;
-    let result = tools::handle_tool_call(
-        &state,
-        "vox_budget_history",
-        json!({ "buckets": 5 }),
-    )
-    .await
-    .expect("alias call");
+    let result = tools::handle_tool_call(&state, "vox_budget_history", json!({ "buckets": 5 }))
+        .await
+        .expect("alias call");
     let val: serde_json::Value = serde_json::from_str(&result).expect("json");
     assert_eq!(val["success"], false);
     let err = val["error"].as_str().unwrap_or("");
@@ -531,13 +536,9 @@ async fn spawn_and_retire_agent_round_trip() {
     let s: serde_json::Value = serde_json::from_str(&spawn).expect("json");
     assert_eq!(s["success"], true);
     let id = s["data"]["agent_id"].as_u64().expect("agent_id");
-    let retire = tools::handle_tool_call(
-        &state,
-        "vox_retire_agent",
-        json!({ "agent_id": id }),
-    )
-    .await
-    .expect("retire");
+    let retire = tools::handle_tool_call(&state, "vox_retire_agent", json!({ "agent_id": id }))
+        .await
+        .expect("retire");
     let r: serde_json::Value = serde_json::from_str(&retire).expect("json");
     assert_eq!(r["success"], true);
 }
@@ -545,9 +546,13 @@ async fn spawn_and_retire_agent_round_trip() {
 #[tokio::test]
 async fn ludus_notifications_list_requires_db() {
     let state = ServerState::new_test().await;
-    let out = tools::handle_tool_call(&state, "vox_ludus_notifications_list", json!({ "limit": 5 }))
-        .await
-        .expect("dispatch");
+    let out = tools::handle_tool_call(
+        &state,
+        "vox_ludus_notifications_list",
+        json!({ "limit": 5 }),
+    )
+    .await
+    .expect("dispatch");
     let val: serde_json::Value = serde_json::from_str(&out).expect("json");
     assert_eq!(val["success"], false);
 }

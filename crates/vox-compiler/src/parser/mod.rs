@@ -46,3 +46,11 @@ pub mod error;
 
 pub use descent::parse;
 pub use error::{ParseError, ParseErrorClass};
+
+/// Brace-first web declaration forms the descent parser accepts (doc extraction / inventory; OP-0015).
+pub const WEB_SURFACE_SYNTAX_INVENTORY: &[&str] = &[
+    "`@island Name { prop: Type }` / `prop?: Type` — `{` is required immediately after the island name",
+    "`@component fn Name(...) to Type { ... }` — classic component; only `fn` may follow `@component` for this form",
+    "`@component Name(...) { ... }` or `component Name(...) { ... }` — Path C reactive body: `state`, `derived`, `effect`, `mount`, `cleanup`, `view:`",
+    "`routes { \"/path\" to Component ... }` — string literal path, keyword `to`, then component identifier; `{` right after `routes`",
+];

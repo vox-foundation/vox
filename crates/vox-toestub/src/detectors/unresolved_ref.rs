@@ -220,7 +220,10 @@ impl UnresolvedRefDetector {
     }
 
     fn looks_generated_or_build_output(path: &Path, content: &str) -> bool {
-        let p = path.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+        let p = path
+            .to_string_lossy()
+            .replace('\\', "/")
+            .to_ascii_lowercase();
         if p.contains("/target/") {
             return true;
         }

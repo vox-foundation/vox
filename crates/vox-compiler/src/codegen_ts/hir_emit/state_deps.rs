@@ -1,3 +1,8 @@
+//! Reactive `useMemo` / dependency lists: walks HIR for identifiers that reference `state` names.
+//!
+//! **Support-only API (OP-0134):** used from [`super::super::reactive`]; not part of the Web IR
+//! surface. Prefer keeping logic here instead of duplicating walks in preview emit.
+
 use crate::hir::*;
 use std::collections::HashSet;
 
@@ -124,5 +129,49 @@ fn collect_deps_stmt(stmt: &HirStmt, state_names: &HashSet<String>, deps: &mut H
                 collect_deps(v, state_names, deps);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_state_deps;
+    use crate::ast::span::Span;
+    use crate::hir::{HirBinOp, HirExpr};
+    use std::collections::HashSet;
+
+    fn sp() -> Span {
+        Span::new(0, 0)
+    }
+
+    #[test]
+    fn extract_state_deps_finds_state_in_binary() {
+        let state: HashSet<String> = HashSet::from(["count".into()]);
+        let expr = HirExpr::Binary(
+            HirBinOp::Add,
+            Box::new(HirExpr::Ident("count".into(), sp())),
+            Box::new(HirExpr::Ident("n".into(), sp())),
+            sp(),
+        );
+        let deps = extract_state_deps(&expr, &state);
+        assert_eq!(deps, vec!["count".to_string()]);
+    }
+
+    #[test]
+    fn extract_state_deps_sorts_and_dedupes() {
+        let state: HashSet<String> = HashSet::from(["a".into(), "b".into()]);
+        let inner = HirExpr::Binary(
+            HirBinOp::Add,
+            Box::new(HirExpr::Ident("a".into(), sp())),
+            Box::new(HirExpr::Ident("b".into(), sp())),
+            sp(),
+        );
+        let expr = HirExpr::Binary(
+            HirBinOp::Add,
+            Box::new(inner),
+            Box::new(HirExpr::Ident("a".into(), sp())),
+            sp(),
+        );
+        let deps = extract_state_deps(&expr, &state);
+        assert_eq!(deps, vec!["a".to_string(), "b".to_string()]);
     }
 }

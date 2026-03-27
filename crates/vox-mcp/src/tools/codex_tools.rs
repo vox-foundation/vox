@@ -5,15 +5,11 @@
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VOXDB_CODEX: &str =
-    "Attach VoxDb (Turso) to the MCP server via `VOX_DB_PATH` / `VOX_DB_URL` for Codex relational tools.";
+const REM_VOXDB_CODEX: &str = "Attach VoxDb (Turso) to the MCP server via `VOX_DB_PATH` / `VOX_DB_URL` for Codex relational tools.";
 const REM_SESSION_KEY: &str = "Provide a non-empty string `session_key`.";
-const REM_CONV_VERSION: &str =
-    "Provide integer JSON fields `conversation_id` and `version_index`.";
-const REM_CONV_EDGE: &str =
-    "Provide integer `from_conversation_id` and `to_conversation_id`.";
-const REM_TOPIC_EVOLUTION: &str =
-    "Provide integer `topic_id` and a non-empty string `event_kind`.";
+const REM_CONV_VERSION: &str = "Provide integer JSON fields `conversation_id` and `version_index`.";
+const REM_CONV_EDGE: &str = "Provide integer `from_conversation_id` and `to_conversation_id`.";
+const REM_TOPIC_EVOLUTION: &str = "Provide integer `topic_id` and a non-empty string `event_kind`.";
 const REM_SESSION_METRIC: &str = "Provide non-empty `session_key` and `metric_type`.";
 
 fn require_db(state: &ServerState) -> Result<&std::sync::Arc<vox_db::VoxDb>, String> {
@@ -28,7 +24,8 @@ pub async fn codex_research_session_upsert(state: &ServerState, args: serde_json
     let db = match require_db(state) {
         Ok(d) => d,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX)
+                .to_json();
         }
     };
     let session_key = args
@@ -78,8 +75,10 @@ pub async fn codex_research_session_upsert(state: &ServerState, args: serde_json
             "repository_id": repository_id,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
+                .to_json()
+        }
     }
 }
 
@@ -91,7 +90,8 @@ pub async fn codex_conversation_version_append(
     let db = match require_db(state) {
         Ok(d) => d,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX)
+                .to_json();
         }
     };
     let conversation_id = args.get("conversation_id").and_then(|v| v.as_i64());
@@ -117,8 +117,10 @@ pub async fn codex_conversation_version_append(
             "version_index": version_index,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
+                .to_json()
+        }
     }
 }
 
@@ -130,7 +132,8 @@ pub async fn codex_conversation_edge_insert(
     let db = match require_db(state) {
         Ok(d) => d,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX)
+                .to_json();
         }
     };
     let from_id = args.get("from_conversation_id").and_then(|v| v.as_i64());
@@ -155,8 +158,10 @@ pub async fn codex_conversation_edge_insert(
         .await
     {
         Ok(id) => ToolResult::ok(serde_json::json!({ "id": id })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
+                .to_json()
+        }
     }
 }
 
@@ -165,7 +170,8 @@ pub async fn codex_topic_evolution_append(state: &ServerState, args: serde_json:
     let db = match require_db(state) {
         Ok(d) => d,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX)
+                .to_json();
         }
     };
     let topic_id = args.get("topic_id").and_then(|v| v.as_i64());
@@ -201,8 +207,10 @@ pub async fn codex_topic_evolution_append(state: &ServerState, args: serde_json:
             "topic_id": topic_id,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
+                .to_json()
+        }
     }
 }
 
@@ -211,7 +219,8 @@ pub async fn codex_research_metric_linked(state: &ServerState, args: serde_json:
     let db = match require_db(state) {
         Ok(d) => d,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOXDB_CODEX)
+                .to_json();
         }
     };
     let session_key = args
@@ -257,7 +266,9 @@ pub async fn codex_research_metric_linked(state: &ServerState, args: serde_json:
         .await
     {
         Ok(j) => ToolResult::ok(j).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VOXDB_CODEX)
+                .to_json()
+        }
     }
 }

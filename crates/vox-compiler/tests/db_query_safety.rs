@@ -53,7 +53,8 @@ fn q() to int {
     let diags = diagnostics_for(src);
     assert!(!diags.iter().any(|d| {
         d.severity == TypeckSeverity::Error
-            && d.message.contains("db query chaining via '.limit(...)' is not supported yet")
+            && d.message
+                .contains("db query chaining via '.limit(...)' is not supported yet")
     }));
 }
 

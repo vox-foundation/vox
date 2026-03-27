@@ -69,8 +69,8 @@ fn persist_maps(path: &Path, maps: &MeshReplayMaps) -> Result<(), PopuliRegistry
             .map(|(k, v)| (k.clone(), *v))
             .collect(),
     };
-    let payload =
-        serde_json::to_string_pretty(&file).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+    let payload = serde_json::to_string_pretty(&file)
+        .map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, payload.as_bytes()).map_err(PopuliRegistryError::Io)?;
     std::fs::rename(&tmp, path).map_err(PopuliRegistryError::Io)?;

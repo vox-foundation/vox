@@ -10,10 +10,7 @@ fn validate_retention_ident(name: &str) -> Result<(), StoreError> {
             "retention table/column name empty or too long".into(),
         ));
     }
-    if !name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(StoreError::Db(format!(
             "retention identifier must be [A-Za-z0-9_]+: {name:?}"
         )));
@@ -46,9 +43,7 @@ impl crate::VoxDb {
     ) -> Result<i64, StoreError> {
         let tq = quote_sqlite_ident(table)?;
         let cq = quote_sqlite_ident(time_column)?;
-        let sql = format!(
-            "SELECT COUNT(*) FROM {tq} WHERE {cq} < datetime('now', '-{days} day')"
-        );
+        let sql = format!("SELECT COUNT(*) FROM {tq} WHERE {cq} < datetime('now', '-{days} day')");
         let mut rows = self.conn.query(&sql, ()).await?;
         let row = rows
             .next()

@@ -5,8 +5,7 @@ use std::path::PathBuf;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_TOESTUB_IO: &str =
-    "Ensure `.vox/` is writable and `toestub_findings.jsonl` is not locked by another process (AV, sync).";
+const REM_TOESTUB_IO: &str = "Ensure `.vox/` is writable and `toestub_findings.jsonl` is not locked by another process (AV, sync).";
 
 /// Arguments for `vox_toestub_findings_upsert`.
 #[derive(Debug, Deserialize)]

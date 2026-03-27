@@ -502,17 +502,20 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 std::process::exit(code);
             }
 
-            super::mens_tail_subcommands::PopuliMensTail::BenchCompletion { url, count, warmup } => {
-                bench_completion::run_bench(&url, count, warmup).await
-            }
+            super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
+                url,
+                count,
+                warmup,
+            } => bench_completion::run_bench(&url, count, warmup).await,
 
             super::mens_tail_subcommands::PopuliMensTail::Plan(action) => {
                 crate::commands::mens::plan::run(action).await
             }
 
-            super::mens_tail_subcommands::PopuliMensTail::SystemPromptTemplate { output, format } => {
-                crate::commands::mens::system_prompt_template::run(output, &format).await
-            }
+            super::mens_tail_subcommands::PopuliMensTail::SystemPromptTemplate {
+                output,
+                format,
+            } => crate::commands::mens::system_prompt_template::run(output, &format).await,
         },
     }
 }

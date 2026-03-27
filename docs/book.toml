@@ -1,3 +1,5 @@
+# Toolchain: CI uses mdBook **0.4.40** (GitHub `peaceiris/actions-mdbook`, GitLab job below).
+# Newer mdBook releases may break `mdbook-metadata` / preprocessor stdin compatibility — align locally before debugging build failures.
 [book]
 title = "Vox: The AI-Native Programming Language"
 authors = ["The Vox Core Team"]
@@ -9,11 +11,9 @@ src = "src"
 # Requires: mdbook-metadata
 renderer = ["html"]
 
-[preprocessor.sitemap]
-# Requires: mdbook-sitemap-generator
-command = "mdbook-sitemap-generator"
-domain = "https://vox-foundation.github.io/vox/"
-optional = true
+# Sitemap: generated **after** `mdbook build` via `mdbook-sitemap-generator` (standalone CLI; not an mdBook preprocessor).
+# CI: `.github/workflows/docs-deploy.yml` and `.gitlab-ci.yml` `build-docs`. Local: `cargo install mdbook-sitemap-generator --locked`
+# then from `docs/`: `mdbook-sitemap-generator --domain <origin> --output book/html/sitemap.xml`
 
 [output.html]
 mathjax-support = false

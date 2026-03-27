@@ -10,6 +10,10 @@ training_eligible: true
 
 The **Socrates** protocol is Vox’s unified anti-hallucination pipeline: retrieve evidence, verify claims, calibrate confidence, gate outputs, and persist telemetry. Implementation spans `vox-socrates-policy`, `vox-orchestrator`, `vox-toestub` (review), `vox-mcp`, and Codex schema extensions.
 
+Questioning strategy (when to ask, what question type to ask, and when to stop) is specified in the companion SSOT:
+
+- [Information-theoretic questioning protocol](information-theoretic-questioning.md)
+
 ## Protocol states
 
 1. **Retrieve** — Hybrid lexical + vector retrieval; every factual claim should bind to `EvidenceItem` records. Pure fusion helpers in `crates/vox-db/src/retrieval.rs` (`RetrievalResult`, `fuse_hybrid_results`) preserve **`evidence_source`**, timestamps, optional **`query_id`**, **`supporting_claim_ids`**, and **`contradiction_hints`** across modality merge. In-process memory search uses `HybridSearchHit` (`potential_contradiction`) in `vox-orchestrator`.
@@ -58,6 +62,7 @@ The **Socrates** protocol is Vox’s unified anti-hallucination pipeline: retrie
 - No **high-confidence** factual assertion without linked evidence when `factual_mode` is true.
 - **Abstain** when normalized confidence is below `ConfidencePolicy::abstain_threshold` or contradiction ratio exceeds `max_contradiction_ratio_for_answer`.
 - **Unresolved contradictions** block `Answer`; gate returns `Abstain` or `Ask` per policy.
+- `Ask` decisions should follow information-theoretic question selection and stop rules from the questioning SSOT.
 
 ## Shared policy crate
 

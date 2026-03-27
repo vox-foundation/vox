@@ -325,7 +325,9 @@ impl<'a> Checker<'a> {
             HirExpr::DbTableOp { op, args, .. } => {
                 matches!(
                     op,
-                    HirDbTableOp::Insert | HirDbTableOp::Delete | HirDbTableOp::UnsafeQueryRawClause
+                    HirDbTableOp::Insert
+                        | HirDbTableOp::Delete
+                        | HirDbTableOp::UnsafeQueryRawClause
                 ) || args
                     .iter()
                     .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
@@ -360,9 +362,7 @@ impl<'a> Checker<'a> {
                     || Self::contains_db_write_or_unsafe_in_expr(body)
             }
             HirExpr::Lambda(_, _, body, _) => Self::contains_db_write_or_unsafe_in_expr(body),
-            HirExpr::Block(body, _) => {
-                Self::contains_db_write_or_unsafe_in_stmts(body)
-            }
+            HirExpr::Block(body, _) => Self::contains_db_write_or_unsafe_in_stmts(body),
             HirExpr::Pipe(l, r, _) => {
                 Self::contains_db_write_or_unsafe_in_expr(l)
                     || Self::contains_db_write_or_unsafe_in_expr(r)
@@ -378,14 +378,15 @@ impl<'a> Checker<'a> {
                         .iter()
                         .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.body))
             }
-            HirExpr::Jsx(node) => node
-                .attributes
-                .iter()
-                .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
-                || node
-                    .children
+            HirExpr::Jsx(node) => {
+                node.attributes
                     .iter()
-                    .any(Self::contains_db_write_or_unsafe_in_expr),
+                    .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
+                    || node
+                        .children
+                        .iter()
+                        .any(Self::contains_db_write_or_unsafe_in_expr)
+            }
             HirExpr::JsxSelfClosing(node) => node
                 .attributes
                 .iter()

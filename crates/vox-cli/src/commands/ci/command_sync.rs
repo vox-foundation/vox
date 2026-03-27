@@ -24,7 +24,10 @@ fn render_generated_md(reg: &RegistryFile) -> String {
     out.push_str(&format!(
         "**schema_version:** `{}` · **vox-cli operations:** {}\n\n",
         reg.schema_version,
-        reg.operations.iter().filter(|o| o.surface == "vox-cli").count()
+        reg.operations
+            .iter()
+            .filter(|o| o.surface == "vox-cli")
+            .count()
     ));
     out.push_str("| Path | Status | Feature gate | Latin ns | Catalog group |\n");
     out.push_str("|------|--------|--------------|----------|----------------|\n");
@@ -67,8 +70,8 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
             out_path.display()
         ));
     }
-    let existing = read_utf8_path_capped(&out_path)
-        .with_context(|| format!("read {}", out_path.display()))?;
+    let existing =
+        read_utf8_path_capped(&out_path).with_context(|| format!("read {}", out_path.display()))?;
     if normalize_lf(&existing) != normalize_lf(&rendered) {
         return Err(anyhow!(
             "{} is stale; run `vox ci command-sync --write` from the repo root",

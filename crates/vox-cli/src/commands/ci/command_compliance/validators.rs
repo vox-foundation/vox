@@ -9,10 +9,14 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 use super::docs_sync::{markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::registry::RegistryFile;
-use crate::command_contract::{merged_feature_gate_from_vox_cli_ops, EMBEDDED_COMMAND_REGISTRY_YAML};
+use crate::command_contract::{
+    EMBEDDED_COMMAND_REGISTRY_YAML, merged_feature_gate_from_vox_cli_ops,
+};
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
-const KNOWN_LATIN_NS: &[&str] = &["fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei"];
+const KNOWN_LATIN_NS: &[&str] = &[
+    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei",
+];
 
 fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")

@@ -430,3 +430,20 @@ Evidence:
 | keep React interop boundary stable during migration | preserve ecosystem compatibility while internal IR changes | [React Compiler](https://react.dev/learn/react-compiler) |
 | explicit nullability policy in IR | avoid implicit undefined/null behavior at emit boundary | [TypeScript strictNullChecks](https://www.typescriptlang.org/tsconfig/strictNullChecks.html) |
 | typed style representation over raw string-only internals | better static checks and transforms | [CSS Typed OM](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Typed_OM_API), [Lightning CSS transforms](https://lightningcss.dev/transforms.html) |
+
+## Appendix — Tooling registry and offline gates (OP-S049, OP-S101, OP-S102, OP-S181)
+
+Use this appendix as the **human-facing index** for Web IR offline verification (no cluster required):
+
+| Artifact | Role | Primary tests |
+| --- | --- | --- |
+| `WebIrModule` JSON | Schema consumers / dashboards | `crates/vox-compiler/tests/web_ir_lower_emit.rs` |
+| HIR → Web IR lower + validate | Structural SSOT before emit | same + `crates/vox-compiler/src/web_ir/{lower,validate}.rs` |
+| TS codegen bundle | Production client output | `crates/vox-compiler/src/codegen_ts/emitter.rs` |
+| Islands hydration | `data-vox-island` / `data-prop-*` | `crates/vox-cli/src/templates/islands.rs`, `full_stack_minimal_build.rs` |
+| Pipeline integration | Lex → typecheck → codegen | `crates/vox-integration-tests/tests/pipeline.rs` + `pipeline/includes/blueprint_op_s_batch.rs` |
+
+**Interop policy:** escape hatch rows must carry policy reasons — see [ADR 012 interop policy](../adr/012-internal-web-ir-strategy.md#interop-policy-op-s103-op-s104-op-s150-op-s183-op-s213).
+
+**Registry note pass C (OP-S181):** keep this table aligned when adding new gate binaries; bump [`internal-web-ir-implementation-blueprint.md`](internal-web-ir-implementation-blueprint.md) Done lines together.
+

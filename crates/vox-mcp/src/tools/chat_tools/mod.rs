@@ -114,7 +114,7 @@ mod routing_tests {
     #[test]
     fn socrates_meta_contains_required_fields() {
         let p = ConfidencePolicy::workspace_default();
-        let v = socrates_tool_meta(&p, 0.61, false);
+        let v = socrates_tool_meta(&p, 0.61, false, 0, 0, 0);
         assert!(v.get("risk_decision").is_some());
         assert!(v.get("confidence_estimate").is_some());
         assert!(v.get("contradiction_ratio").is_some());
@@ -123,7 +123,7 @@ mod routing_tests {
     #[test]
     fn socrates_tool_meta_matches_telemetry_deserializer() {
         let p = ConfidencePolicy::workspace_default();
-        let v = socrates_tool_meta(&p, 0.71, true);
+        let v = socrates_tool_meta(&p, 0.71, true, 0, 0, 0);
         let m: SocratesJsonMeta = serde_json::from_value(v).expect("telemetry JSON must parse");
         assert!((m.confidence_estimate - 0.71).abs() < 1e-9);
         assert!((m.contradiction_ratio - 0.35).abs() < 1e-9);

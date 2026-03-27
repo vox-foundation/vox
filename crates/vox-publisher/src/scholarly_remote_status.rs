@@ -21,7 +21,9 @@ pub struct ScholarlyRemoteStatusMap {
 
 fn global_terminal_map(r: &str) -> Option<(&'static str, &'static str, bool)> {
     match r {
-        "done" | "published" | "accepted" | "completed" => Some(("succeeded", "global_terminal_ok", true)),
+        "done" | "published" | "accepted" | "completed" => {
+            Some(("succeeded", "global_terminal_ok", true))
+        }
         "rejected" | "failed" | "error" | "deleted" | "cancelled" | "canceled" => {
             Some(("failed", "global_terminal_bad", true))
         }
@@ -72,12 +74,7 @@ fn map_openreview(r: &str) -> Option<ScholarlyRemoteStatusMap> {
             preserve_prior_job_status: false,
             quarantined_unknown: false,
         }),
-        "submitted"
-        | "under review"
-        | "pending"
-        | "invite"
-        | "active"
-        | "revision requested"
+        "submitted" | "under review" | "pending" | "invite" | "active" | "revision requested"
         | "expired" => Some(ScholarlyRemoteStatusMap {
             normalized_remote: r.to_string(),
             job_status: String::new(),

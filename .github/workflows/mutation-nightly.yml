@@ -1,0 +1,44 @@
+# Nightly mutation testing (non-blocking): scoped to `vox-compiler` via `.cargo/mutants.toml`.
+name: Mutation (nightly, vox-compiler)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo-mutants:
+    name: cargo-mutants (vox-compiler)
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-mutants-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-mutants-
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+
+      - name: Run mutants (package vox-compiler)
+        run: cargo mutants --locked -p vox-compiler --no-times --jobs 4

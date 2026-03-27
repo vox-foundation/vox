@@ -15,8 +15,8 @@ use tracing::{info, warn};
 use super::PopuliTransportState;
 use super::auth::{PopuliAuthContext, PopuliMeshAuthRuntime};
 use super::handlers::{
-    admin_quarantine, a2a_ack, a2a_inbox, a2a_lease_renew, bootstrap_exchange, deliver_a2a,
-    health, heartbeat, join_node, leave_node, list_nodes,
+    a2a_ack, a2a_inbox, a2a_lease_renew, admin_quarantine, bootstrap_exchange, deliver_a2a, health,
+    heartbeat, join_node, leave_node, list_nodes,
 };
 
 /// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
@@ -97,15 +97,13 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
             async move {
                 let path = req.uri().path();
                 if path == "/health" || path == "/v1/populi/bootstrap/exchange" {
-                    req.extensions_mut()
-                        .insert(PopuliAuthContext::FullAccess);
+                    req.extensions_mut().insert(PopuliAuthContext::FullAccess);
                     let mut res = next.run(req).await;
                     stamp_populi_feature_header(&mut res);
                     return res;
                 }
                 if !runtime.requires_bearer() {
-                    req.extensions_mut()
-                        .insert(PopuliAuthContext::FullAccess);
+                    req.extensions_mut().insert(PopuliAuthContext::FullAccess);
                     let mut res = next.run(req).await;
                     stamp_populi_feature_header(&mut res);
                     return res;
@@ -132,8 +130,8 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                 if runtime.jwt_hmac.is_some() {
                     let now_sec = crate::now_ms() / 1000;
                     let mut maps = mesh_replay.maps().write().await;
-                    if let Some(role) = runtime
-                        .try_authorize_jwt(presented, now_sec, &mut maps.jwt_jti)
+                    if let Some(role) =
+                        runtime.try_authorize_jwt(presented, now_sec, &mut maps.jwt_jti)
                     {
                         drop(maps);
                         mesh_replay.persist_if_configured().await;

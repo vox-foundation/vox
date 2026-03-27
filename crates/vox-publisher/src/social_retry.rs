@@ -47,7 +47,10 @@ pub(crate) fn budget_from_distribution_policy(item: &UnifiedNewsItem) -> SocialR
 }
 
 /// Runs `f` up to `budget.max_attempts` times with exponential backoff (capped at 60s).
-pub(crate) async fn run_with_retries<T, E, Fut, F>(budget: SocialRetryBudget, mut f: F) -> Result<T, E>
+pub(crate) async fn run_with_retries<T, E, Fut, F>(
+    budget: SocialRetryBudget,
+    mut f: F,
+) -> Result<T, E>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T, E>>,

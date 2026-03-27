@@ -281,7 +281,12 @@ impl crate::VoxDb {
             .await
             .ok()
             .is_some_and(|p| p.fts5_reported);
-        if use_fts && self.search_document_chunks_fts_ready().await.unwrap_or(false) {
+        if use_fts
+            && self
+                .search_document_chunks_fts_ready()
+                .await
+                .unwrap_or(false)
+        {
             let q = sanitize_fts_query(query);
             if !q.is_empty() {
                 if let Ok(out) = self.query_search_document_chunks_fts(&q, lim).await {
@@ -292,6 +297,64 @@ impl crate::VoxDb {
             }
         }
         self.query_search_document_chunks_like(query, lim).await
+    }
+
+    /// Upsert one `search_documents` row and return its id.
+    pub async fn upsert_search_document(
+        &self,
+        source_uri: &str,
+        title: &str,
+        mime_type: &str,
+        content_hash: &str,
+    ) -> Result<i64, StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO search_documents (source_uri, title, mime_type, content_hash)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(source_uri) DO UPDATE SET
+                    title = excluded.title,
+                    mime_type = excluded.mime_type,
+                    content_hash = excluded.content_hash,
+                    ingested_at = datetime('now')",
+                params![source_uri, title, mime_type, content_hash],
+            )
+            .await?;
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id FROM search_documents WHERE source_uri = ?1 LIMIT 1",
+                params![source_uri],
+            )
+            .await?;
+        let row = rows
+            .next()
+            .await?
+            .ok_or_else(|| StoreError::Db("search_documents upsert did not return id".into()))?;
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Replace all chunks for `document_id` with the provided ordered bodies.
+    pub async fn replace_search_document_chunks(
+        &self,
+        document_id: i64,
+        chunk_bodies: &[String],
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "DELETE FROM search_document_chunks WHERE document_id = ?1",
+                params![document_id],
+            )
+            .await?;
+        for (idx, body) in chunk_bodies.iter().enumerate() {
+            self.conn
+                .execute(
+                    "INSERT INTO search_document_chunks (document_id, chunk_index, body_text)
+                     VALUES (?1, ?2, ?3)",
+                    params![document_id, idx as i64, body.as_str()],
+                )
+                .await?;
+        }
+        Ok(())
     }
 
     async fn search_document_chunks_fts_ready(&self) -> Result<bool, StoreError> {
@@ -386,8 +449,7 @@ impl crate::VoxDb {
     ) -> Result<Vec<(EmbeddingEntry, f32)>, StoreError> {
         let lim = limit.clamp(1, 500);
         let probe = self.sqlite_capabilities_snapshot().await.ok();
-        let candidate_cap =
-            crate::capabilities::embedding_candidate_cap(lim, 10, probe.as_ref());
+        let candidate_cap = crate::capabilities::embedding_candidate_cap(lim, 10, probe.as_ref());
         let mut rows = match source_type {
             Some(st) => {
                 self.conn

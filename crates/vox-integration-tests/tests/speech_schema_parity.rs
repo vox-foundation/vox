@@ -35,11 +35,7 @@ fn failure_category_values(schema: &serde_json::Value) -> Vec<String> {
     let fc = props
         .get("failure_category")
         .expect("failure_category property");
-    enum_strings(
-        json_obj(fc)
-            .get("enum")
-            .expect("failure_category.enum"),
-    )
+    enum_strings(json_obj(fc).get("enum").expect("failure_category.enum"))
 }
 
 #[test]
@@ -61,13 +57,9 @@ fn failure_taxonomy_matches_speech_trace_failure_category() {
     )
     .expect("parse speech_trace.mens");
 
-    let a: HashSet<_> = enum_strings(
-        json_obj(&tax)
-            .get("enum")
-            .expect("taxonomy enum"),
-    )
-    .into_iter()
-    .collect();
+    let a: HashSet<_> = enum_strings(json_obj(&tax).get("enum").expect("taxonomy enum"))
+        .into_iter()
+        .collect();
     let b: HashSet<_> = failure_category_values(&trace).into_iter().collect();
     let c: HashSet<_> = failure_category_values(&mens).into_iter().collect();
     assert_eq!(a, b, "speech_trace.failure_category vs failure-taxonomy");
@@ -82,9 +74,7 @@ fn mens_schema_reexports_contracts_extension() {
             .expect("read mens speech_to_code_trace"),
     )
     .expect("parse mens speech_to_code_trace");
-    let ref_ok = mens_entry
-        .get("$ref")
-        .and_then(|x| x.as_str())
+    let ref_ok = mens_entry.get("$ref").and_then(|x| x.as_str())
         == Some("../../contracts/speech-to-code/speech_trace.mens.schema.json");
     assert!(
         ref_ok,
@@ -95,10 +85,9 @@ fn mens_schema_reexports_contracts_extension() {
 #[test]
 fn speech_trace_mens_validates_minimal_training_row() {
     let root = workspace_root();
-    let schema_src = fs::read_to_string(
-        root.join("contracts/speech-to-code/speech_trace.mens.schema.json"),
-    )
-    .expect("read mens trace schema");
+    let schema_src =
+        fs::read_to_string(root.join("contracts/speech-to-code/speech_trace.mens.schema.json"))
+            .expect("read mens trace schema");
     let schema_val: serde_json::Value =
         serde_json::from_str(&schema_src).expect("parse mens trace schema");
     let validator = jsonschema::validator_for(&schema_val).expect("compile schema");
@@ -128,8 +117,9 @@ fn speech_trace_mens_validates_minimal_training_row() {
 #[test]
 fn kpi_baseline_schema_validates_instance() {
     let root = workspace_root();
-    let schema_src = fs::read_to_string(root.join("contracts/speech-to-code/kpi-baseline.schema.json"))
-        .expect("read kpi schema");
+    let schema_src =
+        fs::read_to_string(root.join("contracts/speech-to-code/kpi-baseline.schema.json"))
+            .expect("read kpi schema");
     let schema_val: serde_json::Value =
         serde_json::from_str(&schema_src).expect("parse kpi schema");
     let validator = jsonschema::validator_for(&schema_val).expect("compile kpi schema");
@@ -141,5 +131,7 @@ fn kpi_baseline_schema_validates_instance() {
         "compile_pass_at_1": 0.8,
         "latency_ms_p95": 900.0
     });
-    validator.validate(&inst).expect("kpi snapshot should validate");
+    validator
+        .validate(&inst)
+        .expect("kpi snapshot should validate");
 }

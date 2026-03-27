@@ -13,9 +13,7 @@ pub fn spdx_license_url(spdx: &str) -> Option<&'static str> {
     if spdx.eq_ignore_ascii_case("MIT") {
         return Some("https://opensource.org/licenses/MIT");
     }
-    if spdx.eq_ignore_ascii_case("Apache-2.0")
-        || spdx.eq_ignore_ascii_case("Apache-2")
-    {
+    if spdx.eq_ignore_ascii_case("Apache-2.0") || spdx.eq_ignore_ascii_case("Apache-2") {
         return Some("https://www.apache.org/licenses/LICENSE-2.0");
     }
     if spdx.eq_ignore_ascii_case("CC-BY-4.0") {
@@ -134,13 +132,9 @@ mod tests {
             license_spdx: Some("MIT".to_string()),
             ..Default::default()
         };
-        let meta = crate::scientific_metadata::build_scientia_metadata_json(
-            "p",
-            None,
-            Some(&sci),
-            None,
-        )
-        .unwrap();
+        let meta =
+            crate::scientific_metadata::build_scientia_metadata_json("p", None, Some(&sci), None)
+                .unwrap();
         let m = PublicationManifest {
             publication_id: "x".to_string(),
             content_type: "scientia".to_string(),

@@ -402,10 +402,7 @@ impl crate::VoxDb {
     pub async fn get_gamify_teaching_profile_row(
         &self,
         user_id: &str,
-    ) -> Result<
-        Option<(String, i64, String, String)>,
-        StoreError,
-    > {
+    ) -> Result<Option<(String, i64, String, String)>, StoreError> {
         let mut rows = self
             .conn
             .query(
@@ -415,12 +412,7 @@ impl crate::VoxDb {
             )
             .await?;
         Ok(if let Some(row) = rows.next().await? {
-            Some((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-            ))
+            Some((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
         } else {
             None
         })

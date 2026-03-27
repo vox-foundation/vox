@@ -74,7 +74,9 @@ impl crate::VoxDb {
     }
 
     /// Optional hook before dropping a database handle (flush/sync); currently a no-op.
-    pub fn shutdown_for_drop(&self) {}
+    pub fn shutdown_for_drop(&self) {
+        let _ = self;
+    }
 
     /// Connect with configurable retry parameters.
     ///

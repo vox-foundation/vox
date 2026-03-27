@@ -33,7 +33,9 @@ pub fn ludus_channel() -> LudusChannel {
             "off" => return LudusChannel::Off,
             "serious" => return LudusChannel::Serious,
             "balanced" => return LudusChannel::Balanced,
-            "digest-priority" | "digest_priority" | "digest" => return LudusChannel::DigestPriority,
+            "digest-priority" | "digest_priority" | "digest" => {
+                return LudusChannel::DigestPriority;
+            }
             _ => {}
         }
     }
@@ -79,12 +81,11 @@ pub fn experiment_hint_frequency_multiplier() -> f64 {
     if exp.trim().is_empty() {
         return 1.0;
     }
-    let arm = exp.bytes().fold(0u32, |acc, b| acc.wrapping_add(u32::from(b))) % 2;
-    if arm == 0 {
-        0.85
-    } else {
-        1.15
-    }
+    let arm = exp
+        .bytes()
+        .fold(0u32, |acc, b| acc.wrapping_add(u32::from(b)))
+        % 2;
+    if arm == 0 { 0.85 } else { 1.15 }
 }
 
 /// On-disk / standard [`VoxConfig::load()`] (no session env overlay). Use before `save()`.
@@ -167,11 +168,7 @@ pub fn experiment_reward_multiplier() -> f64 {
                 return 1.0;
             }
             let v: f64 = t.parse().unwrap_or(1.0);
-            if v.is_finite() && v > 0.0 {
-                v
-            } else {
-                1.0
-            }
+            if v.is_finite() && v > 0.0 { v } else { 1.0 }
         }
         Err(_) => 1.0,
     }

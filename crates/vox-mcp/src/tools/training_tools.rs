@@ -7,8 +7,7 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use vox_orchestrator::{TaskCapabilityHints, TaskPriority};
 
-const REM_TRAIN_SUBMIT: &str =
-    "Check orchestrator health, agent queues, and that the Mens training docs match your backend (`docs/src/reference/mens-training.md`).";
+const REM_TRAIN_SUBMIT: &str = "Check orchestrator health, agent queues, and that the Mens training docs match your backend (`docs/src/reference/mens-training.md`).";
 
 /// Arguments for `vox_schola_submit`.
 #[derive(Debug, Deserialize)]

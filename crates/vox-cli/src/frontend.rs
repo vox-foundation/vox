@@ -2,15 +2,50 @@
 //!
 //! **`pnpm`** invocations (`vox run` scaffold, **`islands/`** Vite build) use [`pnpm_executable`] as the
 //! single source of truth for the OS-specific binary name.
+//!
+//! ## Islands → Axum static (`build_islands_if_present`)
+//!
+//! After **`pnpm run build`** in **`islands/`**, artifacts land under **`target/generated/<static>/islands/`**.
+//! The app shell **`index.html`** must load **`/islands/island-mount.js`** (V1) so browser hydration can mount
+//! **`data-vox-island`** nodes.
+//!
+//! **Injection helper (OP-S043):** [`apply_island_mount_script_to_index_html`] is the pure gate (counts
+//! `island-mount.js`, rejects duplicates, inserts [`ISLAND_MOUNT_INDEX_SCRIPT_SNIPPET`] before `</body>`).
+//! [`inject_island_mount_script_into_index_file`] wraps read/write for build; decode of emitted attrs stays
+//! in [`crate::templates::islands::islands_props_from_element_ts`] (OP-S041).
+//!
+//! **Telemetry + build notes A/B/C (OP-S071 / S093 / S141 / S175 / S203):** islands copy + `index.html` injection
+//! are observable in `IslandsBuildSummary`; extend logging only with gate tests in `full_stack_minimal_build.rs`.
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::config;
 use crate::fs_utils;
 use crate::templates;
+
+static LOGGED_VOX_ISLAND_MOUNT_V2_STUB: AtomicBool = AtomicBool::new(false);
+
+/// One-shot `eprintln!` line when `VOX_ISLAND_MOUNT_V2=1` (OP-0252 / OP-0311 contract; grep-friendly in CI logs).
+pub const VOX_ISLAND_MOUNT_V2_STUB_MESSAGE: &str = "vox frontend: VOX_ISLAND_MOUNT_V2=1 — V2 index injection is not implemented; using V1 /islands/island-mount.js";
+
+fn maybe_log_vox_island_mount_v2_stub_once() {
+    let on = std::env::var("VOX_ISLAND_MOUNT_V2")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if !on || LOGGED_VOX_ISLAND_MOUNT_V2_STUB.swap(true, Ordering::Relaxed) {
+        return;
+    }
+    eprintln!("{VOX_ISLAND_MOUNT_V2_STUB_MESSAGE}");
+}
+
+#[cfg(test)]
+pub(crate) fn reset_island_mount_v2_stub_log_for_tests() {
+    LOGGED_VOX_ISLAND_MOUNT_V2_STUB.store(false, Ordering::Relaxed);
+}
 
 /// Basename of the **pnpm** CLI for this OS (`pnpm.cmd` on Windows, `pnpm` elsewhere).
 #[must_use]
@@ -57,9 +92,7 @@ pub fn maybe_write_root_pnpm_workspace(app_dir: &Path) -> Result<()> {
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "dist/app".to_string());
-    let islands_dir = islands_pkg
-        .parent()
-        .expect("islands package.json parent");
+    let islands_dir = islands_pkg.parent().expect("islands package.json parent");
     let islands_rel = islands_dir
         .strip_prefix(&repo_root)
         .ok()
@@ -280,8 +313,8 @@ fn try_pnpm_routes_gen(app_dir: &Path, pnpm: &str) -> Result<()> {
     if !pkg_path.is_file() {
         return Ok(());
     }
-    let pkg = read_utf8_path_capped(&pkg_path)
-        .with_context(|| format!("read {}", pkg_path.display()))?;
+    let pkg =
+        read_utf8_path_capped(&pkg_path).with_context(|| format!("read {}", pkg_path.display()))?;
     if !pkg.contains("\"routes:gen\"") {
         return Ok(());
     }
@@ -298,19 +331,113 @@ fn try_pnpm_routes_gen(app_dir: &Path, pnpm: &str) -> Result<()> {
     Ok(())
 }
 
+/// V1 **`index.html`** injection line; keep in sync with `island-mount.js` substring counting in [`apply_island_mount_script_to_index_html`].
+pub const ISLAND_MOUNT_INDEX_SCRIPT_SNIPPET: &str =
+    r#"  <script type="module" src="/islands/island-mount.js"></script>"#;
+
+/// Result of scanning / rewriting the Axum static **`index.html`** for island hydration.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IslandMountScriptInjection {
+    /// `false` when no **`index.html`** was examined (missing upstream).
+    pub evaluated: bool,
+    /// Occurrences of the substring **`island-mount.js`** before rewrite (**>1** is rejected).
+    pub island_mount_js_refs: usize,
+    pub injected: bool,
+    pub skipped_already_present: bool,
+    pub skipped_no_body: bool,
+}
+
+/// Per-run rollup from [`build_islands_if_present`] for logging and integration tests.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IslandsBuildSummary {
+    pub islands_package_present: bool,
+    pub vite_dist_copied: bool,
+    pub index_injection: IslandMountScriptInjection,
+}
+
+fn count_island_mount_js_refs(html: &str) -> usize {
+    html.matches("island-mount.js").count()
+}
+
+/// Pure helper: append the V1 mount script before **`</body>`** when **`island-mount.js`** is not already referenced.
+///
+/// Fails when the HTML already contains **more than one** `island-mount.js` reference (duplicate tags / comments).
+pub fn apply_island_mount_script_to_index_html(
+    html: &str,
+) -> Result<(String, IslandMountScriptInjection)> {
+    maybe_log_vox_island_mount_v2_stub_once();
+    let island_mount_js_refs = count_island_mount_js_refs(html);
+    if island_mount_js_refs > 1 {
+        bail!(
+            "index.html references island-mount.js {island_mount_js_refs} times (expected at most one)"
+        );
+    }
+    let mut report = IslandMountScriptInjection {
+        evaluated: true,
+        island_mount_js_refs,
+        ..Default::default()
+    };
+    if island_mount_js_refs == 1 {
+        report.skipped_already_present = true;
+        return Ok((html.to_owned(), report));
+    }
+    let inject = format!("{}\n", ISLAND_MOUNT_INDEX_SCRIPT_SNIPPET);
+    if let Some(pos) = html.rfind("</body>") {
+        let mut out = html.to_owned();
+        out.insert_str(pos, &inject);
+        report.injected = true;
+        Ok((out, report))
+    } else {
+        report.skipped_no_body = true;
+        Ok((html.to_owned(), report))
+    }
+}
+
+pub fn inject_island_mount_script_into_index_file(
+    index_path: &Path,
+) -> Result<IslandMountScriptInjection> {
+    let html = read_utf8_path_capped(index_path)
+        .with_context(|| format!("read {}", index_path.display()))?;
+    let (new_html, report) = apply_island_mount_script_to_index_html(&html).with_context(|| {
+        format!(
+            "island-mount script policy failed for {}",
+            index_path.display()
+        )
+    })?;
+    if report.injected && new_html != html {
+        std::fs::write(index_path, &new_html)
+            .with_context(|| format!("write {}", index_path.display()))?;
+        println!(
+            "  vox frontend compat: island-mount V1 script linked in {}",
+            index_path.display()
+        );
+    } else if report.skipped_no_body {
+        println!(
+            "  note: {} has no </body>; island-mount.js not auto-injected",
+            index_path.display()
+        );
+    }
+    Ok(report)
+}
+
 /// Build islands (Vite) when `islands/package.json` exists.
 ///
 /// Runs `pnpm install` and `pnpm build` in `islands/`, then copies
 /// `islands/dist/*` into `target/generated/<static_dir>/islands/` for `rust_embed`
 /// (alongside the main Vite app under `public/`).
-pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Result<()> {
+pub fn build_islands_if_present(
+    generated_dir: &Path,
+    static_dir: &str,
+) -> Result<IslandsBuildSummary> {
+    let mut summary = IslandsBuildSummary::default();
     let cwd = std::env::current_dir().context("cwd for islands build")?;
     let ctx = vox_repository::discover_repository_or_fallback(&cwd);
     let islands_dir = crate::island_paths::island_package_root(&ctx.root);
     let package_json = islands_dir.join("package.json");
     if !package_json.exists() {
-        return Ok(());
+        return Ok(summary);
     }
+    summary.islands_package_present = true;
 
     let island_src = islands_dir.join("src");
     std::fs::create_dir_all(&island_src).context("Failed to create islands/src")?;
@@ -340,7 +467,7 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
             .status()
             .context("Failed to run pnpm install in islands/. Is Node.js and pnpm installed?")?;
         if !status.success() {
-            anyhow::bail!("pnpm install failed in islands/");
+            bail!("pnpm install failed in islands/");
         }
     }
 
@@ -353,12 +480,13 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
         .status()
         .context("Failed to build islands")?;
     if !build_status.success() {
-        anyhow::bail!("Island build failed");
+        bail!("Island build failed");
     }
 
     let source = islands_dir.join("dist");
     let dest = generated_dir.join(static_dir).join("islands");
     if source.exists() {
+        summary.vite_dist_copied = true;
         std::fs::create_dir_all(&dest).context("Failed to create islands output dir")?;
         fs_utils::copy_dir_recursive(&source, &dest).with_context(|| {
             format!("Failed to copy {} to {}", source.display(), dest.display())
@@ -367,30 +495,17 @@ pub fn build_islands_if_present(generated_dir: &Path, static_dir: &str) -> Resul
 
         let index_html = generated_dir.join(static_dir).join("index.html");
         if index_html.is_file() {
-            inject_island_mount_script(&index_html).with_context(|| {
-                format!(
-                    "Failed to inject island-mount script into {}",
-                    index_html.display()
-                )
-            })?;
+            summary.index_injection = inject_island_mount_script_into_index_file(&index_html)
+                .with_context(|| {
+                    format!(
+                        "Failed to inject island-mount script into {}",
+                        index_html.display()
+                    )
+                })?;
         }
     }
 
-    Ok(())
-}
-
-fn inject_island_mount_script(index_path: &Path) -> Result<()> {
-    let mut html = read_utf8_path_capped(index_path)
-        .with_context(|| format!("read {}", index_path.display()))?;
-    if html.contains("island-mount.js") {
-        return Ok(());
-    }
-    let inject = "  <script type=\"module\" src=\"/islands/island-mount.js\"></script>\n";
-    if let Some(pos) = html.rfind("</body>") {
-        html.insert_str(pos, inject);
-        std::fs::write(index_path, html)?;
-    }
-    Ok(())
+    Ok(summary)
 }
 
 /// Copy built static assets from Vite output to the backend's public directory.
@@ -410,4 +525,86 @@ pub fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
         )
     })?;
     Ok(())
+}
+
+#[cfg(test)]
+mod island_mount_index_tests {
+    #![allow(unsafe_code)]
+
+    use super::*;
+
+    #[test]
+    fn apply_inserts_snippet_before_body() {
+        let html = "<html><head></head><body></body></html>";
+        let (out, r) = apply_island_mount_script_to_index_html(html).unwrap();
+        assert!(r.evaluated);
+        assert_eq!(r.island_mount_js_refs, 0);
+        assert!(r.injected);
+        assert!(!r.skipped_already_present);
+        assert!(!r.skipped_no_body);
+        assert!(out.contains(ISLAND_MOUNT_INDEX_SCRIPT_SNIPPET));
+        assert!(out.contains("</body>"));
+    }
+
+    #[test]
+    fn apply_skips_when_ref_present() {
+        let html = concat!(
+            "<body>",
+            r#"<script type="module" src="/islands/island-mount.js"></script>"#,
+            "</body>"
+        );
+        let (out, r) = apply_island_mount_script_to_index_html(html).unwrap();
+        assert!(r.skipped_already_present);
+        assert!(!r.injected);
+        assert_eq!(out, html);
+    }
+
+    #[test]
+    fn apply_errors_on_duplicate_refs() {
+        let html = concat!(
+            "<body>",
+            r#"<script src="/islands/island-mount.js"></script>"#,
+            r#"<script type="module" src="/islands/island-mount.js"></script>"#,
+            "</body>"
+        );
+        assert!(apply_island_mount_script_to_index_html(html).is_err());
+    }
+
+    #[test]
+    fn apply_no_body_is_skipped() {
+        let html = "<html></html>";
+        let (out, r) = apply_island_mount_script_to_index_html(html).unwrap();
+        assert!(r.skipped_no_body);
+        assert!(!r.injected);
+        assert_eq!(out, html);
+    }
+
+    /// OP-0311: stderr line is a single SSOT string (CI log grep); env triggers `eprintln!` path without panicking.
+    #[test]
+    fn v2_stub_message_contract_and_apply_with_env_succeeds() {
+        reset_island_mount_v2_stub_log_for_tests();
+        assert!(VOX_ISLAND_MOUNT_V2_STUB_MESSAGE.contains("V2 index injection"));
+        assert!(VOX_ISLAND_MOUNT_V2_STUB_MESSAGE.contains("/islands/island-mount.js"));
+
+        struct Guard {
+            prev: Option<std::ffi::OsString>,
+        }
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                match &self.prev {
+                    Some(v) => unsafe { std::env::set_var("VOX_ISLAND_MOUNT_V2", v) },
+                    None => unsafe { std::env::remove_var("VOX_ISLAND_MOUNT_V2") },
+                }
+            }
+        }
+        let prev = std::env::var_os("VOX_ISLAND_MOUNT_V2");
+        unsafe {
+            std::env::set_var("VOX_ISLAND_MOUNT_V2", "1");
+        }
+        let _guard = Guard { prev };
+        let (out, r) =
+            apply_island_mount_script_to_index_html("<html><body></body></html>").unwrap();
+        assert!(r.injected);
+        assert!(out.contains(ISLAND_MOUNT_INDEX_SCRIPT_SNIPPET));
+    }
 }

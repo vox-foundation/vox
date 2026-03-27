@@ -10439,6 +10439,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serial_test",
  "sha3",
  "sysinfo 0.38.4",
  "tempfile",

@@ -11,7 +11,7 @@ mod http;
 mod method_emit;
 mod stmt_expr;
 mod stmt_expr_tail;
-mod tables;
+pub mod tables;
 mod types;
 mod with_emit;
 mod workflow;

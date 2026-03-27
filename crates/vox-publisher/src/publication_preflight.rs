@@ -54,13 +54,8 @@ fn email_pattern() -> &'static Regex {
 fn orcid_id_pattern() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(concat!(
-            r"\b",
-            r"\d{4}-\d{4}-\d{4}-\d{3}",
-            r"[0-9X]",
-            r"\b"
-        ))
-        .expect("orcid id preflight regex")
+        Regex::new(concat!(r"\b", r"\d{4}-\d{4}-\d{4}-\d{3}", r"[0-9X]", r"\b"))
+            .expect("orcid id preflight regex")
     })
 }
 
@@ -235,7 +230,8 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
             findings.push(PreflightFinding {
                 code: "abstract_missing",
                 severity: PreflightSeverity::Warning,
-                message: "abstract_text is empty (journals and arXiv expect an abstract)".to_string(),
+                message: "abstract_text is empty (journals and arXiv expect an abstract)"
+                    .to_string(),
             });
         }
     }
@@ -265,16 +261,18 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
             findings.push(PreflightFinding {
                 code: "double_blind_orcid_url_in_body",
                 severity: PreflightSeverity::Error,
-                message: "`orcid.org` reference in body_markdown — remove for double-blind submission"
-                    .to_string(),
+                message:
+                    "`orcid.org` reference in body_markdown — remove for double-blind submission"
+                        .to_string(),
             });
         }
         if orcid_id_pattern().is_match(body) {
             findings.push(PreflightFinding {
                 code: "double_blind_orcid_id_in_body",
                 severity: PreflightSeverity::Error,
-                message: "ORCID identifier pattern in body_markdown — remove for double-blind submission"
-                    .to_string(),
+                message:
+                    "ORCID identifier pattern in body_markdown — remove for double-blind submission"
+                        .to_string(),
             });
         }
     }

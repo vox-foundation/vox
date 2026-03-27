@@ -124,8 +124,7 @@ pub(super) fn emit_pattern(
             format!(
                 "{}({})",
                 n,
-                pats
-                    .iter()
+                pats.iter()
                     .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -139,12 +138,7 @@ pub fn emit_expr(expr: &HirExpr) -> String {
     emit_expr_with(expr, false, false, false)
 }
 
-fn emit_expr_with(
-    expr: &HirExpr,
-    is_route: bool,
-    is_actor: bool,
-    mutation_tx: bool,
-) -> String {
+fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: bool) -> String {
     let fallible_db = mutation_tx;
     let emit = |e: &HirExpr| emit_expr_with(e, is_route, is_actor, mutation_tx);
     if let Some(s) = super::stmt_expr_tail::try_emit_expr_tail(
@@ -164,19 +158,11 @@ fn emit_expr_with(
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::ListLit(elements, _) => format!(
             "vec![{}]",
-            elements
-                .iter()
-                .map(emit)
-                .collect::<Vec<_>>()
-                .join(", ")
+            elements.iter().map(emit).collect::<Vec<_>>().join(", ")
         ),
         HirExpr::TupleLit(elements, _) => format!(
             "({})",
-            elements
-                .iter()
-                .map(emit)
-                .collect::<Vec<_>>()
-                .join(", ")
+            elements.iter().map(emit).collect::<Vec<_>>().join(", ")
         ),
 
         HirExpr::Ident(n, _) => {

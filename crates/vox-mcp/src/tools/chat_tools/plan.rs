@@ -6,16 +6,16 @@ use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_compl
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
-use crate::tools::chat_socrates_meta::{socrates_tool_meta, spawn_socrates_telemetry};
+use crate::tools::chat_socrates_meta::{
+    clarification_turn_for_session, mcp_questioning_session_key, socrates_tool_meta,
+    spawn_questioning_trace_from_socrates, spawn_socrates_telemetry,
+};
 
-const REM_MCP_MODEL_RESOLVE: &str =
-    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_LLM_COMPLETION: &str =
-    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
-const REM_PLAN_JSON: &str =
-    "Retry planning with a simpler goal or lower `max_tasks`; ensure the model returns valid JSON in a ```json block.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_PLAN_JSON: &str = "Retry planning with a simpler goal or lower `max_tasks`; ensure the model returns valid JSON in a ```json block.";
 const REM_DEI_DAEMON: &str =
     "Start `vox-dei-d` (DeI daemon) or verify IPC/socket configuration for this workspace.";
 
@@ -106,7 +106,8 @@ Rules:
     ) {
         Ok(g) => g.clone(),
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
+                .to_json();
         }
     };
     let routing = McpInferRouting {
@@ -118,6 +119,7 @@ Rules:
         user_id: params.session_id.as_deref(),
     };
 
+    let plan_llm_started = std::time::Instant::now();
     let (response_json, model_used, _tokens) = match mcp_infer_completion(
         state,
         model,
@@ -139,6 +141,12 @@ Rules:
             .to_json();
         }
     };
+
+    let plan_session_key = mcp_questioning_session_key(state, "vox_plan", params.session_id.as_deref());
+    state.record_questioning_attention_spend(
+        &plan_session_key,
+        plan_llm_started.elapsed().as_millis() as u64,
+    );
 
     // Strip any markdown fences if the model still included them despite JSON mode
     let block = response_json.trim();
@@ -222,7 +230,7 @@ Rules:
     };
 
     let result = PlanResult {
-        goal: params.goal,
+        goal: params.goal.clone(),
         tasks,
         summary,
         plan_md: base_plan_md,
@@ -235,8 +243,18 @@ Rules:
         0.74_f64
     };
     let pol = state.orchestrator_config.effective_socrates_policy();
-    let soc = socrates_tool_meta(&pol, grounding, false);
+    let session_key = plan_session_key;
+    let turn = clarification_turn_for_session(state, &session_key).await;
+    let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+    let soc = socrates_tool_meta(&pol, grounding, false, turn, spent_att, max_att);
     spawn_socrates_telemetry(state, "vox_plan", soc.clone(), Some(model_used.clone()));
+    spawn_questioning_trace_from_socrates(
+        state,
+        "vox_plan",
+        soc.clone(),
+        Some(session_key.clone()),
+        Some(params.goal.clone()),
+    );
     let mut v = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
     if let Some(obj) = v.as_object_mut() {
         obj.insert("socrates".to_string(), soc);
@@ -255,15 +273,28 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
     match crate::dei_ipc::call_dei_daemon("ai.plan.replan", body).await {
         Ok(mut v) => {
             let pol = state.orchestrator_config.effective_socrates_policy();
-            let soc = socrates_tool_meta(&pol, 0.62, false);
+            let session_key =
+                mcp_questioning_session_key(state, "vox_replan", Some(params.session_id.as_str()));
+            let turn = clarification_turn_for_session(state, &session_key).await;
+            let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+            let soc = socrates_tool_meta(&pol, 0.62, false, turn, spent_att, max_att);
             spawn_socrates_telemetry(state, "vox_replan", soc.clone(), None);
+            spawn_questioning_trace_from_socrates(
+                state,
+                "vox_replan",
+                soc.clone(),
+                Some(session_key.clone()),
+                Some(params.delta_hint.clone()),
+            );
             if let Some(obj) = v.as_object_mut() {
                 obj.insert("socrates".to_string(), soc);
             }
             ToolResult::ok(v).to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
+                .to_json()
+        }
     }
 }
 
@@ -273,14 +304,27 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
     match crate::dei_ipc::call_dei_daemon("ai.plan.status", body).await {
         Ok(mut v) => {
             let pol = state.orchestrator_config.effective_socrates_policy();
-            let soc = socrates_tool_meta(&pol, 0.58, false);
+            let session_key =
+                mcp_questioning_session_key(state, "vox_plan_status", Some(params.session_id.as_str()));
+            let turn = clarification_turn_for_session(state, &session_key).await;
+            let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+            let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att);
             spawn_socrates_telemetry(state, "vox_plan_status", soc.clone(), None);
+            spawn_questioning_trace_from_socrates(
+                state,
+                "vox_plan_status",
+                soc.clone(),
+                Some(session_key.clone()),
+                None,
+            );
             if let Some(obj) = v.as_object_mut() {
                 obj.insert("socrates".to_string(), soc);
             }
             ToolResult::ok(v).to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_DEI_DAEMON)
+                .to_json()
+        }
     }
 }

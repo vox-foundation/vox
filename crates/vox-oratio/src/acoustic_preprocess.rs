@@ -32,7 +32,9 @@ fn effective_mode() -> &'static str {
             if t.is_empty() || t == "0" || t.eq_ignore_ascii_case("none") {
                 return "none";
             }
-            if t == "1" || t.eq_ignore_ascii_case("peak") || t.eq_ignore_ascii_case("peak_normalize")
+            if t == "1"
+                || t.eq_ignore_ascii_case("peak")
+                || t.eq_ignore_ascii_case("peak_normalize")
             {
                 return "peak_normalize";
             }

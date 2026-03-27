@@ -13,7 +13,8 @@ fn command_catalog_paths_match_baseline() {
     paths.sort();
     let current = paths.join("\n") + "\n";
 
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/command_catalog_paths_baseline.txt");
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/command_catalog_paths_baseline.txt");
 
     if std::env::var("UPDATE_CLI_CATALOG_BASELINE").ok().as_deref() == Some("1") {
         if let Some(parent) = fixture.parent() {

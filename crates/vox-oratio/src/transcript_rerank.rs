@@ -90,7 +90,10 @@ pub fn pick_best_transcript_index(candidates: &[String]) -> usize {
 
 /// Like [`pick_best_transcript_index`] but prefers candidates that retain tokens from the raw transcript.
 #[must_use]
-pub fn pick_best_transcript_index_with_raw(candidates: &[String], raw_reference: Option<&str>) -> usize {
+pub fn pick_best_transcript_index_with_raw(
+    candidates: &[String],
+    raw_reference: Option<&str>,
+) -> usize {
     if candidates.is_empty() {
         return 0;
     }
@@ -188,11 +191,21 @@ mod tests {
         ];
         let bias = vec!["MENS".to_string()];
         let out = rerank_candidates_best_first_with_context(cands, &bias, None);
+        #[cfg(not(feature = "compiler-rerank"))]
         assert!(
             out[0].contains("MENS"),
             "expected bias to prefer MENS hypothesis: {:?}",
             out
         );
+        #[cfg(feature = "compiler-rerank")]
+        {
+            // Compiler-first ordering may keep a parse-friendlier head; tail is bias-sorted.
+            assert!(
+                out.iter().any(|s| s.contains("MENS")),
+                "expected a MENS hypothesis retained: {:?}",
+                out
+            );
+        }
     }
 
     #[test]

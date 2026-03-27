@@ -1,6 +1,6 @@
 //! Ledger + worker tick for scholarly [`external_submission_jobs`](vox_db::VoxDb) rows.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::Value;
 use vox_db::{
     ExternalSubmissionAttemptParams, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
@@ -9,7 +9,9 @@ use vox_db::{
 
 use crate::publication::PublicationManifest;
 use crate::scholarly::{self, ScholarlyError, ScholarlySubmissionReceipt};
-use crate::scholarly_remote_status::{map_scholarly_remote_to_job_status, ScholarlyRemoteStatusMap};
+use crate::scholarly_remote_status::{
+    ScholarlyRemoteStatusMap, map_scholarly_remote_to_job_status,
+};
 
 /// `VOX_SCHOLARLY_ADAPTER` (default `local_ledger`), or non-empty `adapter_override` (trimmed, ASCII lowercased).
 pub fn resolve_scholarly_adapter_kind(adapter_override: Option<&str>) -> String {
@@ -50,12 +52,8 @@ pub async fn publication_scholarly_submit_with_ledger(
     }
     let digest = row.content_sha3_256.clone();
     let adapter_kind = resolve_scholarly_adapter_kind(adapter_override);
-    let idem = scholarly::scholarly_idempotency_key(
-        &adapter_kind,
-        publication_id,
-        &digest,
-        "submit",
-    );
+    let idem =
+        scholarly::scholarly_idempotency_key(&adapter_kind, publication_id, &digest, "submit");
     let prior_job = db
         .get_external_submission_job_by_idempotency_key(&idem)
         .await
@@ -264,7 +262,8 @@ pub async fn poll_scholarly_remote_status_batch(
         .map_err(|e| anyhow!("{e}"))?;
     let mut publications: Vec<Value> = Vec::new();
     for publication_id in &pub_ids {
-        match poll_scholarly_remote_status_all_submissions_for_publication(db, publication_id).await {
+        match poll_scholarly_remote_status_all_submissions_for_publication(db, publication_id).await
+        {
             Ok(v) => publications.push(v),
             Err(e) => {
                 publications.push(serde_json::json!({
@@ -502,7 +501,10 @@ pub async fn submit_finish_ledger(
     }
 }
 
-async fn external_job_tick_preflight(db: &VoxDb, job: &ExternalSubmissionJobRow) -> Result<(), String> {
+async fn external_job_tick_preflight(
+    db: &VoxDb,
+    job: &ExternalSubmissionJobRow,
+) -> Result<(), String> {
     if job.operation != "submit" {
         return Err(format!(
             "unsupported external_submission_jobs.operation={:?} (only \"submit\" is supported)",
@@ -527,9 +529,7 @@ async fn external_job_tick_preflight(db: &VoxDb, job: &ExternalSubmissionJobRow)
         .await
         .map_err(|e| e.to_string())?;
     if !dual {
-        return Err(
-            "dual digest-bound approvals required before scholarly submit or retry".into(),
-        );
+        return Err("dual digest-bound approvals required before scholarly submit or retry".into());
     }
     Ok(())
 }
@@ -541,7 +541,11 @@ async fn external_job_mark_preflight_outcome(
     permanent: bool,
     message: &str,
 ) -> Result<()> {
-    let status = if permanent { "failed" } else { "retryable_failed" };
+    let status = if permanent {
+        "failed"
+    } else {
+        "retryable_failed"
+    };
     let next_retry_at_ms = if permanent {
         None
     } else {
@@ -669,8 +673,7 @@ pub async fn run_external_submit_jobs_tick(
             citations_json: mrow.citations_json.clone(),
             metadata_json: mrow.metadata_json.clone(),
         };
-        let receipt =
-            scholarly::submit_with_adapter(&manifest, j2.adapter.as_str()).await;
+        let receipt = scholarly::submit_with_adapter(&manifest, j2.adapter.as_str()).await;
         match submit_finish_ledger(
             db,
             j2.publication_id.as_str(),

@@ -379,9 +379,6 @@ async fn v0_named_export_doctor_check(checks: &mut Vec<Check>) {
             ),
         ));
     } else {
-        checks.push(Check::fail(
-            "@v0 TSX named exports",
-            failures.join("; "),
-        ));
+        checks.push(Check::fail("@v0 TSX named exports", failures.join("; ")));
     }
 }

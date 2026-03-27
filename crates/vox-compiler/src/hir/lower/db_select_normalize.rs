@@ -88,10 +88,10 @@ fn normalize_expr_select(expr: &mut HirExpr, field_order: &HashMap<String, Vec<S
             plan,
             ..
         } => {
-            if let Some(cols) = select_cols {
-                if let Some(order) = field_order.get(table) {
-                    reorder_db_select_cols(order, cols);
-                }
+            if let Some(cols) = select_cols
+                && let Some(order) = field_order.get(table)
+            {
+                reorder_db_select_cols(order, cols);
             }
             if let Some(p) = plan
                 && let Some(cols) = p.projection.as_mut()

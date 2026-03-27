@@ -34,10 +34,7 @@ pub(super) fn parse_rust_usize_literal(s: &str) -> Option<u64> {
 
 /// Strip `//` comments and normal `"` / `'` literals so SQL keywords inside examples don't trip heuristics.
 pub(super) fn sql_line_for_keyword_scan(line: &str) -> String {
-    let no_line_comment = line
-        .split_once("//")
-        .map(|(a, _)| a)
-        .unwrap_or(line);
+    let no_line_comment = line.split_once("//").map(|(a, _)| a).unwrap_or(line);
     let mut out = String::with_capacity(no_line_comment.len());
     let mut it = no_line_comment.chars().peekable();
     while let Some(c) = it.next() {

@@ -125,10 +125,11 @@ pub async fn publication_preflight(
     };
     let report = if with_worthiness {
         let root = vox_repository::resolve_repo_root_for_ci();
-        manifest = crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
-            manifest, &db, &root, None,
-        )
-        .await?;
+        manifest =
+            crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
+                manifest, &db, &root, None,
+            )
+            .await?;
         let contract_path =
             root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
         let yaml = read_utf8_path_capped(&contract_path).with_context(|| {
@@ -246,11 +247,8 @@ pub async fn publication_scholarly_staging_export(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let written = vox_publisher::submission_package::write_scholarly_staging(
-        &manifest,
-        venue,
-        output_dir,
-    )?;
+    let written =
+        vox_publisher::submission_package::write_scholarly_staging(&manifest, venue, output_dir)?;
     vox_publisher::submission_package::validate_scholarly_staging(output_dir, venue, &manifest)
         .map_err(|findings| {
             let msg: String = findings
@@ -406,10 +404,7 @@ pub async fn publication_approve(publication_id: &str, approver: &str) -> Result
 }
 
 /// Submit to the scholarly adapter (`--adapter` or `VOX_SCHOLARLY_ADAPTER`; default `local_ledger`).
-pub async fn publication_submit_local(
-    publication_id: &str,
-    adapter: Option<&str>,
-) -> Result<()> {
+pub async fn publication_submit_local(publication_id: &str, adapter: Option<&str>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let receipt = vox_publisher::scholarly_external_jobs::publication_scholarly_submit_with_ledger(
         &db,
@@ -514,10 +509,12 @@ pub async fn publication_scholarly_remote_status_sync_batch(
     jitter_secs: u64,
 ) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let v = if iterations <= 1 && interval_secs == 0 && max_runtime_secs.is_none() && jitter_secs == 0
+    let v = if iterations <= 1
+        && interval_secs == 0
+        && max_runtime_secs.is_none()
+        && jitter_secs == 0
     {
-        vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch(&db, limit)
-            .await
+        vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch(&db, limit).await
     } else {
         vox_publisher::scholarly_external_jobs::poll_scholarly_remote_status_batch_loop(
             &db,
@@ -552,11 +549,7 @@ pub async fn publication_arxiv_handoff_record(
         anyhow::bail!("--arxiv-id is required when --stage published");
     }
     let db = vox_db::VoxDb::connect_default().await?;
-    if db
-        .get_publication_manifest(publication_id)
-        .await?
-        .is_none()
-    {
+    if db.get_publication_manifest(publication_id).await?.is_none() {
         anyhow::bail!("publication not found: {publication_id}");
     }
     let status = format!("arxiv_handoff:{}", stage.slug());
@@ -571,12 +564,8 @@ pub async fn publication_arxiv_handoff_record(
         "note": note_trim,
         "arxiv_id": arxiv_trim,
     });
-    db.append_publication_status_event(
-        publication_id,
-        &status,
-        Some(&detail.to_string()),
-    )
-    .await?;
+    db.append_publication_status_event(publication_id, &status, Some(&detail.to_string()))
+        .await?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
@@ -784,7 +773,9 @@ pub(crate) fn publication_item_from_manifest(
     )
 }
 
-fn publication_manifest_from_row(row: &vox_db::PublicationManifestRow) -> vox_publisher::publication::PublicationManifest {
+fn publication_manifest_from_row(
+    row: &vox_db::PublicationManifestRow,
+) -> vox_publisher::publication::PublicationManifest {
     vox_publisher::publication::PublicationManifest {
         publication_id: row.publication_id.clone(),
         content_type: row.content_type.clone(),
@@ -927,9 +918,7 @@ pub async fn publication_publish(
                 .set_publication_state(
                     publication_id,
                     "published",
-                    Some(
-                        &serde_json::json!({ "channel_group": "manual_cli" }).to_string(),
-                    ),
+                    Some(&serde_json::json!({ "channel_group": "manual_cli" }).to_string()),
                 )
                 .await;
         } else if result.has_failures() {
@@ -937,9 +926,7 @@ pub async fn publication_publish(
                 .set_publication_state(
                     publication_id,
                     "publish_failed",
-                    Some(
-                        &serde_json::json!({ "channel_group": "manual_cli" }).to_string(),
-                    ),
+                    Some(&serde_json::json!({ "channel_group": "manual_cli" }).to_string()),
                 )
                 .await;
         }

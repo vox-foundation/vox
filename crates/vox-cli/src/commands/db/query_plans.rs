@@ -28,7 +28,10 @@ fn fallback_plan_from_db_op(
     }
 }
 
-fn collect_query_plans_expr(expr: &vox_compiler::hir::HirExpr, out: &mut Vec<vox_compiler::hir::HirDbQueryPlan>) {
+fn collect_query_plans_expr(
+    expr: &vox_compiler::hir::HirExpr,
+    out: &mut Vec<vox_compiler::hir::HirDbQueryPlan>,
+) {
     use vox_compiler::hir::HirExpr;
     match expr {
         HirExpr::DbTableOp {
@@ -41,10 +44,9 @@ fn collect_query_plans_expr(expr: &vox_compiler::hir::HirExpr, out: &mut Vec<vox
             plan,
             ..
         } => {
-            out.push(
-                plan.clone()
-                    .unwrap_or_else(|| fallback_plan_from_db_op(table, *op, select_cols, order_by, limit)),
-            );
+            out.push(plan.clone().unwrap_or_else(|| {
+                fallback_plan_from_db_op(table, *op, select_cols, order_by, limit)
+            }));
             for a in args {
                 collect_query_plans_expr(&a.value, out);
             }
@@ -140,7 +142,10 @@ fn collect_query_plans_expr(expr: &vox_compiler::hir::HirExpr, out: &mut Vec<vox
     }
 }
 
-fn collect_query_plans_stmt(stmt: &vox_compiler::hir::HirStmt, out: &mut Vec<vox_compiler::hir::HirDbQueryPlan>) {
+fn collect_query_plans_stmt(
+    stmt: &vox_compiler::hir::HirStmt,
+    out: &mut Vec<vox_compiler::hir::HirDbQueryPlan>,
+) {
     use vox_compiler::hir::HirStmt;
     match stmt {
         HirStmt::Let { value, .. } => collect_query_plans_expr(value, out),

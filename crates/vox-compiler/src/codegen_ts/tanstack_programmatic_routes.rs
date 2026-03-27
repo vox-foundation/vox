@@ -66,9 +66,7 @@ pub fn push_route_tree_files(
                 "import {\n  Outlet,\n  createRootRoute,\n  createRoute,\n} from \"@tanstack/react-router\";\n",
             );
             for name in sorted_screen_imports(routes_decl, hir) {
-                s.push_str(&format!(
-                    "import {{ {name} }} from \"./{name}.tsx\";\n",
-                ));
+                s.push_str(&format!("import {{ {name} }} from \"./{name}.tsx\";\n",));
             }
             s.push_str("\nconst rootRoute = createRootRoute({\n");
             s.push_str("  component: () => <Outlet />,\n");
@@ -105,9 +103,7 @@ pub fn push_route_tree_files(
                 "import {\n  Outlet,\n  RouterProvider,\n  createRootRoute,\n  createRoute,\n  createRouter,\n} from \"@tanstack/react-router\";\n",
             );
             for name in sorted_screen_imports(routes_decl, hir) {
-                app.push_str(&format!(
-                    "import {{ {name} }} from \"./{name}.tsx\";\n",
-                ));
+                app.push_str(&format!("import {{ {name} }} from \"./{name}.tsx\";\n",));
             }
             app.push_str("\nconst rootRoute = createRootRoute({\n");
             app.push_str("  component: () => <Outlet />,\n");

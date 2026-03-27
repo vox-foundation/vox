@@ -2,7 +2,7 @@ use crate::{ServerState, ToolResult};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use super::common::{no_voxdb_tool_string, REM_SCIENTIA_DB};
+use super::common::{REM_SCIENTIA_DB, no_voxdb_tool_string};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationMediaUpsertParams {
@@ -38,7 +38,11 @@ pub async fn vox_scientia_publication_media_upsert(
         })
         .await
     {
-        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("DB error: {e}"),
+            REM_SCIENTIA_DB,
+        )
+        .to_json();
     }
     ToolResult::ok(serde_json::json!({
         "publication_id": params.publication_id,
@@ -68,7 +72,13 @@ pub async fn vox_scientia_publication_media_list(
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     ToolResult::ok(rows).to_json()
 }
@@ -90,7 +100,11 @@ pub async fn vox_scientia_publication_media_delete(
         .delete_publication_media_asset(&params.publication_id, &params.asset_ref)
         .await
     {
-        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("DB error: {e}"),
+            REM_SCIENTIA_DB,
+        )
+        .to_json();
     }
     ToolResult::ok(serde_json::json!({
         "deleted": true,

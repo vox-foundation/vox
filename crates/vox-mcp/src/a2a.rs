@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::types::{A2AMessageType, AgentId};
 
-const REM_A2A_ACK: &str =
-    "List inbox with `a2a_inbox` and use a pending `message_id` for this agent; ids are consumed after ack.";
+const REM_A2A_ACK: &str = "List inbox with `a2a_inbox` and use a pending `message_id` for this agent; ids are consumed after ack.";
 
 // ---------------------------------------------------------------------------
 // Parameters

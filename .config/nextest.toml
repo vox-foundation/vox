@@ -5,5 +5,6 @@ slow-timeout = { period = "60s", terminate-after = 3 }
 fail-fast = false
 
 [profile.ci]
-retries = 3
-slow-timeout = { period = "120s", terminate-after = 2 }
+retries = 1
+# llvm-cov / self-hosted runners: full `generate()` on large fixtures can exceed 240s wall time.
+slow-timeout = { period = "180s", terminate-after = 3 }

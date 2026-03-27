@@ -108,7 +108,8 @@ mod tests {
 
     #[test]
     fn applies_alias() {
-        let raw = br#"{"schema_version":"1","entries":[{"canonical":"getUser","aliases":["getter"]}]}"#;
+        let raw =
+            br#"{"schema_version":"1","entries":[{"canonical":"getUser","aliases":["getter"]}]}"#;
         let lex = SpeechLexicon::from_json_slice(raw).unwrap();
         assert_eq!(lex.apply("call getter now"), "call getUser now");
     }

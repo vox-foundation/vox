@@ -8,14 +8,15 @@ use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
-use crate::tools::chat_socrates_meta::{socrates_tool_meta, spawn_socrates_telemetry_with_meta};
+use crate::tools::chat_socrates_meta::{
+    clarification_turn_for_session, mcp_questioning_session_key, socrates_tool_meta,
+    spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
+};
 use vox_orchestrator::session_retrieval_envelope_key;
 use vox_runtime::prompt_canonical;
 
-const REM_CHAT_CANONICAL: &str =
-    "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
-const REM_LLM_COMPLETION: &str =
-    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
 
 /// Handle a user chat message. Resolves @mentions, injects context from the editor,
 /// calls the best available LLM, persists to session history, and returns the updated history.
@@ -307,6 +308,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         },
     };
 
+    let chat_q_key = mcp_questioning_session_key(state, "vox_chat_message", Some(session_id));
+    state.record_questioning_attention_spend(
+        &chat_q_key,
+        llm_started.elapsed().as_millis() as u64,
+    );
+
     tracing::info!(
         target: "vox_mcp::populi_kpi",
         tool = "vox_chat_message",
@@ -401,8 +408,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         let q_repo = repo_id.to_string();
 
         // Insert user turn
-        let user_ctx_files =
-            serde_json::to_string(&user_msg.context_files).unwrap_or_default();
+        let user_ctx_files = serde_json::to_string(&user_msg.context_files).unwrap_or_default();
         let _ = db
             .insert_chat_transcript_turn(
                 user_msg.id.as_str(),
@@ -417,8 +423,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             .await;
 
         // Insert assistant turn into chat_transcripts (V17 legacy / VS Code history API)
-        let asst_ctx_files =
-            serde_json::to_string(&asst_msg.context_files).unwrap_or_default();
+        let asst_ctx_files = serde_json::to_string(&asst_msg.context_files).unwrap_or_default();
         let _ = db
             .insert_chat_transcript_turn(
                 asst_msg.id.as_str(),
@@ -471,13 +476,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         if vox_ludus::config_gate::is_enabled() {
             let _ = vox_ludus::event_router::route_event_auto_user(db, &payload).await;
         } else {
-            let _ = vox_ludus::db::insert_event(
-                db,
-                "0",
-                "llm_turn",
-                Some(&payload.to_string()),
-            )
-            .await;
+            let _ =
+                vox_ludus::db::insert_event(db, "0", "llm_turn", Some(&payload.to_string())).await;
         }
     }
 
@@ -498,7 +498,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     let grounding =
         (chat_grounding_score(&params, mention_count) + retrieval_boost).clamp(0.0, 1.0);
     let pol = state.orchestrator_config.effective_socrates_policy();
-    let soc = socrates_tool_meta(&pol, grounding, retrieval_contradiction);
+    let session_key = mcp_questioning_session_key(state, "vox_chat_message", Some(session_id));
+    let turn = clarification_turn_for_session(state, &session_key).await;
+    let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+    let soc = socrates_tool_meta(
+        &pol,
+        grounding,
+        retrieval_contradiction,
+        turn,
+        spent_att,
+        max_att,
+    );
     let retrieval_meta = retrieval_evidence
         .as_ref()
         .and_then(|ev| serde_json::to_value(ev).ok());
@@ -508,6 +518,13 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         soc.clone(),
         Some(model_used.clone()),
         retrieval_meta,
+    );
+    spawn_questioning_trace_from_socrates(
+        state,
+        "vox_chat_message",
+        soc.clone(),
+        Some(session_key.clone()),
+        Some(user_prompt.clone()),
     );
     let result = serde_json::json!({
         "message": asst_msg,

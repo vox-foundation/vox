@@ -166,6 +166,18 @@ pub enum CiCmd {
     /// Command registry parity: `contracts/cli/command-registry.yaml` vs `ref-cli`, reachability, compilerd, dei, MCP tools, script duals.
     #[command(name = "command-compliance")]
     CommandCompliance,
+    /// Compare `cargo llvm-cov report --json --summary-only` to `.config/coverage-gates.toml`.
+    #[command(name = "coverage-gates")]
+    CoverageGates {
+        /// Output path from `cargo llvm-cov report --json --summary-only`.
+        #[arg(long)]
+        summary_json: PathBuf,
+        #[arg(long, value_enum, default_value_t = CoverageGateMode::Warn)]
+        mode: CoverageGateMode,
+        /// Gate policy TOML (repo-relative unless absolute).
+        #[arg(long, default_value = ".config/coverage-gates.toml")]
+        config: PathBuf,
+    },
     /// Regenerate or verify `docs/src/reference/cli-command-surface.generated.md` from the registry.
     #[command(name = "command-sync")]
     CommandSync {
@@ -247,6 +259,17 @@ pub enum ScalingAuditCmd {
     /// Regenerate `contracts/reports/scaling-audit/**` (≥300 templated tasks + TOESTUB JSON on `crates/`).
     #[command(name = "emit-reports")]
     EmitReports,
+}
+
+/// `vox ci coverage-gates --mode` (warn = print only; enforce = fail CI).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum CoverageGateMode {
+    /// Print gaps; exit 0 (visibility without blocking merges).
+    #[default]
+    Warn,
+    /// Exit non-zero when a configured threshold is not met.
+    Enforce,
 }
 
 /// Subcommands for [`CiCmd::EvalMatrix`].

@@ -1,5 +1,6 @@
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use regex::Regex;
+use std::path::Path;
 
 /// Detects modules/files that are declared but never imported or referenced.
 ///
@@ -8,6 +9,8 @@ use regex::Regex;
 pub struct UnwiredModuleDetector {
     rust_mod_decl: Regex,
     rust_use_stmt: Regex,
+    rust_include: Regex,
+    rust_path_attr: Regex,
     ts_export_re: Regex,
 }
 
@@ -25,6 +28,9 @@ impl UnwiredModuleDetector {
             rust_mod_decl: Regex::new(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;")
                 .expect("valid rust mod decl regex"),
             rust_use_stmt: Regex::new(r"\buse\s+(?:crate|super|self)::(\w+)").expect("valid regex"),
+            rust_include: Regex::new(r#"include!\(\s*"([^"]+)"\s*\)"#).expect("include regex"),
+            rust_path_attr: Regex::new(r#"#\s*\[\s*path\s*=\s*"([^"]+)"\s*\]"#)
+                .expect("path attr regex"),
             ts_export_re: Regex::new(
                 r"export\s+(?:default\s+)?(?:function|class|const|let|type|interface|enum)\s+(\w+)",
             )
@@ -32,32 +38,118 @@ impl UnwiredModuleDetector {
         }
     }
 
+    /// `include!(\"…\")` bodies are not in `file.content` on disk; merge them (one hop, capped reads)
+    /// so `foo::bar` references inside includes count as wiring `mod foo;`.
+    fn rust_content_with_includes(rust_include: &Regex, path: &Path, content: &str) -> String {
+        let mut out = content.to_string();
+        let Some(parent) = path.parent() else {
+            return out;
+        };
+        for caps in rust_include.captures_iter(content) {
+            let Some(rel) = caps.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
+            let inc_path = parent.join(rel);
+            if let Ok(body) = crate::bounded_fs::read_utf8_path_capped(&inc_path) {
+                out.push('\n');
+                out.push_str(&body);
+            }
+        }
+        out
+    }
+
+    fn preceding_has_cfg_test(lines: &[String], mod_line_idx: usize) -> bool {
+        let mut i = mod_line_idx;
+        while i > 0 {
+            i -= 1;
+            let t = lines[i].trim();
+            if t.is_empty() {
+                continue;
+            }
+            if t.starts_with("#[") && t.contains("cfg(test)") {
+                return true;
+            }
+            if !t.starts_with("#[") {
+                break;
+            }
+        }
+        false
+    }
+
+    /// `mod foo;` resolves to an on-disk module if any canonical layout matches.
+    fn module_backing_exists(
+        base: &Path,
+        declaring_file: &Path,
+        mod_name: &str,
+        path_override: Option<&str>,
+    ) -> bool {
+        if let Some(rel) = path_override {
+            return base.join(rel).is_file();
+        }
+        let n = mod_name;
+        let mut paths = vec![base.join(format!("{n}.rs")), base.join(n).join("mod.rs")];
+        let fname = declaring_file.file_name().and_then(|s| s.to_str());
+        if fname != Some("mod.rs") {
+            if let Some(stem) = declaring_file.file_stem().and_then(|s| s.to_str()) {
+                if stem != "lib" {
+                    paths.push(base.join(stem).join(format!("{n}.rs")));
+                    paths.push(base.join(stem).join(n).join("mod.rs"));
+                }
+            }
+        }
+        paths.iter().any(|p| p.is_file())
+    }
+
     fn detect_rust(&self, file: &SourceFile) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let blob = Self::rust_content_with_includes(&self.rust_include, &file.path, &file.content);
 
         // Collect all `mod name;` declarations
         let mut declared_mods: Vec<(String, usize)> = Vec::new();
         // Collect all `use crate::name` / `use super::name` references
         let mut used_mods: Vec<String> = Vec::new();
 
+        let base = file.path.parent().unwrap_or_else(|| Path::new("."));
+        let mut pending_path: Option<String> = None;
+
         for (i, line) in file.lines.iter().enumerate() {
+            let trim_line = line.trim();
+            if trim_line.starts_with("#[") && trim_line.contains("path") {
+                if let Some(caps) = self.rust_path_attr.captures(trim_line)
+                    && let Some(m) = caps.get(1)
+                {
+                    pending_path = Some(m.as_str().to_string());
+                }
+                continue;
+            }
             if let Some(caps) = self.rust_mod_decl.captures(line)
                 && let Some(name) = caps.get(1)
             {
                 // `pub mod` / `pub(crate) mod` are crate API wiring — parent modules import from outside
                 // this file; same-file `foo::` is not required (avoids 100s of false positives in mod.rs roots).
                 if line.trim_start().starts_with("pub") {
+                    pending_path = None;
                     continue;
                 }
-                // `#[cfg(test)] mod tests;` is never referenced in-lib; integration tests live in `tests/`.
-                if name.as_str() == "tests"
-                    && i > 0
-                    && file.lines[i - 1].contains("cfg(test)")
-                {
+                // `#[cfg(test)] mod tests;` (possibly after `#[path = "..."]`) — not referenced in-lib.
+                if name.as_str() == "tests" && Self::preceding_has_cfg_test(&file.lines, i) {
+                    pending_path = None;
                     continue;
                 }
-                declared_mods.push((name.as_str().to_string(), i + 1));
+                let n = name.as_str();
+                let po = pending_path.take();
+                if Self::module_backing_exists(base, &file.path, n, po.as_deref()) {
+                    continue;
+                }
+                declared_mods.push((n.to_string(), i + 1));
             }
+            for caps in self.rust_use_stmt.captures_iter(line) {
+                if let Some(name) = caps.get(1) {
+                    used_mods.push(name.as_str().to_string());
+                }
+            }
+        }
+        for line in blob.lines() {
             for caps in self.rust_use_stmt.captures_iter(line) {
                 if let Some(name) = caps.get(1) {
                     used_mods.push(name.as_str().to_string());
@@ -74,11 +166,12 @@ impl UnwiredModuleDetector {
                     && (line.contains(&format!("{}::", mod_name))
                         || line.contains(&format!("use {}", mod_name))
                         || line.contains(&format!("{mod_name} as ")))
-                });
+                })
+                // `include!(...)` text is merged into `blob` so sibling `mod foo;` + `foo::` in inc counts.
+                || blob.contains(&format!("{}::", mod_name));
             if crate::run_context::feature_enabled("unwired-graph") {
                 let z = mod_name.as_str();
-                if file.content.contains(&format!("crate::{z}::"))
-                    || file.content.contains(&format!("crate::{z};"))
+                if blob.contains(&format!("crate::{z}::")) || blob.contains(&format!("crate::{z};"))
                 {
                     is_used = true;
                 }
@@ -197,5 +290,53 @@ mod tests {
             d.detect(&f, None).is_empty(),
             "public module declarations are wired from other crates/files"
         );
+    }
+
+    #[test]
+    fn skips_path_attr_backed_mod() {
+        let root = std::env::temp_dir().join(format!("vox_unwired_path_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("expr.rs"), "// expr module\n").unwrap();
+        let lower = root.join("lower.rs");
+        std::fs::write(
+            &lower,
+            "#[path = \"expr.rs\"]\nmod lowering_expr;\nfn _x() { lowering_expr::marker(); }\n",
+        )
+        .unwrap();
+        let f = SourceFile::new(lower.clone(), std::fs::read_to_string(&lower).unwrap());
+        let d = UnwiredModuleDetector::new();
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "path = points at real file — not unwired"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn skips_stem_subdirectory_file_backed_mod() {
+        let root = std::env::temp_dir().join(format!("vox_unwired_stem_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("orchestrator")).unwrap();
+        std::fs::write(root.join("orchestrator").join("agent.rs"), "\n").unwrap();
+        let pf = root.join("orchestrator.rs");
+        std::fs::write(&pf, "mod agent;\n").unwrap();
+        let f = SourceFile::new(pf.clone(), std::fs::read_to_string(&pf).unwrap());
+        let d = UnwiredModuleDetector::new();
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "orchestrator/agent.rs backs `mod agent` in orchestrator.rs"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn skips_cfg_test_mod_tests_with_path_attr() {
+        let d = UnwiredModuleDetector::new();
+        let f = source(
+            "rs",
+            "#[cfg(test)]\n#[path = \"snap_tests.rs\"]\nmod tests;\n",
+        );
+        assert!(d.detect(&f, None).is_empty());
     }
 }

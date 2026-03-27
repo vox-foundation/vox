@@ -1,7 +1,162 @@
+//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
+//!
+//! ## Adapter seam (OP-0161..OP-0176)
+//!
+//! - **Input:** [`ExpressRouteEmitCtx`] wraps [`HirModule`] for validation + deterministic emission order.
+//! - **Contracts:** [`crate::web_ir::lower::lower_hir_to_web_ir`] is the structural SSOT for route IDs and
+//!   client/tree tooling; this module remains **body-driven** Express glue (actor `send`, `spawn`, etc.).
+//! - **TanStack Start / SPA:** unchanged here — [`super::emitter::CodegenOptions::tanstack_start`] only
+//!   affects client route-tree files (OP-0168).
+//!
+//! Use [`validate_express_route_emit_input`] before enabling `VOX_EMIT_EXPRESS_SERVER` when you need
+//! fail-fast checks (tests, CI).
+//!
+//! ## Route contract mapper (OP-S033)
+//!
+//! - Each [`HirRoute`](crate::hir::HirRoute) carries a stable `route_contract` string (`"{METHOD} {path}"`)
+//!   from HIR lowering—surfaced in validation errors and logs alongside this module’s Express wire-up.
+//! - Client SPA / TanStack tree **IDs** and loader contracts are produced by
+//!   [`crate::web_ir::lower::lower_hir_to_web_ir`]; this file does **not** remap Web IR `RouteContract`
+//!   back into HTTP handlers—keep duplicate-path checks here (`validate_express_route_emit_input`)
+//!   orthogonal to client route family validation inside [`validate_web_ir`](crate::web_ir::validate::validate_web_ir).
+//!
+//! **Route contract + diff policy (OP-S061 / S089 / S117 / S139 / S159 / S191):** deterministic sort orders
+//! in this module must stay aligned with duplicate-detection in [`validate_express_route_emit_input`] and Web IR
+//! route id policy — changing sort keys requires dual updates in `validate_web_ir` route stage.
+
 use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
 use crate::codegen_ts::island_emit::empty_island_set;
-use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirStmt};
+use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirRoute, HirServerFn, HirStmt};
 use std::collections::HashSet;
+
+/// Mock `ClaudeActor` embedded in generated `server.ts` when HTTP routes exist (OP-0172 SSOT).
+const EXPRESS_TYPESCRIPT_CLAUDE_ACTOR_CLASS: &str = r#"class ClaudeActor {
+  async send(message: string): Promise<string> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 256,
+          messages: [{ role: "user", content: message }],
+        }),
+      });
+      const data = await response.json() as any;
+      return data.content?.[0]?.text || "No response from Claude";
+    }
+    // Mock response when no API key is set
+    return `Vox AI Echo: ${message}`;
+  }
+}
+
+"#;
+
+fn http_method_ord(m: HirHttpMethod) -> u8 {
+    match m {
+        HirHttpMethod::Get => 0,
+        HirHttpMethod::Post => 1,
+        HirHttpMethod::Put => 2,
+        HirHttpMethod::Delete => 3,
+    }
+}
+
+/// Fail-fast checks for duplicate Express registrations and empty paths (OP-0170).
+pub fn validate_express_route_emit_input(hir: &HirModule) -> Result<(), String> {
+    use std::collections::HashSet;
+
+    let mut http_keys = HashSet::<(u8, String)>::new();
+    for r in &hir.routes {
+        let path = r.path.trim();
+        if path.is_empty() {
+            return Err(format!(
+                "HTTP {} route has empty path (contract {})",
+                r.method.as_str(),
+                r.route_contract
+            ));
+        }
+        let key = (http_method_ord(r.method), path.to_string());
+        if !http_keys.insert(key) {
+            return Err(format!(
+                "duplicate Express handler for {} {}",
+                r.method.as_str(),
+                r.path
+            ));
+        }
+    }
+
+    let mut paths = HashSet::<String>::new();
+    for sf in hir
+        .server_fns
+        .iter()
+        .chain(hir.query_fns.iter())
+        .chain(hir.mutation_fns.iter())
+    {
+        let p = sf.route_path.trim();
+        if p.is_empty() {
+            return Err(format!("server fn `{}` has empty route_path", sf.name));
+        }
+        if !paths.insert(p.to_string()) {
+            return Err(format!(
+                "duplicate server-fn route_path `{}` (Express post only)",
+                sf.route_path
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Wrapper for HIR-first Express emission (OP-0161).
+pub struct ExpressRouteEmitCtx<'a> {
+    hir: &'a HirModule,
+}
+
+impl<'a> ExpressRouteEmitCtx<'a> {
+    #[must_use]
+    pub fn new(hir: &'a HirModule) -> Self {
+        Self { hir }
+    }
+
+    #[must_use]
+    pub fn hir(&self) -> &'a HirModule {
+        self.hir
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        validate_express_route_emit_input(self.hir)
+    }
+}
+
+fn sorted_http_routes(hir: &HirModule) -> Vec<&HirRoute> {
+    let mut v: Vec<_> = hir.routes.iter().collect();
+    v.sort_by(|a, b| {
+        a.path
+            .cmp(&b.path)
+            .then_with(|| http_method_ord(a.method).cmp(&http_method_ord(b.method)))
+    });
+    v
+}
+
+fn sorted_server_fns(hir: &HirModule) -> Vec<&HirServerFn> {
+    let mut v: Vec<_> = hir
+        .server_fns
+        .iter()
+        .chain(hir.query_fns.iter())
+        .chain(hir.mutation_fns.iter())
+        .collect();
+    v.sort_by(|a, b| {
+        a.route_path
+            .cmp(&b.route_path)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    v
+}
 
 fn emit_hir_route_expr(expr: &HirExpr) -> String {
     let empty = HashSet::new();
@@ -76,14 +231,18 @@ fn emit_hir_route_stmt(stmt: &HirStmt) -> String {
 }
 
 /// Generate Express.js route handlers from Vox HTTP routes and server functions (HIR-first).
+///
+/// Route and server-fn blocks are emitted in **stable sorted order** (path, then method / name) (OP-0166).
 pub fn generate_routes(hir: &HirModule) -> String {
-    let routes = &hir.routes;
-    let server_fns: Vec<_> = hir
-        .server_fns
-        .iter()
-        .chain(hir.query_fns.iter())
-        .chain(hir.mutation_fns.iter())
-        .collect();
+    generate_routes_from_ctx(&ExpressRouteEmitCtx::new(hir))
+}
+
+/// Like [`generate_routes`] but accepts a pre-built [`ExpressRouteEmitCtx`].
+#[must_use]
+pub fn generate_routes_from_ctx(ctx: &ExpressRouteEmitCtx<'_>) -> String {
+    let hir = ctx.hir();
+    let routes = sorted_http_routes(hir);
+    let server_fns = sorted_server_fns(hir);
 
     if routes.is_empty() && server_fns.is_empty() {
         return String::new();
@@ -96,35 +255,9 @@ pub fn generate_routes(hir: &HirModule) -> String {
     out.push_str("app.use(cors());\n");
     out.push_str("app.use(express.json());\n\n");
 
-    // Only emit mock actor when there are HTTP routes that might use actors
     if !routes.is_empty() {
         out.push_str("// Mock LLM actor (replace with real API key for production)\n");
-        out.push_str("class ClaudeActor {\n");
-        out.push_str("  async send(message: string): Promise<string> {\n");
-        out.push_str("    const apiKey = process.env.ANTHROPIC_API_KEY;\n");
-        out.push_str("    if (apiKey) {\n");
-        out.push_str(
-            "      const response = await fetch(\"https://api.anthropic.com/v1/messages\", {\n",
-        );
-        out.push_str("        method: \"POST\",\n");
-        out.push_str("        headers: {\n");
-        out.push_str("          \"Content-Type\": \"application/json\",\n");
-        out.push_str("          \"x-api-key\": apiKey,\n");
-        out.push_str("          \"anthropic-version\": \"2023-06-01\",\n");
-        out.push_str("        },\n");
-        out.push_str("        body: JSON.stringify({\n");
-        out.push_str("          model: \"claude-sonnet-4-20250514\",\n");
-        out.push_str("          max_tokens: 256,\n");
-        out.push_str("          messages: [{ role: \"user\", content: message }],\n");
-        out.push_str("        }),\n");
-        out.push_str("      });\n");
-        out.push_str("      const data = await response.json() as any;\n");
-        out.push_str("      return data.content?.[0]?.text || \"No response from Claude\";\n");
-        out.push_str("    }\n");
-        out.push_str("    // Mock response when no API key is set\n");
-        out.push_str("    return `Vox AI Echo: ${message}`;\n");
-        out.push_str("  }\n");
-        out.push_str("}\n\n");
+        out.push_str(EXPRESS_TYPESCRIPT_CLAUDE_ACTOR_CLASS);
     }
 
     for route in routes {

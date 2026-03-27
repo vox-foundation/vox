@@ -67,8 +67,14 @@ fn mens_long_help_canonical_train_is_mens_not_schola() {
 
 #[test]
 fn parse_db_explain_subcommand() {
-    VoxCliRoot::try_parse_from(["vox", "db", "explain", "--file", "examples/golden/crud_api.vox"])
-        .expect("db explain parse");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "db",
+        "explain",
+        "--file",
+        "examples/golden/crud_api.vox",
+    ])
+    .expect("db explain parse");
 }
 
 #[test]

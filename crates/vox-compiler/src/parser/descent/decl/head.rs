@@ -39,7 +39,7 @@ impl Parser {
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Expected identifier in import path",
+                    "Import path must begin with an identifier (for example `react.use_state`); extend with `.` segments only after the first name.",
                     vec!["identifier".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
@@ -80,7 +80,7 @@ impl Parser {
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "After @component, expected `fn` or a reactive component name (Path C)",
+                    "Unsupported head after `@component`: use `fn` for the classic component (`@component fn Name(...)`) or an identifier for Path C (`@component Name(...)`). Nothing else may follow `@component` here.",
                     vec!["fn".into(), "ComponentName".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
@@ -144,10 +144,17 @@ impl Parser {
                 _ => {
                     self.errors.push(ParseError::classified(
                         self.span(),
-                        format!("Unexpected token in component block: {}", self.peek()),
-                        vec![],
+                        "Parse (reactive body): unexpected token; expected a member keyword (`state`, `derived`, `effect`, `mount`, `cleanup`) or `view:` (parse-stage; see diagnostic taxonomy `parse` row)".to_string(),
+                        vec![
+                            "state".into(),
+                            "derived".into(),
+                            "effect".into(),
+                            "mount".into(),
+                            "cleanup".into(),
+                            "view:".into(),
+                        ],
                         Some(self.peek().to_string()),
-                        ParseErrorClass::Statement,
+                        ParseErrorClass::ReactiveComponentMember,
                     ));
                     return Err(());
                 }
@@ -174,9 +181,12 @@ impl Parser {
         Ok(Decl::Loading(LoadingDecl { func: f }))
     }
 
+    /// Parser truth for WebIR docs: only `{ prop: Ty` / `prop?: Ty }` forms; no comma-required between props.
+    /// Braces are authoritative: `{` must follow the island name immediately (non-speculative; OP-0013).
     pub(crate) fn parse_island(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // @island
+        self.maybe_parser_trace("island.after_kw");
         let name = self.parse_ident_name()?;
         self.expect(&Token::LBrace)?;
         self.skip_newlines();
@@ -186,15 +196,7 @@ impl Parser {
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
                 break;
             }
-            let pname = self.parse_ident_name()?;
-            let is_optional = self.eat(&Token::Question);
-            self.expect(&Token::Colon)?;
-            let ty = self.parse_type_expr()?;
-            props.push(IslandProp {
-                name: pname,
-                ty,
-                is_optional,
-            });
+            props.push(self.parse_island_prop_line()?);
             self.skip_newlines();
         }
         self.eat(&Token::RBrace);
@@ -203,6 +205,25 @@ impl Parser {
             props,
             span: start.merge(self.span()),
         }))
+    }
+
+    /// One `@island` prop line: `name`, optional `?`, `:`, type (OP-0006).
+    pub(crate) fn parse_island_prop_line(&mut self) -> Result<IslandProp, ()> {
+        let pname = self.parse_ident_name()?;
+        if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
+            eprintln!(
+                "[vox-parser:island.prop] name={pname:?} next={:?}",
+                self.peek()
+            );
+        }
+        let is_optional = self.eat(&Token::Question);
+        self.expect(&Token::Colon)?;
+        let ty = self.parse_type_expr()?;
+        Ok(IslandProp {
+            name: pname,
+            ty,
+            is_optional,
+        })
     }
 
     pub(crate) fn parse_mcp_tool(&mut self) -> Result<Decl, ()> {

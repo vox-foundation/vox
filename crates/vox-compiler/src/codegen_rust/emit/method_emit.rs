@@ -3,11 +3,7 @@
 use crate::hir::{HirDbPredicate, HirDbQueryPlan, HirDbTableOp, HirExpr};
 
 fn db_ref(fallible: bool) -> &'static str {
-    if fallible {
-        "&db"
-    } else {
-        "&*db"
-    }
+    if fallible { "&db" } else { "&*db" }
 }
 
 fn await_or_expect_suffix(fallible: bool, expect_msg: &str) -> String {
@@ -101,16 +97,29 @@ where
             }
             HirDbPredicate::And(parts) => parts
                 .iter()
-                .map(|p| format!("({})", emit_predicate_sql(_emit_expr, p, _args, next_param, next_arg)))
+                .map(|p| {
+                    format!(
+                        "({})",
+                        emit_predicate_sql(_emit_expr, p, _args, next_param, next_arg)
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(" AND "),
             HirDbPredicate::Or(parts) => parts
                 .iter()
-                .map(|p| format!("({})", emit_predicate_sql(_emit_expr, p, _args, next_param, next_arg)))
+                .map(|p| {
+                    format!(
+                        "({})",
+                        emit_predicate_sql(_emit_expr, p, _args, next_param, next_arg)
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(" OR "),
             HirDbPredicate::Not(inner) => {
-                format!("NOT ({})", emit_predicate_sql(_emit_expr, inner, _args, next_param, next_arg))
+                format!(
+                    "NOT ({})",
+                    emit_predicate_sql(_emit_expr, inner, _args, next_param, next_arg)
+                )
             }
         }
     }
@@ -189,7 +198,8 @@ where
         }
         HirDbTableOp::Count => {
             if order_by.is_some() || limit.is_some() {
-                return "/* vox codegen: invalid count modifiers (typecheck should reject) */ 0".into();
+                return "/* vox codegen: invalid count modifiers (typecheck should reject) */ 0"
+                    .into();
             }
             if args.is_empty() {
                 format!(
@@ -280,7 +290,10 @@ where
                         params,
                         order_sql,
                         limit_sql,
-                        await_or_expect_suffix(fallible, "vox codegen: db filter_where_order_limit_proj")
+                        await_or_expect_suffix(
+                            fallible,
+                            "vox codegen: db filter_where_order_limit_proj"
+                        )
                     )
                 } else {
                     format!(
@@ -291,7 +304,10 @@ where
                         params,
                         order_sql,
                         limit_sql,
-                        await_or_expect_suffix(fallible, "vox codegen: db filter_where_order_limit")
+                        await_or_expect_suffix(
+                            fallible,
+                            "vox codegen: db filter_where_order_limit"
+                        )
                     )
                 }
             } else if let Some(sfx) = proj {
@@ -328,7 +344,10 @@ where
     if plan.is_some_and(|p| p.capabilities.requires_sync)
         && matches!(
             op,
-            HirDbTableOp::Get | HirDbTableOp::All | HirDbTableOp::FilterRecord | HirDbTableOp::Count
+            HirDbTableOp::Get
+                | HirDbTableOp::All
+                | HirDbTableOp::FilterRecord
+                | HirDbTableOp::Count
         )
     {
         if fallible {

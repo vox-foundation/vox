@@ -1,8 +1,8 @@
 ars
 ars/share
+ars/share/feedback
 ars/share/list
 ars/share/publish
-ars/share/review
 ars/share/search
 ars/snippet
 ars/snippet/export
@@ -22,6 +22,7 @@ ci/clavis-parity
 ci/command-compliance
 ci/command-sync
 ci/contracts-index
+ci/coverage-gates
 ci/cuda-features
 ci/cuda-release-build
 ci/doc-inventory
@@ -34,8 +35,8 @@ ci/feature-matrix
 ci/grammar-drift
 ci/line-endings
 ci/manifest
-ci/mens-gate
-ci/no-vox-dei-import
+ci/mesh-gate
+ci/no-dei-import
 ci/release-build
 ci/repo-guards
 ci/scaling-audit
@@ -50,10 +51,10 @@ ci/toestub-self-apply
 ci/workflow-scripts
 clavis
 clavis/backend-status
-clavis/doctor
 clavis/get
 clavis/migrate-auth-store
 clavis/set
+clavis/status
 codex
 codex/cutover
 codex/export-legacy
@@ -190,9 +191,9 @@ scientia/research-map-list
 scientia/research-refresh
 scientia/retrieval-status
 share
+share/feedback
 share/list
 share/publish
-share/review
 share/search
 snippet
 snippet/export

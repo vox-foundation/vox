@@ -1,8 +1,6 @@
 use turso::params;
 
-use crate::store::types::{
-    EndpointReliabilityEntry, PackageSearchResult, StoreError,
-};
+use crate::store::types::{EndpointReliabilityEntry, PackageSearchResult, StoreError};
 
 impl crate::VoxDb {
     // ── Research Metrics (research_metrics) ───────────────────────────────────

@@ -18,30 +18,20 @@ use tower_lsp::lsp_types::DiagnosticSeverity;
 
 const REM_VALIDATE_IO: &str =
     "Confirm the path is inside the MCP workspace, exists, and is readable UTF-8 text.";
-const REM_CARGO_DISABLED: &str =
-    "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
-const REM_CARGO_TEST: &str =
-    "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
-const REM_CARGO_SPAWN: &str =
-    "Ensure `cargo` is installed and on PATH for the MCP process (see build-environment docs for agent shells).";
-const REM_CARGO_CHECK: &str =
-    "Fix compiler errors shown in stderr; run `cargo check --workspace` locally for full diagnostics.";
-const REM_CARGO_BUILD: &str =
-    "Fix build errors in stderr; verify features, targets, and that no concurrent build holds file locks.";
+const REM_CARGO_DISABLED: &str = "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
+const REM_CARGO_TEST: &str = "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
+const REM_CARGO_SPAWN: &str = "Ensure `cargo` is installed and on PATH for the MCP process (see build-environment docs for agent shells).";
+const REM_CARGO_CHECK: &str = "Fix compiler errors shown in stderr; run `cargo check --workspace` locally for full diagnostics.";
+const REM_CARGO_BUILD: &str = "Fix build errors in stderr; verify features, targets, and that no concurrent build holds file locks.";
 const REM_COVERAGE: &str =
     "Install `cargo-llvm-cov` (`cargo install cargo-llvm-cov`) or run coverage outside MCP.";
-const REM_GEN_PROMPT: &str =
-    "Provide a non-empty `prompt` describing the `.vox` code to generate.";
+const REM_GEN_PROMPT: &str = "Provide a non-empty `prompt` describing the `.vox` code to generate.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_MCP_MODEL_RESOLVE: &str =
-    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
-const REM_LLM_COMPLETION: &str =
-    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
-const REM_CODEGEN_REPAIR: &str =
-    "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
-const REM_CODEGEN_STALL: &str =
-    "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_CODEGEN_REPAIR: &str = "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
+const REM_CODEGEN_STALL: &str = "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
 
 fn hir_error_signature(errors: &[&tower_lsp::lsp_types::Diagnostic]) -> u64 {
     let mut h = DefaultHasher::new();
@@ -357,7 +347,7 @@ pub async fn lint_crate(state: &ServerState, crate_name: Option<&str>) -> String
     ToolResult::ok(combined).to_json()
 }
 
-/// Run `cargo llvm-cov` or `cargo tarpaulin` for code coverage.
+/// Run `cargo llvm-cov` for a text coverage summary.
 pub async fn coverage_report(state: &ServerState, crate_name: Option<&str>) -> String {
     if let Some(msg) = cargo_unavailable_message(state) {
         return ToolResult::<String>::err_with_remediation(msg, REM_CARGO_DISABLED).to_json();
@@ -375,7 +365,7 @@ pub async fn coverage_report(state: &ServerState, crate_name: Option<&str>) -> S
             ToolResult::ok(String::from_utf8_lossy(&output.stdout).to_string()).to_json()
         }
         _ => ToolResult::<String>::err_with_remediation(
-            "Coverage tool (llvm-cov or tarpaulin) not installed. Run `cargo install cargo-llvm-cov`."
+            "cargo-llvm-cov is not installed or failed. Run `cargo install cargo-llvm-cov` and ensure `rustup component add llvm-tools-preview`."
                 .to_string(),
             REM_COVERAGE,
         )
@@ -402,8 +392,11 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .min(crate::speech_constraints::SPEECH_CODE_MAX_REPAIR_ATTEMPTS as u64);
 
     if prompt.is_empty() {
-        return ToolResult::<String>::err_with_remediation("Missing 'prompt' parameter", REM_GEN_PROMPT)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "Missing 'prompt' parameter",
+            REM_GEN_PROMPT,
+        )
+        .to_json();
     }
 
     let mut current_prompt = prompt.to_string();
@@ -440,8 +433,11 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         ) {
             Ok(g) => g.clone(),
             Err(e) => {
-                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
-                    .to_json();
+                return ToolResult::<String>::err_with_remediation(
+                    e.to_string(),
+                    REM_MCP_MODEL_LOCK,
+                )
+                .to_json();
             }
         };
         let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(
@@ -532,7 +528,9 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         let sig = hir_error_signature(&errors);
         if prev_error_sig == Some(sig) {
             return ToolResult::<String>::err_with_remediation(
-                format!("repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"),
+                format!(
+                    "repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"
+                ),
                 REM_CODEGEN_STALL,
             )
             .to_json();

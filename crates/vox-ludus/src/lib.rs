@@ -26,13 +26,13 @@ pub mod db_ext; // toestub-ignore(unwired/module)
 pub mod event_router; // toestub-ignore(unwired/module)
 pub mod feedback; // toestub-ignore(unwired/module)
 pub mod ingest; // toestub-ignore(unwired/module)
-pub mod leaderboard; // toestub-ignore(unwired/module)
-pub mod lsp_telemetry; // toestub-ignore(unwired/module)
 pub mod kpi; // toestub-ignore(unwired/module)
-pub mod mcp_privacy; // toestub-ignore(unwired/module)
-pub mod output_policy; // toestub-ignore(unwired/module)
+pub mod leaderboard; // toestub-ignore(unwired/module)
 pub mod lex_pack; // toestub-ignore(unwired/module)
+pub mod lsp_telemetry; // toestub-ignore(unwired/module)
+pub mod mcp_privacy; // toestub-ignore(unwired/module)
 pub mod notifications; // toestub-ignore(unwired/module)
+pub mod output_policy; // toestub-ignore(unwired/module)
 pub mod periodic_reward; // toestub-ignore(unwired/module)
 pub mod profile; // toestub-ignore(unwired/module)
 pub mod quest; // toestub-ignore(unwired/module)
@@ -75,6 +75,8 @@ pub use db_ext::{
     get_daily_counter, increment_daily_counter, load_event_config_overrides,
     set_event_config_override,
 };
+pub use ingest::ingest_orchestrator_event;
+pub use kpi::LudusKpiSummary;
 pub use quest::{
     DAILY_QUEST_COUNT, QUEST_TEMPLATES, Quest, QuestModifier, QuestTemplate, QuestType,
     generate_daily_quests, slot_fill, todays_quests,
@@ -83,8 +85,6 @@ pub use run::{
     BattleFinding, BattleStartOutcome, BattleSubmitOutcome, BattleSubmitResult, run_battle_start,
     run_battle_submit,
 };
-pub use ingest::ingest_orchestrator_event;
-pub use kpi::LudusKpiSummary;
 pub use schema::{
     ALL_MIGRATIONS, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8, SCHEMA_V9, SCHEMA_V10, SCHEMA_V11,
     SCHEMA_V14, SCHEMA_V14B, SCHEMA_V15, SCHEMA_V16, SCHEMA_V17, SCHEMA_V18,

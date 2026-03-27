@@ -93,7 +93,9 @@ pub async fn skill_install(state: &ServerState, params: SkillInstallParams) -> S
                 .to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SKILL_INSTALL).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SKILL_INSTALL).to_json()
+        }
     }
 }
 
@@ -106,7 +108,9 @@ pub async fn skill_uninstall(state: &ServerState, params: SkillIdParams) -> Stri
                 ToolResult::ok(format!("Skill '{}' was not installed.", res.id)).to_json()
             }
         }
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SKILL_ID).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SKILL_ID).to_json()
+        }
     }
 }
 
@@ -137,23 +141,20 @@ pub fn skill_search(state: &ServerState, params: SkillSearchParams) -> String {
 pub fn skill_parse(params: SkillParseParams) -> String {
     match vox_skills::parser::parse_skill_md(&params.skill_md) {
         Ok(bundle) => ToolResult::ok(to_info(bundle.manifest)).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(
-            format!("Parse error: {e}"),
-            REM_SKILL_MD,
-        )
-        .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("Parse error: {e}"), REM_SKILL_MD)
+                .to_json()
+        }
     }
 }
 
 pub fn skill_info(state: &ServerState, params: SkillIdParams) -> String {
     match state.skill_registry.get(&params.id) {
         Some(m) => ToolResult::ok(to_info(m)).to_json(),
-        None => {
-            ToolResult::<String>::err_with_remediation(
-                format!("Skill '{}' not installed.", params.id),
-                REM_SKILL_ID,
-            )
-            .to_json()
-        }
+        None => ToolResult::<String>::err_with_remediation(
+            format!("Skill '{}' not installed.", params.id),
+            REM_SKILL_ID,
+        )
+        .to_json(),
     }
 }

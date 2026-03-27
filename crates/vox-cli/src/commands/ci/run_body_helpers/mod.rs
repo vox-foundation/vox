@@ -17,7 +17,7 @@ pub(crate) use guards::{
     run_clavis_parity, run_repo_guards, run_secret_env_guard, run_sql_surface_guard,
 };
 pub(crate) use matrix::{
-    check_no_vox_dei, check_workflow_scripts, run_feature_matrix, run_mens_gate, run_toestub_scoped,
-    run_toestub_self_apply, MensGateOpts,
+    MensGateOpts, check_no_vox_dei, check_workflow_scripts, run_feature_matrix, run_mens_gate,
+    run_toestub_scoped, run_toestub_self_apply,
 };
 pub(crate) use timings::run_build_timings;

@@ -4,10 +4,8 @@ use super::parse::parse_operation_id_value;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VCS_LOCK: &str =
-    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
-const REM_OPLOG_ID: &str =
-    "Pass `operation_id` as a number or `OP-XXXXXX` from `oplog_list`.";
+const REM_VCS_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_OPLOG_ID: &str = "Pass `operation_id` as a number or `OP-XXXXXX` from `oplog_list`.";
 const REM_OPLOG_UNDO: &str =
     "Verify the operation exists, is not already undone, and orchestrator VCS state is healthy.";
 
@@ -22,8 +20,11 @@ pub async fn oplog_list(state: &ServerState, args: serde_json::Value) -> String 
     let guard = match crate::sync_poison::poison_rw_read(handle.read(), "oplog") {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_VCS_LOCK,
+            )
+            .to_json();
         }
     };
     let ops = guard.list(agent, limit);

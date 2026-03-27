@@ -39,7 +39,6 @@ pub mod task_queue;
 pub use ai_analyze::{AiAnalyzer, AiProvider};
 pub use analysis::{NonCodeKind, RustFileContext, TokenMap};
 pub use engine::{ToestubConfig, ToestubEngine, ToestubRunMode};
-pub use run_context::ToestubTestsMode;
 pub use report::{OutputFormat, Reporter, RunSnapshot, ToestubJsonReportV1};
 pub use review::{
     ReviewCategory, ReviewClient, ReviewConfig, ReviewFinding, ReviewOutputFormat, ReviewProvider,
@@ -47,5 +46,6 @@ pub use review::{
     format_markdown, format_sarif, format_terminal, parse_review_response, review_system_prompt,
 };
 pub use rules::{DetectionRule, Finding, FindingConfidence, Language, Severity};
+pub use run_context::ToestubTestsMode;
 pub use scanner::Scanner;
 pub use task_queue::TaskQueue;

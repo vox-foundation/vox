@@ -8,9 +8,9 @@ use vox_compiler::ast::expr::Expr;
 use vox_compiler::ast::stmt::Stmt;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::typecheck_ast_module;
 use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
+use vox_compiler::typeck::typecheck_ast_module;
 
 pub mod bounded_fs;
 pub mod completions;
@@ -59,11 +59,7 @@ fn validate_document_impl(text: &str, include_hir: bool) -> Vec<Diagnostic> {
             if include_hir {
                 let hir = vox_compiler::hir::lower_module(&module);
                 for e in vox_compiler::hir::validate_module(&hir) {
-                    type_errors.push(TypeckDiagnostic::hir_invariant(
-                        e.message,
-                        e.span,
-                        text,
-                    ));
+                    type_errors.push(TypeckDiagnostic::hir_invariant(e.message, e.span, text));
                 }
             }
             diagnostics.extend(

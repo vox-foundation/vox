@@ -24,7 +24,16 @@ The **Lowering** phase begins by transforming the AST into the HIR.
 
 ## 3. HIR to WebIR and LIR (Low-level intermediate layers)
 
-[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` JSX (plus `routes:` contracts and behavior summaries) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** is a JSX string preview used for parity tests. Production **`codegen_ts`** still emits from HIR directly while WebIR is brought up — see acceptance gates in the ADR.
+[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` JSX (plus `routes:` contracts and behavior summaries) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** is a JSX string preview used for parity tests.
+
+Current production behavior (important for migration planning):
+
+- `codegen_ts` still assembles production TS/TSX output on the primary path.
+- `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a fail-fast gate.
+- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` bridge output via WebIR preview emit only when parity checks pass.
+- The two flags are related but not equivalent; validation can be enabled without switching reactive view emission.
+
+**Operations catalog + gates:** [WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) and [acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) (includes supplemental **OP-S049–OP-S220** rustc/doc gates). **Roadmap link pass A (OP-S130, OP-S131, OP-S209–OP-S211):** keep lowering docs aligned when renaming validation stages.
 
 Separately, **backend-oriented** lowering remains optimized for Rust emission (database, actors, HTTP). The older “Frontend LIR” label maps to this split: **WebIR** for structured web UI, **HIR emitters** for expedient TS until the printer fully migrates.
 

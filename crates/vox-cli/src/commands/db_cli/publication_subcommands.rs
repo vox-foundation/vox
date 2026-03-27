@@ -3,7 +3,9 @@
 use clap::Subcommand;
 use std::path::PathBuf;
 
-use super::types::{ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli};
+use super::types::{
+    ArxivHandoffStageCli, DbPreflightProfileCli, PublicationPrepareBodyCli, ScholarlyVenueCli,
+};
 
 /// Publication / scholarly subcommands for `vox db`.
 #[derive(Subcommand)]

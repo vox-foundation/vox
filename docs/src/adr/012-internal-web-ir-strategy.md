@@ -14,6 +14,10 @@ training_eligible: true
 
 ---
 
+## Interop policy
+
+`InteropNode` in `crates/vox-compiler/src/web_ir/mod.rs` records escape hatches and external refs; `validate::validate_web_ir` rejects empty interop fields before emit. Prefer narrow imports over raw `EscapeHatchExpr` fragments (see `crates/vox-compiler/src/web_ir/validate.rs`).
+
 ## Codegen naming (TypeScript / React)
 
 Emitted TS/React identifiers should follow **English-first** naming where practical; stable `data-vox-*` DOM contracts remain until a versioned WebIR migration replaces them. Avoid **duplicate `Vox` tokens** in generated symbol names (`VoxVox*`). Details and side-by-side status: [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md#nomenclature-for-emitted-typescript--react).
@@ -97,6 +101,14 @@ This ADR is constrained by syntax currently accepted by the parser and verified 
 - Current island mount runtime contract: `data-vox-island` + `data-prop-*` read from DOM attributes in `island-mount.tsx` (`crates/vox-cli/src/templates/islands.rs`).
 
 Non-parser forms and speculative grammar are out of scope for this ADR revision.
+
+## Interop policy (OP-S103, OP-S104, OP-S150, OP-S183, OP-S213)
+
+Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+
+### Gate naming alignment (OP-S051)
+
+Documented CI gates **G1–G6** in the blueprint **Acceptance gates** table are the canonical names; parser/K-metric/parity rows in this ADR link to the same table. `VOX_WEBIR_VALIDATE` surfaces `web_ir_validate.*` diagnostic codes referenced there.
 
 ---
 
@@ -218,11 +230,9 @@ Confidence tags:
 
 ### Acceptance gates
 
-- G1: WebIR lower + validate pass on canonical fixture corpus.
-- G2: React/TanStack parity >= 95% on canonical generated artifacts.
-- G3: Island mount contract parity == 100% for compatibility fixtures.
-- G4: Nullability ambiguity metric reaches zero unresolved required fields.
-- G5: WebIR mode passes CI + target perf budgets.
+- Canonical gate IDs and thresholds for this ADR are maintained in the blueprint table:
+  [Acceptance gates (G1-G6)](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+- This ADR intentionally references that single-source table to avoid drift between ADR prose and rollout thresholds.
 
 ---
 

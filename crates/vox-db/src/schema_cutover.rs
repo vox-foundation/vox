@@ -27,6 +27,7 @@ fn has_col(cols: &[String], name: &str) -> bool {
 
 /// Apply additive migrations and renames that baseline `IF NOT EXISTS` cannot perform.
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), StoreError> {
+    align_question_sessions_belief(conn).await?;
     align_agent_events(conn).await?;
     migrate_published_news_news_id(conn).await?;
     apply_performance_indexes(conn).await?;
@@ -49,6 +50,21 @@ CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attemp
 CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id ON publication_status_events(publication_id, id);
 "#;
     conn.execute_batch(batch).await?;
+    Ok(())
+}
+
+async fn align_question_sessions_belief(conn: &Connection) -> Result<(), StoreError> {
+    let cols = table_column_names(conn, "PRAGMA table_info(question_sessions)").await?;
+    if cols.is_empty() {
+        return Ok(());
+    }
+    if !has_col(&cols, "belief_state_json") {
+        conn.execute(
+            "ALTER TABLE question_sessions ADD COLUMN belief_state_json TEXT",
+            (),
+        )
+        .await?;
+    }
     Ok(())
 }
 

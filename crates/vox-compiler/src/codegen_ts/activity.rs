@@ -1,5 +1,6 @@
 use crate::ast::decl::ActivityDecl;
 use crate::codegen_ts::component::map_vox_type_to_ts;
+// Activity steps: compat `emit_hir_stmt` for durable workflows (OP-0136).
 use crate::codegen_ts::hir_emit::emit_hir_stmt;
 use crate::codegen_ts::island_emit::empty_island_set;
 use crate::codegen_ts::jsx::emit_stmt;

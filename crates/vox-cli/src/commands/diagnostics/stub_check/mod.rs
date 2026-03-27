@@ -488,10 +488,7 @@ fn print_stub_check_ludus_route(res: &vox_ludus::reward_policy::RouteResult) {
                 println!("  {} ✦", reward.lumens.to_string().bright_red());
             }
             if reward.grant_shield {
-                println!(
-                    "  {}",
-                    "🛡️ Streak shield granted".bright_green().bold()
-                );
+                println!("  {}", "🛡️ Streak shield granted".bright_green().bold());
             }
         }
     }

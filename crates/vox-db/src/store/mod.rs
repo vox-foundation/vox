@@ -11,23 +11,26 @@ pub mod types;
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{
-    A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
+    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
     BenchmarkEventRow, BuildRunRow, BuilderSessionEntry, CloudDispatchRow, CodexChangeLogEntry,
     CommandFrequencyEntry, ComponentEntry, CrateSampleRow, EmbeddingEntry,
     EndpointReliabilityEntry, ExecutionEntry, ExternalStatusSnapshotParams,
-    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow,
-    ExternalSubmissionAttemptParams, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
-    ExternalSubmissionAttemptRow, ExternalStatusSnapshotRow, KnowledgeNodeSummary,
-    LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow,
-    PublicationExternalLinkRow, PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
-    PublicationExternalRevisionUpsertParams, PublicationManifestParams,
-    PublicationManifestRow, PublicationMediaAssetParams, PublicationMediaAssetRow,
-    PublicationStatusEventRow, PublishArtifactParams, QuestionRow, RegisterAgentParams,
-    ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
-    SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams, SkillExecutionRow,
-    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
-    TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
+    ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
+    ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
+    GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow,
+    LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow,
+    PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
+    PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
+    PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
+    PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
+    QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
+    QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
+    RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
+    ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
+    SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
+    ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow,
+    WorkflowExecutionRow,
 };
 
 pub use ops_build::{BuildHealthSummary, CrateSample, RegressionRow};
@@ -41,11 +44,12 @@ mod ops_cas;
 mod ops_codex;
 mod ops_learning;
 mod ops_ludus;
-mod ops_memory;
 mod ops_mcp_diagnostics;
+mod ops_memory;
 mod ops_mens_cloud;
 mod ops_news;
 mod ops_orchestrator;
 mod ops_planning;
 mod ops_publication;
+mod ops_questioning;
 mod ops_retention;

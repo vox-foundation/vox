@@ -12,16 +12,15 @@ use crate::params::{
 };
 use crate::server::ServerState;
 
-const REM_TASK_SCOPE: &str =
-    "Limit `files` to paths under the agent scopes, or omit `agent_name` so routing picks a valid agent.";
+const REM_TASK_SCOPE: &str = "Limit `files` to paths under the agent scopes, or omit `agent_name` so routing picks a valid agent.";
+const REM_QUESTIONING_PENDING: &str = "Call `vox_questioning_pending` for `question_id` / `question_options`, then `vox_questioning_submit_answer` with the same `session_id` as chat/plan (and optional `question_id` / `selected_option_id`), or continue until the open clarification is answered.";
 const REM_PROMPT_SAFETY: &str =
     "Rewrite the task to remove injection patterns and disallowed content per Trust & Safety.";
 const REM_TASK_SUBMIT: &str =
     "Check orchestrator health, queues, and that referenced files exist and are readable.";
 const REM_TASK_ID: &str =
     "Confirm `task_id` with task/orchestrator status; it may be stale, completed, or cancelled.";
-const REM_TASK_ORCH_OP: &str =
-    "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
+const REM_TASK_ORCH_OP: &str = "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
 
 fn socrates_context_from_retrieval(
     retrieval: &crate::memory::RetrievalEvidenceEnvelope,
@@ -81,6 +80,30 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             }
         }
     }
+
+    let bypass_questioning_gate = std::env::var("VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if !bypass_questioning_gate {
+        if let (Some(db), Some(sid)) = (&state.db, params.session_id.as_deref()) {
+            match db
+                .has_pending_clarification_for_mcp_session(sid, &state.repository.repository_id)
+                .await
+            {
+                Ok(true) => {
+                    return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                        "Socrates clarification pending for this MCP session; resolve before submitting tasks."
+                            .to_string(),
+                        REM_QUESTIONING_PENDING,
+                    )
+                    .to_json();
+                }
+                Err(e) => tracing::debug!(error = %e, "questioning gate: pending check failed"),
+                Ok(false) => {}
+            }
+        }
+    }
+
     let orch = &state.orchestrator;
 
     let manifest: Vec<FileAffinity> = params
@@ -200,14 +223,12 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         }
         Err(e) => {
             let msg = format!("{e}");
-            let remediation = if msg.contains("scope")
-                || msg.contains("Scope")
-                || msg.contains("outside")
-            {
-                REM_TASK_SCOPE
-            } else {
-                REM_TASK_SUBMIT
-            };
+            let remediation =
+                if msg.contains("scope") || msg.contains("Scope") || msg.contains("outside") {
+                    REM_TASK_SCOPE
+                } else {
+                    REM_TASK_SUBMIT
+                };
             ToolResult::<SubmitTaskResponse>::err_with_remediation(msg, remediation).to_json()
         }
     }
@@ -296,10 +317,7 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
 pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
-    let res = state
-        .orchestrator
-        .fail_task(task_id, params.reason)
-        .await;
+    let res = state.orchestrator.fail_task(task_id, params.reason).await;
 
     match res {
         Ok(()) => {

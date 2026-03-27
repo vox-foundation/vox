@@ -8,7 +8,11 @@ fn hir_path_matches_lsp_on_parse_failures() {
     let base = validate_document(src);
     let with_hir = validate_document_with_hir(src);
     assert!(!base.is_empty(), "sanity: parse errors");
-    assert_eq!(base.len(), with_hir.len(), "HIR must not change parse errors");
+    assert_eq!(
+        base.len(),
+        with_hir.len(),
+        "HIR must not change parse errors"
+    );
 }
 
 #[test]

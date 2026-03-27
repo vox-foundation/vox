@@ -1,9 +1,9 @@
 //! Fabrica / `diag` / `ars` lane dispatch helpers.
 
+use crate::Cli;
 use crate::cli_args;
 use crate::commands;
 use crate::latin_cmd;
-use crate::Cli;
 
 pub(super) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::Result<()> {
     commands::diagnostics::doctor::run(
@@ -18,9 +18,7 @@ pub(super) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::R
 }
 
 #[cfg(feature = "stub-check")]
-pub(super) async fn run_stub_check_command(
-    args: &cli_args::StubCheckArgs,
-) -> anyhow::Result<()> {
+pub(super) async fn run_stub_check_command(args: &cli_args::StubCheckArgs) -> anyhow::Result<()> {
     let scan_root = args
         .path
         .clone()
@@ -87,9 +85,7 @@ pub(super) async fn run_openclaw_subcommand(
 }
 
 #[cfg(feature = "coderabbit")]
-pub(super) async fn run_review_subcommand(
-    cmd: commands::review::ReviewCli,
-) -> anyhow::Result<()> {
+pub(super) async fn run_review_subcommand(cmd: commands::review::ReviewCli) -> anyhow::Result<()> {
     commands::review::run_coderabbit(cmd).await
 }
 

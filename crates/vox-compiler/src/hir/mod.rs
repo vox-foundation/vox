@@ -15,6 +15,6 @@ pub mod lower;
 pub mod nodes;
 /// Structural validation after lowering (invariants for codegen/type consumers).
 pub mod validate;
-pub use lower::lower_module;
+pub use lower::{lower_classic_component_view, lower_module};
 pub use nodes::*;
 pub use validate::{HirValidationError, validate_module};

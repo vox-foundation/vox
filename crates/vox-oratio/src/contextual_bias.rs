@@ -32,7 +32,11 @@ pub fn bias_hit_score(text: &str, phrases: &[String]) -> u32 {
 
 /// Merge lexicon-derived bias strings with `extra` (e.g. session hotwords), dedupe, longest-first, cap `max_phrases`.
 #[must_use]
-pub fn merge_bias_phrases(mut lexicon_phrases: Vec<String>, extra: &[String], max_phrases: usize) -> Vec<String> {
+pub fn merge_bias_phrases(
+    mut lexicon_phrases: Vec<String>,
+    extra: &[String],
+    max_phrases: usize,
+) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut seen = std::collections::HashSet::<String>::new();
     for s in lexicon_phrases
@@ -72,7 +76,11 @@ mod tests {
 
     #[test]
     fn merge_dedupes() {
-        let v = merge_bias_phrases(vec!["a".into(), "b".into()], &["a".into(), "longphrase".into()], 10);
+        let v = merge_bias_phrases(
+            vec!["a".into(), "b".into()],
+            &["a".into(), "longphrase".into()],
+            10,
+        );
         assert!(v.contains(&"longphrase".to_string()));
         assert!(v.iter().filter(|x| *x == "a").count() == 1);
     }

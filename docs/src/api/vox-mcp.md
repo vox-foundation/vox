@@ -324,7 +324,7 @@ Run `cargo clippy` and TOESTUB for a crate or the whole workspace.
 
 ### `fn coverage_report`
 
-Run `cargo llvm-cov` or `cargo tarpaulin` for code coverage.
+Run `cargo llvm-cov` for a text coverage summary (install with `cargo install cargo-llvm-cov`; toolchain needs `llvm-tools-preview`).
 
 
 ### `fn git_log`

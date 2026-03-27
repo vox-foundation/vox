@@ -129,7 +129,11 @@ impl DetectionRule for MagicValueDetector {
             }
 
             // --- Port / localhost detection ---
-            if self.port_re.is_match(line) {
+            if self.port_re.is_match(line)
+                && !line.contains("127.0.0.1:0")
+                && !line.contains("0.0.0.0:0")
+                && !line.contains("localhost:0")
+            {
                 findings.push(Finding {
                     rule_id: "magic-value/port".to_string(),
                     rule_name: self.name().to_string(),
@@ -150,7 +154,9 @@ impl DetectionRule for MagicValueDetector {
             }
 
             // --- IP address detection ---
-            if self.ip_localhost_re.is_match(line) {
+            if self.ip_localhost_re.is_match(line)
+                && !(line.contains("host ==") || line.contains("host=="))
+            {
                 findings.push(Finding {
                     rule_id: "magic-value/ip".to_string(),
                     rule_name: self.name().to_string(),
@@ -167,7 +173,12 @@ impl DetectionRule for MagicValueDetector {
             }
 
             // --- Absolute path detection ---
-            if self.abs_path_re.is_match(line) {
+            if self.abs_path_re.is_match(line)
+                && !(line.contains("starts_with(\"/usr/")
+                    || line.contains("starts_with(\"/bin/")
+                    || line.contains("starts_with('/usr/")
+                    || line.contains("starts_with('/bin/"))
+            {
                 findings.push(Finding {
                     rule_id: "magic-value/path".to_string(),
                     rule_name: self.name().to_string(),

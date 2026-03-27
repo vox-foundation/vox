@@ -298,12 +298,7 @@ mod sql_surface_tests {
 
     #[test]
     fn detects_single_line_connection_query() {
-        let src = concat!(
-            "db",
-            ".connection().",
-            "query",
-            "(\"SELECT 1\", ()).await"
-        );
+        let src = concat!("db", ".connection().", "query", "(\"SELECT 1\", ()).await");
         assert!(sql_surface_contains_raw_connection_api(src));
     }
 
@@ -333,11 +328,7 @@ mod sql_surface_tests {
         let agents = tmp.path().join("docs").join("agents");
         std::fs::create_dir_all(&agents).unwrap();
         let p = agents.join("sql-connection-api-allowlist.txt");
-        std::fs::write(
-            &p,
-            "# comment\n\ncrates/vox-foo/\n  crates/vox-bar/  \n",
-        )
-        .unwrap();
+        std::fs::write(&p, "# comment\n\ncrates/vox-foo/\n  crates/vox-bar/  \n").unwrap();
         let list = super::load_sql_connection_allowlist(tmp.path()).unwrap();
         assert!(list.iter().any(|e| e == "crates/vox-db/"));
         assert!(list.iter().any(|e| e == "crates/vox-compiler/"));

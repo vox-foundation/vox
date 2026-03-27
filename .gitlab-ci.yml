@@ -37,7 +37,7 @@ variables:
 .rust-setup: &rust-setup
   before_script:
     - rustup update stable && rustup default stable
-    - rustup component add rustfmt clippy
+    - rustup component add rustfmt clippy llvm-tools-preview
 
 # ── Base template ──────────────────────────────────────────────────────────
 .base:
@@ -103,8 +103,7 @@ test:
   extends: .base
   stage: test
   script:
-    - cargo install cargo-nextest --locked
-    - cargo nextest run --workspace --profile ci
+    # Integration/unit tests under llvm-cov run in `coverage`; keep doc tests + named integration here.
     - cargo test --workspace --doc
     # Integration tests
     - cargo test -p vox-integration-tests prompt_canonical_guardrails
@@ -142,13 +141,22 @@ coverage:
   stage: coverage
   script:
     - cargo install cargo-llvm-cov --locked
-    - cargo llvm-cov --workspace --lcov --output-path lcov.info
-    - cargo llvm-cov report --workspace
+    - cargo install cargo-nextest --locked
+    - cargo llvm-cov nextest --workspace --profile ci
+    - cargo llvm-cov report --workspace --lcov --output-path lcov.info
+    - cargo llvm-cov report --workspace --cobertura --output-path cobertura.xml
+    - cargo llvm-cov report --workspace --text --summary-only
+    - cargo llvm-cov report --workspace --json --summary-only --output-path llvm-cov-summary.json
+    - cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json llvm-cov-summary.json --mode enforce
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: lcov.info
+        path: cobertura.xml
+    paths:
+      - lcov.info
+      - cobertura.xml
+      - llvm-cov-summary.json
     expire_in: 1 week
 
 # ── TOESTUB ───────────────────────────────────────────────────────────────
@@ -179,11 +187,18 @@ link-check:
 build-docs:
   extends: .base
   stage: docs
+  variables:
+    MDBOOK_SITEMAP_DOMAIN: "https://vox-foundation.github.io/vox/"
   script:
-    - cargo install mdbook --locked
+    # Match .github/workflows/docs-deploy.yml (peaceiris/actions-mdbook mdbook-version).
+    - cargo install mdbook --version 0.4.40 --locked
+    - cargo install mdbook-sitemap-generator --version 0.2.0 --locked
     - cargo build -p vox-doc-pipeline
     - cargo run -p vox-doc-pipeline
+    # Parity with .github/workflows/docs-deploy.yml: catch SUMMARY drift / structural issues before mdBook.
+    - cargo run -p vox-doc-pipeline -- --check
     - mdbook build docs
+    - cd docs && mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/html/sitemap.xml
   artifacts:
     paths:
       - docs/book/

@@ -3,7 +3,8 @@ use vox_publisher::publication::PublicationManifest;
 use vox_publisher::types::UnifiedNewsItem;
 
 pub const REM_VOXDB: &str = "Attach Turso/VoxDb to the MCP server, or run the same flow via `vox db` / `vox scientia` in a configured shell.";
-pub const REM_PUBLICATION_ID: &str = "Run `vox scientia publication-prepare` (or verify the publication id) before this step.";
+pub const REM_PUBLICATION_ID: &str =
+    "Run `vox scientia publication-prepare` (or verify the publication id) before this step.";
 pub const REM_SCIENTIA_DB: &str =
     "Verify Turso/VoxDb connectivity and vox-db publication/scientia table migrations.";
 pub const REM_SCIENTIA_APPROVER: &str =
@@ -16,18 +17,13 @@ pub const REM_SCIENTIA_METADATA: &str =
     "Fix `scholarly_metadata` / manifest JSON to match SCIENTIA contracts (see scientia handbook).";
 pub const REM_SCIENTIA_SIMULATE: &str =
     "Inspect simulate/gate output and manifest state; resolve blockers then retry.";
-pub const REM_SCIENTIA_PUBLISH: &str =
-    "Check syndication channel config, dry-run flags, approvals, and publisher credentials for live paths.";
-pub const REM_SCIENTIA_REMOTE: &str =
-    "Ensure `publication_id` has scholarly submission rows; pass `external_submission_id` when disambiguating.";
+pub const REM_SCIENTIA_PUBLISH: &str = "Check syndication channel config, dry-run flags, approvals, and publisher credentials for live paths.";
+pub const REM_SCIENTIA_REMOTE: &str = "Ensure `publication_id` has scholarly submission rows; pass `external_submission_id` when disambiguating.";
 pub const REM_SCIENTIA_EXT_SUBMIT: &str =
     "When provided, `external_submission_id` must be a non-empty id from the submissions table.";
-pub const REM_WORTHINESS_CONTRACT: &str =
-    "Ensure SCIENTIA worthiness YAML under the repo root is readable and schema-valid (see `contracts/scientia/`).";
-pub const REM_SCIENTIA_STAGE: &str =
-    "Use stage tokens `staging_exported`, `operator_ack`, `bundle_validated`, `submitted`, or `published` (see arXiv handoff tool docs).";
-pub const REM_SCIENTIA_ATTEMPTS: &str =
-    "Run `publication_publish` or `route_simulate` first so syndication attempts exist for the current manifest digest.";
+pub const REM_WORTHINESS_CONTRACT: &str = "Ensure SCIENTIA worthiness YAML under the repo root is readable and schema-valid (see `contracts/scientia/`).";
+pub const REM_SCIENTIA_STAGE: &str = "Use stage tokens `staging_exported`, `operator_ack`, `bundle_validated`, `submitted`, or `published` (see arXiv handoff tool docs).";
+pub const REM_SCIENTIA_ATTEMPTS: &str = "Run `publication_publish` or `route_simulate` first so syndication attempts exist for the current manifest digest.";
 
 #[inline]
 pub fn no_voxdb_tool_string() -> String {

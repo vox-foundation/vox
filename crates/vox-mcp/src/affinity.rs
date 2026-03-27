@@ -9,8 +9,7 @@ use std::path::PathBuf;
 use crate::{ServerState, ToolResult};
 use vox_orchestrator::AgentId;
 
-const REM_AFFINITY_CLAIM: &str =
-    "Release the path, pick another file, or negotiate transfer with the owning agent via affinity tools.";
+const REM_AFFINITY_CLAIM: &str = "Release the path, pick another file, or negotiate transfer with the owning agent via affinity tools.";
 const REM_AFFINITY_TRANSFER: &str =
     "Use `file_owner` / `my_files` to verify current ownership before transferring.";
 

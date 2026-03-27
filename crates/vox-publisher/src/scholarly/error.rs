@@ -106,9 +106,7 @@ impl ScholarlyError {
     pub fn retryable(&self) -> bool {
         match self {
             ScholarlyError::RateLimited { .. } | ScholarlyError::Transient { .. } => true,
-            ScholarlyError::Http { status, .. } => {
-                *status == 429 || (500..600).contains(status)
-            }
+            ScholarlyError::Http { status, .. } => *status == 429 || (500..600).contains(status),
             _ => false,
         }
     }
@@ -127,7 +125,10 @@ impl fmt::Display for ScholarlyError {
                 retry_after_secs,
             } => {
                 if let Some(secs) = retry_after_secs {
-                    write!(f, "scholarly rate limited ({message}), retry_after_secs={secs}")
+                    write!(
+                        f,
+                        "scholarly rate limited ({message}), retry_after_secs={secs}"
+                    )
                 } else {
                     write!(f, "scholarly rate limited: {message}")
                 }

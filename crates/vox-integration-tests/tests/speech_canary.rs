@@ -53,14 +53,17 @@ fn speech_canary_kpi_env_optional_gate() {
         return;
     };
     let root = workspace_root();
-    let policy_raw = fs::read_to_string(root.join("contracts/speech-to-code/canary_policy.example.json"))
-        .expect("policy example");
+    let policy_raw =
+        fs::read_to_string(root.join("contracts/speech-to-code/canary_policy.example.json"))
+            .expect("policy example");
     let policy: CanaryPolicy = serde_json::from_str(&policy_raw).expect("policy");
 
-    let kpi_raw = fs::read_to_string(PathBuf::from(&path)).expect("read VOX_SPEECH_CANARY_KPI file");
+    let kpi_raw =
+        fs::read_to_string(PathBuf::from(&path)).expect("read VOX_SPEECH_CANARY_KPI file");
     let kpi_val: serde_json::Value = serde_json::from_str(&kpi_raw).expect("parse kpi json");
-    let schema_src = fs::read_to_string(root.join("contracts/speech-to-code/kpi-baseline.schema.json"))
-        .expect("kpi schema");
+    let schema_src =
+        fs::read_to_string(root.join("contracts/speech-to-code/kpi-baseline.schema.json"))
+            .expect("kpi schema");
     let schema_val: serde_json::Value = serde_json::from_str(&schema_src).expect("parse schema");
     let validator = jsonschema::validator_for(&schema_val).expect("compile kpi schema");
     validator
@@ -91,9 +94,17 @@ fn speech_canary_kpi_env_optional_gate() {
         );
     }
     if let Some(v) = kpi.wer {
-        assert!(v <= policy.max_wer + f64::EPSILON, "wer {v} above {}", policy.max_wer);
+        assert!(
+            v <= policy.max_wer + f64::EPSILON,
+            "wer {v} above {}",
+            policy.max_wer
+        );
     }
     if let Some(v) = kpi.cer {
-        assert!(v <= policy.max_cer + f64::EPSILON, "cer {v} above {}", policy.max_cer);
+        assert!(
+            v <= policy.max_cer + f64::EPSILON,
+            "cer {v} above {}",
+            policy.max_cer
+        );
     }
 }

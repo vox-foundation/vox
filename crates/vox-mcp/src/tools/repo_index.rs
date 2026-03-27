@@ -9,8 +9,7 @@ use crate::server::ServerState;
 use vox_orchestrator::AgentId;
 
 const MAX_FILES_WALKED: usize = 50_000;
-const REM_REPO_INDEX: &str =
-    "Confirm `VOX_REPOSITORY_ROOT` / MCP workspace binding points at a readable directory with expected permissions.";
+const REM_REPO_INDEX: &str = "Confirm `VOX_REPOSITORY_ROOT` / MCP workspace binding points at a readable directory with expected permissions.";
 const REM_REPO_INDEX_CACHE: &str =
     "Ensure `.vox/cache` (or repo tooling cache dir) is writable and not locked by another tool.";
 

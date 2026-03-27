@@ -1,5 +1,5 @@
-use crate::{VoxDb, store::StoreError, store::types::*};
 use super::common::now_ms;
+use crate::{VoxDb, store::StoreError, store::types::*};
 
 impl VoxDb {
     pub async fn upsert_external_submission_job(
@@ -73,9 +73,9 @@ impl VoxDb {
                 (p.idempotency_key.to_string(),),
             )
             .await?;
-        let row = rows
-            .first()
-            .ok_or_else(|| StoreError::Db("external_submission_jobs id lookup missing row".into()))?;
+        let row = rows.first().ok_or_else(|| {
+            StoreError::Db("external_submission_jobs id lookup missing row".into())
+        })?;
         row.get(0).map_err(|e| StoreError::Db(e.to_string()))
     }
 

@@ -687,7 +687,11 @@ mod tests {
         };
         let (w, clamped) = trajectory_weight_for_pair(&pair, &cfg);
         assert!(!clamped);
-        assert!((w - (1.2_f64 * 1.1_f64 * 1.05_f64)).abs() < 1e-9);
+        let expected = (1.2_f32 as f64) * (1.1_f32 as f64) * (1.05_f32 as f64);
+        assert!(
+            (w - expected).abs() < 1e-9,
+            "w={w} expected {expected} (f32 boost chain)"
+        );
     }
 
     #[test]

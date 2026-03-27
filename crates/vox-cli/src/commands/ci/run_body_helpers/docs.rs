@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::LazyLock;
 
+use super::guards::run_sql_surface_guard;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
-use super::guards::run_sql_surface_guard;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };

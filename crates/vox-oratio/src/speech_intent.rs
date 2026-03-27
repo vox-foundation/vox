@@ -162,15 +162,15 @@ pub fn clarification_prompt_for_slots(env: &SpeechIntentEnvelope) -> Option<&'st
         return None;
     }
     match env.action {
-        SpeechIntentAction::CodeCreate | SpeechIntentAction::CodeEdit => {
-            Some("Say which `.vox` path or symbol name to create or edit (or wrap the path in backticks).")
-        }
+        SpeechIntentAction::CodeCreate | SpeechIntentAction::CodeEdit => Some(
+            "Say which `.vox` path or symbol name to create or edit (or wrap the path in backticks).",
+        ),
         SpeechIntentAction::RunCheck => Some(
             "Say which crate, test filter, or path to run—or say 'workspace' to run the full suite.",
         ),
-        SpeechIntentAction::ExplainCode => Some(
-            "Say which file, symbol, or code region to explain (path in backticks helps).",
-        ),
+        SpeechIntentAction::ExplainCode => {
+            Some("Say which file, symbol, or code region to explain (path in backticks helps).")
+        }
         _ => None,
     }
 }

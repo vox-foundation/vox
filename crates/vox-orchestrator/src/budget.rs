@@ -334,6 +334,18 @@ impl BudgetManager {
         sync_lock::rw_read(&*self.attention).clone()
     }
 
+    /// Add MCP Socrates questioning wall-time into global [`AttentionBudget::spent_ms`].
+    ///
+    /// Does not create an [`AttentionEvent`] (no interrupt EWMA); use for observability parity with
+    /// [`vox_mcp::ServerState::record_questioning_attention_spend`] when mirroring is enabled.
+    pub fn add_questioning_attention_debit_ms(&self, delta_ms: u64) {
+        if delta_ms == 0 {
+            return;
+        }
+        let mut att = sync_lock::rw_write(&*self.attention);
+        att.spent_ms = att.spent_ms.saturating_add(delta_ms);
+    }
+
     /// Update EWMA trust score for an agent. Returns the new trust score.
     /// `provisional_min` and `trusted_min` are read from `OrchestratorConfig`.
     pub fn record_trust_outcome(
@@ -474,6 +486,17 @@ mod tests {
         let mgr = BudgetManager::new();
         let signal = mgr.attention_signal(0.7);
         assert!(matches!(signal, BudgetSignal::Normal { .. }));
+    }
+
+    #[test]
+    fn questioning_attention_debit_updates_spent_ms() {
+        let mgr = BudgetManager::new();
+        let before = mgr.attention_snapshot().spent_ms;
+        mgr.add_questioning_attention_debit_ms(500);
+        assert_eq!(
+            mgr.attention_snapshot().spent_ms,
+            before.saturating_add(500)
+        );
     }
 
     #[test]

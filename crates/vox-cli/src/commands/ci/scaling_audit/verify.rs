@@ -131,7 +131,8 @@ pub(super) fn verify_promotion_metrics_optional(repo_root: &Path) -> Result<()> 
         return Ok(());
     }
     let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-    let v: JsonValue = serde_json::from_str(&raw).with_context(|| format!("parse {}", p.display()))?;
+    let v: JsonValue =
+        serde_json::from_str(&raw).with_context(|| format!("parse {}", p.display()))?;
     if v.get("version").and_then(|x| x.as_u64()) != Some(1) {
         return Err(anyhow!("{}: expected version 1", p.display()));
     }
@@ -165,7 +166,8 @@ struct RemediationLane {
 pub(super) fn verify_remediation_lanes(repo_root: &Path) -> Result<()> {
     let p = repo_root.join(REMEDIATION_LANES_REL);
     let raw = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-    let doc: RemediationLanesFile = serde_yaml::from_str(&raw).context("parse REMEDIATION-LANES.yaml")?;
+    let doc: RemediationLanesFile =
+        serde_yaml::from_str(&raw).context("parse REMEDIATION-LANES.yaml")?;
     if doc.version != 1 {
         return Err(anyhow!(
             "REMEDIATION-LANES.yaml: expected version 1, got {}",
@@ -188,7 +190,9 @@ pub(super) fn verify_remediation_lanes(repo_root: &Path) -> Result<()> {
         }
     }
     if doc.lanes.is_empty() {
-        return Err(anyhow!("REMEDIATION-LANES.yaml: expected at least one lane"));
+        return Err(anyhow!(
+            "REMEDIATION-LANES.yaml: expected at least one lane"
+        ));
     }
     println!(
         "REMEDIATION-LANES.yaml OK ({} unique lanes)",

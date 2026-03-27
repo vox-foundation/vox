@@ -6,9 +6,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use vox_populi::http_client::PopuliHttpClient;
-use vox_populi::transport::{
-    AdminQuarantineRequest, PopuliHttpAuth, PopuliTransportState,
-};
+use vox_populi::transport::{AdminQuarantineRequest, PopuliHttpAuth, PopuliTransportState};
 use vox_populi::{node_record_for_current_process, transport};
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -526,7 +524,8 @@ async fn mesh_jwt_hs256_accepts_and_rejects_jti_replay() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let bound = listener.local_addr().unwrap();
     let jwt_rt = transport::PopuliMeshAuthRuntime::with_jwt_hmac_only("jwt-unit-secret-for-test");
-    let app = transport::populi_http_app_with_auth(state, transport::PopuliHttpAuth::Custom(jwt_rt));
+    let app =
+        transport::populi_http_app_with_auth(state, transport::PopuliHttpAuth::Custom(jwt_rt));
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
@@ -589,7 +588,9 @@ async fn job_result_attestation_requires_full_key_when_fields_present() {
             payload_blake3_hex: Some(
                 "0000000000000000000000000000000000000000000000000000000000000000".into(),
             ),
-            worker_ed25519_sig_b64: Some("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into()),
+            worker_ed25519_sig_b64: Some(
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
+            ),
         })
         .await
         .unwrap_err();
@@ -613,8 +614,7 @@ async fn job_result_attestation_accepts_valid_signature() {
     let sk = SigningKey::from_bytes(&seed);
     let vk = sk.verifying_key();
 
-    let state =
-        PopuliTransportState::new().with_worker_result_verify_key(Some(vk.to_bytes()));
+    let state = PopuliTransportState::new().with_worker_result_verify_key(Some(vk.to_bytes()));
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let bound = listener.local_addr().unwrap();

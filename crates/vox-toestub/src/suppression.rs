@@ -51,15 +51,15 @@ fn validate_suppression_json_instance(raw: &str) -> anyhow::Result<()> {
         );
         return Ok(());
     };
-    let schema_val: Value =
-        serde_json::from_str(&schema_raw).map_err(|e| anyhow::anyhow!("parse suppression schema: {e}"))?;
+    let schema_val: Value = serde_json::from_str(&schema_raw)
+        .map_err(|e| anyhow::anyhow!("parse suppression schema: {e}"))?;
     let validator = jsonschema::validator_for(&schema_val)
         .map_err(|e| anyhow::anyhow!("compile suppression.v1.schema.json: {e}"))?;
     let instance: Value =
         serde_json::from_str(raw).map_err(|e| anyhow::anyhow!("parse suppressions JSON: {e}"))?;
-    validator
-        .validate(&instance)
-        .map_err(|e| anyhow::anyhow!("suppressions file does not match suppression.v1.schema.json: {e}"))?;
+    validator.validate(&instance).map_err(|e| {
+        anyhow::anyhow!("suppressions file does not match suppression.v1.schema.json: {e}")
+    })?;
     Ok(())
 }
 

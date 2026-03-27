@@ -1,0 +1,11 @@
+# Line coverage gates (0–100) for `cargo llvm-cov report --json --summary-only`.
+# Compared by `vox ci coverage-gates` against the merged workspace export.
+#
+# Omit `workspace_min_lines_percent` to skip workspace-wide enforcement.
+# Map crate package names (Cargo `name`) to minimum line % for files under `crates/<name>/`.
+
+# Baseline from `cargo llvm-cov nextest --workspace --profile ci` (≈51.4% lines); enforce floor keeps accidental regressions visible.
+workspace_min_lines_percent = 50.0
+
+[crates]
+# vox-compiler = 45.0

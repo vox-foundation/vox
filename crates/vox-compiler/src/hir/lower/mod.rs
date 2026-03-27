@@ -1,14 +1,35 @@
+//! Lower AST [`Module`] to [`HirModule`].
+//!
+//! This module is the **HIR boundary** before [`crate::web_ir::lower::lower_hir_to_web_ir`].
+//! Declaration arms here define what structured data reaches WebIR (islands, `HirRoutes`,
+//! reactive components, server/query/mutation `route_path` contracts). See internal Web IR
+//! implementation blueprint (lane P → S).
+//!
+//! **Spans (OP-0038 / OP-S007):** AST spans are copied onto HIR nodes where the AST carries them; reactive
+//! member lowering preserves per-member spans for state, derived values, and effects. WebIR lowering
+//! may elide spans on some synthetic nodes until the span-table workstream lands—consumers should not
+//! treat missing WebIR spans as a lowering failure.
+//!
+//! **Lowering buckets (OP-S005):** each `Decl` arm in `LowerCtx::lower` maps into a named field on
+//! [`HirModule`] — for example `Decl::Import`→`imports`, `Decl::Routes`→`client_routes`,
+//! `Decl::ReactiveComponent`→`reactive_components`, `Decl::Island`→`islands`, `Decl::HttpRoute` /
+//! server/query/mutation→`routes` / `server_fns` / `query_fns` / `mutation_fns`, and tables/indices into
+//! their respective vectors. Search `Decl::` in this file for the authoritative match.
+
+use std::collections::HashSet;
+
 use crate::ast::decl::*;
+use crate::ast::expr::Expr;
+use crate::ast::pattern::Pattern;
+use crate::ast::stmt::Stmt;
 use crate::hir::def_map::DefMap;
 use crate::hir::*;
-use crate::web_prefixes::{
-    MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX,
-};
+use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 
 mod async_flags;
 mod db_select_normalize;
-mod expr_db;
 mod decl;
+mod expr_db;
 #[path = "expr.rs"]
 mod lowering_expr;
 #[path = "stmt.rs"]
@@ -63,6 +84,7 @@ impl LowerCtx {
             not_founds: Vec::new(),
             reactive_components: Vec::new(),
             legacy_ast_nodes: Vec::new(),
+            lowering_migration: crate::hir::HirLoweringMigrationFlags::default(),
         };
 
         for decl in &module.declarations {
@@ -86,7 +108,9 @@ impl LowerCtx {
                 Decl::Function(f) => {
                     hir.functions.push(self.lower_fn(f, false));
                 }
+                // AST-retained `@component fn` / legacy component: `HirComponent`; WebIR adapters read this + lowered `hir.functions` entry.
                 Decl::Component(c) => {
+                    hir.lowering_migration.used_classic_component_path = true;
                     hir.functions.push(self.lower_fn(&c.func, true));
                     hir.components.push(HirComponent(c.clone()));
                 }
@@ -115,6 +139,7 @@ impl LowerCtx {
                 Decl::Test(t) => {
                     hir.tests.push(self.lower_fn(&t.func, false));
                 }
+                // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
                 Decl::ServerFn(s) => {
                     let lowered = self.lower_fn(&s.func, false);
                     let route_path = format!("{SERVER_FN_API_PREFIX}{}", lowered.name);
@@ -128,6 +153,7 @@ impl LowerCtx {
                         span: lowered.span,
                     });
                 }
+                // Query / mutation RPC paths feed generated client helpers; WebIR target maps these on `RouteNode`.
                 Decl::Query(q) => {
                     let lowered = self.lower_fn(&q.func, false);
                     let route_path = format!("{QUERY_FN_API_PREFIX}{}", lowered.name);
@@ -190,9 +216,11 @@ impl LowerCtx {
                 Decl::V0Component(decl) => {
                     hir.v0_components.push(HirV0Component(decl.clone()));
                 }
+                // Client route tree: lowered verbatim for TanStack / WebIR route contracts.
                 Decl::Routes(decl) => {
                     hir.client_routes.push(HirRoutes(decl.clone()));
                 }
+                // Island prop optionality (`prop?: T`) is preserved on AST `IslandDecl` for mount codegen + WebIR mounts.
                 Decl::Island(decl) => {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
@@ -205,7 +233,9 @@ impl LowerCtx {
                 Decl::Context(decl) => {
                     hir.contexts.push(HirContext(decl.clone()));
                 }
+                // Declarative hooks: retained AST for TS emit; flagged for escape-hatch / token accounting (OP-0042).
                 Decl::Hook(decl) => {
+                    hir.lowering_migration.has_legacy_hook_surfaces = true;
                     hir.hooks.push(HirHook(decl.clone()));
                 }
                 Decl::ErrorBoundary(decl) => {
@@ -217,7 +247,9 @@ impl LowerCtx {
                 Decl::NotFound(decl) => {
                     hir.not_founds.push(HirNotFound(decl.clone()));
                 }
+                // Path C reactive: primary source for WebIR `view_roots` + `behavior_nodes`.
                 Decl::ReactiveComponent(decl) => {
+                    hir.lowering_migration.used_reactive_component_path = true;
                     hir.reactive_components
                         .push(self.lower_reactive_component(decl));
                 }
@@ -245,14 +277,79 @@ impl LowerCtx {
     }
 }
 
+fn collect_pattern_binding_names(pat: &Pattern, out: &mut HashSet<String>) {
+    match pat {
+        Pattern::Ident { name, .. } => {
+            out.insert(name.clone());
+        }
+        Pattern::Tuple { elements, .. } => {
+            for e in elements {
+                collect_pattern_binding_names(e, out);
+            }
+        }
+        Pattern::Constructor { fields, .. } => {
+            for f in fields {
+                collect_pattern_binding_names(f, out);
+            }
+        }
+        Pattern::Wildcard { .. } | Pattern::Literal { .. } => {}
+    }
+}
+
+/// Lower the JSX/TSX view of a classic `@component fn` when the body follows the TS emit shape:
+/// leading `let` / `assign` statements, then a JSX [`Expr`] as a statement expression or `ret`
+/// value.
+///
+/// Returns the lowered [`HirExpr`] plus names to thread as `state_names` into Web IR DOM lowering
+/// (parameters plus bindings introduced before the view).
+#[must_use]
+pub fn lower_classic_component_view(comp: &HirComponent) -> Option<(HirExpr, HashSet<String>)> {
+    let func = &comp.0.func;
+    let mut ctx = LowerCtx::new();
+    let mut state_names = HashSet::new();
+
+    for p in &func.params {
+        ctx.def_map.define(p.name.clone());
+        state_names.insert(p.name.clone());
+    }
+
+    let mut jsx_ast: Option<&Expr> = None;
+
+    for stmt in &func.body {
+        match stmt {
+            Stmt::Let { pattern, .. } => {
+                collect_pattern_binding_names(pattern, &mut state_names);
+                let _ = ctx.lower_stmt(stmt);
+            }
+            Stmt::Assign { .. } => {
+                let _ = ctx.lower_stmt(stmt);
+            }
+            Stmt::Expr { expr, .. } => {
+                if matches!(expr, Expr::Jsx(_) | Expr::JsxSelfClosing(_)) {
+                    jsx_ast = Some(expr);
+                    break;
+                }
+                let _ = ctx.lower_stmt(stmt);
+            }
+            Stmt::Return { value: Some(v), .. } => {
+                if matches!(v, Expr::Jsx(_) | Expr::JsxSelfClosing(_)) {
+                    jsx_ast = Some(v);
+                    break;
+                }
+            }
+            Stmt::Return { value: None, .. } => {}
+        }
+    }
+
+    jsx_ast.map(|e| (ctx.lower_expr(e), state_names))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::lexer::cursor::lex;
     use crate::parser::parse;
-    use crate::web_prefixes::{
-        MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX,
-    };
+    use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 
     fn lower_str(source: &str) -> HirModule {
         let tokens = lex(source);
@@ -287,10 +384,63 @@ http post "/chat" to Result { ret Ok(0) }
         assert_eq!(hir.routes.len(), 1);
         assert_eq!(hir.server_fns.len(), 1);
         assert_eq!(hir.reactive_components.len(), 1);
+        assert_eq!(hir.routes[0].route_contract, "POST /chat");
+        assert!(
+            hir.lowering_migration.used_reactive_component_path,
+            "expected Path C reactive migration flag"
+        );
+        assert!(
+            !hir.lowering_migration.used_classic_component_path,
+            "@component in fixture should not set classic path (reactive @component)"
+        );
         assert_eq!(
             hir.server_fns[0].route_path,
             format!("{SERVER_FN_API_PREFIX}{}", "doThing")
         );
+    }
+
+    /// Islands, `routes { ... }`, and reactive components populate `HirModule`; full module must
+    /// [`crate::web_ir::lower::lower_hir_to_web_ir`] + validate without diagnostics (blueprint OP-0035, OP-0039).
+    #[test]
+    fn hir_island_routes_reactive_surface_validates_as_web_ir() {
+        let src = r#"
+import react.use_state
+
+@island Chart {
+    title: str
+    data: str
+    width?: int
+}
+
+@component Dash() {
+    state n: int = 0
+    view: <div class="dashboard">{n}</div>
+}
+
+routes {
+    "/" to Dash
+}
+"#;
+        let hir = lower_str(src);
+        assert!(
+            hir.legacy_ast_nodes.is_empty(),
+            "unexpected legacy: {:?}",
+            hir.legacy_ast_nodes
+        );
+        assert_eq!(hir.islands.len(), 1);
+        assert_eq!(hir.islands[0].0.name, "Chart");
+        assert_eq!(hir.islands[0].0.props.len(), 3);
+        assert!(hir.islands[0].0.props[2].is_optional);
+        assert_eq!(hir.islands[0].0.props[2].name, "width");
+        assert_eq!(hir.client_routes.len(), 1);
+        assert_eq!(hir.client_routes[0].0.entries.len(), 1);
+        assert_eq!(hir.client_routes[0].0.entries[0].path, "/");
+        assert_eq!(hir.client_routes[0].0.entries[0].component_name, "Dash");
+        assert_eq!(hir.reactive_components.len(), 1);
+
+        let web = crate::web_ir::lower::lower_hir_to_web_ir(&hir);
+        let diags = crate::web_ir::validate::validate_web_ir(&web);
+        assert!(diags.is_empty(), "{diags:?}");
     }
 
     #[test]
@@ -421,9 +571,7 @@ fn f() to int {
                     if let crate::hir::HirExpr::Ident(fn_name, _) = callee.as_ref() {
                         if fn_name == "len" && cargs.len() == 1 {
                             if let crate::hir::HirExpr::DbTableOp {
-                                op,
-                                select_cols,
-                                ..
+                                op, select_cols, ..
                             } = &cargs[0].value
                             {
                                 if *op == crate::hir::HirDbTableOp::All
@@ -496,7 +644,10 @@ fn f() to Unit {
                     );
             }
         }
-        assert!(found, "expected chain modifiers to populate plan capabilities");
+        assert!(
+            found,
+            "expected chain modifiers to populate plan capabilities"
+        );
     }
 
     #[test]

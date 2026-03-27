@@ -25,92 +25,98 @@ impl SessionManager {
 
         for line in reader.lines() {
             let line = line?;
-            if line.trim().is_empty() {
+            let line = line.trim().trim_start_matches('\u{feff}');
+            if line.is_empty() {
                 continue;
             }
-            let event: SessionEvent =
-                serde_json::from_str(&line).map_err(SessionError::Serialize)?;
-            match event {
-                SessionEvent::Created {
-                    session_id: sid,
-                    agent_id,
-                    created_at,
-                } => {
-                    let now = now_secs();
-                    session = Some(Session {
-                        id: sid,
-                        agent_id: AgentId(agent_id),
-                        state: SessionState::Active,
+            // One logical JSONL row can contain multiple concatenated objects if writers interleave
+            // before newline (stress / coverage); stream-parse every value on the line.
+            let mut iter = serde_json::Deserializer::from_str(line).into_iter::<SessionEvent>();
+            while let Some(ev) = iter.next() {
+                let event: SessionEvent = ev.map_err(SessionError::Serialize)?;
+                match event {
+                    SessionEvent::Created {
+                        session_id: sid,
+                        agent_id,
                         created_at,
-                        last_active: now,
-                        last_expensive_op_at: None,
-                        turns: Vec::new(),
-                        meta: HashMap::new(),
-                        plugin_state: HashMap::new(),
-                        turn_count: 0,
-                        total_tokens: 0,
-                    });
-                }
-                SessionEvent::TurnAdded {
-                    role,
-                    content,
-                    tokens,
-                    at,
-                } => {
-                    if let Some(ref mut s) = session {
-                        s.turns.push(SessionTurn {
-                            role,
-                            content,
-                            tokens,
-                            at,
+                    } => {
+                        let now = now_secs();
+                        session = Some(Session {
+                            id: sid,
+                            agent_id: AgentId(agent_id),
+                            state: SessionState::Active,
+                            created_at,
+                            last_active: now,
+                            last_expensive_op_at: None,
+                            turns: Vec::new(),
+                            meta: HashMap::new(),
+                            plugin_state: HashMap::new(),
+                            turn_count: 0,
+                            total_tokens: 0,
                         });
-                        s.turn_count += 1;
-                        s.total_tokens += tokens;
                     }
-                }
-                SessionEvent::StateChanged { to, .. } => {
-                    if let Some(ref mut s) = session {
-                        s.state = to;
+                    SessionEvent::TurnAdded {
+                        role,
+                        content,
+                        tokens,
+                        at,
+                    } => {
+                        if let Some(ref mut s) = session {
+                            s.turns.push(SessionTurn {
+                                role,
+                                content,
+                                tokens,
+                                at,
+                            });
+                            s.turn_count += 1;
+                            s.total_tokens += tokens;
+                        }
                     }
-                }
-                SessionEvent::MetaUpdated { key, value, .. } => {
-                    if let Some(ref mut s) = session {
-                        s.meta.insert(key, value);
+                    SessionEvent::StateChanged { to, .. } => {
+                        if let Some(ref mut s) = session {
+                            s.state = to;
+                        }
                     }
-                }
-                SessionEvent::PluginStateUpdated {
-                    plugin_id, state, ..
-                } => {
-                    if let Some(ref mut s) = session {
-                        s.plugin_state.insert(plugin_id, state);
+                    SessionEvent::MetaUpdated { key, value, .. } => {
+                        if let Some(ref mut s) = session {
+                            s.meta.insert(key, value);
+                        }
                     }
-                }
-                SessionEvent::Reset { .. } => {
-                    if let Some(ref mut s) = session {
-                        s.turns.clear();
-                        s.state = SessionState::Active;
+                    SessionEvent::PluginStateUpdated {
+                        plugin_id, state, ..
+                    } => {
+                        if let Some(ref mut s) = session {
+                            s.plugin_state.insert(plugin_id, state);
+                        }
                     }
-                }
-                SessionEvent::Compacted {
-                    summary,
-                    turns_removed: _,
-                    at,
-                } => {
-                    if let Some(ref mut s) = session {
-                        let tokens = crate::compaction::CompactionEngine::estimate_tokens(&summary);
-                        s.turns.clear();
-                        s.turns.push(SessionTurn {
-                            role: "system".to_string(),
-                            content: format!("[compacted summary]\n{summary}"),
-                            tokens,
-                            at,
-                        });
-                        s.state = SessionState::Compacted;
+                    SessionEvent::Reset { .. } => {
+                        if let Some(ref mut s) = session {
+                            s.turns.clear();
+                            s.state = SessionState::Active;
+                        }
                     }
-                }
-                SessionEvent::ExpensiveOpRecorded { at } => {
-                    if let Some(ref mut s) = session {
-                        s.last_expensive_op_at = Some(at);
+                    SessionEvent::Compacted {
+                        summary,
+                        turns_removed: _,
+                        at,
+                    } => {
+                        if let Some(ref mut s) = session {
+                            let tokens =
+                                crate::compaction::CompactionEngine::estimate_tokens(&summary);
+                            s.turns.clear();
+                            s.turns.push(SessionTurn {
+                                role: "system".to_string(),
+                                content: format!("[compacted summary]\n{summary}"),
+                                tokens,
+                                at,
+                            });
+                            s.state = SessionState::Compacted;
+                        }
+                    }
+                    SessionEvent::ExpensiveOpRecorded { at } => {
+                        if let Some(ref mut s) = session {
+                            s.last_expensive_op_at = Some(at);
+                        }
                     }
                 }
             }
@@ -272,9 +278,11 @@ impl SessionManager {
         event: &SessionEvent,
     ) -> Result<(), SessionError> {
         let path = self.session_path(session_id);
-        let json = serde_json::to_string(event).map_err(SessionError::Serialize)?;
+        let mut json = serde_json::to_string(event).map_err(SessionError::Serialize)?;
+        json.push('\n');
         let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
-        writeln!(f, "{json}")?;
+        f.write_all(json.as_bytes())?;
+        f.sync_all()?;
         Ok(())
     }
 }

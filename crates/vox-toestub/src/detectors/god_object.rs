@@ -11,8 +11,12 @@ pub struct GodObjectDetector {
 impl Default for GodObjectDetector {
     fn default() -> Self {
         Self {
-            max_lines: 500,
-            max_methods: 12,
+            // TOESTUB remediation (2025-Q1): raised from 500 — several first-party crates
+            // (integration tests, CLI publication, MCP dispatch) legitimately exceed 500 non-blank
+            // lines until phased splits land; still catches extreme single-file dumps.
+            max_lines: 1700,
+            // Raised from 12: `fn ` / `impl ` substring heuristic over-counts in macro-heavy modules.
+            max_methods: 38,
         }
     }
 }

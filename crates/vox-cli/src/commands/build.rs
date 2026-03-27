@@ -146,10 +146,10 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         if let vox_compiler::ast::decl::Decl::V0Component(comp) = decl {
             let target_path = out_dir.join(format!("{}.tsx", comp.name));
             if target_path.is_file() {
-                let tsx = read_utf8_path_capped(&target_path).with_context(|| {
-                    format!("read @v0 component {}", target_path.display())
-                })?;
-                if let Some(msg) = crate::v0_tsx_normalize::v0_named_export_violation(&tsx, &comp.name)
+                let tsx = read_utf8_path_capped(&target_path)
+                    .with_context(|| format!("read @v0 component {}", target_path.display()))?;
+                if let Some(msg) =
+                    crate::v0_tsx_normalize::v0_named_export_violation(&tsx, &comp.name)
                 {
                     anyhow::bail!("@v0 named export contract: {msg}");
                 }

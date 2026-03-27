@@ -48,10 +48,7 @@ impl<T: Serialize> ToolResult<T> {
     }
 
     /// Failed [`ToolResult`] with a short remediation for clients (docs links, env keys, etc.).
-    pub fn err_with_remediation(
-        msg: impl Into<String>,
-        remediation: impl Into<String>,
-    ) -> Self {
+    pub fn err_with_remediation(msg: impl Into<String>, remediation: impl Into<String>) -> Self {
         Self {
             success: false,
             data: None,

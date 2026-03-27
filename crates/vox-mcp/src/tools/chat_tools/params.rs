@@ -11,8 +11,8 @@ pub const ANTI_LAZINESS_RIDER: &str = "\nCRITICAL DIRECTIVE: You must output the
 pub struct ChatTranscriptEntry {
     /// Opaque message id (UUID/ulid string).
     pub id: String,
-    /// `"user"`, `"assistant"`, or `"system"`.
-    pub role: String, // "user" | "assistant" | "system"
+    /// Role label (OpenAI-compatible): user, assistant, or system.
+    pub role: String,
     /// Message body after expansion (mentions resolved server-side).
     pub content: String,
     /// Epoch seconds when stored.

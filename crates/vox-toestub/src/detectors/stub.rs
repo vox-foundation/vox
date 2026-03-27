@@ -1,6 +1,4 @@
-use crate::rules::{
-    DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_non_code,
-};
+use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_non_code};
 use regex::Regex;
 
 /// Detects `todo!()`, `unimplemented!()`, `panic!("not implemented")`,
@@ -30,9 +28,8 @@ fn stub_regex_match_in_code(
     re: &Regex,
     rust_ctx: Option<&crate::analysis::RustFileContext>,
 ) -> bool {
-    re.find_iter(line).any(|m| {
-        !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
-    })
+    re.find_iter(line)
+        .any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
 }
 
 /// Line-comment scan for work markers: keep ordinary `//` / `#` lines; rustdoc defers to code spans
@@ -49,16 +46,15 @@ fn stub_todo_comment_line_matches(
     }
     let t = line.trim_start();
     if t.starts_with("///") || t.starts_with("//!") {
-        return re.find_iter(line).any(|m| {
-            !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
-        });
+        return re
+            .find_iter(line)
+            .any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx));
     }
-    if t.starts_with("//")
-        || (t.starts_with('#') && !t.starts_with("#["))
-    {
+    if t.starts_with("//") || (t.starts_with('#') && !t.starts_with("#[")) {
         return true;
     }
-    re.find_iter(line).any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
+    re.find_iter(line)
+        .any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
 }
 
 fn placeholder_matches_line(
@@ -74,8 +70,7 @@ fn placeholder_matches_line(
     let t = line.trim_start();
     // Ordinary `//` / block-comment lines (shouty fix-me / all-caps place-holder markers).
     // Rustdoc (`///`, `//!`) may echo those words in prose — defer to code-span check only.
-    if (t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!"))
-        || t.starts_with('*')
+    if (t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!")) || t.starts_with('*')
     {
         return true;
     }
@@ -184,8 +179,7 @@ impl StubDetector {
                     Some("Replace `todo!()` with the actual implementation.".into()),
                 ));
             }
-            if stub_regex_match_in_code(file, line_num, line, &self.rust_unimplemented, rust_ctx)
-            {
+            if stub_regex_match_in_code(file, line_num, line, &self.rust_unimplemented, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -194,8 +188,7 @@ impl StubDetector {
                     Some("Implement the function body or remove the stub.".into()),
                 ));
             }
-            if stub_regex_match_in_code(file, line_num, line, &self.rust_panic_not_impl, rust_ctx)
-            {
+            if stub_regex_match_in_code(file, line_num, line, &self.rust_panic_not_impl, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,

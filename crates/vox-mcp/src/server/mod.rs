@@ -1,5 +1,6 @@
 //! MCP Server state and protocol handler implementation.
 
+mod clarification_inbox;
 mod handlers;
 mod lifecycle;
 

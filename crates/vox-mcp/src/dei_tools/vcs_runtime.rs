@@ -154,7 +154,8 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
         };
 
         for id in agent_ids {
-            if let Ok(records) = vox_ludus::db::get_events(db, &id.0.to_string(), Some(lim_i64)).await
+            if let Ok(records) =
+                vox_ludus::db::get_events(db, &id.0.to_string(), Some(lim_i64)).await
             {
                 all_events.extend(records);
             }

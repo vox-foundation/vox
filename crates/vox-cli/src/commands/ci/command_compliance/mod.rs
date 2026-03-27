@@ -16,9 +16,9 @@ use docs_sync::{read_cli_reference_for_compliance, read_env_vars_ssot_doc, read_
 use mcp_wiring::check_mcp_tool_wiring;
 use registry::{REGISTRY_REL, RegistryFile, SCHEMA_REL, validate_registry_against_json_schema};
 use validators::{
-    check_catalog_feature_gates_match_registry, check_catalog_generation_smoke, check_compilerd,
-    check_command_registry_embed_matches_disk, check_dei, check_env_var_ssot_index,
-    check_reachability, check_ref_cli, check_registry_latin_and_handlers,
+    check_catalog_feature_gates_match_registry, check_catalog_generation_smoke,
+    check_command_registry_embed_matches_disk, check_compilerd, check_dei,
+    check_env_var_ssot_index, check_reachability, check_ref_cli, check_registry_latin_and_handlers,
     check_root_readme_cli_drift, check_script_duals, check_vox_cli_lib,
 };
 

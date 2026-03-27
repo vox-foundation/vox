@@ -2,6 +2,8 @@
 
 Detector id: **`scaling/surfaces`** (`crates/vox-toestub/src/detectors/scaling.rs`).
 
+Strategic architecture companion: [TOESTUB self-healing architecture 2026](toestub-self-healing-architecture-2026.md) (research synthesis, LLM-maintainability guardrails, Populi/MENS feedback loop).
+
 ## Rust lexical foundation (shared detectors)
 
 Rust line-oriented rules use `crates/vox-toestub/src/analysis/token_map.rs`, which classifies spans as **`Comment`** vs **`String`** (plus normal / raw / byte string handling) and optional `syn::parse_file` in `RustFileContext`. The engine builds one context per `.rs` file per run and passes it to `DetectionRule::detect`. Findings may set optional `confidence` (`high` / `medium` / `low`). Rules like `stub/placeholder` and `unresolved-ref/fn-call` skip matches in **any** non-code span. **`security/hardcoded-secret` skips matches whose **start** falls in a comment span** but still reports matches inside **string literals** (where secrets usually appear). Use `Finding::fingerprint()` for stable dedup keys across runs.

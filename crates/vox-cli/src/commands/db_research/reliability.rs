@@ -50,10 +50,7 @@ pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
             println!();
             let mut count = 0;
             for e in entries {
-                print!(
-                    "{:<24} ",
-                    summarize_text(&e.endpoint_url, 22)
-                );
+                print!("{:<24} ", summarize_text(&e.endpoint_url, 22));
                 print!("{:<24} ", summarize_text(&e.model_id, 22));
                 print!("{:<24} ", e.total_requests);
                 print!("{:<24.4} ", e.hallucination_proxy_ewma);

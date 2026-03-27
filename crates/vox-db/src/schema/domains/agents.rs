@@ -173,6 +173,67 @@ CREATE TABLE IF NOT EXISTS typed_stream_events (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS question_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    repository_id TEXT NOT NULL DEFAULT '',
+    task_id TEXT,
+    policy_version TEXT NOT NULL DEFAULT 'v1',
+    started_at_ms INTEGER NOT NULL,
+    ended_at_ms INTEGER,
+    resolution_status TEXT NOT NULL DEFAULT 'open',
+    belief_state_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS question_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_session_id INTEGER NOT NULL REFERENCES question_sessions(id) ON DELETE CASCADE,
+    question_id TEXT NOT NULL,
+    turn_index INTEGER NOT NULL,
+    actor TEXT NOT NULL DEFAULT 'assistant',
+    question_kind TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    expected_information_gain_bits REAL NOT NULL DEFAULT 0.0,
+    expected_user_cost REAL NOT NULL DEFAULT 0.0,
+    utility_bits_per_cost REAL NOT NULL DEFAULT 0.0,
+    answer_text TEXT,
+    answer_type TEXT,
+    answered_at_ms INTEGER,
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS question_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_event_id INTEGER NOT NULL REFERENCES question_events(id) ON DELETE CASCADE,
+    option_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    prior_probability REAL,
+    posterior_probability REAL,
+    is_other INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(question_event_id, option_id)
+);
+
+CREATE TABLE IF NOT EXISTS question_option_outcomes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_event_id INTEGER NOT NULL REFERENCES question_events(id) ON DELETE CASCADE,
+    option_id TEXT NOT NULL,
+    selected INTEGER NOT NULL DEFAULT 0,
+    diagnostic_weight REAL NOT NULL DEFAULT 0.0,
+    information_contribution_bits REAL NOT NULL DEFAULT 0.0,
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS question_stop_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_session_id INTEGER NOT NULL REFERENCES question_sessions(id) ON DELETE CASCADE,
+    stop_reason TEXT NOT NULL,
+    confidence_at_stop REAL,
+    marginal_gain_bits REAL,
+    expected_user_cost REAL,
+    turn_index INTEGER,
+    created_at_ms INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS populi_reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     target_id TEXT NOT NULL,
@@ -325,6 +386,13 @@ CREATE INDEX IF NOT EXISTS idx_agent_reliability_score ON agent_reliability(reli
 CREATE INDEX IF NOT EXISTS idx_research_metrics_session ON research_metrics(session_id, metric_type);
 CREATE INDEX IF NOT EXISTS idx_session_turns_session ON session_turns(session_id);
 CREATE INDEX IF NOT EXISTS idx_typed_stream_events_stream ON typed_stream_events(stream_id);
+CREATE INDEX IF NOT EXISTS idx_question_sessions_session ON question_sessions(session_id, started_at_ms);
+CREATE INDEX IF NOT EXISTS idx_question_sessions_repo ON question_sessions(repository_id, started_at_ms);
+CREATE INDEX IF NOT EXISTS idx_question_events_session ON question_events(question_session_id, turn_index);
+CREATE INDEX IF NOT EXISTS idx_question_events_qid ON question_events(question_id);
+CREATE INDEX IF NOT EXISTS idx_question_options_event ON question_options(question_event_id);
+CREATE INDEX IF NOT EXISTS idx_question_option_outcomes_event ON question_option_outcomes(question_event_id);
+CREATE INDEX IF NOT EXISTS idx_question_stop_events_session ON question_stop_events(question_session_id, created_at_ms);
 CREATE INDEX IF NOT EXISTS idx_populi_reviews_target ON populi_reviews(target_id);
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_agent ON agent_sessions(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_status ON agent_sessions(status);

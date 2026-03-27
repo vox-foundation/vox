@@ -138,10 +138,9 @@ mod tests {
             reproducibility: None,
             ethics_and_impact: None,
         };
-        let meta = crate::scientific_metadata::build_scientia_metadata_json(
-            "t", None, Some(&sci), None,
-        )
-        .unwrap();
+        let meta =
+            crate::scientific_metadata::build_scientia_metadata_json("t", None, Some(&sci), None)
+                .unwrap();
         let m = PublicationManifest {
             publication_id: "pub1".to_string(),
             content_type: "scientia".to_string(),

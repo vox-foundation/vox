@@ -262,10 +262,9 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             limit,
         }),
         ScientiaCmd::RetrievalStatus => DbCli::Core(DbCliCore::RetrievalStatus),
-        ScientiaCmd::ResearchRefresh { vendor, dry_run } => DbCli::Core(DbCliCore::ResearchRefresh {
-            vendor,
-            dry_run,
-        }),
+        ScientiaCmd::ResearchRefresh { vendor, dry_run } => {
+            DbCli::Core(DbCliCore::ResearchRefresh { vendor, dry_run })
+        }
         ScientiaCmd::PublicationPrepare {
             body,
             preflight,
@@ -295,10 +294,10 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         }),
         ScientiaCmd::PublicationZenodoMetadata { publication_id } => {
             DbCli::Publication(DbCliPublication::PublicationZenodoMetadata { publication_id })
-        },
+        }
         ScientiaCmd::PublicationOpenreviewProfile { publication_id } => {
             DbCli::Publication(DbCliPublication::PublicationOpenreviewProfile { publication_id })
-        },
+        }
         ScientiaCmd::PublicationScholarlyStagingExport {
             publication_id,
             output_dir,
@@ -331,7 +330,7 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         }),
         ScientiaCmd::PublicationStatus { publication_id } => {
             DbCli::Publication(DbCliPublication::PublicationStatus { publication_id })
-        },
+        }
         ScientiaCmd::PublicationScholarlyRemoteStatus {
             publication_id,
             external_submission_id,
@@ -343,20 +342,22 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatusSyncAll {
                 publication_id,
             })
-        },
+        }
         ScientiaCmd::PublicationScholarlyRemoteStatusSyncBatch {
             limit,
             iterations,
             interval_secs,
             max_runtime_secs,
             jitter_secs,
-        } => DbCli::Publication(DbCliPublication::PublicationScholarlyRemoteStatusSyncBatch {
-            limit,
-            iterations,
-            interval_secs,
-            max_runtime_secs,
-            jitter_secs,
-        }),
+        } => DbCli::Publication(
+            DbCliPublication::PublicationScholarlyRemoteStatusSyncBatch {
+                limit,
+                iterations,
+                interval_secs,
+                max_runtime_secs,
+                jitter_secs,
+            },
+        ),
         ScientiaCmd::PublicationArxivHandoffRecord {
             publication_id,
             stage,
@@ -372,10 +373,10 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         }),
         ScientiaCmd::PublicationExternalJobsDue { limit } => {
             DbCli::Publication(DbCliPublication::PublicationExternalJobsDue { limit })
-        },
+        }
         ScientiaCmd::PublicationExternalJobsDeadLetter { limit } => {
             DbCli::Publication(DbCliPublication::PublicationExternalJobsDeadLetter { limit })
-        },
+        }
         ScientiaCmd::PublicationExternalJobsReplay { job_id } => {
             DbCli::Publication(DbCliPublication::PublicationExternalJobsReplay { job_id })
         }
@@ -415,7 +416,7 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
         }),
         ScientiaCmd::PublicationExternalPipelineMetrics { since_hours } => {
             DbCli::Publication(DbCliPublication::PublicationExternalPipelineMetrics { since_hours })
-        },
+        }
     };
     db_cli::run(db_cmd).await
 }

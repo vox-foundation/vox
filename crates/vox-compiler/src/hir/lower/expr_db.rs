@@ -37,7 +37,10 @@ pub(super) fn extract_filter_record_args(args: &[HirArg]) -> Option<Vec<HirArg>>
     )
 }
 
-pub(super) fn db_table_op_from_field(obj: &HirExpr, method: &str) -> Option<(String, HirDbTableOp)> {
+pub(super) fn db_table_op_from_field(
+    obj: &HirExpr,
+    method: &str,
+) -> Option<(String, HirDbTableOp)> {
     let HirExpr::FieldAccess(inner, table_name, _) = obj else {
         return None;
     };
@@ -304,11 +307,7 @@ fn parse_select_columns(args: &[expr::Arg]) -> Option<Vec<String>> {
             }
         }
     }
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
+    if out.is_empty() { None } else { Some(out) }
 }
 
 pub(super) fn extract_db_query_chain(ctx: &mut LowerCtx, expr: &Expr) -> Option<DbQueryChain> {

@@ -464,16 +464,18 @@ async fn list_external_submission_jobs_failed_lists_terminal_failed() {
     assert_eq!(replayed.status, "queued");
     assert!(replayed.lock_owner.is_none());
     assert!(replayed.last_error_class.is_none());
-    assert!(db.list_external_submission_jobs_failed(10).await.unwrap().is_empty());
+    assert!(
+        db.list_external_submission_jobs_failed(10)
+            .await
+            .unwrap()
+            .is_empty()
+    );
 
     let err = db
         .replay_failed_external_submission_job_to_queued(replayed.id)
         .await
         .unwrap_err();
-    assert!(
-        err.to_string().contains("replay only allowed"),
-        "{err}"
-    );
+    assert!(err.to_string().contains("replay only allowed"), "{err}");
 }
 
 #[tokio::test]
@@ -554,7 +556,11 @@ async fn append_publication_status_event_does_not_touch_manifest_state() {
     )
     .await
     .unwrap();
-    let row = db.get_publication_manifest("handoff-p1").await.unwrap().unwrap();
+    let row = db
+        .get_publication_manifest("handoff-p1")
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(row.state, "draft");
     let evs = db
         .list_publication_status_events("handoff-p1")
@@ -738,28 +744,12 @@ async fn scholarly_submission_upsert_rejects_identity_mismatch() {
     })
     .await
     .unwrap();
-    db.upsert_scholarly_submission(
-        "ss-pub-a",
-        "dig-a",
-        "zenodo",
-        "dep-1",
-        "draft",
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    db.upsert_scholarly_submission("ss-pub-a", "dig-a", "zenodo", "dep-1", "draft", None, None)
+        .await
+        .unwrap();
 
     let err = db
-        .upsert_scholarly_submission(
-            "ss-pub-b",
-            "dig-a",
-            "zenodo",
-            "dep-1",
-            "draft",
-            None,
-            None,
-        )
+        .upsert_scholarly_submission("ss-pub-b", "dig-a", "zenodo", "dep-1", "draft", None, None)
         .await
         .unwrap_err();
     assert!(matches!(err, StoreError::UpsertIdentityMismatch(_)));

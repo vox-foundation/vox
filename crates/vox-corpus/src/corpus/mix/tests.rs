@@ -48,7 +48,8 @@ fn tool_trace_uses_followup_when_present() {
 
 #[test]
 fn speech_to_code_normalizes_to_training_pair_shape() {
-    let raw = r#"{"refined_transcript":"add a hello function","vox_code":"fn hello() { }","rating":5}"#;
+    let raw =
+        r#"{"refined_transcript":"add a hello function","vox_code":"fn hello() { }","rating":5}"#;
     let out = normalize_training_jsonl_line(raw, Some("speech_to_code")).expect("ok");
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     let prompt = v["prompt"].as_str().unwrap();

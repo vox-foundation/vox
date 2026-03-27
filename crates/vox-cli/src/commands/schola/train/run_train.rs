@@ -329,9 +329,7 @@ pub async fn run_train(
         );
         eprintln!("  Rebuild with: cargo build --features gpu");
         eprintln!();
-        eprintln!(
-            "  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`"
-        );
+        eprintln!("  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`");
         eprintln!("  See docs/src/reference/mens-training.md");
         Ok(())
     }

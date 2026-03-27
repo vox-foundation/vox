@@ -180,9 +180,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_ludus_notification_ack" => parse_obj(
             r#"{"type":"object","properties":{"notification_id":{"type":"string","minLength":1}},"required":["notification_id"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_notifications_ack_all" => parse_obj(
-            r#"{"type":"object","additionalProperties":false}"#,
-        ),
+        "vox_ludus_notifications_ack_all" => {
+            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
+        }
         "vox_ludus_quest_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}"#,
         ),
@@ -376,6 +376,15 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_chat_history" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"string","maxLength":2048,"description":"Session isolation key. Omit to retrieve the shared default session history."}},"additionalProperties":false}"#,
+        ),
+        "vox_questioning_submit_answer" => parse_obj(
+            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048},"answer_text":{"type":"string","minLength":1,"maxLength":131072},"answer_type":{"type":"string","maxLength":64},"question_id":{"type":"string","maxLength":512},"selected_option_id":{"type":"string","maxLength":256},"information_contribution_bits":{"type":"number"}},"required":["session_id","answer_text"],"additionalProperties":false}"#,
+        ),
+        "vox_questioning_pending" => parse_obj(
+            r#"{"type":"object","properties":{"session_id":{"type":"string","minLength":1,"maxLength":2048,"description":"Same MCP session_id as chat / plan"}},"required":["session_id"],"additionalProperties":false}"#,
+        ),
+        "vox_questioning_sync_ssot" => parse_obj(
+            r#"{"type":"object","properties":{"relative_path":{"type":"string","maxLength":4096,"description":"Workspace-relative path to questioning markdown; default is docs/src/reference/information-theoretic-questioning.md"}},"additionalProperties":false}"#,
         ),
         "vox_inline_edit" => parse_obj(
             r#"{"type":"object","properties":{"prompt":{"type":"string"},"instruction":{"type":"string"},"file":{"type":"string"},"file_path":{"type":"string"},"start_line":{"type":"integer"},"end_line":{"type":"integer"},"current_text":{"type":"string"},"selection":{"type":"string"},"language":{"type":"string"},"context_before":{"type":"string"},"context_after":{"type":"string"}},"required":["start_line","end_line","current_text"],"additionalProperties":true}"#,

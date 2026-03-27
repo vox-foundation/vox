@@ -184,9 +184,7 @@ pub async fn run(cmd: LudusCli) -> Result<()> {
         LudusCli::RewardClaim => ludus::reward_claim().await,
         LudusCli::Enable => ludus::enable_ludus().await,
         LudusCli::Disable => ludus::disable_ludus().await,
-        LudusCli::Mode { effective, set } => {
-            ludus::mode_command(set.as_deref(), effective).await
-        }
+        LudusCli::Mode { effective, set } => ludus::mode_command(set.as_deref(), effective).await,
         LudusCli::Metrics => ludus::metrics_show().await,
         LudusCli::Digest => ludus::session_digest().await,
         LudusCli::DigestWeekly => ludus::digest_weekly().await,

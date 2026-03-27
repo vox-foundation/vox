@@ -24,8 +24,8 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
     use crate::hir::{
-        DefId, HirActor, HirExpr, HirModule, HirServerFn, HirStmt, HirTable, HirTableField, HirType,
-        HirWorkflow,
+        DefId, HirActor, HirExpr, HirModule, HirServerFn, HirStmt, HirTable, HirTableField,
+        HirType, HirWorkflow,
     };
     use emit::{emit_main, emit_table_struct};
 
@@ -148,10 +148,7 @@ mod tests {
             out.contains("pub async fn get("),
             "should retain legacy get"
         );
-        assert!(
-            out.contains("pub async fn all("),
-            "should emit safe all()"
-        );
+        assert!(out.contains("pub async fn all("), "should emit safe all()");
         assert!(
             out.contains("pub async fn unsafe_query_raw_clause("),
             "should retain escape-hatch dynamic SQL (unsafe_query_raw_clause)"
@@ -212,19 +209,13 @@ mod tests {
         )
         .expect_err("x_y_z projection suffix collision");
         let msg = format!("{err}");
-        assert!(
-            msg.contains("suffix") && msg.contains("Task"),
-            "{msg}"
-        );
+        assert!(msg.contains("suffix") && msg.contains("Task"), "{msg}");
     }
 
     #[test]
     fn emits_select_projection_helpers_when_configured() {
         let table = simple_task_table();
-        let out = emit_table_struct(
-            &table,
-            &[vec!["title".into(), "done".into()]],
-        );
+        let out = emit_table_struct(&table, &[vec!["title".into(), "done".into()]]);
         assert!(
             out.contains("fn from_row_sel_title_done"),
             "should emit from_row_sel_* for projection"
@@ -379,12 +370,8 @@ mod tests {
         });
 
         let out = emit_main(&module, "demo_pkg");
-        assert!(out.contains(
-            ".route(\"/api/query/q1\", post(handle_q_q1))"
-        ));
-        assert!(out.contains(
-            ".route(\"/api/mutation/m1\", post(handle_m_m1))"
-        ));
+        assert!(out.contains(".route(\"/api/query/q1\", post(handle_q_q1))"));
+        assert!(out.contains(".route(\"/api/mutation/m1\", post(handle_m_m1))"));
         assert!(out.contains("async fn handle_q_q1("));
         assert!(out.contains("async fn handle_m_m1("));
     }

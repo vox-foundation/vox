@@ -67,8 +67,7 @@ pub fn run(telemetry: PathBuf, err_log: PathBuf, interval_ms: u64) -> ! {
                                     {
                                         continue;
                                     }
-                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
-                                    {
+                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
                                         if !table_header {
                                             println!(
                                                 "\n {:>6} {:>5} {:>10} {:>8} {:>6}",
@@ -150,4 +149,3 @@ fn format_eta(sec: f64) -> String {
         format!("{:.0}s", sec)
     }
 }
-

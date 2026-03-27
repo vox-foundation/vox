@@ -10,8 +10,7 @@ use std::path::PathBuf;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_GIT_EXEC: &str =
-    "Ensure `git` is on PATH and the MCP workspace points at a repository with a usable `git_root`.";
+const REM_GIT_EXEC: &str = "Ensure `git` is on PATH and the MCP workspace points at a repository with a usable `git_root`.";
 
 fn git_cwd(state: &ServerState) -> PathBuf {
     state
@@ -35,11 +34,10 @@ pub async fn git_log(state: &ServerState, max_commits: Option<usize>) -> String 
             let text = String::from_utf8_lossy(&o.stdout).to_string();
             ToolResult::ok(text).to_json()
         }
-        Err(e) => ToolResult::<String>::err_with_remediation(
-            format!("git log failed: {e}"),
-            REM_GIT_EXEC,
-        )
-        .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("git log failed: {e}"), REM_GIT_EXEC)
+                .to_json()
+        }
     }
 }
 

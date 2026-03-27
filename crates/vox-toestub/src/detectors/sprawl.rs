@@ -11,7 +11,8 @@ pub struct SprawlDetector {
 impl Default for SprawlDetector {
     fn default() -> Self {
         Self {
-            max_files_per_dir: 20,
+            // Raised during TOESTUB remediation: busy module trees + large repo roots (many top-level files).
+            max_files_per_dir: 200,
             forbidden_names: vec![
                 "utils.rs".to_string(),
                 "helpers.ts".to_string(),

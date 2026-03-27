@@ -24,6 +24,8 @@ Quantified K-complexity and efficacy deltas:
 Reproducible token/branch/escape-hatch counting appendix:
 [WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 
+Gate matrix + supplemental Web IR batch (rustc/doc): [acceptance gates](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) and [supplemental execution map](../architecture/internal-web-ir-implementation-blueprint.md#supplemental-execution-map-op-s050-op-s103-op-s149-op-s182).
+
 ## Purpose
 
 Transforms the typed HIR into TypeScript source files. The emitter is modularized by concern — each module handles a specific category of output.
@@ -119,11 +121,6 @@ Emit a Vox expression as TypeScript.
 ### `fn emit_stmt`
 
 Emit a Vox statement as TypeScript.
-
-
-### `fn emit_pattern_public`
-
-Emit a pattern as TypeScript destructuring.
 
 
 ## Module: `vox-codegen-ts\src\lib.rs`

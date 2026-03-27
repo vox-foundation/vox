@@ -10,6 +10,12 @@ use crate::rules::{Language, SourceFile};
 // ---------------------------------------------------------------------------
 
 const DEFAULT_EXCLUDES: &[&str] = &[
+    // Vendored fork sources / upstream patches — not Vox-owned; god-object and scaling noise only.
+    "**/patches/**",
+    // mdBook and other generated web assets under docs.
+    "**/docs/book/**",
+    "**/vox-vscode/out/**",
+    "**/tools/dashboard/**",
     "**/target/**",
     "**/node_modules/**",
     "**/.venv/**",
@@ -24,6 +30,8 @@ const DEFAULT_EXCLUDES: &[&str] = &[
     "**/.ruff_cache/**",
     "**/.pytest_cache/**",
     "**/vendor/**",
+    // `include!` fragments for split integration tests — not standalone crates; avoids duplicate noise.
+    "**/tests/pipeline/includes/**",
 ];
 
 /// File-system scanner that walks directories and loads source files.

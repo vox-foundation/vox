@@ -8,10 +8,7 @@ fn mcp_safe_sqlite_table_name(name: &str) -> Result<&str, StoreError> {
     if name.is_empty() || name.len() > 128 {
         return Err(StoreError::Db("table name empty or too long".into()));
     }
-    if !name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(StoreError::Db(format!(
             "table name must be [A-Za-z0-9_]+ only (got {name:?})"
         )));

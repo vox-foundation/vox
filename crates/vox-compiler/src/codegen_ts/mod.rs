@@ -23,12 +23,12 @@ pub mod reactive;
 pub mod routes;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).
 pub mod schema;
-/// TanStack Start server-fn emission constants.
-pub mod tanstack_start;
 /// `routes:` → programmatic TanStack Router trees.
 pub mod tanstack_programmatic_routes;
 /// TanStack Query helper emission (`vox-tanstack-query.tsx`).
 pub mod tanstack_query_emit;
+/// TanStack Start server-fn emission constants.
+pub mod tanstack_start;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};

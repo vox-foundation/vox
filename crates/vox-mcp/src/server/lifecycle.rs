@@ -8,6 +8,7 @@ use std::sync::RwLock;
 use tokio::sync::Mutex;
 
 use vox_db::VoxDb;
+use vox_socrates_policy::QuestioningPolicy;
 use vox_orchestrator::{
     AffinityGroupRegistry, AgentEvent, BudgetManager, Orchestrator, OrchestratorConfig,
     PopuliNodeBrief, RemotePopuliRoutingHint, RemotePopuliSnapshot, SessionConfig, SessionManager,
@@ -63,6 +64,10 @@ pub struct ServerState {
     populi_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Stops [`Self::spawn_populi_remote_result_poller`] when re-rooting.
     populi_remote_result_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Stops the Codex `a2a_messages` clarification inbox poller when re-rooting.
+    clarification_db_inbox_poll_join: Arc<SyncMutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Per–MCP-session wall-time analogue for Socrates clarification (`VOX_QUESTIONING_MAX_ATTENTION_MS`).
+    questioning_attention_spent_ms: Arc<RwLock<HashMap<String, u64>>>,
 }
 
 impl ServerState {
@@ -126,11 +131,62 @@ impl ServerState {
             populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
             populi_poll_join: Arc::new(SyncMutex::new(None)),
             populi_remote_result_poll_join: Arc::new(SyncMutex::new(None)),
+            clarification_db_inbox_poll_join: Arc::new(SyncMutex::new(None)),
+            questioning_attention_spent_ms: Arc::new(RwLock::new(HashMap::new())),
         };
         state.spawn_orchestrator_event_log_sink();
         state.spawn_populi_federation_poller();
         state.spawn_populi_remote_result_poller();
         state
+    }
+
+    /// Add LLM / clarification-estimated milliseconds toward the session attention analogue.
+    ///
+    /// When `VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION` is unset or truthy, also debits
+    /// [`BudgetManager`] global attention (`attention_snapshot`) for unified pilot-budget telemetry.
+    pub fn record_questioning_attention_spend(&self, session_key: &str, delta_ms: u64) {
+        if delta_ms == 0 {
+            return;
+        }
+        let Ok(mut g) = self.questioning_attention_spent_ms.write() else {
+            return;
+        };
+        *g.entry(session_key.to_string()).or_insert(0) += delta_ms;
+        let disable_mirror = std::env::var("VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION")
+            .map(|v| v == "0" || v.eq_ignore_ascii_case("false"))
+            .unwrap_or(false);
+        if !disable_mirror {
+            self.budget_manager
+                .add_questioning_attention_debit_ms(delta_ms);
+        }
+    }
+
+    pub fn questioning_attention_spent(&self, session_key: &str) -> u64 {
+        self.questioning_attention_spent_ms
+            .read()
+            .ok()
+            .and_then(|g| g.get(session_key).copied())
+            .unwrap_or(0)
+    }
+
+    pub fn questioning_attention_bounds(&self, session_key: &str) -> (u64, u64) {
+        let spent = self.questioning_attention_spent(session_key);
+        let max = std::env::var("VOX_QUESTIONING_MAX_ATTENTION_MS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_else(|| QuestioningPolicy::default().max_clarification_attention_ms);
+        (spent, max)
+    }
+
+    fn spawn_clarification_db_inbox_poller_if_db(&self) {
+        let Some(db) = self.db.as_ref() else {
+            return;
+        };
+        super::clarification_inbox::spawn_clarification_db_inbox_poller(
+            db.clone(),
+            self.repository.repository_id.clone(),
+            self.clarification_db_inbox_poll_join.clone(),
+        );
     }
 
     /// Background poll of populi control plane when `populi_control_url` is set and `populi_poll_interval_secs` > 0.
@@ -237,7 +293,11 @@ impl ServerState {
         if !self.orchestrator_config.populi_remote_execute_experimental {
             return;
         }
-        if self.orchestrator_config.populi_remote_result_poll_interval_secs == 0 {
+        if self
+            .orchestrator_config
+            .populi_remote_result_poll_interval_secs
+            == 0
+        {
             return;
         }
         let url = match self
@@ -369,8 +429,14 @@ impl ServerState {
                 h.abort();
             }
         }
+        if let Ok(mut g) = self.clarification_db_inbox_poll_join.lock() {
+            if let Some(h) = g.take() {
+                h.abort();
+            }
+        }
         self.spawn_populi_federation_poller();
         self.spawn_populi_remote_result_poller();
+        self.spawn_clarification_db_inbox_poller_if_db();
         self
     }
 
@@ -413,6 +479,8 @@ impl ServerState {
             populi_remote_snapshot: Arc::new(RwLock::new(RemotePopuliSnapshot::default())),
             populi_poll_join: Arc::new(SyncMutex::new(None)),
             populi_remote_result_poll_join: Arc::new(SyncMutex::new(None)),
+            clarification_db_inbox_poll_join: Arc::new(SyncMutex::new(None)),
+            questioning_attention_spent_ms: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -602,10 +670,7 @@ impl ServerState {
                             "repository_id".to_string(),
                             serde_json::Value::String(repository_id.clone()),
                         );
-                        obj.insert(
-                            "ludus_dedupe_id".to_string(),
-                            serde_json::json!(event.id.0),
-                        );
+                        obj.insert("ludus_dedupe_id".to_string(), serde_json::json!(event.id.0));
                     }
                     let _ =
                         vox_ludus::event_router::route_event_auto_user(&db_for_task, &kind_json)
@@ -616,6 +681,8 @@ impl ServerState {
 
         // Wire DB into skill registry for persistence
         self.skill_registry.set_db(db_arc.clone());
+
+        self.spawn_clarification_db_inbox_poller_if_db();
 
         self
     }

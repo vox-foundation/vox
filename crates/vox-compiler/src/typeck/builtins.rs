@@ -412,10 +412,7 @@ impl BuiltinTypes {
                         Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
                     ))
                 }
-                "count" => Some(Ty::Fn(
-                    vec![],
-                    Box::new(Ty::Result(Box::new(Ty::Int))),
-                )),
+                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int))))),
                 "find" => {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(

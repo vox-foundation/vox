@@ -6,11 +6,9 @@ mod idempotency;
 mod openreview;
 mod zenodo;
 
-pub use openreview::{export_openreview_submit_profile, OpenReviewSubmitProfileExport};
+pub use openreview::{OpenReviewSubmitProfileExport, export_openreview_submit_profile};
 
-pub use error::{
-    ScholarlyError, scholarly_http_status_code, scholarly_retry_not_before_ms,
-};
+pub use error::{ScholarlyError, scholarly_http_status_code, scholarly_retry_not_before_ms};
 pub use idempotency::scholarly_idempotency_key;
 
 use async_trait::async_trait;
@@ -223,9 +221,7 @@ pub async fn fetch_status_with_configured_adapter(
             .await;
     }
     if kind.eq_ignore_ascii_case("echo_ledger") {
-        return EchoLedgerAdapter
-            .fetch_status(external_submission_id)
-            .await;
+        return EchoLedgerAdapter.fetch_status(external_submission_id).await;
     }
     if kind.eq_ignore_ascii_case("zenodo") {
         if flags::scholarly_live_globally_disabled() {
@@ -268,9 +264,7 @@ pub async fn fetch_scholarly_remote_status_for_adapter(
             .await;
     }
     if kind.eq_ignore_ascii_case("echo_ledger") {
-        return EchoLedgerAdapter
-            .fetch_status(external_submission_id)
-            .await;
+        return EchoLedgerAdapter.fetch_status(external_submission_id).await;
     }
     if kind.eq_ignore_ascii_case("zenodo") {
         if flags::scholarly_live_globally_disabled() {

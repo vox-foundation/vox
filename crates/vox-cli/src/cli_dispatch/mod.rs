@@ -2,18 +2,18 @@
 
 mod lanes;
 
+use crate::codex_cmd::CodexCmd;
 use crate::command_catalog;
 use crate::latin_cmd;
-use crate::codex_cmd::CodexCmd;
 use crate::{Cli, GlobalOpts, VoxCliRoot};
 
-use lanes::{cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd};
 #[cfg(feature = "ars")]
 use lanes::run_openclaw_subcommand;
 #[cfg(feature = "coderabbit")]
 use lanes::run_review_subcommand;
 #[cfg(feature = "script-execution")]
 use lanes::run_script_subcommand;
+use lanes::{cli_top_level_into_fabrica_or_self, run_ars_cmd, run_diag_cmd, run_fabrica_cmd};
 
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
     #[cfg(not(any(feature = "mens-base", feature = "gpu")))]

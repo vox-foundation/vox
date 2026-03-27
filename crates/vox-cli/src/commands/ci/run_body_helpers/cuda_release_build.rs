@@ -12,8 +12,7 @@ use crate::commands::ci::cargo_bin;
 
 /// `cargo build -p vox-cli --bin vox --release --features gpu,mens-candle-cuda`, tee to `log_dir/cuda_build_<UTC>.log`.
 pub(crate) fn run_cuda_release_build(root: &Path, log_dir: PathBuf) -> Result<()> {
-    fs::create_dir_all(&log_dir)
-        .with_context(|| format!("mkdir {}", log_dir.display()))?;
+    fs::create_dir_all(&log_dir).with_context(|| format!("mkdir {}", log_dir.display()))?;
     let stamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let log_path = log_dir.join(format!("cuda_build_{stamp}.log"));
 
@@ -73,7 +72,10 @@ pub(crate) fn run_cuda_release_build(root: &Path, log_dir: PathBuf) -> Result<()
     let _ = h_out.join();
     let _ = h_err.join();
     if !st.success() {
-        return Err(anyhow!("cuda release build failed ({st}); see {}", log_path.display()));
+        return Err(anyhow!(
+            "cuda release build failed ({st}); see {}",
+            log_path.display()
+        ));
     }
     println!("CUDA release build OK — log: {}", log_path.display());
     Ok(())

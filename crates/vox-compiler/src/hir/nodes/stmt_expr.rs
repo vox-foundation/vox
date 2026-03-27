@@ -101,6 +101,7 @@ pub enum HirType {
 }
 
 /// Expression in HIR (mirrors AST but with resolved names).
+#[allow(clippy::large_enum_variant)] // `DbTableOp` carries query plans; boxing would churn the whole compiler.
 #[derive(Debug, Clone)]
 pub enum HirExpr {
     /// Integer literal.

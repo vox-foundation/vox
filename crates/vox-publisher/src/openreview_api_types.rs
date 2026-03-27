@@ -140,6 +140,8 @@ impl OpenReviewNotesListResponse {
 
     #[must_use]
     pub fn first_note_json(&self) -> Option<String> {
-        self.notes.first().and_then(|n| serde_json::to_string(n).ok())
+        self.notes
+            .first()
+            .and_then(|n| serde_json::to_string(n).ok())
     }
 }

@@ -4,15 +4,14 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{
-    socrates_system_rider, socrates_tool_meta, spawn_socrates_telemetry,
+    clarification_turn_for_session, mcp_questioning_session_key, socrates_system_rider,
+    socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry,
 };
 
-const REM_MCP_MODEL_RESOLVE: &str =
-    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_LLM_COMPLETION: &str =
-    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
 
 pub(crate) fn ghost_grounding_score(params: &GhostTextParams) -> f64 {
     let mut n = 0u32;
@@ -91,7 +90,8 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
     ) {
         Ok(g) => g.clone(),
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
+                .to_json();
         }
     };
     let temperature = 0.2_f32;
@@ -128,6 +128,10 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
 
     let latency_ms = t0.elapsed().as_millis() as u64;
 
+    let ghost_session_key =
+        mcp_questioning_session_key(state, "vox_ghost_text", params.session_id.as_deref());
+    state.record_questioning_attention_spend(&ghost_session_key, latency_ms);
+
     // Strip any accidental fence wrappers the model may emit.
     if let Some(inner) = completion
         .strip_prefix(&format!("```{language}"))
@@ -161,12 +165,29 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
 
     let thin_context = params.prefix.len() + params.suffix.len() < 40;
     let grounding = ghost_grounding_score(&params);
-    let soc = socrates_tool_meta(&pol, grounding, thin_context);
+    let session_key = ghost_session_key;
+    let turn = clarification_turn_for_session(state, &session_key).await;
+    let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
+    let soc = socrates_tool_meta(
+        &pol,
+        grounding,
+        thin_context,
+        turn,
+        spent_att,
+        max_att,
+    );
     spawn_socrates_telemetry(
         state,
         "vox_ghost_text",
         soc.clone(),
         Some(result.model_used.clone()),
+    );
+    spawn_questioning_trace_from_socrates(
+        state,
+        "vox_ghost_text",
+        soc.clone(),
+        Some(session_key.clone()),
+        None,
     );
     let mut v = serde_json::to_value(&result).unwrap_or(serde_json::Value::Null);
     if let Some(obj) = v.as_object_mut() {

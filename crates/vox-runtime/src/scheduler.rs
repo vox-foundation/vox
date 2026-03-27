@@ -124,7 +124,7 @@ mod tests {
                     }
                 }
             }
-        });
+        })?;
 
         // Call the echo actor and verify reply
         let response = handle

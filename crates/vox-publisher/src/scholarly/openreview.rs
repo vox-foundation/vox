@@ -4,14 +4,14 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use super::error::{classify_scholarly_http, ScholarlyError};
-use super::flags;
 use super::ScholarlyRemoteStatus;
 use super::ScholarlySubmissionReceipt;
+use super::error::{ScholarlyError, classify_scholarly_http};
+use super::flags;
 use crate::openreview_api_types::{
     ManifestMetadataOpenReviewRoot, OpenReviewAuthorName, OpenReviewField, OpenReviewLoginRequest,
-    OpenReviewLoginResponse, OpenReviewNoteContent, OpenReviewNoteEditRequest, OpenReviewNoteEditResponse,
-    OpenReviewNotesListResponse,
+    OpenReviewLoginResponse, OpenReviewNoteContent, OpenReviewNoteEditRequest,
+    OpenReviewNoteEditResponse, OpenReviewNotesListResponse,
 };
 use crate::publication::PublicationManifest;
 
@@ -54,7 +54,9 @@ fn env_trim(key: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn merge_openreview_config(manifest: &PublicationManifest) -> Result<OpenReviewConfig, ScholarlyError> {
+fn merge_openreview_config(
+    manifest: &PublicationManifest,
+) -> Result<OpenReviewConfig, ScholarlyError> {
     let mut invitation = env_trim("VOX_OPENREVIEW_INVITATION")
         .or_else(|| env_trim("OPENREVIEW_INVITATION"))
         .unwrap_or_default();
@@ -67,12 +69,22 @@ fn merge_openreview_config(manifest: &PublicationManifest) -> Result<OpenReviewC
         if let Ok(root) = serde_json::from_str::<ManifestMetadataOpenReviewRoot>(meta) {
             if let Some(or) = root.openreview {
                 if invitation.is_empty() {
-                    if let Some(s) = or.invitation.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+                    if let Some(s) = or
+                        .invitation
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                    {
                         invitation = s.to_string();
                     }
                 }
                 if signature.is_empty() {
-                    if let Some(s) = or.signature.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+                    if let Some(s) = or
+                        .signature
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                    {
                         signature = s.to_string();
                     }
                 }
@@ -164,10 +176,11 @@ async fn login_bearer(
     if !(200..300).contains(&status) {
         return Err(classify_scholarly_http(status, &text));
     }
-    let v: OpenReviewLoginResponse = serde_json::from_str(&text).map_err(|e| ScholarlyError::Fatal {
-        code: "openreview_json".into(),
-        message: format!("login JSON: {e}; body={text}"),
-    })?;
+    let v: OpenReviewLoginResponse =
+        serde_json::from_str(&text).map_err(|e| ScholarlyError::Fatal {
+            code: "openreview_json".into(),
+            message: format!("login JSON: {e}; body={text}"),
+        })?;
     if v.mfa_pending {
         return Err(ScholarlyError::Config {
             message: "OpenReview MFA required; set OPENREVIEW_ACCESS_TOKEN (Bearer JWT from login) instead of password login"
@@ -181,8 +194,13 @@ async fn login_bearer(
     Ok(token)
 }
 
-async fn resolve_bearer_async(http: &reqwest::Client, base: &str) -> Result<String, ScholarlyError> {
-    if let Some(t) = env_trim("OPENREVIEW_ACCESS_TOKEN").or_else(|| env_trim("VOX_OPENREVIEW_ACCESS_TOKEN")) {
+async fn resolve_bearer_async(
+    http: &reqwest::Client,
+    base: &str,
+) -> Result<String, ScholarlyError> {
+    if let Some(t) =
+        env_trim("OPENREVIEW_ACCESS_TOKEN").or_else(|| env_trim("VOX_OPENREVIEW_ACCESS_TOKEN"))
+    {
         return Ok(t);
     }
     let email = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
@@ -231,12 +249,18 @@ impl OpenReviewHttpClient {
         format!("{}/notes/edits", self.base.trim_end_matches('/'))
     }
 
-    async fn get_note_once(&self, note_id: &str) -> Result<OpenReviewNotesListResponse, ScholarlyError> {
+    async fn get_note_once(
+        &self,
+        note_id: &str,
+    ) -> Result<OpenReviewNotesListResponse, ScholarlyError> {
         let url = self.notes_url();
         let resp = self
             .http
             .get(url)
-            .header(reqwest::header::AUTHORIZATION, format!("Bearer {}", self.bearer))
+            .header(
+                reqwest::header::AUTHORIZATION,
+                format!("Bearer {}", self.bearer),
+            )
             .query(&[("id", note_id)])
             .send()
             .await?;
@@ -278,7 +302,10 @@ impl OpenReviewHttpClient {
             .http
             .post(url)
             .header("Content-Type", "application/json")
-            .header(reqwest::header::AUTHORIZATION, format!("Bearer {}", self.bearer))
+            .header(
+                reqwest::header::AUTHORIZATION,
+                format!("Bearer {}", self.bearer),
+            )
             .json(body)
             .send()
             .await?;
@@ -369,10 +396,15 @@ impl super::ScholarlyAdapter for OpenReviewAdapter {
             manifest_content_for_openreview(manifest),
         );
         let v = self.client.post_note_edit(&body).await?;
-        let note_id = v.extract_note_id().ok_or_else(|| ScholarlyError::Fatal {
-            code: "openreview_missing_note_id".into(),
-            message: format!("note edit response missing note id: {}", serde_json::to_string(&v).unwrap_or_default()),
-        })?
+        let note_id = v
+            .extract_note_id()
+            .ok_or_else(|| ScholarlyError::Fatal {
+                code: "openreview_missing_note_id".into(),
+                message: format!(
+                    "note edit response missing note id: {}",
+                    serde_json::to_string(&v).unwrap_or_default()
+                ),
+            })?
             .to_string();
         let digest = manifest.content_sha3_256();
         let meta_json = serde_json::to_string(&v).map_err(|e| ScholarlyError::Fatal {
@@ -400,10 +432,12 @@ impl super::ScholarlyAdapter for OpenReviewAdapter {
             });
         }
         let status = list.first_status();
-        let detail = list.first_note_json().ok_or_else(|| ScholarlyError::Fatal {
-            code: "openreview_note_encode".into(),
-            message: "failed to serialize note detail".into(),
-        })?;
+        let detail = list
+            .first_note_json()
+            .ok_or_else(|| ScholarlyError::Fatal {
+                code: "openreview_note_encode".into(),
+                message: "failed to serialize note detail".into(),
+            })?;
         Ok(ScholarlyRemoteStatus {
             status,
             detail_json: Some(detail),

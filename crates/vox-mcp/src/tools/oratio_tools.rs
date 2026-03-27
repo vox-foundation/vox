@@ -473,26 +473,26 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
     }
 
     let correlation_id = vox_oratio::trace::new_correlation_id();
-    let intent_envelope = if matches!(route.mode, vox_oratio::RouteMode::Tool) && route.action != "none"
-    {
-        let intent_confidence = route
-            .payload
-            .get("intent_confidence")
-            .and_then(|v| v.as_f64())
-            .map(|x| x as f32)
-            .unwrap_or(0.0);
-        let env = vox_oratio::build_intent_envelope(
-            &route.action,
-            &session.text,
-            intent_confidence,
-            session.confidence,
-        );
-        let gaps = vox_oratio::missing_slot_ids(&env);
-        let slot_hint = vox_oratio::clarification_prompt_for_slots(&env).map(str::to_string);
-        Some((env, slot_hint, gaps))
-    } else {
-        None
-    };
+    let intent_envelope =
+        if matches!(route.mode, vox_oratio::RouteMode::Tool) && route.action != "none" {
+            let intent_confidence = route
+                .payload
+                .get("intent_confidence")
+                .and_then(|v| v.as_f64())
+                .map(|x| x as f32)
+                .unwrap_or(0.0);
+            let env = vox_oratio::build_intent_envelope(
+                &route.action,
+                &session.text,
+                intent_confidence,
+                session.confidence,
+            );
+            let gaps = vox_oratio::missing_slot_ids(&env);
+            let slot_hint = vox_oratio::clarification_prompt_for_slots(&env).map(str::to_string);
+            Some((env, slot_hint, gaps))
+        } else {
+            None
+        };
 
     let mut response = json!({
         "correlation_id": correlation_id,

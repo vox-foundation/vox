@@ -9,6 +9,7 @@ use super::cmd_enums::{CiCmd, DocInventoryCmd, EvalMatrixCmd};
 use super::command_compliance;
 use super::command_sync;
 use super::contracts_index;
+use super::coverage_gates;
 use super::eval_matrix;
 use super::line_endings;
 use super::release_build;
@@ -21,10 +22,11 @@ use super::{cargo_bin, repo_root};
 mod run_body_helpers;
 
 use run_body_helpers::{
-    check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts, run_build_timings,
-    run_clavis_parity, run_cuda_features, run_cuda_release_build, run_feature_matrix,
-    run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards, run_secret_env_guard,
-    run_sql_surface_guard, run_ssot_drift, run_toestub_scoped, run_toestub_self_apply, MensGateOpts,
+    MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
+    run_build_timings, run_clavis_parity, run_cuda_features, run_cuda_release_build,
+    run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards,
+    run_secret_env_guard, run_sql_surface_guard, run_ssot_drift, run_toestub_scoped,
+    run_toestub_self_apply,
 };
 
 /// Run `vox ci` subcommand.
@@ -70,6 +72,25 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 .status()?;
             if !st.success() {
                 return Err(anyhow!("mdbook build docs failed"));
+            }
+            // 3. sitemap.xml (mdbook-sitemap-generator is a post-build CLI, not a preprocessor)
+            let domain = std::env::var("MDBOOK_SITEMAP_DOMAIN").unwrap_or_else(|_| {
+                "https://vox-foundation.github.io/vox/".to_string()
+            });
+            let domain_arg = domain.trim_end_matches('/').to_string();
+            let st = Command::new("mdbook-sitemap-generator")
+                .current_dir(root.join("docs"))
+                .args([
+                    "--domain",
+                    domain_arg.as_str(),
+                    "--output",
+                    "book/html/sitemap.xml",
+                ])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!(
+                    "mdbook-sitemap-generator failed (install: cargo install mdbook-sitemap-generator --version 0.2.0 --locked)"
+                ));
             }
             println!("Documentation built successfully.");
             Ok(())
@@ -135,13 +156,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             } else {
                 run_build_timings(&root, json, crates)
             }
-        },
+        }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
         CiCmd::ClavisParity => run_clavis_parity(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
+        CiCmd::CoverageGates {
+            summary_json,
+            mode,
+            config,
+        } => coverage_gates::run(summary_json, mode, config),
         CiCmd::CommandSync { write } => command_sync::run(&root, write),
         CiCmd::CheckLinks => check_links::run(&root),
         CiCmd::ReleaseBuild {

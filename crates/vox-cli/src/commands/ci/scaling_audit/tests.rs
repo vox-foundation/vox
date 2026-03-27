@@ -14,8 +14,5 @@ fn budget_allows_at_cap() {
 #[test]
 fn budget_rejects_over_cap() {
     let e = enforce_toestub_rust_parse_budget(&json!({ "rust_parse_failures": 5 }), 3).unwrap_err();
-    assert!(
-        e.to_string().contains("rust_parse_failures=5"),
-        "{e}"
-    );
+    assert!(e.to_string().contains("rust_parse_failures=5"), "{e}");
 }

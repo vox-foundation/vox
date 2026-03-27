@@ -18,7 +18,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
 
       - name: Cache Cargo Registry & Target
         uses: actions/cache@v4
@@ -116,8 +116,30 @@ jobs:
         with:
           tool: cargo-nextest
 
-      - name: Run Tests (nextest, bounded timeouts)
-        run: cargo nextest run --workspace --profile ci
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Run Tests (llvm-cov + nextest, bounded timeouts)
+        run: cargo llvm-cov nextest --workspace --profile ci
+
+      - name: Line coverage report (summary, LCOV, gates enforce)
+        run: |
+          set -euo pipefail
+          cargo llvm-cov report --workspace --text --summary-only
+          cargo llvm-cov report --workspace --json --summary-only --output-path target/llvm-cov-summary.json
+          cargo llvm-cov report --workspace --lcov --output-path target/llvm-cov-lcov.info
+          cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
+
+      - name: Upload LLVM coverage artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-cov
+          path: |
+            target/llvm-cov-summary.json
+            target/llvm-cov-lcov.info
 
       - name: Doc tests (not run by nextest)
         run: cargo test --workspace --doc

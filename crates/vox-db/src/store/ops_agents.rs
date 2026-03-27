@@ -252,9 +252,7 @@ impl crate::VoxDb {
             )
             .await?;
         match rows.next().await? {
-            Some(row) => Ok(Some(
-                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-            )),
+            Some(row) => Ok(Some(row.get(0).map_err(|e| StoreError::Db(e.to_string()))?)),
             None => Ok(None),
         }
     }

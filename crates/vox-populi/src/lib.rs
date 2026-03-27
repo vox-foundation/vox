@@ -206,8 +206,8 @@ pub(crate) fn now_ms() -> u64 {
 mod node_registry;
 
 pub use node_registry::{
-    filter_registry_by_max_stale_ms, LocalRegistry, NodeRecord, PopuliRegistryFile,
-    PopuliRegistryError,
+    LocalRegistry, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
+    filter_registry_by_max_stale_ms,
 };
 
 /// Resolve `Vox.toml` path next to the current working directory (nearest manifest root).

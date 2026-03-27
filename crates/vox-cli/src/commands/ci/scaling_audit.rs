@@ -196,10 +196,7 @@ fn toestub_rust_parse_failure_limit_from_env() -> u64 {
 }
 
 fn enforce_toestub_rust_parse_budget(envelope: &JsonValue, max_failures: u64) -> Result<()> {
-    let Some(n) = envelope
-        .get("rust_parse_failures")
-        .and_then(|x| x.as_u64())
-    else {
+    let Some(n) = envelope.get("rust_parse_failures").and_then(|x| x.as_u64()) else {
         return Ok(());
     };
     if n > max_failures {
@@ -346,8 +343,8 @@ fn run_toestub_json_snapshot(repo_root: &Path) -> Result<()> {
     let (envelope, findings) =
         parse_toestub_stdout(&output.stdout).context("parse toestub JSON (envelope)")?;
     enforce_toestub_rust_parse_budget(&envelope, toestub_rust_parse_failure_limit_from_env())?;
-    let normalized = findings_array_to_pretty(&findings)
-        .context("normalize toestub JSON (findings array)")?;
+    let normalized =
+        findings_array_to_pretty(&findings).context("normalize toestub JSON (findings array)")?;
     fs::write(&out_path, normalized.as_bytes())
         .with_context(|| format!("write {}", out_path.display()))?;
     println!("Wrote {}", out_path.display());

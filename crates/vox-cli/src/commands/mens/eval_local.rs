@@ -66,7 +66,7 @@ pub fn run_eval_local(
     let _serve_cfg = crate::commands::ai::serve::ServeConfig {
         model_path: model.clone(),
         port: 0,
-        host: "127.0.0.1".to_string(),
+        host: std::net::Ipv4Addr::LOCALHOST.to_string(),
         max_tokens,
         temperature,
         system_prompt: None,

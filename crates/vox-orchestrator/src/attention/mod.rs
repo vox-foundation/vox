@@ -12,8 +12,10 @@ mod routing;
 
 pub use budget::{
     ActionDescriptor, ApprovalOutcome, ApprovalTier, AttentionBudget, AttentionEvent,
-    AttentionEventType, DEFAULT_ATTENTION_BUDGET_MS, DEFAULT_INTERRUPT_COST_MS, FocusDepth,
-    NasaTlxWeights, TierGateConfig, TrustTier, compute_attention_cost_ms, decision_entropy_bits,
+    AttentionEventType, ClarificationLoopStop, DEFAULT_ATTENTION_BUDGET_MS,
+    DEFAULT_INTERRUPT_COST_MS, FocusDepth, NasaTlxWeights, TierGateConfig, TrustTier,
+    clarification_stop_rule, compute_attention_cost_ms, decision_entropy_bits,
+    info_gain_per_attention_cost_bits_ms,
 };
 pub use routing::{AgentTrustScore, classify_tier};
 
@@ -159,6 +161,19 @@ mod tests {
         let mut b = AttentionBudget::default();
         b.spent_ms = b.max_attention_ms;
         assert!(b.exhausted());
+    }
+
+    #[test]
+    fn info_gain_per_cost_prefers_lower_cost() {
+        let a = info_gain_per_attention_cost_bits_ms(0.20, 100);
+        let b = info_gain_per_attention_cost_bits_ms(0.20, 400);
+        assert!(a > b, "expected higher utility for lower cost");
+    }
+
+    #[test]
+    fn clarification_stop_rule_honors_marginal_gain_floor() {
+        let stop = clarification_stop_rule(1, 3, 0.01, 0.05, 100, 1_000);
+        assert_eq!(stop, ClarificationLoopStop::MarginalGainTooLow);
     }
 
     #[test]

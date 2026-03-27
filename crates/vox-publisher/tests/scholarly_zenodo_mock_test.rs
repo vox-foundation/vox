@@ -1,8 +1,9 @@
 //! Zenodo scholarly adapter against a local mock HTTP server (`VOX_ZENODO_API_BASE`).
 
+mod common;
+
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use axum::{
     Json, Router,
@@ -15,6 +16,8 @@ use axum::{
 use serde_json::json;
 use tokio::net::TcpListener;
 use vox_publisher::publication::PublicationManifest;
+
+use common::wait_for_local_server;
 use vox_publisher::scholarly::{self, fetch_scholarly_remote_status_for_adapter};
 
 static ZENODO_ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -101,7 +104,7 @@ async fn zenodo_adapter_submit_and_status_use_api_base_override() {
     let _guard = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    wait_for_local_server(addr, "zenodo mock").await;
 
     let mut env = EnvRestore::new();
     env.set("VOX_ZENODO_API_BASE", &base);
@@ -191,7 +194,7 @@ async fn zenodo_create_deposition_retries_on_5xx_then_succeeds() {
     let _guard = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    wait_for_local_server(addr, "zenodo mock retries").await;
 
     let mut env = EnvRestore::new();
     env.set("VOX_ZENODO_API_BASE", &base);
@@ -273,7 +276,7 @@ async fn zenodo_attach_body_and_publish_mock() {
     let _guard = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    wait_for_local_server(addr, "zenodo publish mock").await;
 
     let mut env = EnvRestore::new();
     env.set("VOX_ZENODO_API_BASE", &base);

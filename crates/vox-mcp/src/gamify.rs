@@ -11,8 +11,7 @@ use serde::Deserialize;
 use vox_ludus::companion::{Companion, Interaction};
 use vox_ludus::db::{list_companions, upsert_companion};
 
-const REM_LUDUS_DB: &str =
-    "Configure VoxDb/Turso (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for Ludus/Codex-backed tools.";
+const REM_LUDUS_DB: &str = "Configure VoxDb/Turso (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for Ludus/Codex-backed tools.";
 const REM_AGENT_QUEUE: &str =
     "Use orchestrator spawn/status; `agent_id` must match an existing agent with a queue.";
 const REM_QUEUE_POISON: &str =
@@ -29,8 +28,7 @@ const REM_BATTLE_COMPANION: &str =
     "Use a `companion_name` that exists for the canonical user; try `check_mood` for valid agents.";
 const REM_BATTLE_ENERGY: &str = "Wait for battle energy to recover or use a different companion.";
 const REM_BATTLE_ACTIVE: &str = "Start a battle with `ludus_battle_start` before submitting code.";
-const REM_HANDOFF: &str =
-    "Confirm `from_agent_id` / `to_agent_id` exist and the handoff payload meets orchestrator rules.";
+const REM_HANDOFF: &str = "Confirm `from_agent_id` / `to_agent_id` exist and the handoff payload meets orchestrator rules.";
 const REM_LUDUS_DB_QUERY: &str =
     "Check Turso connectivity, Ludus schema migrations, and canonical user/bootstrap state.";
 
@@ -98,8 +96,11 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
                 Ok(g) => g,
                 Err(e) => {
                     tracing::warn!(error = %e, "gamify status: queue poisoned");
-                    return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QUEUE_POISON)
-                        .to_json();
+                    return ToolResult::<String>::err_with_remediation(
+                        e.to_string(),
+                        REM_QUEUE_POISON,
+                    )
+                    .to_json();
                 }
             };
             (q.len(), q.completed_count(), q.is_empty())
@@ -168,8 +169,11 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
                 Ok(g) => g,
                 Err(e) => {
                     tracing::warn!(error = %e, "gamify assess: queue poisoned");
-                    return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QUEUE_POISON)
-                        .to_json();
+                    return ToolResult::<String>::err_with_remediation(
+                        e.to_string(),
+                        REM_QUEUE_POISON,
+                    )
+                    .to_json();
                 }
             };
             (q.len(), q.completed_count())
@@ -252,8 +256,10 @@ pub async fn ludus_notifications_list(
     let lim = params.limit.clamp(1, 100);
     match vox_ludus::db::list_unread_notifications(db, &uid, lim).await {
         Ok(n) => ToolResult::ok(serde_json::json!({ "notifications": n })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }
 
@@ -296,8 +302,10 @@ pub async fn ludus_notification_ack(
             "notification_id": id,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }
 
@@ -313,8 +321,10 @@ pub async fn ludus_notifications_ack_all(state: &ServerState) -> String {
     let uid = vox_ludus::db::canonical_user_id();
     match vox_ludus::db::mark_all_notifications_read(db, &uid).await {
         Ok(()) => ToolResult::ok(serde_json::json!({ "ack_all": true })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }
 
@@ -379,23 +389,17 @@ pub async fn ludus_progress_snapshot(
             .to_json();
         }
     };
-    let policy_recent = match vox_ludus::db::list_policy_snapshots_since_days(
-        db,
-        &uid,
-        days,
-        policy_lim,
-    )
-    .await
-    {
-        Ok(rows) => serde_json::to_value(rows).unwrap_or(serde_json::Value::Array(vec![])),
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                format!("policy: {e}"),
-                REM_LUDUS_DB_QUERY,
-            )
-            .to_json();
-        }
-    };
+    let policy_recent =
+        match vox_ludus::db::list_policy_snapshots_since_days(db, &uid, days, policy_lim).await {
+            Ok(rows) => serde_json::to_value(rows).unwrap_or(serde_json::Value::Array(vec![])),
+            Err(e) => {
+                return ToolResult::<serde_json::Value>::err_with_remediation(
+                    format!("policy: {e}"),
+                    REM_LUDUS_DB_QUERY,
+                )
+                .to_json();
+            }
+        };
 
     ToolResult::ok(serde_json::json!({
         "ludus_enabled": vox_ludus::config_gate::is_enabled(),
@@ -440,8 +444,10 @@ pub async fn ludus_quest_list(state: &ServerState, params: LudusQuestListParams)
             qs.truncate(lim);
             ToolResult::ok(serde_json::json!({ "quests": qs })).to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }
 
@@ -507,19 +513,28 @@ pub async fn ludus_shop_buy(state: &ServerState, params: LudusShopBuyParams) -> 
     let mut profile = match vox_ludus::db::get_profile(db, &uid).await {
         Ok(Some(p)) => p,
         Ok(None) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation("profile not found", REM_PROFILE)
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                "profile not found",
+                REM_PROFILE,
+            )
+            .to_json();
         }
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_LUDUS_DB_QUERY,
+            )
+            .to_json();
         }
     };
     let items = vox_ludus::shop::default_shop_items();
     let idx = params.item_index.saturating_sub(1) as usize;
     let Some(item) = items.get(idx) else {
-        return ToolResult::<serde_json::Value>::err_with_remediation("invalid item_index", REM_SHOP_ITEM)
-            .to_json();
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            "invalid item_index",
+            REM_SHOP_ITEM,
+        )
+        .to_json();
     };
     let mode_mult = vox_ludus::config_gate::reward_multiplier();
     let mut abilities = Vec::new();
@@ -554,8 +569,11 @@ pub async fn ludus_collegium_join(state: &ServerState, params: LudusCollegiumJoi
         .to_json();
     }
     if let Err(e) = vox_ludus::db::join_collegium(db, cid, &uid, "legionnaire").await {
-        return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json();
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            e.to_string(),
+            REM_LUDUS_DB_QUERY,
+        )
+        .to_json();
     }
     let ev = serde_json::json!({
         "type": "collegium_joined",
@@ -567,8 +585,10 @@ pub async fn ludus_collegium_join(state: &ServerState, params: LudusCollegiumJoi
             "route": serde_json::to_value(res).unwrap_or_default()
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }
 
@@ -612,8 +632,10 @@ pub async fn ludus_battle_start(state: &ServerState, params: LudusBattleStartPar
             REM_BATTLE_COMPANION,
         )
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }
 
@@ -634,13 +656,22 @@ pub async fn ludus_battle_submit(state: &ServerState, params: LudusBattleSubmitP
         .to_json();
     };
     let uid = vox_ludus::db::canonical_user_id();
-    let r = vox_ludus::run_battle_submit(db, &uid, &params.companion_name, params.code, params.success).await;
+    let r = vox_ludus::run_battle_submit(
+        db,
+        &uid,
+        &params.companion_name,
+        params.code,
+        params.success,
+    )
+    .await;
     match r {
-        Ok(vox_ludus::BattleSubmitResult::Tired) => ToolResult::<serde_json::Value>::err_with_remediation(
-            "companion out of battle energy",
-            REM_BATTLE_ENERGY,
-        )
-        .to_json(),
+        Ok(vox_ludus::BattleSubmitResult::Tired) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(
+                "companion out of battle energy",
+                REM_BATTLE_ENERGY,
+            )
+            .to_json()
+        }
         Ok(vox_ludus::BattleSubmitResult::NotFound) => {
             ToolResult::<serde_json::Value>::err_with_remediation(
                 "no active battle for companion",
@@ -652,7 +683,9 @@ pub async fn ludus_battle_submit(state: &ServerState, params: LudusBattleSubmitP
             ToolResult::ok(serde_json::json!({ "success": o.success, "battle_id": o.battle.id }))
                 .to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
+                .to_json()
+        }
     }
 }

@@ -233,7 +233,12 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     }
 
     for mf in &module.mutation_fns {
-        out.push_str(&emit_server_fn_handler(mf, has_tables, "handle_m_", has_tables));
+        out.push_str(&emit_server_fn_handler(
+            mf,
+            has_tables,
+            "handle_m_",
+            has_tables,
+        ));
     }
 
     out
@@ -312,9 +317,7 @@ fn emit_server_fn_handler(
         }
         out.push_str("    }).await {\n");
         out.push_str("        Ok(resp) => resp,\n");
-        out.push_str(
-            "        Err(e) => Json(serde_json::json!({\"error\": e.to_string()})),\n",
-        );
+        out.push_str("        Err(e) => Json(serde_json::json!({\"error\": e.to_string()})),\n");
         out.push_str("    }\n");
     } else {
         let mut has_return = false;

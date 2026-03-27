@@ -1,4 +1,6 @@
 //! Assert TanStack Start scaffold file layout (no Node).
+//! Blueprint OP-0169: Start-mode scaffold stays compatible with Express `server.ts` emission flags
+//! (`VOX_EMIT_EXPRESS_SERVER`); route tree is client-only here.
 #![allow(missing_docs)]
 
 use std::fs;

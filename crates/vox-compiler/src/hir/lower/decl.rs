@@ -96,6 +96,7 @@ impl LowerCtx {
             HttpMethod::Put => HirHttpMethod::Put,
             HttpMethod::Delete => HirHttpMethod::Delete,
         };
+        let route_contract = format!("{} {}", method.as_str(), r.path);
         self.def_map.push_scope();
         let body = r.body.iter().map(|s| self.lower_stmt(s)).collect();
         self.def_map.pop_scope();
@@ -103,6 +104,7 @@ impl LowerCtx {
         HirRoute {
             method,
             path: r.path.clone(),
+            route_contract,
             return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
             body,
             span: r.span,

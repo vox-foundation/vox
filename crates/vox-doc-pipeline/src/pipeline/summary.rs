@@ -151,6 +151,38 @@ fn parse_frontmatter(
     Ok((title, category, sort_order, description, last_updated))
 }
 
+/// Fail fast when mdBook would error: each `](path)` may appear at most once in `SUMMARY.md`.
+pub(crate) fn assert_summary_link_targets_unique(summary: &str) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    let mut seen: HashMap<&str, usize> = HashMap::new();
+    for (idx, raw_line) in summary.lines().enumerate() {
+        let line_no = idx + 1;
+        let s = raw_line.trim_start();
+        let Some(rest) = s.strip_prefix("- [") else {
+            continue;
+        };
+        let Some(title_end) = rest.find("](") else {
+            continue;
+        };
+        let after = &rest[title_end + 2..];
+        let Some(path_end) = after.find(')') else {
+            continue;
+        };
+        let target = after[..path_end].trim();
+        if target.is_empty() {
+            continue;
+        }
+        if let Some(&first_line) = seen.get(target) {
+            anyhow::bail!(
+                "SUMMARY.md: duplicate mdBook chapter path {target:?} (line {first_line}, again line {line_no})"
+            );
+        }
+        seen.insert(target, line_no);
+    }
+    Ok(())
+}
+
 fn title_case(s: &str) -> String {
     s.split_whitespace()
         .map(|word| {
@@ -165,4 +197,34 @@ fn title_case(s: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod summary_path_tests {
+    use super::assert_summary_link_targets_unique;
+
+    #[test]
+    fn duplicate_targets_error() {
+        let s = r"# Summary
+- [A](foo.md)
+- [B](foo.md)
+";
+        assert!(assert_summary_link_targets_unique(s).is_err());
+    }
+
+    #[test]
+    fn unique_targets_ok() {
+        let s = r"# Summary
+- [A](a.md)
+- [B](b.md)
+";
+        assert_summary_link_targets_unique(s).unwrap();
+    }
+
+    #[test]
+    fn inline_code_line_not_confused_with_fence() {
+        let s = "`x` ok";
+        // Smoke: parser does not treat as summary links
+        assert_summary_link_targets_unique(s).unwrap();
+    }
 }

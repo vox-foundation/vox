@@ -139,18 +139,12 @@ pub fn failed_channels_from_latest_digest_attempt(
     attempts: &[AttemptOutcome<'_>],
     digest: &str,
 ) -> anyhow::Result<Option<Vec<String>>> {
-    let Some(latest) = attempts
-        .iter()
-        .find(|a| a.content_sha3_256 == digest)
-    else {
+    let Some(latest) = attempts.iter().find(|a| a.content_sha3_256 == digest) else {
         return Ok(None);
     };
-    let parsed: SyndicationResult =
-        serde_json::from_str(latest.outcome_json).map_err(|e| {
-            anyhow::anyhow!(
-                "malformed syndication outcome_json for digest {digest}: {e}"
-            )
-        })?;
+    let parsed: SyndicationResult = serde_json::from_str(latest.outcome_json).map_err(|e| {
+        anyhow::anyhow!("malformed syndication outcome_json for digest {digest}: {e}")
+    })?;
     Ok(Some(failed_channels(&parsed)))
 }
 
@@ -180,7 +174,8 @@ mod tests {
                 "distribution_policy": { "dry_run": true }
             }
         }"#;
-        let item = unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
+        let item =
+            unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
         assert!(item.syndication.dry_run);
     }
 
@@ -199,7 +194,8 @@ mod tests {
         ];
         let err = failed_channels_from_latest_digest_attempt(&attempts, "d1").unwrap_err();
         assert!(
-            err.to_string().contains("malformed syndication outcome_json"),
+            err.to_string()
+                .contains("malformed syndication outcome_json"),
             "{err}"
         );
     }

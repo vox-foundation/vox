@@ -133,7 +133,9 @@ async fn distribution_retry_and_rate_limit_profiles_surface_in_decision_reasons(
         .await
         .expect("publish");
     assert_eq!(
-        out.decision_reasons.get("retry_profile").map(String::as_str),
+        out.decision_reasons
+            .get("retry_profile")
+            .map(String::as_str),
         Some("expo-backoff")
     );
     assert_eq!(

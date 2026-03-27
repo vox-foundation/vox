@@ -82,7 +82,8 @@ impl EmptyBodyDetector {
             if self.rust_empty_impl.is_match(trimmed)
                 && (trimmed.ends_with("{}") || trimmed.ends_with("{ }"))
             {
-                findings.push(self.make_finding(file, idx + 1, "Implementation block is empty"));
+                // Single-line `impl Trait for Type {}` is valid when the trait supplies defaults.
+                continue;
             } else if self.rust_empty_impl.is_match(trimmed)
                 && trimmed.ends_with('{')
                 && let Some(body_range) = self.find_brace_body(file, idx)
@@ -236,15 +237,12 @@ mod tests {
     }
 
     #[test]
-    fn detects_rust_empty_impl() {
+    fn allows_single_line_empty_impl_when_trait_supplies_defaults() {
         let d = EmptyBodyDetector::new();
         let f = source("rs", "impl Default for MyStruct {}");
-        let findings = d.detect(&f, None);
-        assert_eq!(findings.len(), 1);
         assert!(
-            findings[0]
-                .message
-                .contains("Implementation block is empty")
+            d.detect(&f, None).is_empty(),
+            "`impl Trait for Type {{}}` is valid when items are defaulted"
         );
     }
 

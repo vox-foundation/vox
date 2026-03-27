@@ -8,7 +8,8 @@ use vox_publisher::scientific_metadata::ScientificPublicationMetadata;
 use vox_publisher::scholarly_external_jobs::publication_scholarly_submit_with_ledger;
 
 use super::common::{
-    no_voxdb_tool_string, REM_PUBLICATION_ID, REM_SCIENTIA_APPROVER, REM_SCIENTIA_DB, REM_SCIENTIA_METADATA,
+    REM_PUBLICATION_ID, REM_SCIENTIA_APPROVER, REM_SCIENTIA_DB, REM_SCIENTIA_METADATA,
+    no_voxdb_tool_string,
 };
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -81,8 +82,11 @@ pub async fn vox_scientia_publication_prepare(
     ) {
         Ok(s) => s,
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(format!("metadata_json: {e}"), REM_SCIENTIA_METADATA)
-                .to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("metadata_json: {e}"),
+                REM_SCIENTIA_METADATA,
+            )
+            .to_json();
         }
     };
     let manifest = PublicationManifest {
@@ -128,7 +132,11 @@ pub async fn vox_scientia_publication_prepare(
         })
         .await
     {
-        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("DB error: {e}"),
+            REM_SCIENTIA_DB,
+        )
+        .to_json();
     }
     ToolResult::ok(serde_json::json!({
         "publication_id": manifest.publication_id,
@@ -154,11 +162,20 @@ pub async fn vox_scientia_publication_approve(
     };
     let manifest = match db.get_publication_manifest(&params.publication_id).await {
         Ok(m) => m,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let Some(manifest) = manifest else {
-        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication not found",
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     };
     let approver = params.approver.trim();
     if approver.is_empty() {
@@ -176,14 +193,24 @@ pub async fn vox_scientia_publication_approve(
         )
         .await
     {
-        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("DB error: {e}"),
+            REM_SCIENTIA_DB,
+        )
+        .to_json();
     }
     let count = match db
         .count_publication_approvers_for_digest(&params.publication_id, &manifest.content_sha3_256)
         .await
     {
         Ok(c) => c,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     if count >= 2 {
         let _ = db
@@ -214,7 +241,11 @@ pub async fn vox_scientia_publication_submit_local(
     let Some(db) = &state.db else {
         return no_voxdb_tool_string();
     };
-    let adapter = params.adapter.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let adapter = params
+        .adapter
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     match publication_scholarly_submit_with_ledger(
         db,
         params.publication_id.trim(),
@@ -259,40 +290,79 @@ pub async fn vox_scientia_publication_status(
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let Some(row) = row else {
-        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication not found",
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     };
     let approvals = match db
         .count_publication_approvers_for_digest(&params.publication_id, &row.content_sha3_256)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let submissions = match db.list_scholarly_submissions(&params.publication_id).await {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let media_assets = match db
         .list_publication_media_assets(&params.publication_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let publication_attempts = match db.list_publication_attempts(&params.publication_id).await {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let publication_status_events = match db
         .list_publication_status_events(&params.publication_id)
         .await
     {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     ToolResult::ok(ScientiaPublicationStatusBody {
         publication_id: row.publication_id,

@@ -1,7 +1,10 @@
 //! OpenReview scholarly adapter against a local mock HTTP server (`VOX_OPENREVIEW_API_BASE` / `OPENREVIEW_API_BASE`).
 
+mod common;
+
 use std::sync::Mutex;
-use std::time::Duration;
+
+use common::wait_for_local_server;
 
 use axum::{
     Json, Router,
@@ -94,7 +97,7 @@ async fn openreview_adapter_submit_and_status_use_api_base_override() {
     let _guard = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    wait_for_local_server(addr, "openreview mock").await;
 
     let mut env = EnvRestore::new();
     env.set("VOX_OPENREVIEW_API_BASE", &base);

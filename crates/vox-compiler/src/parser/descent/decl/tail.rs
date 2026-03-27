@@ -199,7 +199,11 @@ impl Parser {
             self.parse_expr()
         }
     }
-    /// Parse `routes { "path" to ComponentName }` declaration.
+    /// Parse `routes { "path" to ComponentName ... }` declaration.
+    ///
+    /// Grammar (descent): repeated entries, each `StringLit`, `to`, then component identifier; `K-metric` appendix branch `G04`.
+    /// Braces are authoritative: `{` must follow `routes` with only newlines between (OP-0025).
+    /// Tooling: [`RoutesDecl::parse_summary`](crate::ast::decl::RoutesDecl::parse_summary); surface inventory [`crate::parser::WEB_SURFACE_SYNTAX_INVENTORY`] (OP-S003).
     pub(crate) fn parse_routes(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat 'routes'
@@ -207,12 +211,23 @@ impl Parser {
         self.skip_newlines();
         let mut entries = Vec::new();
         loop {
+            self.maybe_parser_trace("routes.entry");
             self.skip_newlines();
             match self.peek().clone() {
                 Token::StringLit(path) => {
                     let entry_start = self.span();
                     self.advance();
-                    self.expect(&Token::To)?;
+                    if self.peek() != &Token::To {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "In `routes { ... }`, each entry must place the keyword `to` between the path string and the component name (for example: `\"/\" to Home`)",
+                            vec!["to".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.advance();
                     let component_name = self.parse_ident_name()?;
                     entries.push(RouteEntry {
                         path,

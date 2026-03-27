@@ -3,8 +3,8 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
-use tokio::time::{sleep, Duration};
-use vox_ludus::companion::{render_multi_agent_status, Companion, Interaction};
+use tokio::time::{Duration, sleep};
+use vox_ludus::companion::{Companion, Interaction, render_multi_agent_status};
 use vox_ludus::db::canonical_user_id;
 use vox_orchestrator::types::AgentMessage;
 use vox_orchestrator::{Orchestrator, OrchestratorConfig};

@@ -1,7 +1,31 @@
+//! AST-backed JSX → TypeScript emission for classic `@component fn` and similar paths.
+//!
+//! **Legacy / compat (OP-0145, ADR 012):** structural view parity is [`crate::web_ir`]. This module
+//! remains for AST-shaped trees; attribute names use [`crate::codegen_ts::hir_emit::compat`] so HIR,
+//! Web IR, and AST paths share one React mapping matrix ([`super::hir_emit::map_jsx_attr_name`]).
+//!
+//! Island mount fragments are formatted via [`super::island_emit::format_island_mount_ast`] (OP-0148)
+//! so HIR and AST paths share one implementation.
+//!
+//! **Disposition (OP-0158):** this file remains the AST codegen surface for `@component fn` and
+//! shared stmt/expr helpers; do not grow new JSX semantics here—extend Web IR instead.
+//!
+//! **Compatibility tags (OP-S031):** AST path must stay aligned with [`super::hir_emit`] (OP-S029) via
+//! [`map_jsx_attr_name`]; new attrs or event spellings belong in [`crate::codegen_ts::hir_emit::compat`]
+//! first, then Web IR lowering / validate.
+//!
+//! **Wrapper inventory B/C (OP-S077 / S167):** [`emit_jsx_element`] / [`emit_jsx_self_closing`] are the only
+//! supported AST JSX emit entry points; extend [`crate::web_ir`] for new view semantics.
+
 use crate::ast::expr::{BinOp, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, UnOp};
 use crate::ast::stmt::Stmt;
-use crate::codegen_ts::island_emit::{empty_island_set, escape_html_attr, island_data_prop_attr};
+use crate::codegen_ts::hir_emit::wrap_jsx_hir_child_expr;
+use crate::codegen_ts::island_emit::{
+    empty_island_set, format_island_mount_ast, island_data_prop_attr, island_mount_opening_part,
+};
 use std::collections::HashSet;
+
+pub use crate::codegen_ts::hir_emit::compat::map_jsx_attr_name;
 
 fn emit_ast_island_mount(
     tag: &str,
@@ -9,8 +33,7 @@ fn emit_ast_island_mount(
     indent: usize,
     child_count: usize,
 ) -> String {
-    let pad = "  ".repeat(indent);
-    let mut parts = vec![format!("data-vox-island=\"{}\"", escape_html_attr(tag))];
+    let mut parts = vec![island_mount_opening_part(tag)];
     for attr in attributes {
         if attr.name == "bind" {
             continue;
@@ -19,36 +42,13 @@ fn emit_ast_island_mount(
         let val = emit_jsx_attr_value(&attr.value);
         parts.push(format!("{dname}={{{val}}}"));
     }
-    let div_line = format!("{pad}<div {} />\n", parts.join(" "));
-    if child_count == 0 {
-        div_line
-    } else {
-        format!(
-            "{pad}<>{{/* vox: @island `{tag}` ignores {child_count} JSX child(ren); use `<{tag} />` */}}<div {} /></>\n",
-            parts.join(" ")
-        )
-    }
-}
-
-/// Map Vox JSX attribute names to React attribute names.
-pub fn map_jsx_attr_name(name: &str) -> &str {
-    match name {
-        "class" => "className",
-        "on_click" => "onClick",
-        "on_change" => "onChange",
-        "on_submit" => "onSubmit",
-        "on_input" => "onInput",
-        "on_key_down" => "onKeyDown",
-        "on_key_up" => "onKeyUp",
-        "on_mouse_enter" => "onMouseEnter",
-        "on_mouse_leave" => "onMouseLeave",
-        "for" => "htmlFor",
-        "tab_index" => "tabIndex",
-        other => other,
-    }
+    crate::codegen_ts::island_emit::sort_island_mount_data_prop_parts(&mut parts);
+    format_island_mount_ast(tag, &parts, indent, child_count)
 }
 
 /// Emit a JSX element with children to TypeScript.
+///
+/// **Phase:** compat-legacy (OP-0150); prefer Web IR preview for structural parity work.
 pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<String>) -> String {
     if island_names.contains(&el.tag) {
         return emit_ast_island_mount(&el.tag, &el.attributes, indent, el.children.len());
@@ -83,6 +83,8 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<S
 }
 
 /// Emit a self-closing JSX element.
+///
+/// **Phase:** compat-legacy (OP-0150).
 pub fn emit_jsx_self_closing(
     el: &JsxSelfClosingElement,
     indent: usize,
@@ -180,9 +182,7 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
             let body_str = emit_jsx_child(body, indent + 1, island_names);
             format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
         }
-        Expr::StringLit { value, .. } => format!("{pad}{value}\n"),
-        Expr::Ident { name, .. } => format!("{pad}{name}\n"),
-        _ => format!("{pad}{{{}}}\n", emit_expr(unwrapped)),
+        _ => format!("{pad}{}\n", wrap_jsx_hir_child_expr(emit_expr(unwrapped))),
     }
 }
 
@@ -409,6 +409,8 @@ pub fn emit_expr(expr: &Expr) -> String {
 }
 
 /// Emit a Vox statement as TypeScript.
+///
+/// **Phase:** compat-legacy (OP-0150).
 pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     match stmt {
@@ -437,11 +439,6 @@ pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
             format!("{pad}{};\n", emit_expr(expr))
         }
     }
-}
-
-/// Emit a pattern as TypeScript destructuring.
-pub fn emit_pattern_public(pattern: &crate::ast::pattern::Pattern) -> String {
-    emit_pattern(pattern)
 }
 
 /// Emit a pattern as TypeScript destructuring.

@@ -319,8 +319,9 @@ pub fn worthiness_score_for_publication_manifest(
         manifest,
         crate::publication_preflight::PreflightProfile::Default,
     );
-    let inputs =
-        crate::publication_preflight::worthiness_inputs_from_manifest_and_preflight(manifest, &preflight);
+    let inputs = crate::publication_preflight::worthiness_inputs_from_manifest_and_preflight(
+        manifest, &preflight,
+    );
     Ok(evaluate_worthiness(&contract, &inputs).worthiness_score)
 }
 

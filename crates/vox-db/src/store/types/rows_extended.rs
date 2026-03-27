@@ -101,6 +101,76 @@ pub struct QuestionRow {
     pub created_at_ms: i64,
 }
 
+/// One row from `question_sessions`.
+#[derive(Debug, Clone)]
+pub struct QuestionSessionRow {
+    pub id: i64,
+    pub session_id: String,
+    pub repository_id: String,
+    pub task_id: Option<String>,
+    pub policy_version: String,
+    pub started_at_ms: i64,
+    pub ended_at_ms: Option<i64>,
+    pub resolution_status: String,
+    pub belief_state_json: Option<String>,
+}
+
+/// One row from `question_events`.
+#[derive(Debug, Clone)]
+pub struct QuestionEventRow {
+    pub id: i64,
+    pub question_session_id: i64,
+    pub question_id: String,
+    pub turn_index: i64,
+    pub actor: String,
+    pub question_kind: String,
+    pub prompt: String,
+    pub expected_information_gain_bits: f64,
+    pub expected_user_cost: f64,
+    pub utility_bits_per_cost: f64,
+    pub answer_text: Option<String>,
+    pub answer_type: Option<String>,
+    pub answered_at_ms: Option<i64>,
+    pub created_at_ms: i64,
+}
+
+/// One row from `question_options`.
+#[derive(Debug, Clone)]
+pub struct QuestionOptionRow {
+    pub id: i64,
+    pub question_event_id: i64,
+    pub option_id: String,
+    pub label: String,
+    pub prior_probability: Option<f64>,
+    pub posterior_probability: Option<f64>,
+    pub is_other: bool,
+}
+
+/// One row from `question_option_outcomes`.
+#[derive(Debug, Clone)]
+pub struct QuestionOptionOutcomeRow {
+    pub id: i64,
+    pub question_event_id: i64,
+    pub option_id: String,
+    pub selected: bool,
+    pub diagnostic_weight: f64,
+    pub information_contribution_bits: f64,
+    pub created_at_ms: i64,
+}
+
+/// One row from `question_stop_events`.
+#[derive(Debug, Clone)]
+pub struct QuestionStopEventRow {
+    pub id: i64,
+    pub question_session_id: i64,
+    pub stop_reason: String,
+    pub confidence_at_stop: Option<f64>,
+    pub marginal_gain_bits: Option<f64>,
+    pub expected_user_cost: Option<f64>,
+    pub turn_index: Option<i64>,
+    pub created_at_ms: i64,
+}
+
 /// One unacknowledged row from `a2a_messages` as returned by [`crate::VoxDb::poll_a2a_inbox`].
 #[derive(Debug, Clone)]
 pub struct A2AMessageRow {

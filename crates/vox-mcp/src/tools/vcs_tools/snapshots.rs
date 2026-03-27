@@ -3,12 +3,9 @@ use vox_orchestrator::{AgentId, SnapshotId};
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VCS_LOCK: &str =
-    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
-const REM_SNAPSHOT_PAIR: &str =
-    "List snapshots with `snapshot_list` and pass valid numeric `before`/`after` ids that exist in the store.";
-const REM_SNAPSHOT_ID: &str =
-    "Pass `snapshot_id` as `S-XXXXXX` from `snapshot_list`.";
+const REM_VCS_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_SNAPSHOT_PAIR: &str = "List snapshots with `snapshot_list` and pass valid numeric `before`/`after` ids that exist in the store.";
+const REM_SNAPSHOT_ID: &str = "Pass `snapshot_id` as `S-XXXXXX` from `snapshot_list`.";
 const REM_SNAPSHOT_RESTORE: &str =
     "Verify the snapshot exists on disk and the workspace allows restore operations.";
 
@@ -24,8 +21,11 @@ pub async fn snapshot_list(state: &ServerState, args: serde_json::Value) -> Stri
     let guard = match crate::sync_poison::poison_rw_read(handle.read(), "snapshot store") {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_VCS_LOCK,
+            )
+            .to_json();
         }
     };
     let snaps = guard.list(agent, limit);
@@ -57,8 +57,11 @@ pub async fn snapshot_diff(state: &ServerState, args: serde_json::Value) -> Stri
     let store = match crate::sync_poison::poison_rw_read(store_handle.read(), "snapshot store") {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_VCS_LOCK,
+            )
+            .to_json();
         }
     };
     let before = store.get(SnapshotId(before_id)).cloned();

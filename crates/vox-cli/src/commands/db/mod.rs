@@ -13,7 +13,7 @@ pub use super::db_research::*;
 #[cfg(test)]
 mod tests {
     use super::publication::publication_item_from_manifest;
-    use super::query_plans::{collect_query_fn_plans, QueryPlanExplainRow};
+    use super::query_plans::{QueryPlanExplainRow, collect_query_fn_plans};
     use chrono::Utc;
     use vox_publisher::types::{SyndicationConfig, TwitterConfig, UnifiedNewsItem};
 
@@ -107,7 +107,8 @@ mod tests {
         assert!(!rows.is_empty(), "expected at least one query plan row");
         assert!(rows.iter().any(|r| r.query_fn == "q1"));
         assert!(
-            rows.iter().any(|r| matches!(r.plan.op, vox_compiler::hir::HirDbTableOp::FilterRecord))
+            rows.iter()
+                .any(|r| matches!(r.plan.op, vox_compiler::hir::HirDbTableOp::FilterRecord))
         );
     }
 

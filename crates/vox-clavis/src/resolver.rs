@@ -85,7 +85,8 @@ impl<B: SecretBackend> SecretResolver<B> {
             };
         }
 
-        if opts.include_populi_env && crate::spec::secret_reads_populi_env_file(spec.id)
+        if opts.include_populi_env
+            && crate::spec::secret_reads_populi_env_file(spec.id)
             && let Some((v, source)) =
                 crate::sources::populi_env::read_populi_env_key(spec.canonical_env)
         {

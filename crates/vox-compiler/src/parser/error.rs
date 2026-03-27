@@ -12,6 +12,8 @@ pub enum ParseErrorClass {
     TopLevel,
     /// Declaration / attribute head or tail.
     Declaration,
+    /// Misplaced or unknown token inside a Path C / `@component` reactive body (`state`, `view:`, …).
+    ReactiveComponentMember,
     Expression,
     Statement,
     TypeExpr,

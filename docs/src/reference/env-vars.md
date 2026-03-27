@@ -2,7 +2,7 @@
 title: "Environment variables (SSOT)"
 description: "Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: 2026-03-27
 training_eligible: true
 ---
 
@@ -115,6 +115,18 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 
 Socrates numeric thresholds default from [`vox-socrates-policy`](../../../crates/vox-socrates-policy/src/lib.rs); optional TOML overrides live under `[orchestrator]` as `socrates_policy` (see `OrchestratorConfig`).
 
+## MCP / Socrates questioning (vox-mcp) {#mcp-socrates-questioning}
+
+Wall-time and attention telemetry for information-theoretic clarification (chat, plan, inline, ghost). Policy defaults (including default max attention when env is unset) also come from [`QuestioningPolicy`](../../../crates/vox-socrates-policy/src/lib.rs).
+
+| Variable | Role |
+|----------|------|
+| `VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION` | When **`0`** or **`false`**, questioning debits apply only to the **per-`session_id`** tally. When **unset** or any other value, the same milliseconds also increment the orchestrator [`BudgetManager`](../../../crates/vox-orchestrator/src/budget.rs) global **`AttentionBudget::spent_ms`** (see [`add_questioning_attention_debit_ms`](../../../crates/vox-orchestrator/src/budget.rs)); this does **not** emit an interrupt EWMA event. Implemented in [`ServerState::record_questioning_attention_spend`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
+| `VOX_QUESTIONING_MAX_ATTENTION_MS` | Optional **unsigned** cap (milliseconds) for the per-session clarification attention analogue. **Unset** or invalid → `QuestioningPolicy::default().max_clarification_attention_ms`. Used by [`questioning_attention_bounds`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
+| `VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE` | When truthy, allows orchestrator **task submit** via MCP to skip the “pending Socrates clarification” gate (operator / CI escape hatch). See [`task_tools`](../../../crates/vox-mcp/src/tools/task_tools.rs). |
+
+**MCP tools (VoxDb required for persistence):** `vox_questioning_pending` (unanswered assistant questions + structured `question_options` and session `belief_state_json`), `vox_questioning_submit_answer`, `vox_questioning_sync_ssot`. Canonical names: [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml). Protocol SSOT: [Information-theoretic questioning](information-theoretic-questioning.md).
+
 ## Mens / Candle
 
 | Variable | Role |
@@ -189,6 +201,10 @@ Full table: [mens SSOT](populi.md). Common entries:
 | `VOX_WEB_TS_OUT` | Optional: absolute or relative directory where **`vox build`** writes generated **`*.tsx`** (same path as the build output). When set, **`vox doctor`** scans **`*.vox`** under the current tree for **`@v0`** declarations and verifies each **`{Name}.tsx`** in this directory uses a **named** export suitable for TanStack **`routes:`** (`export function Name`, etc.). See [`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs). |
 | `VOX_EXAMPLES_STRICT_PARSE` | When **`1`**, **`cargo test -p vox-parser --test parity_test`** fails if any `examples/**/*.vox` fails to parse (default CI only requires the **`MUST_PARSE`** golden set). See [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md). |
 | `VOX_SUPPRESS_LEGACY_HOOK_LINTS` | When **`1`** / **`true`**, suppresses compiler **warnings** for direct Vox `use_*` hook calls inside classic **`@component fn …`** bodies (Path C reactive syntax is still preferred). Implemented in [`react_bridge::legacy_hook_lint_suppressed`](../../../crates/vox-compiler/src/react_bridge.rs) + [`lint_ast_declarations`](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs). |
+| `VOX_WEBIR_VALIDATE` | When **`1`** / **`true`**, **`vox_compiler::codegen_ts::generate`** runs Web IR lower + [`validate_web_ir`](../../../crates/vox-compiler/src/web_ir/validate.rs) after HIR and **fails codegen** if validation returns diagnostics (opt-in hard gate). See [`maybe_web_ir_validate`](../../../crates/vox-compiler/src/codegen_ts/emitter.rs). |
+| `VOX_WEBIR_EMIT_REACTIVE_VIEWS` | When **`1`** / **`true`**, Path C reactive **`view:`** may use Web IR preview TSX **only when** validation is clean **and** whitespace-normalized TSX matches legacy `emit_hir_expr` (parity guard). See [`codegen_ts::reactive`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |
+| `VOX_WEBIR_REACTIVE_TRACE` | When **`1`** / **`true`**, logs one **`eprintln!`** line per reactive view decision (`component=…` + `pathway=…`). Pairs with aggregate counters via [`reactive_view_bridge_stats`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |
+| `VOX_ISLAND_MOUNT_V2` | Reserved: when **`1`** / **`true`**, **`vox-cli`** logs once that **V2** `index.html` injection is not implemented and continues with the **V1** `/islands/island-mount.js` snippet ([`apply_island_mount_script_to_index_html`](../../../crates/vox-cli/src/frontend.rs)). |
 
 ## Related
 

@@ -19,6 +19,9 @@ jobs:
   build-docs:
     name: Build Documentation
     runs-on: ubuntu-latest
+    env:
+      # Public site origin for sitemap.xml (match GitHub Pages / docs URL).
+      MDBOOK_SITEMAP_DOMAIN: https://vox-foundation.github.io/vox/
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +62,10 @@ jobs:
 
       - name: Build mdBook
         run: mdbook build docs
+
+      - name: Generate sitemap.xml
+        working-directory: docs
+        run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/html/sitemap.xml
 
       # ── Archive docs artifact ───────────────────────────────────────────
       # This step is platform-agnostic: it produces docs.tar.gz as a

@@ -68,7 +68,8 @@ fn deploy_bare_metal_systemd_template_population() {
 
     let app_name = "test-app";
     let user = "vox";
-    let workdir = "/home/vox/app";
+    const HOME_PREFIX: &str = "/home/";
+    let workdir = format!("{HOME_PREFIX}{user}/app");
     let cmd = "./my-binary --port 3000";
     let env_vars = vec![("PORT".to_string(), "3000".to_string())];
 

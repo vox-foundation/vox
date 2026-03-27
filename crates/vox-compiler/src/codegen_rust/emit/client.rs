@@ -2,9 +2,7 @@ use crate::ast::scalar_mapping::VoxScalar;
 use crate::hir::{HirModule, HirType};
 
 pub fn emit_api_client(module: &HirModule) -> String {
-    if module.server_fns.is_empty()
-        && module.query_fns.is_empty()
-        && module.mutation_fns.is_empty()
+    if module.server_fns.is_empty() && module.query_fns.is_empty() && module.mutation_fns.is_empty()
     {
         return String::new();
     }

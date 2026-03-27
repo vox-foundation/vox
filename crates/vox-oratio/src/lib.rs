@@ -22,15 +22,15 @@ pub mod failure_taxonomy;
 pub mod refine;
 pub mod routing;
 pub mod session;
-pub mod streaming_partial;
-pub mod tiering;
-pub mod transcript_rerank;
 pub mod speech_intent;
 pub mod speech_lexicon;
 pub mod speech_normalize;
 pub mod speech_policy;
+pub mod streaming_partial;
+pub mod tiering;
 pub mod trace;
 pub mod traits;
+pub mod transcript_rerank;
 
 #[cfg(feature = "stt-candle")]
 pub use backends::candle_whisper::{
@@ -62,16 +62,16 @@ pub use session::{
     OratioSessionResult, OratioTimings, session_config_with_runtime, transcribe_path_session,
     transcribe_path_session_with_runtime,
 };
+pub use speech_intent::{
+    SpeechIntentAction, SpeechIntentEnvelope, build_intent_envelope,
+    clarification_prompt_for_slots, missing_slot_ids,
+};
+pub use speech_policy::clarification_recommended;
+pub use streaming_partial::{StreamingStabilizationConfig, should_commit_partial};
+pub use tiering::{speech_cache_key, speech_escalation_recommended};
 pub use traits::{
     TranscribeDetail, Transcript, transcribe_path, transcribe_path_detailed, transcript_status,
 };
-pub use speech_intent::{
-    build_intent_envelope, clarification_prompt_for_slots, missing_slot_ids, SpeechIntentAction,
-    SpeechIntentEnvelope,
-};
-pub use speech_policy::clarification_recommended;
-pub use streaming_partial::{should_commit_partial, StreamingStabilizationConfig};
-pub use tiering::{speech_cache_key, speech_escalation_recommended};
 pub use transcript_rerank::{
     pick_best_transcript_index, pick_best_transcript_index_with_raw, rerank_candidates_best_first,
     rerank_candidates_best_first_with_context, rerank_candidates_best_first_with_raw,

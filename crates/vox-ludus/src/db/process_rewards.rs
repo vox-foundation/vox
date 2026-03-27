@@ -141,8 +141,11 @@ pub async fn process_event_rewards(
                 profile.add_crystals(reward.crystals);
                 profile_changed = true;
             }
-            let learn_bonus =
-                crate::reward_policy::learning_mode_crystal_jitter(user_id, event_type, reward.crystals);
+            let learn_bonus = crate::reward_policy::learning_mode_crystal_jitter(
+                user_id,
+                event_type,
+                reward.crystals,
+            );
             if learn_bonus > 0 {
                 profile.add_crystals(learn_bonus);
                 profile_changed = true;
@@ -381,7 +384,13 @@ pub async fn process_event_rewards(
             profile_changed = true;
         }
         "doc_added" | "doc_coverage_100_pct" | "missing_docs_zero" => {
-            advance_quests(db, &mut profile, user_id, crate::quest::QuestType::DocSprint).await;
+            advance_quests(
+                db,
+                &mut profile,
+                user_id,
+                crate::quest::QuestType::DocSprint,
+            )
+            .await;
             profile_changed = true;
         }
 

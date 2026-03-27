@@ -1,14 +1,51 @@
 //! Shared HIR → TypeScript / JSX emission for reactive components, activities, and routes.
+//!
+//! **Migration (Web IR, ADR 012):** Structural JSX, islands, and route/view parity are owned by
+//! [`crate::web_ir`] (`lower`, `validate`, `emit_tsx`). This module is the **compatibility**
+//! string emitter still used by Path C reactive codegen, routes, activities, and by Web IR lowering
+//! where it needs HIR-shaped expressions (`emit_hir_expr`, attribute values). Prefer
+//! [`crate::web_ir::emit_tsx`] for new preview/parity work; keep changes here in sync with
+//! [`compat`] so AST JSX ([`super::jsx`]) and HIR paths share one attribute/type matrix.
+//!
+//! **Deprecation disposition (OP-0142):** island mount strings and fine-grained HIR statement emit are
+//! compatibility-only; [`crate::web_ir`] is the structural SSOT. Links: ADR 012,
+//! `docs/src/architecture/internal-web-ir-implementation-blueprint.md` (block 09, OP-0129+).
+//!
+//! **Compatibility tags (OP-S029):** grep/CI anchors pairing this module with [`super::jsx`] (OP-S031) and
+//! reactive view emit ([`crate::codegen_ts::reactive`], OP-S037). Attribute semantics and DOM/event name
+//! mapping stay in [`compat`]; do not fork the matrix into JSX or Web IR without updating all three.
+//!
+//! **Wrapper notes B + hir inventory (OP-S079 / S169):** island and event helpers delegate to [`super::island_emit`];
+//! statement-level JSX parity stays compatibility-only vs [`crate::web_ir::emit_tsx`].
 
+pub mod compat;
 mod state_deps;
 
-use super::island_emit::{escape_html_attr, island_data_prop_attr};
+use super::island_emit::{
+    island_data_prop_attr, island_mount_hir_fragment, island_mount_opening_part,
+};
 use crate::hir::*;
 use std::collections::HashSet;
 
-pub use state_deps::extract_state_deps;
+pub use compat::{map_hir_type_to_ts, map_jsx_attr_name};
+pub(crate) use state_deps::extract_state_deps;
+
+/// Wrap a child expression so TSX matches [`crate::web_ir::emit_tsx`] [`DomNode::Expr`] (`{ts}`).
+///
+/// JSX subtree roots (elements / island mounts) start with `<` and must not get an extra `{...}` layer.
+pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
+    let t = emit.trim_start();
+    if t.starts_with('<') {
+        emit
+    } else {
+        format!("{{{emit}}}")
+    }
+}
 
 /// Emit a HIR expression as TypeScript/JSX with optional reactive `state` names (for `set_x` rewriting).
+///
+/// **Phase:** compat-legacy (OP-0138). Prefer [`crate::web_ir::emit_tsx`] for structural parity and
+/// preview emit; keep this in sync with [`compat`] and [`super::island_emit`].
 #[must_use]
 pub fn emit_hir_expr(
     expr: &HirExpr,
@@ -79,7 +116,8 @@ pub fn emit_hir_expr(
             }
             let mut children = Vec::new();
             for child in &el.children {
-                children.push(emit_hir_expr(child, state_names, island_names));
+                let c = emit_hir_expr(child, state_names, island_names);
+                children.push(wrap_jsx_hir_child_expr(c));
             }
             format!(
                 "<{} {}\n>\n  {}\n</{}>",
@@ -90,13 +128,9 @@ pub fn emit_hir_expr(
             )
         }
         HirExpr::JsxSelfClosing(el) => {
-            if let Some(mount) = emit_hir_island_mount_el(
-                &el.tag,
-                &el.attributes,
-                0,
-                state_names,
-                island_names,
-            ) {
+            if let Some(mount) =
+                emit_hir_island_mount_el(&el.tag, &el.attributes, 0, state_names, island_names)
+            {
                 return mount;
             }
             let mut attrs = Vec::new();
@@ -246,6 +280,17 @@ pub fn emit_hir_expr(
 
 /// When the JSX tag matches an `@island` name, emit a `div` mount point for `island-mount.js`
 /// (`data-vox-island` + `data-prop-*`), not a React component reference.
+///
+/// # Deprecation / migration (OP-0132)
+///
+/// **Do not extend** this string path for new features. Add island behavior through
+/// [`crate::web_ir`] (`lower`, `validate`, `emit_tsx`) and keep this emitter aligned with that
+/// shape until Path C dual-run is finished.
+///
+/// Kept for production Path C / routes until dual-run diff vs [`crate::web_ir`] is complete; string
+/// shape must match [`super::island_emit`] and [`crate::web_ir::lower::lower_jsx_attr_pair`].
+///
+/// **Phase:** compat-legacy (OP-0138).
 fn emit_hir_island_mount_el(
     tag: &str,
     attributes: &[HirJsxAttr],
@@ -256,10 +301,7 @@ fn emit_hir_island_mount_el(
     if !island_names.contains(tag) {
         return None;
     }
-    let mut parts = vec![format!(
-        "data-vox-island=\"{}\"",
-        escape_html_attr(tag)
-    )];
+    let mut parts = vec![island_mount_opening_part(tag)];
     for attr in attributes {
         if attr.name == "bind" {
             continue;
@@ -268,19 +310,13 @@ fn emit_hir_island_mount_el(
         let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &dname);
         parts.push(format!("{dname}={{{val}}}"));
     }
-    let inner = format!("<div {} />", parts.join(" "));
-    if child_count == 0 {
-        Some(inner)
-    } else {
-        Some(format!(
-            "<>{{/* vox: @island `{}` ignores {} JSX child(ren); use `<{} />` */}}{}</>",
-            tag, child_count, tag, inner
-        ))
-    }
+    crate::codegen_ts::island_emit::sort_island_mount_data_prop_parts(&mut parts);
+    Some(island_mount_hir_fragment(tag, &parts, child_count))
 }
 
+/// **Phase:** compat-legacy (OP-0138).
 #[must_use]
-pub fn emit_hir_expr_attr_value(
+pub(crate) fn emit_hir_expr_attr_value(
     expr: &HirExpr,
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
@@ -305,8 +341,9 @@ pub fn emit_hir_expr_attr_value(
     emit_hir_expr(expr, state_names, island_names)
 }
 
+/// **Phase:** compat-legacy (OP-0138).
 #[must_use]
-pub fn emit_block_stmts(
+pub(crate) fn emit_block_stmts(
     expr: &HirExpr,
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
@@ -325,8 +362,9 @@ pub fn emit_block_stmts(
     }
 }
 
+/// **Phase:** compat-legacy (OP-0138).
 #[must_use]
-pub fn emit_hir_stmt(
+pub(crate) fn emit_hir_stmt(
     stmt: &HirStmt,
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
@@ -363,7 +401,10 @@ pub fn emit_hir_stmt(
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
-                format!("{pad}return {};\n", emit_hir_expr(v, state_names, island_names))
+                format!(
+                    "{pad}return {};\n",
+                    emit_hir_expr(v, state_names, island_names)
+                )
             } else {
                 format!("{pad}return;\n")
             }
@@ -371,8 +412,9 @@ pub fn emit_hir_stmt(
     }
 }
 
+/// **Phase:** compat-legacy (OP-0138).
 #[must_use]
-pub fn emit_hir_pattern(pattern: &HirPattern) -> String {
+pub(crate) fn emit_hir_pattern(pattern: &HirPattern) -> String {
     match pattern {
         HirPattern::Ident(name, _) => name.clone(),
         HirPattern::Tuple(elems, _) => {
@@ -388,38 +430,5 @@ pub fn emit_hir_pattern(pattern: &HirPattern) -> String {
         },
         HirPattern::Wildcard(_) => "_".to_string(),
         _ => "_".to_string(),
-    }
-}
-
-#[must_use]
-pub fn map_hir_type_to_ts(ty: &HirType) -> String {
-    match ty {
-        HirType::Named(name) => match name.as_str() {
-            "int" | "float" => "number".to_string(),
-            "str" => "string".to_string(),
-            "bool" => "boolean".to_string(),
-            other => other.to_string(),
-        },
-        HirType::Generic(name, args) => {
-            let args_str: Vec<String> = args.iter().map(map_hir_type_to_ts).collect();
-            format!("{}<{}>", name, args_str.join(", "))
-        }
-        _ => "any".to_string(),
-    }
-}
-
-#[must_use]
-pub fn map_jsx_attr_name(name: &str) -> &str {
-    match name {
-        "class" | "className" => "className",
-        "on:click" | "on_click" => "onClick",
-        "on:change" | "on_change" => "onChange",
-        "on:input" | "on_input" => "onInput",
-        "on:submit" | "on_submit" => "onSubmit",
-        "on:keydown" | "on_keydown" => "onKeyDown",
-        "on:keyup" | "on_keyup" => "onKeyUp",
-        "on:mouseenter" | "on_mouseenter" => "onMouseEnter",
-        "on:mouseleave" | "on_mouseleave" => "onMouseLeave",
-        _ => name,
     }
 }

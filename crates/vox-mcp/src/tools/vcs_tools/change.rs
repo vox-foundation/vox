@@ -3,8 +3,7 @@ use vox_orchestrator::{AgentId, SnapshotId};
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VCS_LOCK: &str =
-    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_VCS_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
 const REM_CHANGE_ID: &str =
     "List changes with `change_log` (omit `change_id`) and pass a valid id returned there.";
 
@@ -23,8 +22,11 @@ pub async fn change_create(state: &ServerState, args: serde_json::Value) -> Stri
     {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
-                .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_VCS_LOCK,
+            )
+            .to_json();
         }
     };
     let change_id = mgr.create_change(AgentId(agent_id), description);
@@ -49,8 +51,11 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
         let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
-                    .to_json();
+                return ToolResult::<serde_json::Value>::err_with_remediation(
+                    e.to_string(),
+                    REM_VCS_LOCK,
+                )
+                .to_json();
             }
         };
         match mgr.get_change(vox_orchestrator::workspace::ChangeId(cid))
@@ -76,8 +81,11 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
         let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_VCS_LOCK)
-                    .to_json();
+                return ToolResult::<serde_json::Value>::err_with_remediation(
+                    e.to_string(),
+                    REM_VCS_LOCK,
+                )
+                .to_json();
             }
         };
         let changes = mgr.list_changes(agent, limit);

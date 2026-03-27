@@ -1,3 +1,14 @@
+//! HIR → TypeScript file bundle (production path). **WebIR bridge (OP-S025):** after assembling
+//! artifacts, [`maybe_web_ir_validate`] may lower + validate [`crate::web_ir::WebIrModule`] when
+//! `VOX_WEBIR_VALIDATE=1`, so CI can gate structural errors without routing all emit through preview TSX.
+//!
+//! **Fallback mode (OP-S027):** when that env var is unset, validation is skipped and codegen follows the
+//! historical fast path (WebIR used only by explicit tooling / tests).
+//!
+//! **Style + route printer bridge (OP-S059 / S091 / S111 / S137 / S171 / S199):** classic CSS emission and
+//! TanStack route files are still assembled here alongside [`super::routes`]; migrating printers to consume
+//! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
+
 use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 use crate::codegen_ts::component::generate_component;
@@ -71,16 +82,16 @@ pub fn generate_with_options(
         files.push((filename, content));
     }
 
-    // Generate reactive components (Path C)
+    // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
+    // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
     for rc in &hir.reactive_components {
-        let (filename, content) = generate_reactive_component(rc, &island_names);
+        let (filename, content) = generate_reactive_component(hir, rc, &island_names);
         files.push((filename, content));
     }
 
     // Route loading / suspense UI (`@loading fn … to Element`) — TanStack `pendingComponent`
     for hir_loading in &hir.loadings {
-        let (filename, content) =
-            generate_component(&hir_loading.0.func, false, &island_names);
+        let (filename, content) = generate_component(&hir_loading.0.func, false, &island_names);
         files.push((filename, content));
     }
 
@@ -142,9 +153,8 @@ pub fn generate_with_options(
     }
 
     // Generate TanStack Start Server Functions from HIR
-    let has_api_fns = !hir.server_fns.is_empty()
-        || !hir.query_fns.is_empty()
-        || !hir.mutation_fns.is_empty();
+    let has_api_fns =
+        !hir.server_fns.is_empty() || !hir.query_fns.is_empty() || !hir.mutation_fns.is_empty();
     if has_api_fns && options.tanstack_start {
         let mut server_fns_out = String::new();
         server_fns_out
@@ -245,5 +255,27 @@ pub fn generate_with_options(
         files.push(("vox-islands-meta.ts".to_string(), meta));
     }
 
+    maybe_web_ir_validate(hir)?;
+
     Ok(CodegenOutput { files })
+}
+
+/// Optional WebIR lower + validate gate (OP-0113, OP-0124). Set `VOX_WEBIR_VALIDATE=1` to fail
+/// codegen when [`crate::web_ir::validate::validate_web_ir`] returns diagnostics.
+fn maybe_web_ir_validate(hir: &HirModule) -> Result<(), String> {
+    let enabled = std::env::var("VOX_WEBIR_VALIDATE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if !enabled {
+        return Ok(());
+    }
+    let web = crate::web_ir::lower::lower_hir_to_web_ir(hir);
+    let diags = crate::web_ir::validate::validate_web_ir(&web);
+    if diags.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "VOX_WEBIR_VALIDATE: {}",
+        crate::web_ir::validate::format_web_ir_validate_failure(&diags)
+    ))
 }

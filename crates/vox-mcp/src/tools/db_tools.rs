@@ -10,20 +10,16 @@ use crate::server::ServerState;
 
 const REM_VOX_FILE_PATH: &str =
     "Pass `path` to a `.vox` module (workspace-relative or absolute) that defines your schema.";
-const REM_VOXDB_SAMPLE: &str =
-    "Attach VoxDb/Turso to the MCP server for live table samples, or use `vox db` in a configured CLI.";
+const REM_VOXDB_SAMPLE: &str = "Attach VoxDb/Turso to the MCP server for live table samples, or use `vox db` in a configured CLI.";
 const REM_DB_QUERY: &str =
     "Provide a non-empty `query` string; optional `schema_path` defaults to `src/main.vox`.";
 const REM_DB_INTENT: &str =
     "Provide non-empty `intent`; set `schema_path` if your module is not at `src/main.vox`.";
-const REM_DB_DIGEST_JSON: &str =
-    "If this persists, the generated schema digest may be unusually large — simplify the `.vox` module or file an issue.";
+const REM_DB_DIGEST_JSON: &str = "If this persists, the generated schema digest may be unusually large — simplify the `.vox` module or file an issue.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_MCP_MODEL_RESOLVE: &str =
-    "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
-const REM_LLM_COMPLETION: &str =
-    "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
 
 // ---------------------------------------------------------------------------
 // Shared helper
@@ -71,7 +67,9 @@ pub fn vox_db_schema(args: serde_json::Value) -> String {
                 .to_json(),
             }
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json()
+        }
     }
 }
 
@@ -96,7 +94,9 @@ pub fn vox_db_relationships(args: serde_json::Value) -> String {
             }))
             .to_json()
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json()
+        }
     }
 }
 
@@ -127,7 +127,9 @@ pub fn vox_db_data_flow(args: serde_json::Value) -> String {
                 .to_json(),
             }
         }
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e, REM_VOX_FILE_PATH).to_json()
+        }
     }
 }
 
@@ -187,8 +189,11 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         .unwrap_or("src/main.vox");
 
     if query.is_empty() {
-        return ToolResult::<String>::err_with_remediation("Missing 'query' parameter.", REM_DB_QUERY)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "Missing 'query' parameter.",
+            REM_DB_QUERY,
+        )
+        .to_json();
     }
 
     let schema_digest = match parse_vox_module(schema_path) {
@@ -223,7 +228,8 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
     ) {
         Ok(g) => g.clone(),
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
+                .to_json();
         }
     };
     let (model, free_only) = match crate::tools::chat_model_resolve::resolve_chat_llm_model(

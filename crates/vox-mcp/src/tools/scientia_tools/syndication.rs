@@ -3,11 +3,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use super::common::{
-    mcp_social_worthiness_enforce, mcp_social_worthiness_score_min, no_voxdb_json_envelope,
-    no_voxdb_syndication, no_voxdb_tool_string, operator_publisher_config,
-    unified_news_item_from_manifest_row, worthiness_score_for_row, REM_PUBLICATION_ID,
-    REM_SCIENTIA_ATTEMPTS, REM_SCIENTIA_DB, REM_SCIENTIA_METADATA, REM_SCIENTIA_PUBLISH,
-    REM_SCIENTIA_SIMULATE,
+    REM_PUBLICATION_ID, REM_SCIENTIA_ATTEMPTS, REM_SCIENTIA_DB, REM_SCIENTIA_METADATA,
+    REM_SCIENTIA_PUBLISH, REM_SCIENTIA_SIMULATE, mcp_social_worthiness_enforce,
+    mcp_social_worthiness_score_min, no_voxdb_json_envelope, no_voxdb_syndication,
+    no_voxdb_tool_string, operator_publisher_config, unified_news_item_from_manifest_row,
+    worthiness_score_for_row,
 };
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -24,11 +24,20 @@ pub async fn vox_scientia_publication_route_simulate(
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let Some(row) = row else {
-        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication not found",
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     };
     let item = match unified_news_item_from_manifest_row(&row) {
         Ok(i) => i,
@@ -41,7 +50,8 @@ pub async fn vox_scientia_publication_route_simulate(
         }
     };
     let worthiness = worthiness_score_for_row(&row);
-    let publisher = vox_publisher::Publisher::new(operator_publisher_config(state, true, worthiness));
+    let publisher =
+        vox_publisher::Publisher::new(operator_publisher_config(state, true, worthiness));
     match publisher.publish_all(&item).await {
         Ok(r) => ToolResult::ok(r).to_json(),
         Err(e) => ToolResult::<String>::err_with_remediation(
@@ -79,8 +89,11 @@ pub async fn vox_scientia_publication_publish(
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
-                .to_json_styled(compact);
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json_styled(compact);
         }
     };
     let Some(row) = row else {
@@ -111,8 +124,11 @@ pub async fn vox_scientia_publication_publish(
     {
         Ok(v) => v,
         Err(e) => {
-            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
-                .to_json_styled(compact);
+            return ToolResult::<vox_publisher::SyndicationResult>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json_styled(compact);
         }
     };
     let gate = vox_publisher::gate::evaluate_publish_gate(
@@ -188,9 +204,7 @@ pub async fn vox_scientia_publication_publish(
                 .set_publication_state(
                     &params.publication_id,
                     "published",
-                    Some(
-                        &serde_json::json!({ "channel_group": "manual_mcp" }).to_string(),
-                    ),
+                    Some(&serde_json::json!({ "channel_group": "manual_mcp" }).to_string()),
                 )
                 .await;
         } else if out.has_failures() {
@@ -198,9 +212,7 @@ pub async fn vox_scientia_publication_publish(
                 .set_publication_state(
                     &params.publication_id,
                     "publish_failed",
-                    Some(
-                        &serde_json::json!({ "channel_group": "manual_mcp" }).to_string(),
-                    ),
+                    Some(&serde_json::json!({ "channel_group": "manual_mcp" }).to_string()),
                 )
                 .await;
         }
@@ -243,8 +255,11 @@ pub async fn vox_scientia_publication_retry_failed(
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
-                .to_json_styled(compact);
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json_styled(compact);
         }
     };
     let Some(row) = row else {
@@ -258,8 +273,11 @@ pub async fn vox_scientia_publication_retry_failed(
     let attempts = match db.list_publication_attempts(&params.publication_id).await {
         Ok(v) => v,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
-                .to_json_styled(compact);
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json_styled(compact);
         }
     };
     if attempts.is_empty() {

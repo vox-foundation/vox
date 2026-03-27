@@ -24,9 +24,6 @@ mod tests {
     #[test]
     fn key_is_stable() {
         let k = scholarly_idempotency_key("zenodo", "pub-1", "digest_a", "create_deposition");
-        assert_eq!(
-            k,
-            "zenodo:pub-1:digest_a:create_deposition"
-        );
+        assert_eq!(k, "zenodo:pub-1:digest_a:create_deposition");
     }
 }

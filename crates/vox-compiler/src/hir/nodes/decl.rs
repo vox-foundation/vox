@@ -6,6 +6,18 @@ use super::expr::HirExpr;
 use super::stmt::HirStmt;
 use super::stmt_expr::{DefId, HirParam, HirType};
 
+/// Tracks which HIR lowering paths ran so migrations and WebIR handoff can account for
+/// dual component stacks (`@component` vs Path C reactive) and declarative hook surfaces (OP-0036, OP-0042).
+#[derive(Debug, Clone, Default)]
+pub struct HirLoweringMigrationFlags {
+    /// Legacy `@component fn` / `Decl::Component` lowered into [`HirModule::components`].
+    pub used_classic_component_path: bool,
+    /// Path C `component Name() { ... }` reactive declarations lowered into [`HirModule::reactive_components`].
+    pub used_reactive_component_path: bool,
+    /// `Decl::Hook` / `@hook` entries retained for TS hooks (escape-hatch accounting).
+    pub has_legacy_hook_surfaces: bool,
+}
+
 /// A fully lowered Vox module: every declaration category is collected into its own vector.
 ///
 /// Empty vectors mean the construct was absent in source; there is no implicit ordering across
@@ -77,6 +89,9 @@ pub struct HirModule {
     /// HTTP routes, tables, activities, and `@server` fns are lowered to [`HirRoute`], [`HirTable`],
     /// [`HirActivity`], and [`HirServerFn`]; TS codegen reads those directly (Path C).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
+
+    /// Which declarative lowering paths were exercised (classic vs reactive UI, hooks).
+    pub lowering_migration: HirLoweringMigrationFlags,
 }
 
 /// A component lowered to HIR (currently retaining AST for TS codegen until full HirExpr migration).
@@ -194,6 +209,8 @@ pub struct HirRoute {
     pub method: HirHttpMethod,
     /// Path pattern string.
     pub path: String,
+    /// Stable contract key (`METHOD path`) for WebIR / client stubs (OP-0040).
+    pub route_contract: String,
     /// Declared response type.
     pub return_type: Option<HirType>,
     /// Handler body.
@@ -213,6 +230,18 @@ pub enum HirHttpMethod {
     Put,
     /// DELETE
     Delete,
+}
+
+impl HirHttpMethod {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Get => "GET",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Delete => "DELETE",
+        }
+    }
 }
 
 /// Actor definition in HIR.

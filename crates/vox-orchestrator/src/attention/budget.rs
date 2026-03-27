@@ -267,6 +267,19 @@ pub enum FocusDepth {
     Deep,
 }
 
+/// Stop reasons for clarification loops constrained by attention budget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ClarificationLoopStop {
+    /// Continue asking clarification questions.
+    Continue,
+    /// Stop because turn budget was reached.
+    MaxTurnsReached,
+    /// Stop because marginal gain is too low.
+    MarginalGainTooLow,
+    /// Stop because attention budget is exhausted.
+    AttentionBudgetExceeded,
+}
+
 // ── Computation functions ──────────────────────────────────────────────────
 
 /// Compute attention cost in ms using configurable NASA TLX subscales.
@@ -311,4 +324,32 @@ pub fn compute_attention_cost_ms(
 pub fn decision_entropy_bits(approve_rate: f64) -> f64 {
     let p = approve_rate.clamp(0.001, 0.999);
     -(p * p.log2() + (1.0 - p) * (1.0 - p).log2())
+}
+
+/// Information gain normalized by estimated attention cost (bits/ms).
+#[must_use]
+pub fn info_gain_per_attention_cost_bits_ms(expected_information_gain_bits: f64, cost_ms: u64) -> f64 {
+    expected_information_gain_bits.max(0.0) / (cost_ms.max(1) as f64)
+}
+
+/// Clarification-loop stop rule combining turn caps, marginal gains, and attention budget.
+#[must_use]
+pub fn clarification_stop_rule(
+    turn_index: u32,
+    max_turns: u32,
+    marginal_gain_bits: f64,
+    min_marginal_gain_bits: f64,
+    spent_attention_ms: u64,
+    max_attention_ms: u64,
+) -> ClarificationLoopStop {
+    if turn_index >= max_turns {
+        return ClarificationLoopStop::MaxTurnsReached;
+    }
+    if marginal_gain_bits < min_marginal_gain_bits {
+        return ClarificationLoopStop::MarginalGainTooLow;
+    }
+    if spent_attention_ms >= max_attention_ms {
+        return ClarificationLoopStop::AttentionBudgetExceeded;
+    }
+    ClarificationLoopStop::Continue
 }

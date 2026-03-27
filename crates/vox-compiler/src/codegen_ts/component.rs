@@ -1,3 +1,27 @@
+//! Classic `@component fn` → React TSX (AST path).
+//!
+//! Web IR ([`crate::web_ir`]) owns structural view metadata; JSX-shaped classic bodies also lower
+//! into [`WebIrModule::view_roots`](crate::web_ir::WebIrModule::view_roots) for validate/preview,
+//! while **this** module remains the AST → TSX codegen path (OP-0177+, OP-0179).
+//!
+//! **Compatibility mode (OP-0178):** React hook imports follow [`crate::react_bridge`] registry;
+//! non-registry `use_*` hooks rely on user imports. **Pathways (OP-0184):** classic AST → [`super::jsx`];
+//! Path C → [`super::reactive`] + optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS` view bridge.
+//!
+//! **Disposition (OP-0190):** shrinking direct JSX ownership means moving view strings toward Web IR
+//! preview/`emit_tsx` parity tests first, then codegen cutover.
+//!
+//! **Props / contracts (OP-0180):** classic function parameters remain the generated TS `*Props`
+//! interface first; mapping props into Web IR `behavior_nodes` stays Path C–aligned until classic
+//! bodies fully share the reactive binding model.
+//!
+//! **Adapter notes (OP-S035):** classic AST codegen (`emit_jsx_*`) and Path C reactive (`super::reactive`)
+//! both consume island names and hook registries through shared helpers; new prop or hook wiring should
+//! land in [`crate::react_bridge`] + Web IR lower/validate before growing this adapter.
+//!
+//! **Notes B/C (OP-S115 / S161 / S193):** classic props interfaces remain the codegen boundary until Path C
+//! view maps fully share [`crate::web_ir::BehaviorNode`] naming.
+
 use crate::ast::decl::FnDecl;
 use crate::ast::expr::Expr;
 use crate::ast::scalar_mapping::VoxScalar;

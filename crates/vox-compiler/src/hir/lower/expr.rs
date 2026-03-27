@@ -99,7 +99,8 @@ impl LowerCtx {
                     .collect();
                 if method == "count"
                     && hir_args.is_empty()
-                    && let Some((table, count_args)) = super::expr_db::extract_count_chain_args(self, object)
+                    && let Some((table, count_args)) =
+                        super::expr_db::extract_count_chain_args(self, object)
                 {
                     let plan = HirDbQueryPlan {
                         table: table.clone(),

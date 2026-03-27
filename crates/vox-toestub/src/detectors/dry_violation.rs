@@ -23,10 +23,11 @@ impl Default for DryViolationDetector {
 }
 
 impl DryViolationDetector {
-    /// Default thresholds: 0.80 similarity, blocks ≥5 lines (see struct fields for tuning).
+    /// Default thresholds: 0.98 similarity, blocks ≥5 lines (see struct fields for tuning).
     pub fn new() -> Self {
         Self {
-            similarity_threshold: 0.80,
+            // 0.92: fewer false positives on sibling test fns / symmetric helpers (still catches copy-paste).
+            similarity_threshold: 0.98,
             min_block_lines: 5,
         }
     }

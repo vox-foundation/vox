@@ -89,7 +89,9 @@ struct PreludeAllowFile {
     idents: Vec<String>,
 }
 
-fn collect_workspace_crate_mod_refs(files: &[crate::rules::SourceFile]) -> HashMap<String, HashSet<String>> {
+fn collect_workspace_crate_mod_refs(
+    files: &[crate::rules::SourceFile],
+) -> HashMap<String, HashSet<String>> {
     let re_crate = regex::Regex::new(r"\bcrate::([a-zA-Z_][a-zA-Z0-9_]*)").expect("valid regex");
     let re_super = regex::Regex::new(r"\bsuper::([a-zA-Z_][a-zA-Z0-9_]*)").expect("valid regex");
     let mut out: HashMap<String, HashSet<String>> = HashMap::new();
@@ -175,10 +177,8 @@ impl ToestubEngine {
     /// Run the full analysis pipeline and return findings.
     pub fn run(&self) -> AnalysisResult {
         let roots = self.get_roots();
-        let prelude = merge_prelude_allowlist(
-            &roots,
-            self.config.prelude_allowlist_path.as_deref(),
-        );
+        let prelude =
+            merge_prelude_allowlist(&roots, self.config.prelude_allowlist_path.as_deref());
         let suppression_store = match crate::suppression::SuppressionStore::load_optional(
             self.config.suppression_path.as_deref(),
         ) {
@@ -190,11 +190,7 @@ impl ToestubEngine {
         };
 
         // 1. Scan for source files
-        let scanner = Scanner::new(
-            roots,
-            &self.config.excludes,
-            self.config.languages.clone(),
-        );
+        let scanner = Scanner::new(roots, &self.config.excludes, self.config.languages.clone());
         let files = scanner.scan();
         let workspace_crate_mod_refs = collect_workspace_crate_mod_refs(&files);
 
@@ -265,8 +261,7 @@ impl ToestubEngine {
             TaskQueue::empty()
         };
 
-        let unresolved_ref_callee_counts =
-            crate::run_context::unresolved_callee_counts_snapshot();
+        let unresolved_ref_callee_counts = crate::run_context::unresolved_callee_counts_snapshot();
 
         AnalysisResult {
             files_scanned: files.len(),

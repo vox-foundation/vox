@@ -4,8 +4,8 @@ use serde::Deserialize;
 use vox_publisher::publication_preflight::PreflightProfile;
 
 use super::common::{
-    no_voxdb_tool_string, publication_manifest_from_row, REM_PUBLICATION_ID, REM_SCIENTIA_DB,
-    REM_SCIENTIA_METADATA, REM_WORTHINESS_CONTRACT,
+    REM_PUBLICATION_ID, REM_SCIENTIA_DB, REM_SCIENTIA_METADATA, REM_WORTHINESS_CONTRACT,
+    no_voxdb_tool_string, publication_manifest_from_row,
 };
 use super::lifecycle::PreflightProfileParam;
 
@@ -28,11 +28,20 @@ pub async fn vox_scientia_publication_preflight(
     };
     let row = match db.get_publication_manifest(&params.publication_id).await {
         Ok(r) => r,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let Some(row) = row else {
-        return ToolResult::<String>::err_with_remediation("publication not found", REM_PUBLICATION_ID)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(
+            "publication not found",
+            REM_PUBLICATION_ID,
+        )
+        .to_json();
     };
     let mut manifest = publication_manifest_from_row(&row);
     let profile: PreflightProfile = params.profile.unwrap_or_default().into();

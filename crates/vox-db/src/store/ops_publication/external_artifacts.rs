@@ -1,5 +1,5 @@
-use crate::{VoxDb, store::StoreError, store::types::*};
 use super::common::now_ms;
+use crate::{VoxDb, store::StoreError, store::types::*};
 
 impl VoxDb {
     pub async fn insert_external_status_snapshot(
@@ -371,7 +371,11 @@ impl VoxDb {
         for r in err_class_rows {
             let k: String = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
             let n: i64 = r.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            let key = if k.is_empty() { "(null)".to_string() } else { k };
+            let key = if k.is_empty() {
+                "(null)".to_string()
+            } else {
+                k
+            };
             by_error_class.insert(key, serde_json::json!(n));
         }
 

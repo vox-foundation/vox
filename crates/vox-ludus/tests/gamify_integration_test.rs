@@ -23,7 +23,10 @@ async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
     let xp1 = r1.reward.map(|x| x.xp).unwrap_or(0);
     let xp2 = r2.reward.map(|x| x.xp).unwrap_or(0);
     assert!(xp1 > 0, "first application should grant XP (got {xp1})");
-    assert_eq!(xp2, 0, "second application with same ludus_dedupe_id must not grant XP");
+    assert_eq!(
+        xp2, 0,
+        "second application with same ludus_dedupe_id must not grant XP"
+    );
 }
 
 #[tokio::test]

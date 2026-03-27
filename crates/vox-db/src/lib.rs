@@ -56,19 +56,19 @@ pub mod auto_migrate;
 /// Benchmark observations stored in `research_metrics` (`bench:<repository_id>` sessions).
 pub mod benchmark_telemetry;
 pub mod build_hints;
-/// Circuit breaker for write operations.
-pub mod circuit_breaker;
 /// Turso / search tuning helpers (`VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`, etc.).
 pub mod capabilities;
+/// Circuit breaker for write operations.
+pub mod circuit_breaker;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
 mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
+/// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
+mod ludus_schema_cutover;
 pub mod schema;
 /// Idempotent fixes after baseline `CREATE IF NOT EXISTS` (column adds, renames).
 mod schema_cutover;
-/// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
-mod ludus_schema_cutover;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
 
@@ -95,6 +95,7 @@ pub mod paths;
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
 pub mod populi_registry_telemetry;
+mod questioning_telemetry;
 /// Registry-scoped user preferences (stored as JSON in the local config directory).
 pub mod preferences;
 pub mod project_store;
@@ -134,25 +135,27 @@ pub use research::{
 pub use retrieval::{
     RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, fuse_hybrid_results,
 };
+pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
 pub use store::{
-    A2AMessageRow, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
+    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
     BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry, CloudCostSummary,
     CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample,
     CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
-    LocalTrainRow, LogExecutionParams,
-    LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow, PlanSessionRow,
-    PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
+    PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
     PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
     PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
-    PublishArtifactParams, QuestionRow,
+    PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
+    QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
+    QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
     RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
     ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
     SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
@@ -183,7 +186,8 @@ pub struct VoxDb {
     pub(crate) sync_db: Option<turso::sync::Database>,
     pub(crate) breaker: std::sync::Arc<DbCircuitBreaker>,
     /// Lazily filled by [`VoxDb::sqlite_capabilities_snapshot`](crate::VoxDb::sqlite_capabilities_snapshot).
-    pub(crate) sqlite_probe_cache: std::sync::Arc<tokio::sync::RwLock<Option<capabilities::SqliteProbeSnapshot>>>,
+    pub(crate) sqlite_probe_cache:
+        std::sync::Arc<tokio::sync::RwLock<Option<capabilities::SqliteProbeSnapshot>>>,
 }
 
 mod facade;

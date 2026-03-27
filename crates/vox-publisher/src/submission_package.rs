@@ -9,8 +9,8 @@ use std::path::Path;
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use sha3::digest::Digest;
 use sha3::Sha3_256;
+use sha3::digest::Digest;
 use tar::Archive;
 
 use crate::citation_cff::render_citation_cff;
@@ -199,8 +199,8 @@ pub fn write_scholarly_staging(
     }
 
     if matches!(venue, ScholarlyVenue::ArxivAssist) {
-        let stub = arxiv_assist_main_tex(manifest);
-        fs::write(out_dir.join("main.tex"), stub)?;
+        let main_tex_body = arxiv_assist_main_tex(manifest);
+        fs::write(out_dir.join("main.tex"), main_tex_body)?;
         written.push("main.tex".to_string());
         let ah = serde_json::to_string_pretty(&arxiv_operator_handoff_value(manifest))?;
         fs::write(out_dir.join("arxiv_handoff.json"), ah)?;
@@ -339,7 +339,7 @@ fn arxiv_assist_main_tex(manifest: &PublicationManifest) -> String {
         .map(latex_escape_minimal)
         .unwrap_or_else(|| "Abstract pending.".to_string());
     format!(
-        "% Auto-generated stub for arXiv operator-assist staging (vox-publisher).\n\
+        "% Auto-generated main.tex for arXiv operator-assist staging (vox-publisher).\n\
 \\documentclass{{article}}\n\
 \\usepackage{{hyperref}}\n\
 \\title{{{title}}}\n\
@@ -402,7 +402,11 @@ pub fn validate_scholarly_staging(
     for art in &plan {
         let p = out_dir.join(&art.relative_path);
         if art.relative_path == "citations.json" {
-            let src = manifest.citations_json.as_deref().map(str::trim).unwrap_or("");
+            let src = manifest
+                .citations_json
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("");
             if src.is_empty() {
                 continue;
             }
@@ -451,7 +455,11 @@ pub fn validate_scholarly_staging(
     }
 }
 
-fn content_checks(path: &Path, relative_path: &str, venue: ScholarlyVenue) -> Vec<ValidationFinding> {
+fn content_checks(
+    path: &Path,
+    relative_path: &str,
+    venue: ScholarlyVenue,
+) -> Vec<ValidationFinding> {
     let mut out = Vec::new();
     let bytes = match fs::read(path) {
         Ok(b) => b,
@@ -518,9 +526,7 @@ fn content_checks(path: &Path, relative_path: &str, venue: ScholarlyVenue) -> Ve
                     .get("content_sha3_256")
                     .and_then(|s| s.as_str())
                     .is_some_and(|s| !s.is_empty())
-                && val
-                    .get("arxiv_bundle_relpath")
-                    .and_then(|s| s.as_str())
+                && val.get("arxiv_bundle_relpath").and_then(|s| s.as_str())
                     == Some("arxiv_bundle.tar.gz");
             if !ok {
                 out.push(ValidationFinding {
@@ -675,12 +681,8 @@ mod tests {
             metadata_json: Some(meta),
         };
         let tmp = tempfile::tempdir().unwrap();
-        let files = write_scholarly_staging(
-            &manifest,
-            ScholarlyVenue::ArxivAssist,
-            tmp.path(),
-        )
-        .unwrap();
+        let files =
+            write_scholarly_staging(&manifest, ScholarlyVenue::ArxivAssist, tmp.path()).unwrap();
         assert!(!files.iter().any(|f| f == "zenodo.json"));
         assert!(files.iter().any(|f| f == "main.tex"));
         assert!(files.iter().any(|f| f == "arxiv_handoff.json"));

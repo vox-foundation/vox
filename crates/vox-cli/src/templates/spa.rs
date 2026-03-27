@@ -101,7 +101,10 @@ html, body, #root {
 pub fn package_json(tanstack_start: bool, file_route_tsr_pregen: bool) -> String {
     if tanstack_start {
         let (dev_cmd, build_cmd) = if file_route_tsr_pregen {
-            ("pnpm run routes:gen && vite dev", "pnpm run routes:gen && vite build")
+            (
+                "pnpm run routes:gen && vite dev",
+                "pnpm run routes:gen && vite build",
+            )
         } else {
             ("vite dev", "vite build")
         };

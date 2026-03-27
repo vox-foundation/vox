@@ -3,9 +3,7 @@
 use std::collections::HashSet;
 
 use syn::visit::{self, Visit};
-use syn::{
-    Expr, ExprCall, ExprPath, File, ForeignItem, Item, TraitItem, UseTree,
-};
+use syn::{Expr, ExprCall, ExprPath, File, ForeignItem, Item, TraitItem, UseTree};
 
 #[derive(Debug, Default)]
 pub struct AstUnresolvedHints {

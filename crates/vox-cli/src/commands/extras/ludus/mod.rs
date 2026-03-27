@@ -26,6 +26,8 @@ pub use collegium::{collegium_join, collegium_list, collegium_new, collegium_sta
 pub use companion::{
     companion_create, companion_interact, companion_interact_str, companion_list, companion_show,
 };
+#[cfg(feature = "ludus-hud")]
+pub use hud::run as ludus_hud_run;
 pub use pack::{pack_init, pack_list};
 pub use profile::{
     audit_show, digest_weekly, disable_ludus, enable_ludus, feedback_rate, metrics_show,
@@ -37,8 +39,6 @@ pub use quests_notifications::{
     glyph_list, hint_show, leaderboard_show, notify_clear, notify_list, quest_generate, quest_list,
 };
 pub use shop::{shop_buy, shop_list};
-#[cfg(feature = "ludus-hud")]
-pub use hud::run as ludus_hud_run;
 
 /// Print a formatted terminal toast for gamification rewards and level-ups.
 pub fn print_route_result(res: &vox_ludus::reward_policy::RouteResult) {

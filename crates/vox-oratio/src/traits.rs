@@ -35,7 +35,10 @@ fn contextual_bias_phrases_for_session() -> Vec<String> {
     crate::contextual_bias::merge_bias_phrases(lex_phrases, &extra, max_phrases)
 }
 
-fn finalize_after_refine(raw_text: String, refined: crate::refine::RefineOutput) -> TranscribeDetail {
+fn finalize_after_refine(
+    raw_text: String,
+    refined: crate::refine::RefineOutput,
+) -> TranscribeDetail {
     let refined_after_lex = apply_optional_project_lexicon(&refined.text);
     let bias = contextual_bias_phrases_for_session();
     let candidates = crate::transcript_rerank::rerank_candidates_best_first_with_context(

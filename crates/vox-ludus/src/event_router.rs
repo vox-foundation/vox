@@ -21,8 +21,8 @@ use crate::db::{
     canonical_user_id, get_companion, get_teaching_profile, insert_event, log_hint_event,
     process_event_rewards, try_claim_processed_event, upsert_companion, upsert_teaching_profile,
 };
-use crate::teaching::{MistakeKind, TeachingProfile};
 use crate::sprite_svg::{AgentPose, character_for_agent, generate_svg};
+use crate::teaching::{MistakeKind, TeachingProfile};
 use crate::util::now_unix;
 
 /// Extract (agent_id_u64, event_type_str) from a serialised `AgentEventKind` value.
@@ -85,10 +85,7 @@ pub async fn route_event(
     let payload = event_json.to_string();
 
     // 0. Idempotency for orchestrator replays (MCP adds `ludus_dedupe_id`)
-    if let Some(did) = event_json
-        .get("ludus_dedupe_id")
-        .and_then(|v| v.as_u64())
-    {
+    if let Some(did) = event_json.get("ludus_dedupe_id").and_then(|v| v.as_u64()) {
         let key = format!("{user_id}:orch:{did}");
         match try_claim_processed_event(db, user_id, &key).await {
             Ok(true) => {}
@@ -187,7 +184,8 @@ async fn teaching_hook(db: &Codex, user_id: &str, event_type: &str) -> Result<()
     let mut profile = get_teaching_profile(db, user_id)
         .await
         .unwrap_or_else(|_| TeachingProfile::new(user_id));
-    let freq = config_gate::mode().hint_frequency() * config_gate::experiment_hint_frequency_multiplier();
+    let freq =
+        config_gate::mode().hint_frequency() * config_gate::experiment_hint_frequency_multiplier();
     let req = profile.record_mistake(kind, freq);
     let _ = upsert_teaching_profile(db, &profile).await;
     if req.is_some() {

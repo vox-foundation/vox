@@ -1,5 +1,5 @@
-use crate::{VoxDb, store::StoreError, store::types::*};
 use super::common::now_ms;
+use crate::{VoxDb, store::StoreError, store::types::*};
 
 impl VoxDb {
     pub async fn upsert_publication_manifest(

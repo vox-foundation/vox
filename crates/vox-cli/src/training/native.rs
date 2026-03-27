@@ -248,8 +248,9 @@ mod tests {
         let n_heads = 4;
         let n_layers = 2; // small model for test
 
-        let model =
-            CliDogfoodTransformer::<TestBackend>::new(&device, vocab_size, d_model, n_heads, n_layers);
+        let model = CliDogfoodTransformer::<TestBackend>::new(
+            &device, vocab_size, d_model, n_heads, n_layers,
+        );
 
         // Dummy input [batch=2, seq_len=10]
         let input_data: Vec<i32> = (0..20).collect();

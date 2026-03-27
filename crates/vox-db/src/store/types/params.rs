@@ -259,3 +259,86 @@ pub struct SkillExecutionParams<'a> {
     pub error_kind: Option<&'a str>,
     pub reflection_score: Option<f64>,
 }
+
+/// Parameters for creating a row in `question_sessions`.
+#[derive(Debug, Clone)]
+pub struct QuestionSessionCreateParams<'a> {
+    pub session_id: &'a str,
+    pub repository_id: &'a str,
+    pub task_id: Option<&'a str>,
+    pub policy_version: &'a str,
+    pub started_at_ms: i64,
+}
+
+/// Parameters for recording an asked/answered question event.
+#[derive(Debug, Clone)]
+pub struct QuestionEventParams<'a> {
+    pub question_session_id: i64,
+    pub question_id: &'a str,
+    pub turn_index: i64,
+    pub actor: &'a str,
+    pub question_kind: &'a str,
+    pub prompt: &'a str,
+    pub expected_information_gain_bits: f64,
+    pub expected_user_cost: f64,
+    pub utility_bits_per_cost: f64,
+    pub answer_text: Option<&'a str>,
+    pub answer_type: Option<&'a str>,
+    pub answered_at_ms: Option<i64>,
+    pub created_at_ms: i64,
+}
+
+/// Parameters for one multiple-choice option row linked to a question event.
+#[derive(Debug, Clone)]
+pub struct QuestionOptionParams<'a> {
+    pub question_event_id: i64,
+    pub option_id: &'a str,
+    pub label: &'a str,
+    pub prior_probability: Option<f64>,
+    pub posterior_probability: Option<f64>,
+    pub is_other: bool,
+}
+
+/// Parameters for one option-outcome diagnostic row.
+#[derive(Debug, Clone)]
+pub struct QuestionOptionOutcomeParams<'a> {
+    pub question_event_id: i64,
+    pub option_id: &'a str,
+    pub selected: bool,
+    pub diagnostic_weight: f64,
+    pub information_contribution_bits: f64,
+    pub created_at_ms: i64,
+}
+
+/// Parameters for finalizing a clarification loop.
+#[derive(Debug, Clone)]
+pub struct QuestionStopEventParams<'a> {
+    pub question_session_id: i64,
+    pub stop_reason: &'a str,
+    pub confidence_at_stop: Option<f64>,
+    pub marginal_gain_bits: Option<f64>,
+    pub expected_user_cost: Option<f64>,
+    pub turn_index: Option<i64>,
+    pub created_at_ms: i64,
+}
+
+/// Parameters for standardized A2A clarification payload envelopes.
+#[derive(Debug, Clone)]
+pub struct A2aClarificationMessageParams<'a> {
+    pub message_uuid: &'a str,
+    pub sender_agent: &'a str,
+    pub receiver_agent: &'a str,
+    /// `clarification_request` | `clarification_response` | `clarification_stop`
+    pub msg_type: &'a str,
+    pub repository_id: &'a str,
+    pub thread_id: Option<&'a str>,
+    pub priority: i64,
+    pub clarification_intent: &'a str,
+    pub hypothesis_set_id: &'a str,
+    pub question_kind: Option<&'a str>,
+    pub expected_information_gain_bits: Option<f64>,
+    pub expected_user_cost: Option<f64>,
+    pub requested_evidence_dimensions_json: Option<&'a str>,
+    pub urgency: Option<&'a str>,
+    pub stop_policy_json: Option<&'a str>,
+}

@@ -46,8 +46,6 @@ pub mod memory;
 pub mod models;
 /// Shared `ToolResult` envelope and Deserialize/Serialize shapes for MCP tool arguments.
 pub mod params;
-/// Speech-to-code grammar / constrained-decode hooks (scaffold).
-pub mod speech_constraints;
 /// Best-effort mens registry publish on MCP startup (`VOX_MESH_ENABLED`).
 pub mod populi_startup;
 /// Bulletin-board Q&A between agents (ask, answer, pending, broadcast).
@@ -56,6 +54,8 @@ pub mod qa;
 pub mod server;
 /// vox-skills marketplace: install, search, parse `SKILL.md`, list installed skills.
 pub mod skills;
+/// Speech-to-code grammar / constrained-decode hooks (scaffold).
+pub mod speech_constraints;
 /// Sync locking helpers (re-exported from vox-orchestrator).
 pub mod sync_lock;
 /// Tool name registry, `handle_tool_call` dispatcher, and submodule implementations.
@@ -70,4 +70,4 @@ pub use params::{
     AgentInfo, CancelTaskParams, DrainAgentParams, MapAgentSessionParams, ReorderTaskParams,
     StatusResponse, ToolResult,
 };
-pub use server::{tool_json_envelope_is_error, ServerState, VoxMcpServer};
+pub use server::{ServerState, VoxMcpServer, tool_json_envelope_is_error};

@@ -9,8 +9,8 @@ use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 
 fn assert_golden_file(path: &Path) {
-    let src = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src =
+        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let tokens = lex(&src);
     let module = parse(tokens).unwrap_or_else(|errs| {
         panic!("parse {} failed: {errs:?}", path.display());
@@ -40,9 +40,5 @@ fn all_golden_vox_examples_parse_and_lower() {
         assert_golden_file(&path);
         count += 1;
     }
-    assert!(
-        count > 0,
-        "no .vox files under {}",
-        golden_dir.display()
-    );
+    assert!(count > 0, "no .vox files under {}", golden_dir.display());
 }

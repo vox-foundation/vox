@@ -111,16 +111,12 @@ pub fn enhanced_unresolved_for_path(path: &Path) -> bool {
 }
 
 pub fn tests_mode() -> ToestubTestsMode {
-    state()
-        .lock()
-        .expect("run_context lock")
-        .tests_mode
+    state().lock().expect("run_context lock").tests_mode
 }
 
 /// True when `path` is under a `tests/` directory segment (integration tests or nested `src/.../tests/`).
 pub fn path_under_tests_directory(path: &Path) -> bool {
-    path
-        .to_string_lossy()
+    path.to_string_lossy()
         .replace('\\', "/")
         .contains("/tests/")
 }
@@ -160,7 +156,9 @@ pub fn workspace_crate_refs_mod(declaring_file: &Path, mod_name: &str) -> bool {
 /// Record an unresolved callee for hotlist telemetry (best-effort).
 pub fn record_unresolved_callee(name: &str) {
     let mut g = state().lock().expect("run_context lock");
-    *g.unresolved_callee_counts.entry(name.to_string()).or_insert(0) += 1;
+    *g.unresolved_callee_counts
+        .entry(name.to_string())
+        .or_insert(0) += 1;
 }
 
 pub fn unresolved_callee_counts_snapshot() -> HashMap<String, usize> {

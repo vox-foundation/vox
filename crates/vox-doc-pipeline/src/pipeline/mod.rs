@@ -12,7 +12,7 @@ use std::path::Path;
 
 use feed::generate_feed;
 use lint::collect_lint_errors;
-use summary::{SECTION_ORDER, walk_dir};
+use summary::{SECTION_ORDER, assert_summary_link_targets_unique, walk_dir};
 use types::{LintError, LintKind, Page};
 
 /// Run the full doc pipeline (lint, optional SUMMARY + feed).
@@ -126,10 +126,19 @@ pub fn run() {
         output.push('\n');
     }
 
+    if let Err(e) = assert_summary_link_targets_unique(&output) {
+        eprintln!("{e:#}");
+        std::process::exit(1);
+    }
+
     let summary_path = docs_src.join("SUMMARY.md");
     if check_mode {
         let current =
             bounded_fs::read_utf8_path_capped(&summary_path).unwrap_or_else(|_| String::new());
+        if let Err(e) = assert_summary_link_targets_unique(&current) {
+            eprintln!("{e:#}");
+            std::process::exit(1);
+        }
         if current.trim() != output.trim() {
             eprintln!(
                 "SUMMARY.md is out of sync with docs/src. Run `cargo run -p vox-doc-pipeline` to update."

@@ -40,10 +40,7 @@ pub fn v0_named_export_violation(tsx: &str, component_name: &str) -> Option<Stri
     let re_fn = Regex::new(&format!(r"\bexport\s+function\s+{escaped}\b")).ok()?;
     let re_async_fn = Regex::new(&format!(r"\bexport\s+async\s+function\s+{escaped}\b")).ok()?;
     let re_const = Regex::new(&format!(r"\bexport\s+const\s+{escaped}\b")).ok()?;
-    let re_list = Regex::new(&format!(
-        r"export\s*\{{[^{{}}]*\b{escaped}\b[^{{}}]*\}}"
-    ))
-    .ok()?;
+    let re_list = Regex::new(&format!(r"export\s*\{{[^{{}}]*\b{escaped}\b[^{{}}]*\}}")).ok()?;
 
     if re_fn.is_match(tsx)
         || re_async_fn.is_match(tsx)

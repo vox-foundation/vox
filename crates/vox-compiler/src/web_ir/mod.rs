@@ -3,6 +3,22 @@
 //! - [`lower::lower_hir_to_web_ir`] — HIR → `WebIrModule` (views, routes, behaviors).
 //! - [`validate::validate_web_ir`] — structural checks before target emission.
 //! - [`emit_tsx::emit_component_view_tsx`] — JSX string from a lowered view root (parity / tests).
+//!
+//! ## Schema completeness checklist (OP-0049), by family
+//!
+//! - **DOM ([`DomNode`])** — Phase 1: [`DomNode::Element`], [`DomNode::Text`], [`DomNode::Expr`],
+//!   [`DomNode::IslandMount`]. Structural: [`DomNode::Fragment`], [`DomNode::Slot`],
+//!   [`DomNode::Conditional`], [`DomNode::Loop`] (validator walks edges when linked from [`WebIrModule::view_roots`]).
+//! - **Behavior ([`BehaviorNode`])** — state / derived / effect / handlers / actions; lowering must preserve
+//!   names for codegen binding (`validate` will deepen).
+//! - **Style ([`StyleNode`])** — rules and selectors; optional in Phase 1.
+//! - **Routes ([`RouteNode`])** — [`RouteContract`] shape (`id`, `pattern`, `meta` JSON); see invariants on [`RouteContract`].
+//! - **Interop ([`InteropNode`])** — refs and escape hatches; count for token / audit budgets (OP-0053).
+//! - **Shell ([`WebIrModule`])** — arena + [`WebIrModule::view_roots`]; [`WebIrVersion`] and [`SourceSpanTable`] versioning (OP-0055).
+//!
+//! **Interop policy (OP-S053 / OP-S185):** populated [`WebIrModule::interop_nodes`] are validated inside
+//! [`validate::validate_web_ir`] (non-empty specifiers / escape-hatch reasons). Route+data shape
+//! notes: [`RouteContract`] JSON in [`RouteNode::RouteTree`] must stay serde-stable for tooling (OP-S153).
 
 pub mod emit_tsx;
 pub mod lower;
@@ -15,16 +31,11 @@ use serde::{Deserialize, Serialize};
 // ---------------------------------------------------------------------------
 
 /// Increment when the schema gains breaking layout changes. ADR 012 CP-002.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum WebIrVersion {
     /// Initial frozen placeholder (Phase 0).
+    #[default]
     V0_1,
-}
-
-impl Default for WebIrVersion {
-    fn default() -> Self {
-        Self::V0_1
-    }
 }
 
 /// Opaque id into [`SourceSpanTable`].
@@ -39,6 +50,9 @@ pub struct SourceSpan {
     pub end: u32,
 }
 
+/// Byte-offset table for WebIR nodes (OP-0055). **Constraints:** ids are dense `0..len-1` from
+/// [`SourceSpanTable::push_span`]; consumers must not synthesize ids without inserting spans. Version
+/// bumps when file_id interpretation changes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SourceSpanTable {
     pub spans: Vec<SourceSpan>,
@@ -57,46 +71,46 @@ impl SourceSpanTable {
 }
 
 /// Classify optionality for validator + emit boundary (ADR 012 nullability policy).
+///
+/// **Fail-fast (OP-0050):** invalid combinations (e.g. `Required` with no initializer where the
+/// target requires one) should surface as `WebIrDiagnostic` at validate/emit, not silent defaults.
+///
+/// **Validator (OP-S011 / OP-S017):** the behavior stage of [`validate_web_ir`](validate::validate_web_ir) rejects
+/// `Required` [`BehaviorNode::StateDecl`] rows with no `initial`; `Optional` / `Defaulted` deepen with islands + emit caps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FieldOptionality {
+    /// Must have a concrete lowered value before codegen (see `web_ir_validate.behavior.required_state_without_initial`).
     Required,
+    /// May omit initializer at the WebIR boundary when the target allows undefined.
     Optional,
+    /// Compile-time default or placeholder policy (validator may require explicit RHS per ADR 012).
     Defaulted,
 }
 
 /// Stable node id within the dom node arena.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct DomNodeId(pub u32);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WebIrModule {
+    /// DOM arena indexed by [`DomNodeId`]; [`DomNode::Element`] carries a matching `id` after lowering.
     pub dom_nodes: Vec<DomNode>,
-    /// Reactive component name → root [`DomNodeId`] into [`Self::dom_nodes`] (Phase 1 lowering).
+    /// Reactive or classic component name → entry [`DomNodeId`] into [`Self::dom_nodes`] for its `view:` / JSX tail.
     #[serde(default)]
     pub view_roots: Vec<(String, DomNodeId)>,
+    /// Lowered reactive behaviors in pipeline order (`StateDecl`, `DerivedDecl`, `EffectDecl`, …).
     pub behavior_nodes: Vec<BehaviorNode>,
+    /// CSS from classic `@component` `style { }` and related surfaces (may be empty for Path-C-only modules).
     pub style_nodes: Vec<StyleNode>,
+    /// Stage **R**: client [`RouteNode::RouteTree`] plus HTTP loaders and RPC-shaped contracts.
     pub route_nodes: Vec<RouteNode>,
+    /// External / escape-hatch nodes (Phase 1 may leave empty; reserved for interop audits — OP-S053).
     pub interop_nodes: Vec<InteropNode>,
+    /// Lowering-time notes (e.g. unlowered AST); not a substitute for [`validate::validate_web_ir`] diagnostics.
     pub diagnostic_nodes: Vec<WebIrDiagnostic>,
+    /// Byte-offset back-references for tools; ids reference rows in this table.
     pub spans: SourceSpanTable,
     pub version: WebIrVersion,
-}
-
-impl Default for WebIrModule {
-    fn default() -> Self {
-        Self {
-            dom_nodes: Vec::new(),
-            view_roots: Vec::new(),
-            behavior_nodes: Vec::new(),
-            style_nodes: Vec::new(),
-            route_nodes: Vec::new(),
-            interop_nodes: Vec::new(),
-            diagnostic_nodes: Vec::new(),
-            spans: SourceSpanTable::default(),
-            version: WebIrVersion::default(),
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +152,8 @@ pub enum DomNode {
         body: Vec<DomNodeId>,
         span: Option<SourceSpanId>,
     },
+    /// Island SSR/hydration mount point (OP-0057 V1): `island_name` matches HIR `@island`; `props`
+    /// align with `data-prop-*` attrs; `ignored_child_count` mirrors JSX child strip count in `hir_emit`.
     IslandMount {
         island_name: String,
         /// Maps to `data-prop-*` compatibility surface (Phase 1..2).
@@ -192,10 +208,12 @@ pub enum BehaviorNode {
 // Style
 // ---------------------------------------------------------------------------
 
-/// Typed-ish CSS value bucket (Phase 2 deepens this per blueprint CP-031).
+/// Typed-ish CSS value bucket (Phase 2 deepens this per blueprint CP-031; OP-0059 extension hook).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StyleDeclarationValue {
+    /// Unparsed CSS text as emitted.
     Raw(String),
+    /// Design-token or variable reference name.
     TokenRef(String),
 }
 
@@ -229,14 +247,58 @@ pub enum StyleNode {
 pub enum StyleSelector {
     Class(String),
     Id(String),
+    /// Full selector text as authored in a `style { }` block (e.g. `.btn`, `h1`, `.a > .b`).
+    Unparsed(String),
     Compound(Vec<StyleSelector>),
-    Pseudo { base: Box<StyleSelector>, pseudo: String },
+    Pseudo {
+        base: Box<StyleSelector>,
+        pseudo: String,
+    },
+}
+
+// ---------------------------------------------------------------------------
+// Lowering / validation telemetry (OP-0078, OP-0094)
+// ---------------------------------------------------------------------------
+
+/// Counts produced alongside [`lower::lower_hir_to_web_ir_with_summary`] for gates and pipeline fixtures.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WebIrLowerSummary {
+    /// Count of [`RouteNode::RouteTree`] from `hir.client_routes`.
+    pub client_route_trees: usize,
+    pub http_loader_contracts: usize,
+    pub server_fn_contracts: usize,
+    pub query_fn_contracts: usize,
+    pub mutation_contracts: usize,
+    /// Path C reactive components in HIR (each may contribute `view_roots` + `behavior_nodes`).
+    pub reactive_components: usize,
+    /// Classic `@component fn` bodies lowered into [`WebIrModule::view_roots`] (OP-0179).
+    pub classic_component_views_lowered: usize,
+    /// Classic components without a JSX view in the supported emit shape (remainder).
+    pub classic_components_deferred: usize,
+    pub style_rules_lowered: usize,
+    /// `DomNode::Expr` leaves produced when JSX lowering falls back to TS snippets.
+    pub dom_expr_fallbacks: usize,
+    /// Rows appended to [`WebIrModule::diagnostic_nodes`] from lowering gaps.
+    pub lowering_diagnostics: usize,
+}
+
+/// Populated by [`validate::validate_web_ir_with_metrics`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WebIrValidateMetrics {
+    pub view_roots_walked: usize,
+    pub dom_nodes_traversed: usize,
+    pub route_contract_ids_checked: usize,
+    pub behavior_nodes_checked: usize,
+    pub style_nodes_checked: usize,
+    pub island_mounts_checked: usize,
 }
 
 // ---------------------------------------------------------------------------
 // Route / data
 // ---------------------------------------------------------------------------
 
+/// Route and data-contract envelope (OP-0061). Keep payloads small JSON-shaped; deep RPC schemas
+/// stay on HIR/server layers—this enum is for router-facing summaries only.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RouteNode {
     RouteTree {
@@ -252,10 +314,18 @@ pub enum RouteNode {
     MutationContract(MutationContract),
 }
 
+/// Client route entry in a [`RouteNode::RouteTree`] (OP-0051).
+///
+/// **Invariants:** `id` is stable within the owning module (often `route_{i}` from lowering); `pattern`
+/// is the URL pattern string as authored; `meta` holds small JSON only (e.g. target component name)—keep
+/// it object-shaped for tooling; oversized payloads belong in HIR diagnostics, not opaque blobs here.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteContract {
+    /// Stable within a module; duplicates fail the route stage of [`validate_web_ir`](validate::validate_web_ir) (`web_ir_validate.route.duplicate_contract_id`).
     pub id: String,
+    /// URL pattern string as authored on the client route entry.
     pub pattern: String,
+    /// Small JSON attachment (e.g. target component name); keep router-shaped, not full RPC schemas.
     pub meta: serde_json::Value,
 }
 
@@ -278,6 +348,8 @@ pub struct MutationContract {
 // Interop
 // ---------------------------------------------------------------------------
 
+/// Cross-language and escape surfaces (OP-0053): every variant should be explicit in audits—prefer
+/// narrowing imports over [`InteropNode::EscapeHatchExpr`]; raw expr carries policy risk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InteropNode {
     ReactComponentRef {
@@ -308,7 +380,13 @@ pub struct WebIrDiagnostic {
     pub code: String,
     pub message: String,
     pub span: Option<SourceSpanId>,
+    /// Dashboard facet, e.g. `dom`, `route`, `behavior`, `style`, `island`, `lower`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
 }
+
+// Lifecycle: bump [`WebIrVersion`] when breaking serialized layout; keep [`validate_web_ir`] in sync
+// with new edges; document consumer contracts in ADR 012 and the internal Web IR blueprint (OP-0063).
 
 #[cfg(test)]
 mod smoke_tests {

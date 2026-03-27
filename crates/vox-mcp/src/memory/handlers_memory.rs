@@ -1,15 +1,14 @@
-use crate::{ServerState, ToolResult};
 use super::config::memory_config_for_state;
 use super::params::{
     KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
     MemoryStoreParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
+use crate::{ServerState, ToolResult};
 
 const REM_MEMORY_VOXDB: &str =
     "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) to the MCP server for knowledge-graph queries.";
-const REM_MEMORY_INIT: &str =
-    "Verify orchestrator memory paths and permissions; restart the MCP server if config is inconsistent.";
+const REM_MEMORY_INIT: &str = "Verify orchestrator memory paths and permissions; restart the MCP server if config is inconsistent.";
 const REM_MEMORY_PERSIST: &str =
     "Check disk quotas and MEMORY.md / daily log paths; ensure the agent id is valid.";
 const REM_MEMORY_KEY: &str =
@@ -39,8 +38,10 @@ pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> Str
             ) {
                 Ok(()) => ToolResult::ok(format!("Stored '{}' = '{}'", params.key, params.value))
                     .to_json(),
-                Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
-                    .to_json(),
+                Err(e) => {
+                    ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
+                        .to_json()
+                }
             }
         }
         Err(e) => ToolResult::<String>::err_with_remediation(
@@ -70,8 +71,10 @@ pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> S
                     REM_MEMORY_KEY,
                 )
                 .to_json(),
-                Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
-                    .to_json(),
+                Err(e) => {
+                    ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
+                        .to_json()
+                }
             }
         }
         Err(e) => ToolResult::<String>::err_with_remediation(
@@ -142,8 +145,10 @@ pub async fn memory_daily_log(state: &ServerState, params: MemoryLogParams) -> S
             }
             match mgr.log(&params.entry) {
                 Ok(()) => ToolResult::ok("Entry logged to daily memory.".to_string()).to_json(),
-                Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
-                    .to_json(),
+                Err(e) => {
+                    ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
+                        .to_json()
+                }
             }
         }
         Err(e) => ToolResult::<String>::err_with_remediation(
@@ -160,7 +165,10 @@ pub async fn memory_list_keys(state: &ServerState) -> String {
     match vox_orchestrator::MemoryManager::new(config) {
         Ok(mgr) => match mgr.list_keys() {
             Ok(keys) => ToolResult::ok(keys).to_json(),
-            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST).to_json(),
+            Err(e) => {
+                ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_PERSIST)
+                    .to_json()
+            }
         },
         Err(e) => ToolResult::<String>::err_with_remediation(
             format!("memory init failed: {e}"),
@@ -189,8 +197,10 @@ pub async fn knowledge_query(state: &ServerState, params: KnowledgeQueryParams) 
                     ToolResult::ok(formatted).to_json()
                 }
             }
-            Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_KG_QUERY)
-                .to_json(),
+            Err(e) => {
+                ToolResult::<String>::err_with_remediation(format!("{e}"), REM_MEMORY_KG_QUERY)
+                    .to_json()
+            }
         }
     } else {
         ToolResult::<String>::err_with_remediation(

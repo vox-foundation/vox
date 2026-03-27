@@ -9,12 +9,12 @@ use vox_publisher::scholarly_external_jobs::{
     publication_scholarly_submit_with_ledger,
 };
 
-use super::common::{
-    no_voxdb_tool_string, publication_manifest_from_row, REM_PUBLICATION_ID, REM_SCIENTIA_ARXIV,
-    REM_SCIENTIA_DB, REM_SCIENTIA_EXT_SUBMIT, REM_SCIENTIA_OUTPUT_DIR, REM_SCIENTIA_REMOTE,
-    REM_SCIENTIA_STAGE,
-};
 use super::common::default_one_u32;
+use super::common::{
+    REM_PUBLICATION_ID, REM_SCIENTIA_ARXIV, REM_SCIENTIA_DB, REM_SCIENTIA_EXT_SUBMIT,
+    REM_SCIENTIA_OUTPUT_DIR, REM_SCIENTIA_REMOTE, REM_SCIENTIA_STAGE, no_voxdb_tool_string,
+    publication_manifest_from_row,
+};
 use super::lifecycle::PreflightProfileParam;
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -97,7 +97,13 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
             )
             .to_json();
         }
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let manifest = PublicationManifest {
         publication_id: row.publication_id.clone(),
@@ -117,7 +123,11 @@ pub async fn vox_scientia_publication_scholarly_staging_export(
     ) {
         Ok(w) => w,
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_OUTPUT_DIR).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                e.to_string(),
+                REM_SCIENTIA_OUTPUT_DIR,
+            )
+            .to_json();
         }
     };
     if let Err(findings) =
@@ -150,12 +160,15 @@ pub async fn vox_scientia_publication_scholarly_remote_status(
     let Some(db) = &state.db else {
         return no_voxdb_tool_string();
     };
-    let submissions = match db
-        .list_scholarly_submissions(&params.publication_id)
-        .await
-    {
+    let submissions = match db.list_scholarly_submissions(&params.publication_id).await {
         Ok(v) => v,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let sub_row: &vox_db::ScholarlySubmissionRow = match params.external_submission_id.as_deref() {
         Some(e) => {
@@ -212,7 +225,9 @@ pub async fn vox_scientia_publication_scholarly_remote_status_sync_all(
     }
     match poll_scholarly_remote_status_all_submissions_for_publication(db, publication_id).await {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json()
+        }
     }
 }
 
@@ -260,7 +275,13 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
             )
             .to_json();
         }
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     let manifest = PublicationManifest {
         publication_id: row.publication_id.clone(),
@@ -291,7 +312,13 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
         .await
     {
         Ok(b) => b,
-        Err(e) => return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
     };
     if !dual {
         return ToolResult::<String>::err_with_remediation(
@@ -307,7 +334,11 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty());
-    let venue_raw = params.venue.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let venue_raw = params
+        .venue
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
 
     match (venue_raw, out_dir) {
         (Some(vs), Some(od)) => {
@@ -327,16 +358,17 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
                     venue,
                     output_path,
                 ) {
-                    return ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_OUTPUT_DIR)
-                        .to_json();
-                }
-                if let Err(findings) =
-                    vox_publisher::submission_package::validate_scholarly_staging(
-                        output_path,
-                        venue,
-                        &manifest,
+                    return ToolResult::<String>::err_with_remediation(
+                        e.to_string(),
+                        REM_SCIENTIA_OUTPUT_DIR,
                     )
-                {
+                    .to_json();
+                }
+                if let Err(findings) = vox_publisher::submission_package::validate_scholarly_staging(
+                    output_path,
+                    venue,
+                    &manifest,
+                ) {
                     let msg: String = findings
                         .iter()
                         .map(|f| format!("{}: {}", f.code, f.message))
@@ -438,7 +470,9 @@ pub async fn vox_scientia_publication_scholarly_remote_status_sync_batch(
     };
     match res {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json()
+        }
     }
 }
 
@@ -512,7 +546,11 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
             .to_json();
         }
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
         }
     }
 
@@ -521,7 +559,11 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty());
-    let note_trim = params.note.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let note_trim = params
+        .note
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     let arxiv_trim = params
         .arxiv_id
         .as_deref()
@@ -537,14 +579,14 @@ pub async fn vox_scientia_publication_arxiv_handoff_record(
         "arxiv_id": arxiv_trim,
     });
     if let Err(e) = db
-        .append_publication_status_event(
-            publication_id,
-            &status,
-            Some(&detail.to_string()),
-        )
+        .append_publication_status_event(publication_id, &status, Some(&detail.to_string()))
         .await
     {
-        return ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json();
+        return ToolResult::<String>::err_with_remediation(
+            format!("DB error: {e}"),
+            REM_SCIENTIA_DB,
+        )
+        .to_json();
     }
     ToolResult::ok(serde_json::json!({
         "recorded": true,

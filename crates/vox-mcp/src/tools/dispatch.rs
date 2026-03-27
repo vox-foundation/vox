@@ -5,8 +5,8 @@ use crate::server::ServerState;
 
 use super::{
     benchmark_tools, chat_tools, codex_tools, compiler_tools, db_tools, git_tools,
-    introspection_tools, news_tools, oratio_tools, populi_tools, repo_index, scientia_tools,
-    task_tools, toestub_tools, tool_aliases, training_tools, vcs_tools,
+    introspection_tools, news_tools, oratio_tools, populi_tools, questioning_tools, repo_index,
+    scientia_tools, task_tools, toestub_tools, tool_aliases, training_tools, vcs_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
@@ -27,9 +27,7 @@ pub async fn handle_tool_call(
 
     // Ludus: canonical reward path when enabled; raw telemetry when gamification is off.
     if let Some(db) = &state.db {
-        let aid = agent_id
-            .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(0u64);
+        let aid = agent_id.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0u64);
         let args_stored = vox_ludus::mcp_privacy::prepare_mcp_tool_args_for_storage(&args);
         let mut route_ev = serde_json::json!({
             "type": "mcp_tool_called",
@@ -58,13 +56,9 @@ pub async fn handle_tool_call(
                 payload["session_id"] = serde_json::Value::String(sid.to_string());
             }
             let agent_str = agent_id.unwrap_or("0");
-            let _ = vox_ludus::db::insert_event(
-                db,
-                agent_str,
-                "tool_call",
-                Some(&payload.to_string()),
-            )
-            .await;
+            let _ =
+                vox_ludus::db::insert_event(db, agent_str, "tool_call", Some(&payload.to_string()))
+                    .await;
         }
     }
 
@@ -85,26 +79,18 @@ async fn handle_tool_call_inner(
         }
         "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
         "vox_orchestrator_start" => Ok(crate::dei_tools::orchestrator_start(state).await),
-        "vox_spawn_agent" => Ok(crate::dei_tools::spawn_agent(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
-        "vox_retire_agent" => Ok(crate::dei_tools::retire_agent(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
-        "vox_pause_agent" => Ok(crate::dei_tools::pause_agent(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
-        "vox_resume_agent" => Ok(crate::dei_tools::resume_agent(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
+        "vox_spawn_agent" => {
+            Ok(crate::dei_tools::spawn_agent(state, serde_json::from_value(args)?).await)
+        }
+        "vox_retire_agent" => {
+            Ok(crate::dei_tools::retire_agent(state, serde_json::from_value(args)?).await)
+        }
+        "vox_pause_agent" => {
+            Ok(crate::dei_tools::pause_agent(state, serde_json::from_value(args)?).await)
+        }
+        "vox_resume_agent" => {
+            Ok(crate::dei_tools::resume_agent(state, serde_json::from_value(args)?).await)
+        }
         "vox_complete_task" => {
             Ok(task_tools::complete_task(state, serde_json::from_value(args)?).await)
         }
@@ -237,6 +223,21 @@ async fn handle_tool_call_inner(
         "vox_chat_history" => {
             Ok(chat_tools::chat_history(state, serde_json::from_value(args)?).await)
         }
+        "vox_questioning_submit_answer" => Ok(questioning_tools::questioning_submit_answer(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_questioning_pending" => Ok(questioning_tools::questioning_pending(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_questioning_sync_ssot" => Ok(questioning_tools::questioning_sync_ssot(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_inline_edit" => {
             Ok(chat_tools::inline_edit(state, serde_json::from_value(args)?).await)
         }
@@ -325,13 +326,13 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
-        "vox_scientia_publication_external_jobs_due" => Ok(
-            scientia_tools::vox_scientia_publication_external_jobs_due(
+        "vox_scientia_publication_external_jobs_due" => {
+            Ok(scientia_tools::vox_scientia_publication_external_jobs_due(
                 state,
                 serde_json::from_value(args)?,
             )
-            .await,
-        ),
+            .await)
+        }
         "vox_scientia_publication_external_jobs_dead_letter" => Ok(
             scientia_tools::vox_scientia_publication_external_jobs_dead_letter(
                 state,
@@ -346,13 +347,13 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
-        "vox_scientia_publication_external_jobs_tick" => Ok(
-            scientia_tools::vox_scientia_publication_external_jobs_tick(
+        "vox_scientia_publication_external_jobs_tick" => {
+            Ok(scientia_tools::vox_scientia_publication_external_jobs_tick(
                 state,
                 serde_json::from_value(args)?,
             )
-            .await,
-        ),
+            .await)
+        }
         "vox_scientia_publication_external_pipeline_metrics" => Ok(
             scientia_tools::vox_scientia_publication_external_pipeline_metrics(
                 state,
@@ -502,30 +503,26 @@ async fn handle_tool_call_inner(
             Ok(crate::gamify::check_mood(state, serde_json::from_value(args)?).await)
         }
         "vox_ludus_notifications_list" => {
-            Ok(crate::gamify::ludus_notifications_list(
-                state,
-                serde_json::from_value(args)?,
-            )
-            .await)
+            Ok(crate::gamify::ludus_notifications_list(state, serde_json::from_value(args)?).await)
         }
         "vox_ludus_progress_snapshot" => {
-            Ok(crate::gamify::ludus_progress_snapshot(
-                state,
-                serde_json::from_value(args)?,
-            )
-            .await)
+            Ok(crate::gamify::ludus_progress_snapshot(state, serde_json::from_value(args)?).await)
         }
         "vox_ludus_notification_ack" => {
-            Ok(crate::gamify::ludus_notification_ack(
-                state,
-                serde_json::from_value(args)?,
-            )
-            .await)
+            Ok(crate::gamify::ludus_notification_ack(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notifications_ack_all" => Ok(crate::gamify::ludus_notifications_ack_all(state).await),
-        "vox_ludus_quest_list" => Ok(crate::gamify::ludus_quest_list(state, serde_json::from_value(args)?).await),
-        "vox_ludus_shop_catalog" => Ok(crate::gamify::ludus_shop_catalog(state, serde_json::from_value(args)?).await),
-        "vox_ludus_shop_buy" => Ok(crate::gamify::ludus_shop_buy(state, serde_json::from_value(args)?).await),
+        "vox_ludus_notifications_ack_all" => {
+            Ok(crate::gamify::ludus_notifications_ack_all(state).await)
+        }
+        "vox_ludus_quest_list" => {
+            Ok(crate::gamify::ludus_quest_list(state, serde_json::from_value(args)?).await)
+        }
+        "vox_ludus_shop_catalog" => {
+            Ok(crate::gamify::ludus_shop_catalog(state, serde_json::from_value(args)?).await)
+        }
+        "vox_ludus_shop_buy" => {
+            Ok(crate::gamify::ludus_shop_buy(state, serde_json::from_value(args)?).await)
+        }
         "vox_ludus_collegium_join" => {
             Ok(crate::gamify::ludus_collegium_join(state, serde_json::from_value(args)?).await)
         }

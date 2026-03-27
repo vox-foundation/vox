@@ -43,8 +43,8 @@ pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<Stri
     let canonical_text = read_utf8_path_capped(&canonical)
         .with_context(|| format!("read {}", canonical.display()))?;
     if legacy.is_file() {
-        let legacy_text = read_utf8_path_capped(&legacy)
-            .with_context(|| format!("read {}", legacy.display()))?;
+        let legacy_text =
+            read_utf8_path_capped(&legacy).with_context(|| format!("read {}", legacy.display()))?;
         return Ok(format!("{legacy_text}\n\n{canonical_text}"));
     }
     Ok(canonical_text)

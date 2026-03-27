@@ -328,7 +328,7 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     })
     .await
     {
-        Ok(Ok(())) => {}
+        Ok(Ok(_)) => {}
         Ok(Err(e)) => return Err(e).context("islands build"),
         Err(e) => return Err(anyhow::anyhow!(e)).context("islands build join"),
     }
@@ -388,7 +388,7 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
             })
             .await
             {
-                Ok(Ok(())) => {}
+                Ok(Ok(_)) => {}
                 Ok(Err(e)) => {
                     let _ = write_resp(
                         &req_id,

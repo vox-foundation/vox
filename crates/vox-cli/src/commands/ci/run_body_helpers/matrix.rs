@@ -180,17 +180,9 @@ fn run_mens_gate_windows_isolated(root: &Path, profile: &str, opts: &MensGateOpt
         ));
     }
 
-    let tmp = env::temp_dir().join(format!(
-        "vox-gate-{}.exe",
-        uuid::Uuid::new_v4().simple()
-    ));
-    fs::copy(&built, &tmp).with_context(|| {
-        format!(
-            "copy runner {} -> {}",
-            built.display(),
-            tmp.display()
-        )
-    })?;
+    let tmp = env::temp_dir().join(format!("vox-gate-{}.exe", uuid::Uuid::new_v4().simple()));
+    fs::copy(&built, &tmp)
+        .with_context(|| format!("copy runner {} -> {}", built.display(), tmp.display()))?;
     let _rm_temp = TempGateExe(tmp.clone());
 
     if let Some(ref log_path) = opts.gate_log_file {
@@ -295,13 +287,8 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
     }
 
     let tmp = env::temp_dir().join(format!("vox-gate-{}", uuid::Uuid::new_v4().simple()));
-    fs::copy(&built, &tmp).with_context(|| {
-        format!(
-            "copy runner {} -> {}",
-            built.display(),
-            tmp.display()
-        )
-    })?;
+    fs::copy(&built, &tmp)
+        .with_context(|| format!("copy runner {} -> {}", built.display(), tmp.display()))?;
     let mut perms = fs::metadata(&tmp)?.permissions();
     perms.set_mode(0o755);
     fs::set_permissions(&tmp, perms)?;
@@ -451,6 +438,7 @@ pub(crate) fn run_toestub_self_apply(repo: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Spawns `toestub` on `scan_root` with the given exit policy (`legacy` = fail on arch/god_object Error, etc.).
 pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiMode) -> Result<()> {
     let root: PathBuf = if scan_root.is_absolute() {
         scan_root.to_path_buf()

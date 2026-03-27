@@ -34,8 +34,9 @@ fn assert_lexes_as_single_token(slice: &str, label: &str) {
 #[test]
 fn vox_grammar_artifact_keywords_lex() {
     let root = workspace_root();
-    let raw = std::fs::read_to_string(root.join("contracts/speech-to-code/vox_grammar_artifact.json"))
-        .expect("read vox_grammar_artifact.json");
+    let raw =
+        std::fs::read_to_string(root.join("contracts/speech-to-code/vox_grammar_artifact.json"))
+            .expect("read vox_grammar_artifact.json");
     let v: serde_json::Value = serde_json::from_str(&raw).expect("parse artifact json");
     for key in ["keywords", "decorators", "punctuators"] {
         let arr = v

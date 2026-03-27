@@ -129,19 +129,7 @@ impl crate::VoxDb {
         &self,
         user_id: &str,
         reward_id: &str,
-    ) -> Result<
-        Option<(
-            String,
-            String,
-            i64,
-            i64,
-            bool,
-            i64,
-            String,
-            String,
-        )>,
-        StoreError,
-    > {
+    ) -> Result<Option<(String, String, i64, i64, bool, i64, String, String)>, StoreError> {
         let mut rows = self
             .conn
             .query(
@@ -275,20 +263,7 @@ impl crate::VoxDb {
     pub async fn get_active_gamify_arena_event(
         &self,
         now_ts: i64,
-    ) -> Result<
-        Option<(
-            String,
-            String,
-            String,
-            i64,
-            i64,
-            i64,
-            i64,
-            i64,
-            i64,
-        )>,
-        StoreError,
-    > {
+    ) -> Result<Option<(String, String, String, i64, i64, i64, i64, i64, i64)>, StoreError> {
         let mut rows = self
             .conn
             .query(
@@ -341,13 +316,14 @@ impl crate::VoxDb {
                 params![event_id, user_id],
             )
             .await?;
-        Ok(
-            if let Some(row) = rows.next().await? {
-                (row.get::<i64>(0).unwrap_or(0), row.get::<i64>(1).unwrap_or(0))
-            } else {
-                (0, 0)
-            },
-        )
+        Ok(if let Some(row) = rows.next().await? {
+            (
+                row.get::<i64>(0).unwrap_or(0),
+                row.get::<i64>(1).unwrap_or(0),
+            )
+        } else {
+            (0, 0)
+        })
     }
 
     pub async fn list_gamify_arena_leaderboard(
@@ -465,7 +441,10 @@ impl crate::VoxDb {
         Ok(n)
     }
 
-    pub async fn mark_all_gamify_notifications_read(&self, user_id: &str) -> Result<(), StoreError> {
+    pub async fn mark_all_gamify_notifications_read(
+        &self,
+        user_id: &str,
+    ) -> Result<(), StoreError> {
         self.conn
             .execute(
                 "UPDATE gamify_notifications SET read = 1 WHERE user_id = ?1 AND read = 0",
@@ -475,7 +454,10 @@ impl crate::VoxDb {
         Ok(())
     }
 
-    pub async fn delete_expired_gamify_notifications(&self, now_ts: i64) -> Result<u64, StoreError> {
+    pub async fn delete_expired_gamify_notifications(
+        &self,
+        now_ts: i64,
+    ) -> Result<u64, StoreError> {
         let n = self
             .conn
             .execute(

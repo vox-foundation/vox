@@ -5,8 +5,7 @@ use vox_orchestrator::AgentId;
 
 use crate::{ServerState, ToolResult};
 
-const REM_CTX_LOCK: &str =
-    "Retry; poisoned orchestrator locks usually clear after MCP restart.";
+const REM_CTX_LOCK: &str = "Retry; poisoned orchestrator locks usually clear after MCP restart.";
 const REM_CTX_KEY: &str = "Use `list_context` with a prefix or verify the key was set under the expected agent namespace.";
 
 // ---------------------------------------------------------------------------
@@ -69,7 +68,8 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
         match crate::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json();
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
+                    .to_json();
             }
         };
     guard.set(
@@ -89,13 +89,15 @@ pub async fn get_context(state: &ServerState, params: GetContextParams) -> Strin
         match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json();
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
+                    .to_json();
             }
         };
     if let Some(val) = read_guard.get(&params.key) {
         ToolResult::ok(val).to_json()
     } else {
-        ToolResult::<String>::err_with_remediation("Key not found or expired", REM_CTX_KEY).to_json()
+        ToolResult::<String>::err_with_remediation("Key not found or expired", REM_CTX_KEY)
+            .to_json()
     }
 }
 
@@ -107,7 +109,11 @@ pub async fn list_context(state: &ServerState, params: ListContextParams) -> Str
         match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<Vec<String>>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json();
+                return ToolResult::<Vec<String>>::err_with_remediation(
+                    e.to_string(),
+                    REM_CTX_LOCK,
+                )
+                .to_json();
             }
         };
     let keys = read_guard.list_keys(&params.prefix);
@@ -123,7 +129,8 @@ pub async fn context_budget(state: &ServerState, params: ContextBudgetParams) ->
         match crate::sync_poison::poison_rw_read(budget_handle.read(), "token budget") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json();
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
+                    .to_json();
             }
         };
     if let Some(budget) = budget_guard.check_budget(id) {
@@ -146,7 +153,8 @@ pub async fn handoff_context(state: &ServerState, params: HandoffContextParams) 
         match crate::sync_poison::poison_rw_write(summary_handle.write(), "context summary") {
             Ok(g) => g,
             Err(e) => {
-                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK).to_json();
+                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
+                    .to_json();
             }
         };
     sum_guard.handoff(

@@ -3,8 +3,8 @@
 pub(crate) mod bounded_read;
 pub mod build_timings;
 mod check_links;
-mod command_sync;
 mod command_compliance;
+mod command_sync;
 mod contracts_index;
 mod eval_matrix;
 mod line_endings;
@@ -14,6 +14,7 @@ mod scientia_worthiness_contract;
 
 mod cmd_enums;
 mod constants;
+mod coverage_gates;
 mod run_body;
 
 use std::path::PathBuf;
@@ -21,7 +22,9 @@ use std::process::{Command, Stdio};
 
 use anyhow::Result;
 
-pub use cmd_enums::{CiCmd, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, ScalingAuditCmd};
+pub use cmd_enums::{
+    CiCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, ScalingAuditCmd,
+};
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.
 pub fn repo_root() -> PathBuf {

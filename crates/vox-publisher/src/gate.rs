@@ -182,9 +182,7 @@ pub fn evaluate_publication_gate(inputs: PublicationGateInputs) -> PublishGateDe
 mod tests {
     use chrono::Utc;
 
-    use super::{
-        PublishGateInputs, evaluate_publish_gate, publish_gate_inputs_for_mcp,
-    };
+    use super::{PublishGateInputs, evaluate_publish_gate, publish_gate_inputs_for_mcp};
     use crate::types::{SyndicationConfig, UnifiedNewsItem};
 
     fn sample_item(syndication: SyndicationConfig) -> UnifiedNewsItem {
@@ -207,21 +205,11 @@ mod tests {
             ..Default::default()
         });
         let gated = evaluate_publish_gate(publish_gate_inputs_for_mcp(
-            true,
-            false,
-            false,
-            true,
-            true,
-            &item,
+            true, false, false, true, true, &item,
         ));
         assert!(!gated.would_be_live_without_dry_run);
         let gated2 = evaluate_publish_gate(publish_gate_inputs_for_mcp(
-            false,
-            true,
-            false,
-            true,
-            true,
-            &item,
+            false, true, false, true, true, &item,
         ));
         assert!(!gated2.would_be_live_without_dry_run);
     }

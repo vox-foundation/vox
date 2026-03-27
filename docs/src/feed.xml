@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Vox Language Updates</title>
+  <link>https://vox-foundation.github.io/vox/</link>
+  <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
+  <language>en-us</language>
+  <lastBuildDate>Fri, 27 Mar 2026 00:30:22 GMT</lastBuildDate>
+  <atom:link href="https://vox-foundation.github.io/vox/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Environment variables (SSOT)</title>
+    <link>https://vox-foundation.github.io/vox/reference/env-vars.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/reference/env-vars.html</guid>
+    <description>Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl</description>
+    <pubDate>Fri, 27 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Information-theoretic questioning protocol</title>
+    <link>https://vox-foundation.github.io/vox/reference/information-theoretic-questioning.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/reference/information-theoretic-questioning.html</guid>
+    <description>SSOT for when and how Vox asks clarifying questions with maximum diagnostic value per user effort.</description>
+    <pubDate>Fri, 27 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Parser feature matrix</title>
+    <link>https://vox-foundation.github.io/vox/reference/parser-feature-matrix.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/reference/parser-feature-matrix.html</guid>
+    <description>Current parser coverage matrix for Vox declarations and expressions.</description>
+    <pubDate>Fri, 27 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>ADR 012 — Internal Web IR strategy for Vox</title>
+    <link>https://vox-foundation.github.io/vox/adr/012-internal-web-ir-strategy.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/012-internal-web-ir-strategy.html</guid>
+    <description>Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Architecture Decision Records (ADR)</title>
+    <link>https://vox-foundation.github.io/vox/adr/README.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/adr/README.html</guid>
+    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>@v0</title>
+    <link>https://vox-foundation.github.io/vox/api/decorators/v0.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/api/decorators/v0.html</guid>
+    <description>Official documentation for @v0 for the Vox language. Detailed technical reference, architecture guides, and implementation patterns for A</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Crate API: vox-codegen-ts</title>
+    <link>https://vox-foundation.github.io/vox/api/vox-codegen-ts.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/api/vox-codegen-ts.html</guid>
+    <description>Official documentation for Crate API: vox-codegen-ts for the Vox language. Detailed technical reference, architecture guides, and impleme</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Crate topology buckets</title>
+    <link>https://vox-foundation.github.io/vox/architecture/crate-topology-buckets.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/crate-topology-buckets.html</guid>
+    <description>Like-with-like map for workspace crates under crates/* and major modules.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Internal Web IR Implementation Blueprint</title>
+    <link>https://vox-foundation.github.io/vox/architecture/internal-web-ir-implementation-blueprint.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/internal-web-ir-implementation-blueprint.html</guid>
+    <description>Detailed execution blueprint for implementing WebIR in Vox with weighted task quotas and critical-path checklist.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Internal Web IR Side-by-Side Schema</title>
+    <link>https://vox-foundation.github.io/vox/architecture/internal-web-ir-side-by-side-schema.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/internal-web-ir-side-by-side-schema.html</guid>
+    <description>Parser-grounded current-vs-target WebIR mapping for one full-stack Vox app across source, IR, TSX/TS, CSS, HTML, and Rust/API.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Nomenclature migration map (SSOT)</title>
+    <link>https://vox-foundation.github.io/vox/architecture/nomenclature-migration-map.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/nomenclature-migration-map.html</guid>
+    <description>Canonical English terms, Latin CLI aliases, and legacy identifiers for the Vox codebase.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Research baseline and source-of-truth map</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/00-research-baseline-source-map.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/00-research-baseline-source-map.html</guid>
+    <description>Research appendix for planning-meta creation, including source classification and confidence tags.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Master planning index</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/01-master-planning-index.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/01-master-planning-index.html</guid>
+    <description>Authoritative index for the planning-meta corpus, including hierarchy, read order, and ownership model.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Fast LLM instruction plan</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/02-fast-llm-instruction-plan.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/02-fast-llm-instruction-plan.html</guid>
+    <description>Deterministic planning instruction set for creating and revising Vox planning artifacts quickly without implementation leakage.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Weighted deep planning manual</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/03-weighted-deep-planning-manual.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/03-weighted-deep-planning-manual.html</guid>
+    <description>Comprehensive planning reference with token-weighted depth guidance so high-risk areas receive proportionally more specification detail.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Planning critique and gap analysis</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/04-planning-critique-gap-analysis.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/04-planning-critique-gap-analysis.html</guid>
+    <description>Severity-ranked critique of prior Vox planning artifacts with root-cause analysis and explicit fix mapping into the planning corpus.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Anti-foot-gun planning standard</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/05-anti-foot-gun-planning-standard.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/05-anti-foot-gun-planning-standard.html</guid>
+    <description>Normative planning standard that blocks common planning mistakes which cause migration regressions, drift, or unsafe rollout assumptions.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Planning taxonomy and glossary</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/06-planning-taxonomy-glossary.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/06-planning-taxonomy-glossary.html</guid>
+    <description>Canonical terminology for planning-meta artifacts, including preferred terms, forbidden ambiguous aliases, and historical mappings.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Task catalog authoring spec</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/07-task-catalog-authoring-spec.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/07-task-catalog-authoring-spec.html</guid>
+    <description>Specification for writing atomic planning tasks with dependencies, weighting, acceptance evidence, and anti-foot-gun checks.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>Milestone and gate definition spec</title>
+    <link>https://vox-foundation.github.io/vox/architecture/planning-meta/08-milestone-gate-definition-spec.html</link>
+    <guid isPermaLink="true">https://vox-foundation.github.io/vox/architecture/planning-meta/08-milestone-gate-definition-spec.html</guid>
+    <description>Normative specification for defining milestones and gates with explicit pass/fail evidence, escalation rules, and stop conditions.</description>
+    <pubDate>Thu, 26 Mar 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>v0.8.0 — @require, @pure, @deprecated Decorators; 10 LSP Features</title>
+    <link>https://vox-foundation.github.io/vox/changelog.html</link>
+    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.8.0</guid>
+    <description>Added @require, @pure, and @deprecated decorators. Implemented 10 Language Server Protocol features including hover, go-to-definition, and inline diagnostics.</description>
+    <pubDate>Thu, 26 Feb 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>v0.7.0 — QLoRA Training Pipeline; Socrates Anti-Hallucination Protocol</title>
+    <link>https://vox-foundation.github.io/vox/changelog.html</link>
+    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.7.0</guid>
+    <description>Native QLoRA fine-tuning via Candle and qlora-rs. Socrates confidence protocol integrated into the orchestrator for anti-hallucination validation of agent outputs.</description>
+    <pubDate>Mon, 03 Feb 2026 00:00:00 GMT</pubDate>
+  </item>
+
+  <item>
+    <title>v0.6.0 — Mens Transport; Durable Workflow Runtime MVP</title>
+    <link>https://vox-foundation.github.io/vox/changelog.html</link>
+    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.6.0</guid>
+    <description>CPU-first mens registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mens activity hooks.</description>
+    <pubDate>Thu, 15 Jan 2026 00:00:00 GMT</pubDate>
+  </item>
+</channel>
+</rss>

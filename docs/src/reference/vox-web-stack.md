@@ -55,6 +55,8 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
 - **`@island`**: lexer/parser → `Decl::Island`; codegen emits **`vox-islands-meta.ts`** and rewrites matching JSX tags to **`<div data-vox-island=\"Name\" data-prop-*={...} />`** for `islands/src/island-mount.tsx` hydration (implementations under `islands/`). SSG HTML shells still come from **`vox-ssg`** + `routes:`.
 
+**Web IR gate matrix (OP-S068, OP-S129, OP-S152, OP-S209):** parity and validate thresholds are enumerated under [acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) with tests in `web_ir_lower_emit.rs`, `reactive_smoke.rs`, `pipeline.rs`, and `full_stack_minimal_build.rs`.
+
 ## Data grids (TanStack Table)
 
 For **dense, interactive tables** (sorting, filtering, column visibility, virtualization), **[@tanstack/react-table](https://tanstack.com/table/latest)** is the usual fit: headless hooks compose with your design system (e.g. ShadCN data-table patterns). **Hand-rolled** `<table>` markup or simple mapped lists stay appropriate when you do not need those features—avoid pulling Table only for static layouts.

@@ -19,6 +19,24 @@ pub struct RoutesDecl {
     pub span: Span,
 }
 
+/// Deterministic parse metrics for a [`RoutesDecl`] (tooling / gates; OP-0027).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RoutesParseSummary {
+    pub entry_count: usize,
+    pub paths: Vec<String>,
+}
+
+impl RoutesDecl {
+    #[must_use]
+    /// Paths are listed in source order (stable for snapshot-style tests).
+    pub fn parse_summary(&self) -> RoutesParseSummary {
+        RoutesParseSummary {
+            entry_count: self.entries.len(),
+            paths: self.entries.iter().map(|e| e.path.clone()).collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RouteEntry {
     pub path: String,

@@ -709,10 +709,7 @@ pub fn requirements_for_bundle(bundle: SecretBundle) -> WorkflowRequirements {
                 SecretId::VoxMeshWorkerToken,
                 SecretId::VoxMeshSubmitterToken,
             ])],
-            optional: vec![
-                SecretId::VoxMeshToken,
-                SecretId::VoxMeshAdminToken,
-            ],
+            optional: vec![SecretId::VoxMeshToken, SecretId::VoxMeshAdminToken],
         },
     }
 }

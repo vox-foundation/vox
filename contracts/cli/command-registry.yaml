@@ -86,6 +86,7 @@ operations:
   - { surface: vox-cli, path: [ci, sql-surface-guard], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, clavis-parity], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, coverage-gates], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-sync], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, contracts-index], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scientia-worthiness-contract], status: active, reachability_required: false }

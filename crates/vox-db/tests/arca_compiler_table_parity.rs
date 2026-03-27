@@ -137,9 +137,8 @@ fn arca_compiler_toestub_suppressions_column_parity() {
     let table = toestub_suppressions_hir();
     let compiler_cols = emit_cols(&table);
 
-    let arca_cols = parse_create_table_cols(&strip_sql_defaults(
-        ARCA_TOESTUB_SUPPRESSIONS_NORMALIZED,
-    ));
+    let arca_cols =
+        parse_create_table_cols(&strip_sql_defaults(ARCA_TOESTUB_SUPPRESSIONS_NORMALIZED));
 
     assert_eq!(
         compiler_cols, arca_cols,

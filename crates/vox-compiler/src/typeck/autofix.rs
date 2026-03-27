@@ -81,16 +81,9 @@ impl AutoFixer for RuleBasedAutoFixer {
 }
 
 /// Backward-compatible entrypoint while Wave 1 migrates callsites to rule-based naming.
+#[derive(Default)]
 pub struct StubAutoFixer {
     inner: RuleBasedAutoFixer,
-}
-
-impl Default for StubAutoFixer {
-    fn default() -> Self {
-        Self {
-            inner: RuleBasedAutoFixer::default(),
-        }
-    }
 }
 
 impl AutoFixer for StubAutoFixer {

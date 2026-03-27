@@ -62,7 +62,6 @@ execution-api = ["script-execution", "gpu", "dep:axum", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
-    "dep:toml",
     "dep:dirs",
     "dep:vox-ludus",
 ]
@@ -92,7 +91,6 @@ coderabbit = [
     "dep:vox-forge",
     "dep:vox-git",
     "dep:blake3",
-    "dep:toml",
     "dep:vox-toestub",
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
@@ -131,7 +129,7 @@ vox-db = { path = "../vox-db" }
 vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
 vox-doc-inventory = { path = "../vox-doc-inventory" }
 vox-toestub = { workspace = true, optional = true }
-toml = { workspace = true, optional = true }
+toml = { workspace = true }
 vox-orchestrator = { workspace = true, optional = true }
 vox-populi = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }

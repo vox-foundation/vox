@@ -90,9 +90,9 @@ mod tests {
     fn god_object_detector_catches_large_files() {
         use crate::rules::SourceFile;
         use std::path::PathBuf;
-        let content = "fn main() {}\n".repeat(600);
-        let file = SourceFile::new(PathBuf::from("large.rs"), content);
         let detector = god_object::GodObjectDetector::default();
+        let content = "fn main() {}\n".repeat(detector.max_lines + 1);
+        let file = SourceFile::new(PathBuf::from("large.rs"), content);
         let findings = detector.detect(&file, None);
         assert!(!findings.is_empty());
         assert!(findings[0].message.contains("too large"));

@@ -5,13 +5,13 @@ use std::path::Path;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use sha3::digest::Digest;
 use sha3::Sha3_256;
+use sha3::digest::Digest;
 
-use super::error::{classify_scholarly_http, ScholarlyError};
-use super::flags;
 use super::ScholarlyRemoteStatus;
 use super::ScholarlySubmissionReceipt;
+use super::error::{ScholarlyError, classify_scholarly_http};
+use super::flags;
 use crate::publication::PublicationManifest;
 use crate::submission_package::{self, ScholarlyVenue};
 use crate::zenodo_api_types::{ZenodoDeposition, ZenodoDepositionCreateBody};
@@ -86,7 +86,10 @@ impl ZenodoHttpClient {
     }
 
     fn url_deposition(&self, id: &str) -> String {
-        format!("{}/deposit/depositions/{id}", self.base.trim_end_matches('/'))
+        format!(
+            "{}/deposit/depositions/{id}",
+            self.base.trim_end_matches('/')
+        )
     }
 
     async fn create_deposition_draft_once(
@@ -136,12 +139,7 @@ impl ZenodoHttpClient {
         deposition_id: &str,
     ) -> Result<ZenodoDeposition, ScholarlyError> {
         let url = self.url_deposition(deposition_id);
-        let resp = self
-            .http
-            .get(url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
+        let resp = self.http.get(url).bearer_auth(&self.token).send().await?;
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
         if !(200..300).contains(&status) {
@@ -180,7 +178,10 @@ impl ZenodoHttpClient {
             .map(std::string::ToString::to_string)
             .ok_or_else(|| ScholarlyError::Fatal {
                 code: "zenodo_missing_bucket".into(),
-                message: format!("deposit response missing links.bucket: {}", serde_json::to_string(v).unwrap_or_default()),
+                message: format!(
+                    "deposit response missing links.bucket: {}",
+                    serde_json::to_string(v).unwrap_or_default()
+                ),
             })
     }
 
@@ -197,11 +198,7 @@ impl ZenodoHttpClient {
                 message: "Zenodo bucket object name must not be empty".into(),
             });
         }
-        let url = format!(
-            "{}/{}",
-            bucket_url.trim_end_matches('/'),
-            name
-        );
+        let url = format!("{}/{}", bucket_url.trim_end_matches('/'), name);
         let resp = self
             .http
             .put(url)
@@ -250,12 +247,7 @@ impl ZenodoHttpClient {
             "{}/deposit/depositions/{deposition_id}/actions/publish",
             self.base.trim_end_matches('/')
         );
-        let resp = self
-            .http
-            .post(url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
+        let resp = self.http.post(url).bearer_auth(&self.token).send().await?;
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
         if !(200..300).contains(&status) {
@@ -303,7 +295,10 @@ fn zenodo_staging_content_type(rel: &str) -> &'static str {
     "application/octet-stream"
 }
 
-fn zenodo_verify_title_parity(manifest: &PublicationManifest, root: &Path) -> Result<(), ScholarlyError> {
+fn zenodo_verify_title_parity(
+    manifest: &PublicationManifest,
+    root: &Path,
+) -> Result<(), ScholarlyError> {
     let p = root.join("zenodo.json");
     let raw = std::fs::read_to_string(&p).map_err(|e| ScholarlyError::Config {
         message: format!(
@@ -348,7 +343,8 @@ fn zenodo_load_staging_sha_map(root: &Path) -> Result<HashMap<String, String>, S
         .or_else(|| v.get("sha256"))
         .and_then(|s| s.as_object())
         .ok_or_else(|| ScholarlyError::Config {
-            message: "staging_checksums.json missing top-level sha3_256 (or legacy sha256) object".into(),
+            message: "staging_checksums.json missing top-level sha3_256 (or legacy sha256) object"
+                .into(),
         })?;
     let mut m = HashMap::new();
     for (k, val) in obj {
@@ -366,11 +362,7 @@ fn zenodo_relpaths_to_upload(root: &Path) -> Result<Vec<String>, ScholarlyError>
         .map(|a| a.relative_path)
         .filter(|r| r != "arxiv_bundle.tar.gz" && r != "arxiv_handoff.json")
         .collect();
-    let candidates: Vec<String> = if allow.is_empty() {
-        plan
-    } else {
-        allow
-    };
+    let candidates: Vec<String> = if allow.is_empty() { plan } else { allow };
     let mut out = Vec::new();
     for rel in candidates {
         let p = root.join(&rel);
@@ -405,11 +397,10 @@ async fn zenodo_upload_staging_files(
 ) -> Result<(), ScholarlyError> {
     for rel in rels {
         let p = root.join(rel);
-        let bytes =
-            std::fs::read(&p).map_err(|e| ScholarlyError::Fatal {
-                code: "zenodo_staging_read".into(),
-                message: format!("{rel}: {e}"),
-            })?;
+        let bytes = std::fs::read(&p).map_err(|e| ScholarlyError::Fatal {
+            code: "zenodo_staging_read".into(),
+            message: format!("{rel}: {e}"),
+        })?;
         if let Some(map) = sha_expected {
             if let Some(hex) = map.get(rel) {
                 let d = Sha3_256::digest(&bytes);
@@ -424,9 +415,7 @@ async fn zenodo_upload_staging_files(
             }
         }
         let ct = zenodo_staging_content_type(rel);
-        client
-            .put_bucket_object(bucket, rel, &bytes, ct)
-            .await?;
+        client.put_bucket_object(bucket, rel, &bytes, ct).await?;
     }
     Ok(())
 }
@@ -481,14 +470,8 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
             } else {
                 None
             };
-            zenodo_upload_staging_files(
-                &self.client,
-                &bucket,
-                root,
-                &rels,
-                sha_map.as_ref(),
-            )
-            .await?;
+            zenodo_upload_staging_files(&self.client, &bucket, root, &rels, sha_map.as_ref())
+                .await?;
         } else if attach {
             self.client
                 .put_bucket_object(
@@ -523,10 +506,7 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
         })?;
         if let Some(doi) = dep.doi.clone().filter(|s| !s.trim().is_empty()) {
             if let Some(m) = dep_val.as_object_mut() {
-                m.insert(
-                    "expected_doi_hint".into(),
-                    serde_json::Value::String(doi),
-                );
+                m.insert("expected_doi_hint".into(), serde_json::Value::String(doi));
             }
         }
         let meta_json = serde_json::to_string(&dep_val).map_err(|e| ScholarlyError::Fatal {

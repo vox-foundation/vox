@@ -81,10 +81,22 @@ impl CompletionEngine {
     fn add_decorators(items: &mut Vec<CompletionItem>) {
         // SSOT: `vox-compiler` lexer tokens `@component`, `@island`, `@server`, …
         let decorators = vec![
-            ("@component", "Reactive or legacy `fn` component (see Vox web stack docs)."),
-            ("@island", "Typed stub for a React island under `islands/` (hydration mount point)."),
-            ("@loading", "Route suspense UI (`fn` → `*.tsx`); TanStack Router `pendingComponent` when `routes:` exists."),
-            ("@server", "Server function (Axum route + TS client wrapper)."),
+            (
+                "@component",
+                "Reactive or legacy `fn` component (see Vox web stack docs).",
+            ),
+            (
+                "@island",
+                "Typed stub for a React island under `islands/` (hydration mount point).",
+            ),
+            (
+                "@loading",
+                "Route suspense UI (`fn` → `*.tsx`); TanStack Router `pendingComponent` when `routes:` exists.",
+            ),
+            (
+                "@server",
+                "Server function (Axum route + TS client wrapper).",
+            ),
             ("@table", "Declares a persistent database table."),
             ("@index", "Declares a database index."),
             ("@query", "Declares a database query function."),

@@ -499,8 +499,7 @@ pub async fn mode_command(set: Option<&str>, effective: bool) -> Result<()> {
             println!("  Effective mode (env/session): {}", eff_s);
             println!(
                 "  {}",
-                "Session overrides: VOX_LUDUS_SESSION_ENABLED, VOX_LUDUS_SESSION_MODE"
-                    .dimmed()
+                "Session overrides: VOX_LUDUS_SESSION_ENABLED, VOX_LUDUS_SESSION_MODE".dimmed()
             );
             println!(
                 "  {}",
@@ -532,7 +531,10 @@ pub async fn disable_ludus() -> Result<()> {
     cfg.gamify_enabled = false;
     cfg.save()
         .map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
-    println!("  ✅ {}", "Ludus disabled (saved to config).".bright_green());
+    println!(
+        "  ✅ {}",
+        "Ludus disabled (saved to config).".bright_green()
+    );
     Ok(())
 }
 
@@ -546,9 +548,7 @@ pub async fn profile_merge_from_default() -> Result<()> {
             user_id.bright_green()
         );
     } else {
-        println!(
-            "  ℹ️  No merge needed (local profile exists or `default` is empty)."
-        );
+        println!("  ℹ️  No merge needed (local profile exists or `default` is empty).");
     }
     Ok(())
 }
@@ -558,7 +558,10 @@ pub async fn audit_show(limit: usize) -> Result<()> {
     let db = db_util::get_db().await?;
     let user_id = vox_ludus::db::canonical_user_id();
     let rows = db::list_recent_policy_snapshots(&db, &user_id, limit).await?;
-    println!("{}", "Ludus policy audit (recent awards)".bright_cyan().bold());
+    println!(
+        "{}",
+        "Ludus policy audit (recent awards)".bright_cyan().bold()
+    );
     if rows.is_empty() {
         println!("  (no policy snapshots yet — enable Ludus and generate events.)");
         return Ok(());
@@ -640,11 +643,7 @@ pub async fn digest_weekly() -> Result<()> {
     if !notes.is_empty() {
         println!("{}", "  Latest notifications:".dimmed());
         for n in notes.iter().take(8) {
-            println!(
-                "    • {} — {}",
-                n.title.bright_white(),
-                n.message.dimmed()
-            );
+            println!("    • {} — {}", n.title.bright_white(), n.message.dimmed());
         }
     }
     if !policy.is_empty() {

@@ -2,7 +2,7 @@ use crate::{ServerState, ToolResult};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use super::common::{default_one_u32, no_voxdb_tool_string, REM_SCIENTIA_DB};
+use super::common::{REM_SCIENTIA_DB, default_one_u32, no_voxdb_tool_string};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationExternalJobsDueParams {
@@ -34,7 +34,10 @@ pub async fn vox_scientia_publication_external_jobs_due(
             "jobs": jobs,
         }))
         .to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
+                .to_json()
+        }
     }
 }
 
@@ -57,7 +60,10 @@ pub async fn vox_scientia_publication_external_jobs_dead_letter(
     };
     match db.list_external_submission_jobs_failed(params.limit).await {
         Ok(jobs) => ToolResult::ok(serde_json::json!({ "jobs": jobs })).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
+                .to_json()
+        }
     }
 }
 
@@ -82,7 +88,10 @@ pub async fn vox_scientia_publication_external_jobs_replay(
             "job": job,
         }))
         .to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
+                .to_json()
+        }
     }
 }
 
@@ -144,7 +153,9 @@ pub async fn vox_scientia_publication_external_jobs_tick(
                 "results": out.results,
             }))
             .to_json(),
-            Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
+            Err(e) => {
+                ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json()
+            }
         };
     }
     match vox_publisher::scholarly_external_jobs::run_external_submit_jobs_tick_loop(
@@ -160,7 +171,9 @@ pub async fn vox_scientia_publication_external_jobs_tick(
     .await
     {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_SCIENTIA_DB).to_json()
+        }
     }
 }
 
@@ -192,8 +205,14 @@ pub async fn vox_scientia_publication_external_pipeline_metrics(
     } else {
         now_ms.saturating_sub(hours.saturating_mul(3_600_000))
     };
-    match db.summarize_scholarly_external_pipeline_metrics(since_ms).await {
+    match db
+        .summarize_scholarly_external_pipeline_metrics(since_ms)
+        .await
+    {
         Ok(v) => ToolResult::ok(v).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("DB error: {e}"), REM_SCIENTIA_DB)
+                .to_json()
+        }
     }
 }

@@ -20,4 +20,3 @@ pub struct LudusKpiSummary {
     /// Rows with `action = 'dismissed'`.
     pub hints_dismissed: i64,
 }
-

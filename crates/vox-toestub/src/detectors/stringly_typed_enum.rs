@@ -25,12 +25,145 @@ impl StringlyTypedEnumDetector {
     /// Compiles the `String`/`str` + comment-with-`|` pattern used for Vox-focused detection.
     pub fn new() -> Self {
         Self {
-            // Matches lines like:  `field: String  // "x" | "y"` or `field: str  # "x" | "y"`
-            // The key signal is a String/str type annotation followed by a comment containing
-            // quoted alternatives separated by `|`.
+            // Vox/Rust field lines: String or str, then a line comment (or #) listing quoted options
+            // separated by ASCII vertical bar (U+007C).
             pattern: Regex::new(r#":\s*(?:String|str)\s*,?\s*(?://|#)\s*"[^"]+"\s*\|"#)
                 .expect("valid stringly-typed enum regex"),
         }
+    }
+
+    /// Byte index of the first `//` line comment **outside** string / raw-string literals.
+    fn first_double_slash_outside_strings(line: &str) -> Option<usize> {
+        let b = line.as_bytes();
+        let mut i = 0usize;
+        while i + 1 < b.len() {
+            if b[i] == b'r' {
+                let mut j = i + 1;
+                let mut n_hash = 0usize;
+                while j < b.len() && b[j] == b'#' {
+                    n_hash += 1;
+                    j += 1;
+                }
+                if j < b.len() && b[j] == b'"' {
+                    j += 1;
+                    'raw: while j < b.len() {
+                        if b[j] == b'"' {
+                            if n_hash == 0 {
+                                j += 1;
+                                break 'raw;
+                            }
+                            if j + n_hash < b.len() && (1..=n_hash).all(|k| b[j + k] == b'#') {
+                                j += 1 + n_hash;
+                                break 'raw;
+                            }
+                        }
+                        j += 1;
+                    }
+                    i = j;
+                    continue;
+                }
+            }
+            if b[i] == b'"' {
+                let mut j = i + 1;
+                let mut esc = false;
+                while j < b.len() {
+                    if esc {
+                        esc = false;
+                        j += 1;
+                        continue;
+                    }
+                    match b[j] {
+                        b'\\' => {
+                            esc = true;
+                            j += 1;
+                        }
+                        b'"' => {
+                            j += 1;
+                            break;
+                        }
+                        _ => j += 1,
+                    }
+                }
+                i = j;
+                continue;
+            }
+            if b[i] == b'/' && b[i + 1] == b'/' {
+                return Some(i);
+            }
+            i += 1;
+        }
+        None
+    }
+
+    /// Mask `"..."` and `r#*` literals in `line` (used on the code prefix before `//`).
+    fn mask_rust_strings_and_raw(line: &str) -> String {
+        let b = line.as_bytes();
+        let mut out = Vec::with_capacity(b.len());
+        let mut i = 0usize;
+        while i < b.len() {
+            if b[i] == b'r' {
+                let mut j = i + 1;
+                let mut n_hash = 0usize;
+                while j < b.len() && b[j] == b'#' {
+                    n_hash += 1;
+                    j += 1;
+                }
+                if j < b.len() && b[j] == b'"' {
+                    j += 1;
+                    'raw: while j < b.len() {
+                        if b[j] == b'"' {
+                            if n_hash == 0 {
+                                j += 1;
+                                break 'raw;
+                            }
+                            if j + n_hash < b.len() && (1..=n_hash).all(|k| b[j + k] == b'#') {
+                                j += 1 + n_hash;
+                                break 'raw;
+                            }
+                        }
+                        j += 1;
+                    }
+                    out.extend(std::iter::repeat(b' ').take(j.saturating_sub(i)));
+                    i = j;
+                    continue;
+                }
+            }
+            if b[i] == b'"' {
+                let start = i;
+                i += 1;
+                let mut esc = false;
+                while i < b.len() {
+                    if esc {
+                        esc = false;
+                        i += 1;
+                        continue;
+                    }
+                    match b[i] {
+                        b'\\' => {
+                            esc = true;
+                            i += 1;
+                        }
+                        b'"' => {
+                            i += 1;
+                            break;
+                        }
+                        _ => i += 1,
+                    }
+                }
+                out.extend(std::iter::repeat(b' ').take(i.saturating_sub(start)));
+                continue;
+            }
+            out.push(b[i]);
+            i += 1;
+        }
+        String::from_utf8(out).unwrap_or_else(|_| line.to_string())
+    }
+
+    /// Hide Rust string / raw-string **code** so `r#"…"#` fixtures do not match; keep `// …` tail intact.
+    fn rust_line_for_pattern_match(line: &str) -> String {
+        let split = Self::first_double_slash_outside_strings(line).unwrap_or(line.len());
+        let (head, tail) = line.split_at(split);
+        format!("{}{}", Self::mask_rust_strings_and_raw(head), tail)
     }
 }
 
@@ -65,8 +198,21 @@ impl DetectionRule for StringlyTypedEnumDetector {
 
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
+            let trimmed_start = line.trim_start();
+            if trimmed_start.starts_with("///")
+                || trimmed_start.starts_with("//!")
+                || trimmed_start.starts_with('*')
+            {
+                continue;
+            }
 
-            if self.pattern.is_match(line) {
+            let scan_line = if file.language == Language::Rust {
+                Self::rust_line_for_pattern_match(line)
+            } else {
+                line.to_string()
+            };
+
+            if self.pattern.is_match(&scan_line) {
                 // Extract the field name for a better message
                 let field_name = line.trim().split(':').next().unwrap_or("field").trim();
 
@@ -157,5 +303,22 @@ mod tests {
         );
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn ignores_vox_fixture_inside_rust_raw_string() {
+        let d = StringlyTypedEnumDetector::new();
+        let inner = r#"  frame: String // "gain" | "loss"#;
+        let line = format!("    let _ = r#\"{inner}\"#;");
+        let f = SourceFile::new(PathBuf::from("detectors/tests.rs"), line);
+        assert!(d.detect(&f, None).is_empty());
+    }
+
+    /// Raw string with fewer closing `#` than opening used to index past EOF (`j + n_hash == len`).
+    #[test]
+    fn raw_scan_does_not_panic_on_short_closing_delimiter() {
+        let line = r##"let _ = r##"x"#;"##;
+        let _ = StringlyTypedEnumDetector::rust_line_for_pattern_match(line);
+        let _ = StringlyTypedEnumDetector::first_double_slash_outside_strings(line);
     }
 }

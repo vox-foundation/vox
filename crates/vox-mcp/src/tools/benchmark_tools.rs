@@ -7,10 +7,8 @@ use serde::Deserialize;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_VOXDB_ATTACH: &str =
-    "Attach VoxDb via `VOX_DB_PATH` / `VOX_DB_URL` on the MCP server before querying benchmark telemetry.";
-const REM_BENCHMARK_DB: &str =
-    "Verify Turso connectivity and that `research_metrics` (benchmark rows) migrations are applied.";
+const REM_VOXDB_ATTACH: &str = "Attach VoxDb via `VOX_DB_PATH` / `VOX_DB_URL` on the MCP server before querying benchmark telemetry.";
+const REM_BENCHMARK_DB: &str = "Verify Turso connectivity and that `research_metrics` (benchmark rows) migrations are applied.";
 
 /// Arguments for `vox_benchmark_list`.
 #[derive(Debug, Deserialize)]
@@ -39,7 +37,9 @@ pub async fn benchmark_list(state: &ServerState, params: BenchmarkListParams) ->
         .await
     {
         Ok(rows) => ToolResult::ok(rows).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json()
+        }
     }
 }
 
@@ -69,6 +69,8 @@ pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams
         .await
     {
         Ok(_) => ToolResult::ok("Recorded.").to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_BENCHMARK_DB).to_json()
+        }
     }
 }

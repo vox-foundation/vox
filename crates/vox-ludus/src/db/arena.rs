@@ -34,7 +34,17 @@ pub async fn get_active_arena_event(db: &Codex) -> Result<Option<ArenaEvent>> {
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(row.map(
-        |(id, name, description, start_ts, end_ts, target_xp, current_xp, target_lumens, current_lumens)| {
+        |(
+            id,
+            name,
+            description,
+            start_ts,
+            end_ts,
+            target_xp,
+            current_xp,
+            target_lumens,
+            current_lumens,
+        )| {
             ArenaEvent {
                 id,
                 name,

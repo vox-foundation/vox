@@ -8,10 +8,8 @@ use crate::{ServerState, ToolResult};
 use vox_orchestrator::{AgentId, MessageGateway};
 use vox_runtime::prompt_canonical;
 
-const REM_QA_LOCK: &str =
-    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
-const REM_QA_CORRELATION: &str =
-    "Use the correlation id returned by `ask_agent`, or list `pending_questions` for the target agent.";
+const REM_QA_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_QA_CORRELATION: &str = "Use the correlation id returned by `ask_agent`, or list `pending_questions` for the target agent.";
 
 /// MCP arguments: direct question from `from_agent` to `to_agent` (canonicalized prompt text).
 #[derive(Debug, Deserialize)]
@@ -70,7 +68,8 @@ pub async fn ask_agent(state: &ServerState, params: AskAgentParams) -> String {
     let mut q_guard = match crate::sync_poison::poison_rw_write(q_router.write(), "qa router") {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
+                .to_json();
         }
     };
     let corr_id = q_guard.ask(
@@ -105,7 +104,8 @@ pub async fn answer_question(state: &ServerState, params: AnswerQuestionParams) 
     let mut q_guard = match crate::sync_poison::poison_rw_write(q_router.write(), "qa router") {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
+                .to_json();
         }
     };
     match q_guard.answer(corr_id, &answer) {
@@ -144,7 +144,8 @@ pub async fn pending_questions(state: &ServerState, params: PendingQuestionsPara
     let read_guard = match crate::sync_poison::poison_rw_read(q_router.read(), "qa router") {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_QA_LOCK)
+                .to_json();
         }
     };
     let questions = read_guard.pending_questions(AgentId(params.agent_id));

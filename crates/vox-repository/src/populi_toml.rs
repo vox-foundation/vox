@@ -54,10 +54,7 @@ fn is_empty_mesh(m: &VoxMeshToml) -> bool {
         None => true,
         Some(labels) => labels.is_empty(),
     };
-    m.control_url.is_none()
-        && m.scope_id.is_none()
-        && m.advertise_gpu.is_none()
-        && labels_empty
+    m.control_url.is_none() && m.scope_id.is_none() && m.advertise_gpu.is_none() && labels_empty
 }
 
 /// Read **`[mesh]`** or legacy **`[mens]`** from `path` (typically `.../Vox.toml`).

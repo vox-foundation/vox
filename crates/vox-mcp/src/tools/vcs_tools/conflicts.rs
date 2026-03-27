@@ -5,8 +5,7 @@ use crate::params::ToolResult;
 use crate::server::ServerState;
 use crate::sync_poison::{poison_rw_read, poison_rw_write};
 
-const REM_VCS_LOCK: &str =
-    "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+const REM_VCS_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
 const REM_CONFLICT_ID: &str =
     "List conflicts with `conflicts_list` and pass `conflict_id` as a number or `C-XXXXXX`.";
 const REM_CONFLICT_MISSING: &str =

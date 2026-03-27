@@ -1,11 +1,21 @@
 use super::*;
+use crate::ast::decl::{ReactiveMemberDecl, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
+use crate::parser::ParseErrorClass;
 
 fn parse_str(source: &str) -> Module {
     let tokens = lex(source);
     parse(tokens).unwrap_or_else(|e| panic!("Parse errors: {e:?}"))
+}
+
+fn assert_parse_fails(source: &str) {
+    let tokens = lex(source);
+    assert!(
+        parse(tokens).is_err(),
+        "expected parse to fail for source: {source:?}"
+    );
 }
 
 #[test]
@@ -380,4 +390,167 @@ fn test_parse_v0_from_image() {
     } else {
         panic!("Expected V0Component, got {:?}", m.declarations[0]);
     }
+}
+
+// WebIR blueprint G1: parser-truth coverage for islands, server fns, routes, reactive surface.
+
+#[test]
+fn test_parse_island_optional_prop() {
+    let m = parse_str("@island DataChart {\n    title: str\n    data: str\n    width?: int\n}");
+    if let Decl::Island(island) = &m.declarations[0] {
+        assert_eq!(island.name, "DataChart");
+        assert_eq!(island.props.len(), 3);
+        assert!(!island.props[0].is_optional);
+        assert!(!island.props[1].is_optional);
+        assert!(island.props[2].is_optional);
+        assert_eq!(island.props[2].name, "width");
+    } else {
+        panic!("Expected Decl::Island, got {:?}", m.declarations[0]);
+    }
+}
+
+#[test]
+fn test_parse_server_fn_brace_shape() {
+    let m = parse_str("@server fn echo(x: str) to str {\n    ret x\n}");
+    if let Decl::ServerFn(s) = &m.declarations[0] {
+        assert_eq!(s.func.name, "echo");
+        assert_eq!(s.func.params.len(), 1);
+        assert_eq!(s.func.params[0].name, "x");
+    } else {
+        panic!("Expected Decl::ServerFn, got {:?}", m.declarations[0]);
+    }
+}
+
+#[test]
+fn test_parse_routes_multiple_entries() {
+    let m = parse_str("routes { \"/\" to Home \"/about\" to About }");
+    if let Decl::Routes(r) = &m.declarations[0] {
+        assert_eq!(r.entries.len(), 2);
+        assert_eq!(r.entries[0].path, "/");
+        assert_eq!(r.entries[0].component_name, "Home");
+        assert_eq!(r.entries[1].path, "/about");
+        assert_eq!(r.entries[1].component_name, "About");
+    } else {
+        panic!("Expected Decl::Routes, got {:?}", m.declarations[0]);
+    }
+}
+
+/// OP-0022: malformed routes entry (`path` then component ident without `to`) rejects gracefully.
+#[test]
+fn test_parse_rejects_invalid_route_entry_missing_to() {
+    assert_parse_fails(r#"routes { "/" Home }"#);
+}
+
+/// OP-0026: root path and multi-segment path literals in one `routes` block.
+#[test]
+fn test_parse_routes_root_and_nested_path_literals() {
+    let m = parse_str(r#"routes { "/" to Home "/blog/post" to Article }"#);
+    if let Decl::Routes(r) = &m.declarations[0] {
+        assert_eq!(r.entries.len(), 2);
+        assert_eq!(r.entries[0].path, "/");
+        assert_eq!(r.entries[0].component_name, "Home");
+        assert_eq!(r.entries[1].path, "/blog/post");
+        assert_eq!(r.entries[1].component_name, "Article");
+    } else {
+        panic!("Expected Decl::Routes, got {:?}", m.declarations[0]);
+    }
+}
+
+#[test]
+fn test_parse_reactive_effect_mount_cleanup_view() {
+    let m = parse_str(
+        "@component Demo(x: int) {\n  state n: int = x\n  effect: { }\n  mount: { }\n  cleanup: { }\n  view: <span>{n}</span>\n}",
+    );
+    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+        assert_eq!(r.name, "Demo");
+        assert!(
+            r.members
+                .iter()
+                .any(|m| matches!(m, ReactiveMemberDecl::Effect(_))),
+            "expected effect member"
+        );
+        assert!(
+            r.members
+                .iter()
+                .any(|m| matches!(m, ReactiveMemberDecl::OnMount(_))),
+            "expected mount member"
+        );
+        assert!(
+            r.members
+                .iter()
+                .any(|m| matches!(m, ReactiveMemberDecl::OnCleanup(_))),
+            "expected cleanup member"
+        );
+        assert!(r.view.is_some());
+    } else {
+        panic!(
+            "Expected Decl::ReactiveComponent, got {:?}",
+            m.declarations[0]
+        );
+    }
+}
+
+#[test]
+fn test_parse_island_prop_requires_colon() {
+    assert_parse_fails("@island X {\n    title str\n}");
+}
+
+#[test]
+fn test_parse_reactive_rejects_misplaced_view_without_colon() {
+    assert_parse_fails("@component Bad() {\n  view <div />\n}");
+}
+
+/// OP-0014: lexer token stream around optional island prop includes `?` and `:` markers.
+#[test]
+fn test_island_optional_prop_token_shape() {
+    let src = "@island X {\n    title: str\n    width?: int\n}";
+    let dbg = lex(src)
+        .into_iter()
+        .map(|s| format!("{:?}", s.token))
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        dbg.contains("Question") && dbg.contains("Colon"),
+        "unexpected token dbg: {dbg}"
+    );
+}
+
+/// OP-0028: [`RoutesDecl::parse_summary`] is stable for multi-entry blocks.
+#[test]
+fn test_routes_parse_summary_matches_paths() {
+    let m = parse_str(r#"routes { "/" to Home "/blog/post" to Article }"#);
+    if let Decl::Routes(r) = &m.declarations[0] {
+        assert_eq!(
+            r.parse_summary(),
+            RoutesParseSummary {
+                entry_count: 2,
+                paths: vec!["/".to_string(), "/blog/post".to_string()],
+            }
+        );
+    } else {
+        panic!("Expected Decl::Routes, got {:?}", m.declarations[0]);
+    }
+}
+
+/// OP-0029: unknown reactive member token uses [`ParseErrorClass::ReactiveComponentMember`].
+#[test]
+fn test_reactive_body_unknown_token_diagnostic_class() {
+    let tokens = lex("@component Bad() { not_a_member 1 }");
+    let err = parse(tokens).expect_err("expected parse failure");
+    assert!(
+        err.iter()
+            .any(|e| e.class == ParseErrorClass::ReactiveComponentMember),
+        "{err:?}"
+    );
+}
+
+/// OP-0015: syntax inventory strings remain wired for tooling/docs extraction.
+#[test]
+fn test_web_surface_syntax_inventory_non_empty() {
+    use crate::parser::WEB_SURFACE_SYNTAX_INVENTORY;
+    let joined = WEB_SURFACE_SYNTAX_INVENTORY.join("\n");
+    assert!(
+        joined.contains("@island") && joined.contains("routes {"),
+        "{joined}"
+    );
 }

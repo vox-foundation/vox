@@ -291,14 +291,8 @@ pub fn apply_policy(
     // Record occurrence then apply tiered decay. High-frequency / low-signal events taper faster.
     let count = session.record(event_type);
     let (full_cap, half_cap) = match event_type {
-        "mcp_tool_called"
-        | "message_sent"
-        | "actor_message_sent"
-        | "build_completed"
-        | "task_submitted"
-        | "lock_acquired"
-        | "lock_released"
-        | "snapshot_captured" => (8, 14),
+        "mcp_tool_called" | "message_sent" | "actor_message_sent" | "build_completed"
+        | "task_submitted" | "lock_acquired" | "lock_released" | "snapshot_captured" => (8, 14),
         _ => (15, 25),
     };
     let grind_multiplier = match count {

@@ -1,0 +1,4 @@
+@island Chart { title: str }
+component Board() {
+    view: <div><Chart title={"t"}><span>"c"</span></Chart></div>
+}

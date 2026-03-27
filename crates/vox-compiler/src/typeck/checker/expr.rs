@@ -309,16 +309,18 @@ impl<'a> Checker<'a> {
                 if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
                     self.diags.push(Diagnostic {
                         severity: TypeckSeverity::Error,
-                        message: "`.query(clause)` builds dynamic SQL; prefer `.all()` or `.get(id)`. \
+                        message:
+                            "`.query(clause)` builds dynamic SQL; prefer `.all()` or `.get(id)`. \
                                   (This IR maps to `unsafe_query_raw_clause` in generated Rust.)"
-                            .into(),
+                                .into(),
                         span: *span,
                         expected_type: None,
                         found_type: None,
                         context: Some(Diagnostic::capture_context(self.source, *span)),
                         suggestions: vec![
                             "Use `db.Table.all()` for full scans.".into(),
-                            "Use `db.Table.get(id)` or `db.Table.find(id)` for primary-key reads.".into(),
+                            "Use `db.Table.get(id)` or `db.Table.find(id)` for primary-key reads."
+                                .into(),
                         ],
                         category: DiagnosticCategory::Lint,
                     });
@@ -377,7 +379,9 @@ impl<'a> Checker<'a> {
                             ));
                             return Ty::Error;
                         };
-                        if args.is_empty() && plan.as_ref().and_then(|p| p.predicate.as_ref()).is_none() {
+                        if args.is_empty()
+                            && plan.as_ref().and_then(|p| p.predicate.as_ref()).is_none()
+                        {
                             self.diags.push(Diagnostic::error(
                                 "db.Table.filter({ ... }) requires at least one field predicate"
                                     .into(),
@@ -388,7 +392,14 @@ impl<'a> Checker<'a> {
                         }
                         if let Some(pred) = plan.as_ref().and_then(|p| p.predicate.as_ref()) {
                             let mut arg_ix = 0usize;
-                            if !self.validate_db_predicate(pred, fields, args, &mut arg_ix, table, *span) {
+                            if !self.validate_db_predicate(
+                                pred,
+                                fields,
+                                args,
+                                &mut arg_ix,
+                                table,
+                                *span,
+                            ) {
                                 return Ty::Error;
                             }
                         } else {
@@ -404,7 +415,9 @@ impl<'a> Checker<'a> {
                                 };
                                 let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == col) else {
                                     self.diags.push(Diagnostic::error(
-                                        format!("Unknown field '{col}' on table '{table}' for filter"),
+                                        format!(
+                                            "Unknown field '{col}' on table '{table}' for filter"
+                                        ),
                                         *span,
                                         self.source,
                                     ));
@@ -438,7 +451,9 @@ impl<'a> Checker<'a> {
                             ));
                             return Ty::Error;
                         }
-                        if !args.is_empty() || plan.as_ref().and_then(|p| p.predicate.as_ref()).is_some() {
+                        if !args.is_empty()
+                            || plan.as_ref().and_then(|p| p.predicate.as_ref()).is_some()
+                        {
                             let Ty::Table(_, fields) = &obj_ty else {
                                 self.diags.push(Diagnostic::error(
                                     format!("Expected table type for db count on '{table}'"),
@@ -450,7 +465,12 @@ impl<'a> Checker<'a> {
                             if let Some(pred) = plan.as_ref().and_then(|p| p.predicate.as_ref()) {
                                 let mut arg_ix = 0usize;
                                 if !self.validate_db_predicate(
-                                    pred, fields, args, &mut arg_ix, table, *span,
+                                    pred,
+                                    fields,
+                                    args,
+                                    &mut arg_ix,
+                                    table,
+                                    *span,
                                 ) {
                                     return Ty::Error;
                                 }
@@ -465,7 +485,8 @@ impl<'a> Checker<'a> {
                                         ));
                                         return Ty::Error;
                                     };
-                                    let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == col) else {
+                                    let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == col)
+                                    else {
                                         self.diags.push(Diagnostic::error(
                                             format!(
                                                 "Unknown field '{col}' on table '{table}' for count filter"

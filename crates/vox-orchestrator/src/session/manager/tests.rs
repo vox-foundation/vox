@@ -1,6 +1,8 @@
 use std::env;
 use std::fs;
 
+use serial_test::serial;
+
 use crate::types::AgentId;
 
 use super::super::config::SessionConfig;
@@ -87,6 +89,7 @@ fn set_meta_persisted() {
 }
 
 #[tokio::test]
+#[serial]
 async fn session_persistence_roundtrip() {
     let cfg = test_config();
     let dir = cfg.sessions_dir.clone();
@@ -163,6 +166,7 @@ fn cleanup_removes_archived_sessions() {
 }
 
 #[tokio::test]
+#[serial]
 async fn plugin_state_persistence_roundtrip() {
     let cfg = test_config();
     let dir = cfg.sessions_dir.clone();

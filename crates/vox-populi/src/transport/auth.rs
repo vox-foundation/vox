@@ -256,8 +256,7 @@ impl PopuliMeshAuthRuntime {
         validation.leeway = 60;
         validation.validate_exp = true;
         let key = jsonwebtoken::DecodingKey::from_secret(secret.as_bytes());
-        let data =
-            jsonwebtoken::decode::<MeshJwtClaims>(token, &key, &validation).ok()?;
+        let data = jsonwebtoken::decode::<MeshJwtClaims>(token, &key, &validation).ok()?;
         let claims = data.claims;
         if claims.jti.trim().is_empty() {
             return None;

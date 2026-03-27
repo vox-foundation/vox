@@ -62,14 +62,21 @@ fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>) {
         {
             if (1..3).contains(&backtick_count) {
                 if !fence_open {
-                    errors.push(LintError {
-                        file: path.to_owned(),
-                        line: line_no,
-                        kind: LintKind::ShortCodeFence {
-                            backticks: backtick_count,
-                            at_line: line_no,
-                        },
-                    });
+                    // Full-line inline code like `` `cargo …` `` is not a fence; mdBook fences use ≥3 backticks.
+                    let total_bt = trimmed.matches('`').count();
+                    let inline_wrapped = trimmed.ends_with('`')
+                        && total_bt >= 2
+                        && trimmed.len() > backtick_count + 1;
+                    if !inline_wrapped {
+                        errors.push(LintError {
+                            file: path.to_owned(),
+                            line: line_no,
+                            kind: LintKind::ShortCodeFence {
+                                backticks: backtick_count,
+                                at_line: line_no,
+                            },
+                        });
+                    }
                 }
             } else if backtick_count >= 3 {
                 if fence_open {

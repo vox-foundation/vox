@@ -156,12 +156,7 @@ where
             for arm in arms {
                 s.push_str(&format!(
                     "    {} => {{\n",
-                    super::stmt_expr::emit_pattern(
-                        &arm.pattern,
-                        is_route,
-                        is_actor,
-                        mutation_tx,
-                    )
+                    super::stmt_expr::emit_pattern(&arm.pattern, is_route, is_actor, mutation_tx,)
                 ));
                 s.push_str(&emit(&arm.body));
                 s.push_str("\n    }\n");

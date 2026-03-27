@@ -38,6 +38,26 @@ fn github_ci_populi_gate_is_unified() {
 }
 
 #[test]
+fn github_ci_runs_llvm_cov_and_coverage_gates() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("cargo llvm-cov nextest --workspace"),
+        "ci.yml should run workspace tests under cargo-llvm-cov nextest (do not pass a bare `run` — it becomes a test filter)"
+    );
+    assert!(
+        yml.contains("ci coverage-gates") && yml.contains("--mode enforce"),
+        "ci.yml should run `vox ci coverage-gates --mode enforce` after llvm-cov JSON summary"
+    );
+    assert!(
+        yml.contains("llvm-tools-preview"),
+        "ci.yml Rust toolchain should include llvm-tools-preview for cargo-llvm-cov"
+    );
+}
+
+#[test]
 fn ml_workflow_grammar_drift_and_eval_stay_native() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

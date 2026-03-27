@@ -38,8 +38,16 @@ pub async fn get_reward_claim(
         .get_gamify_periodic_reward_row(user_id, reward_id)
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
-    if let Some((name, icon, xp_bonus, crystal_bonus, redeemed, expires_at, description, condition_str)) =
-        row
+    if let Some((
+        name,
+        icon,
+        xp_bonus,
+        crystal_bonus,
+        redeemed,
+        expires_at,
+        description,
+        condition_str,
+    )) = row
     {
         let condition: PeriodicCondition =
             serde_json::from_str(&condition_str).unwrap_or(PeriodicCondition::WeeklyCheckIn);

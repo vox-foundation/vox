@@ -45,11 +45,22 @@ Source Code (.vox)
 └──────┬───────┘
        │ Typed HIR + Vec<Diagnostic>
        ▼
+┌──────────────┐
+│   web_ir     │  HIR→WebIR lower + validate (gated/bridge path)
+└──────┬───────┘
+       │ WebIrModule + diagnostics (when enabled)
+       ▼
 ┌──────────────────┬─────────────────────┐
 │ vox-codegen-rust │  vox-codegen-ts     │
 │  (quote! → .rs)  │  (string → .ts/tsx) │
 └──────────────────┴─────────────────────┘
 ```
+
+Current path note:
+
+- `codegen_ts` is still the production TS emitter path.
+- `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a build gate.
+- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` TSX bridge output only when parity checks pass.
 
 ---
 
@@ -185,10 +196,11 @@ The full checklist for adding a new language construct:
 3. **AST** — Add node types in `crates/vox-compiler/src/ast/`
 4. **HIR** — Map AST → HIR in `crates/vox-compiler/src/hir/lower/`
 5. **Type Check** — Add inference rules in `crates/vox-compiler/src/typeck/`
-6. **Codegen** — Emit code in both `crates/vox-compiler/src/codegen_rust/` and `crates/vox-compiler/src/codegen_ts/`
-7. **Test** — Add an integration test in `vox-integration-tests/tests/`
-8. **Docs** — Add frontmatter + code example in `docs/src/`
-9. **Training** — Run `vox mens corpus extract` to include the new construct in ML data
+6. **WebIR** — Add/update lowering + validation semantics in `crates/vox-compiler/src/web_ir/` when the feature affects web-facing behavior
+7. **Codegen** — Emit code in both `crates/vox-compiler/src/codegen_rust/` and `crates/vox-compiler/src/codegen_ts/`
+8. **Test** — Add integration coverage in `vox-integration-tests/tests/` and WebIR/parity coverage where applicable
+9. **Docs** — Add frontmatter + code example in `docs/src/`
+10. **Training** — Run `vox mens corpus extract` to include the new construct in ML data
 
 ---
 
@@ -197,3 +209,5 @@ The full checklist for adding a new language construct:
 - [Language Guide](../reference/ref-language.md) — Full syntax and feature reference
 - [Actors & Workflows](expl-actors-workflows.md) — Durable execution system
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
+- [Web IR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
+- [Web IR acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) — parser, K-metric, parity, and rollout thresholds

@@ -4,9 +4,9 @@ use vox_orchestrator::types::TaskCategory;
 
 use crate::{ServerState, ToolResult};
 
-const REM_MODEL_CATEGORY: &str =
-    "Use a known `task_category` (parsing, typechecking, debugging, research, testing, codegen, review) or seed the model registry.";
-const REM_MODEL_REGISTRY: &str = "Call `list_models` and pass a `model_id` that exists in the orchestrator registry.";
+const REM_MODEL_CATEGORY: &str = "Use a known `task_category` (parsing, typechecking, debugging, research, testing, codegen, review) or seed the model registry.";
+const REM_MODEL_REGISTRY: &str =
+    "Call `list_models` and pass a `model_id` that exists in the orchestrator registry.";
 const REM_LOCK_POISON: &str =
     "Retry; if the error persists, restart the MCP server to clear a poisoned async lock.";
 
@@ -78,7 +78,8 @@ pub async fn set_active_mcp_chat_model(
     ) {
         Ok(g) => g,
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_POISON).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_POISON)
+                .to_json();
         }
     };
     if params.model_id.is_empty() {
@@ -99,7 +100,8 @@ pub async fn get_active_mcp_chat_model(state: &ServerState) -> String {
     ) {
         Ok(g) => g.clone(),
         Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_POISON).to_json();
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_LOCK_POISON)
+                .to_json();
         }
     };
     ToolResult::ok(id.unwrap_or_default()).to_json()

@@ -87,6 +87,13 @@ impl Parser {
         }
     }
 
+    /// Debug-only trace when `VOX_PARSER_DEBUG` is set in the environment (OP-0008 / OP-0031).
+    pub(crate) fn maybe_parser_trace(&self, label: &'static str) {
+        if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
+            eprintln!("[vox-parser:{label}] {:?}", self.peek());
+        }
+    }
+
     pub(crate) fn parse_module(&mut self) -> Result<Module, Vec<ParseError>> {
         let start = self.span();
         let mut decls = Vec::new();

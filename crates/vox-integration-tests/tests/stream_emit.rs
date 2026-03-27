@@ -17,7 +17,9 @@ fn emit_outside_stream_reports_error() {
     let diags = typecheck_module(&module, "");
     let errors: Vec<_> = diags
         .iter()
-        .filter(|d| d.severity == TypeckSeverity::Error && d.message.to_lowercase().contains("emit"))
+        .filter(|d| {
+            d.severity == TypeckSeverity::Error && d.message.to_lowercase().contains("emit")
+        })
         .collect();
     assert!(
         !errors.is_empty(),

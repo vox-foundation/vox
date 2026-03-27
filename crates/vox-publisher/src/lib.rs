@@ -1,9 +1,10 @@
 pub mod adapters;
 mod bounded_fs;
 pub mod citation_cff;
-pub mod crossref_metadata;
 pub mod contract;
+pub mod crossref_metadata;
 pub mod gate;
+pub mod openreview_api_types;
 pub mod publication;
 pub mod publication_preflight;
 pub mod publication_worthiness;
@@ -19,7 +20,6 @@ pub mod switching;
 pub mod templates;
 pub mod topic_packs;
 pub mod types;
-pub mod openreview_api_types;
 pub mod zenodo_api_types;
 pub mod zenodo_metadata;
 
@@ -293,22 +293,30 @@ impl PublisherConfig {
             })
         };
         Self {
-            twitter_bearer_token: Self::syndication_secret(vox_clavis::SecretId::VoxNewsTwitterBearer),
+            twitter_bearer_token: Self::syndication_secret(
+                vox_clavis::SecretId::VoxNewsTwitterBearer,
+            ),
             github_token: Self::syndication_secret(vox_clavis::SecretId::GitHubToken),
             open_collective_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
             ),
             twitter_summary_margin_chars: env_usize("VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS"),
             reddit_selfpost_summary_max: env_usize("VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX"),
-            reddit_client_id: Self::syndication_secret(vox_clavis::SecretId::VoxSocialRedditClientId),
+            reddit_client_id: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditClientId,
+            ),
             reddit_client_secret: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialRedditClientSecret,
             ),
             reddit_refresh_token: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialRedditRefreshToken,
             ),
-            reddit_user_agent: Self::syndication_secret(vox_clavis::SecretId::VoxSocialRedditUserAgent),
-            youtube_client_id: Self::syndication_secret(vox_clavis::SecretId::VoxSocialYoutubeClientId),
+            reddit_user_agent: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialRedditUserAgent,
+            ),
+            youtube_client_id: Self::syndication_secret(
+                vox_clavis::SecretId::VoxSocialYoutubeClientId,
+            ),
             youtube_client_secret: Self::syndication_secret(
                 vox_clavis::SecretId::VoxSocialYoutubeClientSecret,
             ),

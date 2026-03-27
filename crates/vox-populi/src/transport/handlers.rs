@@ -436,9 +436,7 @@ pub(super) async fn a2a_lease_renew(
     let mut g = st.a2a_messages.write().await;
     a2a_sweep_expired_leases(&mut g, now);
     let Some(msg) = g.iter_mut().find(|m| {
-        m.id == req.message_id
-            && m.receiver_agent_id == req.receiver_agent_id
-            && !m.acknowledged
+        m.id == req.message_id && m.receiver_agent_id == req.receiver_agent_id && !m.acknowledged
     }) else {
         return Ok(StatusCode::NOT_FOUND);
     };
@@ -495,7 +493,10 @@ pub(super) async fn a2a_inbox(
         reg.nodes.iter().find(|n| n.id == claimer).cloned()
     };
     let Some(worker) = worker else {
-        warn!(claimer, "a2a inbox claim rejected: unknown claimer node (join first)");
+        warn!(
+            claimer,
+            "a2a inbox claim rejected: unknown claimer node (join first)"
+        );
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
             "populi: unknown claimer_node_id (join node first)".into(),
@@ -517,9 +518,7 @@ pub(super) async fn a2a_inbox(
             .lease_holder_node_id
             .as_deref()
             .is_some_and(|h| h != claimer);
-        let lease_alive = m
-            .lease_expires_unix_ms
-            .is_some_and(|exp| exp > now);
+        let lease_alive = m.lease_expires_unix_ms.is_some_and(|exp| exp > now);
         if leased_other && lease_alive {
             continue;
         }
