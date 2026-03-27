@@ -122,30 +122,33 @@ pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<Fronten
     })
 }
 
+/// Typecheck / HIR validation diagnostics as pretty-printed JSON (same shape as `vox --json check` stdout).
+#[must_use]
+pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> String {
+    let output: Vec<serde_json::Value> = result
+        .diagnostics
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
+            serde_json::json!({
+                "code": format!("E{:04}", i + 1),
+                "severity": format!("{:?}", d.severity),
+                "category": format!("{:?}", d.category),
+                "message": d.message,
+                "file": file.display().to_string(),
+                "line": line,
+                "col": col,
+            })
+        })
+        .collect();
+    serde_json::to_string_pretty(&output).unwrap_or_default()
+}
+
 /// Print diagnostics in rustc-style to stderr, or JSON to stdout if `json` is true.
 pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
     if json {
-        let output = result
-            .diagnostics
-            .iter()
-            .enumerate()
-            .map(|(i, d)| {
-                let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
-                serde_json::json!({
-                    "code": format!("E{:04}", i + 1),
-                    "severity": format!("{:?}", d.severity),
-                    "category": format!("{:?}", d.category),
-                    "message": d.message,
-                    "file": file.display().to_string(),
-                    "line": line,
-                    "col": col,
-                })
-            })
-            .collect::<Vec<_>>();
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&output).unwrap_or_default()
-        );
+        println!("{}", format_diagnostics_json_pretty(result, file));
     } else {
         for (i, d) in result.diagnostics.iter().enumerate() {
             let code = format!("E{:04}", i + 1);

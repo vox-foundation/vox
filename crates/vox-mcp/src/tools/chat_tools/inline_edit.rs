@@ -127,11 +127,8 @@ OUTPUT RULES:
         }
     };
 
-    let inline_session_key = mcp_questioning_session_key(
-        state,
-        "vox_inline_edit",
-        params.session_id.as_deref(),
-    );
+    let inline_session_key =
+        mcp_questioning_session_key(state, "vox_inline_edit", params.session_id.as_deref());
     state.record_questioning_attention_spend(
         &inline_session_key,
         inline_llm_started.elapsed().as_millis() as u64,

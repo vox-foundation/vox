@@ -174,7 +174,7 @@ Move advanced and operator workflows under `vox pm` while keeping common depende
 ### WP3 implementation steps
 
 1. Create `commands/pm` module with subcommands for:
-   - `search`, `info`, `publish`, `yank`, `vendor`, `verify`, `cache`.
+   - `search`, `info`, `publish`, `yank`, `vendor`, `verify`, `mirror` (local index), `cache`.
 2. Rehome or wrap existing command files into the `pm` tree.
 3. Update dispatch and help text.
 4. Ensure no top-level advanced verbs remain unless intentionally aliased.
@@ -398,7 +398,7 @@ Finalize migration with enforceable parity between code, registry, and docs.
 1. Update all command rows, statuses, and migration notes.
 2. Add regression tests for verb ownership and retired aliases.
 3. Run command-compliance and docs parity gates.
-4. Publish migration note summarizing old->new command mappings.
+4. Publish migration note summarizing old->new command mappings. **Published:** [`reference/pm-migration-2026.md`](../reference/pm-migration-2026.md).
 
 ### WP9 behavior requirements
 
@@ -440,12 +440,12 @@ Each WP is complete only when all are true:
 
 ## Implementation readiness checklist
 
-- [ ] Namespace policy implemented and test-enforced.
-- [ ] Top-level dependency verbs shipped.
-- [ ] Advanced `vox pm` tree shipped.
-- [ ] `vox install` retired with migration path then removed.
-- [ ] `update`/`upgrade` semantics split and validated.
-- [ ] Python/UV lanes removed from active support.
-- [ ] Docker lock/reproducibility gates active.
-- [ ] Provenance baseline active in release/publish lanes.
-- [ ] Command registry, docs, and parser are in parity.
+- [x] Namespace policy implemented and test-enforced.
+- [x] Top-level dependency verbs shipped.
+- [x] Advanced `vox pm` tree shipped.
+- [x] `vox install` retired with migration path then removed.
+- [x] `update`/`upgrade` semantics split and validated.
+- [x] Python/UV lanes removed from active support.
+- [x] Docker lock/reproducibility gates active.
+- [x] Provenance baseline active in release/publish lanes.
+- [x] Command registry, docs, and parser are in parity.

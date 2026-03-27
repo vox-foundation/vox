@@ -1,7 +1,8 @@
-//! Python environment detection and setup.
+//! Python environment **detection** (read-only probes).
 //!
-//! Detects `uv`, Python, CUDA version, and determines the correct PyTorch
-//! wheel source (CPU-only vs CUDA). Works on Linux, macOS, and Windows.
+//! **Package management:** Vox does not run `uv`/`pip` from supported PM paths — use
+//! `Vox.toml` / `vox lock` / `vox sync`. Mutation helpers (`uv_sync`, `uv_add_packages`)
+//! hard-error with migration text.
 
 use std::process::Command;
 
@@ -64,66 +65,28 @@ impl PythonEnv {
         }
     }
 
-    /// Install Python dependencies from pyproject.toml using `uv sync`.
-    ///
-    /// Requires `uv` to be installed. Returns an error if `uv` is not found.
-    pub fn uv_sync(&self, project_dir: &std::path::Path) -> anyhow::Result<()> {
-        if !self.uv_available {
-            let install_hint = if cfg!(target_os = "windows") {
-                "  PowerShell: irm https://astral.sh/uv/install.ps1 | iex\n  \
-                 or: winget install --id=astral-sh.uv -e"
-            } else {
-                "  curl -LsSf https://astral.sh/uv/install.sh | sh"
-            };
-            anyhow::bail!(
-                "uv is not installed. Install it with:\n{install_hint}\n\
-                 Then ensure Python 3.12 is available via `uv python install 3.12`"
-            );
-        }
-
-        tracing::info!("Running uv sync in {:?}", project_dir);
-        let status = Command::new("uv")
-            .arg("sync")
-            .current_dir(project_dir)
-            .status()
-            .map_err(|e| anyhow::anyhow!("Failed to run uv sync: {e}"))?;
-
-        if !status.success() {
-            anyhow::bail!("uv sync failed with exit code: {:?}", status.code());
-        }
-        Ok(())
+    /// Retired: Vox does not invoke `uv sync` from supported tooling.
+    pub fn uv_sync(&self, _project_dir: &std::path::Path) -> anyhow::Result<()> {
+        let _ = self;
+        anyhow::bail!(
+            "Python/uv `sync` is not a supported Vox PM operation.\n\
+             Use **`vox lock`** then **`vox sync`** for Vox packages (`Vox.toml` / `vox.lock`).\n\
+             For Python-only projects, run `uv sync` yourself outside `vox …`."
+        )
     }
 
-    /// Install a list of packages using `uv add`, with CUDA-aware index URL.
+    /// Retired: Vox does not invoke `uv add` from supported tooling.
     pub fn uv_add_packages(
         &self,
-        project_dir: &std::path::Path,
-        packages: &[&str],
+        _project_dir: &std::path::Path,
+        _packages: &[&str],
     ) -> anyhow::Result<()> {
-        if !self.uv_available {
-            anyhow::bail!("uv is not installed");
-        }
-        if packages.is_empty() {
-            return Ok(());
-        }
-
-        let index_url = self.pytorch_index_url();
-        let mut cmd = Command::new("uv");
-        cmd.arg("add").arg("--extra-index-url").arg(index_url);
-        for pkg in packages {
-            cmd.arg(pkg);
-        }
-        cmd.current_dir(project_dir);
-
-        tracing::info!("Running uv add {:?} with index {}", packages, index_url);
-        let status = cmd
-            .status()
-            .map_err(|e| anyhow::anyhow!("Failed to run uv add: {e}"))?;
-
-        if !status.success() {
-            anyhow::bail!("uv add failed");
-        }
-        Ok(())
+        let _ = self;
+        anyhow::bail!(
+            "Python/uv `add` is not a supported Vox PM operation.\n\
+             Use **`vox add <dep>`** for `Vox.toml`, then **`vox lock`** / **`vox sync`**.\n\
+             For PyPI packages in a Python project, use `uv add` directly outside `vox …`."
+        )
     }
 
     /// Return the path of the uv-managed virtual environment, if one can be
@@ -157,19 +120,6 @@ impl PythonEnv {
             let venv = cwd.join(".venv");
             if venv.exists() {
                 return Some(venv);
-            }
-        }
-
-        // 4. Ask uv
-        let out = Command::new("uv")
-            .args(["run", "python", "-c", "import sys; print(sys.prefix)"])
-            .output()
-            .ok()?;
-        if out.status.success() {
-            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            let path = std::path::PathBuf::from(p);
-            if path.exists() {
-                return Some(path);
             }
         }
 
@@ -208,41 +158,10 @@ impl PythonEnv {
         None
     }
 
-    /// Run a quick script to literally check if PyTorch reports CUDA is available.
-    /// This validates actual driver bindings, avoiding silently falling back to CPU.
-    pub fn validate_pytorch_cuda(&self, project_dir: &std::path::Path) -> anyhow::Result<bool> {
-        if !self.uv_available || !self.has_gpu {
-            return Ok(false);
-        }
-
-        let out = Command::new("uv")
-            .arg("run")
-            .arg("python")
-            .arg("-c")
-            .arg("import torch; print(torch.cuda.is_available())")
-            .current_dir(project_dir)
-            .output()
-            .map_err(|e| anyhow::anyhow!("Failed testing torch.cuda: {e}"))?;
-
-        if !out.status.success() {
-            // Could mean torch isn't installed at all
-            return Ok(false);
-        }
-
-        let is_available = String::from_utf8_lossy(&out.stdout).trim() == "True";
-
-        if self.has_gpu && !is_available {
-            tracing::warn!("GPU was detected but PyTorch reports CUDA is NOT available!");
-            tracing::warn!("This means PyTorch will fall back to slower CPU inference.");
-            tracing::warn!(
-                "Verify NVIDIA drivers match the toolkit version: {}",
-                self.cuda_version.as_deref().unwrap_or("unknown")
-            );
-        } else if self.has_gpu && is_available {
-            tracing::info!("PyTorch successfully bound to CUDA GPU!");
-        }
-
-        Ok(is_available)
+    /// Retired probe: does not spawn `uv`/Python. Returns `false` (use native Mens/CUDA paths).
+    pub fn validate_pytorch_cuda(&self, _project_dir: &std::path::Path) -> anyhow::Result<bool> {
+        let _ = self;
+        Ok(false)
     }
 }
 
@@ -318,28 +237,26 @@ impl SetupPlan {
         }
     }
 
-    /// Print the plan to stdout in a human-readable format.
+    /// Diagnostic summary only; does not imply a supported setup path.
     pub fn print_summary(&self) {
+        println!(
+            "  • Python/uv container setup is **not supported** — use `Vox.toml` / `vox sync`."
+        );
         if self.needs_uv {
-            println!("  • uv not found — will need installation");
+            println!("  • (probe) uv not on PATH");
         }
         if !self.packages.is_empty() {
-            println!("  • Python packages: {}", self.packages.join(", "));
+            println!(
+                "  • (legacy probe) requested modules ignored here: {}",
+                self.packages.join(", ")
+            );
         }
-        println!("  • PyTorch source: {}", self.torch_index_url);
+        println!(
+            "  • (probe only) PyTorch wheel URL would be: {}",
+            self.torch_index_url
+        );
         if self.has_gpu {
-            if self.torch_index_url.contains("cpu") {
-                println!(
-                    "  ⚠️ WARNING: GPU detected, but CUDA version is unknown or unsupported/mismatched."
-                );
-                println!(
-                    "  ⚠️ Falling back to CPU-only PyTorch wheels! Ensure NVIDIA driver and CUDA toolkit are installed."
-                );
-            } else {
-                println!("  • GPU detected — CUDA wheels will be used");
-            }
-        } else {
-            println!("  • No GPU detected — CPU-only wheels will be used");
+            println!("  • (probe) GPU signals present — use Mens/Candle CUDA builds for Vox ML");
         }
     }
 }

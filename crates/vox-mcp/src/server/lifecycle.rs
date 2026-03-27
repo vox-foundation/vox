@@ -8,13 +8,13 @@ use std::sync::RwLock;
 use tokio::sync::Mutex;
 
 use vox_db::VoxDb;
-use vox_socrates_policy::QuestioningPolicy;
 use vox_orchestrator::{
     AffinityGroupRegistry, AgentEvent, BudgetManager, Orchestrator, OrchestratorConfig,
     PopuliNodeBrief, RemotePopuliRoutingHint, RemotePopuliSnapshot, SessionConfig, SessionManager,
     load_from_config,
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
+use vox_socrates_policy::QuestioningPolicy;
 
 /// When `Vox.toml` declares a non-empty `affinity_groups` array, use it; otherwise derive from repo layout.
 fn affinity_groups_for_repository(

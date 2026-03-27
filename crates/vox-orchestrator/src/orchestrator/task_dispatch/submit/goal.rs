@@ -81,7 +81,8 @@ impl Orchestrator {
         let plan_session_id = format!("plan-{}", uuid::Uuid::new_v4());
         let plan_version = 1_u32;
         let nodes = crate::planning::synthesizer::synthesize_plan_nodes(&goal);
-        if let Some(db) = self.db() {
+        let db_opt = self.db();
+        if let Some(db) = db_opt.as_ref() {
             let strategy = format!("{:?}", eval.strategy);
             let _ = db
                 .create_plan_session(&plan_session_id, session_id.as_deref(), &goal, &strategy)
@@ -114,6 +115,21 @@ impl Orchestrator {
                 strategy: format!("{:?}", eval.strategy),
                 version: plan_version as i64,
             });
+
+        if db_opt.is_some() {
+            let enqueued = crate::planning::schedule::enqueue_runnable_plan_nodes(
+                self,
+                &plan_session_id,
+                plan_version,
+                session_id.clone(),
+            )
+            .await?;
+            return enqueued.into_iter().next().ok_or_else(|| {
+                OrchestratorError::DatabaseError(
+                    "planning produced no initial runnable nodes".into(),
+                )
+            });
+        }
 
         let first = nodes
             .first()

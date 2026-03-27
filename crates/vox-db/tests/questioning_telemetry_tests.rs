@@ -103,11 +103,17 @@ async fn question_tables_round_trip() {
         .await
         .expect("close");
 
-    let sessions = db.list_question_sessions("mcp:test", 10).await.expect("list sessions");
+    let sessions = db
+        .list_question_sessions("mcp:test", 10)
+        .await
+        .expect("list sessions");
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].resolution_status, "resolved");
 
-    let events = db.list_question_events(session_id).await.expect("list events");
+    let events = db
+        .list_question_events(session_id)
+        .await
+        .expect("list events");
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].question_kind, "multiple_choice");
 
@@ -158,7 +164,9 @@ async fn a2a_clarification_payload_is_sent_and_pollable() {
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].msg_type, "clarification_request");
     assert!(
-        inbox[0].payload.contains("\"clarification_intent\":\"resolve_scope\""),
+        inbox[0]
+            .payload
+            .contains("\"clarification_intent\":\"resolve_scope\""),
         "payload mismatch: {}",
         inbox[0].payload
     );
@@ -252,10 +260,7 @@ async fn open_session_turn_and_user_answer_helpers() {
             .is_some()
     );
 
-    assert_eq!(
-        db.next_question_event_turn_index(sid).await.expect("ti"),
-        0
-    );
+    assert_eq!(db.next_question_event_turn_index(sid).await.expect("ti"), 0);
 
     let _ = db
         .insert_question_event(QuestionEventParams {
@@ -293,15 +298,7 @@ async fn open_session_turn_and_user_answer_helpers() {
     );
 
     let resolved = db
-        .record_questioning_user_answer(
-            sid,
-            None,
-            "main",
-            "free_text",
-            None,
-            0.12,
-            ts + 1,
-        )
+        .record_questioning_user_answer(sid, None, "main", "free_text", None, 0.12, ts + 1)
         .await
         .expect("answer");
     assert_eq!(resolved, "q-a");
@@ -404,15 +401,9 @@ async fn pending_json_and_mc_belief_posterior_update() {
         .expect("answer");
     assert_eq!(resolved, "q-mc");
 
-    db.merge_question_session_belief_answer(
-        sid,
-        &resolved,
-        "JSON",
-        answered_at,
-        Some("a"),
-    )
-    .await
-    .expect("belief merge mc");
+    db.merge_question_session_belief_answer(sid, &resolved, "JSON", answered_at, Some("a"))
+        .await
+        .expect("belief merge mc");
 
     let row = db
         .find_open_question_session_for_repo("mcp-mc", "repo-r1")
@@ -431,8 +422,16 @@ async fn pending_json_and_mc_belief_posterior_update() {
     assert!((p_b - 1.0 / 3.0).abs() < 1e-6, "b={p_b}");
 
     let opts = db.list_question_options(qev).await.expect("opts2");
-    let post_a = opts.iter().find(|o| o.option_id == "a").unwrap().posterior_probability;
-    let post_b = opts.iter().find(|o| o.option_id == "b").unwrap().posterior_probability;
+    let post_a = opts
+        .iter()
+        .find(|o| o.option_id == "a")
+        .unwrap()
+        .posterior_probability;
+    let post_b = opts
+        .iter()
+        .find(|o| o.option_id == "b")
+        .unwrap()
+        .posterior_probability;
     assert!(post_a.is_some());
     assert!(post_b.is_some());
     assert!((post_a.unwrap() - 2.0 / 3.0).abs() < 1e-6);

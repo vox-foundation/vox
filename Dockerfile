@@ -15,10 +15,14 @@ ARG VOX_CLI_FEATURES=
 # Cache dependency layer
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
+# Reproducibility: `cargo --locked` pins the Rust resolve graph. Vox PM uses `vox.lock` in projects
+# that declare `Vox.toml` dependencies; this image build only compiles the CLI from the workspace
+# `Cargo.lock` (no `vox sync` in this Dockerfile).
+# `--locked` keeps the Rust dependency graph reproducible (same policy as `vox ci manifest`).
 RUN if [ -z "$VOX_CLI_FEATURES" ]; then \
-      cargo build --release -p vox-cli && strip /app/target/release/vox; \
+      cargo build --release --locked -p vox-cli && strip /app/target/release/vox; \
     else \
-      cargo build --release -p vox-cli --features "$VOX_CLI_FEATURES" && strip /app/target/release/vox; \
+      cargo build --release --locked -p vox-cli --features "$VOX_CLI_FEATURES" && strip /app/target/release/vox; \
     fi
 
 # Runtime image — no Rust toolchain, just the binary + TLS certs

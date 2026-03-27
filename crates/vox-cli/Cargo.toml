@@ -134,6 +134,8 @@ vox-orchestrator = { workspace = true, optional = true }
 vox-populi = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-repository = { workspace = true }
+vox-checksum-manifest = { workspace = true }
+vox-install-policy = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
 comfy-table = { workspace = true, optional = true }
@@ -163,6 +165,15 @@ wasmtime-wasi = { version = "42.0.1", optional = true }
 flate2 = "1.1.9"
 tar = "0.4.45"
 zip = { version = "8.4.0", default-features = false, features = ["deflate"] }
+self_update = { version = "0.43.1", default-features = false, features = [
+    "reqwest",
+    "rustls",
+    "archive-tar",
+    "archive-zip",
+    "compression-flate2",
+    "compression-zip-deflate",
+] }
+semver = "1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4", optional = true }

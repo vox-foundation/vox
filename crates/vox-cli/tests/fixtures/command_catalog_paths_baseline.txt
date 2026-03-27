@@ -1,3 +1,4 @@
+add
 ars
 ars/share
 ars/share/feedback
@@ -37,6 +38,7 @@ ci/line-endings
 ci/manifest
 ci/mesh-gate
 ci/no-dei-import
+ci/pm-provenance
 ci/release-build
 ci/repo-guards
 ci/scaling-audit
@@ -135,6 +137,7 @@ fabrica/run
 fabrica/test
 fmt
 install
+lock
 login
 logout
 lsp
@@ -163,6 +166,17 @@ mens/status
 mens/system-prompt-template
 mens/train-uv
 mens/watch-telemetry
+pm
+pm/cache
+pm/cache/clear
+pm/cache/status
+pm/info
+pm/publish
+pm/search
+pm/vendor
+pm/verify
+pm/yank
+remove
 run
 scientia
 scientia/capability-list
@@ -199,4 +213,7 @@ snippet
 snippet/export
 snippet/save
 snippet/search
+sync
 test
+update
+upgrade

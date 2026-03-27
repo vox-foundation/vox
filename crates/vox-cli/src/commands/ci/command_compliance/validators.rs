@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -12,10 +12,14 @@ use super::registry::RegistryFile;
 use crate::command_contract::{
     EMBEDDED_COMMAND_REGISTRY_YAML, merged_feature_gate_from_vox_cli_ops,
 };
+use vox_install_policy::{
+    DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO, SOURCE_INSTALL_CLI_REL_PATH,
+    SUPPORTED_RELEASE_TARGETS,
+};
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
 const KNOWN_LATIN_NS: &[&str] = &[
-    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei",
+    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm",
 ];
 
 fn normalize_lf(s: &str) -> String {
@@ -85,7 +89,6 @@ pub(crate) fn check_root_readme_cli_drift(readme: &str) -> Result<()> {
         anyhow!("README.md is missing `## The CLI` section required for discoverability")
     })?;
     for stale_cmd in [
-        "vox upgrade",
         "vox doc",
         "vox schola train",
         "vox dashboard",
@@ -329,6 +332,180 @@ pub(crate) fn check_registry_latin_and_handlers(
                 return Err(anyhow!(
                     "command-registry: handler_rust `{h}` for path {:?} not found under crates/vox-cli/src",
                     op.path
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Release/install SSOT (`vox-install-policy`) matches docs and key Rust entrypoints.
+pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
+    let contract_path = repo_root.join("docs/src/ci/binary-release-contract.md");
+    let contract =
+        read_utf8_path_capped(&contract_path).with_context(|| format!("read {}", contract_path.display()))?;
+    for triple in SUPPORTED_RELEASE_TARGETS {
+        if !contract.contains(triple) {
+            return Err(anyhow!(
+                "{}: missing release target `{triple}` (must match `vox_install_policy::SUPPORTED_RELEASE_TARGETS`)",
+                contract_path.display()
+            ));
+        }
+    }
+    let org_repo = format!("{DEFAULT_RELEASE_GITHUB_OWNER}/{DEFAULT_RELEASE_GITHUB_REPO}");
+    if !contract.contains(&org_repo) {
+        return Err(anyhow!(
+            "{}: must document default GitHub coordinates `{org_repo}`",
+            contract_path.display()
+        ));
+    }
+    if !contract.contains("--locked") {
+        return Err(anyhow!(
+            "{}: source fallback must document `cargo install --locked`",
+            contract_path.display()
+        ));
+    }
+    if !contract.contains(SOURCE_INSTALL_CLI_REL_PATH) {
+        return Err(anyhow!(
+            "{}: must document install path `{}`",
+            contract_path.display(),
+            SOURCE_INSTALL_CLI_REL_PATH
+        ));
+    }
+
+    let bootstrap_install = repo_root.join("crates/vox-bootstrap/src/engine/install.rs");
+    let bootstrap_txt = read_utf8_path_capped(&bootstrap_install)
+        .with_context(|| format!("read {}", bootstrap_install.display()))?;
+    if !bootstrap_txt.contains("vox_install_policy::") {
+        return Err(anyhow!(
+            "{}: must delegate install policy to `vox_install_policy` (avoid drift with bootstrap)",
+            bootstrap_install.display()
+        ));
+    }
+    if !bootstrap_txt.contains("CARGO_INSTALL_CLI_FROM_SOURCE") {
+        return Err(anyhow!(
+            "{}: source install must use `vox_install_policy::CARGO_INSTALL_CLI_FROM_SOURCE` (includes `--locked`)",
+            bootstrap_install.display()
+        ));
+    }
+
+    let repo_up = repo_root.join("crates/vox-cli/src/commands/repo_upgrade.rs");
+    let repo_up_txt =
+        read_utf8_path_capped(&repo_up).with_context(|| format!("read {}", repo_up.display()))?;
+    if !repo_up_txt.contains("vox_install_policy::") {
+        return Err(anyhow!(
+            "{}: must import `vox_install_policy` for `cargo install` argv + layout checks",
+            repo_up.display()
+        ));
+    }
+
+    let tu = repo_root.join("crates/vox-cli/src/commands/toolchain_upgrade.rs");
+    let tu_txt = read_utf8_path_capped(&tu).with_context(|| format!("read {}", tu.display()))?;
+    if !tu_txt.contains("vox_install_policy::") {
+        return Err(anyhow!(
+            "{}: must import `vox_install_policy` for default GitHub release coordinates",
+            tu.display()
+        ));
+    }
+
+    if !repo_up_txt.contains("CARGO_INSTALL_CLI_FROM_SOURCE") {
+        return Err(anyhow!(
+            "{}: `cargo install` must use `CARGO_INSTALL_CLI_FROM_SOURCE` from `vox_install_policy`",
+            repo_up.display()
+        ));
+    }
+
+    println!("install-policy surfaces OK (vox-install-policy ↔ docs ↔ bootstrap/repo upgrade)");
+    Ok(())
+}
+
+/// `vox upgrade` must not import or call project PM / lockfile APIs (WP5 namespace split).
+pub(crate) fn check_upgrade_toolchain_only(repo_root: &Path) -> Result<()> {
+    let p = repo_root.join("crates/vox-cli/src/commands/upgrade.rs");
+    let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+    for needle in [
+        "vox_pm::",
+        "VoxManifest",
+        "Lockfile",
+        "open_local_pm_store",
+        "lockfile_path",
+    ] {
+        if s.contains(needle) {
+            return Err(anyhow!(
+                "{}: `vox upgrade` must not touch project dependency state — remove `{needle}` from upgrade path (use `vox update` / `vox sync` instead)",
+                p.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// When a Dockerfile copies `Cargo.lock`, every `cargo build` line must pass `--locked` (WP7).
+pub(crate) fn check_dockerfiles_cargo_locked_policy(repo_root: &Path) -> Result<()> {
+    let mut dockerfiles: Vec<PathBuf> = Vec::new();
+    let root_df = repo_root.join("Dockerfile");
+    if root_df.is_file() {
+        dockerfiles.push(root_df);
+    }
+    let docker_dir = repo_root.join("docker");
+    if docker_dir.is_dir() {
+        for e in fs::read_dir(&docker_dir)
+            .with_context(|| format!("read_dir {}", docker_dir.display()))?
+        {
+            let p = e?.path();
+            if p.is_file()
+                && p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with("Dockerfile"))
+            {
+                dockerfiles.push(p);
+            }
+        }
+    }
+    dockerfiles.sort();
+    for p in dockerfiles {
+        let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        let copies_lock = s.lines().any(|line| {
+            let t = line.trim_start();
+            t.starts_with("COPY ") && t.contains("Cargo.lock")
+        });
+        if !copies_lock {
+            continue;
+        }
+        for line in s.lines() {
+            let t = line.trim();
+            if t.starts_with('#') || t.is_empty() {
+                continue;
+            }
+            if t.contains("cargo build") && !t.contains("--locked") {
+                return Err(anyhow!(
+                    "{}: use `cargo build ... --locked` whenever `Cargo.lock` is copied (container reproducibility policy)",
+                    p.display()
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Forbid resurrecting retired `vox container init` / uv product copy in user-facing bridge docs (WP6).
+pub(crate) fn check_packaging_pm_docs_no_resurrected_uv_copies(repo_root: &Path) -> Result<()> {
+    const PATHS: &[&str] = &[
+        "docs/src/how-to/how-to-pytorch.md",
+        "docs/src/api/vox-py.md",
+    ];
+    const BAD: &[&str] = &[
+        "vox container init handles everything",
+        "Local development — do nothing; .venv is found automatically after `uv sync`",
+    ];
+    for rel in PATHS {
+        let p = repo_root.join(rel);
+        let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        for frag in BAD {
+            if s.contains(frag) {
+                return Err(anyhow!(
+                    "{}: forbidden doc fragment `{frag}` — keep Python/uv paths explicitly historical/retired",
+                    p.display()
                 ));
             }
         }

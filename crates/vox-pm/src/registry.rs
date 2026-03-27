@@ -190,7 +190,7 @@ impl RegistryClient {
     pub async fn publish(&self, req: PublishRequest) -> Result<(), PmRegistryError> {
         if self.auth_token.is_none() {
             return Err(PmRegistryError::Auth(
-                "Authentication required for publishing. Run `vox login` first.".to_string(),
+                "Authentication required for publishing. Set `VOX_REGISTRY_TOKEN` or use `vox clavis` / registry-specific secret flows.".to_string(),
             ));
         }
         let url = format!("{}/api/v1/packages/{}", self.base_url, req.name);

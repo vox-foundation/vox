@@ -14,6 +14,8 @@ name = "vox-bootstrap"
 path = "src/main.rs"
 
 [dependencies]
+vox-checksum-manifest = { workspace = true }
+vox-install-policy = { workspace = true }
 clap = { workspace = true }
 flate2 = "1.1.9"
 reqwest = { workspace = true, features = ["blocking"] }

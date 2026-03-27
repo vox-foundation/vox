@@ -81,21 +81,13 @@ vox lsp
 
 See [Language Server](#language-server-lsp) below for details.
 
-### `vox install`
+### Package management (`vox add` / `vox sync` / `vox pm`)
 
-**Minimal binary today:** `vox install` **exits with an error**. Registry install flows are tracked for **`vox-pm`**.
-
-```bash
-vox install my-package
-```
+**`vox install` is retired** (hidden shim → deterministic migration error). Use **`vox add`**, **`vox lock`**, **`vox sync`**, and **`vox pm`** per [`reference/cli.md`](../reference/cli.md); see the full mapping in [`pm-migration-2026.md`](../reference/pm-migration-2026.md).
 
 ### `vox vendor`
 
-**Not in the minimal `vox` binary** today. This section describes a **target** offline workflow; use `ref-cli.md` for commands that actually exist in `crates/vox-cli`.
-
-```bash
-vox vendor
-```
+Offline trees: use **`vox pm vendor`**. Populate `.vox_modules/dl/` with **`vox sync`** first.
 
 ---
 
@@ -197,7 +189,7 @@ recall_memory(agent, type, limit, min_importance)  # Query with relevance filter
 Prerequisites: Rust >= 1.75, Node.js >= 18, C compiler (gcc/clang/MSVC). Full workspace + **Turso** crates: **clang** on Linux/macOS; **clang-cl** (LLVM) on Windows — see `docs/src/how-to-setup.md`.
 
 ```bash
-cargo install --path crates/vox-cli
+cargo install --locked --path crates/vox-cli
 ```
 
 > **Note:** Node.js and npm are required at runtime for `vox bundle` and `vox run` (frontend scaffolding). Copy `.env.example` to `.env` to configure optional API keys.

@@ -28,6 +28,7 @@ fn has_col(cols: &[String], name: &str) -> bool {
 /// Apply additive migrations and renames that baseline `IF NOT EXISTS` cannot perform.
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), StoreError> {
     align_question_sessions_belief(conn).await?;
+    align_plan_sessions_iterative(conn).await?;
     align_agent_events(conn).await?;
     migrate_published_news_news_id(conn).await?;
     apply_performance_indexes(conn).await?;
@@ -50,6 +51,42 @@ CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attemp
 CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id ON publication_status_events(publication_id, id);
 "#;
     conn.execute_batch(batch).await?;
+    Ok(())
+}
+
+async fn align_plan_sessions_iterative(conn: &Connection) -> Result<(), StoreError> {
+    let cols = table_column_names(conn, "PRAGMA table_info(plan_sessions)").await?;
+    if cols.is_empty() {
+        return Ok(());
+    }
+    if !has_col(&cols, "question_session_id") {
+        conn.execute(
+            "ALTER TABLE plan_sessions ADD COLUMN question_session_id TEXT",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "iterative_loop_round") {
+        conn.execute(
+            "ALTER TABLE plan_sessions ADD COLUMN iterative_loop_round INTEGER NOT NULL DEFAULT 0",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "iterative_stop_reason") {
+        conn.execute(
+            "ALTER TABLE plan_sessions ADD COLUMN iterative_stop_reason TEXT",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "iterative_loop_metadata_json") {
+        conn.execute(
+            "ALTER TABLE plan_sessions ADD COLUMN iterative_loop_metadata_json TEXT",
+            (),
+        )
+        .await?;
+    }
     Ok(())
 }
 

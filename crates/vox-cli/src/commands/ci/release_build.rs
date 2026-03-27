@@ -12,13 +12,8 @@ use tar::Builder;
 use zip::CompressionMethod;
 use zip::write::SimpleFileOptions;
 
-/// Supported release triples (must stay in sync with `vox-bootstrap` and `release-binaries.yml`).
-pub const SUPPORTED_RELEASE_TARGETS: &[&str] = &[
-    "x86_64-unknown-linux-gnu",
-    "x86_64-pc-windows-msvc",
-    "x86_64-apple-darwin",
-    "aarch64-apple-darwin",
-];
+/// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
+pub use vox_install_policy::SUPPORTED_RELEASE_TARGETS;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum ReleasePackage {
@@ -359,7 +354,7 @@ mod tests {
         assert_eq!(
             from_workflow,
             from_ssot,
-            "release-binaries.yml matrix targets must match `SUPPORTED_RELEASE_TARGETS` in release_build.rs (workflow files: {})",
+            "release-binaries.yml matrix targets must match `vox_install_policy::SUPPORTED_RELEASE_TARGETS` (workflow files: {})",
             wf.display()
         );
     }

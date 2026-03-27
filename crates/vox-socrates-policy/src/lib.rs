@@ -493,8 +493,7 @@ mod tests {
                 expected_user_cost: 0.55,
             },
         ];
-        let sel =
-            p.select_clarification_question(0.45, 0.0, 0, &candidates, qp, 0, 0);
+        let sel = p.select_clarification_question(0.45, 0.0, 0, &candidates, qp, 0, 0);
         assert!(sel.question_needed);
         assert_eq!(sel.question_kind, Some(QuestionKind::MultipleChoice));
     }
@@ -512,8 +511,7 @@ mod tests {
             expected_information_gain_bits: 0.5,
             expected_user_cost: 0.1,
         }];
-        let sel =
-            p.select_clarification_question(0.40, 0.0, 1, &candidates, qp, 0, 0);
+        let sel = p.select_clarification_question(0.40, 0.0, 1, &candidates, qp, 0, 0);
         assert!(!sel.question_needed);
         assert_eq!(
             sel.stop_reason,
@@ -531,15 +529,7 @@ mod tests {
             expected_information_gain_bits: 0.5,
             expected_user_cost: 0.1,
         }];
-        let sel = p.select_clarification_question(
-            0.40,
-            0.0,
-            0,
-            &candidates,
-            qp,
-            10_000,
-            10_000,
-        );
+        let sel = p.select_clarification_question(0.40, 0.0, 0, &candidates, qp, 10_000, 10_000);
         assert!(!sel.question_needed);
         assert_eq!(
             sel.stop_reason,

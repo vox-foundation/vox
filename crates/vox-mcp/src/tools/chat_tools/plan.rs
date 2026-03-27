@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use super::build_system_prompt;
 use super::params::{PlanParams, PlanReplanParams, PlanResult, PlanStatusParams, PlanTask};
+use super::plan_loop;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::params::ToolResult;
 use crate::server::ServerState;
@@ -142,7 +143,8 @@ Rules:
         }
     };
 
-    let plan_session_key = mcp_questioning_session_key(state, "vox_plan", params.session_id.as_deref());
+    let plan_session_key =
+        mcp_questioning_session_key(state, "vox_plan", params.session_id.as_deref());
     state.record_questioning_attention_spend(
         &plan_session_key,
         plan_llm_started.elapsed().as_millis() as u64,
@@ -185,14 +187,63 @@ Rules:
     } else {
         parsed.summary
     };
-    let tasks = parsed.tasks;
+    let mut tasks = parsed.tasks;
+
+    let loop_sess = mcp_questioning_session_key(state, "vox_plan", params.session_id.as_deref());
+    let complexity_for_refine = match params.max_tasks {
+        Some(n) if n > 10 => 9,
+        _ => 7,
+    };
+    let (refined_tasks, refined_summary, loop_state) = plan_loop::maybe_refine_plan(
+        state,
+        &params,
+        tasks,
+        summary,
+        complexity_for_refine,
+        &loop_sess,
+    )
+    .await;
+    tasks = refined_tasks;
+    let summary = refined_summary;
+
+    if let Some(db) = state.db.as_ref() {
+        if let Some(pid) = params.plan_telemetry_session_id.as_deref() {
+            let strat = format!("mcp_plan:{:?}", params.loop_mode.unwrap_or_default());
+            let _ = db
+                .create_plan_session(pid, params.session_id.as_deref(), &params.goal, &strat)
+                .await;
+            let meta = serde_json::json!({
+                "refinement_rounds": loop_state.refinement_rounds,
+                "loop_status": loop_state.loop_status,
+                "stop_reason": loop_state.stop_reason,
+                "telemetry": "vox_mcp_iterative_plan",
+            });
+            let _ = db
+                .update_plan_session_iterative_fields(
+                    pid,
+                    params.question_link_session_id.as_deref(),
+                    i64::from(loop_state.refinement_rounds),
+                    loop_state.stop_reason.as_deref(),
+                    Some(&meta.to_string()),
+                )
+                .await;
+        }
+    }
+
+    let plan_total_tasks = tasks.len();
+    let page_off = params.plan_page_offset.unwrap_or(0);
+    let tasks_for_payload: Vec<PlanTask> = if let Some(lim) = params.plan_page_limit {
+        tasks.iter().skip(page_off).take(lim).cloned().collect()
+    } else {
+        tasks.clone()
+    };
 
     // Manual markdown generation for the on-disk/visual summary
     let mut base_plan_md = format!("## Plan\n\n**Overall Summary**: {summary}\n\n### Tasks\n\n");
-    if tasks.is_empty() {
+    if tasks_for_payload.is_empty() {
         base_plan_md.push_str("*(No tasks generated)*\n");
     } else {
-        for t in &tasks {
+        for t in &tasks_for_payload {
             let deps = if t.depends_on.is_empty() {
                 String::new()
             } else {
@@ -210,7 +261,7 @@ Rules:
         }
     }
 
-    // Optionally write PLAN.md
+    // Optionally write PLAN.md (always full refined task list when paginating the tool payload).
     let written_to_disk = if params.write_to_disk {
         let plan_path = state
             .workspace_root
@@ -223,18 +274,72 @@ Rules:
             chrono::Local::now().format("%Y-%m-%d %H:%M"),
             model_used,
         );
-        let full = header + &base_plan_md;
+        let body_md = if params.plan_page_limit.is_some() {
+            let mut md = format!("## Plan\n\n**Overall Summary**: {summary}\n\n### Tasks\n\n");
+            if tasks.is_empty() {
+                md.push_str("*(No tasks generated)*\n");
+            } else {
+                for t in &tasks {
+                    let deps = if t.depends_on.is_empty() {
+                        String::new()
+                    } else {
+                        let dep_strs: Vec<String> =
+                            t.depends_on.iter().map(|d| d.to_string()).collect();
+                        format!(" [depends: {}]", dep_strs.join(", "))
+                    };
+                    md.push_str(&format!(
+                        "{}. **{}** — [files: {}] [complexity: {}/10]{}\n\n",
+                        t.id,
+                        t.description,
+                        t.files.join(", "),
+                        t.estimated_complexity,
+                        deps
+                    ));
+                }
+            }
+            md
+        } else {
+            base_plan_md.clone()
+        };
+        let full = header + &body_md;
         std::fs::write(&plan_path, &full).is_ok()
     } else {
         false
     };
 
+    let gap_report_json = loop_state
+        .last_gap_report
+        .as_ref()
+        .and_then(|g| serde_json::to_value(g).ok());
+    let last_risk = loop_state
+        .last_gap_report
+        .as_ref()
+        .map(|g| g.aggregate_unresolved_risk);
+    let clarifying = if params.questioning_hints_enabled == Some(true) {
+        loop_state
+            .last_gap_report
+            .as_ref()
+            .map(|g| g.suggested_clarifying_questions.clone())
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
     let result = PlanResult {
         goal: params.goal.clone(),
-        tasks,
+        tasks: tasks_for_payload,
         summary,
         plan_md: base_plan_md,
         written_to_disk,
+        plan_total_tasks,
+        plan_page_offset: page_off,
+        loop_mode_effective: format!("{:?}", params.loop_mode.unwrap_or_default())
+            .to_ascii_lowercase(),
+        refinement_rounds: loop_state.refinement_rounds,
+        loop_stop_reason: loop_state.stop_reason,
+        last_aggregate_gap_risk: last_risk,
+        gap_report: gap_report_json,
+        clarifying_questions: clarifying,
     };
 
     let grounding = if params.scope_files.is_empty() {
@@ -304,8 +409,11 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
     match crate::dei_ipc::call_dei_daemon("ai.plan.status", body).await {
         Ok(mut v) => {
             let pol = state.orchestrator_config.effective_socrates_policy();
-            let session_key =
-                mcp_questioning_session_key(state, "vox_plan_status", Some(params.session_id.as_str()));
+            let session_key = mcp_questioning_session_key(
+                state,
+                "vox_plan_status",
+                Some(params.session_id.as_str()),
+            );
             let turn = clarification_turn_for_session(state, &session_key).await;
             let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
             let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att);

@@ -7,7 +7,10 @@ training_eligible: true
 ---
 # @py.import – Python Library Integration (`torch`, `numpy`, etc.)
 
-Vox can import and call Python libraries directly from `.vox` files using the `@py.import` decorator. The Python interpreter is embedded at runtime via `pyo3`, and packages are managed by **[uv](https://docs.astral.sh/uv/)** — the fast Python package manager built in Rust. No manual `PYTHONPATH` configuration is required.
+> **2026 stance:** **`vox container init` is retired** (hard error — use Rust/PM flows). **`@py.import` / uv-backed setup is not a supported product path.** Native ML stacks live under **`vox mens`** / Candle; treat the material below as historical reference only.
+
+Vox historically documented importing Python libraries from `.vox` via `@py.import` with **[uv](https://docs.astral.sh/uv/)** for wheels. That workflow is **not** maintained as a supported package-management lane.
+
 ## Quick Start
 
 ```vox
@@ -20,13 +23,13 @@ fn run_inference(input: list[float]) to list[float]:
     ret model.forward(t).tolist()
 ```
 
-Run once to set up the environment:
+Legacy documentation previously recommended:
 
 ```bash
 vox container init --file src/main.vox
 ```
 
-That's it. The command auto-installs Python 3.12, creates a `.venv` directory, and installs required packages. Your compiled binary will find the packages automatically at runtime.
+That command now **fails** with a migration message — do not rely on it for new work.
 
 ## Syntax
 
@@ -37,9 +40,9 @@ That's it. The command auto-installs Python 3.12, creates a `.venv` directory, a
 
 Both dotted module paths (`torch.nn.functional`) and simple names (`torch`) are supported.
 
-## How It Works
+## How It Worked (historical)
 
-`vox container init` runs the full setup flow using **uv**:
+The retired `vox container init` flow used **uv** as follows:
 
 1. Detects your environment (uv, Python version, GPU/CUDA).
 2. Runs `uv python install 3.12` — idempotent, skips if already installed.
@@ -106,23 +109,26 @@ fn moving_average(data: list[float], window: int) to list[float]:
     ret np.convolve(arr, weights, "valid").tolist()
 ```
 
-## Runtime Environment
+## Runtime Environment *(historical)*
 
-`vox container init` handles everything:
+**`vox container init` is retired** (hard error). It no longer provisions Python, **uv**, or a project venv. The snippet below is only for readers maintaining trees that still have a pre-existing `.venv` from before that cutover:
 
 ```bash
-# First time — installs Python 3.12, creates .venv, installs packages
+# Retired — fails today with an explicit migration message.
 vox container init --file src/main.vox
 
-# Subsequent runs — just rebuild and run; .venv is already there
+# Historical follow-up only: rebuild a binary against an already-materialized venv layout.
 cargo build && ./target/debug/my-app
 ```
 
-### Docker / CI
+### Docker / CI *(historical)*
+
+The **`vox container init` + `uv sync` lane is retired.** The snippets below are retained only for readers maintaining old trees.
 
 When the venv lives at a non-standard path (e.g. inside a Docker image), set `VOX_VENV_PATH` to override auto-detection:
 
 ```dockerfile
+# Historical — prefer the repo-root Rust `Dockerfile` for new work.
 FROM python:3.12-slim
 RUN pip install uv
 
@@ -138,6 +144,7 @@ CMD ["./target/release/my-app"]
 Or in a CI step:
 
 ```yaml
+# Historical uv-based CI — not a supported Vox PM path.
 - run: |
     uv sync
     cargo build --release
@@ -145,7 +152,7 @@ Or in a CI step:
 ```
 
 > [!TIP]
-> For GPU workloads, run on a machine with an NVIDIA GPU before calling `vox container init`. The toolchain auto-detects CUDA and selects the correct PyTorch wheels.
+> For GPU workloads on the **historical** `@py.import` + CUDA wheel path, you needed an NVIDIA GPU so auto-detection could pick PyTorch wheels. **New work:** prefer **`vox mens`** / Candle — see [Mens training](../reference/mens-training.md).
 
 > [!NOTE]
 > The `vox-py` Cargo feature is disabled by default to keep compile times short. Enable it by adding `vox-py` as a dependency to your project's `Cargo.toml`.
@@ -188,7 +195,7 @@ Vox auto-selects the right PyTorch wheel source based on your detected GPU:
 
 ## The Future: Native Vox ML (`vox-tensor`)
 
-While Python integration provides tremendous utility today, it inherently violates deeply-held Vox principles: **Zero dependency drift**, **One Binary deployment**, and **Complete cross-platform compilation**.
+While Python integration historically provided utility for `@py.import` experiments, it inherently conflicts with deeply-held Vox principles: **Zero dependency drift**, **One Binary deployment**, and **Complete cross-platform compilation**.
 
 To address this, we have implemented **`vox-tensor`** — a native ML layer built on the [Burn](https://burn.dev) framework, providing 95% of PyTorch's capabilities without Python.
 

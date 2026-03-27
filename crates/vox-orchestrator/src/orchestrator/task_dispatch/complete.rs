@@ -17,7 +17,7 @@ impl Orchestrator {
         self.record_activity();
         crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
 
-        let (write_files, session_id, desc, phase_label, debug_iterations) = {
+        let (write_files, session_id, desc, phase_label, debug_iterations, plan_completion_meta) = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let queue_lock = agents
                 .get(&agent_id)
@@ -147,6 +147,23 @@ impl Orchestrator {
             }
 
             let current = queue.current_task().cloned();
+            let plan_completion_meta = current.as_ref().and_then(|t| {
+                match (
+                    t.plan_session_id.clone(),
+                    t.plan_node_id.clone(),
+                    t.plan_version,
+                ) {
+                    (Some(plan_session_id), Some(plan_node_id), Some(plan_version)) => {
+                        Some(PlanningTaskMeta {
+                            plan_session_id,
+                            plan_node_id,
+                            plan_version,
+                            execution_policy_json: t.execution_policy_json.clone(),
+                        })
+                    }
+                    _ => None,
+                }
+            });
             let desc = current
                 .as_ref()
                 .map(|t| t.description.clone())
@@ -165,7 +182,14 @@ impl Orchestrator {
                 queue.active_skills.insert("reduce".to_string(), 1.0_f64);
             }
             queue.mark_complete(task_id);
-            (write_files, session_id, desc, phase_label, debug_iterations)
+            (
+                write_files,
+                session_id,
+                desc,
+                phase_label,
+                debug_iterations,
+                plan_completion_meta,
+            )
         };
 
         // Find pre-task snapshots from the oplog to link this completion
@@ -272,7 +296,7 @@ impl Orchestrator {
             &self.event_bus,
             task_id,
             agent_id,
-            session_id,
+            session_id.clone(),
         );
 
         // Unblock dependent tasks across ALL agents
@@ -284,30 +308,38 @@ impl Orchestrator {
             }
         }
 
-        if let Some(db) = self.db() {
-            let _ =
-                db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), true));
-            // Best-effort planning attempt persistence for plan-linked tasks.
-            if let Some(queue_lock) = crate::sync_lock::rw_read(&*self.agents).get(&agent_id) {
-                let queue = crate::sync_lock::rw_read(&**queue_lock);
-                if let Some(task) = queue.current_task()
-                    && let (Some(ps), Some(node), Some(ver)) = (
-                        task.plan_session_id.as_deref(),
-                        task.plan_node_id.as_deref(),
-                        task.plan_version,
-                    )
-                {
-                    let _ = db.block_on(db.record_plan_node_attempt(
-                        ps,
-                        i64::from(ver),
-                        node,
+        if let Some(db) = self.db().as_ref() {
+            let _ = db
+                .record_task_reliability_observation(&agent_id.0.to_string(), true)
+                .await;
+            if let Some(meta) = plan_completion_meta.as_ref() {
+                let _ = db
+                    .record_plan_node_attempt(
+                        &meta.plan_session_id,
+                        i64::from(meta.plan_version),
+                        &meta.plan_node_id,
                         1,
                         Some(&task_id.0.to_string()),
                         "completed",
                         None,
                         None,
-                    ));
-                }
+                    )
+                    .await;
+                let _ = db
+                    .set_plan_node_status(
+                        &meta.plan_session_id,
+                        meta.plan_version as i64,
+                        &meta.plan_node_id,
+                        "completed",
+                    )
+                    .await;
+                let _ = crate::planning::schedule::enqueue_runnable_plan_nodes(
+                    self,
+                    &meta.plan_session_id,
+                    meta.plan_version,
+                    session_id.clone(),
+                )
+                .await;
             }
         }
         {

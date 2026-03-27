@@ -115,6 +115,18 @@ pub struct InlineEditResult {
     pub model_used: String,
 }
 
+/// Iterative refinement policy for `vox_plan` (default: off; backward compatible).
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanLoopMode {
+    #[default]
+    Off,
+    /// Refine when automated gap risk score exceeds `gap_risk_threshold`.
+    Auto,
+    /// Run up to `max_refine_rounds` refinement passes regardless of initial score.
+    Force,
+}
+
 /// Arguments for `vox_plan` structured planning tool.
 #[derive(Debug, Deserialize)]
 pub struct PlanParams {
@@ -132,6 +144,36 @@ pub struct PlanParams {
     /// Optional tenant/session partition key for usage attribution.
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Optional iterative refinement (`off` when omitted).
+    #[serde(default)]
+    pub loop_mode: Option<PlanLoopMode>,
+    /// Maximum refinement LLM rounds (capped server-side).
+    #[serde(default)]
+    pub max_refine_rounds: Option<u32>,
+    /// Approximate output-token budget across refinement passes.
+    #[serde(default)]
+    pub refine_budget_tokens: Option<u32>,
+    /// Aggregate gap risk above which `loop_mode=auto` runs refinement (0.28 default in engine).
+    #[serde(default)]
+    pub gap_risk_threshold: Option<f32>,
+    /// Slice start when returning a window of tasks (UI pagination).
+    #[serde(default)]
+    pub plan_page_offset: Option<usize>,
+    /// Max tasks to return after refinement; omit for full list.
+    #[serde(default)]
+    pub plan_page_limit: Option<usize>,
+    /// When set with an attached Codex DB, upserts `plan_sessions` and records iterative telemetry.
+    #[serde(default)]
+    pub plan_telemetry_session_id: Option<String>,
+    /// Optional link into `question_sessions.question_session_id` for unified analytics.
+    #[serde(default)]
+    pub question_link_session_id: Option<String>,
+    /// When true, include `clarifying_questions` from gap heuristics in the tool result.
+    #[serde(default)]
+    pub questioning_hints_enabled: Option<bool>,
+    /// Reserved: `local_first` | `cloud_first` | `balanced` for multi-answer orchestration.
+    #[serde(default)]
+    pub answerer_profile: Option<String>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-dei-d` is available.
@@ -182,6 +224,30 @@ pub struct PlanResult {
     pub plan_md: String,
     /// Whether `PLAN.md` was written under the workspace root.
     pub written_to_disk: bool,
+    /// Total tasks after refinement (before pagination slice).
+    #[serde(default)]
+    pub plan_total_tasks: usize,
+    /// Pagination offset applied to `tasks` in this payload.
+    #[serde(default)]
+    pub plan_page_offset: usize,
+    /// Iterative loop policy applied (`off`, `auto`, `force`).
+    #[serde(default)]
+    pub loop_mode_effective: String,
+    /// Number of LLM refinement passes executed.
+    #[serde(default)]
+    pub refinement_rounds: u32,
+    /// Terminal loop / stop reason when refinement ran.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loop_stop_reason: Option<String>,
+    /// Aggregate risk from the last gap pass (0..1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_aggregate_gap_risk: Option<f32>,
+    /// Structured gap report for analytics (optional).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gap_report: Option<serde_json::Value>,
+    /// Ranked clarification prompts derived from gap codes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clarifying_questions: Vec<String>,
 }
 
 /// Parameters for the `vox_ghost_text` MCP tool.

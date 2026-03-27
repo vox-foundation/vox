@@ -229,12 +229,41 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::FmtArgs,
     },
-    /// Install a component or package via vox-pm
-    Install {
-        /// Target package name.
-        #[arg(required = true)]
-        package_name: String,
+    /// Add a dependency to `Vox.toml` (manifest only; run `vox lock` then `vox sync` to materialize).
+    Add {
+        #[command(flatten)]
+        args: cli_args::AddDependencyArgs,
     },
+    /// Remove a dependency from `Vox.toml`.
+    Remove {
+        #[command(flatten)]
+        args: cli_args::RemoveDependencyArgs,
+    },
+    /// Refresh `vox.lock` from the local PM index (project graph — not the Vox toolchain).
+    Update,
+    /// Resolve `Vox.toml` and write `vox.lock` without downloading artifacts.
+    Lock {
+        #[command(flatten)]
+        args: cli_args::LockArgs,
+    },
+    /// Materialize registry packages from `vox.lock` into `.vox_modules/dl/`.
+    Sync {
+        #[command(flatten)]
+        args: cli_args::SyncArgs,
+    },
+    /// Advanced package manager / registry commands (`search`, `publish`, `vendor`, …).
+    Pm {
+        #[command(subcommand)]
+        cmd: commands::pm::PmCli,
+    },
+    /// Toolchain upgrade: `--source release` (checksums.txt binary) or `--source repo` (git + `cargo install --locked`); never edits `Vox.toml` / `vox.lock`.
+    Upgrade {
+        #[command(flatten)]
+        args: cli_args::UpgradeToolchainArgs,
+    },
+    /// Retired — use `vox add` / `vox sync` / `vox pm`.
+    #[command(name = "install", hide = true)]
+    InstallRetired { package_name: Option<String> },
     /// Deprecated compatibility command; use `vox clavis set` instead.
     Login {
         /// Registry name (for example `google`, `openrouter`, `voxpm`).

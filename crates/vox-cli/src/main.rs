@@ -21,7 +21,8 @@
 //! | `vox ci …` | `commands::ci` |
 //! | `vox bundle <file> [-o DIR] [--target TRIPLE] [--release]` | `commands::bundle` |
 //! | `vox fmt <file>` | `commands::fmt` |
-//! | `vox install <name>` | `commands::install` |
+//! | `vox add` / `remove` / `update` / `lock` / `sync` / `upgrade` / `pm` | `commands::add`, `remove`, `update`, `lock`, `sync`, `upgrade`, `pm` |
+//! | `vox install` (hidden) | `commands::install` (retired; migration error) |
 //! | `vox dev <file>` | `commands::dev` (via `vox-compilerd`) |
 //! | `vox live` | `commands::live` (needs `--features live`) |
 //! | `vox db …` | `commands::db_cli` |

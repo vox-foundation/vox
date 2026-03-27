@@ -4,10 +4,11 @@
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml).
 
-**schema_version:** `1` · **vox-cli operations:** 128
+**schema_version:** `1` · **vox-cli operations:** 146
 
 | Path | Status | Feature gate | Latin ns | Catalog group |
 |------|--------|--------------|----------|----------------|
+| `vox add` | active | — | pm | — |
 | `vox architect` | active | codex|stub-check | diag | — |
 | `vox ars` | active | — | ars | — |
 | `vox build` | active | — | fabrica | — |
@@ -34,6 +35,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox ci manifest` | active | — | — | — |
 | `vox ci mesh-gate` | active | — | — | — |
 | `vox ci no-dei-import` | active | — | — | — |
+| `vox ci pm-provenance` | active | — | — | — |
 | `vox ci release-build` | active | — | — | — |
 | `vox ci repo-guards` | active | — | — | — |
 | `vox ci scaling-audit` | active | — | — | — |
@@ -72,9 +74,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox doctor` | active | — | diag | — |
 | `vox fabrica` | active | — | fabrica | — |
 | `vox fmt` | active | — | fabrica | — |
-| `vox install` | active | — | fabrica | — |
+| `vox install` | retired | — | pm | — |
 | `vox island` | active | island | — | — |
 | `vox live` | active | live | — | — |
+| `vox lock` | active | — | pm | — |
 | `vox login` | deprecated | — | ars | — |
 | `vox logout` | deprecated | — | ars | — |
 | `vox lsp` | active | — | fabrica | — |
@@ -99,6 +102,17 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox mens watch-telemetry` | active | mens-base | mens | — |
 | `vox openclaw` | active | ars | ars | — |
 | `vox oratio` | active | oratio | fabrica | oratio |
+| `vox pm` | active | — | pm | — |
+| `vox pm cache` | active | — | pm | — |
+| `vox pm cache clear` | active | — | pm | — |
+| `vox pm cache status` | active | — | pm | — |
+| `vox pm info` | active | — | pm | — |
+| `vox pm mirror` | active | — | pm | — |
+| `vox pm publish` | active | — | pm | — |
+| `vox pm search` | active | — | pm | — |
+| `vox pm vendor` | active | — | pm | — |
+| `vox pm verify` | active | — | pm | — |
+| `vox pm yank` | active | — | pm | — |
 | `vox populi` | active | populi | — | — |
 | `vox populi down` | active | populi | — | — |
 | `vox populi registry-snapshot` | active | populi | — | — |
@@ -106,6 +120,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox populi status` | active | populi | — | — |
 | `vox populi up` | active | populi | — | — |
 | `vox recensio` | active | coderabbit | recensio | — |
+| `vox remove` | active | — | pm | — |
 | `vox review` | active | coderabbit | recensio | — |
 | `vox run` | active | — | fabrica | — |
 | `vox scientia` | active | — | codex | — |
@@ -134,5 +149,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox skill` | active | ars | ars | — |
 | `vox snippet` | active | — | ars | — |
 | `vox stub-check` | active | stub-check | diag | — |
+| `vox sync` | active | — | pm | — |
 | `vox test` | active | — | fabrica | — |
 | `vox train` | deprecated | gpu+mens-dei | mens | — |
+| `vox update` | active | — | pm | — |
+| `vox upgrade` | active | — | pm | — |

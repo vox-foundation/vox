@@ -1,18 +1,102 @@
 use crate::hir::{
     HirActivity, HirActor, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
 };
+use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::{
     ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
 };
 use crate::typeck::ty::Ty;
+use std::collections::HashMap;
 
 /// Register all top-level declarations from an HIR module into the type environment.
 ///
 /// This is the "Pass 1" of type checking: it makes every name visible so that
 /// forward references work when bodies are checked in Pass 2.
-pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) {
+pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
     for td in &module.types {
         register_hir_typedef(env, td);
+    }
+    for imp in &module.imports {
+        if env.lookup(&imp.item).is_none() {
+            env.define(
+                imp.item.clone(),
+                Binding::new(Ty::Error, false, BindingKind::Import),
+            );
+        }
+    }
+    let mut rust_crate_dep_specs: HashMap<
+        String,
+        (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ),
+    > = HashMap::new();
+
+    for r in &module.rust_imports {
+        if env.lookup(&r.alias).is_some() {
+            diags.push(Diagnostic::error(
+                format!(
+                    "Import alias conflict: '{}' is already defined in this module",
+                    r.alias
+                ),
+                r.span,
+                "",
+            ));
+            continue;
+        }
+        if r.path.is_some() && r.git.is_some() {
+            diags.push(Diagnostic::lowering(
+                format!(
+                    "Rust import '{}' has conflicting sources: both `path` and `git` were specified",
+                    r.crate_name
+                ),
+                r.span,
+                "",
+            ));
+            continue;
+        }
+        if r.crate_name.trim().is_empty() {
+            diags.push(Diagnostic::runtime_contract(
+                "Rust import references an empty crate name".into(),
+                r.span,
+                "",
+            ));
+            continue;
+        }
+
+        let spec = (
+            r.version.clone(),
+            r.path.clone(),
+            r.git.clone(),
+            r.rev.clone(),
+        );
+        if let Some(prev) = rust_crate_dep_specs.get(&r.crate_name) {
+            if prev != &spec {
+                diags.push(Diagnostic::lowering(
+                    format!(
+                        "Conflicting dependency specifications for rust crate '{}': versions/path/git metadata must match across imports for the same crate name",
+                        r.crate_name
+                    ),
+                    r.span,
+                    "",
+                ));
+                continue;
+            }
+        } else {
+            rust_crate_dep_specs.insert(r.crate_name.clone(), spec);
+        }
+
+        env.define(
+            r.alias.clone(),
+            Binding::new(
+                Ty::Named(format!("RustCrate::{}", r.crate_name)),
+                false,
+                BindingKind::Import,
+            ),
+        );
     }
     for f in &module.functions {
         register_hir_function(env, f);
@@ -44,6 +128,7 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) {
     for t in &module.tables {
         register_hir_table(env, t);
     }
+    diags
 }
 
 /// Convert an HIR type to an internal [`Ty`].

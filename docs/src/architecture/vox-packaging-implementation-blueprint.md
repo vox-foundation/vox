@@ -35,6 +35,7 @@ This is a planning blueprint, not the execution checklist. The execution checkli
 - `vox pm yank`
 - `vox pm vendor`
 - `vox pm verify`
+- `vox pm mirror` *(`--file` or `--from-registry` → local PM index + CAS)*
 - `vox pm cache ...`
 
 ### Toolchain/self lane
@@ -71,7 +72,7 @@ This is a planning blueprint, not the execution checklist. The execution checkli
 | `commands/add.rs` | implemented but not first-class wired | `vox add` | wire to CLI and command registry |
 | `commands/remove.rs` | implemented but not first-class wired | `vox remove` | wire to CLI and command registry |
 | `commands/update.rs` | implemented but not first-class wired | `vox update` | wire, add explicit lock policy semantics |
-| `commands/vendor.rs` | references stale `vox install` path | `vox pm vendor` | move under `pm` and update messaging |
+| `vox pm vendor` | copies `.vox_modules/dl` for offline builds | shipped under **`vox pm`** | duplicate `commands/vendor.rs` removed |
 | `train-uv` | retired in runtime and registry | removed lane | remove residual docs/code references |
 
 ## Compatibility and deprecation policy
@@ -158,6 +159,16 @@ flowchart TD
 - Package/release artifacts should carry provenance metadata.
 - CI/release lanes verify provenance policy before promotion.
 
+## Future extension boundary (plugin lanes)
+
+The default import lane remains compile-time Cargo dependency synthesis. Extension lanes are opt-in:
+
+- **Short-term:** generated wrappers over compile-time linked crates.
+- **Mid-term:** ABI-stable host extension boundary (`abi_stable`) behind explicit feature/config gates.
+- **Long-term:** WASM component model boundary for cross-language extension portability.
+
+Stability rule: these lanes must not change baseline `import rust:<crate>` semantics for non-plugin users.
+
 ## Risk register
 
 ### R1: CLI breakage
@@ -193,3 +204,5 @@ flowchart TD
 - `update` vs `upgrade` semantic boundary is enforceable via tests and compliance checks.
 - Python/UV hard-retirement coverage is represented across code, command registry, and docs.
 - Docker reproducibility and lock-policy requirements are encoded as mandatory behaviors.
+
+Execution checklist and command mappings: [`reference/pm-migration-2026.md`](../reference/pm-migration-2026.md).

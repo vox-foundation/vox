@@ -89,3 +89,129 @@ fn parse_db_explain_jsonl_flag() {
     ])
     .expect("db explain --jsonl parse");
 }
+
+#[test]
+fn parse_package_management_verbs() {
+    VoxCliRoot::try_parse_from(["vox", "add", "foo", "--version", "^1"]).expect("add");
+    VoxCliRoot::try_parse_from(["vox", "remove", "foo"]).expect("remove");
+    VoxCliRoot::try_parse_from(["vox", "update"]).expect("update");
+    VoxCliRoot::try_parse_from(["vox", "lock"]).expect("lock");
+    VoxCliRoot::try_parse_from(["vox", "lock", "--locked"]).expect("lock --locked");
+    VoxCliRoot::try_parse_from(["vox", "sync"]).expect("sync");
+    VoxCliRoot::try_parse_from(["vox", "sync", "--frozen"]).expect("sync --frozen");
+    VoxCliRoot::try_parse_from(["vox", "upgrade", "--channel", "stable"]).expect("upgrade");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "upgrade",
+        "--apply",
+        "--provider",
+        "github",
+        "--allow-breaking",
+    ])
+    .expect("upgrade --apply");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "upgrade",
+        "--provider",
+        "http",
+        "--base-url",
+        "https://example.com/org/vox/releases",
+        "--version",
+        "v1.0.0",
+    ])
+    .expect("upgrade http mirror");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "upgrade",
+        "--source",
+        "repo",
+        "--repo-root",
+        ".",
+        "--ref",
+        "v1.0.0",
+    ])
+    .expect("upgrade --source repo");
+}
+
+#[test]
+fn parse_pm_subcommands() {
+    VoxCliRoot::try_parse_from(["vox", "pm", "search", "httpx"]).expect("pm search");
+    VoxCliRoot::try_parse_from(["vox", "pm", "info", "pkg"]).expect("pm info");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "pm",
+        "publish",
+        "n",
+        "--version",
+        "0.1.0",
+        "--file",
+        "Cargo.toml",
+    ])
+    .expect("pm publish");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "pm",
+        "mirror",
+        "pkg-a",
+        "--version",
+        "1.2.3",
+        "--file",
+        "blob.bin",
+    ])
+    .expect("pm mirror --file");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "pm",
+        "mirror",
+        "pkg-b",
+        "--version",
+        "0.0.9",
+        "--from-registry",
+        "http://127.0.0.1:9",
+    ])
+    .expect("pm mirror --from-registry");
+    VoxCliRoot::try_parse_from(["vox", "pm", "cache", "status"]).expect("pm cache status");
+    VoxCliRoot::try_parse_from(["vox", "pm", "cache", "clear"]).expect("pm cache clear");
+    VoxCliRoot::try_parse_from(["vox", "pm", "yank", "oldpkg", "--version", "0.1.0"])
+        .expect("pm yank");
+    VoxCliRoot::try_parse_from(["vox", "pm", "vendor"]).expect("pm vendor");
+    VoxCliRoot::try_parse_from(["vox", "pm", "vendor", "--dir", "third_party/vox_vendor"])
+        .expect("pm vendor --dir");
+    VoxCliRoot::try_parse_from(["vox", "pm", "verify"]).expect("pm verify");
+    VoxCliRoot::try_parse_from(["vox", "pm", "verify", "--registry", "http://127.0.0.1:9"])
+        .expect("pm verify --registry");
+}
+
+#[test]
+fn parse_retired_install_hidden() {
+    let r = VoxCliRoot::try_parse_from(["vox", "install", "legacy-pkg"]).expect("install parse");
+    assert!(matches!(r.cmd, Cli::InstallRetired { .. }));
+}
+
+#[tokio::test]
+async fn install_retired_message_lists_replacement_verbs() {
+    let err = vox_cli::commands::install::run_retired(Some("legacy-pkg".into()))
+        .await
+        .expect_err("retired install errors");
+    let msg = err.to_string();
+    for needle in ["vox add", "vox lock", "vox sync", "vox pm", "legacy-pkg"] {
+        assert!(
+            msg.contains(needle),
+            "migration message should mention `{needle}`:\n{msg}"
+        );
+    }
+}
+
+#[test]
+fn parse_ci_pm_provenance() {
+    VoxCliRoot::try_parse_from(["vox", "ci", "pm-provenance"]).expect("pm-provenance");
+    VoxCliRoot::try_parse_from([
+        "vox",
+        "ci",
+        "pm-provenance",
+        "--strict",
+        "--root",
+        "packages/foo",
+    ])
+    .expect("pm-provenance strict + root");
+}

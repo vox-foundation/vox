@@ -228,11 +228,9 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )
         .await),
-        "vox_questioning_pending" => Ok(questioning_tools::questioning_pending(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
+        "vox_questioning_pending" => {
+            Ok(questioning_tools::questioning_pending(state, serde_json::from_value(args)?).await)
+        }
         "vox_questioning_sync_ssot" => Ok(questioning_tools::questioning_sync_ssot(
             state,
             serde_json::from_value(args)?,

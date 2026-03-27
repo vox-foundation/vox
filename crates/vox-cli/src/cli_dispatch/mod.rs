@@ -88,8 +88,30 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Live => {
             crate::commands::live::run().await?;
         }
-        Cli::Install { package_name } => {
-            crate::commands::install::run(Some(&package_name), false).await?;
+        Cli::Add { args } => {
+            crate::commands::add::run(&args.name, args.version.as_deref(), args.path.as_deref())
+                .await?;
+        }
+        Cli::Remove { args } => {
+            crate::commands::remove::run(&args.name).await?;
+        }
+        Cli::Update => {
+            crate::commands::update::run().await?;
+        }
+        Cli::Lock { args } => {
+            crate::commands::lock::run(args.locked).await?;
+        }
+        Cli::Sync { args } => {
+            crate::commands::sync::run(args.registry.as_deref(), args.frozen).await?;
+        }
+        Cli::Pm { cmd } => {
+            crate::commands::pm::run(cmd).await?;
+        }
+        Cli::Upgrade { args } => {
+            crate::commands::upgrade::run(&args, global.json).await?;
+        }
+        Cli::InstallRetired { package_name } => {
+            crate::commands::install::run_retired(package_name).await?;
         }
         Cli::Login {
             registry,

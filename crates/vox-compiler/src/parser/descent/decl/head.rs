@@ -2,9 +2,9 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, IslandDecl, IslandProp,
-    LoadingDecl, McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, QueryDecl,
-    ReactiveComponentDecl, ReactiveMemberDecl, ServerFnDecl, TestDecl,
+    ComponentDecl, Decl, EffectDecl, FnDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
+    IslandProp, LoadingDecl, McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, QueryDecl,
+    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -30,23 +30,147 @@ impl Parser {
 
     pub(crate) fn parse_import_path(&mut self) -> Result<ImportPath, ()> {
         let start = self.span();
-        let mut segments = Vec::new();
-        match self.peek().clone() {
+        let mut alias = None;
+        let first = match self.peek().clone() {
             Token::Ident(name) | Token::TypeIdent(name) => {
-                segments.push(name);
                 self.advance();
+                name
             }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Import path must begin with an identifier (for example `react.use_state`); extend with `.` segments only after the first name.",
+                    "Import path must begin with an identifier (for example `react.use_state` or `rust:serde_json`).",
                     vec!["identifier".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }
+        };
+
+        if first == "rust" && self.eat(&Token::Colon) {
+            let crate_name = match self.peek().clone() {
+                Token::Ident(name) | Token::TypeIdent(name) => {
+                    self.advance();
+                    name
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Rust import must include a crate name after `rust:` (for example `import rust:serde_json`).",
+                        vec!["crate-name".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+
+            let mut rust_meta = RustCrateImport {
+                crate_name,
+                version: None,
+                path: None,
+                git: None,
+                rev: None,
+            };
+
+            if self.eat(&Token::LParen) {
+                loop {
+                    match self.peek().clone() {
+                        Token::RParen => {
+                            self.advance();
+                            break;
+                        }
+                        Token::Ident(key) => {
+                            self.advance();
+                            self.expect(&Token::Colon)?;
+                            let value = match self.peek().clone() {
+                                Token::StringLit(v) | Token::SingleQuoteStringLit(v) => {
+                                    self.advance();
+                                    v
+                                }
+                                Token::Ident(v) | Token::TypeIdent(v) => {
+                                    self.advance();
+                                    v
+                                }
+                                _ => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        "Rust import metadata values must be string or identifier.",
+                                        vec!["string".into(), "identifier".into()],
+                                        Some(self.peek().to_string()),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return Err(());
+                                }
+                            };
+                            match key.as_str() {
+                                "version" => rust_meta.version = Some(value),
+                                "path" => rust_meta.path = Some(value),
+                                "git" => rust_meta.git = Some(value),
+                                "rev" | "branch" => rust_meta.rev = Some(value),
+                                _ => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        format!(
+                                            "Unknown rust import metadata key `{key}`; expected one of version/path/git/rev."
+                                        ),
+                                        vec![
+                                            "version".into(),
+                                            "path".into(),
+                                            "git".into(),
+                                            "rev".into(),
+                                        ],
+                                        Some(key),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return Err(());
+                                }
+                            }
+                            if self.eat(&Token::Comma) {
+                                continue;
+                            }
+                            if self.eat(&Token::RParen) {
+                                break;
+                            }
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected `,` or `)` after rust import metadata item.",
+                                vec![",".into(), ")".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected metadata key or `)` in rust import metadata list.",
+                                vec!["identifier".into(), ")".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                }
+            }
+
+            if let Token::Ident(word) = self.peek().clone() {
+                if word == "as" {
+                    self.advance();
+                    alias = Some(self.parse_ident_name()?);
+                }
+            }
+
+            return Ok(ImportPath {
+                kind: ImportPathKind::RustCrate(rust_meta),
+                alias,
+                span: start.merge(self.span()),
+            });
         }
+
+        let mut segments = vec![first];
         while self.eat(&Token::Dot) {
             match self.peek().clone() {
                 Token::Ident(name) | Token::TypeIdent(name) => {
@@ -56,8 +180,16 @@ impl Parser {
                 _ => break,
             }
         }
+        if let Token::Ident(word) = self.peek().clone() {
+            if word == "as" {
+                self.advance();
+                alias = Some(self.parse_ident_name()?);
+            }
+        }
+
         Ok(ImportPath {
-            segments,
+            kind: ImportPathKind::SymbolPath { segments },
+            alias,
             span: start.merge(self.span()),
         })
     }

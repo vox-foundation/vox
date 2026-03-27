@@ -43,7 +43,10 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
     }
 
     // Cargo.toml
-    files.insert("Cargo.toml".to_string(), emit_cargo_toml(package_name));
+    files.insert(
+        "Cargo.toml".to_string(),
+        emit_cargo_toml(package_name, module),
+    );
 
     // src/main.rs (Entry point + Routes)
     files.insert("src/main.rs".to_string(), emit_main(module, package_name));
@@ -68,8 +71,47 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
     })
 }
 
+fn emit_rust_import_dependencies(module: &HirModule) -> String {
+    let mut lines = std::collections::BTreeMap::<String, String>::new();
+    for dep in &module.rust_imports {
+        let crate_name = dep.crate_name.trim();
+        if crate_name.is_empty() {
+            continue;
+        }
+        if matches!(
+            crate_name,
+            "tokio" | "serde" | "serde_json" | "axum" | "tower" | "reqwest" | "tracing"
+        ) {
+            continue;
+        }
+        let line = if let Some(path) = &dep.path {
+            format!("{crate_name} = {{ path = \"{path}\" }}")
+        } else if let Some(git) = &dep.git {
+            if let Some(rev) = &dep.rev {
+                format!("{crate_name} = {{ git = \"{git}\", rev = \"{rev}\" }}")
+            } else {
+                format!("{crate_name} = {{ git = \"{git}\" }}")
+            }
+        } else if let Some(version) = &dep.version {
+            format!("{crate_name} = \"{version}\"")
+        } else {
+            format!("{crate_name} = \"*\"")
+        };
+        lines.entry(crate_name.to_string()).or_insert(line);
+    }
+    if lines.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "{}\n",
+            lines.values().cloned().collect::<Vec<_>>().join("\n")
+        )
+    }
+}
+
 /// `Cargo.toml` body for the generated Rust package `name`.
-pub fn emit_cargo_toml(name: &str) -> String {
+pub fn emit_cargo_toml(name: &str, module: &HirModule) -> String {
+    let rust_import_deps = emit_rust_import_dependencies(module);
     format!(
         r#"[package]
 name = "{name}"
@@ -93,7 +135,9 @@ turso = {{ version = "0.4", default-features = false }}
 vox-db = {{ path = "../../crates/vox-db" }}
 vox-runtime = {{ path = "../../crates/vox-runtime" }}
 vox-oratio = {{ path = "../../crates/vox-oratio" }}
+{rust_import_deps}
 "#,
+        rust_import_deps = rust_import_deps,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
 }

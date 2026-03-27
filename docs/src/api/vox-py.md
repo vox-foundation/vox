@@ -7,6 +7,8 @@ training_eligible: true
 ---
 # Crate API: vox-py
 
+> **Product note:** Supported packaging is **Rust-first** (`Vox.toml` / `vox.lock` / `vox sync`). Any `uv`/embedded-Python runtime flows on this page are **historical or experimental**, not a supported PM lane.
+
 **Workspace:** `crates/vox-py` is currently **`[workspace.exclude]`** in the repo root `Cargo.toml` (not built in default `cargo check --workspace`). This page documents **expected PyO3 patterns** when the crate is enabled locally.
 
 ## Internal Developer Guide: PyO3 Bound API Patterns
@@ -55,7 +57,7 @@ Adhering to the `Bound` API is critical to preventing compilation failures and r
 
 - No `PYTHONPATH` environment variable is needed.
 - No shell activation script (`source .venv/bin/activate`) is required.
-- Packages installed via `uv sync` are importable immediately in the embedded Python.
+- *(Historical)* Packages installed via `uv sync` were described as importable in the embedded Python when that lane was documented.
 
 ### Detection order
 
@@ -63,9 +65,9 @@ The runtime checks these sources in priority order:
 
 | # | Source | Description |
 |---|---|---|
-| 1 | `UV_PROJECT_ENVIRONMENT` | Environment variable set by `uv run` / `uv sync` |
+| 1 | `UV_PROJECT_ENVIRONMENT` | *(Historical)* Env var used by `uv run` / `uv sync` in legacy flows |
 | 2 | `VIRTUAL_ENV` | Standard env var when a venv is manually activated |
-| 3 | `.venv/` in CWD | uv's default location after `uv sync` |
+| 3 | `.venv/` in CWD | *(Historical)* uv default layout after `uv sync` |
 | 4 | `uv run python -c "import sysconfig; print(sysconfig.get_path('purelib'))"` | Subprocess fallback |
 
 If none succeed, Python starts with its default `sys.path` — packages in a global interpreter will still be importable.
@@ -96,7 +98,7 @@ Use these in toolchain integrations (codegen, container init) to discover where 
 
 ## VoxPyRuntime — One Constructor
 
-There is **one way** to create a Python runtime: `VoxPyRuntime::new()`. It automatically discovers the uv-managed venv using the detection order above. This is what the Vox codegen emits — you never call it directly.
+There is **one way** to create a Python runtime: `VoxPyRuntime::new()`. Legacy docs referred to uv-managed venv discovery using the table above; the **`vox container init` / `uv sync` product path is retired** — treat the following as historical embedder notes.
 
 ### Configuring a non-standard venv path
 
@@ -106,15 +108,16 @@ Set `VOX_VENV_PATH` to the venv root before running the compiled binary:
 # Docker / CI — point at the absolute venv root
 VOX_VENV_PATH=/app/.venv ./target/release/my-app
 
-# Local development — do nothing; .venv is found automatically after `uv sync`
+# Local — historical layout only; `uv sync` is not a supported Vox PM step (set VOX_VENV_PATH when discovery fails)
 ./target/release/my-app
 ```
 
 `VOX_VENV_PATH` is checked as the highest-priority source inside `new()`. Windows and POSIX venv layouts (`Lib/site-packages` vs `lib/python*/site-packages`) are both handled automatically.
 
-### Docker example
+### Docker example *(historical)*
 
 ```dockerfile
+# Retired PM lane — do not copy for new Vox releases; Rust/PM uses `Dockerfile` at repo root.
 FROM python:3.12-slim
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 

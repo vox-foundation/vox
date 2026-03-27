@@ -1,8 +1,8 @@
 //! Information-theoretic questioning telemetry and dual-write persistence helpers.
 
+use crate::VoxDb;
 use crate::store::StoreError;
 use crate::store::types::PublicationManifestParams;
-use crate::VoxDb;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 

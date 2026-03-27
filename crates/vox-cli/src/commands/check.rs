@@ -4,9 +4,13 @@ use anyhow::Result;
 use std::path::Path;
 
 /// Lex, parse, and type-check `file`; fail the process if any error-level diagnostic is reported.
+///
+/// When the user passes global `--json`, [`crate::apply_global_opts`] sets `VOX_CLI_GLOBAL_JSON=1`;
+/// diagnostics are printed as JSON to stdout (parse failures already use JSON when `json` is true).
 pub async fn run(file: &Path, emit_training_jsonl: Option<&Path>) -> Result<()> {
-    let result = crate::pipeline::run_frontend(file, false).await?;
-    crate::pipeline::print_diagnostics(&result, file, false);
+    let json = std::env::var("VOX_CLI_GLOBAL_JSON").ok().as_deref() == Some("1");
+    let result = crate::pipeline::run_frontend(file, json).await?;
+    crate::pipeline::print_diagnostics(&result, file, json);
     let error_count = result.error_count();
     let warning_count = result.warning_count();
 

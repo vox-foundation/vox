@@ -6,6 +6,9 @@
 //!
 //! Items mirror compiler pipeline needs rather than user-facing API. Public types and functions
 //! are documented at the definition site (`nodes`, `lower`, `def_map`).
+//!
+//! Note: historical cross-module import resolver prototypes were retired; active
+//! import binding now flows through type registration/checker passes.
 
 /// Name resolution maps (`use`, re-exports).
 pub mod def_map;

@@ -50,7 +50,7 @@ pub fn run_and_print(opts: BootstrapOptions, w: &mut impl Write) -> std::io::Res
                     writeln!(w, "Binary install unavailable: {e}")?;
                     writeln!(
                         w,
-                        "Falling back to source install (`cargo install --path crates/vox-cli`)..."
+                        "Falling back to source install (`cargo install --locked --path crates/vox-cli`)..."
                     )?;
                     install::install_from_source(w)?;
                 }

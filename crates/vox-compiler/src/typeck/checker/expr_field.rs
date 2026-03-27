@@ -174,6 +174,17 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             },
+            Ty::Named(n) if n.starts_with("RustCrate::") => {
+                let crate_name = n.trim_start_matches("RustCrate::");
+                self.diags.push(Diagnostic::error(
+                    format!(
+                        "Unknown item '{field}' in rust crate '{crate_name}'. Add a wrapper/binding or use supported Vox surfaces."
+                    ),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }
             Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => fields
                 .iter()
                 .find(|(n, _)| n == field)

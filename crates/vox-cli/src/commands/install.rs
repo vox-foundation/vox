@@ -1,12 +1,21 @@
-//! `vox install` — **not implemented** in the shipped binary; registry flows belong in `vox-pm`.
+//! Retired `vox install` surface — package materialization is `vox sync`; declaration is `vox add`.
 
 use anyhow::{Result, bail};
 
-/// Refuse with a clear message until registry install is wired.
-pub async fn run(package_name: Option<&str>, _offline: bool) -> Result<()> {
-    let name = package_name.unwrap_or("(none)");
+/// Deterministic migration error for hidden / legacy `vox install` invocations.
+pub async fn run_retired(package_name: Option<String>) -> Result<()> {
+    let hint = package_name
+        .as_ref()
+        .map(String::as_str)
+        .filter(|s| !s.is_empty())
+        .map(|n| format!(" (you passed `{n}`)"))
+        .unwrap_or_default();
     bail!(
-        "`vox install` does not download packages yet (requested: `{name}`). \
-Registry install is tracked for `vox-pm`; see docs/src/ref-cli.md (`vox install`)."
+        "`vox install` is retired{hint}.\n\
+         • Declare dependencies: `vox add <name> [--version …] [--path …]`\n\
+         • Resolve lockfile: `vox lock`\n\
+         • Download packages: `vox sync`\n\
+         • Registry workflows: `vox pm search|info|publish|verify|…`\n\
+         See docs/src/reference/cli.md (package management section)."
     );
 }

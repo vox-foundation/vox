@@ -11,9 +11,9 @@ pub mod types;
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{
-    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
-    BenchmarkEventRow, BuildRunRow, BuilderSessionEntry, CloudDispatchRow, CodexChangeLogEntry,
-    CommandFrequencyEntry, ComponentEntry, CrateSampleRow, EmbeddingEntry,
+    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
+    BehaviorEventEntry, BenchmarkEventRow, BuildRunRow, BuilderSessionEntry, CloudDispatchRow,
+    CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSampleRow, EmbeddingEntry,
     EndpointReliabilityEntry, ExecutionEntry, ExternalStatusSnapshotParams,
     ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
     ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,

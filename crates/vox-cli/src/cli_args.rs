@@ -1,6 +1,6 @@
 //! Shared [`clap::Args`] structs for top-level `vox` commands and Latin namespace groups.
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 
 /// `vox build` / `vox fabrica build`
@@ -173,4 +173,118 @@ pub struct StubCheckArgs {
     pub max_escalation: u8,
     #[arg(long)]
     pub self_heal_safe_mode: bool,
+}
+
+/// `vox add` — manifest dependency declaration.
+#[derive(Args, Clone, Debug)]
+pub struct AddDependencyArgs {
+    /// Dependency package name.
+    #[arg(required = true)]
+    pub name: String,
+    /// Version requirement (default `*`).
+    #[arg(long)]
+    pub version: Option<String>,
+    /// Local path dependency.
+    #[arg(long)]
+    pub path: Option<String>,
+}
+
+/// `vox remove`
+#[derive(Args, Clone, Debug)]
+pub struct RemoveDependencyArgs {
+    #[arg(required = true)]
+    pub name: String,
+}
+
+/// `vox lock`
+#[derive(Args, Clone, Debug)]
+pub struct LockArgs {
+    /// Verify `vox.lock` is current without rewriting.
+    #[arg(long)]
+    pub locked: bool,
+}
+
+/// `vox sync`
+#[derive(Args, Clone, Debug)]
+pub struct SyncArgs {
+    #[arg(long)]
+    pub registry: Option<String>,
+    /// Fail when the lockfile does not strictly match `Vox.toml`.
+    #[arg(long)]
+    pub frozen: bool,
+}
+
+/// Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`).
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+pub enum UpgradeReleaseProvider {
+    /// GitHub Releases (default for upstream).
+    #[default]
+    Github,
+    /// GitLab Releases API.
+    Gitlab,
+    /// Static HTTP mirror using the binary release URL layout (`…/releases/download/<tag>/…`).
+    Http,
+}
+
+/// `vox upgrade` lane: release binary vs local repository checkout.
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+pub enum UpgradeLane {
+    /// Checksums-verified release archive into `CARGO_HOME/bin` (default).
+    #[default]
+    Release,
+    /// Fetch / fast-forward (or explicit `--ref`) then `cargo install --locked --path crates/vox-cli`.
+    Repo,
+}
+
+/// `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`).
+#[derive(Args, Clone, Debug)]
+pub struct UpgradeToolchainArgs {
+    /// `release` = binary lane; `repo` = git + source install lane.
+    #[arg(long = "source", value_enum, default_value_t = UpgradeLane::Release)]
+    pub lane: UpgradeLane,
+    /// Repository root for `--source repo`. Defaults to `VOX_REPO_ROOT` or walk-up (same as `vox ci`).
+    #[arg(long, value_name = "PATH")]
+    pub repo_root: Option<PathBuf>,
+    /// After fetch, check out this tag, branch, or SHA. When omitted on `--source repo`, fast-forwards the current branch to upstream (or `--remote`/`--branch`).
+    #[arg(long = "ref", value_name = "REF")]
+    pub git_ref: Option<String>,
+    /// When the current branch has no upstream, use this remote with `--branch` instead.
+    #[arg(long)]
+    pub remote: Option<String>,
+    /// When the current branch has no upstream, fast-forward to `remote/branch`.
+    #[arg(long)]
+    pub branch: Option<String>,
+    /// Allow `git fetch` / `merge` / `checkout` when the worktree is not clean.
+    #[arg(long, default_value_t = false)]
+    pub allow_dirty: bool,
+    /// Check for updates only (default). Use `--apply` to mutate (install binary or update repo + reinstall).
+    #[arg(long)]
+    pub apply: bool,
+    /// Channel: `stable` (no prereleases unless `--allow-prerelease`) or `next` (prereleases allowed).
+    #[arg(long, default_value = "stable")]
+    pub channel: String,
+    /// Pin a release tag (e.g. `v1.2.3` or `1.2.3`). Skips “latest” discovery.
+    #[arg(long = "version", value_name = "TAG")]
+    pub version: Option<String>,
+    /// Where to fetch releases (`VOX_UPGRADE_PROVIDER`).
+    #[arg(long, value_enum)]
+    pub provider: Option<UpgradeReleaseProvider>,
+    /// Repository `owner/name` (GitHub) or `namespace/project` (GitLab). Default: `vox-foundation/vox`.
+    #[arg(long, value_name = "OWNER/REPO")]
+    pub repo: Option<String>,
+    /// For `--provider http`: base URL such as `https://github.com/org/repo/releases`.
+    #[arg(long, value_name = "URL")]
+    pub base_url: Option<String>,
+    /// For `--provider gitlab`: API host (default `https://gitlab.com`). `VOX_UPGRADE_GITLAB_HOST`.
+    #[arg(long, value_name = "URL")]
+    pub gitlab_host: Option<String>,
+    /// Custom GitHub API root (Enterprise/CN mirror). `VOX_UPGRADE_GITHUB_API_URL`.
+    #[arg(long, value_name = "URL")]
+    pub github_api_url: Option<String>,
+    /// Allow major / semver-incompatible jumps (language may ship breaking `vox` releases).
+    #[arg(long)]
+    pub allow_breaking: bool,
+    /// Allow prerelease versions on the `stable` channel (normally `next` only).
+    #[arg(long)]
+    pub allow_prerelease: bool,
 }

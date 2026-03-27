@@ -7,7 +7,8 @@ use serde::Deserialize;
 use crate::params::ToolResult;
 use crate::server::ServerState;
 
-const REM_NO_DB: &str = "Attach Codex (VoxDb) to the MCP server so clarification sessions can be stored.";
+const REM_NO_DB: &str =
+    "Attach Codex (VoxDb) to the MCP server so clarification sessions can be stored.";
 
 #[derive(Debug, Deserialize)]
 pub struct QuestioningSubmitAnswerParams {
@@ -51,9 +52,10 @@ pub async fn questioning_sync_ssot(
         .workspace_root
         .as_deref()
         .unwrap_or_else(|| Path::new("."));
-    let rel = params.relative_path.as_deref().unwrap_or(
-        "docs/src/reference/information-theoretic-questioning.md",
-    );
+    let rel = params
+        .relative_path
+        .as_deref()
+        .unwrap_or("docs/src/reference/information-theoretic-questioning.md");
     let path = root.join(rel);
     let body = match crate::bounded_fs::read_utf8_path_capped(&path) {
         Ok(s) => s,
@@ -70,13 +72,18 @@ pub async fn questioning_sync_ssot(
         source_ref: Some(rel),
         title: "Information-theoretic questioning (SSOT)",
         author: "vox",
-        abstract_text: Some("Mirrored questioning policy markdown for publication manifest + search."),
+        abstract_text: Some(
+            "Mirrored questioning policy markdown for publication manifest + search.",
+        ),
         body_markdown: body.as_str(),
         citations_json: None,
         metadata_json: None,
         state: "published",
     };
-    match db.persist_questioning_research_artifact_dual_write(artifact).await {
+    match db
+        .persist_questioning_research_artifact_dual_write(artifact)
+        .await
+    {
         Ok((digest, doc_id)) => ToolResult::ok(serde_json::json!({
             "relative_path": rel,
             "content_sha3_256": digest,

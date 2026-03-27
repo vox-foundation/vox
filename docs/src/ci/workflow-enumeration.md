@@ -15,6 +15,7 @@ training_eligible: true
 | `.github/workflows/link_checker.yml` | Link validation for docs site. |
 | `.github/workflows/ml_data_extraction.yml` | ML / corpus maintenance jobs. Grammar drift via **`vox ci grammar-drift --emit github`**; eval summary via **`vox corpus eval --print-summary`** (no Python). |
 | `.github/workflows/release-binaries.yml` | Tag-only release publish (`v*`): matrix **`vox ci release-build --package both`** for Linux x64, Windows x64, macOS x64 + **Apple Silicon** (`aarch64-apple-darwin`), using **`cargo run --locked`**. Each matrix job builds and smoke-tests both `vox` and `vox-bootstrap` archives (`vox --version`, `vox-bootstrap --help`) before upload; publish job merges `checksums.txt`. See [binary release contract](binary-release-contract.md). |
+| `.github/workflows/pm-provenance-verify.yml` | **`workflow_dispatch` only:** writes a minimal `vox.pm.provenance/1` fixture under `.vox_modules/provenance/` and runs **`vox ci pm-provenance --strict`** (PM publish lane smoke; separate from binary tags). Add a `schedule:` block locally if you want periodic self-hosted runs. |
 | `.github/workflows/mutation-nightly.yml` | **Schedule / `workflow_dispatch`:** **`cargo mutants -p vox-compiler`** with **`cargo-nextest`** (pilot; config `.cargo/mutants.toml`). Self-hosted Linux pool. |
 
 **CUDA / GPU compile gates:** when a job needs `nvcc` or CUDA-enabled `cargo check`, use the **Docker** self-hosted profile (`[self-hosted, linux, x64, docker]`) per [runner contract](runner-contract.md); keep `runs-on` explicit per job.

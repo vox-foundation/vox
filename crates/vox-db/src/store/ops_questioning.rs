@@ -85,7 +85,10 @@ impl crate::VoxDb {
     }
 
     /// Upsert one option row tied to a question event.
-    pub async fn upsert_question_option(&self, p: QuestionOptionParams<'_>) -> Result<(), StoreError> {
+    pub async fn upsert_question_option(
+        &self,
+        p: QuestionOptionParams<'_>,
+    ) -> Result<(), StoreError> {
         self.conn
             .execute(
                 "INSERT INTO question_options
@@ -319,12 +322,15 @@ impl crate::VoxDb {
         answer_type: &str,
         answered_at_ms: i64,
     ) -> Result<(), StoreError> {
-        let n = self.conn.execute(
-            "UPDATE question_events
+        let n = self
+            .conn
+            .execute(
+                "UPDATE question_events
              SET answer_text = ?2, answer_type = ?3, answered_at_ms = ?4
              WHERE id = ?1",
-            params![question_event_id, answer_text, answer_type, answered_at_ms],
-        ).await?;
+                params![question_event_id, answer_text, answer_type, answered_at_ms],
+            )
+            .await?;
         if n == 0 {
             return Err(StoreError::Db("no question_event row updated".into()));
         }
@@ -359,7 +365,9 @@ impl crate::VoxDb {
                 )
                 .await?;
             let Some(row) = rows.next().await? else {
-                return Err(StoreError::Db("question_event row missing after resolve".into()));
+                return Err(StoreError::Db(
+                    "question_event row missing after resolve".into(),
+                ));
             };
             row.get(0).map_err(|e| StoreError::Db(e.to_string()))?
         };
@@ -427,10 +435,7 @@ impl crate::VoxDb {
             serde_json::json!(answered_at_ms),
         );
         if let Some(oid) = selected_option_id {
-            ans_obj.insert(
-                "selected_option_id".to_string(),
-                serde_json::json!(oid),
-            );
+            ans_obj.insert("selected_option_id".to_string(), serde_json::json!(oid));
         }
         arr.push(serde_json::Value::Object(ans_obj));
 
@@ -452,20 +457,12 @@ impl crate::VoxDb {
                             if is_good_prob(pp) {
                                 pp
                             } else if let Some(pq) = o.posterior_probability {
-                                if is_good_prob(pq) {
-                                    pq
-                                } else {
-                                    uniform
-                                }
+                                if is_good_prob(pq) { pq } else { uniform }
                             } else {
                                 uniform
                             }
                         } else if let Some(pq) = o.posterior_probability {
-                            if is_good_prob(pq) {
-                                pq
-                            } else {
-                                uniform
-                            }
+                            if is_good_prob(pq) { pq } else { uniform }
                         } else {
                             uniform
                         };
@@ -510,10 +507,7 @@ impl crate::VoxDb {
                         .iter()
                         .map(|(k, v)| (k.clone(), serde_json::json!(v)))
                         .collect();
-                    per_q_obj.insert(
-                        question_id.to_string(),
-                        serde_json::Value::Object(prob_map),
-                    );
+                    per_q_obj.insert(question_id.to_string(), serde_json::Value::Object(prob_map));
                     for (oid, prob) in &updated {
                         self.conn
                             .execute(

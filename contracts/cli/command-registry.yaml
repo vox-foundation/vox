@@ -11,7 +11,24 @@ operations:
   - { surface: vox-cli, path: [dev], status: active, latin_ns: fabrica, handler_rust: commands::dev }
   - { surface: vox-cli, path: [bundle], status: active, latin_ns: fabrica, handler_rust: commands::bundle }
   - { surface: vox-cli, path: [fmt], status: active, latin_ns: fabrica, handler_rust: commands::fmt }
-  - { surface: vox-cli, path: [install], status: active, latin_ns: fabrica, handler_rust: commands::install }
+  - { surface: vox-cli, path: [install], status: retired, latin_ns: pm, handler_rust: commands::install, ref_cli_required: true }
+  - { surface: vox-cli, path: [add], status: active, latin_ns: pm, handler_rust: commands::add, ref_cli_required: true }
+  - { surface: vox-cli, path: [remove], status: active, latin_ns: pm, handler_rust: commands::remove, ref_cli_required: true }
+  - { surface: vox-cli, path: [update], status: active, latin_ns: pm, handler_rust: commands::update, ref_cli_required: true }
+  - { surface: vox-cli, path: [lock], status: active, latin_ns: pm, handler_rust: commands::lock, ref_cli_required: true }
+  - { surface: vox-cli, path: [sync], status: active, latin_ns: pm, handler_rust: commands::sync, ref_cli_required: true }
+  - { surface: vox-cli, path: [upgrade], status: active, latin_ns: pm, handler_rust: commands::upgrade, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm], status: active, latin_ns: pm, handler_rust: commands::pm, ref_cli_required: false, reachability_required: false }
+  - { surface: vox-cli, path: [pm, search], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, info], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, publish], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, yank], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, vendor], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, verify], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, mirror], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, cache], status: active, latin_ns: pm, ref_cli_required: false, reachability_required: false }
+  - { surface: vox-cli, path: [pm, cache, status], status: active, latin_ns: pm, ref_cli_required: true }
+  - { surface: vox-cli, path: [pm, cache, clear], status: active, latin_ns: pm, ref_cli_required: true }
   - { surface: vox-cli, path: [login], status: deprecated, latin_ns: ars, handler_rust: commands::login }
   - { surface: vox-cli, path: [logout], status: deprecated, latin_ns: ars, handler_rust: commands::logout }
   - { surface: vox-cli, path: [lsp], status: active, latin_ns: fabrica, handler_rust: commands::lsp }
@@ -88,6 +105,7 @@ operations:
   - { surface: vox-cli, path: [ci, command-compliance], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, coverage-gates], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, command-sync], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, pm-provenance], status: active, reachability_required: false, ref_cli_required: true }
   - { surface: vox-cli, path: [ci, contracts-index], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scientia-worthiness-contract], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, ssot-drift], status: active, reachability_required: false }

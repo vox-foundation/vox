@@ -3,8 +3,8 @@
 use serde::Deserialize;
 use serde_json::Value;
 use vox_socrates_policy::{
-    ClarificationStopReason, ConfidencePolicy, QuestionCandidate, QuestionKind,
-    QuestioningPolicy, RiskDecision, CLARIFICATION_INTERRUPT_COST_MS,
+    CLARIFICATION_INTERRUPT_COST_MS, ClarificationStopReason, ConfidencePolicy, QuestionCandidate,
+    QuestionKind, QuestioningPolicy, RiskDecision,
 };
 
 use crate::server::ServerState;

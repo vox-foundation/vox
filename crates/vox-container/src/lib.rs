@@ -6,11 +6,9 @@
 //! automatic runtime detection (preferring rootless Podman), and Dockerfile /
 //! Compose file generation from Vox `environment` declarations.
 //!
-//! Also provides Python environment management via `uv`:
-//! - [`env::PythonEnv`] — detect Python, `uv`, and CUDA version.
-//! - [`pyproject`] — generate `pyproject.toml` from `@py.import` declarations.
-//! - [`python_dockerfile`] — generate CUDA-aware Dockerfiles.
-//! - [`setup::run_py_setup`] — orchestrate the full Python setup flow.
+//! Legacy Python module paths (`pyproject`, `python_dockerfile`, `run_py_setup`) remain for
+//! embedders; **`run_py_setup`** and **`PythonEnv::uv_sync` / `uv_add_packages`** hard-error.
+//! [`generate_pyproject_toml`](crate::generate_pyproject_toml) emits a **retired** placeholder only.
 //!
 //! Submodules document their own `pub` items; the facade re-exports ergonomic names for CLI/embedders.
 

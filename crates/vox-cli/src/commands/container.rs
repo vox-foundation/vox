@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use vox_container::{run_py_setup, PySetupOpts};
 use vox_compiler::ast::decl::Decl;
 
-/// Manage Vox container environments, specifically Python-aware OCI images.
+/// Manage Vox OCI images (Rust build/run). **`container init`** for `@py.import` is retired.
 pub async fn run(action: ContainerAction) -> Result<()> {
     match action {
         ContainerAction::Init { file, out_dir, dockerfile, project_name } => {
-            println!("🛠️ Initializing Python container environment...");
+            println!("🛠️ Inspecting Vox file for legacy @py.import (retired Python/UV lane)...");
 
             let source = read_utf8_path_capped_async(&file)
                 .await
@@ -116,7 +116,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
 
 #[derive(Debug, clap::Subcommand, Clone)]
 pub enum ContainerAction {
-    /// Detect Python/uv/CUDA and generate pyproject.toml; run `uv sync`
+    /// Retired: used to scan `@py.import` (now errors — use Rust/PM flows)
     Init {
         /// Path to the .vox source file to parse for @py.import declarations
         #[arg(short, long, required = true)]

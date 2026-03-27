@@ -243,7 +243,37 @@ impl Printer {
             if idx > 0 {
                 self.out.push_str(", ");
             }
-            self.out.push_str(&path.segments.join("."));
+            match &path.kind {
+                ImportPathKind::SymbolPath { segments } => {
+                    self.out.push_str(&segments.join("."));
+                }
+                ImportPathKind::RustCrate(spec) => {
+                    self.out.push_str("rust:");
+                    self.out.push_str(&spec.crate_name);
+                    let mut meta = Vec::new();
+                    if let Some(v) = &spec.version {
+                        meta.push(format!("version: \"{v}\""));
+                    }
+                    if let Some(v) = &spec.path {
+                        meta.push(format!("path: \"{v}\""));
+                    }
+                    if let Some(v) = &spec.git {
+                        meta.push(format!("git: \"{v}\""));
+                    }
+                    if let Some(v) = &spec.rev {
+                        meta.push(format!("rev: \"{v}\""));
+                    }
+                    if !meta.is_empty() {
+                        self.out.push('(');
+                        self.out.push_str(&meta.join(", "));
+                        self.out.push(')');
+                    }
+                }
+            }
+            if let Some(alias) = &path.alias {
+                self.out.push_str(" as ");
+                self.out.push_str(alias);
+            }
         }
     }
 

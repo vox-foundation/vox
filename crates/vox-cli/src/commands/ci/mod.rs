@@ -8,6 +8,7 @@ mod command_sync;
 mod contracts_index;
 mod eval_matrix;
 mod line_endings;
+mod pm_provenance;
 mod release_build;
 mod scaling_audit;
 mod scientia_worthiness_contract;

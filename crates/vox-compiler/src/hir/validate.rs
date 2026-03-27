@@ -255,6 +255,30 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         );
     }
 
+    for ri in &module.rust_imports {
+        if ri.crate_name.trim().is_empty() {
+            errors.push(HirValidationError {
+                message: "rust import crate name is empty".into(),
+                span: ri.span,
+            });
+        }
+        if ri.alias.trim().is_empty() {
+            errors.push(HirValidationError {
+                message: format!("rust import alias is empty for crate '{}'", ri.crate_name),
+                span: ri.span,
+            });
+        }
+        if ri.path.is_some() && ri.git.is_some() {
+            errors.push(HirValidationError {
+                message: format!(
+                    "rust import '{}' has both path and git source configured",
+                    ri.crate_name
+                ),
+                span: ri.span,
+            });
+        }
+    }
+
     errors
 }
 

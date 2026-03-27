@@ -50,6 +50,44 @@ pub fn generate_script_with_target(
     runtime_path: Option<&Path>,
     target: ScriptTarget,
 ) -> Result<CodegenOutput, miette::Error> {
+    let mut rust_import_dep_lines = std::collections::BTreeMap::<String, String>::new();
+    for dep in &module.rust_imports {
+        let crate_name = dep.crate_name.trim();
+        if crate_name.is_empty()
+            || matches!(crate_name, "tokio" | "serde" | "serde_json" | "vox-runtime")
+        {
+            continue;
+        }
+        let line = if let Some(path) = &dep.path {
+            format!("{crate_name} = {{ path = \"{path}\" }}")
+        } else if let Some(git) = &dep.git {
+            if let Some(rev) = &dep.rev {
+                format!("{crate_name} = {{ git = \"{git}\", rev = \"{rev}\" }}")
+            } else {
+                format!("{crate_name} = {{ git = \"{git}\" }}")
+            }
+        } else if let Some(version) = &dep.version {
+            format!("{crate_name} = \"{version}\"")
+        } else {
+            format!("{crate_name} = \"*\"")
+        };
+        rust_import_dep_lines
+            .entry(crate_name.to_string())
+            .or_insert(line);
+    }
+    let rust_import_deps = if rust_import_dep_lines.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "{}\n",
+            rust_import_dep_lines
+                .values()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    };
+
     let mut files = HashMap::new();
 
     let crate_name = package_name.replace('-', "_");
@@ -143,6 +181,21 @@ pub fn generate_script_with_target(
                     .join(", ")
             ));
         }
+        let mut wasi_blocked = Vec::new();
+        for dep in &module.rust_imports {
+            if matches!(
+                dep.crate_name.as_str(),
+                "tokio" | "axum" | "tower" | "reqwest" | "turso" | "vox-db" | "vox-runtime"
+            ) {
+                wasi_blocked.push(dep.crate_name.clone());
+            }
+        }
+        if !wasi_blocked.is_empty() {
+            unsupported.push(format!(
+                "some rust imports are not supported in WASI mode: {}",
+                wasi_blocked.join(", ")
+            ));
+        }
 
         if !unsupported.is_empty() {
             return Err(miette::miette!(
@@ -167,9 +220,11 @@ tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 vox-runtime = {{ path = "{runtime_path_str}" }}
+{rust_import_deps}
 "#,
             package_name = package_name,
             runtime_path_str = runtime_path_str,
+            rust_import_deps = rust_import_deps,
             edition = GENERATED_CARGO_EDITION,
         ),
         ScriptTarget::Wasi => {
@@ -188,12 +243,14 @@ edition = "{edition}"
 [dependencies]
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
+{rust_import_deps}
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 vox-script-wasi = {{ path = "{wasi_path}" }}
 "#,
                 package_name = package_name,
                 wasi_path = wasi_path,
+                rust_import_deps = rust_import_deps,
                 edition = GENERATED_CARGO_EDITION,
             )
         }

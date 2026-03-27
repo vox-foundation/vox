@@ -24,10 +24,10 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
     use crate::hir::{
-        DefId, HirActor, HirExpr, HirModule, HirServerFn, HirStmt, HirTable, HirTableField,
-        HirType, HirWorkflow,
+        DefId, HirActor, HirExpr, HirModule, HirRustImport, HirServerFn, HirStmt, HirTable,
+        HirTableField, HirType, HirWorkflow,
     };
-    use emit::{emit_main, emit_table_struct};
+    use emit::{emit_cargo_toml, emit_main, emit_table_struct};
 
     fn empty_module() -> HirModule {
         HirModule::default()
@@ -337,6 +337,48 @@ mod tests {
         assert!(
             result.is_ok(),
             "native script with actor should not be blocked"
+        );
+    }
+
+    #[test]
+    fn script_cargo_toml_merges_rust_import_dependencies() {
+        let sp = Span::new(0, 0);
+        let mut module = empty_module();
+        module.rust_imports.push(HirRustImport {
+            crate_name: "chrono".to_string(),
+            alias: "chrono".to_string(),
+            version: Some("0.4".to_string()),
+            path: None,
+            git: None,
+            rev: None,
+            span: sp,
+        });
+        let out =
+            generate_script_with_target(&module, "vox-script", None, ScriptTarget::Native).unwrap();
+        let cargo = out.files.get("Cargo.toml").expect("Cargo.toml present");
+        assert!(
+            cargo.contains("chrono") && cargo.contains("0.4"),
+            "expected merged crate dep in Cargo.toml:\n{cargo}"
+        );
+    }
+
+    #[test]
+    fn app_emit_cargo_toml_includes_rust_import_lines() {
+        let sp = Span::new(0, 0);
+        let mut module = empty_module();
+        module.rust_imports.push(HirRustImport {
+            crate_name: "uuid".to_string(),
+            alias: "uuid".to_string(),
+            version: Some("1".to_string()),
+            path: None,
+            git: None,
+            rev: None,
+            span: sp,
+        });
+        let toml = emit_cargo_toml("demo_pkg", &module);
+        assert!(
+            toml.contains("uuid") && toml.contains("\"1\""),
+            "expected rust import in full-app Cargo.toml:\n{toml}"
         );
     }
 

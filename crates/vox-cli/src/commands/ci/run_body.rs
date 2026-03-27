@@ -74,9 +74,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 return Err(anyhow!("mdbook build docs failed"));
             }
             // 3. sitemap.xml (mdbook-sitemap-generator is a post-build CLI, not a preprocessor)
-            let domain = std::env::var("MDBOOK_SITEMAP_DOMAIN").unwrap_or_else(|_| {
-                "https://vox-foundation.github.io/vox/".to_string()
-            });
+            let domain = std::env::var("MDBOOK_SITEMAP_DOMAIN")
+                .unwrap_or_else(|_| "https://vox-foundation.github.io/vox/".to_string());
             let domain_arg = domain.trim_end_matches('/').to_string();
             let st = Command::new("mdbook-sitemap-generator")
                 .current_dir(root.join("docs"))
@@ -169,6 +168,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             config,
         } => coverage_gates::run(summary_json, mode, config),
         CiCmd::CommandSync { write } => command_sync::run(&root, write),
+        CiCmd::PmProvenance {
+            strict,
+            root: provenance_root,
+        } => super::pm_provenance::run(&root, &provenance_root, strict),
         CiCmd::CheckLinks => check_links::run(&root),
         CiCmd::ReleaseBuild {
             target,

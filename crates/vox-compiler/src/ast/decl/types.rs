@@ -20,10 +20,36 @@ pub enum HttpMethod {
 /// An import path segment: `react.use_state`
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ImportPath {
-    /// Dot-separated path segments (e.g. `react`, `use_state`).
-    pub segments: Vec<String>,
+    /// Import source kind and metadata.
+    pub kind: ImportPathKind,
+    /// Optional local alias (`import x as y`).
+    pub alias: Option<String>,
     /// Source span of this path.
     pub span: Span,
+}
+
+/// Import source variants parsed from one `import` entry.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ImportPathKind {
+    /// Dot-separated symbol path (e.g. `react.use_state`).
+    SymbolPath { segments: Vec<String> },
+    /// Rust crate import (`import rust:serde_json`).
+    RustCrate(RustCrateImport),
+}
+
+/// Rust crate import metadata.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RustCrateImport {
+    /// Dependency key / crate name.
+    pub crate_name: String,
+    /// Optional semantic version requirement.
+    pub version: Option<String>,
+    /// Optional local path source.
+    pub path: Option<String>,
+    /// Optional git source URL.
+    pub git: Option<String>,
+    /// Optional git revision / branch hint.
+    pub rev: Option<String>,
 }
 
 /// Import declaration: `import react.use_state, network.HTTP`

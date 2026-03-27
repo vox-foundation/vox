@@ -1,5 +1,5 @@
 use super::*;
-use crate::ast::decl::{ReactiveMemberDecl, RoutesParseSummary};
+use crate::ast::decl::{ImportPathKind, ReactiveMemberDecl, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
@@ -29,6 +29,41 @@ fn test_parse_simple_fn() {
 fn test_parse_import() {
     let m = parse_str("import react.use_state, network.HTTP");
     assert!(matches!(&m.declarations[0], Decl::Import(i) if i.paths.len() == 2));
+}
+
+#[test]
+fn test_parse_rust_import() {
+    let m = parse_str("import rust:serde_json");
+    match &m.declarations[0] {
+        Decl::Import(i) => {
+            assert_eq!(i.paths.len(), 1);
+            assert!(matches!(i.paths[0].kind, ImportPathKind::RustCrate(_)));
+        }
+        other => panic!("Expected import decl, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_rust_import_with_alias_and_meta() {
+    let m = parse_str(
+        "import rust:serde_json(version: \"1\", git: \"https://example.invalid/repo\", rev: \"main\") as json",
+    );
+    match &m.declarations[0] {
+        Decl::Import(i) => {
+            let p = &i.paths[0];
+            assert_eq!(p.alias.as_deref(), Some("json"));
+            match &p.kind {
+                ImportPathKind::RustCrate(spec) => {
+                    assert_eq!(spec.crate_name, "serde_json");
+                    assert_eq!(spec.version.as_deref(), Some("1"));
+                    assert_eq!(spec.git.as_deref(), Some("https://example.invalid/repo"));
+                    assert_eq!(spec.rev.as_deref(), Some("main"));
+                }
+                _ => panic!("Expected rust crate import"),
+            }
+        }
+        other => panic!("Expected import decl, got {other:?}"),
+    }
 }
 
 #[test]

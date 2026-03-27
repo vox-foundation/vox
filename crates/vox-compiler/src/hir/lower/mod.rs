@@ -55,6 +55,7 @@ impl LowerCtx {
     fn lower(&mut self, module: &Module) -> HirModule {
         let mut hir = HirModule {
             imports: Vec::new(),
+            rust_imports: Vec::new(),
             functions: Vec::new(),
             types: Vec::new(),
             routes: Vec::new(),
@@ -91,18 +92,37 @@ impl LowerCtx {
             match decl {
                 Decl::Import(imp) => {
                     for path in &imp.paths {
-                        let (mod_path, item) = if path.segments.len() > 1 {
-                            let item = path.segments.last().unwrap().clone();
-                            let mod_path = path.segments[..path.segments.len() - 1].to_vec();
-                            (mod_path, item)
-                        } else {
-                            (vec![], path.segments[0].clone())
-                        };
-                        hir.imports.push(HirImport {
-                            module_path: mod_path,
-                            item,
-                            span: path.span,
-                        });
+                        match &path.kind {
+                            ImportPathKind::SymbolPath { segments } => {
+                                let (mod_path, item) = if segments.len() > 1 {
+                                    let item = segments.last().expect("segments non-empty").clone();
+                                    let mod_path = segments[..segments.len() - 1].to_vec();
+                                    (mod_path, item)
+                                } else {
+                                    (vec![], segments[0].clone())
+                                };
+                                hir.imports.push(HirImport {
+                                    module_path: mod_path,
+                                    item: path.alias.clone().unwrap_or(item),
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::RustCrate(spec) => {
+                                let alias = path
+                                    .alias
+                                    .clone()
+                                    .unwrap_or_else(|| spec.crate_name.clone());
+                                hir.rust_imports.push(HirRustImport {
+                                    crate_name: spec.crate_name.clone(),
+                                    alias,
+                                    version: spec.version.clone(),
+                                    path: spec.path.clone(),
+                                    git: spec.git.clone(),
+                                    rev: spec.rev.clone(),
+                                    span: path.span,
+                                });
+                            }
+                        }
                     }
                 }
                 Decl::Function(f) => {

@@ -101,16 +101,9 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
 
-## Python Interop
+## Python Interop (retired)
 
 ### `@py.import` {#pyimport}
-- **Goal**: Import a Python library for native use in Vox code without writing any Python.
-- **Effect**: Generates a `VoxPyRuntime` lazy singleton in the compiled Rust output; imports are resolved at runtime via `pyo3`.
-- **Syntax**:
-  ```vox
-  @py.import torch               # alias defaults to "torch"
-  @py.import torch.nn as nn      # explicit alias
-  @py.import numpy as np
-  ```
-- **Usage**: After importing, call methods via the alias as if it were a Vox module. The Vox compiler routes calls to the Python runtime.
-- **See also**: [PyTorch & Python Libraries how-to guide](../how-to/how-to-pytorch.md)
+- **Status**: Retired for strategic package/runtime lanes.
+- **Behavior**: Parsed only for backward compatibility in legacy flows; not part of the supported dependency lifecycle.
+- **Replacement**: Use Rust-native dependency surfaces (`import rust:<crate>` + `vox lock/sync/run`) and Rust ML/runtime tooling.

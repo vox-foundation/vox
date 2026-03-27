@@ -168,14 +168,7 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
     let session_key = ghost_session_key;
     let turn = clarification_turn_for_session(state, &session_key).await;
     let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
-    let soc = socrates_tool_meta(
-        &pol,
-        grounding,
-        thin_context,
-        turn,
-        spent_att,
-        max_att,
-    );
+    let soc = socrates_tool_meta(&pol, grounding, thin_context, turn, spent_att, max_att);
     spawn_socrates_telemetry(
         state,
         "vox_ghost_text",

@@ -32,13 +32,14 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY populi/ populi/
 
+# Reproducibility: pin the Rust resolve graph with `--locked` (same policy as root `Dockerfile` / `vox ci manifest`).
 # Build vox-cli with Mens train + cloud dispatch. `mens-candle-cuda` needs nvcc — use a CUDA *devel* builder stage if you need CUDA kernels in this image; rust:bookworm-slim has no nvcc.
 # Feature names: see crates/vox-cli/Cargo.toml.
 ARG VOX_CLI_FEATURES="gpu,cloud"
 # `vox mens serve` shells out to `vox-schola` for local checkpoints. CPU-only schola build avoids nvcc in slim builder.
-RUN cargo build --release -p vox-cli --features "${VOX_CLI_FEATURES}" \
+RUN cargo build --release --locked -p vox-cli --features "${VOX_CLI_FEATURES}" \
     && strip /app/target/release/vox \
-    && cargo build --release -p vox-schola --no-default-features \
+    && cargo build --release --locked -p vox-schola --no-default-features \
     && strip /app/target/release/vox-schola
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────

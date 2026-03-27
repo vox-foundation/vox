@@ -23,7 +23,10 @@ pub(crate) fn spawn_clarification_db_inbox_poller(
         loop {
             tick.tick().await;
 
-            if let Ok(messages) = db_clone.poll_a2a_inbox("orchestrator_clarifier", &rid).await {
+            if let Ok(messages) = db_clone
+                .poll_a2a_inbox("orchestrator_clarifier", &rid)
+                .await
+            {
                 for msg in messages {
                     if msg.msg_type != "clarification_request" {
                         continue;
@@ -71,8 +74,8 @@ pub(crate) fn spawn_clarification_db_inbox_poller(
                 if msg.msg_type != "clarification_response" {
                     continue;
                 }
-                let payload: serde_json::Value = serde_json::from_str(&msg.payload)
-                    .unwrap_or_else(|_| serde_json::json!({}));
+                let payload: serde_json::Value =
+                    serde_json::from_str(&msg.payload).unwrap_or_else(|_| serde_json::json!({}));
                 let session_key = msg.thread_id.as_deref().unwrap_or("unknown_session");
                 let meta = serde_json::json!({
                     "kind": "a2a_clarification_response_delivered",

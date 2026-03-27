@@ -458,4 +458,71 @@ mod orch_smoke {
                 .collect::<Vec<_>>()
         );
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn plan_dag_unblocks_next_node_on_complete() {
+        let db = std::sync::Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("memory db"),
+        );
+        let orch = Orchestrator::new(OrchestratorConfig {
+            planning_enabled: true,
+            planning_router_enabled: true,
+            ..OrchestratorConfig::for_testing()
+        })
+        .with_db(db.clone());
+
+        let tid = orch
+            .submit_goal(
+                "alpha and beta",
+                vec![FileAffinity::read("Cargo.toml")],
+                None,
+                Some(crate::planning::PlanningMode::ForcePlan),
+                Some("plan-dag-test".into()),
+            )
+            .await
+            .expect("planned goal");
+
+        let agent_id = *orch
+            .task_assignments
+            .read()
+            .unwrap()
+            .get(&tid)
+            .expect("assignment");
+
+        let plan_session_id = {
+            let ql = orch.agent_queue(agent_id).expect("queue");
+            let q = ql.read().unwrap();
+            q.tasks()
+                .iter()
+                .find(|t| t.id == tid)
+                .and_then(|t| t.plan_session_id.clone())
+                .expect("plan session on task")
+        };
+
+        {
+            let ql = orch.agent_queue(agent_id).expect("queue");
+            let mut q = ql.write().unwrap();
+            let _ = q.dequeue();
+        }
+
+        orch.complete_task(tid).await.expect("complete first node");
+
+        let rows = db
+            .load_plan_nodes_with_status(&plan_session_id, 1)
+            .await
+            .expect("nodes");
+        let n1 = rows.iter().find(|r| r.node_id == "n1").expect("n1 row");
+        let n2 = rows.iter().find(|r| r.node_id == "n2").expect("n2 row");
+        assert_eq!(n1.status, "completed");
+        assert_eq!(n2.status, "queued");
+
+        let st = orch.status();
+        assert!(
+            st.total_queued >= 1,
+            "successor plan node should be enqueued (total_queued={})",
+            st.total_queued
+        );
+    }
 }

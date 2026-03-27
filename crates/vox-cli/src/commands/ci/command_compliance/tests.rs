@@ -5,7 +5,46 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 use super::docs_sync::{ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::mcp_wiring::{check_mcp_tool_wiring, extract_mcp_handler_tools};
 use super::registry::{extract_mcp_registry_tool_names, parse_mcp_registry_yaml};
-use super::validators::kebab_to_pascal;
+use super::validators::{
+    check_dockerfiles_cargo_locked_policy, check_install_policy_surfaces,
+    check_packaging_pm_docs_no_resurrected_uv_copies, check_upgrade_toolchain_only, kebab_to_pascal,
+};
+
+#[test]
+fn upgrade_rs_stays_toolchain_only() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    check_upgrade_toolchain_only(root).expect("upgrade.rs PM isolation");
+}
+
+#[test]
+fn install_policy_surfaces_align_with_docs() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    check_install_policy_surfaces(root).expect("vox-install-policy parity");
+}
+
+#[test]
+fn dockerfiles_use_locked_cargo_when_lockfile_copied() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    check_dockerfiles_cargo_locked_policy(root).expect("Dockerfile --locked policy");
+}
+
+#[test]
+fn packaging_pm_docs_uv_fragments_guard() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root above crates/vox-cli");
+    check_packaging_pm_docs_no_resurrected_uv_copies(root).expect("WP6 doc fragments");
+}
 
 #[test]
 fn kebab_pascal() {

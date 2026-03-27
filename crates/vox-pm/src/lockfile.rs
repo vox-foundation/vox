@@ -8,7 +8,7 @@ use std::path::Path;
 
 /// Represents the `vox.lock` lockfile.
 /// Records exact resolved versions and content hashes for reproducible installs.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Lockfile {
     /// Lockfile format version for forward compatibility.
     pub version: u32,
@@ -16,7 +16,7 @@ pub struct Lockfile {
     pub packages: BTreeMap<String, LockedPackage>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LockedPackage {
     pub version: String,
     pub content_hash: String,
@@ -28,7 +28,7 @@ pub struct LockedPackage {
     pub skills: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PackageSource {
     #[default]
@@ -39,6 +39,26 @@ pub enum PackageSource {
         #[serde(default)]
         rev: Option<String>,
     },
+}
+
+fn parse_lockfile_source(v: &toml::Value) -> PackageSource {
+    match v {
+        toml::Value::String(s) if s == "registry" => PackageSource::Registry,
+        toml::Value::Table(t) => {
+            if let Some(p) = t.get("path").and_then(|x| x.as_str()) {
+                return PackageSource::Path(p.replace('\\', "/"));
+            }
+            if let Some(url) = t.get("git").and_then(|x| x.as_str()) {
+                let rev = t.get("rev").and_then(|x| x.as_str()).map(str::to_string);
+                return PackageSource::Git {
+                    url: url.to_string(),
+                    rev,
+                };
+            }
+            PackageSource::Registry
+        }
+        _ => PackageSource::Registry,
+    }
 }
 
 impl Lockfile {
@@ -203,12 +223,17 @@ impl Lockfile {
                     })
                     .unwrap_or_default();
 
+                let source = pkg_val
+                    .get("source")
+                    .map(parse_lockfile_source)
+                    .unwrap_or(PackageSource::Registry);
+
                 packages.insert(
                     name,
                     LockedPackage {
                         version: pkg_version,
                         content_hash,
-                        source: PackageSource::Registry,
+                        source,
                         dependencies: deps,
                         skills,
                     },
@@ -313,5 +338,25 @@ mod tests {
         assert!(toml_str.contains("name = \"bar\""));
         assert!(toml_str.contains("content_hash = \"abc\""));
         assert!(toml_str.contains("\"bar\""));
+    }
+
+    #[test]
+    fn test_lockfile_path_source_round_trips_through_toml() {
+        let mut lf = Lockfile::new();
+        let v = SemVer::parse("0.1.0").unwrap();
+        lf.add(
+            "sidecar",
+            &v,
+            "deadbeef",
+            PackageSource::Path("../sidecar".into()),
+            vec![],
+            vec![],
+        );
+        let s = lf.to_toml_string().unwrap();
+        let again = Lockfile::from_str(&s).unwrap();
+        match again.packages.get("sidecar").map(|p| &p.source) {
+            Some(PackageSource::Path(p)) => assert_eq!(p, "../sidecar"),
+            other => panic!("expected path source, got {other:?}"),
+        }
     }
 }

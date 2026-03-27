@@ -328,7 +328,10 @@ pub fn decision_entropy_bits(approve_rate: f64) -> f64 {
 
 /// Information gain normalized by estimated attention cost (bits/ms).
 #[must_use]
-pub fn info_gain_per_attention_cost_bits_ms(expected_information_gain_bits: f64, cost_ms: u64) -> f64 {
+pub fn info_gain_per_attention_cost_bits_ms(
+    expected_information_gain_bits: f64,
+    cost_ms: u64,
+) -> f64 {
     expected_information_gain_bits.max(0.0) / (cost_ms.max(1) as f64)
 }
 

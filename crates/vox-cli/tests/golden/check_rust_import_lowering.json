@@ -1,0 +1,11 @@
+[
+  {
+    "code": "E0001",
+    "severity": "Error",
+    "category": "Lowering",
+    "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
+    "file": "tests/fixtures/golden_rust_import_lowering.vox",
+    "line": 2,
+    "col": 8
+  }
+]

@@ -69,7 +69,7 @@ Gap: the user-visible lifecycle is not coherently exposed through stable top-lev
 ### Package storage and repository blind spots
 
 - Current `update` path uses `.vox_modules/local_store.db` through `vox_db::VoxDb` in [crates/vox-cli/src/commands/update.rs](../../../crates/vox-cli/src/commands/update.rs).
-- `vendor` currently assumes `.vox_modules` and points users to `vox install` in [crates/vox-cli/src/commands/vendor.rs](../../../crates/vox-cli/src/commands/vendor.rs), which is stale because `install` is non-functional.
+- Vendor trees: **`vox pm vendor`** (or copy `.vox_modules/dl` manually) after **`vox sync`**; the old unwired `commands/vendor.rs` helper was removed as duplicate.
 - The relationship between:
   - manifest (`Vox.toml`),
   - lock (`vox.lock`),
@@ -209,14 +209,13 @@ These modes must be consistently enforced in local workflows, CI lanes, and Dock
 
 - Breaking script/tooling users who still invoke `vox install`.
 - Incomplete retirement where command registry, docs, and code diverge.
-- Ambiguous self-upgrade lane (`upgrade`) if not tied to a concrete distribution strategy.
+- Operator confusion if **`upgrade`** is documented as touching **`Vox.toml`** / **`vox.lock`** (mitigated: namespace split + CI guard on `upgrade.rs`; binary replacement SSOT is [`binary-release-contract.md`](../ci/binary-release-contract.md) / bootstrap, not the PM lock).
 
-### Open design item to close in implementation plan
+### Toolchain upgrade distribution (packaging wave closure)
 
-- Toolchain upgrade source of truth:
-  - release artifact channel,
-  - or source/Git-based lane,
-  - or both with explicit precedence and safety checks.
+- **Namespace / safety:** `vox upgrade` is **toolchain-only** and must not touch `Vox.toml` / `vox.lock` (enforced in CI). The command currently emits **operator guidance** (channel placeholder, rebuild / PATH hints).
+- **Binary SSOT for replacing `vox`:** documented artifact layout and triples live in [`binary release contract`](../ci/binary-release-contract.md); first-party install path is [`vox-bootstrap`](../api/vox-bootstrap.md) (falls back to `cargo install --locked --path crates/vox-cli` when no asset matches).
+- **Toolchain self-update (shipped):** `vox upgrade` is **check-only** by default; **`--apply`** uses **`self_update`** + **`checksums.txt`** (same contract as bootstrap) into **`CARGO_HOME/bin`**, with **`--provider github|gitlab|http`**, semver gates, and **`--allow-breaking` / `--allow-prerelease`**. Further hardening (e.g. TUF) remains optional.
 
 ## Research-backed acceptance criteria
 
@@ -227,6 +226,10 @@ A successful PM redesign must satisfy all of:
 - `update` and `upgrade` are semantically disjoint and test-enforced.
 - Top-level dependency verbs and advanced `pm` verbs are both documented and contract-tested.
 - Lockfile policy modes are implemented and enforced across local, CI, and container lanes.
+
+## Implementation closure (tracked in-tree)
+
+As of the 2026 packaging execution wave: hybrid top-level + **`vox pm`** grammar is shipped; **`vox install`** is a deterministic migration error with contract-tested copy; **`update`** vs **`upgrade`** split includes CI validators; **`Lockfile`** TOML round-trips **`path`/`git`/`registry`** sources; **`vox pm mirror`** supports **`--file`** and **`--from-registry`** for the local PM index; integration tests cover path graph, registry stub, frozen **`sync`**, **`pm-provenance`**, and optional **`workflow_dispatch`** fixture workflow — see [`reference/pm-migration-2026.md`](../reference/pm-migration-2026.md) and [`vox-packaging-full-implementation-plan-2026.md`](vox-packaging-full-implementation-plan-2026.md).
 
 ## Bibliography (core)
 

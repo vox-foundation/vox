@@ -26,6 +26,8 @@ pub struct HirLoweringMigrationFlags {
 pub struct HirModule {
     /// Resolved `import` entries.
     pub imports: Vec<HirImport>,
+    /// Rust crate imports declared in source.
+    pub rust_imports: Vec<HirRustImport>,
     /// Functions and `@component` bodies.
     pub functions: Vec<HirFn>,
     /// Algebraic and struct types.
@@ -145,6 +147,25 @@ pub struct HirImport {
     pub module_path: Vec<String>,
     /// Imported symbol name.
     pub item: String,
+    /// Span in source.
+    pub span: Span,
+}
+
+/// A Rust crate import declaration lowered from source.
+#[derive(Debug, Clone)]
+pub struct HirRustImport {
+    /// Dependency key / crate name.
+    pub crate_name: String,
+    /// Binding name in source scope.
+    pub alias: String,
+    /// Optional semantic version requirement.
+    pub version: Option<String>,
+    /// Optional local path source.
+    pub path: Option<String>,
+    /// Optional git source URL.
+    pub git: Option<String>,
+    /// Optional git revision / branch hint.
+    pub rev: Option<String>,
     /// Span in source.
     pub span: Span,
 }

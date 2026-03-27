@@ -309,10 +309,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     };
 
     let chat_q_key = mcp_questioning_session_key(state, "vox_chat_message", Some(session_id));
-    state.record_questioning_attention_spend(
-        &chat_q_key,
-        llm_started.elapsed().as_millis() as u64,
-    );
+    state.record_questioning_attention_spend(&chat_q_key, llm_started.elapsed().as_millis() as u64);
 
     tracing::info!(
         target: "vox_mcp::populi_kpi",

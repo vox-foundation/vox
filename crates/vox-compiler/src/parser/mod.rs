@@ -9,7 +9,7 @@
 //! |---|---|
 //! | Functions / closures | `fn`, `pub fn` |
 //! | Type definitions & ADTs | `type`, `pub type` |
-//! | Imports | `import` |
+//! | Imports | `import` (`react.use_state`, `rust:serde_json`) |
 //! | Components | `@component` |
 //! | Islands | `@island` |
 //! | Database tables & indices | `@table`, `@index` |

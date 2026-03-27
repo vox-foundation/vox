@@ -29,4 +29,6 @@ mod callable;
 mod reactive;
 mod types;
 
-pub use types::{Decl, HttpMethod, ImportDecl, ImportPath, Module, PyImportDecl};
+pub use types::{
+    Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, PyImportDecl, RustCrateImport,
+};

@@ -185,6 +185,16 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Validate `vox.pm.provenance/1` JSON files under `.vox_modules/provenance/` (from `vox pm publish`).
+    #[command(name = "pm-provenance")]
+    PmProvenance {
+        /// Fail when the provenance directory is missing or contains no `*.json`.
+        #[arg(long)]
+        strict: bool,
+        /// Directory to scan (relative to repo root unless absolute); default `.`.
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+    },
     /// Fail if internal Markdown links are broken in `docs/src` or root-level guides.
     #[command(name = "check-links")]
     CheckLinks,

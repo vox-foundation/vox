@@ -45,7 +45,21 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 
 | Variable | Role |
 |----------|------|
-| `VOX_REPO_ROOT` | Absolute or normalized path to the logical repo root for **`vox ci`**, doc-inventory, and other tools that must not depend on cwd alone. |
+| `VOX_REPO_ROOT` | Absolute or normalized path to the logical repo root for **`vox ci`**, doc-inventory, **`vox upgrade --source repo`** (when **`--repo-root`** is omitted), and other tools that must not depend on cwd alone. |
+
+## Toolchain self-update (`vox upgrade`)
+
+| Variable | Role |
+|----------|------|
+| `VOX_UPGRADE_PROVIDER` | `github` (default), `gitlab`, or `http` — override release backend when not passing **`--provider`**. |
+| `VOX_UPGRADE_REPO` | `owner/repo` (GitHub) or `namespace/project` (GitLab). Default upstream: **`vox-foundation/vox`**. |
+| `VOX_UPGRADE_BASE_URL` | For **`http`**: base URL such as `https://github.com/org/repo/releases` (requires **`--version`** or **`VOX_UPGRADE_VERSION`**). |
+| `VOX_UPGRADE_VERSION` | Pinned tag for **`http`** mirror when omitted on the CLI. |
+| `VOX_UPGRADE_GITLAB_HOST` | GitLab API root (default `https://gitlab.com`). |
+| `VOX_UPGRADE_GITHUB_API_URL` | GitHub API base (Enterprise), e.g. `https://github.example.com/api/v3`. |
+| `GITHUB_TOKEN` / `GH_TOKEN` / `VOX_GITHUB_TOKEN` | Optional; raises GitHub API rate limits and enables **private** release assets. |
+| `GITLAB_TOKEN` / `VOX_GITLAB_TOKEN` | Optional GitLab **private-token** style access for private releases / asset URLs. |
+| `CARGO` | Optional: path to the **`cargo`** executable for **`vox upgrade --source repo --apply`** (defaults to **`cargo`** on `PATH`). |
 
 ## Orchestrator (`vox-orchestrator`)
 

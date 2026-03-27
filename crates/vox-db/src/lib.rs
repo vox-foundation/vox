@@ -95,10 +95,10 @@ pub mod paths;
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
 pub mod populi_registry_telemetry;
-mod questioning_telemetry;
 /// Registry-scoped user preferences (stored as JSON in the local config directory).
 pub mod preferences;
 pub mod project_store;
+mod questioning_telemetry;
 mod research;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 pub mod retrieval;
@@ -128,6 +128,7 @@ pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use project_store::open_project_db;
+pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,
     RetrievalDiagnostics, retrieval_diagnostics,
@@ -135,16 +136,15 @@ pub use research::{
 pub use retrieval::{
     RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, fuse_hybrid_results,
 };
-pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
 pub use store::{
-    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
-    BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry, CloudCostSummary,
-    CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CrateSample,
-    CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
+    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
+    BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
+    CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry,
+    CrateSample, CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,

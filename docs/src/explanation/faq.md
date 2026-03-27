@@ -22,7 +22,7 @@ Null is completely banned. Absent values use `Option[T]` (`Some(value)` or `None
 ## Installation & Toolchain
 
 ### How do I install and update Vox?
-Build from source with `cargo install --path crates/vox-cli` (or use the install scripts in the repo).  
+Build from source with `cargo install --locked --path crates/vox-cli` (or use the install scripts in the repo).  
 To discover what your currently installed binary supports, run `vox commands --recommended` and `vox commands --include-nested`.
 
 ### What does `vox build` do?
@@ -30,7 +30,7 @@ To discover what your currently installed binary supports, run `vox commands --r
 Why use it: it gives you a deterministic compile artifact you can inspect before running or bundling.
 
 ### Can I use existing Rust or NPM libraries?
-Yes. Use `@rust.import` for Rust crates and standard NPM imports in frontend blocks.
+Yes. Use `import rust:<crate>` (for example `import rust:serde_json as json`) for Rust crates and standard NPM imports in frontend blocks.
 
 ## Architecture & Runtime
 

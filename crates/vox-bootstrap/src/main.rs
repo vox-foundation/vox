@@ -20,7 +20,7 @@ struct Cli {
     /// Perform mutations: rustup components; Windows: winget LLVM; Linux: sudo apt/dnf; macOS: brew llvm.
     #[arg(long)]
     apply: bool,
-    /// Actually install the vox CLI (`cargo install --path crates/vox-cli`) after successful probe.
+    /// Actually install the vox CLI (`cargo install --locked --path crates/vox-cli`) after successful probe.
     #[arg(long)]
     install: bool,
     /// Force source install (skip release binary attempt).

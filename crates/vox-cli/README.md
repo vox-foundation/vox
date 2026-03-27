@@ -31,7 +31,7 @@ Canonical reference: [`docs/src/reference/cli.md`](../../docs/src/reference/cli.
 
 ```bash
 # Install from source
-cargo install --path crates/vox-cli
+cargo install --locked --path crates/vox-cli
 
 # Or build for development
 cargo build -p vox-cli

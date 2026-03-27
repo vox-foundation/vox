@@ -34,6 +34,8 @@ vox-schola                 = { path = "crates/vox-schola" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
+vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
+vox-install-policy        = { path = "crates/vox-install-policy" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }

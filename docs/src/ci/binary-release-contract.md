@@ -8,11 +8,15 @@ training_eligible: true
 
 # Binary release artifact contract
 
-This document is the **authoritative contract** between:
+This document is the **authoritative contract** for **release binaries** (names, archives, **`checksums.txt`**) between:
 
+- **`crates/vox-install-policy`** (Rust SSOT for supported triples, default GitHub org/repo, and `cargo install --locked --path …` argv shared by bootstrap / `vox upgrade` / compliance guards),
 - [`vox ci release-build`](../reference/cli.md) (packaging in CI / locally),
 - [`.github/workflows/release-binaries.yml`](../../../.github/workflows/release-binaries.yml) (tag-triggered publish),
-- [`vox-bootstrap`](../api/vox-bootstrap.md) (binary-first install).
+- [`vox-bootstrap`](../api/vox-bootstrap.md) (binary-first install),
+- **`vox upgrade --source release`** (operator self-update; same manifest verification).
+
+The **`vox upgrade --source repo`** lane rebuilds from a local checkout and does **not** consume this checksum manifest (trust model = your git ref + Cargo lock in-tree).
 
 ## Supported release targets
 
@@ -25,7 +29,7 @@ These triples are built and published for each release **tag** `v*`:
 | `x86_64-apple-darwin` | macOS Intel |
 | `aarch64-apple-darwin` | macOS Apple Silicon |
 
-`vox-bootstrap` maps the **compile-time host** to one of these triples. If no matching asset exists published for that tag, binary install **fails** and the installer falls back to **`cargo install --path crates/vox-cli`** (requires repo root).
+`vox-bootstrap` maps the **compile-time host** to one of these triples. If no matching asset exists published for that tag, binary install **fails** and the installer falls back to **`cargo install --locked --path crates/vox-cli`** (requires repo root; uses the workspace lockfile).
 
 ## Asset file names
 
@@ -64,6 +68,8 @@ No nested directory prefix inside the archive for the executable entry.
 - Tagged asset: `https://github.com/vox-foundation/vox/releases/download/<tag>/<basename>`
 - Latest asset: `https://github.com/vox-foundation/vox/releases/latest/download/<basename>`
 
+**`vox upgrade --provider http`:** when you mirror this layout on another host, set **`VOX_UPGRADE_BASE_URL`** to `https://<host>/<org>/<repo>/releases` (no trailing slash). **`vox upgrade`** still requires the same **`checksums.txt`** and archive layout as this contract; use an explicit **`--version`** / tag for static mirrors (no listing API).
+
 The **basename** for `latest` must match the **actual** filename on the latest release (same tag in the name as `tag_name` on that release). Installers **must not** invent a fake `vox-latest-…` filename.
 
 ## Smoke checks
@@ -79,10 +85,14 @@ If any job fails smoke, **do not** consider the release green.
 
 `vox-bootstrap --install` is binary-first. If binary download/verify/extract fails, source fallback uses:
 
-- `cargo install --path crates/vox-cli`
+- `cargo install --locked --path crates/vox-cli`
 - repo root discovery (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`)
 
 Therefore source fallback requires a local repo checkout and Cargo. Users running only a downloaded standalone `vox-bootstrap` binary should treat fallback failure as expected unless they provide a repo + Cargo environment.
+
+## PM provenance (registry packages)
+
+Publishing **Vox PM** packages with **`vox pm publish`** writes `vox.pm.provenance/1` JSON under **`.vox_modules/provenance/`** (fields include **`schema`**, **`package`**, **`version`**, **`content_hash`**, **`built_at_epoch`**, **`tool`**, and **`registry`** URL used for the publish). Release or registry pipelines can enforce those sidecars with **`vox ci pm-provenance --strict`** (see [`reference/cli.md`](../reference/cli.md)). Optional GitHub workflow [`.github/workflows/pm-provenance-verify.yml`](../../../.github/workflows/pm-provenance-verify.yml): **`workflow_dispatch` by default**; add a **`schedule:`** in fork/deploy branches for periodic (e.g. monthly) verification on self-hosted runners if you want it. This is separate from the binary tarball contract above but shares the same “verify before promote” posture.
 
 ## Rollback
 

@@ -30,7 +30,7 @@ Get your first Vox app running and deployed locally in under 5 minutes:
 ### 1. Install the CLI
 Ensure you have Rust installed, then install the Vox compiler CLI directly:
 ```bash
-cargo install --path crates/vox-cli
+cargo install --locked --path crates/vox-cli
 ```
 
 ### 2. Initialize a Project

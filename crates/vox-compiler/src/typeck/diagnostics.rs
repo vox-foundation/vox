@@ -114,6 +114,36 @@ impl Diagnostic {
         }
     }
 
+    /// AST -> HIR lowering diagnostic surfaced through structured diagnostics.
+    #[must_use]
+    pub fn lowering(message: String, span: Span, source: &str) -> Self {
+        Self {
+            severity: TypeckSeverity::Error,
+            message,
+            span,
+            expected_type: None,
+            found_type: None,
+            context: Some(Self::capture_context(source, span)),
+            suggestions: vec![],
+            category: DiagnosticCategory::Lowering,
+        }
+    }
+
+    /// Runtime/embedding contract diagnostic surfaced through structured diagnostics.
+    #[must_use]
+    pub fn runtime_contract(message: String, span: Span, source: &str) -> Self {
+        Self {
+            severity: TypeckSeverity::Error,
+            message,
+            span,
+            expected_type: None,
+            found_type: None,
+            context: Some(Self::capture_context(source, span)),
+            suggestions: vec![],
+            category: DiagnosticCategory::RuntimeContract,
+        }
+    }
+
     /// Extract a few lines around `span` for display.
     #[must_use]
     pub fn capture_context(source: &str, span: Span) -> String {

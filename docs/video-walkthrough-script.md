@@ -23,7 +23,7 @@ In this video, I'll show you how to set up a fully integrated Vox + AI Agent dev
 
 ```bash
 # Install Vox CLI
-cargo install --path crates/vox-cli
+cargo install --locked --path crates/vox-cli
 ```
 
 "First, install the Vox CLI. This gives you the `vox` command for everything — building, testing, code review, and orchestration."

@@ -14,6 +14,23 @@ async fn pragma_columns(db: &VoxDb, table: &str) -> Vec<String> {
 }
 
 #[tokio::test]
+async fn plan_sessions_has_iterative_telemetry_columns() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    let cols = pragma_columns(&db, "plan_sessions").await;
+    for required in [
+        "question_session_id",
+        "iterative_loop_round",
+        "iterative_stop_reason",
+        "iterative_loop_metadata_json",
+    ] {
+        assert!(
+            cols.iter().any(|c| c == required),
+            "plan_sessions.{required} missing: {cols:?}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn agent_events_has_payload_json_and_cli_version() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     let cols = pragma_columns(&db, "agent_events").await;

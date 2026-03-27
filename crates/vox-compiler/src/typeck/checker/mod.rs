@@ -69,7 +69,7 @@ impl<'a> Checker<'a> {
     }
 
     pub fn check_module(&mut self, module: &HirModule) {
-        register_hir_module(self.env, module);
+        self.diags.extend(register_hir_module(self.env, module));
 
         for f in &module.functions {
             self.check_function(f);

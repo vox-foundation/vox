@@ -4,6 +4,7 @@
 //! is available in [`crate::pipeline`] for a single frontend; `build` and `check` here still use the
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
+pub mod add;
 /// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;
@@ -51,7 +52,7 @@ pub use extras::ars;
 pub mod fmt;
 /// `vox info` — package metadata from registry / local Arca store (`vox-pm`).
 pub mod info;
-/// Vox package manager dependency installation (`vox install`).
+/// Retired `vox install` shim (migration errors only).
 pub mod install;
 /// Web island UI creation handler (`vox island`).
 #[cfg(feature = "island")]
@@ -59,6 +60,7 @@ pub mod island;
 /// Interactive telemetry-enabled execution orchestrator (`vox live`).
 #[cfg(feature = "live")]
 pub mod live;
+pub mod lock;
 /// Legacy login command (compat shim to Clavis).
 pub mod login;
 /// Legacy logout command (compat shim to Clavis).
@@ -68,21 +70,28 @@ pub mod lsp;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;
+pub mod pm;
+pub mod pm_lifecycle;
 /// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
 #[cfg(feature = "populi")]
 pub mod populi_cli;
 /// One-command populi lifecycle helpers (`vox populi up|down|status`; requires `populi`).
 #[cfg(feature = "populi")]
 pub mod populi_lifecycle;
+pub(crate) mod repo_upgrade;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;
+pub mod sync;
+pub(crate) mod toolchain_upgrade;
+pub mod upgrade;
 /// Ludus gamification systems logic wrapper.
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
 /// Ludus companion / quest / battle helpers used by **`vox ludus`** (`extras-ludus`).
 #[cfg(feature = "extras-ludus")]
 pub mod gamify;
+pub mod remove;
 /// AI-powered CodeRabbit review adapter (`vox review`).
 #[cfg(any(feature = "mens-dei", feature = "coderabbit"))]
 pub mod review;
@@ -94,6 +103,7 @@ pub mod runtime;
 pub mod scientia;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
+pub mod update;
 
 /// Speech-to-text and transcript refinement (`vox oratio`).
 #[cfg(feature = "oratio")]

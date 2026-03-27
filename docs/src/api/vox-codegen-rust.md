@@ -15,13 +15,15 @@ Rust code generator for the Vox compiler. Emits Axum server code, library types/
 
 | File | Purpose |
 |------|---------|
-| `src/lib.rs` | Re-exports: `generate`, `CodegenOutput`, `emit_fn`, `emit_expr`. |
-| `src/emit.rs` | Single implementation module: full pipeline and helpers. |
+| `src/lib.rs` | Re-exports: `generate`, `generate_script`, `CodegenOutput`, and `emit` submodule. |
+| `src/emit/mod.rs` | Full-app emit: `Cargo.toml`, `main.rs`, `lib.rs`, tables, MCP, API client. |
+| `src/pipeline.rs` | Script targets (`Native` / `Wasi`) and `generate_script_with_target`. |
 
 ## Public entry points
 
-- **`generate(module, package_name) -> Result<CodegenOutput, miette::Error>`** — Builds `Cargo.toml`, `src/main.rs`, `src/lib.rs`, optional `src/mcp_server.rs`, and `api_client_ts`.
-- **`emit_cargo_toml(name)`** — Dependency manifest for the synthesized crate (`vox-db`, Turso/libSQL, Axum, etc.).
+- **`generate(module, package_name) -> Result<CodegenOutput, miette::Error>`** — Builds `Cargo.toml`, `src/main.rs`, `src/lib.rs`, optional `src/mcp_server.rs`, and `api_client_ts`. Merges `[dependencies]` from `module.rust_imports` (from `import rust:…` in source).
+- **`emit_cargo_toml(name, module)`** — Same dependency manifest as full-app `generate`; includes dynamic lines for each `HirRustImport`.
+- **`generate_script_with_target(module, package_name, runtime_path, ScriptTarget::Native|Wasi)`** — Script cache crate; merges `module.rust_imports` into the generated `Cargo.toml` (with WASI guardrails for incompatible crates).
 - **`emit_main` / `emit_lib`** — Lower-level; same output as used inside `generate`.
 - **`emit_fn` / `emit_expr`** — Emit one function or expression (tests and tooling).
 - **`emit_table_ddl` / `emit_index_ddl`** — SQL strings for tables and indexes.

@@ -10,6 +10,8 @@ mod chat;
 mod ghost_text;
 mod inline_edit;
 mod plan;
+mod plan_gap;
+mod plan_loop;
 
 pub use ambient::ambient_state;
 pub use chat::{chat_history, chat_message};

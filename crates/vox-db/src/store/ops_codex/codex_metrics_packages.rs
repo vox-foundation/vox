@@ -466,7 +466,7 @@ impl crate::VoxDb {
         let mut rows = self
             .conn
             .query(
-                "SELECT version, COALESCE(content_hash,'') FROM packages
+                "SELECT version, hash FROM packages
                  WHERE name = ?1
                  ORDER BY rowid DESC",
                 params![name],
@@ -479,5 +479,42 @@ impl crate::VoxDb {
             out.push((ver, hash));
         }
         Ok(out)
+    }
+
+    /// Insert `artifact` into `objects` (CAS) and upsert `packages` for local PM resolution (`vox lock` / `vox update`).
+    pub async fn record_pm_registry_mirror(
+        &self,
+        name: &str,
+        version: &str,
+        artifact: &[u8],
+    ) -> Result<String, StoreError> {
+        let hash = self.store("vox-pm-artifact", artifact).await?;
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO packages (name, version, hash, description, author, license, yanked)
+                 VALUES (?1, ?2, ?3, NULL, NULL, NULL, 0)",
+                params![name, version, hash.as_str()],
+            )
+            .await?;
+        Ok(hash)
+    }
+}
+
+#[cfg(test)]
+mod pm_registry_mirror_tests {
+    #[tokio::test]
+    async fn record_pm_registry_mirror_lists_versions() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("idx.db");
+        let db = crate::VoxDb::open(path.to_str().unwrap())
+            .await
+            .expect("open");
+        let artifact = b"mirror-bytes";
+        let h = db
+            .record_pm_registry_mirror("crate-a", "0.2.1", artifact)
+            .await
+            .expect("mirror");
+        let vers = db.get_package_versions("crate-a").await.expect("versions");
+        assert_eq!(vers, vec![("0.2.1".to_string(), h)]);
     }
 }

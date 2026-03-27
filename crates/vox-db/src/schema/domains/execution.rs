@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS plan_sessions (
     strategy TEXT NOT NULL,
     current_version INTEGER NOT NULL DEFAULT 1,
     status TEXT NOT NULL DEFAULT 'pending',
+    question_session_id TEXT,
+    iterative_loop_round INTEGER NOT NULL DEFAULT 0,
+    iterative_stop_reason TEXT,
+    iterative_loop_metadata_json TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
