@@ -68,19 +68,6 @@ impl NewsService {
                 continue;
             }
 
-            let published = {
-                let db_opt = orch.db();
-                if let Some(db) = db_opt {
-                    db.is_news_published(id).await.unwrap_or(false)
-                } else {
-                    false
-                }
-            };
-
-            if published {
-                continue;
-            }
-
             let content = match crate::bounded_fs::read_utf8_path_capped(&path) {
                 Ok(c) => c,
                 Err(e) => {
@@ -106,6 +93,20 @@ impl NewsService {
                 entry.worthiness_floor = Some(*floor);
             }
             let content_digest = item.content_sha3_256();
+
+            let already_published = {
+                let db_opt = orch.db();
+                if let Some(db) = db_opt {
+                    db.is_news_published_for_content(id, &content_digest)
+                        .await
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            };
+            if already_published {
+                continue;
+            }
 
             let db_opt = orch.db();
             let dual_approval_met = if let Some(db) = &db_opt {
@@ -228,9 +229,7 @@ impl NewsService {
                         .await;
                 }
                 if let Ok(result_json) = serde_json::to_string(&result) {
-                    let _ = db
-                        .record_news_publish_attempt(id, &content_digest, &result_json)
-                        .await;
+                    // Canonical: `publication_attempts` (+ optional channel). `news_publish_attempts` is legacy-only.
                     let _ = db
                         .record_publication_attempt(
                             id,
@@ -244,6 +243,7 @@ impl NewsService {
                     let _ = db
                         .mark_news_published(
                             id,
+                            &content_digest,
                             result.github_id(),
                             result.twitter_id(),
                             result.oc_id(),

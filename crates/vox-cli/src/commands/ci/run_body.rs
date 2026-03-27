@@ -25,7 +25,8 @@ use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
     run_build_timings, run_clavis_parity, run_cuda_features, run_cuda_release_build,
     run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards,
-    run_secret_env_guard, run_sql_surface_guard, run_ssot_drift, run_toestub_scoped,
+    run_data_ssot_guards, run_secret_env_guard, run_sql_surface_guard, run_ssot_drift,
+    run_toestub_scoped,
     run_toestub_self_apply,
 };
 
@@ -39,6 +40,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ContractsIndex => contracts_index::run(&root),
         CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
+        CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::CheckSummaryDrift => {

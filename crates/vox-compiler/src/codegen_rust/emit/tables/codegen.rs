@@ -364,12 +364,12 @@ pub fn emit_index_ddl(index: &HirIndex) -> String {
 
 /// Generate the DB initialization code for `main()` (Turso / libSQL).
 ///
-/// Opens **Codex** via `vox_db::DbConfig::resolve_standalone` (VOX_DB_*, legacy TURSO_*, or local file).
+/// Opens **Codex** via `vox_db::DbConfig::resolve_canonical` (VOX_DB_*, legacy TURSO_*, or local file).
 pub fn emit_db_setup(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("    // ── Database setup (Codex / vox_db) ──\n");
     out.push_str(
-        "    let cfg = vox_db::DbConfig::resolve_standalone().expect(\"resolve Codex DB config (VOX_DB_URL+TOKEN, VOX_DB_PATH, or TURSO_URL+TURSO_AUTH_TOKEN)\");\n",
+        "    let cfg = vox_db::DbConfig::resolve_canonical().expect(\"resolve Codex DB config (VOX_DB_URL+TOKEN, VOX_DB_PATH, or TURSO_URL+TURSO_AUTH_TOKEN)\");\n",
     );
     out.push_str(
         "    let codex = vox_db::Codex::connect(cfg).await.expect(\"Failed to open Codex database\");\n",

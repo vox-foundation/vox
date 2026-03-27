@@ -137,7 +137,7 @@ impl VoxDb {
         &self,
         repository_id: Option<&str>,
         limit: i64,
-    ) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+    ) -> Result<Vec<(String, Option<f64>, Option<String>)>, StoreError> {
         let prefix = repository_id
             .map(|r| format!("mcp:{r}"))
             .unwrap_or_default();
@@ -159,12 +159,16 @@ impl VoxDb {
             return Ok(agg);
         }
         let mut sum_proxy = 0.0_f64;
+        let mut n_proxy = 0_usize;
         let mut sum_conf = 0.0_f64;
         let mut sum_cr = 0.0_f64;
         let mut parsed_n = 0_usize;
         for (_session, metric_value, meta) in rows {
             agg.sample_size += 1;
-            sum_proxy += metric_value;
+            if let Some(v) = metric_value {
+                sum_proxy += v;
+                n_proxy += 1;
+            }
             if let Some(ref m) = meta {
                 if let Ok(t) = serde_json::from_str::<SocratesSurfaceTelemetry>(m) {
                     parsed_n += 1;
@@ -178,8 +182,11 @@ impl VoxDb {
                 }
             }
         }
-        let n = agg.sample_size as f64;
-        agg.mean_hallucination_risk_proxy = if n > 0.0 { sum_proxy / n } else { 0.0 };
+        agg.mean_hallucination_risk_proxy = if n_proxy > 0 {
+            sum_proxy / n_proxy as f64
+        } else {
+            0.0
+        };
         agg.mean_confidence_estimate = if parsed_n > 0 {
             sum_conf / parsed_n as f64
         } else {

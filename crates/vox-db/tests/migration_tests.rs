@@ -1,4 +1,4 @@
-use vox_db::{DbConfig, Migration, VoxDb, validate_migrations};
+use vox_db::{DbConfig, Migration, StoreError, VoxDb, validate_migrations};
 
 #[tokio::test]
 async fn test_migration_application() {
@@ -48,6 +48,31 @@ async fn test_migration_validation_fails_on_descending() {
     ];
     let result = validate_migrations(&migrations);
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn schema_version_above_baseline_surfaces_legacy_chain_on_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema_probe.db");
+    let s = path.to_string_lossy().to_string();
+    let db = VoxDb::connect(DbConfig::local(s.clone()))
+        .await
+        .unwrap();
+    let bad = vec![Migration {
+        version: vox_db::schema::BASELINE_VERSION + 50,
+        name: "non_baseline_adhoc_probe".to_string(),
+        up_sql: "CREATE TABLE IF NOT EXISTS adhoc_mig_probe (x INTEGER);".to_string(),
+    }];
+    db.apply_migrations(&bad).await.unwrap();
+    drop(db);
+    let err = match VoxDb::connect(DbConfig::local(s)).await {
+        Err(e) => e,
+        Ok(_) => panic!("reopen with MAX(schema_version) != BASELINE must fail"),
+    };
+    assert!(
+        matches!(err, StoreError::LegacySchemaChain { .. }),
+        "expected legacy chain, got {err:?}"
+    );
 }
 
 #[tokio::test]

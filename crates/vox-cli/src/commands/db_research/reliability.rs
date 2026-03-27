@@ -14,7 +14,7 @@ pub async fn research_metrics(session_id: i64, metric_type: Option<&str>) -> any
     } else {
         println!("Research metrics (session {session_id})");
         for (mtype, value, meta) in metrics {
-            print!("  - {mtype}: {value}");
+            print!("  - {mtype}: {}", value.map_or_else(|| "null".to_string(), |v| v.to_string()));
             if let Some(m) = meta {
                 print!("  metadata: {m}");
             }

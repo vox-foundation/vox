@@ -48,7 +48,7 @@ impl VoxDb {
         &self,
         repository_id: &str,
         limit: i64,
-    ) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+    ) -> Result<Vec<(String, Option<f64>, Option<String>)>, StoreError> {
         let prefix = format!("syntaxk:{repository_id}");
         self.list_research_metrics_by_type("syntax_k_event", &prefix, limit)
             .await

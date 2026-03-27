@@ -16,7 +16,7 @@ This page is the **contract** between application code, `vox-db`, and `vox-pm` f
 |-------|------|-------------|
 | Public product API | **Codex** | `vox_db::Codex` (type alias for `VoxDb`) |
 | Stable ABI / legacy call sites | **VoxDb** | `vox_db::VoxDb` |
-| Schema + CAS ownership | **Arca** | `vox_pm::CodeStore`, migrations under `vox-pm` |
+| Schema + SQL DDL ownership | **Arca** | [`crates/vox-db/src/schema/`](../../../crates/vox-db/src/schema/) (`SCHEMA_FRAGMENTS`, `BASELINE_VERSION`) |
 | Engine | **Turso / libSQL** | Only supported SQL backend for the same data plane |
 
 Do not introduce a second physical store for the same logical data without a new ADR.
@@ -24,7 +24,7 @@ Do not introduce a second physical store for the same logical data without a new
 ## What application code may call
 
 - **Prefer** `VoxDb::connect` / `Codex::connect` with [`DbConfig`](../../../crates/vox-db/src/config.rs) from `vox-db`.
-- **Prefer** `db.store()` → `CodeStore` for CAS and schema-driven operations defined in `vox-pm`.
+- **Prefer** `VoxDb::store` / domain helpers in `vox-db` for CAS and schema-backed operations.
 - **Avoid** new direct `turso::` usage outside the [direct Turso allowlist](codex-turso-allowlist.md). If you must extend the allowlist, update that document in the same change.
 
 ## Configuration (canonical env)
@@ -38,11 +38,12 @@ Do not introduce a second physical store for the same logical data without a new
 Resolution for CLIs and long-running apps:
 
 - `DbConfig::from_env` — minimal parsing; with `local` feature, empty env may yield in-memory for tests.
-- `DbConfig::resolve_standalone` — production-style: canonical `VOX_DB_*` first, then **legacy** `TURSO_URL` + `TURSO_AUTH_TOKEN`, then a concrete file path (never silent `:memory:` when `local` is enabled).
+- `DbConfig::resolve_canonical` (alias of `resolve_standalone`) — **canonical user-global** Codex: `VOX_DB_*` first, then **legacy** `TURSO_URL` + `TURSO_AUTH_TOKEN`, then a concrete file path (never silent `:memory:` when `local` is enabled). See [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
+- `open_project_db` — **non-canonical** repo-local `.vox/store.db` for snippets/share/cache only.
 
 ## Migrations and SQL rules (Arca)
 
-- Schema DDL is owned by **`vox-pm`** (`crates/vox-pm/src/schema/`), ordered in [`manifest.rs`](../../../crates/vox-db/src/schema/manifest.rs) as **`SCHEMA_FRAGMENTS`** and applied once as **baseline V1** (`schema_version` records **1** only). Legacy databases that already ran the historical multi-version chain must be **exported** (`vox codex export-legacy`), moved to a **new file**, then **imported** after baseline — no in-place bridge. Capability checks in `vox-db` / `vox-codex-api` use **required table sets**, not numeric version thresholds (see [codex-vnext-schema](codex-vnext-schema.md)).
+- Schema DDL is owned by **`vox-db`** under [`schema/domains/`](../../../crates/vox-db/src/schema/domains/), ordered in [`manifest.rs`](../../../crates/vox-db/src/schema/manifest.rs) as **`SCHEMA_FRAGMENTS`** and applied once at **`BASELINE_VERSION`** (single maintained baseline row in `schema_version`). Older databases with `MAX(schema_version) != BASELINE_VERSION` must be **exported** (`vox codex export-legacy`), moved to a **new file**, then **imported** after baseline — no in-place bridge. Capability checks in `vox-db` use **required table sets**, not numeric version thresholds (see [codex-vnext-schema](codex-vnext-schema.md)).
 - Higher-level writes for chat/search domains should go through **`VoxDb`** helpers in [`codex_chat.rs`](../../../crates/vox-db/src/codex_chat.rs) where possible instead of ad-hoc SQL.
 - Bodies use patterns consistent with Turso batch execution: **`execute_batch`** for non-row-returning DDL/DML; pragmas via **`pragma_update`** where applicable. Fragment `v7` remains intentionally empty in the manifest (historical no-op).
 

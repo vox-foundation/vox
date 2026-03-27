@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS published_news (
     published_at_ms INTEGER NOT NULL,
     github_release_id TEXT,
     twitter_tweet_id TEXT,
-    opencollective_update_id TEXT
+    opencollective_update_id TEXT,
+    content_sha3_256 TEXT
 );
 
 -- Two-person approval: distinct approver identities per news id (filename stem).

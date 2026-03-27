@@ -17,6 +17,7 @@ pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/architecture/deployment-compose-ssot.md",
     "docs/src/architecture/mens-training-ssot.md",
     "docs/src/how-to/how-to-train-mens-4080.md",
+    "docs/src/how-to/how-to-voxdb-canonical-store.md",
     "docs/src/architecture/phase0-migration-signoff.md",
     "docs/src/architecture/migration-script-dashboard.md",
     "docs/src/architecture/vox-automation-primitives.md",

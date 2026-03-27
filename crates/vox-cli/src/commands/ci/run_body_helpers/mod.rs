@@ -2,6 +2,7 @@
 
 mod cuda;
 mod cuda_release_build;
+mod data_ssot_guards;
 mod docs;
 mod grammar;
 mod guards;
@@ -11,6 +12,7 @@ mod timings;
 
 pub(crate) use cuda::run_cuda_features;
 pub(crate) use cuda_release_build::run_cuda_release_build;
+pub(crate) use data_ssot_guards::run_data_ssot_guards;
 pub(crate) use docs::{check_codex_ssot, check_docs_ssot, run_manifest, run_ssot_drift};
 pub(crate) use grammar::run_grammar_drift;
 pub(crate) use guards::{

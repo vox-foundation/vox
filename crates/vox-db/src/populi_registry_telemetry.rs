@@ -30,7 +30,7 @@ pub async fn record_local_registry_publish_opt(
     if !mesh_codex_telemetry_enabled() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(
             target: "vox.populi_registry_telemetry",
             "skip mens telemetry: db config unresolved"
@@ -78,7 +78,7 @@ pub async fn record_populi_http_join_opt(
     if !mesh_codex_telemetry_enabled() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(
             target: "vox.populi_registry_telemetry",
             "skip mens http join telemetry: db config unresolved"

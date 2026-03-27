@@ -14,6 +14,9 @@ pub struct BenchmarkEventMeta {
     /// Repository id from `vox-repository` when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository_id: Option<String>,
+    /// Unit for `metric_value` when set (`seconds`, `milliseconds`, `ratio`, …). See telemetry SSOT doc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_value_unit: Option<String>,
     /// Free-form details (durations, pass rates, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
@@ -26,11 +29,13 @@ impl VoxDb {
         repository_id: &str,
         name: &str,
         metric_value: Option<f64>,
+        metric_value_unit: Option<&str>,
         details: Option<serde_json::Value>,
     ) -> Result<i64, StoreError> {
         let meta = BenchmarkEventMeta {
             name: name.to_string(),
             repository_id: Some(repository_id.to_string()),
+            metric_value_unit: metric_value_unit.map(String::from),
             details,
         };
         let json =

@@ -2,7 +2,7 @@
 title: "Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)"
 description: "Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: 2026-03-27
 training_eligible: true
 ---
 # Mens native training SSOT (Candle QLoRA–first)
@@ -124,7 +124,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
   > **Windows MSVC/NVCC constraint**: Building the CUDA `candle-kernels` completely fails if executed through a nested subshell (e.g. `cmd.exe /c "vcvars64.bat && cargo build"`). The inner `bindgen_cuda` executable natively drops nested path states, leading to an immediate `'cl.exe' is not recognized` failure. You **must** interactively open the VS Developer Command Prompt or physically run `vcvars64.bat` in your persistent PowerShell window before typing cargo commands for CUDA.
 - **Workspace deps**: root `[workspace.dependencies]` **`qlora-rs`** pin must stay aligned with `vox-populi` optional deps. Keep notes in `VOX_PATCH.md` synchronized with whichever qlora-rs patches are active for trainer stability.
 - **Input**: `train.jsonl` (and `mens/config/training_contract.yaml` / preflight overrides).
-- **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys.
+- **Telemetry**: `train_start` includes `train_backend: "burn_lora"` or `"candle_qlora"`. **Candle QLoRA** `train_start` also records **`epochs`**, **`planned_steps_per_epoch`**, **`planned_steps_total`** (upper bound if no vocab/hidden skips). Progress logs (**~5s**): **`ETA_smoothed≈…`** from an **interval throughput EMA** (after step **24**), plus **step/s** and **% of planned** — no duplicate `step 20/40/…` log lines (those are **`telemetry.jsonl` only**). **`step`** rows add **`steps_per_sec_ema`**, **`eta_seconds_remaining`** (EMA-based), **`progress_fraction`**. **`train_complete`**: **`wall_seconds`**, **`mean_steps_per_sec`**. See `telemetry_schema` keys. **VoxDB persistence** uses the canonical store ([`DbConfig::resolve_canonical`](../../crates/vox-db/src/config.rs)) via `connect_default_with_training_fallback`; if `vox.db` is legacy, runs may land in `vox_training_telemetry.db` until cutover — see [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
 
 ## Training objective mismatch (Burn vs Candle)
 
@@ -205,7 +205,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
   - **CUDA `cargo` build**: normal terminal or `Tee-Object`; detached build: [`scripts/populi/cursor_background_cuda_build_detached.ps1`](../../../scripts/populi/cursor_background_cuda_build_detached.ps1) (and `scripts/mens/…` copies if present). Example train launcher: [`scripts/populi/cursor_background_train_example.ps1`](../../../scripts/populi/cursor_background_train_example.ps1).
   - **Skip corpus mix** (optional): `VOX_TRAIN_SKIP_CORPUS_MIX=1` skips the pre-train `mix` refresh when you already have the desired `train.jsonl` or need a shorter path under automation.
 - **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached. Syntax-K runs can be routed independently with **`VOX_SYNTAX_K_TELEMETRY=1`** (`metric_type = syntax_k_event`, session `syntaxk:<repository_id>`), with fallback to `VOX_BENCHMARK_TELEMETRY` when unset.
-- **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped.
+- **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped. See **[`mens-training-data-contract.md`](mens-training-data-contract.md)**; set **`VOX_MENS_TRAIN_JSONL_STRICT=1`** to fail on malformed non-empty lines instead of skipping them.
 - **Full-graph forward (current implementation)**: one forward pass per row/micro-batch item over loaded decoder layers, then masked CE on supervised suffix positions.
 - **Suffix CE (`--qlora-ce-last-k K`)**: default **`64`**. `K=0` uses all supervised assistant positions; `K>0` uses only the last `K` supervised positions from the trimmed sequence.
 - **Depth ablation (CLI + digest)**: **`--qlora-proxy-max-layers N`** and **`--qlora-lm-head-only`** still feed **contract digest / planner / preflight** (`candle_qlora_proxy_stack_complete`, graph id). **Candle training rejects** LM-head-only, `proxy_max_layers=0`, and any cap **below** model depth; run without those flags (or set the cap **≥** `num_hidden_layers`) so the trainer runs the **full** proxy graph and the manifest matches execution.
@@ -288,6 +288,12 @@ Recommended rollout order: shadow (`routing_experimental`), then training scorin
 | **`vox mens serve`** (HTTP, `execution-api`) | Loads **Burn** checkpoints: LoRA `*.bin` **or** merged **`VoxTransformer`** (`model_merged.bin` from **`merge-weights`**). Does **not** load Candle **`merge-qlora`** output safetensors; use HF/Ollama/vLLM or another stack for merged QLoRA f32 shards. |
 | **`populi_adapter_manifest_v3.json`** | Unified adapter manifest (method + quant + layer order + `base_key_map`); written beside v2 meta on Candle runs. |
 | **Full causal NF4 + PEFT parity** | Open work — deeper block coverage beyond o_proj proxy stack. |
+
+## Troubleshooting (Candle QLoRA)
+
+- **Non-finite loss at the first micro-step:** The trainer runs a **masked CE numeric preflight** after checkpoint resume (warm-started LoRA weights included) and **before** the epoch loop. If this fails, fix the reported cause (vocab vs tokenizer, logits NaNs, CUDA numerics) instead of only lowering learning rate.
+- **Token ids ≥ `vocab_size`:** HF tokenizers can emit ids outside the base model’s embedding table after added-token / checkpoint skew or bad JSONL. The loop **skips** such rows (counter + one warning with `max_id` / `vocab_size` / `pair_real_idx`). Preflight **errors** if the first eligible encoded batch is out of range.
+- **Stricter JSONL validation:** Set **`VOX_MENS_TRAIN_JSONL_STRICT=1`** to surface data issues earlier in the pipeline where supported.
 
 ## Related
 

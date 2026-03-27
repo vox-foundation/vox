@@ -186,6 +186,11 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "publication_media_assets",
     "publication_status_events",
     "published_news",
+    "question_events",
+    "question_option_outcomes",
+    "question_options",
+    "question_sessions",
+    "question_stop_events",
     "repository_reliability",
     "research_metrics",
     "research_sessions",
@@ -334,6 +339,14 @@ pub async fn import_legacy_jsonl<R: BufRead>(
         .map_err(|e| StoreError::Db(format!("legacy import begin: {e}")))?;
 
     let body = async {
+        // Replace semantics: clear allowlisted user tables so a second import does not append duplicates.
+        // `schema_version` is not in LEGACY_EXPORT_TABLES — baseline row remains intact.
+        for table in LEGACY_EXPORT_TABLES.iter().rev() {
+            let sql = format!("DELETE FROM {table}");
+            conn.execute(&sql, ())
+                .await
+                .map_err(|e| StoreError::Db(format!("legacy import clear {table}: {e}")))?;
+        }
         let mut applied = 0u64;
         for line in reader.lines() {
             let line = line.map_err(|e| StoreError::Db(format!("legacy import read: {e}")))?;

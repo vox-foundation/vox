@@ -2,10 +2,11 @@ use crate::DbConfig;
 use crate::VoxDb;
 use crate::store::{DEFAULT_PROJECT_STORE_PATH, StoreError};
 
-/// Opens the project-local VoxDb (Arca store under `.vox/store.db`).
+/// Opens the **project-local** VoxDb (`.vox/store.db`) for repo-scoped artifacts only.
 ///
-/// Discovers the repository root, ensuring `.vox/` exists, and opens the Turso
-/// store.
+/// This is **not** the canonical user-global Codex store ([`crate::canonical_store`]); use
+/// [`crate::DbConfig::resolve_canonical`] + [`crate::VoxDb::connect`] for authoritative relational data.
+/// Discovers the repository root, ensures `.vox/` exists, and opens Turso.
 pub async fn open_project_db() -> Result<VoxDb, StoreError> {
     let cwd = std::env::current_dir().map_err(StoreError::Io)?;
     let repo = vox_repository::discover_repository_or_fallback(&cwd);

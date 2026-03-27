@@ -168,6 +168,7 @@ pub(super) fn finalize_training_run(
             "skip_no_supervised_positions": stats.skip_no_supervised_positions,
             "skip_short_seq": stats.skip_short_seq,
             "skip_curriculum": stats.skip_curriculum,
+            "skip_token_id_oob": stats.skip_token_id_oob,
             "final_adapter": final_path.display().to_string(),
             "run_id": run_id,
         }),
@@ -189,6 +190,7 @@ pub(super) fn finalize_training_run(
             "skip_no_supervised_positions": stats.skip_no_supervised_positions,
             "skip_short_seq": stats.skip_short_seq,
             "skip_curriculum": stats.skip_curriculum,
+            "skip_token_id_oob": stats.skip_token_id_oob,
             "no_supervised_skip_rate": no_supervised_skip_rate
         }))?,
     )?;

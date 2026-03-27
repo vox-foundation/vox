@@ -120,6 +120,9 @@ impl DbConfig {
     ///
     /// Unlike [`Self::from_env`], never returns [`Self::Memory`] when the `local` feature is enabled;
     /// an empty environment selects a concrete file path instead.
+    ///
+    /// For new code, prefer [`Self::resolve_canonical`] (same behavior; documents SSOT intent). See
+    /// [`crate::canonical_store`].
     pub fn resolve_standalone() -> Result<Self, String> {
         let path_fallback = || {
             std::env::var("VOX_DB_PATH")
@@ -154,6 +157,16 @@ impl DbConfig {
                 )
             }
         }
+    }
+
+    /// Authoritative **user-global** Codex / VoxDB configuration.
+    ///
+    /// Equivalent to [`Self::resolve_standalone`]. Use this for all relational product data except
+    /// [`crate::open_project_db`] (repo-local cache) and [`crate::VoxDb::connect_legacy_export_only`].
+    ///
+    /// See [`crate::canonical_store`] for the full storage policy.
+    pub fn resolve_canonical() -> Result<Self, String> {
+        Self::resolve_standalone()
     }
 
     /// Resolve config for the **project** Arca [`crate::store::VoxDb`] (snippets, share, etc.).
@@ -218,7 +231,7 @@ impl DbConfig {
                 }
             }
             (Some(u), Some(t), None) => Ok(Self::Remote { url: u, token: t }),
-            _ => Self::resolve_standalone(),
+            _ => Self::resolve_canonical(),
         }
     }
 }

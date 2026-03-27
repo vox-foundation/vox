@@ -91,6 +91,8 @@ impl crate::VoxDb {
             0
         };
 
+        // Single maintained baseline: only `BASELINE_VERSION` (or 0 pre-bootstrap) is valid.
+        // `MAX(schema_version)` from ad-hoc `apply_migrations` rows also trips this guard.
         if current_version > 0 && current_version != BASELINE_VERSION {
             return Err(StoreError::LegacySchemaChain {
                 max_version: current_version,

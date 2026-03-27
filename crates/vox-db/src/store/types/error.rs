@@ -24,9 +24,10 @@ pub enum StoreError {
     /// Invalid UTF-8 in blob payload.
     #[error("UTF-8 error: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
-    /// Database used the historical multi-row `schema_version` chain; baseline-V1 only supports version 1.
+    /// Database `schema_version` is not the current Arca baseline (see [`crate::schema::BASELINE_VERSION`]).
     #[error(
-        "legacy Arca schema chain detected (schema_version max={max_version}): export with `vox codex export-legacy`, initialize a fresh Codex database, then `vox codex import-legacy`"
+        "legacy or non-baseline Arca schema (schema_version max={max_version}, expected baseline {}): export with `vox codex export-legacy`, initialize a fresh Codex database, then `vox codex import-legacy`",
+        crate::schema::BASELINE_VERSION
     )]
     LegacySchemaChain {
         /// Highest `schema_version.version` present before baseline migration.

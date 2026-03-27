@@ -33,29 +33,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create shared state and server
     let mut state = ServerState::new(config);
 
-    // Same resolution policy as `vox-runtime` (`DbConfig::resolve_standalone`): canonical `VOX_DB_*`
-    // with compatibility fallbacks and project default paths — not a hardcoded `vox.db` only.
-    match vox_db::DbConfig::resolve_standalone() {
-        Ok(db_config) => {
-            info!(?db_config, "connecting to database...");
-            match vox_db::VoxDb::connect(db_config).await {
-                Ok(db) => {
-                    state = state.with_db_initialized(db).await;
-                    info!("database connected and linked to state (orchestrator schema synced)");
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "failed to connect to database: {}. persistence disabled.",
-                        e
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            tracing::warn!(
-                "database config resolution failed (resolve_standalone): {e}. persistence disabled."
-            );
-        }
+    // Degraded optional: MCP must keep serving stdio even if Codex is misconfigured (see
+    // `vox_db::connect_policy` + `docs/src/architecture/voxdb-connect-policy.md`).
+    if let Some(db) = vox_db::connect_canonical_optional(vox_db::DbConnectSurface::Mcp, false).await
+    {
+        state = state.with_db_initialized(db).await;
+        info!("database connected and linked to state (orchestrator schema synced)");
     }
 
     vox_mcp::populi_startup::publish_mesh_on_mcp_start(&state).await;

@@ -20,26 +20,29 @@ impl crate::VoxDb {
         Self::connect_with_retries(config, DEFAULT_MAX_RETRIES, DEFAULT_RETRY_BASE_MS).await
     }
 
-    /// Connect using the platform-aware default local path.
+    /// Connect using the **canonical** user-global Codex configuration.
     ///
-    /// Uses `paths::default_db_path()` to determine the DB file location.
-    /// Falls back to `DbConfig::from_env()` if the platform path cannot be
-    /// determined.
+    /// Same as [`Self::connect_canonical`]. Uses [`DbConfig::resolve_canonical`] so `VOX_DB_PATH`,
+    /// remote/replica env, and platform `vox.db` behave consistently with [`DbConfig::resolve_standalone`].
     #[cfg(feature = "local")]
     pub async fn connect_default() -> Result<Self, StoreError> {
-        let config = if let Some(path) = paths::default_db_path() {
-            DbConfig::Local {
-                path: path.to_string_lossy().to_string(),
-            }
-        } else {
-            DbConfig::from_env().map_err(|e| StoreError::NotFound(e))?
-        };
+        Self::connect_canonical().await
+    }
+
+    /// Connect to the canonical user-global Codex store ([`DbConfig::resolve_canonical`]).
+    pub async fn connect_canonical() -> Result<Self, StoreError> {
+        let config = DbConfig::resolve_canonical().map_err(StoreError::NotFound)?;
         Self::connect(config).await
     }
 
     /// Like [`Self::connect_default`], but if the primary DB reports [`StoreError::LegacySchemaChain`],
     /// opens (or creates) [`paths::training_telemetry_db_path`] so training tools can persist runs
     /// without migrating the main Codex database first.
+    ///
+    /// If the sidecar file already exists but is also on a legacy `schema_version` chain (for example
+    /// copied from an older app version), this method **drops sidecar user tables and reapplies the
+    /// current baseline** — only training telemetry rows in that file are lost; the primary DB path
+    /// is never modified here.
     #[cfg(feature = "local")]
     pub async fn connect_default_with_training_fallback() -> Result<Self, StoreError> {
         match Self::connect_default().await {
@@ -48,16 +51,45 @@ impl crate::VoxDb {
                 let Some(sidecar) = paths::training_telemetry_db_path() else {
                     return Err(StoreError::LegacySchemaChain { max_version });
                 };
-                tracing::info!(
+                let sidecar_path = sidecar.to_string_lossy().into_owned();
+                tracing::warn!(
                     sidecar = %sidecar.display(),
                     primary_schema_max = max_version,
-                    "Primary VoxDB uses a legacy schema; using training telemetry sidecar. \
-                     Migrate the main DB with `vox codex export-legacy`, fresh init, and `vox codex import-legacy` when ready."
+                    "Primary VoxDB uses a legacy schema; training telemetry will use `vox_training_telemetry.db` (or reset that sidecar if it is also stale). \
+                     Plan to migrate the main database: `vox codex export-legacy`, fresh init, then `vox codex import-legacy`."
                 );
-                Self::connect(DbConfig::Local {
-                    path: sidecar.to_string_lossy().into_owned(),
+                match Self::connect(DbConfig::Local {
+                    path: sidecar_path.clone(),
                 })
                 .await
+                {
+                    Ok(db) => {
+                        tracing::info!(
+                            target: "vox_db::training_telemetry",
+                            training_db_target = "sidecar_sqlite",
+                            sidecar = %sidecar.display(),
+                            "Training telemetry attached to sidecar DB (canonical vox.db is legacy until codex cutover)."
+                        );
+                        Ok(db)
+                    }
+                    Err(StoreError::LegacySchemaChain { max_version: sidecar_max }) => {
+                        tracing::warn!(
+                            sidecar = %sidecar.display(),
+                            sidecar_schema_max = sidecar_max,
+                            "Training telemetry sidecar has an incompatible schema_version chain; \
+                             resetting it to the current baseline (only prior telemetry in this file is removed)."
+                        );
+                        let db = Self::open_local_reset_to_baseline(&sidecar_path).await?;
+                        tracing::info!(
+                            target: "vox_db::training_telemetry",
+                            training_db_target = "sidecar_sqlite_reset",
+                            sidecar = %sidecar.display(),
+                            "Training telemetry sidecar reset to current baseline."
+                        );
+                        Ok(db)
+                    }
+                    Err(e) => Err(e),
+                }
             }
             Err(e) => Err(e),
         }

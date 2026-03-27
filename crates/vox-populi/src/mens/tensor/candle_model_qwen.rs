@@ -179,17 +179,38 @@ impl Qwen2Attention {
         pos: usize,
     ) -> Result<(Tensor, Tensor)> {
         let (_b, _n_heads, seq_len, head_dim) = q.dims4()?;
+        // HF stores `inv_freq` with `head_dim_rope / 2` entries. For full RoPE that equals `head_dim/2`;
+        // Qwen3-style **partial** RoPE uses a smaller table — rotate only the leading `rope_dim` dims.
+        let rope_dim = inv_freq.elem_count().saturating_mul(2);
+        if rope_dim == 0 || rope_dim > head_dim {
+            return Err(candle_core::Error::Msg(format!(
+                "RoPE inv_freq length inconsistent with head_dim: inv_freq_elems={} head_dim={head_dim}",
+                inv_freq.elem_count()
+            )));
+        }
         let device = q.device();
         let t = Tensor::arange(pos as u32, (pos + seq_len) as u32, device)?
             .to_dtype(DType::F32)?
             .reshape((seq_len, 1))?;
         let freqs = t.matmul(&inv_freq.reshape((1, inv_freq.elem_count()))?)?;
-        let freqs = Tensor::cat(&[&freqs, &freqs], 1)?; // [seq, head_dim]
-        let cos = freqs.cos()?.reshape((1, 1, seq_len, head_dim))?;
-        let sin = freqs.sin()?.reshape((1, 1, seq_len, head_dim))?;
-        let q_embed = (q.broadcast_mul(&cos)? + rotate_half(q)?.broadcast_mul(&sin)?)?;
-        let k_embed = (k.broadcast_mul(&cos)? + rotate_half(k)?.broadcast_mul(&sin)?)?;
-        Ok((q_embed, k_embed))
+        let freqs = Tensor::cat(&[&freqs, &freqs], 1)?; // [seq, rope_dim]
+        let cos = freqs.cos()?.reshape((1, 1, seq_len, rope_dim))?;
+        let sin = freqs.sin()?.reshape((1, 1, seq_len, rope_dim))?;
+        if rope_dim == head_dim {
+            let q_embed = (q.broadcast_mul(&cos)? + rotate_half(q)?.broadcast_mul(&sin)?)?;
+            let k_embed = (k.broadcast_mul(&cos)? + rotate_half(k)?.broadcast_mul(&sin)?)?;
+            Ok((q_embed, k_embed))
+        } else {
+            let q_rot = q.narrow(candle_core::D::Minus1, 0, rope_dim)?;
+            let q_pass = q.narrow(candle_core::D::Minus1, rope_dim, head_dim - rope_dim)?;
+            let k_rot = k.narrow(candle_core::D::Minus1, 0, rope_dim)?;
+            let k_pass = k.narrow(candle_core::D::Minus1, rope_dim, head_dim - rope_dim)?;
+            let q_r = (q_rot.broadcast_mul(&cos)? + rotate_half(&q_rot)?.broadcast_mul(&sin)?)?;
+            let k_r = (k_rot.broadcast_mul(&cos)? + rotate_half(&k_rot)?.broadcast_mul(&sin)?)?;
+            let q_embed = Tensor::cat(&[&q_r, &q_pass], candle_core::D::Minus1)?;
+            let k_embed = Tensor::cat(&[&k_r, &k_pass], candle_core::D::Minus1)?;
+            Ok((q_embed, k_embed))
+        }
     }
 }
 
@@ -795,5 +816,37 @@ mod tests {
         let _ = attn.forward(&x_tok1, 0, None, Some(&mut state)).unwrap();
         let _ = attn.forward(&x_tok2, 1, None, Some(&mut state)).unwrap();
         assert_eq!(state.dims(), &[1, value_heads, head_k_dim, head_v_dim]);
+    }
+
+    /// Qwen3-style configs use `partial_rotary_factor`; `inv_freq` is shorter than `head_dim`.
+    /// Regression: cos/sin must match `rope_dim`, not full `head_dim`, then concat passthrough tail.
+    #[test]
+    fn qwen2_attention_partial_rotary_dim_forward_ok() {
+        let device = Device::Cpu;
+        let qcfg = QLoraConfig::default();
+        let d_model = 32usize;
+        let n_heads = 2usize;
+        let n_kv_heads = 2usize;
+        let head_dim = 16usize;
+        let inv_half = 4usize; // rope_dim = 8 < head_dim
+
+        let w_q = Tensor::randn(0f32, 0.01f32, (n_heads * head_dim, d_model), &device).unwrap();
+        let w_k = Tensor::randn(0f32, 0.01f32, (n_kv_heads * head_dim, d_model), &device).unwrap();
+        let w_v = Tensor::randn(0f32, 0.01f32, (n_kv_heads * head_dim, d_model), &device).unwrap();
+        let w_o = Tensor::randn(0f32, 0.01f32, (d_model, n_heads * head_dim), &device).unwrap();
+
+        let attn = Qwen2Attention {
+            q_proj: QuantizedLinear::from_weight(&w_q, None, &qcfg, &device).unwrap(),
+            k_proj: QuantizedLinear::from_weight(&w_k, None, &qcfg, &device).unwrap(),
+            v_proj: QuantizedLinear::from_weight(&w_v, None, &qcfg, &device).unwrap(),
+            o_proj: QuantizedLinear::from_weight(&w_o, None, &qcfg, &device).unwrap(),
+            n_heads,
+            n_kv_heads,
+            head_dim,
+        };
+        let inv_freq = Tensor::randn(0f32, 0.01f32, (inv_half,), &device).unwrap();
+        let x = Tensor::randn(0f32, 0.1f32, (1usize, 5usize, d_model), &device).unwrap();
+        let y = attn.forward(&x, 0, Some(&inv_freq), None).unwrap();
+        assert_eq!(y.dims(), &[1, 5, d_model]);
     }
 }

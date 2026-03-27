@@ -25,6 +25,14 @@ impl crate::VoxDb {
         let current = self.schema_version().await?;
         let mut applied = Vec::new();
         for migration in migrations {
+            if migration.version != crate::schema::BASELINE_VERSION {
+                tracing::warn!(
+                    migration_version = migration.version,
+                    baseline = crate::schema::BASELINE_VERSION,
+                    name = %migration.name,
+                    "Applied migration version differs from Arca BASELINE_VERSION; a later normal `VoxDb::connect` migrate step may treat MAX(schema_version) != baseline as a legacy/non-baseline chain. Prefer tests/ephemeral DBs or fold DDL into baseline fragments."
+                );
+            }
             if migration.version <= current {
                 continue;
             }

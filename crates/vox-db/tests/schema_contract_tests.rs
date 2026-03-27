@@ -56,6 +56,10 @@ async fn published_news_uses_news_id_primary_key() {
         !cols.iter().any(|c| c == "id"),
         "published_news should not use legacy `id` column: {cols:?}"
     );
+    assert!(
+        cols.iter().any(|c| c == "content_sha3_256"),
+        "published_news.content_sha3_256 missing: {cols:?}"
+    );
 }
 
 #[tokio::test]

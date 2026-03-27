@@ -69,7 +69,7 @@ async fn test_research_metrics_telemetry() {
         .unwrap();
     assert_eq!(metrics.len(), 1);
     assert_eq!(metrics[0].0, session_id);
-    assert_eq!(metrics[0].1, 0.95);
+    assert_eq!(metrics[0].1, Some(0.95));
 }
 
 #[tokio::test]

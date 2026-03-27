@@ -42,7 +42,7 @@ If any check fails, `NewsService` skips the item (no publish, no `published_news
 
 ### D. Idempotency (`published_news`)
 
-Before work, `NewsService` skips ids already present. Each publish attempt is recorded in both `news_publish_attempts` and `publication_attempts` (JSON per-channel outcomes). After a successful **live** publish with no enabled-channel failures, `mark_news_published` stores **GitHub, Twitter, and Open Collective** ids in columns matching their names, and the canonical publication state transitions to `published`.
+Before work, `NewsService` skips items whose `published_news` row matches the **current** `content_sha3_256` (legacy NULL-digest rows still block until backfilled; digest-aware republish when body changes). Each publish attempt is recorded in **`publication_attempts`** (`news_publish_attempts` is legacy). After a successful **live** publish with no enabled-channel failures, `mark_news_published` stores the content digest plus **GitHub, Twitter, and Open Collective** ids, and the canonical publication state transitions to `published`.
 
 ### E. Discovery
 

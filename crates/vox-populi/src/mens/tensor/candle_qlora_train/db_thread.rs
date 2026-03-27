@@ -28,13 +28,21 @@ pub(super) fn spawn_training_db_writer(
             };
             rt.block_on(async move {
                 let db = match vox_db::VoxDb::connect_default_with_training_fallback().await {
-                    Ok(d) => d,
+                    Ok(d) => {
+                        tracing::info!(
+                            target: "vox_db::training_telemetry",
+                            run_id = %db_run_id,
+                            "VoxDB training telemetry writer connected"
+                        );
+                        d
+                    }
                     Err(err) => {
                         tracing::warn!(
                             run_id = %db_run_id,
                             error = %err,
                             error_debug = ?err,
-                            "VoxDB unavailable — training telemetry will not be persisted (connect_default failed); disk checkpoints are unaffected"
+                            "VoxDB unavailable — training telemetry will not be persisted (open failed after primary + sidecar fallback); disk checkpoints are unaffected. \
+                             For a legacy main database run `vox codex export-legacy` then import into a fresh DB, or remove a corrupted `vox_training_telemetry.db` under your Vox data dir."
                         );
                         return;
                     }

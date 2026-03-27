@@ -313,27 +313,62 @@ pub fn count_jsonl_records<P: AsRef<Path>>(path: P) -> std::io::Result<usize> {
     Ok(count)
 }
 
-/// Load all records from a JSONL file into memory. Skips malformed lines.
-pub fn load_all<P: AsRef<Path>>(path: P, min_rating: u8) -> std::io::Result<Vec<TrainingPair>> {
-    let file = File::open(path)?;
+/// How to handle lines that are non-empty but not valid [`TrainingPair`] JSON.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MalformedJsonlPolicy {
+    /// Skip bad lines (default mens behavior). Malformed rows are silently dropped.
+    #[default]
+    Skip,
+    /// Fail on the first non-empty line that does not deserialize to a training pair.
+    FailFast,
+}
+
+/// Load all records from a JSONL file into memory.
+///
+/// With [`MalformedJsonlPolicy::Skip`], malformed lines are skipped (historical default).
+pub fn load_all_with_policy<P: AsRef<Path>>(
+    path: P,
+    min_rating: u8,
+    policy: MalformedJsonlPolicy,
+) -> std::io::Result<Vec<TrainingPair>> {
+    let file = File::open(path.as_ref())?;
     let mut out: Vec<TrainingPair> = Vec::new();
+    let mut line_no = 0usize;
     for line in BufReader::new(file).lines() {
         let l = line?;
+        line_no += 1;
         let trimmed = l.trim();
         if trimmed.is_empty() {
             continue;
         }
-        if let Ok(pair) = serde_json::from_str::<TrainingPair>(trimmed) {
-            let passes = match pair.rating {
-                None => true,
-                Some(r) => r >= min_rating,
-            };
-            if passes {
-                out.push(pair);
+        let parsed: serde_json::Result<TrainingPair> = serde_json::from_str(trimmed);
+        let pair = match (parsed, policy) {
+            (Ok(p), _) => p,
+            (Err(e), MalformedJsonlPolicy::FailFast) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "{} line {line_no}: invalid TrainingPair JSON: {e}",
+                        path.as_ref().display()
+                    ),
+                ));
             }
+            (Err(_), MalformedJsonlPolicy::Skip) => continue,
+        };
+        let passes = match pair.rating {
+            None => true,
+            Some(r) => r >= min_rating,
+        };
+        if passes {
+            out.push(pair);
         }
     }
     Ok(out)
+}
+
+/// Load all records from a JSONL file into memory. Skips malformed lines.
+pub fn load_all<P: AsRef<Path>>(path: P, min_rating: u8) -> std::io::Result<Vec<TrainingPair>> {
+    load_all_with_policy(path, min_rating, MalformedJsonlPolicy::Skip)
 }
 
 // ─── tests ────────────────────────────────────────────────────────────────────
@@ -428,6 +463,20 @@ mod tests {
         assert_eq!(pairs.len(), 1);
         assert_eq!(pairs[0].prompt, "hello");
         assert_eq!(pairs[0].response, "world");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_all_failfast_errors_on_bad_json() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("vox_load_failfast.jsonl");
+        {
+            let mut f = std::fs::File::create(&path).unwrap();
+            writeln!(f, r#"{{"prompt":"a","response":"b"}}"#).unwrap();
+            writeln!(f, "not-json").unwrap();
+        }
+        let e = load_all_with_policy(&path, 0, MalformedJsonlPolicy::FailFast).unwrap_err();
+        assert_eq!(e.kind(), std::io::ErrorKind::InvalidData);
         let _ = std::fs::remove_file(&path);
     }
 

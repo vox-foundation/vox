@@ -78,12 +78,12 @@ async fn digest_approval_fallback_uses_legacy_table_for_migration_window() {
 #[tokio::test]
 async fn mark_news_published_column_order_matches_github_twitter_oc() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
-    db.mark_news_published("x", Some("gh"), Some("tw"), Some("oc"))
+    db.mark_news_published("x", "dig-x", Some("gh"), Some("tw"), Some("oc"))
         .await
         .unwrap();
     let rows = db
         .query_all(
-            "SELECT github_release_id, twitter_tweet_id, opencollective_update_id FROM published_news WHERE news_id = 'x'",
+            "SELECT github_release_id, twitter_tweet_id, opencollective_update_id, content_sha3_256 FROM published_news WHERE news_id = 'x'",
             (),
         )
         .await
@@ -92,7 +92,9 @@ async fn mark_news_published_column_order_matches_github_twitter_oc() {
     let gh: String = r.get(0).unwrap();
     let tw: String = r.get(1).unwrap();
     let oc: String = r.get(2).unwrap();
+    let dig: String = r.get(3).unwrap();
     assert_eq!(gh, "gh");
     assert_eq!(tw, "tw");
     assert_eq!(oc, "oc");
+    assert_eq!(dig, "dig-x");
 }

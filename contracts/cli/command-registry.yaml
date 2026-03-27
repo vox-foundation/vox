@@ -109,6 +109,7 @@ operations:
   - { surface: vox-cli, path: [ci, contracts-index], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, scientia-worthiness-contract], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, ssot-drift], status: active, reachability_required: false }
+  - { surface: vox-cli, path: [ci, data-ssot-guards], status: active, reachability_required: false }
   - { surface: vox-cli, path: [ci, release-build], status: active, reachability_required: false }
   - { surface: vox-cli, path: [completions], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }
   - { surface: vox-cli, path: [fabrica], status: active, latin_ns: fabrica, ref_cli_required: false, reachability_required: false }

@@ -31,6 +31,7 @@ pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), StoreError> {
     align_plan_sessions_iterative(conn).await?;
     align_agent_events(conn).await?;
     migrate_published_news_news_id(conn).await?;
+    migrate_published_news_content_digest(conn).await?;
     apply_performance_indexes(conn).await?;
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
@@ -149,14 +150,46 @@ CREATE TABLE published_news__ssot (
     published_at_ms INTEGER NOT NULL,
     github_release_id TEXT,
     twitter_tweet_id TEXT,
-    opencollective_update_id TEXT
+    opencollective_update_id TEXT,
+    content_sha3_256 TEXT
 );
-INSERT INTO published_news__ssot (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id)
-SELECT id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id FROM published_news;
+INSERT INTO published_news__ssot (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id, content_sha3_256)
+SELECT id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id, NULL FROM published_news;
 DROP TABLE published_news;
 ALTER TABLE published_news__ssot RENAME TO published_news;
 "#;
     conn.execute_batch(batch).await?;
+    Ok(())
+}
+
+async fn migrate_published_news_content_digest(conn: &Connection) -> Result<(), StoreError> {
+    let cols = table_column_names(conn, "PRAGMA table_info(published_news)").await?;
+    if cols.is_empty() {
+        return Ok(());
+    }
+    if !has_col(&cols, "content_sha3_256") {
+        conn.execute(
+            "ALTER TABLE published_news ADD COLUMN content_sha3_256 TEXT",
+            (),
+        )
+        .await?;
+    }
+    // libSQL/Turso: avoid correlated subquery in UPDATE (not supported in all builds).
+    let mut rows = conn
+        .query(
+            "SELECT publication_id, content_sha3_256 FROM publication_manifests WHERE content_type = 'news' AND content_sha3_256 IS NOT NULL",
+            (),
+        )
+        .await?;
+    while let Some(r) = rows.next().await? {
+        let pid: String = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let dig: String = r.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        conn.execute(
+            "UPDATE published_news SET content_sha3_256 = ?1 WHERE news_id = ?2 AND content_sha3_256 IS NULL",
+            (dig, pid),
+        )
+        .await?;
+    }
     Ok(())
 }
 

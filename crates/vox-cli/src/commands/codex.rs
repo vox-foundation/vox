@@ -9,7 +9,7 @@ use vox_db::legacy_import_extras::{import_orchestrator_memory_dir, import_skill_
 use vox_db::{Codex, DbConfig, StoreError};
 
 fn resolve_config() -> anyhow::Result<DbConfig> {
-    DbConfig::resolve_standalone().map_err(anyhow::Error::msg)
+    DbConfig::resolve_canonical().map_err(anyhow::Error::msg)
 }
 
 /// Inspect schema version and Codex reactivity tables.
@@ -19,8 +19,8 @@ pub async fn verify() -> anyhow::Result<()> {
         Ok(db) => db,
         Err(StoreError::LegacySchemaChain { max_version }) => {
             anyhow::bail!(
-                "legacy Arca schema chain detected (schema_version max={max_version}).\n\
-                 Remediation:\n  1. Export: `vox codex export-legacy backup.jsonl` (export opens the DB without applying baseline migration).\n  2. Point VOX_DB_PATH at a new file or remove the old database file.\n  3. Open Codex once (e.g. `vox codex verify`) to apply baseline V1.\n  4. Import: `vox codex import-legacy backup.jsonl`."
+                "non-baseline Arca schema detected (schema_version max={max_version}).\n\
+                 Remediation:\n  1. Export: `vox codex export-legacy backup.jsonl` (export opens the DB without applying baseline migration).\n  2. Point VOX_DB_PATH at a new file or remove the old database file.\n  3. Open Codex once (e.g. `vox codex verify`) to apply the current baseline.\n  4. Import: `vox codex import-legacy backup.jsonl`."
             );
         }
         Err(e) => return Err(anyhow::anyhow!("{e}")),
@@ -55,7 +55,11 @@ pub async fn export_legacy(out: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Restore rows from [`export_legacy`] into a **baseline V1** database (normal connect).
+/// Restore rows from [`export_legacy`] into a **baseline** database (normal connect).
+///
+/// **Semantics:** `import-legacy` is **replace**, not append: every allowlisted user table is
+/// cleared first, then rows from the JSONL stream are inserted. Use a fresh target DB or expect a
+/// full overwrite of imported domains.
 pub async fn import_legacy(path: &PathBuf) -> anyhow::Result<()> {
     let db = Codex::connect(resolve_config()?)
         .await

@@ -4,7 +4,7 @@
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml).
 
-**schema_version:** `1` · **vox-cli operations:** 154
+**schema_version:** `1` · **vox-cli operations:** 155
 
 | Path | Status | Feature gate | Latin ns | Catalog group |
 |------|--------|--------------|----------|----------------|
@@ -25,6 +25,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli
 | `vox ci coverage-gates` | active | — | — | — |
 | `vox ci cuda-features` | active | — | — | — |
 | `vox ci cuda-release-build` | active | — | — | — |
+| `vox ci data-ssot-guards` | active | — | — | — |
 | `vox ci doc-inventory` | active | — | — | — |
 | `vox ci eval-matrix` | active | — | — | — |
 | `vox ci eval-matrix run` | active | — | — | — |

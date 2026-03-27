@@ -114,6 +114,7 @@ pub(super) struct TrainingLoopStats {
     pub skip_no_supervised_positions: u64,
     pub skip_short_seq: u64,
     pub skip_curriculum: u64,
+    pub skip_token_id_oob: u64,
 }
 
 /// Load LoRA adapter weights (safetensors) into a trainer's varmap (warm-start).
@@ -267,8 +268,18 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
-    let mut pairs = vox_tensor::data::load_all(&train_path, config.min_rating)
-        .with_context(|| format!("load training data from {}", train_path.display()))?;
+    let jsonl_policy =
+        if std::env::var("VOX_MENS_TRAIN_JSONL_STRICT").unwrap_or_default() == "1" {
+            vox_tensor::data::MalformedJsonlPolicy::FailFast
+        } else {
+            vox_tensor::data::MalformedJsonlPolicy::Skip
+        };
+    let mut pairs = vox_tensor::data::load_all_with_policy(
+        &train_path,
+        config.min_rating,
+        jsonl_policy,
+    )
+    .with_context(|| format!("load training data from {}", train_path.display()))?;
     if let Some(filter) = config.context_filter.as_deref() {
         let needle = filter.trim().to_ascii_lowercase();
         if !needle.is_empty() {
@@ -797,10 +808,26 @@ pub fn run_candle_qlora_train(
         planned_steps: Some(total_steps_planned),
     });
 
+    let resume = training_loop::apply_checkpoint_resume(&mut trainer, config, out, pairs.len())
+        .context("QLoRA checkpoint resume")?;
+
+    training_loop::preflight_masked_ce_finite(
+        &model,
+        &bundle,
+        &pairs,
+        &tokenizer,
+        &device,
+        config,
+        system_prompt,
+        resume.start_epoch,
+    )
+    .context("QLoRA masked CE numeric preflight")?;
+
     let result = training_loop::run_training_loop(
         &mut trainer,
         model,
         &bundle,
+        resume,
         out,
         config,
         pairs,

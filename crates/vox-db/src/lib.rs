@@ -22,6 +22,11 @@
 //! - **In-memory** — `DbConfig::Memory`, tests only (`local` feature)
 //! - **Embedded replica** (local + cloud sync) — `replication` feature
 //!
+//! ## Canonical store (SSOT)
+//!
+//! User-global relational data uses [`DbConfig::resolve_canonical`] / [`canonical_store::resolve_canonical_config`].
+//! Repo-local `.vox/store.db` is for optional artifacts only ([`open_project_db`]). See [`canonical_store`].
+//!
 //! ## Turso batch SQL caveat
 //!
 //! Built-in and app-supplied migrations run through [`turso::Connection::execute_batch`], which uses
@@ -60,6 +65,8 @@ pub mod build_hints;
 pub mod capabilities;
 /// Circuit breaker for write operations.
 pub mod circuit_breaker;
+/// Canonical connect policy helpers (strict vs optional degraded surfaces).
+pub mod connect_policy;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
 mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
@@ -77,6 +84,8 @@ pub mod codex_legacy;
 pub mod codex_schema;
 pub mod collection;
 mod config;
+/// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
+pub mod canonical_store;
 pub mod data_flow;
 pub mod ddl;
 pub mod error_enrichment;
@@ -117,10 +126,15 @@ pub mod workflow_journal;
 
 pub use auto_migrate::AutoMigrator;
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
+pub use connect_policy::{
+    DbConnectSurface, REMEDIATION_CANONICAL_DB, connect_canonical_optional, connect_canonical_strict,
+    format_degraded_optional_connect,
+};
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
 pub use collection::Collection;
+pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use config::DbConfig;
 pub use data_flow::{DataFlowMap, build_data_flow};
 pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};

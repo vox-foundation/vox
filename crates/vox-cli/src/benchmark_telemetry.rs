@@ -1,6 +1,6 @@
 //! Opt-in unified benchmark telemetry to Codex (`research_metrics` type `benchmark_event`).
 //!
-//! Set **`VOX_BENCHMARK_TELEMETRY=1`** (or `true`) to append rows. Uses [`DbConfig::resolve_standalone`]
+//! Set **`VOX_BENCHMARK_TELEMETRY=1`** (or `true`) to append rows. Uses [`DbConfig::resolve_canonical`]
 //! and [`vox_repository::discover_repository_or_fallback`] for connection + `repository_id`.
 //!
 //! When **`VOX_REPOSITORY_ROOT`** is set to a non-empty path, discovery starts there instead of
@@ -62,7 +62,7 @@ pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<s
     if !telemetry_enabled() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(target: "vox.benchmark_telemetry", "skip: db config unresolved");
         return;
     };
@@ -70,7 +70,7 @@ pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<s
     match VoxDb::connect(cfg).await {
         Ok(db) => {
             if let Err(e) = db
-                .record_benchmark_event(&rid, name, metric_value, details)
+                .record_benchmark_event(&rid, name, metric_value, None, details)
                 .await
             {
                 tracing::debug!(
@@ -98,7 +98,7 @@ pub async fn record_syntax_k_opt(
     if !syntax_k_telemetry_enabled() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(target: "vox.benchmark_telemetry", "skip syntax-k: db config unresolved");
         return;
     };
@@ -133,7 +133,7 @@ pub fn record_opt_blocking(
     if !telemetry_enabled() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(target: "vox.benchmark_telemetry", "skip: db config unresolved");
         return;
     };
@@ -142,7 +142,7 @@ pub fn record_opt_blocking(
         match VoxDb::connect(cfg).await {
             Ok(db) => {
                 if let Err(e) = db
-                    .record_benchmark_event(&rid, name, metric_value, details)
+                    .record_benchmark_event(&rid, name, metric_value, None, details)
                     .await
                 {
                     tracing::debug!(
@@ -171,7 +171,7 @@ pub fn record_syntax_k_opt_blocking(
     if !syntax_k_telemetry_enabled() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(target: "vox.benchmark_telemetry", "skip syntax-k: db config unresolved");
         return;
     };

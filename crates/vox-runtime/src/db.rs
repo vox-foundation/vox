@@ -18,7 +18,7 @@ use vox_db::{DbConfig, SchemaDigest, VoxDb};
 static DB: OnceCell<Arc<VoxDb>> = OnceCell::const_new();
 
 fn resolve_db_config() -> Result<DbConfig, StoreError> {
-    DbConfig::resolve_standalone().map_err(|msg| StoreError::Db(msg))
+    DbConfig::resolve_canonical().map_err(StoreError::Db)
 }
 
 /// Initialize the global Codex instance using environment variables.

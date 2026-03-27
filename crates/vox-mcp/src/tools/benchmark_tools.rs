@@ -98,7 +98,7 @@ pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams
             )
             .await,
         _ => db
-            .record_benchmark_event(&rid, &params.name, params.value, params.details)
+            .record_benchmark_event(&rid, &params.name, params.value, None, params.details)
             .await,
     };
     match res {

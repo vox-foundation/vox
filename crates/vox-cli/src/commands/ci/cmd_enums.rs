@@ -25,6 +25,9 @@ pub enum CiCmd {
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
+    /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
+    #[command(name = "data-ssot-guards")]
+    DataSsotGuards,
     /// `cargo check -p vox-cli` for each supported feature set.
     #[command(name = "feature-matrix")]
     FeatureMatrix,

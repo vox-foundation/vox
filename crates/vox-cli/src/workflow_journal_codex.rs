@@ -28,7 +28,7 @@ async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
     if !journal_codex_enabled() || journal.is_empty() {
         return;
     }
-    let Ok(cfg) = DbConfig::resolve_standalone() else {
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(
             target: "vox.workflow_journal",
             "skip Codex persist: db config unresolved"

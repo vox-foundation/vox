@@ -26,6 +26,7 @@ ci/contracts-index
 ci/coverage-gates
 ci/cuda-features
 ci/cuda-release-build
+ci/data-ssot-guards
 ci/doc-inventory
 ci/doc-inventory/generate
 ci/doc-inventory/verify

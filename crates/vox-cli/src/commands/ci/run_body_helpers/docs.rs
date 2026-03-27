@@ -274,6 +274,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     command_compliance::run(root)?;
     contracts_index::run(root)?;
     scientia_worthiness_contract::run(root)?;
+    super::run_data_ssot_guards(root)?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

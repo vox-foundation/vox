@@ -295,6 +295,7 @@ pub async fn bench_build_run(
                             &repo_id,
                             "cargo_build_metrics",
                             Some(total_ms as f64 / 1000.0),
+                            Some("seconds"),
                             Some(details),
                         )
                         .await;

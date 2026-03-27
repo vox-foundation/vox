@@ -6,6 +6,7 @@ impl VoxDb {
     pub async fn mark_news_published(
         &self,
         id: &str,
+        content_sha3_256: &str,
         github_release_id: Option<&str>,
         twitter_tweet_id: Option<&str>,
         opencollective_update_id: Option<&str>,
@@ -17,27 +18,43 @@ impl VoxDb {
 
         self.conn
             .execute(
-                "INSERT OR REPLACE INTO published_news (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id) VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT OR REPLACE INTO published_news (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id, content_sha3_256) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 (
                     id.to_string(),
                     now,
                     github_release_id,
                     twitter_tweet_id,
                     opencollective_update_id,
+                    content_sha3_256.to_string(),
                 ),
             )
             .await?;
         Ok(())
     }
 
-    pub async fn is_news_published(&self, id: &str) -> Result<bool, StoreError> {
+    /// `true` when this news id was marked published **for this exact content digest** (or legacy row with unknown digest — see below).
+    ///
+    /// Legacy rows may have `content_sha3_256` NULL after migration; those are treated as published
+    /// for any digest until operators backfill or re-publish (avoids mass duplicate syndication on upgrade).
+    pub async fn is_news_published_for_content(
+        &self,
+        id: &str,
+        content_sha3_256: &str,
+    ) -> Result<bool, StoreError> {
         let rows = self
             .query_all(
-                "SELECT 1 FROM published_news WHERE news_id = ?1",
+                "SELECT content_sha3_256 FROM published_news WHERE news_id = ?1",
                 (id.to_string(),),
             )
             .await?;
-        Ok(!rows.is_empty())
+        let Some(row) = rows.first() else {
+            return Ok(false);
+        };
+        let stored: Option<String> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        match stored.as_deref() {
+            None | Some("") => Ok(true),
+            Some(s) => Ok(s == content_sha3_256),
+        }
     }
 
     /// Record a single approver for a news item id (idempotent per `(news_id, approver)`).

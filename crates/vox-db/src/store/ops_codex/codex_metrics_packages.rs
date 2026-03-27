@@ -29,19 +29,22 @@ impl crate::VoxDb {
     /// Fetch the newest `research_metrics` rows of `metric_type` where `session_id` starts with
     /// `session_prefix` (prefix match via `LIKE`). Returns `(session_id, metric_value, metadata_json)`.
     ///
+    /// `metric_value` is `None` when the row stored SQL `NULL` (do not coerce to `0.0`; see
+    /// `docs/src/reference/telemetry-metric-contract.md`).
+    ///
     /// Called from `vox-db/src/socrates_telemetry.rs` `VoxDb::list_socrates_surface_events`.
     pub async fn list_research_metrics_by_type(
         &self,
         metric_type: &str,
         session_prefix: &str,
         limit: i64,
-    ) -> Result<Vec<(String, f64, Option<String>)>, StoreError> {
+    ) -> Result<Vec<(String, Option<f64>, Option<String>)>, StoreError> {
         let lim = limit.clamp(1, 10_000);
         let pattern = format!("{session_prefix}%");
         let mut rows = self
             .conn
             .query(
-                "SELECT session_id, COALESCE(metric_value, 0.0), metadata_json
+                "SELECT session_id, metric_value, metadata_json
                  FROM research_metrics
                  WHERE metric_type = ?1
                    AND (?2 = '%' OR session_id LIKE ?2)
@@ -52,7 +55,7 @@ impl crate::VoxDb {
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             let sid: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            let mv: f64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let mv: Option<f64> = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
             let meta: Option<String> = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
             out.push((sid, mv, meta));
         }

@@ -50,9 +50,15 @@ async fn news_tick_blocks_when_not_armed() {
     let feed_path = tmp.path().join("feed.xml");
 
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
+    let content = fs::read_to_string(news_dir.join(format!("{id}.md"))).expect("read");
+    let item = UnifiedNewsItem::parse(&content, id).expect("parse");
+    let digest = item.content_sha3_256();
     let orch = Orchestrator::new(build_config(&news_dir, &feed_path, false)).with_db(db.clone());
     NewsService::tick(&orch).await.expect("tick");
-    let published = db.is_news_published(id).await.expect("query");
+    let published = db
+        .is_news_published_for_content(id, &digest)
+        .await
+        .expect("query");
     assert!(!published);
 }
 
@@ -85,7 +91,10 @@ async fn news_tick_publishes_when_armed_and_digest_has_dual_approval() {
     let orch = Orchestrator::new(build_config(&news_dir, &feed_path, true)).with_db(db.clone());
     NewsService::tick(&orch).await.expect("tick");
 
-    let published = db.is_news_published(id).await.expect("query");
+    let published = db
+        .is_news_published_for_content(id, &digest)
+        .await
+        .expect("query");
     assert!(published);
 }
 
@@ -121,6 +130,9 @@ async fn news_tick_blocks_when_worthiness_enforced_and_below_floor() {
     let orch = Orchestrator::new(cfg).with_db(db.clone());
     NewsService::tick(&orch).await.expect("tick");
 
-    let published = db.is_news_published(id).await.expect("query");
+    let published = db
+        .is_news_published_for_content(id, &digest)
+        .await
+        .expect("query");
     assert!(!published);
 }

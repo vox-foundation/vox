@@ -10,7 +10,7 @@ training_eligible: true
 
 Greenfield **Codex** releases do not rely on an unbounded chain of old SQL migrations as the primary story. Instead:
 
-1. **Baseline schema** — Arca applies one manifest-defined DDL snapshot on Turso; `schema_version` stores **1** only. Legacy multi-row chains require export → fresh DB → import.
+1. **Baseline schema** — Arca applies one manifest-defined DDL snapshot on Turso; `schema_version` holds the single maintained **`BASELINE_VERSION`** (see `crates/vox-db/src/schema/manifest.rs`). Any `MAX(schema_version)` not equal to that baseline is treated as non-baseline / legacy for normal opens. Legacy multi-row chains require export → fresh DB → import.
 2. **Importers** — Rust modules read legacy exports or attached old DBs and write normalized rows into the new baseline.
 
 ## API surface (crate)
@@ -24,7 +24,13 @@ Greenfield **Codex** releases do not rely on an unbounded chain of old SQL migra
 - `vox codex import-legacy` — full snapshot restore: **DELETE** all `LEGACY_EXPORT_TABLES` on the target, then **INSERT** rows from JSONL (fresh baseline DB only; not a merge)
 - `vox codex cutover` — **local** legacy file → timestamped `codex-cutover-*.jsonl` + `.sidecar.json`, new `--target-db`, import, verify
 
-See [ref-cli.md](../reference/cli.md).
+See [cli.md](../reference/cli.md).
+
+## Training telemetry SQLite sidecar (not JSONL cutover)
+
+When the **canonical** `vox.db` is still on a legacy chain, [`VoxDb::connect_default_with_training_fallback`](../../crates/vox-db/src/facade/connect.rs) may open or reset **`vox_training_telemetry.db`** next to `vox.db` so Mens training can persist runs. This is **transitional** only; after you migrate the main DB, telemetry converges on the canonical file.
+
+Operator guide: [how-to-voxdb-canonical-store](../how-to/how-to-voxdb-canonical-store.md).
 
 ## Import sources
 

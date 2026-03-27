@@ -3,6 +3,10 @@
 //! Prefer [`crate::builtin_migrations`] when you need the canonical baseline snapshot as a single
 //! migration row at [`crate::schema::BASELINE_VERSION`]. For custom migrations, ensure [`Migration::up_sql`] is compatible with
 //! [`turso::Connection::execute_batch`] (no row-returning statements).
+//!
+//! **Warning:** versions other than [`crate::schema::BASELINE_VERSION`] make `MAX(schema_version) != BASELINE_VERSION`,
+//! so the next normal [`crate::VoxDb::connect`] will report [`crate::StoreError::LegacySchemaChain`]. Use custom
+//! [`Migration`] rows only on ephemeral DBs, tests, or with a plan to re-baseline the file.
 
 use crate::store::StoreError;
 

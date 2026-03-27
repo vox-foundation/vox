@@ -22,11 +22,313 @@ use crate::mens::tensor::{
     training_text::plain_system_prompt_response,
 };
 
+#[derive(Debug, Clone)]
+pub(super) struct QloraTrainingResume {
+    pub start_epoch: usize,
+    pub global_step: u32,
+    pub resume_pair_offset: usize,
+    pub resume_shuffled_indices: Option<Vec<usize>>,
+}
+
+pub(super) fn apply_checkpoint_resume(
+    trainer: &mut QLoraTrainer,
+    config: &LoraTrainingConfig,
+    out: &Path,
+    pairs_len: usize,
+) -> Result<QloraTrainingResume> {
+    let mut start_epoch = 1usize;
+    let mut global_step = 0u32;
+    let mut resume_pair_offset = 0usize;
+    let mut resume_shuffled_indices: Option<Vec<usize>> = None;
+
+    let checkpoint_root = config.resume_from.as_deref().unwrap_or(out);
+    if !config.force_restart
+        && let Some(ckpt) = CheckpointState::load(checkpoint_root)
+    {
+        train_log::info(&format!(
+            "Checkpoint found in {} — resuming from epoch={} global_step={} pair_offset={}",
+            checkpoint_root.display(),
+            ckpt.epoch,
+            ckpt.global_step,
+            ckpt.pair_offset
+        ));
+        if std::path::Path::new(&ckpt.adapter_path).exists() {
+            if let Err(err) =
+                load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path))
+            {
+                train_log::warn(&format!(
+                    "Resume adapter load failed for {}: {err}",
+                    ckpt.adapter_path
+                ));
+            }
+        } else {
+            train_log::warn(&format!(
+                "Resume checkpoint references missing adapter {}; continuing with fresh adapter weights.",
+                ckpt.adapter_path
+            ));
+        }
+        start_epoch = ckpt.epoch as usize;
+        global_step = ckpt.global_step;
+        resume_pair_offset = ckpt.pair_offset;
+        if ckpt.shuffled_indices.is_empty() {
+            train_log::warn(
+                "Resume checkpoint did not include shuffled_indices (epoch-boundary checkpoint); reshuffling for resume epoch.",
+            );
+            resume_shuffled_indices = None;
+            resume_pair_offset = 0;
+        } else {
+            let (validated_indices, dropped_bad_indices) =
+                sanitize_resume_indices(&ckpt.shuffled_indices, pairs_len);
+            if dropped_bad_indices > 0 {
+                train_log::warn(&format!(
+                    "Resume checkpoint shuffled_indices dropped {} out-of-range/duplicate entries; reshuffling current epoch.",
+                    dropped_bad_indices
+                ));
+                resume_shuffled_indices = None;
+                resume_pair_offset = 0;
+            } else if validated_indices.len() != pairs_len {
+                train_log::warn(&format!(
+                    "Resume checkpoint shuffled_indices length {} does not match current dataset size {}; reshuffling current epoch.",
+                    validated_indices.len(),
+                    pairs_len
+                ));
+                resume_shuffled_indices = None;
+                resume_pair_offset = 0;
+            } else {
+                resume_shuffled_indices = Some(validated_indices);
+            }
+        }
+    }
+
+    Ok(QloraTrainingResume {
+        start_epoch,
+        global_step,
+        resume_pair_offset,
+        resume_shuffled_indices,
+    })
+}
+
+fn max_difficulty_for_epoch(epoch: usize, config: &LoraTrainingConfig) -> u8 {
+    if !config.curriculum {
+        return 10;
+    }
+    if config.epochs > 1 {
+        let progress = (epoch - 1) as f32 / (config.epochs - 1) as f32;
+        (3.0 + progress * 7.0).ceil() as u8
+    } else {
+        10
+    }
+}
+
+struct EncodedTrainStep {
+    raw_token_len: usize,
+    ids: Vec<u32>,
+    prefix_len: usize,
+    trunc_offset: usize,
+    sample_weight: f64,
+}
+
+enum TryEncodeOutcome {
+    Encoded(EncodedTrainStep),
+    SkipCurriculum,
+    SkipShortSeq,
+}
+
+fn try_encode_training_step(
+    pair: &TrainingPair,
+    system_prompt: &str,
+    tokenizer: &Tokenizer,
+    config: &LoraTrainingConfig,
+    max_difficulty: u8,
+) -> Result<TryEncodeOutcome> {
+    if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
+        return Ok(TryEncodeOutcome::SkipCurriculum);
+    }
+    let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
+    let prefix_text = plain_system_prompt_response(system_prompt, &pair.prompt, "");
+    let prefix_enc = tokenizer
+        .encode(prefix_text, true)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let prefix_len = prefix_enc.get_ids().len();
+    let enc = tokenizer
+        .encode(text, true)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let mut ids = enc.get_ids().to_vec();
+    let raw_token_len = ids.len();
+    let mut trunc_offset = 0usize;
+    if ids.len() > config.seq_len {
+        trunc_offset = ids.len() - config.seq_len;
+        ids = ids[trunc_offset..].to_vec();
+    }
+    if ids.len() < 2 {
+        return Ok(TryEncodeOutcome::SkipShortSeq);
+    }
+    let (sample_weight, _) = trajectory_weight_for_pair(pair, config);
+    Ok(TryEncodeOutcome::Encoded(EncodedTrainStep {
+        raw_token_len,
+        ids,
+        prefix_len,
+        trunc_offset,
+        sample_weight,
+    }))
+}
+
+pub(super) fn token_ids_in_model_vocab(ids: &[u32], vocab: usize) -> bool {
+    if vocab == 0 {
+        return false;
+    }
+    ids.iter().all(|&id| (id as usize) < vocab)
+}
+
+pub(super) enum MaskedCeForward {
+    NoSupervision,
+    NonFinite { kind: &'static str, mask_sum: f32 },
+    Finite {
+        loss: candle_core::Tensor,
+        loss_scalar: f32,
+    },
+}
+
+pub(super) fn forward_masked_ce(
+    model: &super::TrainGraphModel,
+    ids: &[u32],
+    prefix_len: usize,
+    trunc_offset: usize,
+    sample_weight: f64,
+    config: &LoraTrainingConfig,
+    device: &Device,
+) -> Result<MaskedCeForward> {
+    let ids_len = ids.len();
+    if ids_len < 2 {
+        return Ok(MaskedCeForward::NoSupervision);
+    }
+    let input_ids = candle_core::Tensor::new(&ids[..ids_len - 1], device)?.unsqueeze(0)?;
+    let targets = candle_core::Tensor::new(&ids[1..], device)?.unsqueeze(0)?;
+
+    let logits = model.forward(&input_ids)?;
+    let logits = logits.flatten_to(1)?;
+    let targets_flat = targets.flatten_all()?;
+
+    let prompt_len = prefix_len.saturating_sub(trunc_offset);
+    let ce_last_k = if config.qlora_ce_last_k == 0 {
+        ids_len
+    } else {
+        config.qlora_ce_last_k
+    };
+    let last_k_start = ids_len.saturating_sub(ce_last_k);
+
+    let mask_vec: Vec<f32> = (0..ids_len - 1)
+        .map(|i| {
+            let target_idx = i + 1;
+            if target_idx >= prompt_len && target_idx >= last_k_start {
+                1.0f32
+            } else {
+                0.0
+            }
+        })
+        .collect();
+    let mask = candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device)?;
+
+    let mask_sum = mask.sum_all()?.to_scalar::<f32>()?;
+    if mask_sum <= 0.0 || !mask_sum.is_finite() {
+        return Ok(MaskedCeForward::NoSupervision);
+    }
+
+    let log_sm = candle_nn::ops::log_softmax(&logits, 1)?;
+    let logprobs = log_sm
+        .gather(&targets_flat.unsqueeze(1)?, 1)?
+        .flatten_all()?;
+    let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
+    let w = -sample_weight as f32;
+    let w_t = candle_core::Tensor::new(&[w], device)?;
+    let loss = loss.broadcast_mul(&w_t)?;
+
+    let loss_scalar = match loss.rank() {
+        0 => loss.to_scalar::<f32>()?,
+        1 if loss.dim(0)? == 1 => loss.squeeze(0)?.to_scalar::<f32>()?,
+        r => {
+            anyhow::bail!("unexpected loss rank: expected scalar or [1], got rank={r}")
+        }
+    };
+    if !loss_scalar.is_finite() {
+        let kind = if loss_scalar.is_nan() {
+            "nan"
+        } else {
+            "inf"
+        };
+        return Ok(MaskedCeForward::NonFinite { kind, mask_sum });
+    }
+
+    Ok(MaskedCeForward::Finite { loss, loss_scalar })
+}
+
+pub(super) fn preflight_masked_ce_finite(
+    model: &super::TrainGraphModel,
+    bundle: &QloraEmbedBundle,
+    pairs: &[TrainingPair],
+    tokenizer: &Tokenizer,
+    device: &Device,
+    config: &LoraTrainingConfig,
+    system_prompt: &str,
+    start_epoch: usize,
+) -> Result<()> {
+    let max_diff = max_difficulty_for_epoch(start_epoch, config);
+    let vocab = bundle.vocab;
+    for (pair_idx, pair) in pairs.iter().enumerate() {
+        let enc = match try_encode_training_step(
+            pair,
+            system_prompt,
+            tokenizer,
+            config,
+            max_diff,
+        )? {
+            TryEncodeOutcome::SkipCurriculum | TryEncodeOutcome::SkipShortSeq => continue,
+            TryEncodeOutcome::Encoded(enc) => enc,
+        };
+
+        if !token_ids_in_model_vocab(&enc.ids, vocab) {
+            let max_id = enc.ids.iter().copied().max().unwrap_or(0);
+            anyhow::bail!(
+                "masked CE preflight: token id out of model vocab range (max_id={max_id}, vocab_size={vocab}) at pair index {pair_idx}; \
+                 align the HF tokenizer with the base checkpoint or set VOX_MENS_TRAIN_JSONL_STRICT=1 for earlier JSONL validation"
+            );
+        }
+
+        match forward_masked_ce(
+            model,
+            &enc.ids,
+            enc.prefix_len,
+            enc.trunc_offset,
+            enc.sample_weight,
+            config,
+            device,
+        )? {
+            MaskedCeForward::NoSupervision => continue,
+            MaskedCeForward::NonFinite { kind, mask_sum } => {
+                anyhow::bail!(
+                    "masked CE preflight failed: non-finite loss ({kind}) before training (mask_sum={mask_sum:.6}, pair_idx={pair_idx}); \
+                     check vocab/tokenizer alignment, logits NaNs, or CUDA numerics"
+                );
+            }
+            MaskedCeForward::Finite { .. } => {
+                train_log::info(
+                    "Masked CE numeric preflight passed (finite loss on first eligible batch).",
+                );
+                return Ok(());
+            }
+        }
+    }
+    anyhow::bail!(
+        "masked CE preflight: no eligible pair produced supervised CE — add assistant tokens in the CE window or relax curriculum"
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn run_training_loop(
     trainer: &mut QLoraTrainer,
     model: super::TrainGraphModel,
     bundle: &QloraEmbedBundle,
+    resume: QloraTrainingResume,
     out: &Path,
     config: &LoraTrainingConfig,
     pairs: Vec<TrainingPair>,
@@ -74,71 +376,12 @@ pub(super) fn run_training_loop(
         }
     };
 
-    // ── Resume detection ─────────────────────────────────────────────────────
-    let mut start_epoch = 1usize;
-    let mut global_step = 0u32;
-    let mut resume_pair_offset = 0usize;
-    let mut resume_shuffled_indices: Option<Vec<usize>> = None;
-
-    let checkpoint_root = config.resume_from.as_deref().unwrap_or(out);
-    if !config.force_restart
-        && let Some(ckpt) = CheckpointState::load(checkpoint_root)
-    {
-        train_log::info(&format!(
-            "Checkpoint found in {} — resuming from epoch={} global_step={} pair_offset={}",
-            checkpoint_root.display(),
-            ckpt.epoch,
-            ckpt.global_step,
-            ckpt.pair_offset
-        ));
-        // Attempt to warm-start LoRA weights
-        if std::path::Path::new(&ckpt.adapter_path).exists() {
-            if let Err(err) =
-                load_adapter_into_trainer(trainer, std::path::Path::new(&ckpt.adapter_path))
-            {
-                train_log::warn(&format!(
-                    "Resume adapter load failed for {}: {err}",
-                    ckpt.adapter_path
-                ));
-            }
-        } else {
-            train_log::warn(&format!(
-                "Resume checkpoint references missing adapter {}; continuing with fresh adapter weights.",
-                ckpt.adapter_path
-            ));
-        }
-        start_epoch = ckpt.epoch as usize;
-        global_step = ckpt.global_step;
-        resume_pair_offset = ckpt.pair_offset;
-        if ckpt.shuffled_indices.is_empty() {
-            train_log::warn(
-                "Resume checkpoint did not include shuffled_indices (epoch-boundary checkpoint); reshuffling for resume epoch.",
-            );
-            resume_shuffled_indices = None;
-            resume_pair_offset = 0;
-        } else {
-            let (validated_indices, dropped_bad_indices) =
-                sanitize_resume_indices(&ckpt.shuffled_indices, pairs.len());
-            if dropped_bad_indices > 0 {
-                train_log::warn(&format!(
-                    "Resume checkpoint shuffled_indices dropped {} out-of-range/duplicate entries; reshuffling current epoch.",
-                    dropped_bad_indices
-                ));
-                resume_shuffled_indices = None;
-                resume_pair_offset = 0;
-            } else if validated_indices.len() != pairs.len() {
-                train_log::warn(&format!(
-                    "Resume checkpoint shuffled_indices length {} does not match current dataset size {}; reshuffling current epoch.",
-                    validated_indices.len(),
-                    pairs.len()
-                ));
-                resume_shuffled_indices = None;
-                resume_pair_offset = 0;
-            } else {
-                resume_shuffled_indices = Some(validated_indices);
-            }
-        }
-    }
+    let QloraTrainingResume {
+        start_epoch,
+        mut global_step,
+        resume_pair_offset,
+        resume_shuffled_indices,
+    } = resume;
 
     // ── Training manifest ─────────────────────────────────────────────────────
     manifest::write_training_manifest(
@@ -218,6 +461,8 @@ pub(super) fn run_training_loop(
     let mut skip_no_supervised_positions: u64 = 0;
     let mut skip_short_seq: u64 = 0;
     let mut skip_curriculum: u64 = 0;
+    let mut skip_token_id_oob: u64 = 0;
+    let mut token_oob_warned = false;
     let mut trajectory_weighted_pairs: u64 = 0;
     let mut trajectory_clamped_pairs: u64 = 0;
 
@@ -281,135 +526,101 @@ pub(super) fn run_training_loop(
                 trajectory_clamped_pairs += 1;
             }
 
-            // Curriculum filter
-            if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
-                skip_curriculum += 1;
+            let enc = match try_encode_training_step(
+                pair,
+                system_prompt,
+                tokenizer,
+                config,
+                max_difficulty,
+            )? {
+                TryEncodeOutcome::SkipCurriculum => {
+                    skip_curriculum += 1;
+                    continue;
+                }
+                TryEncodeOutcome::SkipShortSeq => {
+                    skip_short_seq += 1;
+                    continue;
+                }
+                TryEncodeOutcome::Encoded(enc) => enc,
+            };
+
+            total_tokens += enc.raw_token_len;
+
+            if !token_ids_in_model_vocab(&enc.ids, bundle.vocab) {
+                skip_token_id_oob += 1;
+                if !token_oob_warned {
+                    token_oob_warned = true;
+                    let max_id = enc.ids.iter().copied().max().unwrap_or(0);
+                    train_log::warn(&format!(
+                        "token id out of model vocab range (max_id={max_id}, vocab_size={}, pair_real_idx={pair_real_idx}); \
+                         skipping pairs with OOV ids — align HF tokenizer with base checkpoint or set VOX_MENS_TRAIN_JSONL_STRICT=1 for earlier JSONL validation",
+                        bundle.vocab
+                    ));
+                }
                 continue;
             }
 
-            let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
-            let prefix_text = plain_system_prompt_response(system_prompt, &pair.prompt, "");
-            let prefix_enc = tokenizer
-                .encode(prefix_text, true)
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            let prefix_len = prefix_enc.get_ids().len();
-            let enc = tokenizer
-                .encode(text, true)
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            let mut ids = enc.get_ids().to_vec();
-            let mut trunc_offset = 0usize;
-            total_tokens += ids.len();
-            if ids.len() > config.seq_len {
-                trunc_offset = ids.len() - config.seq_len;
-                ids = ids[trunc_offset..].to_vec();
-            }
-            if ids.len() < 2 {
-                skip_short_seq += 1;
-                continue; // skip sequences too short to form an input/target pair
-            }
-
-            // Separate input (all but last) and target (all but first) tokens
-            let input_ids =
-                candle_core::Tensor::new(&ids[..ids.len() - 1], device)?.unsqueeze(0)?;
-            let targets = candle_core::Tensor::new(&ids[1..], device)?.unsqueeze(0)?;
-
             let mut lr_applied_this_step = 0.0_f64;
             let loss_val = (|| -> Result<Option<f32>> {
-                let logits = model.forward(&input_ids)?;
-                // [batch, seq-1, vocab] → [batch*(seq-1), vocab]
-                let logits = logits.flatten_to(1)?;
-                let targets_flat = targets.flatten_all()?;
-
-                // ── Supervision masking ───────────────────────────────────────
-                // `plain_system_prompt_response` builds "system\\nprompt\\nresponse", so we
-                // derive the mask boundary from the exact tokenized prefix and then adjust it
-                // for left-truncation.
-                let prompt_len = prefix_len.saturating_sub(trunc_offset);
-                let ids_len = ids.len();
-                let ce_last_k = if config.qlora_ce_last_k == 0 {
-                    ids_len
-                } else {
-                    config.qlora_ce_last_k
-                };
-                let last_k_start = ids_len.saturating_sub(ce_last_k);
-
-                // Mask tokens that belong to the prompt (system + human)
-                // IDs are [seq] (input is ids[..n-1], targets are ids[1..n])
-                // If ids = [S, H, A, A], seq=4. input=[S, H, A], targets=[H, A, A].
-                // prompt_len (S+H) = 2. we want mask=[0, 1, 1] relative to targets.
-                let mask_vec: Vec<f32> = (0..ids_len - 1)
-                    .map(|i| {
-                        let target_idx = i + 1;
-                        if target_idx >= prompt_len && target_idx >= last_k_start {
-                            1.0f32
+                match forward_masked_ce(
+                    &model,
+                    &enc.ids,
+                    enc.prefix_len,
+                    enc.trunc_offset,
+                    enc.sample_weight,
+                    config,
+                    device,
+                )? {
+                    MaskedCeForward::NoSupervision => {
+                        skip_no_supervised_positions += 1;
+                        let prompt_len = enc.prefix_len.saturating_sub(enc.trunc_offset);
+                        let ids_len = enc.ids.len();
+                        let ce_last_k = if config.qlora_ce_last_k == 0 {
+                            ids_len
                         } else {
-                            0.0
-                        }
-                    })
-                    .collect();
-                let mask = candle_core::Tensor::from_vec(mask_vec, ids_len - 1, device)?;
-
-                let mask_sum = mask.sum_all()?.to_scalar::<f32>()?;
-                if mask_sum <= 0.0 || !mask_sum.is_finite() {
-                    skip_no_supervised_positions += 1;
-                    // No overlap between last-K CE window and assistant tokens (e.g. truncated
-                    // away or empty response) — avoid 0/0 NaN and do not call backward.
-                    train_log::debug(&format!(
-                        "skip pair: no supervised CE positions (prompt_len={} last_k_start={} seq={})",
-                        prompt_len, last_k_start, ids_len
-                    ));
-                    return Ok(None);
-                }
-
-                // Apply mask to loss (cross_entropy already averages, so we need per-token CE)
-                // For custom masking we use log_softmax + gather.
-                let log_sm = candle_nn::ops::log_softmax(&logits, 1)?;
-                let logprobs = log_sm
-                    .gather(&targets_flat.unsqueeze(1)?, 1)?
-                    .flatten_all()?;
-                let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
-                // Invert sign (log_softmax is negative) and apply trajectory sample weight.
-                let w = -sample_weight as f32;
-                let w_t = candle_core::Tensor::new(&[w], device)?;
-                let loss = loss.broadcast_mul(&w_t)?;
-
-                let loss_scalar = match loss.rank() {
-                    0 => loss.to_scalar::<f32>()?,
-                    1 if loss.dim(0)? == 1 => loss.squeeze(0)?.to_scalar::<f32>()?,
-                    r => {
-                        anyhow::bail!("unexpected loss rank: expected scalar or [1], got rank={r}")
+                            config.qlora_ce_last_k
+                        };
+                        let last_k_start = ids_len.saturating_sub(ce_last_k);
+                        train_log::debug(&format!(
+                            "skip pair: no supervised CE positions (prompt_len={} last_k_start={} seq={})",
+                            prompt_len, last_k_start, ids_len
+                        ));
+                        Ok(None)
                     }
-                };
-                if !loss_scalar.is_finite() {
-                    train_log::warn(&format!(
-                        "⚠ Non-finite loss before backward at epoch {} step {} (skip update); try --lr or check data",
-                        epoch, global_step
-                    ));
-                    return Ok(None);
+                    MaskedCeForward::NonFinite { kind, mask_sum } => {
+                        let prompt_len = enc.prefix_len.saturating_sub(enc.trunc_offset);
+                        let ids_len = enc.ids.len();
+                        train_log::warn(&format!(
+                            "⚠ Non-finite loss ({kind}) before backward at epoch {epoch} micro_step {global_step} (skip update); \
+                             mask_sum={mask_sum:.3} sample_weight={:.3} seq_len={ids_len} prompt_len_adj={prompt_len} — \
+                             often indicates NaN logits from the forward pass (try smaller --seq-len, lower --lr, or CPU check) or bad token ids vs vocab",
+                            enc.sample_weight,
+                        ));
+                        Ok(None)
+                    }
+                    MaskedCeForward::Finite { loss, loss_scalar } => {
+                        trainer
+                            .backward_step(&loss)
+                            .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+                        lr_applied_this_step = trainer.current_lr();
+
+                        let lr_next = compute_cosine_lr(
+                            optimizer_step_count,
+                            warmup_steps,
+                            total_optimizer_steps_planned,
+                            config.learning_rate,
+                        );
+                        let micro_step_after_backward = global_step + 1;
+                        if micro_step_after_backward.is_multiple_of(grad_accum) {
+                            optimizer_step_count += 1;
+                            trainer.config.adapter_config.learning_rate = lr_next;
+                            trainer.update_lr();
+                        }
+
+                        Ok(Some(loss_scalar))
+                    }
                 }
-
-                trainer
-                    .backward_step(&loss)
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-                // LR that was in effect for the backward/optimizer step above (before we bump for next step).
-                lr_applied_this_step = trainer.current_lr();
-
-                // ── Cosine LR schedule for the *next* step ────────────────────
-                let lr_next = compute_cosine_lr(
-                    optimizer_step_count,
-                    warmup_steps,
-                    total_optimizer_steps_planned,
-                    config.learning_rate,
-                );
-                let micro_step_after_backward = global_step + 1;
-                if micro_step_after_backward.is_multiple_of(grad_accum) {
-                    optimizer_step_count += 1;
-                    trainer.config.adapter_config.learning_rate = lr_next;
-                    trainer.update_lr();
-                }
-
-                Ok(Some(loss_scalar))
             })()?;
 
             let Some(loss_val) = loss_val else {
@@ -467,7 +678,7 @@ pub(super) fn run_training_loop(
                     .map(|v| format!("{:.4}", v))
                     .unwrap_or_else(|| "----".to_string());
                 train_log::info(&format!(
-                    "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={}) traj(weighted_pairs={},clamped_pairs={})",
+                    "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={},oob={}) traj(weighted_pairs={},clamped_pairs={})",
                     epoch,
                     config.epochs,
                     global_step,
@@ -481,6 +692,7 @@ pub(super) fn run_training_loop(
                     skip_no_supervised_positions,
                     skip_short_seq,
                     skip_curriculum,
+                    skip_token_id_oob,
                     trajectory_weighted_pairs,
                     trajectory_clamped_pairs
                 ));
@@ -495,6 +707,7 @@ pub(super) fn run_training_loop(
                     skip_no_supervised_positions,
                     skip_short_seq,
                     skip_curriculum,
+                    skip_token_id_oob,
                     trajectory_weighted_pairs,
                     trajectory_clamped_pairs,
                     ema_steps_per_sec,
@@ -606,6 +819,7 @@ pub(super) fn run_training_loop(
             skip_no_supervised_positions,
             skip_short_seq,
             skip_curriculum,
+            skip_token_id_oob,
         },
         run_start_inst,
     )
@@ -687,6 +901,7 @@ fn build_train_step_payload(
     skip_no_supervised_positions: u64,
     skip_short_seq: u64,
     skip_curriculum: u64,
+    skip_token_id_oob: u64,
     trajectory_weighted_pairs: u64,
     trajectory_clamped_pairs: u64,
     ema_steps_per_sec: Option<f64>,
@@ -703,6 +918,7 @@ fn build_train_step_payload(
         "skip_no_supervised_positions": skip_no_supervised_positions,
         "skip_short_seq": skip_short_seq,
         "skip_curriculum": skip_curriculum,
+        "skip_token_id_oob": skip_token_id_oob,
         "trajectory_weighted_pairs": trajectory_weighted_pairs,
         "trajectory_clamped_pairs": trajectory_clamped_pairs,
     })
@@ -712,12 +928,32 @@ fn build_train_step_payload(
 mod tests {
     use super::{
         build_epoch_shuffled_indices, build_train_step_payload, sanitize_resume_indices,
-        trajectory_weight_for_pair,
+        token_ids_in_model_vocab, trajectory_weight_for_pair,
     };
     use rand::SeedableRng;
     use vox_tensor::data::TrainingPair;
 
     use crate::mens::tensor::training_config::LoraTrainingConfig;
+
+    #[test]
+    fn token_ids_in_model_vocab_accepts_in_range() {
+        assert!(token_ids_in_model_vocab(&[0, 10, 99], 100));
+    }
+
+    #[test]
+    fn token_ids_in_model_vocab_rejects_when_id_ge_vocab() {
+        assert!(!token_ids_in_model_vocab(&[0, 100], 100));
+    }
+
+    #[test]
+    fn token_ids_in_model_vocab_empty_allowed_when_vocab_nonzero() {
+        assert!(token_ids_in_model_vocab(&[], 500));
+    }
+
+    #[test]
+    fn token_ids_in_model_vocab_rejects_zero_vocab() {
+        assert!(!token_ids_in_model_vocab(&[0], 0));
+    }
 
     #[test]
     fn uses_resume_indices_when_present_and_nonempty() {
@@ -806,8 +1042,13 @@ mod tests {
 
     #[test]
     fn trajectory_telemetry_payload_reports_clamped_pairs() {
-        let payload =
-            build_train_step_payload(1, 10, 4, 0.55, 1e-4, Some(90), 25, 0, 0, 0, 6, 3, Some(2.2));
+        let payload = build_train_step_payload(
+            1, 10, 4, 0.55, 1e-4, Some(90), 25, 0, 0, 0, 2, 6, 3, Some(2.2),
+        );
+        assert_eq!(
+            payload.get("skip_token_id_oob").and_then(|v| v.as_u64()),
+            Some(2)
+        );
         assert_eq!(
             payload
                 .get("trajectory_weighted_pairs")

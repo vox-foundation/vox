@@ -350,6 +350,14 @@ async fn legacy_chain_db_export_then_import_into_baseline_roundtrips_objects() {
         .expect("import");
     assert!(imported >= 1);
 
+    let imported_twice = import_legacy_jsonl(&fresh, Cursor::new(&jsonl))
+        .await
+        .expect("re-import");
+    assert_eq!(
+        imported_twice, imported,
+        "second import should replace, not append duplicate rows"
+    );
+
     let mut q = fresh
         .conn
         .query(
@@ -367,4 +375,81 @@ async fn legacy_chain_db_export_then_import_into_baseline_roundtrips_objects() {
     let leg = verify_legacy_store(&fresh).await.expect("verify");
     assert_eq!(leg.schema_version, BASELINE_VERSION);
     assert!(!leg.is_legacy_schema_chain);
+}
+
+async fn seed_legacy_schema_version_only(path: &std::path::Path, version: i64) {
+    let s = path.to_string_lossy().to_string();
+    let built = turso::Builder::new_local(&s)
+        .build()
+        .await
+        .expect("legacy build");
+    let conn = built.connect().expect("conn");
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schema_version (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );",
+    )
+    .await
+    .expect("schema_version ddl");
+    conn.execute(
+        "INSERT INTO schema_version (version) VALUES (?1)",
+        turso::params![version],
+    )
+    .await
+    .expect("insert version");
+}
+
+/// `connect_default_with_training_fallback` must recover when the telemetry sidecar is also legacy.
+#[allow(unsafe_code)] // Rust 2024: `set_var` / `remove_var` are `unsafe`; mutex serializes this test.
+#[tokio::test]
+async fn connect_default_with_training_fallback_resets_stale_sidecar() {
+    use std::sync::{Mutex, OnceLock};
+
+    static DATA_DIR_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    let _g = DATA_DIR_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    seed_legacy_schema_version_only(&dir.path().join("vox.db"), 38).await;
+    seed_legacy_schema_version_only(&dir.path().join("vox_training_telemetry.db"), 38).await;
+
+    let old = std::env::var("VOX_DATA_DIR").ok();
+    // SAFETY: `DATA_DIR_LOCK` serializes tests that touch `VOX_DATA_DIR` for this module.
+    unsafe {
+        std::env::set_var("VOX_DATA_DIR", dir.path().as_os_str());
+    }
+
+    let db = VoxDb::connect_default_with_training_fallback()
+        .await
+        .expect("fallback connects after resetting sidecar");
+    assert_eq!(
+        db.schema_version().await.expect("schema_version"),
+        BASELINE_VERSION
+    );
+    drop(db);
+
+    unsafe {
+        match &old {
+            Some(s) => std::env::set_var("VOX_DATA_DIR", s),
+            None => std::env::remove_var("VOX_DATA_DIR"),
+        }
+    }
+
+    let sidecar = dir.path().join("vox_training_telemetry.db");
+    let check = VoxDb::connect(DbConfig::local(
+        sidecar.to_string_lossy().to_string(),
+    ))
+    .await
+    .expect("reopen sidecar");
+    assert_eq!(
+        check.schema_version().await.expect("sidecar version"),
+        BASELINE_VERSION
+    );
+}
+
+#[test]
+fn resolve_canonical_matches_resolve_standalone() {
+    let a = DbConfig::resolve_canonical().expect("canonical");
+    let b = DbConfig::resolve_standalone().expect("standalone");
+    assert_eq!(format!("{a:?}"), format!("{b:?}"));
 }
