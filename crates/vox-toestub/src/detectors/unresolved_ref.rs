@@ -354,10 +354,10 @@ impl UnresolvedRefDetector {
                     // Cuts regex-only matches (macros, odd spans, doc examples) that slip past token maps.
                     if let Some(h) = &ast_hints
                         && !h.call_sites.contains(&(i + 1, name.to_string()))
-                            && !crate::run_context::feature_enabled("unresolved-regex-fallback")
-                        {
-                            continue;
-                        }
+                        && !crate::run_context::feature_enabled("unresolved-regex-fallback")
+                    {
+                        continue;
+                    }
 
                     // Imports: syn `UseTree` ∪ legacy substring scan (parse-fallback / edge cases).
                     let has_import = ast_hints

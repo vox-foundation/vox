@@ -119,6 +119,8 @@ Adopt **WebIR** as a first-class compiler layer between HIR and frontend target 
 - Keep **React/TanStack** as the primary target backend.
 - Keep current island mount contract stable until an explicit `IslandMountV2` migration.
 - Reduce framework-shaped syntax leakage into `.vox`.
+- For bell-curve app work, new frontend semantics should land in **WebIR lower + validate** before adding emitter-only behavior.
+- Emitter-only shortcuts are acceptable only for narrow printer details or temporary migration debt with an explicit backlog item.
 
 ---
 
@@ -329,6 +331,7 @@ flowchart LR
 - New frontend features should land in WebIR lowering + validation first, then emitters.
 - Documentation and implementation blueprint must stay linked to this ADR.
 - Normative schema, `validate::validate_web_ir`, **`lower::lower_hir_to_web_ir`**, and **`emit_tsx::emit_component_view_tsx`** live in `crates/vox-compiler/src/web_ir/`. The main TS codegen path still uses `codegen_ts` directly; WebIR is the convergence layer for tests and future printer migration.
+- Adjacent non-UI SSOT contracts now live in `crates/vox-compiler/src/app_contract.rs` and `crates/vox-compiler/src/runtime_projection.rs`; CI enforces parity tests so WebIR/AppContract/RuntimeProjection remain derived from the same HIR semantics.
 
 ---
 

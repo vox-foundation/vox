@@ -3,12 +3,20 @@ use std::path::PathBuf;
 use crate::oplog::OperationKind;
 use crate::planning::PlanningTaskMeta;
 use crate::services::MessageGateway;
-use crate::types::{AgentId, AgentTask, TaskId, TaskStatus};
+use crate::types::{AgentId, AgentTask, CompletionAttestation, TaskId, TaskStatus};
 
 use super::super::{Orchestrator, OrchestratorError, TaskTraceStep};
 
 impl Orchestrator {
     pub async fn complete_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
+        self.complete_task_with_attestation(task_id, None).await
+    }
+
+    pub async fn complete_task_with_attestation(
+        &self,
+        task_id: TaskId,
+        completion_attestation: Option<CompletionAttestation>,
+    ) -> Result<(), OrchestratorError> {
         let agent_id = crate::sync_lock::rw_read(&*self.task_assignments)
             .get(&task_id)
             .copied()
@@ -17,7 +25,28 @@ impl Orchestrator {
         self.record_activity();
         crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
 
-        let (write_files, session_id, desc, phase_label, debug_iterations, plan_completion_meta) = {
+        #[cfg(feature = "toestub-gate")]
+        let mut toestub_lineage_deferred: Option<(
+            std::sync::Arc<vox_db::VoxDb>,
+            String,
+            i64,
+            Option<i64>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            String,
+        )> = None;
+
+        let completion_data: Option<(
+            Vec<PathBuf>,
+            Option<String>,
+            String,
+            String,
+            u8,
+            Option<PlanningTaskMeta>,
+            Option<String>,
+            Option<crate::reconstruction::ReconstructionBenchmarkTier>,
+        )> = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let queue_lock = agents
                 .get(&agent_id)
@@ -31,7 +60,7 @@ impl Orchestrator {
                 .unwrap_or_default();
             let session_id = queue.current_task().and_then(|t| t.session_id.clone());
 
-            let mut auto_debug_requeue = None;
+            let mut auto_debug_requeue: Option<(AgentTask, String, usize, usize)> = None;
             let (max_debug_iterations, max_toestub_debug_iterations, max_socrates_debug_iterations) = {
                 let cfg = crate::sync_lock::rw_read(&*self.config);
                 (
@@ -40,25 +69,115 @@ impl Orchestrator {
                     cfg.max_socrates_debug_iterations,
                 )
             };
+            // Multidimensional trust completion gate:
+            // when historical task-completion trust is below floor for this phase, require at least one
+            // explicit completion check to reduce silent regressions from low-reliability agents.
+            if auto_debug_requeue.is_none()
+                && let Some(db) = self.db()
+                && let Some(mut task_clone) = queue.current_task().cloned()
+            {
+                let phase = Self::extract_phase_label(&task_clone.description);
+                let trust_score = db
+                    .block_on(async {
+                        let rows = db
+                            .list_trust_scores_for_dimension(
+                                "agent",
+                                "task_completion",
+                                Some(phase.as_str()),
+                                512,
+                            )
+                            .await
+                            .unwrap_or_default();
+                        rows.into_iter()
+                            .find_map(|(id, score)| {
+                                id.parse::<u64>()
+                                    .ok()
+                                    .filter(|aid| *aid == agent_id.0)
+                                    .map(|_| score)
+                            })
+                            .unwrap_or(0.5)
+                    });
+                let floor = crate::sync_lock::rw_read(&*self.config).trust_task_completion_floor;
+                let has_checks = completion_attestation
+                    .as_ref()
+                    .map(|a| !a.checks_passed.is_empty())
+                    .unwrap_or(false);
+                if trust_score < floor && !has_checks && task_clone.debug_iterations < max_toestub_debug_iterations {
+                    task_clone.debug_iterations += 1;
+                    task_clone.description.push_str(&format!(
+                        "\n\n[TRUST GATE]\nAgent task-completion trust {:.2} is below floor {:.2} for phase `{}`. \
+Provide completion attestation checks_passed[] before completing.",
+                        trust_score, floor, phase
+                    ));
+                    task_clone.status = TaskStatus::Queued;
+                    auto_debug_requeue = Some((
+                        task_clone,
+                        format!(
+                            "trust gate blocked completion (score {:.2} < floor {:.2}, checks_passed missing)",
+                            trust_score, floor
+                        ),
+                        1usize,
+                        0usize,
+                    ));
+                }
+            }
 
             #[cfg(feature = "toestub-gate")]
             {
                 if crate::sync_lock::rw_read(&*self.config).toestub_gate {
                     if let Some(mut task_clone) = queue.current_task().cloned() {
-                        let vr = crate::validation::post_task_validate(&task_clone);
-                        if !crate::validation::quality_gate(&vr)
-                            && task_clone.debug_iterations < max_toestub_debug_iterations
-                        {
-                            task_clone.debug_iterations += 1;
-                            task_clone.description.push_str(&format!("\n\n[AUTO-DEBUG ITERATION {}]\nValidation failed with diagnostic issues. Please fix the following:\n{}", task_clone.debug_iterations, vr.report));
-                            task_clone.status = TaskStatus::Queued;
-                            auto_debug_requeue = Some((task_clone, vr.report.clone()));
+                        match crate::services::PolicyEngine::check_completion_before_complete(
+                            Some(&task_clone),
+                            completion_attestation.as_ref(),
+                        ) {
+                            crate::services::PolicyCheckResult::Allowed => {}
+                            crate::services::PolicyCheckResult::ScopeDenied(reason) => {
+                                if task_clone.debug_iterations < max_toestub_debug_iterations {
+                                    task_clone.debug_iterations += 1;
+                                    task_clone.description.push_str(&format!(
+                                        "\n\n[AUTO-DEBUG ITERATION {}]\nCompletion policy blocked completion. Fix and retry:\n{}",
+                                        task_clone.debug_iterations, reason
+                                    ));
+                                    task_clone.status = TaskStatus::Queued;
+                                    auto_debug_requeue =
+                                        Some((task_clone.clone(), reason.clone(), 1usize, 0usize));
+                                } else {
+                                    return Err(OrchestratorError::ScopeDenied(reason));
+                                }
+                            }
+                            crate::services::PolicyCheckResult::LockConflict(conflict) => {
+                                return Err(OrchestratorError::LockConflict(conflict));
+                            }
+                        }
+                        if auto_debug_requeue.is_some() {
+                            // Requeue already set by completion policy branch.
+                            // Skip TOESTUB validation for this iteration.
+                            // (The requeued task will be validated again on next completion attempt.)
+                            // intentionally empty
+                        } else {
+                            let vr = crate::validation::post_task_validate(
+                                &task_clone,
+                                completion_attestation.as_ref(),
+                            );
+                            if !crate::validation::quality_gate(&vr)
+                                && task_clone.debug_iterations < max_toestub_debug_iterations
+                            {
+                                task_clone.debug_iterations += 1;
+                                task_clone.description.push_str(&format!("\n\n[AUTO-DEBUG ITERATION {}]\nValidation failed with diagnostic issues. Please fix the following:\n{}", task_clone.debug_iterations, vr.report));
+                                task_clone.status = TaskStatus::Queued;
+                                auto_debug_requeue = Some((
+                                    task_clone,
+                                    vr.report.clone(),
+                                    vr.error_count,
+                                    vr.warning_count,
+                                ));
+                            }
                         }
                     }
                 }
             }
 
-            if let Some((requeue_task, err_report)) = auto_debug_requeue {
+            if let Some((requeue_task, err_report, err_n, warn_n)) = auto_debug_requeue {
                 // Log it
                 tracing::warn!(
                     "Task {} failed validation. Auto-debugging (iteration {}/{})",
@@ -77,119 +196,191 @@ impl Orchestrator {
                     requeue_task.debug_iterations,
                 );
 
+                #[cfg(feature = "toestub-gate")]
+                {
+                    if crate::lineage::orchestration_lineage_persist_enabled() {
+                        if let Some(db) = self.db() {
+                            let repo = crate::lineage::repository_id();
+                            let mut payload = serde_json::json!({
+                                "toestub_iteration": requeue_task.debug_iterations,
+                                "error_count": err_n,
+                                "warning_count": warn_n,
+                                "report_preview": err_report.chars().take(800).collect::<String>(),
+                            });
+                            if let Some(cid) = crate::lineage::orchestration_campaign_id() {
+                                payload["campaign_id"] = serde_json::Value::String(cid);
+                            }
+                            let payload_str = payload.to_string();
+                            toestub_lineage_deferred = Some((
+                                db,
+                                repo,
+                                task_id.0 as i64,
+                                Some(agent_id.0 as i64),
+                                session_id.clone(),
+                                requeue_task.plan_session_id.clone(),
+                                requeue_task.plan_node_id.clone(),
+                                payload_str,
+                            ));
+                        }
+                    }
+                }
+
                 // Requeue the modified task back to the *same* queue
                 queue.enqueue(requeue_task);
-                return Ok(());
-            }
-
-            let mut socrates_requeue: Option<AgentTask> = None;
-            {
-                let config = crate::sync_lock::rw_read(&*self.config);
-                let policy = config.effective_socrates_policy();
-                if let Some(task) = queue.current_task() {
-                    if let Some(ref ctx) = task.socrates {
-                        let outcome = crate::socrates::evaluate_socrates_gate(ctx, &policy);
-                        if config.socrates_gate_shadow {
-                            tracing::info!(
-                                target: "vox_orchestrator::socrates",
-                                task_id = task_id.0,
-                                agent_id = agent_id.0,
-                                decision = ?outcome.decision,
-                                confidence = outcome.confidence,
-                                contradiction = outcome.contradiction_ratio,
-                                "socrates gate (shadow)"
-                            );
-                        }
-                        if config.socrates_gate_enforce
-                            && outcome.decision != vox_socrates_policy::RiskDecision::Answer
-                            && task.debug_iterations < max_socrates_debug_iterations
-                        {
-                            let mut t = task.clone();
-                            if let Some(ref sid) = t.session_id {
-                                let key = crate::socrates::session_retrieval_envelope_key(sid);
-                                let raw_opt =
-                                    crate::sync_lock::rw_read(&*self.context_store).get(&key);
-                                if let Some(raw) = raw_opt {
-                                    if let Ok(env) = serde_json::from_str::<
-                                        crate::socrates::SessionRetrievalEnvelope,
-                                    >(&raw)
-                                    {
-                                        t.socrates = Some(env.merge_into(t.socrates.clone()));
+                None
+            } else {
+                let mut socrates_requeue: Option<AgentTask> = None;
+                {
+                    let config = crate::sync_lock::rw_read(&*self.config);
+                    let policy = config.effective_socrates_policy();
+                    if let Some(task) = queue.current_task() {
+                        if let Some(ref ctx) = task.socrates {
+                            let outcome = crate::socrates::evaluate_socrates_gate(ctx, &policy);
+                            if config.socrates_gate_shadow {
+                                tracing::info!(
+                                    target: "vox_orchestrator::socrates",
+                                    task_id = task_id.0,
+                                    agent_id = agent_id.0,
+                                    decision = ?outcome.decision,
+                                    confidence = outcome.confidence,
+                                    contradiction = outcome.contradiction_ratio,
+                                    "socrates gate (shadow)"
+                                );
+                            }
+                            if config.socrates_gate_enforce
+                                && outcome.decision != vox_socrates_policy::RiskDecision::Answer
+                                && task.debug_iterations < max_socrates_debug_iterations
+                            {
+                                let mut t = task.clone();
+                                if let Some(ref sid) = t.session_id {
+                                    let key = crate::socrates::session_retrieval_envelope_key(sid);
+                                    let raw_opt =
+                                        crate::sync_lock::rw_read(&*self.context_store).get(&key);
+                                    if let Some(raw) = raw_opt {
+                                        if let Ok(env) =
+                                            serde_json::from_str::<
+                                                crate::socrates::SessionRetrievalEnvelope,
+                                            >(&raw)
+                                        {
+                                            t.socrates = Some(env.merge_into(t.socrates.clone()));
+                                        }
                                     }
                                 }
+                                t.debug_iterations += 1;
+                                t.description.push_str(&format!(
+                                    "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.\n",
+                                    outcome.decision,
+                                    outcome.confidence,
+                                    outcome.contradiction_ratio,
+                                ));
+                                t.status = TaskStatus::Queued;
+                                socrates_requeue = Some(t);
                             }
-                            t.debug_iterations += 1;
-                            t.description.push_str(&format!(
-                                "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.\n",
-                                outcome.decision, outcome.confidence, outcome.contradiction_ratio
-                            ));
-                            t.status = TaskStatus::Queued;
-                            socrates_requeue = Some(t);
                         }
                     }
                 }
-            }
 
-            if let Some(requeue_task) = socrates_requeue {
-                tracing::warn!(
-                    task_id = task_id.0,
-                    "Socrates gate blocked completion; requeueing"
-                );
-                queue.mark_failed(task_id, "Socrates risk gate blocked completion".to_string());
-                self.record_task_loop_metric(
-                    task_id,
-                    &Self::extract_phase_label(&requeue_task.description),
-                    "socrates_requeue",
-                    requeue_task.debug_iterations,
-                );
-                queue.enqueue(requeue_task);
+                if let Some(requeue_task) = socrates_requeue {
+                    tracing::warn!(
+                        task_id = task_id.0,
+                        "Socrates gate blocked completion; requeueing"
+                    );
+                    queue.mark_failed(task_id, "Socrates risk gate blocked completion".to_string());
+                    self.record_task_loop_metric(
+                        task_id,
+                        &Self::extract_phase_label(&requeue_task.description),
+                        "socrates_requeue",
+                        requeue_task.debug_iterations,
+                    );
+                    queue.enqueue(requeue_task);
+                    None
+                } else {
+                    let current = queue.current_task().cloned();
+                    let plan_completion_meta = current.as_ref().and_then(|t| {
+                        match (
+                            t.plan_session_id.clone(),
+                            t.plan_node_id.clone(),
+                            t.plan_version,
+                        ) {
+                            (Some(plan_session_id), Some(plan_node_id), Some(plan_version)) => {
+                                Some(PlanningTaskMeta {
+                                    plan_session_id,
+                                    plan_node_id,
+                                    plan_version,
+                                    execution_policy_json: t.execution_policy_json.clone(),
+                                    campaign_id: t.campaign_id.clone(),
+                                    benchmark_tier: t.benchmark_tier,
+                                    execution_role: t.execution_role,
+                                })
+                            }
+                            _ => None,
+                        }
+                    });
+                    let desc = current
+                        .as_ref()
+                        .map(|t| t.description.clone())
+                        .unwrap_or_default();
+                    let phase_label = Self::extract_phase_label(&desc);
+                    let debug_iterations =
+                        current.as_ref().map(|t| t.debug_iterations).unwrap_or(0);
+                    let campaign_id = current.as_ref().and_then(|t| t.campaign_id.clone());
+                    let benchmark_tier = current.as_ref().and_then(|t| t.benchmark_tier);
+                    if phase_label == "shard_validate" {
+                        queue.recent_shard_validation_failures =
+                            queue.recent_shard_validation_failures.saturating_sub(1);
+                        queue
+                            .active_skills
+                            .insert("shard_validate".to_string(), 1.0_f64);
+                    } else if phase_label == "shard_gen" {
+                        queue.active_skills.insert("shard_gen".to_string(), 1.0_f64);
+                    } else if phase_label == "reduce" {
+                        queue.active_skills.insert("reduce".to_string(), 1.0_f64);
+                    }
+                    queue.mark_complete(task_id);
+                    Some((
+                        write_files,
+                        session_id,
+                        desc,
+                        phase_label,
+                        debug_iterations,
+                        plan_completion_meta,
+                        campaign_id,
+                        benchmark_tier,
+                    ))
+                }
+            }
+        };
+
+        let (
+            write_files,
+            session_id,
+            desc,
+            phase_label,
+            debug_iterations,
+            plan_completion_meta,
+            campaign_id,
+            benchmark_tier,
+        ) = match completion_data {
+            Some(tuple) => tuple,
+            None => {
+                #[cfg(feature = "toestub-gate")]
+                if let Some((db, repo, tid, aid, sid, ps, pn, payload)) = toestub_lineage_deferred {
+                    let _ = db
+                        .append_orchestration_lineage_event(
+                            repo.as_str(),
+                            "toestub_requeued",
+                            tid,
+                            aid,
+                            sid.as_deref(),
+                            None,
+                            ps.as_deref(),
+                            pn.as_deref(),
+                            Some(payload.as_str()),
+                        )
+                        .await;
+                }
                 return Ok(());
             }
-
-            let current = queue.current_task().cloned();
-            let plan_completion_meta = current.as_ref().and_then(|t| {
-                match (
-                    t.plan_session_id.clone(),
-                    t.plan_node_id.clone(),
-                    t.plan_version,
-                ) {
-                    (Some(plan_session_id), Some(plan_node_id), Some(plan_version)) => {
-                        Some(PlanningTaskMeta {
-                            plan_session_id,
-                            plan_node_id,
-                            plan_version,
-                            execution_policy_json: t.execution_policy_json.clone(),
-                        })
-                    }
-                    _ => None,
-                }
-            });
-            let desc = current
-                .as_ref()
-                .map(|t| t.description.clone())
-                .unwrap_or_default();
-            let phase_label = Self::extract_phase_label(&desc);
-            let debug_iterations = current.map(|t| t.debug_iterations).unwrap_or(0);
-            if phase_label == "shard_validate" {
-                queue.recent_shard_validation_failures =
-                    queue.recent_shard_validation_failures.saturating_sub(1);
-                queue
-                    .active_skills
-                    .insert("shard_validate".to_string(), 1.0_f64);
-            } else if phase_label == "shard_gen" {
-                queue.active_skills.insert("shard_gen".to_string(), 1.0_f64);
-            } else if phase_label == "reduce" {
-                queue.active_skills.insert("reduce".to_string(), 1.0_f64);
-            }
-            queue.mark_complete(task_id);
-            (
-                write_files,
-                session_id,
-                desc,
-                phase_label,
-                debug_iterations,
-                plan_completion_meta,
-            )
         };
 
         // Find pre-task snapshots from the oplog to link this completion
@@ -312,6 +503,28 @@ impl Orchestrator {
             let _ = db
                 .record_task_reliability_observation(&agent_id.0.to_string(), true)
                 .await;
+            let agent_id_s = agent_id.0.to_string();
+            let repo = crate::lineage::repository_id();
+            let artifact_ref = task_id.0.to_string();
+            let _ = db
+                .record_trust_observation(vox_db::TrustObservationInput {
+                    entity_type: "agent",
+                    entity_id: agent_id_s.as_str(),
+                    dimension: "task_completion",
+                    domain: Some(&phase_label),
+                    task_class: Some(&phase_label),
+                    provider: None,
+                    model_id: None,
+                    repository_id: Some(repo.as_str()),
+                    source_kind: Some("task_completed"),
+                    observation_value: 1.0,
+                    confidence_weight: 1.0,
+                    sample_size: 1,
+                    artifact_ref: Some(artifact_ref.as_str()),
+                    metadata_json: None,
+                    ewma_alpha: 0.10,
+                })
+                .await;
             if let Some(meta) = plan_completion_meta.as_ref() {
                 let _ = db
                     .record_plan_node_attempt(
@@ -353,7 +566,25 @@ impl Orchestrator {
                         )
                     })
                     .unwrap_or((None, None));
-                let payload = serde_json::json!({ "phase": phase_label });
+                let verification_layers = crate::reconstruction::VerificationLayerStatus {
+                    structural_ok: phase_label.contains("verify") || phase_label.contains("build"),
+                    behavioral_ok: phase_label.contains("test") || phase_label.contains("verify"),
+                    contract_ok: phase_label.contains("contract"),
+                    docs_ssot_ok: phase_label.contains("doc") || phase_label.contains("ssot"),
+                    grounding_ok: debug_iterations == 0,
+                };
+                let mut payload = serde_json::json!({
+                    "phase": phase_label,
+                    "verification_layers_source": "heuristic_v1",
+                    "verification_layers": verification_layers,
+                });
+                if let Some(ref cid) = campaign_id {
+                    payload["campaign_id"] = serde_json::Value::String(cid.clone());
+                }
+                if let Some(tier) = benchmark_tier {
+                    payload["benchmark_tier"] =
+                        serde_json::Value::String(tier.as_str().to_string());
+                }
                 let payload_str = payload.to_string();
                 let _ = db
                     .append_orchestration_lineage_event(
@@ -369,6 +600,30 @@ impl Orchestrator {
                     )
                     .await;
             }
+        }
+        if let (Some(campaign_id), Some(tier)) = (campaign_id.clone(), benchmark_tier) {
+            let desc_lower = desc.to_ascii_lowercase();
+            let evidence = crate::reconstruction::ReconstructionEvidence {
+                compile_ok: phase_label.contains("build") || desc_lower.contains("cargo check"),
+                targeted_tests_ok: phase_label.contains("test")
+                    || phase_label.contains("verify")
+                    || desc_lower.contains("test"),
+                contract_checks_ok: phase_label.contains("contract")
+                    || desc_lower.contains("contract"),
+                docs_ssot_ok: desc_lower.contains("ssot") || phase_label.contains("doc"),
+                regression_checks_ok: phase_label.contains("regression"),
+            };
+            self.record_reconstruction_campaign_result(
+                campaign_id,
+                tier,
+                evidence,
+                "heuristic_task_complete",
+                false,
+                session_id.as_deref(),
+                Some(task_id),
+                Some(agent_id),
+            )
+            .await;
         }
         {
             let cfg = crate::sync_lock::rw_read(&*self.config).clone();
@@ -397,7 +652,7 @@ impl Orchestrator {
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
 
-        let (session_id, planning_meta, failed_desc) = {
+        let (session_id, planning_meta, failed_desc, campaign_id, benchmark_tier) = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let queue_lock = agents
                 .get(&agent_id)
@@ -416,6 +671,9 @@ impl Orchestrator {
                         plan_node_id,
                         plan_version,
                         execution_policy_json: t.execution_policy_json.clone(),
+                        campaign_id: t.campaign_id.clone(),
+                        benchmark_tier: t.benchmark_tier,
+                        execution_role: t.execution_role,
                     })
                 } else {
                     None
@@ -425,17 +683,67 @@ impl Orchestrator {
                 .current_task()
                 .map(|t| t.description.clone())
                 .unwrap_or_default();
+            let campaign_id = queue.current_task().and_then(|t| t.campaign_id.clone());
+            let benchmark_tier = queue.current_task().and_then(|t| t.benchmark_tier);
             if failed_desc.contains("[PHASE:SHARD_VALIDATE]") {
                 queue.recent_shard_validation_failures =
                     queue.recent_shard_validation_failures.saturating_add(1);
             }
             queue.mark_failed(task_id, reason.clone());
-            (session_id, planning_meta, failed_desc)
+            (
+                session_id,
+                planning_meta,
+                failed_desc,
+                campaign_id,
+                benchmark_tier,
+            )
         };
 
         if let Some(db) = self.db() {
             let _ =
                 db.block_on(db.record_task_reliability_observation(&agent_id.0.to_string(), false));
+            let agent_id_s = agent_id.0.to_string();
+            let domain = Self::extract_phase_label(&failed_desc);
+            let artifact_ref = task_id.0.to_string();
+            let repo = crate::lineage::repository_id();
+            let _ = db.block_on(db.record_trust_observation(vox_db::TrustObservationInput {
+                entity_type: "agent",
+                entity_id: &agent_id_s,
+                dimension: "task_completion",
+                domain: Some(domain.as_str()),
+                task_class: Some(domain.as_str()),
+                provider: None,
+                model_id: None,
+                repository_id: Some(repo.as_str()),
+                source_kind: Some("task_failed"),
+                observation_value: 0.0,
+                confidence_weight: 1.0,
+                sample_size: 1,
+                artifact_ref: Some(artifact_ref.as_str()),
+                metadata_json: None,
+                ewma_alpha: 0.10,
+            }));
+        }
+        if let (Some(campaign_id), Some(tier)) = (campaign_id.clone(), benchmark_tier) {
+            let reason_lower = reason.to_ascii_lowercase();
+            let evidence = crate::reconstruction::ReconstructionEvidence {
+                compile_ok: !reason_lower.contains("compile"),
+                targeted_tests_ok: !reason_lower.contains("test"),
+                contract_checks_ok: !reason_lower.contains("contract"),
+                docs_ssot_ok: !reason_lower.contains("doc"),
+                regression_checks_ok: false,
+            };
+            self.record_reconstruction_campaign_result(
+                campaign_id,
+                tier,
+                evidence,
+                "heuristic_task_fail",
+                false,
+                session_id.as_deref(),
+                Some(task_id),
+                Some(agent_id),
+            )
+            .await;
         }
         {
             let cfg = crate::sync_lock::rw_read(&*self.config).clone();
@@ -542,6 +850,31 @@ impl Orchestrator {
                         reason: reason.clone(),
                         next_version,
                     });
+                if crate::lineage::orchestration_lineage_persist_enabled() {
+                    let repo = crate::lineage::repository_id();
+                    let mut payload = serde_json::json!({
+                        "failed_task_id": task_id.0,
+                        "next_version": next_version,
+                        "reason_preview": reason.chars().take(500).collect::<String>(),
+                    });
+                    if let Some(cid) = crate::lineage::orchestration_campaign_id() {
+                        payload["campaign_id"] = serde_json::Value::String(cid);
+                    }
+                    let payload_str = payload.to_string();
+                    let _ = db
+                        .append_orchestration_lineage_event(
+                            &repo,
+                            "plan_replan_triggered",
+                            task_id.0 as i64,
+                            Some(agent_id.0 as i64),
+                            session_id.as_deref(),
+                            None,
+                            Some(meta.plan_session_id.as_str()),
+                            Some(meta.plan_node_id.as_str()),
+                            Some(payload_str.as_str()),
+                        )
+                        .await;
+                }
             }
             let _ = crate::planning::replan::enqueue_recovery_first_node(
                 self,

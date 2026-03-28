@@ -24,7 +24,7 @@ Companion: [publication readiness audit](../architecture/scientia-publication-re
 | **Snapshot** | Row in `external_status_snapshots`: polled remote JSON at a point in time. |
 | **Adapter** | Scholarly backend (`local_ledger`, `echo_ledger`, `zenodo`, `openreview`, …) resolved via `VOX_SCHOLARLY_ADAPTER` or CLI override. |
 
-**Lifecycle (happy path):** `draft` manifest → `publication-prepare` / approvals → optional preflight + staging export → `publication-submit-local` or enqueued **`external_submission_jobs` tick** → `scholarly_submissions` + job terminal state → remote status sync.
+**Lifecycle (happy path):** `draft` manifest → `publication-prepare` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
 
 ## 2. Canonical status vocabulary (T002)
 
@@ -61,7 +61,7 @@ Job-layer preflight uses `last_error_class = "preflight"`. Adapter errors use `S
 | Schema | `crates/vox-db/src/schema/domains/publish_cloud.rs` |
 | Store ops | `crates/vox-db/src/store/ops_publication.rs` |
 | Worker / adapters | `crates/vox-publisher/src/scholarly_external_jobs.rs`, `crates/vox-publisher/src/scholarly/` |
-| CLI implementation | `crates/vox-cli/src/commands/db.rs` (handlers), `db_cli/subcommands.rs` (Clap), `scientia.rs` (facade); publication helpers in `commands/db/publication.rs` (`publication-preflight` includes gate-aware `manual_required`) |
+| CLI implementation | `crates/vox-cli/src/commands/db.rs` (handlers), `db_cli/subcommands.rs` (Clap), `scientia.rs` (facade); publication helpers in `commands/db/publication.rs` (`publication-preflight` / `publication-status` include gate-aware `manual_required` plus ordered `next_actions`) |
 | MCP | `crates/vox-mcp/src/tools/scientia_tools.rs`, `dispatch.rs`, `input_schemas.rs` |
 | CLI contract | `contracts/cli/command-registry.yaml` |
 | MCP contract | `contracts/mcp/tool-registry.canonical.yaml` |
@@ -137,11 +137,12 @@ After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run
 
 ### Happy path publication (T013)
 
-1. `vox scientia publication-prepare --publication-id <id> …` (+ optional `--preflight`).
-2. Two approvers: `vox scientia publication-approve …`.
-3. Optional: `publication-scholarly-staging-export`, Zenodo metadata check.
-4. Submit: `publication-submit-local` **or** enqueue + `publication-external-jobs-tick`.
-5. Track: `publication-status`, `publication-scholarly-remote-status-sync-batch` (or loop).
+1. `vox scientia publication-prepare --publication-id <id> …` (+ optional `--preflight`; omit `--title` to infer from markdown, add eval/benchmark flags to seed discovery-candidate evidence).
+2. `vox scientia publication-preflight --publication-id <id> --with-worthiness`; use `next_actions` as the checklist.
+3. Two approvers: `vox scientia publication-approve …`.
+4. Default path: `publication-scholarly-pipeline-run --dry-run`, then rerun live when ready.
+5. Optional lower-level path: `publication-scholarly-staging-export`, `publication-submit-local`, or enqueue + `publication-external-jobs-tick`.
+6. Track: `publication-status --with-worthiness`, `publication-scholarly-remote-status-sync-batch` (or loop).
 
 ### Dead-letter incident (T014)
 

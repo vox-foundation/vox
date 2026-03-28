@@ -53,13 +53,16 @@ fn validate_suppression_json_instance(raw: &str) -> anyhow::Result<()> {
     };
     let schema_val: Value = serde_json::from_str(&schema_raw)
         .map_err(|e| anyhow::anyhow!("parse suppression schema: {e}"))?;
-    let validator = jsonschema::validator_for(&schema_val)
-        .map_err(|e| anyhow::anyhow!("compile suppression.v1.schema.json: {e}"))?;
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+        .map_err(|e| anyhow::anyhow!("{e:#}"))?;
     let instance: Value =
         serde_json::from_str(raw).map_err(|e| anyhow::anyhow!("parse suppressions JSON: {e}"))?;
-    validator.validate(&instance).map_err(|e| {
-        anyhow::anyhow!("suppressions file does not match suppression.v1.schema.json: {e}")
-    })?;
+    vox_jsonschema_util::validate(
+        &instance,
+        &validator,
+        format!("suppressions vs {}", schema_path.display()),
+    )
+    .map_err(|e| anyhow::anyhow!("{e:#}"))?;
     Ok(())
 }
 
@@ -121,9 +124,10 @@ impl SuppressionStore {
                 continue;
             }
             if let Some(ln) = e.line
-                && finding.line != ln {
-                    continue;
-                }
+                && finding.line != ln
+            {
+                continue;
+            }
             return true;
         }
         false

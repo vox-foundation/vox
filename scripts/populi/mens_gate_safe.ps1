@@ -1,4 +1,4 @@
-# Windows-safe `vox ci mens-gate`: delegates to Rust `--windows-isolated-runner` (isolated target dir + temp vox.exe).
+# Windows-safe `vox ci mesh-gate` (alias: `mens-gate`): delegates to Rust `--windows-isolated-runner` (isolated target dir + temp vox.exe).
 # Use -Detach for Cursor / agent sessions with wall-clock limits (fires child pwsh, returns immediately).
 # Logs: default under target/mens-gate-logs/ when -Detach without -LogFile (then passed as --gate-log-file).
 [CmdletBinding()]

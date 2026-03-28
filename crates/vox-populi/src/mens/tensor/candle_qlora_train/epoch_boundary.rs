@@ -70,6 +70,14 @@ pub(super) fn finish_epoch(
         last_loss: Some(last_loss_val),
         adapter_path: epoch_ckpt.display().to_string(),
     });
+    let _ = db_tx.send(TrainingDbEvent::EpochSummary {
+        run_id: run_id.to_string(),
+        epoch: epoch as u32,
+        global_step,
+        avg_loss,
+        avg_val_loss,
+        val_steps,
+    });
 
     telemetry::append(
         out,

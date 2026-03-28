@@ -100,8 +100,9 @@ fn twitter_effective_summary_max_chars(
     let p_low = p.to_ascii_lowercase();
     let margin_adj = match p_low.as_str() {
         "brief" | "tight" | "compact" => margin_base.saturating_sub(16).max(4),
-        "roomy" | "spacious" | "narrative" => (margin_base.saturating_add(24))
-            .min(contract::TWITTER_TEXT_CHUNK_MAX.saturating_div(3)),
+        "roomy" | "spacious" | "narrative" => {
+            (margin_base.saturating_add(24)).min(contract::TWITTER_TEXT_CHUNK_MAX.saturating_div(3))
+        }
         _ => {
             decision_reasons.insert(
                 "template_profile_fallback_twitter".to_string(),
@@ -525,8 +526,7 @@ impl Publisher {
         let reddit_cap = social_text_cap_with_template_profile(
             item,
             "reddit",
-            self
-                .config
+            self.config
                 .reddit_selfpost_summary_max
                 .unwrap_or(contract::REDDIT_SELFPOST_SUMMARY_MAX),
             &mut result.decision_reasons,
@@ -928,14 +928,15 @@ impl Publisher {
                 }
                 let mut youtube_precheck_failed = false;
                 if !missing_asset
-                    && let Err(e) = adapters::youtube::precheck_video_upload(&resolved) {
-                        result.youtube = ChannelOutcome::Failed {
-                            code: "youtube_precheck_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: false,
-                        };
-                        youtube_precheck_failed = true;
-                    }
+                    && let Err(e) = adapters::youtube::precheck_video_upload(&resolved)
+                {
+                    result.youtube = ChannelOutcome::Failed {
+                        code: "youtube_precheck_failed".to_string(),
+                        message: e.to_string(),
+                        retryable: false,
+                    };
+                    youtube_precheck_failed = true;
+                }
                 if !missing_asset
                     && !youtube_precheck_failed
                     && let (Some(client_id), Some(client_secret), Some(refresh_token)) = (

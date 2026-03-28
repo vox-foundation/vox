@@ -104,6 +104,9 @@ pub enum DbCliPublication {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+        /// Attach worthiness scoring to the embedded preflight report.
+        #[arg(long, default_value_t = false)]
+        with_worthiness: bool,
     },
     /// Poll remote repository status for a scholarly submission (latest row, or match `--external-submission-id`).
     #[command(name = "publication-scholarly-remote-status")]

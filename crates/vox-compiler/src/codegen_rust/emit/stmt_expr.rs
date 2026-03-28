@@ -1,3 +1,4 @@
+use crate::builtin_registry::lookup_builtin;
 use crate::hir::{HirBinOp, HirExpr, HirPattern, HirStmt};
 
 pub(super) fn emit_stmt(
@@ -234,22 +235,23 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             }
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
+                if let HirExpr::Ident(module_name, _) = &**namespace_expr
+                    && module_name == "OpenClaw"
+                {
+                    let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
+                    if let Some(call) = emit_registry_runtime_call("OpenClaw", fn_name, &a) {
+                        return format!("(match {call} {{ Ok(v) => Ok(v), Err(m) => Error(m) }})");
+                    }
+                }
                 if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
                     if std_kw == "std" {
                         let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
-                        let builtin: Option<String> = match fn_name.as_str() {
-                            "uuid" => Some("vox_runtime::builtins::vox_uuid()".to_string()),
-                            "now_ms" => Some("vox_runtime::builtins::vox_now_ms()".to_string()),
-                            "hash_fast" if !a.is_empty() => {
-                                Some(format!("vox_runtime::builtins::vox_hash_fast(&{})", a[0]))
-                            }
-                            "hash_secure" if !a.is_empty() => {
-                                Some(format!("vox_runtime::builtins::vox_hash_secure(&{})", a[0]))
-                            }
-                            _ => None,
-                        };
-                        if let Some(b) = builtin {
-                            return if *is_await { format!("{}.await", b) } else { b };
+                        if let Some(call) = emit_registry_runtime_call("std", fn_name, &a) {
+                            return if *is_await {
+                                format!("{}.await", call)
+                            } else {
+                                call
+                            };
                         }
                     }
                 }
@@ -272,6 +274,22 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                                 ("time", "now_ms") => {
                                     Some("vox_runtime::builtins::vox_now_ms()".to_string())
                                 }
+                                ("log", "debug") if !a.is_empty() => Some(format!(
+                                    "vox_runtime::builtins::vox_log_debug(({}).as_str())",
+                                    a[0]
+                                )),
+                                ("log", "info") if !a.is_empty() => Some(format!(
+                                    "vox_runtime::builtins::vox_log_info(({}).as_str())",
+                                    a[0]
+                                )),
+                                ("log", "warn") if !a.is_empty() => Some(format!(
+                                    "vox_runtime::builtins::vox_log_warn(({}).as_str())",
+                                    a[0]
+                                )),
+                                ("log", "error") if !a.is_empty() => Some(format!(
+                                    "vox_runtime::builtins::vox_log_error(({}).as_str())",
+                                    a[0]
+                                )),
                                 ("fs", "read") if !a.is_empty() => Some(format!(
                                     "std::fs::read_to_string({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
                                     a[0]
@@ -393,4 +411,16 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
         ),
     }
+}
+
+fn emit_registry_runtime_call(namespace: &str, fn_name: &str, args: &[String]) -> Option<String> {
+    let entry = lookup_builtin(namespace, fn_name, args.len())?;
+    let symbol = entry.runtime_symbol?;
+    let call = match args.len() {
+        0 => format!("{symbol}()"),
+        1 => format!("{symbol}(({}).as_str())", args[0]),
+        2 => format!("{symbol}(({}).as_str(), ({}).as_str())", args[0], args[1]),
+        _ => return None,
+    };
+    Some(call)
 }

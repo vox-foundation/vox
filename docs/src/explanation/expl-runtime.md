@@ -9,6 +9,15 @@ training_eligible: true
 
 Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications.
 
+## Implementation map (current)
+
+The runtime-facing story in today’s codebase is split across:
+
+- `crates/vox-runtime/src/lib.rs`: actor/process/runtime primitives and exported runtime modules.
+- `crates/vox-runtime/src/builtins.rs`: standard builtin implementations used by generated Rust code.
+- `crates/vox-compiler/src/codegen_rust/emit/http.rs`: generated Axum app host for routes/server/query/mutation handlers.
+- `crates/vox-compiler/src/app_contract.rs`: app-surface contract projection used to keep route/RPC/server config mapping centralized.
+
 ## 1. Actor-Based Concurrency
 
 At its core, Vox is an actor-based system. Unlike traditional shared-memory concurrency (threads + locks), Vox processes communicate via message passing.

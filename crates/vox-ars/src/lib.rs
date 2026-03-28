@@ -9,6 +9,10 @@ pub mod executor;
 pub mod hooks;
 pub mod manifest;
 pub mod openclaw;
+pub mod openclaw_adapter;
+pub mod openclaw_discovery;
+pub mod openclaw_gateway_ws;
+pub mod openclaw_protocol;
 pub mod runtime;
 
 /// SKILL.md parsing — delegates to [`vox_skills::parser`].
@@ -18,5 +22,18 @@ pub mod parser {
 
 pub use domain::ArsSkill;
 pub use openclaw::{OpenClawClient, OpenClawRemoteConfig, OpenClawSkillSpec};
+pub use openclaw_adapter::{
+    DefaultOpenClawRuntimeAdapter, OpenClawAdapterConfig, OpenClawAdapterError,
+    OpenClawConnectionOverrides, OpenClawRuntimeAdapter, adapter_config_with_token_override,
+    connect_default_runtime_adapter, connect_runtime_adapter_with_overrides,
+    resolve_adapter_config,
+};
+pub use openclaw_discovery::{
+    DEFAULT_HTTP_GATEWAY_URL, DEFAULT_WS_GATEWAY_URL, OpenClawDiscoveryOverrides,
+    OpenClawResolvedEndpoints, resolve_openclaw_endpoints,
+};
+pub use openclaw_gateway_ws::{
+    OpenClawGatewayWsClient, OpenClawGatewayWsConfig, OpenClawGatewayWsError,
+};
 pub use vox_skills::manifest::{SkillCategory, SkillManifest, SkillPermission};
 pub use vox_skills::{SkillRegistry, install_builtins};

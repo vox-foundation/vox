@@ -6,6 +6,9 @@ This file is the **required** SSOT for **secret management (Clavis)**. It does *
 
 - **End-to-end pipeline (lex → parse → AST → HIR → typecheck → codegen):** [`docs/src/explanation/expl-architecture.md`](docs/src/explanation/expl-architecture.md)
 - **Internal web IR strategy (compiler frontend boundary):** [`docs/src/adr/012-internal-web-ir-strategy.md`](docs/src/adr/012-internal-web-ir-strategy.md) — Phase 0 schema lives in **`crates/vox-compiler/src/web_ir/`** (`mod.rs`, `validate.rs`).
+- **Bell-curve app scope / product lanes / ranking model:** [`docs/src/architecture/vox-bell-curve-strategy.md`](docs/src/architecture/vox-bell-curve-strategy.md)
+- **Where new app capability should land first:** [`docs/src/architecture/feature-growth-boundaries.md`](docs/src/architecture/feature-growth-boundaries.md)
+- **Interop tiers / approved wrappers / escape-hatch policy:** [`docs/src/architecture/interop-tier-policy.md`](docs/src/architecture/interop-tier-policy.md)
 - **Lowering / HIR:** [`docs/src/explanation/expl-compiler-lowering.md`](docs/src/explanation/expl-compiler-lowering.md)
 - **Runtime / execution context:** [`docs/src/explanation/expl-runtime.md`](docs/src/explanation/expl-runtime.md)
 - **CLI surface:** [`docs/src/reference/cli.md`](docs/src/reference/cli.md)

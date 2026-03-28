@@ -13,6 +13,13 @@ use std::path::Path;
 /// Suggested cap for bounded repair loops (speech-origin); MCP clamps user `max_retries` to 5.
 pub const SPEECH_CODE_MAX_REPAIR_ATTEMPTS: u32 = 5;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OutputSurfaceMode {
+    #[default]
+    RawCodeOnly,
+    FencedTransport,
+}
+
 /// Placeholder hook for type-aware hints during generation (future).
 #[derive(Debug, Clone, Default)]
 pub struct TypeHintStub;
@@ -91,5 +98,21 @@ impl ConstrainedDecodePolicy {
             mode = "prompt_hint_and_hir_validator",
             "constrained decode: no token-mask backend; grammar artifact is prompt-only; HIR validator is the gate"
         );
+    }
+
+    /// Practical interim guard while token-mask backend is unavailable: reject common non-code wrappers.
+    #[must_use]
+    pub fn surface_contract_ok(&self, candidate: &str, mode: OutputSurfaceMode) -> bool {
+        if !self.enabled {
+            return true;
+        }
+        let lower = candidate.to_ascii_lowercase();
+        let prose_ok = !lower.contains("here is")
+            && !lower.contains("explanation")
+            && !lower.contains("i can");
+        match mode {
+            OutputSurfaceMode::RawCodeOnly => prose_ok && !candidate.contains("```"),
+            OutputSurfaceMode::FencedTransport => prose_ok,
+        }
     }
 }

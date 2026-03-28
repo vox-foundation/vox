@@ -44,6 +44,7 @@ mod lock_telemetry;
 pub mod pipeline;
 #[cfg(feature = "populi")]
 mod populi_codex_telemetry;
+mod process_supervision;
 #[cfg(feature = "island")]
 mod table;
 pub mod templates;

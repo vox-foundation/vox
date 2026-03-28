@@ -45,7 +45,7 @@ training_eligible: true
 - `examples/oratio/codexAudioTranscribe.ts`, `examples/oratio/README.md`
 - `crates/vox-corpus/src/corpus/mix.rs` — `record_format`, `normalize_training_jsonl_line`
 - `mens/schemas/asr_refine_pairs.schema.json`, `mens/config/mix.example.yaml`
-- `AGENTS.md`, `docs/src/ref-cli.md`, [`mens-training.md`](mens-training.md), **this file**
+- `AGENTS.md`, `docs/src/reference/cli.md`, [`mens-training.md`](mens-training.md), **this file**
 
 ## How (contracts)
 

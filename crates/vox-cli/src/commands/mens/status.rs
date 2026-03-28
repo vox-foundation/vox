@@ -94,15 +94,29 @@ pub async fn run_status(
     let step_records: Vec<&serde_json::Value> =
         lines.iter().filter(|v| v.get("step").is_some()).collect();
 
+    let mut used_valid_tokens_alias = false;
     let total_valid_tokens: u64 = step_records
         .iter()
-        .map(|v| v.get("valid_tokens").and_then(|x| x.as_u64()).unwrap_or(0))
+        .map(|v| {
+            v.get("valid_tokens")
+                .and_then(|x| x.as_u64())
+                .or_else(|| {
+                    used_valid_tokens_alias = true;
+                    v.get("supervised_tokens").and_then(|x| x.as_u64())
+                })
+                .unwrap_or(0)
+        })
         .sum();
+    let mut used_theoretical_tokens_alias = false;
     let total_theoretical_tokens: u64 = step_records
         .iter()
         .map(|v| {
             v.get("theoretical_tokens")
                 .and_then(|x| x.as_u64())
+                .or_else(|| {
+                    used_theoretical_tokens_alias = true;
+                    v.get("total_tokens").and_then(|x| x.as_u64())
+                })
                 .unwrap_or(0)
         })
         .sum();
@@ -224,10 +238,20 @@ pub async fn run_status(
         let lr = step
             .get("learning_rate")
             .and_then(|v| v.as_f64())
+            .or_else(|| step.get("lr").and_then(|v| v.as_f64()))
             .unwrap_or(0.0);
         let sup_pct = step
             .get("supervised_ratio_pct")
             .and_then(|v| v.as_f64())
+            .or_else(|| {
+                let valid = step.get("valid_tokens").and_then(|x| x.as_u64())?;
+                let theoretical = step.get("theoretical_tokens").and_then(|x| x.as_u64())?;
+                if theoretical == 0 {
+                    Some(0.0)
+                } else {
+                    Some((valid as f64 / theoretical as f64) * 100.0)
+                }
+            })
             .unwrap_or(0.0);
         eprintln!(
             "│ Last step: {:<40}│",
@@ -302,6 +326,12 @@ pub async fn run_status(
             "│ {} Warning: {:<38}│",
             "⚠".yellow(),
             w.chars().take(38).collect::<String>()
+        );
+    }
+    if used_valid_tokens_alias || used_theoretical_tokens_alias {
+        eprintln!(
+            "  {} status consumed deprecated telemetry aliases; emit canonical valid_tokens/theoretical_tokens",
+            "⚠".yellow()
         );
     }
     if let Some(err) = run_state

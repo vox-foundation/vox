@@ -111,7 +111,7 @@ pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
                 .map(|p| format!("{}: {:?}", p.name, p.type_ann))
                 .collect();
             println!(
-                "    {} ({}) \u{2014} callable with 'with {{ retries, timeout, activity_id }}'",
+                "    {} ({}) \u{2014} callable with current 'with' options like retries, timeout, activity_id, mens",
                 act.name,
                 act_params.join(", ")
             );
@@ -119,11 +119,13 @@ pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
         println!();
     }
 
-    println!("  Tip: 'with' options supported:");
-    println!("    retries: int         \u{2014} retry attempts on failure");
-    println!("    timeout: str         \u{2014} e.g. \"30s\", \"5m\"");
-    println!("    initial_backoff: str \u{2014} delay before first retry e.g. \"500ms\"");
-    println!("    activity_id: str     \u{2014} unique ID for deduplication / idempotency");
+    println!("  Tip: current 'with' option handling:");
+    println!("    retries: int         \u{2014} accepted by the typechecker; interpreted runtime retry semantics are still partial");
+    println!("    timeout: str         \u{2014} parsed today for interpreted runtime paths such as mesh_* activity execution");
+    println!("    activity_id: str     \u{2014} used for durable skip/resume and idempotency keys");
+    println!("    id: str              \u{2014} alias for activity_id in the interpreted planner");
+    println!("    mens: str            \u{2014} selects mesh_* control op override such as \"join\" or \"snapshot\"");
+    println!("    initial_backoff: str \u{2014} accepted syntax; durable backoff scheduling is planned, not fully honored yet");
 
     Ok(())
 }

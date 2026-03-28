@@ -4,6 +4,7 @@
 
 pub mod bootstrap_inference;
 pub mod config;
+pub mod env_parse;
 pub mod inference;
 pub mod paths;
 pub mod rollout;
@@ -26,14 +27,15 @@ pub use paths::{
     default_db_path, dot_vox_user_dir, local_user_id, mcp_sessions_dir, repo_memory_cache_dir,
     repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
+pub use rollout::{
+    RolloutFlagSnapshot, db_circuit_breaker_env_enabled,
+    db_embedded_replica_integration_gate_armed, db_sync_remote_integration_gate_armed, env_truthy,
+    orchestration_lineage_persist_enabled, rollout_flag_snapshot,
+    workflow_journal_codex_persist_enabled,
+};
 pub use routing_policy::{
     AutoModelStrategy, AutoRoutingPriority, GeminiRoutePolicy, GeminiRouteTargets,
     gemini_route_targets_from_env, resolve_openrouter_model,
-};
-pub use rollout::{
-    db_circuit_breaker_env_enabled, db_embedded_replica_integration_gate_armed,
-    db_sync_remote_integration_gate_armed, env_truthy, orchestration_lineage_persist_enabled,
-    rollout_flag_snapshot, workflow_journal_codex_persist_enabled, RolloutFlagSnapshot,
 };
 
 /// Minimum Vox MCP server version required for full agent capability.
@@ -76,4 +78,5 @@ mod tests {
         assert!(!InferenceProfile::MobileLitert.allows_local_ollama_http());
         assert!(!InferenceProfile::MobileCoreml.allows_local_ollama_http());
     }
+
 }

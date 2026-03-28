@@ -73,6 +73,12 @@ pub struct DocTrainingPair {
     pub response: String,
     /// Quality rating.
     pub rating: u8,
+    /// Data lane (codegen vs docs qa).
+    pub lane: String,
+    /// Expected response surface for this row.
+    pub response_mode: String,
+    /// Task family for downstream segmentation.
+    pub task_family: String,
 }
 
 impl DocTrainingPair {
@@ -86,6 +92,9 @@ impl DocTrainingPair {
             "rating": self.rating,
             "source": self.source_path.display().to_string(),
             "format": "documentation",
+            "lane": self.lane,
+            "response_mode": self.response_mode,
+            "task_family": self.task_family,
         });
         v.to_string()
     }
@@ -230,6 +239,9 @@ fn extract_code_blocks(
                     prompt,
                     response: code,
                     rating: 4u8.saturating_sub(staleness_penalty).max(1),
+                    lane: "vox_codegen".to_string(),
+                    response_mode: "code_only".to_string(),
+                    task_family: "docs_code".to_string(),
                 });
             }
             preceding_context.clear();
@@ -289,6 +301,9 @@ fn extract_qa_sections(
                     prompt,
                     response,
                     rating: 3u8.saturating_sub(staleness_penalty).max(1),
+                    lane: "vox_docs_qa".to_string(),
+                    response_mode: "prose_only".to_string(),
+                    task_family: "docs_qa".to_string(),
                 });
             }
 
@@ -332,6 +347,9 @@ fn extract_qa_sections(
             prompt,
             response,
             rating: 3u8.saturating_sub(staleness_penalty).max(1),
+            lane: "vox_docs_qa".to_string(),
+            response_mode: "prose_only".to_string(),
+            task_family: "docs_qa".to_string(),
         });
     }
 }

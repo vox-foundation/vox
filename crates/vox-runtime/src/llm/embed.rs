@@ -3,7 +3,6 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::{ActivityOptions, ActivityResult, execute_activity};
@@ -74,7 +73,7 @@ pub async fn llm_embed(
                 ));
             }
 
-            let client = Client::new();
+            let client = vox_reqwest_defaults::client();
             let req_body = OpenRouterEmbedRequest {
                 model: &config.model,
                 input: &text,

@@ -7,7 +7,7 @@ training_eligible: true
 ---
 # Actors & Workflows
 
-Vox provides two first-class concurrency primitives: **Actors** for lightweight message-passing and **Workflows** for durable, fault-tolerant execution.
+Vox provides two first-class concurrency primitives: **Actors** for lightweight message-passing and **Workflows** for orchestrating activities. Actor behavior is materially implemented today. Workflow durability is currently a mix of language intent, generated async code, and a separate interpreted runtime.
 
 ---
 
@@ -116,7 +116,13 @@ Activities must always return a `Result` type, since they represent operations t
 
 ## Workflows
 
-Workflows orchestrate activities with **durable execution** guarantees. Each step is recorded so execution survives crashes and restarts.
+Workflows orchestrate activities with retry and journaling intent.
+
+Current state:
+
+- **Implemented semantics:** workflow syntax, `with { ... }` parsing/typechecking, generated async Rust functions, interpreted workflow planning/journaling.
+- **Planned semantics:** full durable state-machine execution for the generated Rust path and complete retry/backoff fidelity.
+- **Escape hatch / current durable path:** the interpreted workflow runtime used by `vox mens workflow ...`.
 
 ```vox
 # Skip-Test
@@ -133,27 +139,31 @@ workflow onboard_user(user_id: str, email: str) to Result[str]:
 
 ### The `with` Expression
 
-The `with` expression configures retry and timeout policies for activity calls:
+The `with` expression carries workflow activity options. Some are honored today in the interpreted runtime, while others are accepted syntax with partial or planned semantics:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `retries` | `int` | Maximum retry attempts |
-| `timeout` | `str` | Maximum time for the activity (e.g., `"30s"`) |
-| `initial_backoff` | `str` | Backoff delay between retries (e.g., `"500ms"`) |
-| `activity_id` | `str` | Explicit ID for deduplication |
+| `retries` | `int` | Accepted today; interpreted runtime retry behavior is still being completed |
+| `timeout` | `str` | Parsed today for interpreted runtime activity planning |
+| `initial_backoff` | `str` | Accepted syntax; durable backoff scheduling is planned |
+| `activity_id` | `str` | Explicit durable/journal key |
+| `id` | `str` | Alias for `activity_id` in the interpreted planner |
+| `mens` | `str` | Mesh control override for interpreted `mesh_*` activities |
 
 ### Durable Execution
 
-If a process crashes after step 1 completes, the workflow resumes at step 2 when restarted — no work is lost. This is achieved by recording each step's result in a durable store before proceeding.
+The interpreted workflow runtime can skip previously completed activities when restarted with the same workflow and activity ids, because it records journal/tracker data before replay. Generated Rust workflows do **not** yet compile into a durable state machine.
+
+**Durable spine (today):** the supported replay/idempotency story is the interpreted `vox mens workflow …` runtime. Rust-emitted `async fn` workflows are orchestration helpers only until generated code adopts the same journaling contract.
 
 ### How Workflows Compile
 
-| Vox Concept | Compiled Output (Rust) |
-|-------------|----------------------|
-| `workflow` | State machine with step tracking |
-| `activity` | Async function with retry wrapper |
-| `with { retries: 3 }` | Retry loop configuration |
-| Step completion | Recorded to durable store before proceeding |
+| Vox Concept | Current generated / runtime behavior |
+|-------------|------------------------------------|
+| `workflow` | Generated as a plain `async fn` in Rust codegen |
+| `activity` | Generated as a plain `async fn`; `with` lowering adds helper wiring in some paths |
+| `with { retries: 3 }` | Parsed and typechecked; interpreted runtime support is partial |
+| Step completion | Interpreted runtime journals events; generated Rust path is not yet a durable state machine |
 
 ---
 

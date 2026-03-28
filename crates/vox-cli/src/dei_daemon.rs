@@ -45,7 +45,7 @@ fn enrich_dei_daemon_error(err: anyhow::Error) -> anyhow::Error {
     if display.contains(crate::dispatch::DAEMON_SPAWN_FAILED_PREFIX) {
         anyhow::anyhow!(
             "{display}\n\
-             Hint: install `vox-dei-d` on `PATH`, or place the binary next to `vox` (see `docs/src/ref-cli.md` and DeI daemon docs)."
+             Hint: install `vox-dei-d` on `PATH`, or place the binary next to `vox` (see `docs/src/reference/cli.md` and DeI daemon docs)."
         )
     } else {
         err

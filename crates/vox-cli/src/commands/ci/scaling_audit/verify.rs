@@ -31,10 +31,13 @@ pub(super) fn verify_policy_schema(repo_root: &Path) -> Result<()> {
     let instance: JsonValue =
         serde_yaml::from_str(&raw).context("parse scaling policy as JSON value")?;
     let validator =
-        jsonschema::validator_for(&schema_val).context("compile scaling policy.schema.json")?;
-    validator
-        .validate(&instance)
-        .map_err(|e| anyhow!("scaling policy does not match schema: {e}"))?;
+        vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())?;
+    vox_jsonschema_util::validate(
+        &instance,
+        &validator,
+        format!("scaling policy YAML vs {}", schema_path.display()),
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
     println!("scaling policy YAML OK (schema validated)");
     Ok(())
 }
@@ -81,14 +84,14 @@ fn validate_json_file_against_schema(
             .with_context(|| format!("read {}", inst_path.display()))?,
     )
     .with_context(|| format!("parse {}", inst_path.display()))?;
-    let validator = jsonschema::validator_for(&schema_val)
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
         .with_context(|| format!("compile {label} schema"))?;
-    validator.validate(&instance_val).map_err(|e| {
-        anyhow!(
-            "{label} does not match schema ({}): {e}",
-            inst_path.display()
-        )
-    })?;
+    vox_jsonschema_util::validate(
+        &instance_val,
+        &validator,
+        format!("{} ({})", label, inst_path.display()),
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
     println!("{label} OK (schema validated)");
     Ok(())
 }

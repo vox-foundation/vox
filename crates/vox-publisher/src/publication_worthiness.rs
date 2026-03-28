@@ -19,6 +19,7 @@ pub struct PublicationWorthinessContract {
     pub hard_red_lines: Vec<HardRedLine>,
     pub thresholds: Thresholds,
     pub weights: Weights,
+    /// Advisory venue notes only; `evaluate_worthiness` does not execute these checks yet.
     pub venue_profiles: std::collections::BTreeMap<String, VenueProfile>,
 }
 

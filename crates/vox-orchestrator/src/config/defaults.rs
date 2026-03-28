@@ -117,6 +117,12 @@ pub(super) fn default_trust_auto_approve_min() -> f64 {
 pub(super) fn default_attention_trust_routing_weight() -> f64 {
     2.0
 }
+pub(super) fn default_trust_task_completion_floor() -> f64 {
+    0.25
+}
+pub(super) fn default_trust_task_completion_weight() -> f64 {
+    1.5
+}
 
 /// Routing bonus for shard-role specialization.
 ///

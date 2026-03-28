@@ -14,6 +14,8 @@ on:
 # those platforms use separate deploy keys or CI variables.
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build-docs:
@@ -21,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Public site origin for sitemap.xml (match GitHub Pages / docs URL).
-      MDBOOK_SITEMAP_DOMAIN: https://vox-foundation.github.io/vox/
+      MDBOOK_SITEMAP_DOMAIN: https://vox-lang.org/
     steps:
       - uses: actions/checkout@v4
 
@@ -63,6 +65,11 @@ jobs:
       - name: Build mdBook
         run: mdbook build docs
 
+      - name: Install mdBook tools
+        run: |
+          cargo install mdbook-metadata --locked
+          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
+
       - name: Generate sitemap.xml
         working-directory: docs
         run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/html/sitemap.xml
@@ -72,3 +79,21 @@ jobs:
       # portable build artifact.
       - name: Archive docs
         run: tar -czf docs.tar.gz docs/book/
+
+      # ── GitHub Pages Deploy ─────────────────────────────────────────────
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book/html
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

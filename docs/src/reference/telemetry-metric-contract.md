@@ -62,6 +62,24 @@ Rollups written to `eval_runs` include JSON with both raw counts and **explicit 
 
 Envelope per line: `{ "ts_ms", "event", "payload" }`. Payload keys are defined in `crates/vox-populi/src/mens/tensor/telemetry_schema.rs` (e.g. `eta_seconds_remaining`, `steps_per_sec_ema`). The CLI viewer `vox mens watch-telemetry` must track this schema (guarded by `vox ci data-ssot-guards`).
 
+### Mens training KPI ownership (decision-driving)
+
+- **Tier 1 (gate-driving)**:
+  - `tokens_per_sec` (with `tokens_per_sec_is_proxy` when derived),
+  - `valid_tokens`,
+  - `theoretical_tokens`,
+  - `supervised_ratio_pct`.
+- **Tier 2 (diagnostic)**:
+  - `steps_per_sec_ema`,
+  - `eta_seconds_remaining`,
+  - skip counters (`skip_no_supervised_positions`, `skip_short_seq`, ...).
+
+### Deprecation / compatibility window
+
+- Consumers should prefer canonical fields above.
+- Legacy aliases are still read with warnings (status / eval-gate paths), then normalized at read time.
+- `steps_per_sec_ema` as a throughput surrogate is considered deprecated for gates when `tokens_per_sec` is present.
+
 ## CI
 
 - `vox ci data-ssot-guards` — asserts watch-telemetry references schema keys and `research_metrics` list API avoids `COALESCE(metric_value, 0.0)`.

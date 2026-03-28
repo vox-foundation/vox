@@ -60,7 +60,6 @@
 pub mod auto_migrate;
 /// Benchmark observations stored in `research_metrics` (`bench:<repository_id>` sessions).
 pub mod benchmark_telemetry;
-pub mod research_metrics_contract;
 pub mod build_hints;
 /// Turso / search tuning helpers (`VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`, etc.).
 pub mod capabilities;
@@ -74,6 +73,7 @@ mod codex_conversation_graph;
 pub mod connect_policy;
 /// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
 mod ludus_schema_cutover;
+pub mod research_metrics_contract;
 pub mod schema;
 /// Idempotent fixes after baseline `CREATE IF NOT EXISTS` (column adds, renames).
 mod schema_cutover;
@@ -120,6 +120,10 @@ mod socrates_telemetry;
 mod sync_invocables;
 pub mod syntax_k_telemetry;
 pub mod toestub_store;
+mod mens_scorecard_trust;
+mod trust_drift;
+mod trust_propagation;
+mod trust_telemetry;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
@@ -156,6 +160,9 @@ pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, genera
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
+pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
+pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
+pub use trust_telemetry::{TrustObservationInput, TrustRollupGroupSummary};
 pub use store::{
     A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
     BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
@@ -175,8 +182,8 @@ pub use store::{
     RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
     ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
     SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
-    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry,
-    WarningRow, WorkflowExecutionRow,
+    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
+    TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;

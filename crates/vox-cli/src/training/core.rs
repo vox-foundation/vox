@@ -5,6 +5,8 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use walkdir::WalkDir;
+
 use super::taxonomy::construct_difficulty;
 
 /// Schema version — must match `learn.rs` and `dogfood_train.py`.
@@ -12,25 +14,15 @@ pub const SCHEMA_VERSION: &str = "vox_dogfood_v1";
 
 /// Walk a directory recursively and collect all `.vox` files.
 pub fn walk_vox_files(dir: &Path) -> Vec<PathBuf> {
-    let mut result = Vec::new();
-    walk_recursive(dir, &mut result);
+    let mut result: Vec<PathBuf> = WalkDir::new(dir)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.path().extension().is_some_and(|ex| ex == "vox"))
+        .map(|e| e.path().to_path_buf())
+        .collect();
     result.sort();
     result
-}
-
-fn walk_recursive(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = match fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            walk_recursive(&path, out);
-        } else if path.extension().is_some_and(|e| e == "vox") {
-            out.push(path);
-        }
-    }
 }
 
 /// UTC timestamp for run IDs and logs (SSOT: [`vox_corpus::training::timestamp_string`]).

@@ -36,3 +36,14 @@ To satisfy the `> 1000` sample requirement without building a stale monolithic e
    - Yields ~2,000+ samples.
 
 This pipeline seamlessly creates a training corpus of >10,000 pairs, ensuring perfectly aligned Mens models as the Vox compiler automatically scales learning alongside real logic changes.
+
+## 3. Lane segmentation policy (code-first default)
+
+The corpus now carries explicit metadata per row:
+
+- `lane`: `vox_codegen`, `vox_docs_qa`, `vox_tooling`, `vox_speech`
+- `response_mode`: `code_only` or `prose_only`
+- `task_family`: granular task tag for sampling and analysis
+
+Operational default for production training is `vox_codegen` only, so prose supervision does not leak into code-only generation behavior.
+Documentation Q&A remains available as a separate lane for future multi-lane runs.

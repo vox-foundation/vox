@@ -7,6 +7,8 @@
 
 pub mod types;
 
+mod row_cols;
+
 /// Default relative path for the project Arca [`VoxDb`] SQLite file (under the repo/working tree).
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
@@ -29,7 +31,7 @@ pub use types::{
     RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
     ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
     SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
-    ThroughputProfileRow, TrainingPair, TypedStreamEventEntry, UserEntry, WarningRow,
+    ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry, UserEntry, WarningRow,
     WorkflowExecutionRow,
 };
 

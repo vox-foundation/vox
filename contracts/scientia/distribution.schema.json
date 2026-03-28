@@ -109,45 +109,6 @@
         }
       }
     },
-    "channel_policy": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "enabled": { "type": "boolean" },
-          "template_profile": { "type": "string" },
-          "worthiness_floor": { "type": "number", "minimum": 0, "maximum": 1 },
-          "topic_filters": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "include_tags": {
-                "type": "array",
-                "items": { "type": "string" }
-              },
-              "exclude_tags": {
-                "type": "array",
-                "items": { "type": "string" }
-              },
-              "min_topic_score": { "type": "number", "minimum": 0, "maximum": 1 }
-            }
-          }
-        }
-      }
-    },
-    "crosspost_plan": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "from": { "type": "string" },
-          "to": { "type": "string" }
-        },
-        "required": ["from", "to"]
-      }
-    },
     "distribution_policy": {
       "type": "object",
       "additionalProperties": false,
@@ -159,7 +120,33 @@
           "type": "boolean",
           "description": "When true, `vox-publisher` forces runtime `syndication.dry_run` during manifest row → UnifiedNewsItem hydration (non-live fan-out regardless of top-level `syndication.dry_run` unless you align both)."
         },
-        "channel_policy": { "$ref": "#/properties/channel_policy" }
+        "channel_policy": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "template_profile": { "type": "string" },
+              "worthiness_floor": { "type": "number", "minimum": 0, "maximum": 1 },
+              "topic_filters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "include_tags": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "exclude_tags": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "min_topic_score": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

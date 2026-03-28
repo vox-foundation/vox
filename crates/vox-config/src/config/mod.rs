@@ -10,6 +10,7 @@ mod gamify_web;
 mod impl_ops;
 mod persist;
 mod toml_schema;
+// Keep the internal module name (`vox_config`) private; callers should import `vox_config::VoxConfig`.
 mod vox_config;
 
 pub use gamify_web::{GamifyMode, WebRunMode};

@@ -273,6 +273,71 @@ impl MemoryManager {
         self.long_term.list_keys()
     }
 
+    /// Persist a stable campaign fact under the campaign namespace.
+    pub fn persist_campaign_fact(
+        &mut self,
+        agent_id: AgentId,
+        campaign_id: &str,
+        fact: impl Into<String>,
+    ) -> Result<(), MemoryError> {
+        let fact = fact.into();
+        let key = format!("campaign:{campaign_id}:fact:{}", self.cache.len());
+        self.persist_fact(agent_id, key, fact, &[], None, None)
+    }
+
+    /// Persist a campaign hypothesis under the campaign namespace.
+    pub fn persist_campaign_hypothesis(
+        &mut self,
+        agent_id: AgentId,
+        campaign_id: &str,
+        hypothesis: impl Into<String>,
+    ) -> Result<(), MemoryError> {
+        let hypothesis = hypothesis.into();
+        let key = format!("campaign:{campaign_id}:hypothesis:{}", self.cache.len());
+        self.persist_fact(agent_id, key, hypothesis, &[], None, None)
+    }
+
+    /// Persist a contradiction detected during a campaign.
+    pub fn persist_campaign_contradiction(
+        &mut self,
+        agent_id: AgentId,
+        campaign_id: &str,
+        contradiction: impl Into<String>,
+    ) -> Result<(), MemoryError> {
+        let contradiction = contradiction.into();
+        let key = format!("campaign:{campaign_id}:contradiction:{}", self.cache.len());
+        self.persist_fact(agent_id, key, contradiction, &[], None, None)
+    }
+
+    /// Build a resumable campaign state from MEMORY.md namespaced keys.
+    pub fn recall_campaign_snapshot(
+        &self,
+        campaign_id: &str,
+    ) -> Result<crate::reconstruction::CampaignMemorySnapshot, MemoryError> {
+        let mut snapshot = crate::reconstruction::CampaignMemorySnapshot {
+            campaign_id: campaign_id.to_string(),
+            ..Default::default()
+        };
+        for key in self.long_term.list_keys()? {
+            let Some(value) = self.long_term.get(&key)? else {
+                continue;
+            };
+            if !key.starts_with(&format!("campaign:{campaign_id}:")) {
+                continue;
+            }
+            if key.contains(":fact:") {
+                snapshot.stable_facts.push(value);
+            } else if key.contains(":hypothesis:") {
+                snapshot.hypotheses.push(value);
+            } else if key.contains(":contradiction:") {
+                snapshot.contradictions.push(value);
+            } else if key.ends_with(":summary") {
+                snapshot.milestone_summary = Some(value);
+            }
+        }
+        Ok(snapshot)
+    }
+
     /// Build rich context by traversing the knowledge graph from a topic node.
     pub async fn build_knowledge_context(
         &self,

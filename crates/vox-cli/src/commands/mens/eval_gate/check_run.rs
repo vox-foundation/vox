@@ -40,13 +40,26 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
     } else {
         let mut sum = 0.0;
         let mut count = 0;
+        let mut used_alias = false;
         for line in &metrics_lines {
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
-                && let Some(t) = v.get("tokens_per_sec").and_then(|x| x.as_f64())
-            {
-                sum += t;
-                count += 1;
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                let t = v
+                    .get("tokens_per_sec")
+                    .and_then(|x| x.as_f64())
+                    .or_else(|| {
+                        used_alias = true;
+                        v.get("steps_per_sec_ema").and_then(|x| x.as_f64())
+                    });
+                if let Some(tps) = t {
+                    sum += tps;
+                    count += 1;
+                }
             }
+        }
+        if used_alias {
+            eprintln!(
+                "warning: eval-gate consumed deprecated throughput alias `steps_per_sec_ema`; emit canonical `tokens_per_sec`"
+            );
         }
         if count > 0 {
             Some(sum / count as f64)
@@ -69,7 +82,20 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
             .filter_map(|l| {
                 serde_json::from_str::<serde_json::Value>(l)
                     .ok()
-                    .and_then(|v| v.get("supervised_ratio_pct").and_then(|x| x.as_f64()))
+                    .and_then(|v| {
+                        v.get("supervised_ratio_pct")
+                            .and_then(|x| x.as_f64())
+                            .or_else(|| {
+                                let valid = v.get("valid_tokens").and_then(|x| x.as_u64())?;
+                                let theoretical =
+                                    v.get("theoretical_tokens").and_then(|x| x.as_u64())?;
+                                if theoretical == 0 {
+                                    Some(0.0)
+                                } else {
+                                    Some((valid as f64 / theoretical as f64) * 100.0)
+                                }
+                            })
+                    })
             })
             .collect();
         if !sup_values.is_empty() {
@@ -188,6 +214,55 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 policy.eval_local.min_coverage_pct * 100.0,
             ),
             block: policy.eval_local.block,
+        });
+    }
+
+    if (policy.anti_stub.block
+        || policy.anti_stub.min_pass_rate > 0.0
+        || policy.anti_stub.max_placeholder_event_rate > 0.0
+        || policy.anti_stub.max_trivial_placeholder_event_rate > 0.0
+        || policy.anti_stub.min_construct_richness_mean > 0.0)
+        && let Some(ref eval) = eval_json
+    {
+        let anti_stub_pass = eval
+            .get("anti_stub_task_success")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let placeholder_rate = eval
+            .get("placeholder_event_rate")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let trivial_placeholder_rate = eval
+            .get("trivial_placeholder_event_rate")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let construct_richness_mean = eval
+            .get("construct_richness_mean")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let pass_rate_ok = anti_stub_pass >= policy.anti_stub.min_pass_rate;
+        let placeholder_ok = policy.anti_stub.max_placeholder_event_rate <= 0.0
+            || placeholder_rate <= policy.anti_stub.max_placeholder_event_rate;
+        let trivial_ok = policy.anti_stub.max_trivial_placeholder_event_rate <= 0.0
+            || trivial_placeholder_rate <= policy.anti_stub.max_trivial_placeholder_event_rate;
+        let richness_ok = policy.anti_stub.min_construct_richness_mean <= 0.0
+            || construct_richness_mean >= policy.anti_stub.min_construct_richness_mean;
+        let passed = pass_rate_ok && placeholder_ok && trivial_ok && richness_ok;
+        results.push(GateResult {
+            name: "anti_stub".to_string(),
+            passed,
+            message: format!(
+                "anti_stub_pass={:.3} (min={:.3}) placeholder_rate={:.3} (max={:.3}) trivial_rate={:.3} (max={:.3}) richness_mean={:.3} (min={:.3})",
+                anti_stub_pass,
+                policy.anti_stub.min_pass_rate,
+                placeholder_rate,
+                policy.anti_stub.max_placeholder_event_rate,
+                trivial_placeholder_rate,
+                policy.anti_stub.max_trivial_placeholder_event_rate,
+                construct_richness_mean,
+                policy.anti_stub.min_construct_richness_mean
+            ),
+            block: policy.anti_stub.block,
         });
     }
 

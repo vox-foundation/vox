@@ -3,6 +3,7 @@
 //! Replaces the retired Python inventory scripts; verify via `vox ci doc-inventory verify`.
 
 mod bounded_fs;
+mod cli_generate;
 mod constants;
 mod counts;
 mod file_entry;
@@ -13,6 +14,7 @@ mod types;
 mod verify_normalize;
 mod walk;
 
+pub use cli_generate::run_generate_inventory_cli;
 pub use constants::DEFAULT_INVENTORY_PATH;
 pub use inventory_gen::generate;
 pub use relevance::relevance_score;

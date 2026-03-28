@@ -4,9 +4,7 @@
 
 use serde::Serialize;
 
-use crate::research_metrics_contract::{
-    METRIC_TYPE_BENCHMARK_EVENT, TelemetryWriteOptions,
-};
+use crate::research_metrics_contract::{METRIC_TYPE_BENCHMARK_EVENT, TelemetryWriteOptions};
 use crate::{StoreError, VoxDb};
 
 /// Payload for one benchmark observation.

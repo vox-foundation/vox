@@ -6,8 +6,12 @@
 //! - `vox_uuid`        → monotonic unique ID (timestamp + atomic counter)
 //! - `vox_now_ms`      → current UNIX time in milliseconds
 
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+use vox_ars::{
+    DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
+};
 
 /// Fast, non-cryptographic hash using XXH3-128 (128-bit output).
 ///
@@ -62,6 +66,22 @@ pub fn vox_now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+pub fn vox_log_debug(message: &str) {
+    tracing::debug!(target: "vox_runtime::builtins", "{message}");
+}
+
+pub fn vox_log_info(message: &str) {
+    tracing::info!(target: "vox_runtime::builtins", "{message}");
+}
+
+pub fn vox_log_warn(message: &str) {
+    tracing::warn!(target: "vox_runtime::builtins", "{message}");
+}
+
+pub fn vox_log_error(message: &str) {
+    tracing::error!(target: "vox_runtime::builtins", "{message}");
 }
 
 /// Read a process environment variable (`std.env.get` in Vox scripts).
@@ -221,6 +241,193 @@ pub fn vox_json_quote(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string())
 }
 
+/// OpenClaw WS control-plane call from Vox scripts (`OpenClaw.call`).
+pub fn vox_openclaw_call(method: &str, params_json: &str) -> Result<String, String> {
+    run_openclaw_op(OpenClawOp::GatewayCall {
+        method: method.to_string(),
+        params_json: params_json.to_string(),
+    })
+}
+
+/// OpenClaw convenience: list remote skills as JSON (`OpenClaw.list_skills`).
+pub fn vox_openclaw_list_skills() -> Result<String, String> {
+    run_openclaw_op(OpenClawOp::ListSkills)
+}
+
+/// OpenClaw convenience: subscribe domain (`OpenClaw.subscribe`).
+pub fn vox_openclaw_subscribe(domain: &str) -> Result<String, String> {
+    run_openclaw_op(OpenClawOp::Subscribe {
+        domain: domain.to_string(),
+    })
+}
+
+/// OpenClaw convenience: unsubscribe domain (`OpenClaw.unsubscribe`).
+pub fn vox_openclaw_unsubscribe(domain: &str) -> Result<String, String> {
+    run_openclaw_op(OpenClawOp::Unsubscribe {
+        domain: domain.to_string(),
+    })
+}
+
+/// OpenClaw convenience: notify domain (`OpenClaw.notify`).
+pub fn vox_openclaw_notify(domain: &str, message: &str) -> Result<String, String> {
+    run_openclaw_op(OpenClawOp::Notify {
+        domain: domain.to_string(),
+        message: message.to_string(),
+    })
+}
+
+async fn connect_openclaw_adapter() -> Result<DefaultOpenClawRuntimeAdapter, String> {
+    let clavis_token = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+        .expose()
+        .map(std::string::ToString::to_string);
+    connect_default_runtime_adapter(clavis_token)
+        .await
+        .map_err(|e| format!("openclaw adapter connect failed: {e}"))
+}
+
+enum OpenClawOp {
+    GatewayCall { method: String, params_json: String },
+    ListSkills,
+    Subscribe { domain: String },
+    Unsubscribe { domain: String },
+    Notify { domain: String, message: String },
+}
+
+struct OpenClawRequest {
+    op: OpenClawOp,
+    reply_tx: std::sync::mpsc::Sender<Result<String, String>>,
+}
+
+struct OpenClawWorker {
+    tx: std::sync::mpsc::Sender<OpenClawRequest>,
+}
+
+fn openclaw_worker() -> &'static OpenClawWorker {
+    static WORKER: OnceLock<OpenClawWorker> = OnceLock::new();
+    WORKER.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<OpenClawRequest>();
+        std::thread::Builder::new()
+            .name("vox-openclaw-runtime".to_string())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| format!("openclaw runtime init failed: {e}"));
+                match runtime {
+                    Ok(rt) => {
+                        let mut adapter: Option<DefaultOpenClawRuntimeAdapter> = None;
+                        while let Ok(req) = rx.recv() {
+                            let result = rt.block_on(handle_openclaw_op(&mut adapter, req.op));
+                            let _ = req.reply_tx.send(result);
+                        }
+                    }
+                    Err(err) => {
+                        while let Ok(req) = rx.recv() {
+                            let _ = req.reply_tx.send(Err(err.clone()));
+                        }
+                    }
+                }
+            })
+            .expect("spawn openclaw runtime worker");
+        OpenClawWorker { tx }
+    })
+}
+
+fn run_openclaw_op(op: OpenClawOp) -> Result<String, String> {
+    let worker = openclaw_worker();
+    run_openclaw_op_with_worker(worker, op)
+}
+
+fn run_openclaw_op_with_worker(worker: &OpenClawWorker, op: OpenClawOp) -> Result<String, String> {
+    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+    worker
+        .tx
+        .send(OpenClawRequest { op, reply_tx })
+        .map_err(|e| format!("openclaw worker send failed: {e}"))?;
+    reply_rx
+        .recv()
+        .map_err(|e| format!("openclaw worker recv failed: {e}"))?
+}
+
+async fn handle_openclaw_op(
+    adapter: &mut Option<DefaultOpenClawRuntimeAdapter>,
+    op: OpenClawOp,
+) -> Result<String, String> {
+    match op {
+        OpenClawOp::GatewayCall {
+            method,
+            params_json,
+        } => {
+            let params = serde_json::from_str::<serde_json::Value>(&params_json)
+                .map_err(|e| format!("invalid params_json: {e}"))?;
+            if adapter.is_none() {
+                *adapter = Some(connect_openclaw_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "openclaw adapter unavailable".to_string())?;
+            let payload = adapter
+                .gateway_call(&method, params)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+        OpenClawOp::ListSkills => {
+            if adapter.is_none() {
+                *adapter = Some(connect_openclaw_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "openclaw adapter unavailable".to_string())?;
+            let skills = adapter
+                .list_remote_skills()
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&serde_json::json!({ "skills": skills }))
+                .map_err(|e| e.to_string())
+        }
+        OpenClawOp::Subscribe { domain } => {
+            if adapter.is_none() {
+                *adapter = Some(connect_openclaw_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "openclaw adapter unavailable".to_string())?;
+            let payload = adapter
+                .subscribe_domain(&domain)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+        OpenClawOp::Unsubscribe { domain } => {
+            if adapter.is_none() {
+                *adapter = Some(connect_openclaw_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "openclaw adapter unavailable".to_string())?;
+            let payload = adapter
+                .unsubscribe_domain(&domain)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+        OpenClawOp::Notify { domain, message } => {
+            if adapter.is_none() {
+                *adapter = Some(connect_openclaw_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "openclaw adapter unavailable".to_string())?;
+            let payload = adapter
+                .notify_domain(&domain, &message)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+    }
+}
+
 /// Expand a glob pattern and return sorted paths as strings (`std.fs.glob`).
 ///
 /// Patterns follow the Rust [`glob`] crate (e.g. `*.rs`, `target/**/*.toml`). Invalid patterns
@@ -274,6 +481,54 @@ mod tests {
             vox_hash_secure("hello world")
         );
         assert_eq!(vox_hash_secure("hello world").len(), 64);
+    }
+
+    #[tokio::test]
+    async fn openclaw_gateway_call_invalid_json_is_reported_without_adapter() {
+        let mut adapter = None;
+        let err = handle_openclaw_op(
+            &mut adapter,
+            OpenClawOp::GatewayCall {
+                method: "subscriptions.list".to_string(),
+                params_json: "{not-valid-json".to_string(),
+            },
+        )
+        .await
+        .expect_err("invalid JSON must fail before adapter access");
+        assert!(
+            err.contains("invalid params_json"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn openclaw_worker_send_failure_is_reported() {
+        let (tx, rx) = std::sync::mpsc::channel::<OpenClawRequest>();
+        drop(rx);
+        let worker = OpenClawWorker { tx };
+        let err = run_openclaw_op_with_worker(&worker, OpenClawOp::ListSkills)
+            .expect_err("send should fail when receiver is dropped");
+        assert!(
+            err.contains("openclaw worker send failed"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn openclaw_worker_recv_failure_is_reported() {
+        let (tx, rx) = std::sync::mpsc::channel::<OpenClawRequest>();
+        std::thread::spawn(move || {
+            if let Ok(req) = rx.recv() {
+                drop(req.reply_tx);
+            }
+        });
+        let worker = OpenClawWorker { tx };
+        let err = run_openclaw_op_with_worker(&worker, OpenClawOp::ListSkills)
+            .expect_err("recv should fail when worker closes reply channel");
+        assert!(
+            err.contains("openclaw worker recv failed"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

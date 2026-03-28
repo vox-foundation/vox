@@ -1,0 +1,20 @@
+{
+  "type": "res",
+  "id": "fixture-connect-id",
+  "ok": true,
+  "payload": {
+    "type": "hello-ok",
+    "protocol": 3,
+    "policy": {
+      "tickIntervalMs": 15000
+    },
+    "auth": {
+      "deviceToken": "fixture-device-token",
+      "role": "operator",
+      "scopes": [
+        "operator.read",
+        "operator.write"
+      ]
+    }
+  }
+}

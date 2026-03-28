@@ -187,7 +187,7 @@ where
     let activity_id = options
         .activity_id
         .clone()
-        .unwrap_or_else(|| format!("{}-{}", name, uuid_simple()));
+        .unwrap_or_else(|| format!("{}-{}", name, crate::simple_id::simple_hex_id()));
 
     for attempt in 1..=max_attempts {
         tracing::info!(
@@ -212,7 +212,12 @@ where
                         );
                         if attempt < max_attempts {
                             // Retry on timeout
-                            current_backoff = next_backoff(current_backoff, options);
+                            current_backoff =
+                                vox_primitives::backoff::next_exponential_backoff_duration(
+                                    current_backoff,
+                                    options.backoff_multiplier,
+                                    options.max_backoff,
+                                );
                             time::sleep(current_backoff).await;
                             continue;
                         }
@@ -251,7 +256,12 @@ where
                         name
                     );
                     time::sleep(current_backoff).await;
-                    current_backoff = next_backoff(current_backoff, options);
+                    current_backoff =
+                        vox_primitives::backoff::next_exponential_backoff_duration(
+                            current_backoff,
+                            options.backoff_multiplier,
+                            options.max_backoff,
+                        );
                 }
             }
         }
@@ -263,20 +273,24 @@ where
     })
 }
 
-/// Calculate the next backoff duration using exponential backoff with cap.
-fn next_backoff(current: Duration, options: &ActivityOptions) -> Duration {
-    let next = Duration::from_secs_f64(current.as_secs_f64() * options.backoff_multiplier);
-    std::cmp::min(next, options.max_backoff)
-}
-
-/// Generate a simple unique ID (no external dep required).
-fn uuid_simple() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    format!("{:x}", nanos)
+/// Execute an activity and return a standard `Result` envelope for generated code paths.
+///
+/// This keeps failure/cancellation on the value channel instead of forcing panic-based handling.
+pub async fn execute_activity_result<F, Fut, T, E>(
+    name: &str,
+    options: &ActivityOptions,
+    f: F,
+) -> Result<T, String>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = Result<T, E>>,
+    E: std::fmt::Display,
+{
+    match execute_activity(name, options, f).await {
+        ActivityResult::Ok(v) => Ok(v),
+        ActivityResult::Failed(e) => Err(e.to_string()),
+        ActivityResult::Cancelled => Err("activity cancelled".to_string()),
+    }
 }
 
 #[cfg(test)]
@@ -339,7 +353,11 @@ mod tests {
     fn test_next_backoff_capped() {
         let opts = ActivityOptions::new().with_max_backoff(Duration::from_secs(5));
         // Starting from 4s with 2x multiplier should cap at 5s
-        let result = next_backoff(Duration::from_secs(4), &opts);
+        let result = vox_primitives::backoff::next_exponential_backoff_duration(
+            Duration::from_secs(4),
+            opts.backoff_multiplier,
+            opts.max_backoff,
+        );
         assert_eq!(result, Duration::from_secs(5));
     }
 
@@ -419,5 +437,13 @@ mod tests {
             ActivityResult::Failed(ActivityError::Timeout(_)) => { /* expected */ }
             other => panic!("Expected Timeout, got {:?}", other),
         }
+    }
+
+    #[tokio::test]
+    async fn test_execute_activity_result_maps_failure_to_err() {
+        let opts = ActivityOptions::new();
+        let result =
+            execute_activity_result("map-fail", &opts, || async { Err::<(), _>("boom") }).await;
+        assert!(result.is_err());
     }
 }

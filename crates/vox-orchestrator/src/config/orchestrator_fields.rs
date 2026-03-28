@@ -251,6 +251,12 @@ pub struct OrchestratorConfig {
     /// Routing weight applied to trust scores in step 3d. Default: 2.0.
     #[serde(default = "default_attention_trust_routing_weight")]
     pub attention_trust_routing_weight: f64,
+    /// Disqualifying floor for task completion trust rollups during routing.
+    #[serde(default = "default_trust_task_completion_floor")]
+    pub trust_task_completion_floor: f64,
+    /// Weight for task completion trust rollups during routing.
+    #[serde(default = "default_trust_task_completion_weight")]
+    pub trust_task_completion_weight: f64,
     /// Routing bonus for shard-role specialization (`[PHASE:SHARD_*]`, `[PHASE:REDUCE]`).
     #[serde(default = "default_repo_shard_specialization_weight")]
     pub repo_shard_specialization_weight: f64,

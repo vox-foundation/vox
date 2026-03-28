@@ -16,6 +16,14 @@ training_eligible: true
 | **Candle QLoRA** | `vox mens train --backend qlora --tokenizer hf …` | **`vox mens merge-qlora`** / **`vox schola merge-qlora`** (alias `merge-adapter`) → f32 subset shards | **No** — use vLLM/Ollama/HF (or external OpenAI-compatible stack); `vox mens serve` does not load QLoRA merge outputs |
 | **Burn LoRA** | **Not** via `schola train` dispatch (use historical/legacy flows if you still maintain Burn checkpoints) | `vox mens merge-weights` → `model_merged.bin` | **Yes** — `vox mens serve` (`execution-api`) loads `*.bin` / merged Burn checkpoints |
 
+## External serving is a supported lane
+
+For Candle QLoRA and other exported artifact paths, external serving is the supported deployment model rather than a fallback.
+
+- Treat **vLLM**, **Ollama**, **HF Transformers**, and **OpenAI-compatible** runtimes as first-class deployment targets for merged/exported QLoRA artifacts.
+- Record handoff metadata with the contract at `contracts/eval/external-serving-handoff.schema.json` when wiring export/deploy automation.
+- Use `vox mens serve` only for the in-tree Burn serving lane today.
+
 ## Why
 
 - **One canonical CLI** for in-repo native fine-tuning: **`vox mens train`**.
@@ -108,7 +116,7 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 - `crates/vox-cli/src/commands/mens/mod.rs` — `train-uv` **retired** (inline bail; use `vox mens train --backend qlora`)
 - `crates/vox-corpus/src/training/mix_prepare.rs` — Mens mix + primary-source sync + copy helpers (workspace-root SSOT)
 - `crates/vox-populi/src/mens/hub.rs` — `download_model_blocking` (HF snapshot for training)
-- `AGENTS.md` § 2.2.3, `docs/src/ref-cli.md` (Mens), `docs/src/expl-ml-pipeline.md` (train matrix)
+- `AGENTS.md` § 2.2.3, `docs/src/reference/cli.md` (Mens), `docs/src/expl-ml-pipeline.md` (train matrix)
 - Plans: `.cursor/plans/native_qlora_ssot_dea968e4.plan.md`, `.cursor/plans/qlora_ssot_grounded_plan_cc5501f2.plan.md`
 
 ## Full-graph QLoRA design (Phase 2c)
@@ -133,6 +141,16 @@ It intentionally excludes runtime-only telemetry counters and post-hoc eval outc
 - **Operator impact**: do **not** expect loss / perplexity curves to match Burn. Use `training_manifest.json` **`candle_qlora_graph_id`**, **`candle_qlora_ce_last_k`**, **`training_objective_note`**, telemetry, and tiered **parity tests** (`candle_burn_*`) for **shared f32 primitives** only — not end-to-end NF4-vs-Burn LM identity.
 
 ## Burn LoRA vs Candle QLoRA — which path, when (4080 Super and beyond)
+
+### Burn R&D charter (bounded)
+
+Burn remains an explicit R&D lane, not production train dispatch. Keep experiments bounded and comparable:
+
+1. strict code-only adapter behavior experiment,
+2. tokenizer/format sensitivity experiment,
+3. merge-and-serve operational comparison.
+
+All Burn experiments must emit the same `mens-scorecard` summary/event artifacts with explicit backend tag `burn` so decisions stay evidence-based across lanes.
 
 ### Is QLoRA “better” than Burn LoRA?
 
@@ -176,7 +194,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 
 1. **Compile**: `cargo check -p vox-cli --features gpu` (Burn + CPU QLoRA baseline). For **CUDA QLoRA on 4080**: `cargo check -p vox-cli --features gpu,mens-candle-cuda` (release build: ensure **`vox.exe`** is not locked by another process on Windows).
 2. **CLI/registry drift**: `vox ci command-compliance` (or `cargo run -p vox-cli --features gpu -- ci command-compliance`).
-3. **Training acceptance profile**: `cargo run -p vox-cli -- ci mens-gate --profile training` (see [mens-finetune-acceptance-runbook.md](../architecture/mens-finetune-acceptance-runbook.md)).
+3. **Training acceptance profile**: `cargo run -p vox-cli -- ci mesh-gate --profile training` (alias: `mens-gate`; see [mens-finetune-acceptance-runbook.md](../architecture/mens-finetune-acceptance-runbook.md)).
 4. **Language/tooling confidence** (orthogonal to trainer): `cargo check --workspace`, `cargo test` for areas you touched; MCP **`vox-mcp`** and orchestrator paths assume a healthy **`vox`** binary and repo root — see [AGENTS.md](../../../AGENTS.md) § orchestration / capability registry.
 5. **Data**: canonical **`train.jsonl`** under **`--data-dir`** (often **`target/dogfood`** after corpus mix). Operator mix (**`vox mens corpus mix --config mens/config/mix.yaml`**) is **strict by default**: every non-optional `mens/config/mix.yaml` source must exist and emit at least one row. Use **`--allow-missing-sources`** for the old warn-only behavior (automation / first-time trees). A JSON report is written next to the mix output (**`*.mix_report.json`**, same stem as the mixed JSONL) with per-source weights, line counts, and output share. Optional: **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the JSONL is already final.
 6. **Choose artifact + inference**: **Burn** → **`merge-weights`** → **`vox mens serve`**; **QLoRA** → **`merge-qlora`** → external **OpenAI-compatible** or HF runtime (not `serve` today).
@@ -199,7 +217,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 - **`--device cuda`** without **`mens-candle-cuda`** fails fast at CLI with rebuild instructions.
 - **Local-first safety knobs**: `--require-gpu` fails if runtime resolves to CPU; `--allow-cpu-fallback=false` disables automatic fallback for `--device best`.
 - **CPU smoke**: `VOX_CANDLE_DEVICE=cpu` forces Candle on CPU for debugging.
-- **IDE / Cursor timeouts (long builds + train + gates)**: Hosted agent tools often cap wall time (~tens of seconds to a few minutes). Prefer **detach + log** instead of blocking a single tool invocation on **`mens-gate`** (training profile commonly **5–40+ minutes** depending on cold compile and disk):
+- **IDE / Cursor timeouts (long builds + train + gates)**: Hosted agent tools often cap wall time (~tens of seconds to a few minutes). Prefer **detach + log** instead of blocking a single tool invocation on **`mesh-gate`** (alias: `mens-gate`; training profile commonly **5–40+ minutes** depending on cold compile and disk):
   - **Mens gate**: from repo root, **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** or **`pwsh scripts/populi/release_ci_full_gate.ps1 -Detach`** — returns immediately; watch **`target/mens-gate-logs/`**. Same pattern as [`mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1). For quick local signal without the full gate, run a **single** targeted test (examples in **Regression tests** below).
   - **Train**: `vox mens train … --background` or `vox mens train … --log-dir mens/runs/logs` — parent exits immediately; monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`).
   - **CUDA `cargo` build**: normal terminal or `Tee-Object`; detached build: [`scripts/populi/cursor_background_cuda_build_detached.ps1`](../../../scripts/populi/cursor_background_cuda_build_detached.ps1) (and `scripts/mens/…` copies if present). Example train launcher: [`scripts/populi/cursor_background_train_example.ps1`](../../../scripts/populi/cursor_background_train_example.ps1).
@@ -214,7 +232,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
 
 ## Pre-push release gate (acceptance matrix)
 
-- **Canonical (cross-platform)**: `cargo run -p vox-cli -- ci mens-gate --profile training` (add `--profile ci_full` for the wider matrix).  
+- **Canonical (cross-platform)**: `cargo run -p vox-cli -- ci mesh-gate --profile training` (add `--profile ci_full` for the wider matrix; alias: `mens-gate`).  
   Steps live in [`scripts/populi/gates.yaml`](../../../scripts/populi/gates.yaml) (legacy fallback `scripts/mens/gates.yaml`). Nested `cargo` steps use `target/nested-ci` (see flight checklist above).
 - **Thin shims**: `pwsh scripts/populi/release_training_gate.ps1`, `pwsh scripts/populi/release_ci_full_gate.ps1`, `pwsh scripts/mens_release_gate.ps1` (m1m4) — all forward to [`scripts/populi/mens_gate_safe.ps1`](../../../scripts/populi/mens_gate_safe.ps1). **Cursor / agent wall-clock limits:** run **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** (or **`release_ci_full_gate.ps1 -Detach`**) so a **new** PowerShell process owns the multi-minute nested `cargo test` work; tail **`target/mens-gate-logs/mens_gate_*.log`**. Optional **`-LogFile C:\path\to\gate.log`** pins the tee path. Bash peers remain where present — mirrors [`mens-finetune-acceptance-runbook.md`](../architecture/mens-finetune-acceptance-runbook.md) rows 1–10 (planner, keymap, strict preflight, Burn smoke, parity tests, merge, `merge_v2`).
 

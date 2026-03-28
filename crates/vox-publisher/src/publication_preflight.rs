@@ -1,5 +1,6 @@
 //! Readiness checks for [`crate::publication::PublicationManifest`] before journal or repository submission.
 
+use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 use regex::Regex;
@@ -43,6 +44,16 @@ pub struct ManualRequiredEntry {
     pub command_hint: Option<String>,
 }
 
+/// Ordered operator actions derived from preflight, gate, and configured channels.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NextActionEntry {
+    pub code: &'static str,
+    pub summary: String,
+    pub reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_hint: Option<String>,
+}
+
 /// Coarse automation posture for this preflight pass.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -66,6 +77,8 @@ pub struct PreflightReport {
     /// Consolidated operator checklist (non-secret; actionable next steps).
     #[serde(default)]
     pub manual_required: Vec<ManualRequiredEntry>,
+    #[serde(default)]
+    pub next_actions: Vec<NextActionEntry>,
     pub confidence: PreflightConfidence,
     /// Conservative worthiness rubric output when requested (heuristic metrics; `meaningful_advance` is always false).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -179,7 +192,8 @@ fn collect_manual_required(
                 reason: "Twitter is enabled in syndication but no operator bearer token resolved."
                     .to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Configure the Twitter bearer token / Clavis mapping for this shell.".to_string(),
+                next_action: "Configure the Twitter bearer token / Clavis mapping for this shell."
+                    .to_string(),
                 command_hint: Some("vox clavis doctor".to_string()),
             });
         }
@@ -188,7 +202,8 @@ fn collect_manual_required(
                 code: "credential_github",
                 reason: "GitHub syndication is enabled but no operator token resolved.".to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Configure `VOX_NEWS_GITHUB_TOKEN` / GitHub token via Clavis.".to_string(),
+                next_action: "Configure `VOX_NEWS_GITHUB_TOKEN` / GitHub token via Clavis."
+                    .to_string(),
                 command_hint: Some("vox clavis doctor".to_string()),
             });
         }
@@ -198,15 +213,17 @@ fn collect_manual_required(
                 reason: "Open Collective syndication is enabled but no operator token resolved."
                     .to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Configure `VOX_NEWS_OPENCOLLECTIVE_TOKEN` / Clavis mapping.".to_string(),
+                next_action: "Configure `VOX_NEWS_OPENCOLLECTIVE_TOKEN` / Clavis mapping."
+                    .to_string(),
                 command_hint: Some("vox clavis doctor".to_string()),
             });
         }
         if item.syndication.reddit.is_some() && !cred.reddit {
             out.push(ManualRequiredEntry {
                 code: "credential_reddit",
-                reason: "Reddit syndication is enabled but OAuth client credentials are incomplete."
-                    .to_string(),
+                reason:
+                    "Reddit syndication is enabled but OAuth client credentials are incomplete."
+                        .to_string(),
                 severity: PreflightSeverity::Warning,
                 next_action: "Set `VOX_SOCIAL_REDDIT_*` secrets per Clavis SSOT.".to_string(),
                 command_hint: Some("vox clavis doctor".to_string()),
@@ -215,8 +232,9 @@ fn collect_manual_required(
         if item.syndication.youtube.is_some() && !cred.youtube {
             out.push(ManualRequiredEntry {
                 code: "credential_youtube",
-                reason: "YouTube syndication is enabled but OAuth refresh credentials are incomplete."
-                    .to_string(),
+                reason:
+                    "YouTube syndication is enabled but OAuth refresh credentials are incomplete."
+                        .to_string(),
                 severity: PreflightSeverity::Warning,
                 next_action: "Set `VOX_SOCIAL_YOUTUBE_*` secrets per Clavis SSOT.".to_string(),
                 command_hint: Some("vox clavis doctor".to_string()),
@@ -255,11 +273,144 @@ fn collect_manual_required(
                 code,
                 reason: br.message.clone(),
                 severity: PreflightSeverity::Error,
-                next_action: "Resolve this gate before attempting a live syndication fan-out.".to_string(),
+                next_action: "Resolve this gate before attempting a live syndication fan-out."
+                    .to_string(),
                 command_hint: hint,
             });
         }
     }
+    out
+}
+
+fn manifest_has_explicit_distribution_intent(manifest: &PublicationManifest) -> bool {
+    let Some(raw) = manifest.metadata_json.as_deref() else {
+        return false;
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let Ok(root) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+        return false;
+    };
+    root.get("syndication").is_some()
+        || root
+            .get(crate::switching::LEGACY_METADATA_SYNDICATION_KEY)
+            .is_some()
+        || root.get("topic_pack").is_some()
+}
+
+fn derive_next_actions(
+    manifest: &PublicationManifest,
+    findings: &[PreflightFinding],
+    manual_required: &[ManualRequiredEntry],
+) -> Vec<NextActionEntry> {
+    let mut out = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut push =
+        |code: &'static str, summary: String, reason: String, command_hint: Option<String>| {
+            if seen.insert(code.to_string()) {
+                out.push(NextActionEntry {
+                    code,
+                    summary,
+                    reason,
+                    command_hint,
+                });
+            }
+        };
+
+    let error_count = findings
+        .iter()
+        .filter(|f| f.severity == PreflightSeverity::Error)
+        .count();
+    let warning_count = findings
+        .iter()
+        .filter(|f| f.severity == PreflightSeverity::Warning)
+        .count();
+
+    if error_count > 0 {
+        push(
+            "fix_preflight_errors",
+            format!("Resolve {error_count} blocking preflight error(s) first."),
+            "Readiness errors will block the shortest safe path to scholarly submission and increase operator churn.".to_string(),
+            Some(
+                "vox scientia publication-preflight --publication-id <id> --profile default"
+                    .to_string(),
+            ),
+        );
+    } else if warning_count > 0 {
+        push(
+            "review_preflight_warnings",
+            format!("Review {warning_count} non-blocking preflight warning(s)."),
+            "Warnings are often fixable boilerplate gaps that improve publication metadata quality before submit.".to_string(),
+            Some(
+                "vox scientia publication-preflight --publication-id <id> --with-worthiness"
+                    .to_string(),
+            ),
+        );
+    }
+
+    let mut manual_sorted: Vec<&ManualRequiredEntry> = manual_required.iter().collect();
+    manual_sorted.sort_by_key(|m| match m.severity {
+        PreflightSeverity::Error => 0_u8,
+        PreflightSeverity::Warning => 1_u8,
+    });
+    for manual in manual_sorted {
+        push(
+            manual.code,
+            manual.next_action.clone(),
+            manual.reason.clone(),
+            manual.command_hint.clone(),
+        );
+    }
+
+    if error_count == 0 {
+        push(
+            "run_default_scholarly_pipeline",
+            "Use `publication-scholarly-pipeline-run` as the default scholarly happy path.".to_string(),
+            "That command reuses preflight, approval gating, optional staging, and submit so the operator does not have to hand-orchestrate each step.".to_string(),
+            Some(
+                "vox scientia publication-scholarly-pipeline-run --publication-id <id> --dry-run"
+                    .to_string(),
+            ),
+        );
+    }
+
+    if let Ok(item) = crate::switching::unified_news_item_from_manifest_parts(
+        manifest.publication_id.as_str(),
+        manifest.title.as_str(),
+        manifest.author.as_str(),
+        manifest.body_markdown.as_str(),
+        manifest.metadata_json.as_deref(),
+    ) {
+        let has_non_rss_social_targets = item.syndication.twitter.is_some()
+            || item.syndication.github.is_some()
+            || item.syndication.open_collective.is_some()
+            || item.syndication.reddit.is_some()
+            || item.syndication.hacker_news.is_some()
+            || item.syndication.youtube.is_some()
+            || item.syndication.crates_io.is_some();
+        if manifest_has_explicit_distribution_intent(manifest) || has_non_rss_social_targets {
+            push(
+                "simulate_social_routing",
+                "Run route simulation before social fan-out.".to_string(),
+                "Simulation shows channel policy, retries, and disabled-path reasons without spending approvals or posting live content.".to_string(),
+                Some("vox db publication-route-simulate --publication-id <id>".to_string()),
+            );
+        }
+        if error_count == 0 && has_non_rss_social_targets {
+            push(
+                "dry_run_social_publish",
+                "Dry-run the configured social channels before any live publish.".to_string(),
+                "A dry-run verifies effective routing and payload generation while keeping irreversible platform actions manual and explicit.".to_string(),
+                Some(
+                    "vox db publication-publish --publication-id <id> --dry-run true"
+                        .to_string(),
+                ),
+            );
+        }
+    }
+
     out
 }
 
@@ -276,7 +427,11 @@ fn derive_confidence(
     if finding_err || manual_err {
         return PreflightConfidence::ManualRequired;
     }
-    if !manual.is_empty() || findings.iter().any(|f| f.severity == PreflightSeverity::Warning) {
+    if !manual.is_empty()
+        || findings
+            .iter()
+            .any(|f| f.severity == PreflightSeverity::Warning)
+    {
         return PreflightConfidence::AutoWithReview;
     }
     PreflightConfidence::AutoSafe
@@ -539,6 +694,7 @@ pub fn run_preflight_with_attention(
     score = score.clamp(0, 100);
 
     let manual_required = collect_manual_required(manifest, attention.as_ref());
+    let next_actions = derive_next_actions(manifest, &findings, &manual_required);
     let confidence = derive_confidence(&findings, &manual_required);
 
     PreflightReport {
@@ -546,6 +702,7 @@ pub fn run_preflight_with_attention(
         readiness_score: score as u8,
         findings,
         manual_required,
+        next_actions,
         confidence,
         worthiness: None,
     }
@@ -921,5 +1078,46 @@ mod tests {
         let r2 = run_preflight_with_worthiness(&m, PreflightProfile::DoubleBlind, &contract);
         assert!(!r2.ok);
         assert!(r2.worthiness.is_some());
+    }
+
+    #[test]
+    fn next_actions_include_default_pipeline_and_social_simulation() {
+        let m = sample_manifest(|x| {
+            x.metadata_json = Some(
+                r#"{
+                    "syndication": {
+                        "channels": ["twitter"],
+                        "channel_payloads": {
+                            "twitter": {
+                                "short_text": "hello"
+                            }
+                        }
+                    }
+                }"#
+                .to_string(),
+            );
+        });
+        let r = run_preflight(&m, PreflightProfile::Default);
+        assert!(
+            r.next_actions
+                .iter()
+                .any(|a| a.code == "run_default_scholarly_pipeline"),
+            "{:?}",
+            r.next_actions
+        );
+        assert!(
+            r.next_actions
+                .iter()
+                .any(|a| a.code == "simulate_social_routing"),
+            "{:?}",
+            r.next_actions
+        );
+        assert!(
+            r.next_actions
+                .iter()
+                .any(|a| a.code == "dry_run_social_publish"),
+            "{:?}",
+            r.next_actions
+        );
     }
 }

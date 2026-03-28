@@ -342,13 +342,7 @@ impl VoxDb {
                          AND lock_expires_at_ms IS NOT NULL
                          AND lock_expires_at_ms < ?5)
                    )",
-                        (
-                            lock_owner,
-                            lock_expires_at_ms,
-                            ts,
-                            job_id,
-                            now_ms_inclusive,
-                        ),
+                        (lock_owner, lock_expires_at_ms, ts, job_id, now_ms_inclusive),
                     )
                     .await?;
                 Ok::<u64, StoreError>(n)

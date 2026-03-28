@@ -3,65 +3,38 @@
 //! Keep shapes aligned with [`crate::params`], [`crate::memory`], [`crate::affinity`],
 //! and [`super::chat_tools`] `Deserialize` structs. Unknown tools fall back to an empty map
 //! (caller may treat as unconstrained JSON).
+//!
+//! ## Schemars-first vs hand-tuned
+//!
+//! Most strict object shapes use [`schemars::schema_for`] on the same Rust types handlers
+//! deserialize. Remaining `parse_obj(...)` literals are **intentional overrides**: `Value`-parsed
+//! tools (Oratio), `anyOf`/discriminated union chat payloads, VCS pass-through maps, and other
+//! shapes that are awkward or misleading if derived verbatim.
 
-use schemars::schema_for;
 use serde_json::{Map, Value, json};
+
+macro_rules! derived_tool_schema {
+    ($t:ty) => {{
+        let settings = schemars::generate::SchemaSettings::draft07().with(|s| {
+            s.inline_subschemas = true;
+        });
+        let mut schema_generator = settings.into_generator();
+        let root = schema_generator.into_root_schema_for::<$t>();
+        let serde_json::Value::Object(mut map) =
+            serde_json::to_value(&root).expect(concat!("schema_for ", stringify!($t)))
+        else {
+            panic!(concat!("JsonSchema root must be an object: ", stringify!($t)));
+        };
+        map.remove("$schema");
+        map
+    }};
+}
 
 fn parse_obj(s: &str) -> Map<String, Value> {
     serde_json::from_str::<Value>(s)
         .ok()
         .and_then(|v| v.as_object().cloned())
         .unwrap_or_default()
-}
-
-/// `vox_submit_task` input schema; nested `capabilities` matches [`vox_orchestrator::TaskCapabilityHints`].
-fn vox_submit_task_input_schema() -> Map<String, Value> {
-    let caps = serde_json::to_value(schema_for!(vox_orchestrator::TaskCapabilityHints))
-        .expect("TaskCapabilityHints JSON Schema (json-schema feature on vox-orchestrator)");
-
-    let mut properties = Map::new();
-    properties.insert(
-        "description".into(),
-        json!({
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 131072,
-            "description": "Natural-language task description"
-        }),
-    );
-    properties.insert(
-        "files".into(),
-        json!({
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "path": { "type": "string", "minLength": 1, "maxLength": 4096 },
-                    "access": { "type": "string", "enum": ["read", "write"] }
-                },
-                "required": ["path", "access"]
-            }
-        }),
-    );
-    properties.insert(
-        "priority".into(),
-        json!({
-            "type": "string",
-            "enum": ["urgent", "normal", "background"]
-        }),
-    );
-    properties.insert(
-        "agent_name".into(),
-        json!({ "type": "string", "maxLength": 256 }),
-    );
-    properties.insert("capabilities".into(), caps);
-
-    let mut root = Map::new();
-    root.insert("type".into(), json!("object"));
-    root.insert("properties".into(), Value::Object(properties));
-    root.insert("required".into(), json!(["description", "files"]));
-    root.insert("additionalProperties".into(), json!(false));
-    root
 }
 
 /// Schema object for RMCP / MCP tool registration.
@@ -78,28 +51,19 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_oratio_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Tasks & bulletin ─────────────────────────────────────────────────
-        "vox_submit_task" => vox_submit_task_input_schema(),
-        "vox_task_status" | "vox_complete_task" | "vox_cancel_task" => parse_obj(
-            r#"{"type":"object","properties":{"task_id":{"type":"integer","minimum":0}},"required":["task_id"],"additionalProperties":false}"#,
-        ),
-        "vox_fail_task" => parse_obj(
-            r#"{"type":"object","properties":{"task_id":{"type":"integer","minimum":0},"reason":{"type":"string"}},"required":["task_id","reason"],"additionalProperties":false}"#,
-        ),
-        "vox_publish_message" => parse_obj(
-            r#"{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}"#,
-        ),
-        "vox_reorder_task" => parse_obj(
-            r#"{"type":"object","properties":{"task_id":{"type":"integer","minimum":0},"priority":{"type":"string","enum":["urgent","normal","background"]}},"required":["task_id","priority"],"additionalProperties":false}"#,
-        ),
-        "vox_drain_agent" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
-        ),
-        "vox_spawn_agent" => parse_obj(
-            r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":256},"dynamic":{"type":"boolean"}},"required":["name"],"additionalProperties":false}"#,
-        ),
-        "vox_retire_agent" | "vox_pause_agent" | "vox_resume_agent" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0}},"required":["agent_id"],"additionalProperties":false}"#,
-        ),
+        "vox_submit_task" => derived_tool_schema!(crate::params::SubmitTaskParams),
+        "vox_task_status" | "vox_cancel_task" => {
+            derived_tool_schema!(crate::params::TaskStatusParams)
+        }
+        "vox_complete_task" => derived_tool_schema!(crate::params::CompleteTaskParams),
+        "vox_fail_task" => derived_tool_schema!(crate::params::FailTaskParams),
+        "vox_publish_message" => derived_tool_schema!(crate::params::PublishMessageParams),
+        "vox_reorder_task" => derived_tool_schema!(crate::params::ReorderTaskParams),
+        "vox_drain_agent" => derived_tool_schema!(crate::params::DrainAgentParams),
+        "vox_spawn_agent" => derived_tool_schema!(crate::params::SpawnAgentParams),
+        "vox_retire_agent" | "vox_pause_agent" | "vox_resume_agent" => {
+            derived_tool_schema!(crate::params::AgentIdToolParams)
+        }
 
         // ── Orchestrator status / no-arg tools ───────────────────────────────
         "vox_orchestrator_status"
@@ -107,6 +71,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_lock_status"
         | "vox_file_graph"
         | "vox_config_get"
+        | "vox_openclaw_list_remote"
+        | "vox_openclaw_discover"
+        | "vox_openclaw_health"
+        | "vox_openclaw_subscriptions"
         | "vox_session_list"
         | "vox_session_cleanup"
         | "vox_memory_list_keys"
@@ -123,17 +91,25 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // Handler ignores args today; keep the schema strict so clients send `{}` only.
         "vox_orchestrator_start" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        // `params` is `serde_json::Value` — derive would need a custom `schema_with`; keep explicit.
+        "vox_openclaw_gateway_call" => parse_obj(
+            r#"{"type":"object","properties":{"method":{"type":"string","minLength":1},"params":{"description":"OpenClaw gateway params JSON object"}},"required":["method"],"additionalProperties":false}"#,
+        ),
+        "vox_openclaw_search_remote" => derived_tool_schema!(crate::params::OpenClawSearchParams),
+        "vox_openclaw_import_skill" => derived_tool_schema!(crate::params::OpenClawImportParams),
+        "vox_openclaw_subscribe" | "vox_openclaw_unsubscribe" => {
+            derived_tool_schema!(crate::params::OpenClawDomainParams)
+        }
+        "vox_openclaw_notify" => derived_tool_schema!(crate::params::OpenClawNotifyParams),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
-        "vox_validate_file" | "vox_compiler::ast_inspect" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string","minLength":1,"description":"Workspace-relative or absolute path to a `.vox` file (absolute must resolve under the MCP repository root)"}},"required":["path"],"additionalProperties":false}"#,
-        ),
-        "vox_run_tests" => parse_obj(
-            r#"{"type":"object","properties":{"crate_name":{"type":"string","description":"Cargo package name (-p)"},"test_filter":{"type":"string","description":"Optional substring after --"}},"required":["crate_name"],"additionalProperties":false}"#,
-        ),
-        "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => parse_obj(
-            r#"{"type":"object","properties":{"crate_name":{"type":"string","description":"Cargo package name or omit for workspace"}},"additionalProperties":false}"#,
-        ),
+        "vox_validate_file" | "vox_compiler::ast_inspect" => {
+            derived_tool_schema!(crate::params::ValidateFileParams)
+        }
+        "vox_run_tests" => derived_tool_schema!(crate::params::RunTestsParams),
+        "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
+            derived_tool_schema!(crate::params::OptionalCrateNameParams)
+        }
 
         // ── File affinity ────────────────────────────────────────────────────
         "vox_check_file_owner" => parse_obj(
@@ -331,6 +307,18 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_db_research_metric_linked" => parse_obj(
             r#"{"type":"object","properties":{"session_key":{"type":"string"},"metric_type":{"type":"string"},"metric_value":{"type":"number"},"metadata_json":{"type":["string","object","null"]},"repository_id":{"type":"string"}},"required":["session_key","metric_type"],"additionalProperties":false}"#,
         ),
+        "vox_db_trust_rollups" => parse_obj(
+            r#"{"type":"object","properties":{"entity_type":{"type":"string","maxLength":128},"dimension":{"type":"string","maxLength":128},"domain":{"type":"string","maxLength":256},"repository_id":{"type":"string","maxLength":512},"repository_id_default_workspace":{"type":"boolean","description":"When true, filter rollups to the MCP workspace repository_id"},"limit":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}"#,
+        ),
+        "vox_db_trust_summary" => parse_obj(
+            r#"{"type":"object","properties":{"entity_type":{"type":"string","maxLength":128},"dimension":{"type":"string","maxLength":128},"domain":{"type":"string","maxLength":256},"repository_id":{"type":"string","maxLength":512},"repository_id_default_workspace":{"type":"boolean","description":"When true, filter trust rollups to the MCP workspace repository_id"},"group_by":{"type":"string","enum":["dimension","domain","entity_type","dimension_domain","entity_dimension"]},"limit_groups":{"type":"integer","minimum":1,"maximum":500}},"additionalProperties":false}"#,
+        ),
+        "vox_db_trust_drift" => parse_obj(
+            r#"{"type":"object","properties":{"entity_type":{"type":"string","maxLength":128},"dimension":{"type":"string","maxLength":128},"window_ms":{"type":"integer","minimum":60000,"maximum":2592000000,"description":"Recent vs prior window length (ms); default 86400000"}},"additionalProperties":false}"#,
+        ),
+        "vox_db_trust_propagate" => parse_obj(
+            r#"{"type":"object","properties":{"dimension":{"type":"string","minLength":1,"maxLength":128},"repository_id":{"type":"string","maxLength":512},"repository_id_default_workspace":{"type":"boolean","description":"When true, scope model rollups to workspace repository_id"},"damping":{"type":"number","minimum":0.0,"maximum":1.0},"iterations":{"type":"integer","minimum":1,"maximum":256},"persist":{"type":"boolean","description":"Write {dimension}_propagated trust observations"}},"required":["dimension"],"additionalProperties":false}"#,
+        ),
 
         // ── Codegen ──────────────────────────────────────────────────────────
         "vox_generate_code" => parse_obj(
@@ -363,9 +351,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_config_set" => parse_obj(
             r#"{"type":"object","additionalProperties":true,"description":"Partial orchestrator config updates."}"#,
         ),
-        "vox_map_agent_session" => parse_obj(
-            r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0,"description":"Orchestrator agent id to bind"},"session_id":{"type":"string","minLength":1,"maxLength":2048,"description":"Opaque client session string"}},"required":["agent_id","session_id"],"additionalProperties":false}"#,
-        ),
+        "vox_map_agent_session" => derived_tool_schema!(crate::params::MapAgentSessionParams),
         "vox_heartbeat" | "vox_record_cost" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
@@ -437,7 +423,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"profile":{"type":"string","enum":["default","double_blind","metadata_complete"]},"with_worthiness":{"type":"boolean","description":"If true, attach conservative worthiness rubric output (repo default YAML)."}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
         "vox_scientia_worthiness_evaluate" => parse_obj(
-            r#"{"type":"object","properties":{"contract_yaml_relative":{"type":"string","minLength":1,"maxLength":512,"description":"Repo-relative path to worthiness YAML"},"metrics":{"type":"object","description":"WorthinessInputs","properties":{"red_line_violation_ids":{"type":"array","items":{"type":"string","minLength":1}},"repeated_unresolved_contradiction":{"type":"boolean"},"claim_evidence_coverage":{"type":"number"},"artifact_replayability":{"type":"number"},"before_after_pair_integrity":{"type":"number"},"metadata_completeness":{"type":"number"},"ai_disclosure_compliance":{"type":"number"},"epistemic":{"type":"number"},"reproducibility":{"type":"number"},"novelty":{"type":"number"},"reliability":{"type":"number"},"metadata_policy":{"type":"number"},"meaningful_advance":{"type":"boolean"}},"required":["claim_evidence_coverage","artifact_replayability","before_after_pair_integrity","metadata_completeness","ai_disclosure_compliance","epistemic","reproducibility","novelty","reliability","metadata_policy"],"additionalProperties":false}},"required":["metrics"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"contract_yaml_relative":{"type":"string","minLength":1,"maxLength":512,"description":"Repo-relative path to worthiness YAML"},"with_live_trust":{"type":"boolean","description":"When true and VoxDb is attached, attach summarized trust_rollups for this repository to the result"},"metrics":{"type":"object","description":"WorthinessInputs","properties":{"red_line_violation_ids":{"type":"array","items":{"type":"string","minLength":1}},"repeated_unresolved_contradiction":{"type":"boolean"},"claim_evidence_coverage":{"type":"number"},"artifact_replayability":{"type":"number"},"before_after_pair_integrity":{"type":"number"},"metadata_completeness":{"type":"number"},"ai_disclosure_compliance":{"type":"number"},"epistemic":{"type":"number"},"reproducibility":{"type":"number"},"novelty":{"type":"number"},"reliability":{"type":"number"},"metadata_policy":{"type":"number"},"meaningful_advance":{"type":"boolean"}},"required":["claim_evidence_coverage","artifact_replayability","before_after_pair_integrity","metadata_completeness","ai_disclosure_compliance","epistemic","reproducibility","novelty","reliability","metadata_policy"],"additionalProperties":false}},"required":["metrics"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_approve" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"approver":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id","approver"],"additionalProperties":false}"#,
@@ -446,7 +432,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"adapter":{"type":"string","minLength":1,"maxLength":64,"description":"Override scholarly adapter (zenodo, openreview, local_ledger, …) instead of VOX_SCHOLARLY_ADAPTER"}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_status" => parse_obj(
-            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256}},"required":["publication_id"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"with_worthiness":{"type":"boolean","description":"If true, enrich the embedded preflight report with worthiness scoring and hydrated scientia_evidence sidecars."}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
         "vox_scientia_publication_scholarly_remote_status" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"external_submission_id":{"type":"string","minLength":1,"maxLength":512}},"required":["publication_id"],"additionalProperties":false}"#,

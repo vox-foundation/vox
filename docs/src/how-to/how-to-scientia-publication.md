@@ -12,19 +12,41 @@ This workflow uses a single publication manifest in Codex (`publication_manifest
 
 > Note: scholarly submit defaults to `local_ledger` (`VOX_SCHOLARLY_ADAPTER`). For architecture and lingo, see [VoxGiantia publication architecture](../architecture/voxgiantia-publication-architecture.md). For operator inputs vs derived fields, see [operator inputs](scientia-publication-operator-inputs.md). For remediation, see [publication playbook](../reference/scientia-publication-playbook.md). Policy SSOT: [scientia-publication-automation-ssot](../architecture/scientia-publication-automation-ssot.md), [worthiness rules](../reference/scientia-publication-worthiness-rules.md), [readiness audit](../architecture/scientia-publication-readiness-audit.md).
 
+## Fastest safe path
+
+When you already have a prepared SCIENTIA manifest, the shortest safe default path is:
+
+1. `vox scientia publication-preflight --publication-id <id> --with-worthiness`
+2. Fix anything in `findings`, `manual_required`, and ordered `next_actions`.
+3. Record two digest-bound approvals.
+4. Run `vox scientia publication-scholarly-pipeline-run --publication-id <id> --dry-run`.
+5. Re-run without `--dry-run` when the output looks correct.
+
+Use `vox scientia publication-status --publication-id <id> --with-worthiness` as the ongoing checklist surface when you also want the worthiness rubric inline; without the flag it still includes the same readiness report and `next_actions`, plus approvals, attempts, submissions, and status events.
+
 ## 1) Prepare a manifest
 
 ```bash
 vox scientia publication-prepare \
   --publication-id ai-research-2026-03 \
   --author "Your Name" \
-  --title "Research update: planning-aware agents" \
   docs/src/research/ai-research-2026-03.md
 ```
 
-Optional: pass `--abstract-text`, `--citations-json <file>`, and `--scholarly-metadata-json <file>` (structured JSON for `scientific_publication`: authors with optional ORCID/affiliation, `license_spdx`, `funding_statement`, `competing_interests_statement`, `reproducibility`, `ethics_and_impact` — see `vox_publisher::scientific_metadata`). The same `--scholarly-metadata-json` flag works on `vox db publication-prepare`.
+If you omit `--title`, Vox now infers it from markdown frontmatter `title:` or the first `# Heading`.
 
-Use `--preflight` (or `publication-prepare-validated`) to run `vox_publisher::publication_preflight` before persisting. Use `publication-preflight` to inspect readiness JSON for an existing id (including `manual_required`, `confidence`, and live-publish gate hints when VoxDb is attached); add `--with-worthiness` to score against `contracts/scientia/publication-worthiness.default.yaml`. With `--with-worthiness`, VoxDb rolls up recent `socrates_surface` metrics into `metadata_json.scientia_evidence` when that block is empty (requires `repository_id` in metadata). You may also embed `scientia_evidence` manually (eval-gate result, baseline/candidate run ids, `human_meaningful_advance`, `human_ai_disclosure_complete`) so worthiness blends orchestrator telemetry with explicit human attestations. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
+Optional: pass `--title`, `--abstract-text`, `--citations-json <file>`, and `--scholarly-metadata-json <file>` (structured JSON for `scientific_publication`: authors with optional ORCID/affiliation, `license_spdx`, `funding_statement`, `competing_interests_statement`, `reproducibility`, `ethics_and_impact` — see `vox_publisher::scientific_metadata`). The same `--scholarly-metadata-json` flag works on `vox db publication-prepare`.
+
+To use `publication-prepare` as an early discovery-to-draft bridge instead of a blank manifest step, also pass any structured evidence you already have:
+
+- `--eval-gate-report-json <repo-file>`
+- `--benchmark-pair-report-json <repo-file>`
+- `--human-meaningful-advance`
+- `--human-ai-disclosure-complete`
+
+When those inputs are present, SCIENTIA seeds `metadata_json.scientia_evidence` with discovery signals, draft-preparation hints, and a short candidate note, then records a `discovery_candidate_prepared` status event.
+
+Use `--preflight` (or `publication-prepare-validated`) to run `vox_publisher::publication_preflight` before persisting. Use `publication-preflight` to inspect readiness JSON for an existing id (including `manual_required`, `confidence`, and live-publish gate hints when VoxDb is attached); add `--with-worthiness` to score against `contracts/scientia/publication-worthiness.default.yaml`. CLI-prepared manifests now include `repository_id` automatically, so `--with-worthiness` can merge live `socrates_surface` telemetry and repo-local `scientia_evidence` sidecars into the same decision path. You may also embed `scientia_evidence` manually (eval-gate result, baseline/candidate run ids, `human_meaningful_advance`, `human_ai_disclosure_complete`) so worthiness blends orchestrator telemetry with explicit human attestations. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
 
 ## 2) Record approvals (two distinct approvers)
 
@@ -35,7 +57,16 @@ vox scientia publication-approve --publication-id ai-research-2026-03 --approver
 
 Approvals are bound to the current content digest. If content changes, re-approve the new digest.
 
-## 3) Submit to scholarly adapter
+## 3) Default scholarly pipeline
+
+```bash
+vox scientia publication-scholarly-pipeline-run --publication-id ai-research-2026-03 --dry-run
+vox scientia publication-scholarly-pipeline-run --publication-id ai-research-2026-03
+```
+
+This is the preferred scholarly path because it reuses preflight, the dual-approval gate, optional staging export, and submit in one flow instead of asking the operator to choose the low-level sequence each time.
+
+## 4) Submit to scholarly adapter directly
 
 ```bash
 vox scientia publication-submit-local --publication-id ai-research-2026-03
@@ -43,10 +74,10 @@ vox scientia publication-submit-local --publication-id ai-research-2026-03
 
 `publication-submit-local` uses the scholarly adapter selected by `VOX_SCHOLARLY_ADAPTER` (default `local_ledger`; `echo_ledger` for deterministic/no-network tests) and writes submission metadata to `scholarly_submissions`. Unknown adapter names **error** (no silent fallback).
 
-## 4) Inspect lifecycle state
+## 5) Inspect lifecycle state
 
 ```bash
-vox scientia publication-status --publication-id ai-research-2026-03
+vox scientia publication-status --publication-id ai-research-2026-03 --with-worthiness
 ```
 
 The status payload includes:
@@ -54,10 +85,12 @@ The status payload includes:
 - current manifest state
 - active content digest + version
 - approval count for that digest
+- embedded preflight report with `manual_required` and ordered `next_actions`
+- optional inline worthiness output when `--with-worthiness` is set
 - scholarly submission rows and external submission ids
 - media assets, publication attempt timeline, and status event timeline
 
-## 5) Optional social distribution metadata
+## 6) Optional social distribution metadata
 
 To drive Reddit/Hacker News/YouTube planning from the same manifest, embed a
 **`metadata_json.syndication`** object conforming to:
@@ -66,6 +99,13 @@ To drive Reddit/Hacker News/YouTube planning from the same manifest, embed a
 - `contracts/scientia/distribution.default.yaml`
 
 Legacy manifests may still use **`metadata_json.scientia_distribution`**. At hydrate time the publisher **deep-merges** legacy + canonical keys (canonical `syndication` wins on conflicts), normalizes contract `channels` / `channel_payloads` into the flat runtime shape, and logs a deprecation warning when the legacy root is present. `vox db publication-preflight` surfaces the same hint under `manual_required`.
+
+Important runtime alignment notes:
+
+- `distribution_policy.channel_policy` is the supported location for per-channel policy.
+- Root-level `channel_policy` is deprecated; runtime migrates it with a warning.
+- `crosspost_plan` is currently reserved and ignored by runtime hydration.
+- Channels like `reddit`, `github`, `open_collective`, `youtube`, and `crates_io` need matching `channel_payloads.<channel>` blocks before they materialize into a live runtime channel.
 
 Optional **`metadata_json.topic_pack`**: set to a pack id from `contracts/scientia/distribution.topic-packs.yaml` (for example `research_breakthrough`). At hydrate time the pack **merges** worthiness floors, template profiles, and topic filters into the effective syndication config. **Channel allowlists** in the pack **drop** any channel not listed for that pack (after merge), so operators can tighten routing without editing every manifest.
 
@@ -120,7 +160,7 @@ Notes:
 - Configure social credentials via `VOX_SOCIAL_*` environment variables (`docs/src/reference/env-vars.md`).
 - SSOT precedence is: manifest overrides > distribution policy defaults/contracts > runtime env overrides.
 
-## 6) Route simulation and controlled fan-out
+## 7) Route simulation and controlled fan-out
 
 Use `vox db` for operator controls that are broader than the `vox scientia` convenience subset:
 

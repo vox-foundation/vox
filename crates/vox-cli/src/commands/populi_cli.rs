@@ -101,7 +101,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             let self_id = env
                 .node_id
                 .clone()
-                .unwrap_or_else(|| format!("local-{}", uuid_simple()));
+                .unwrap_or_else(|| format!("local-{}", vox_runtime::simple_id::simple_hex_id()));
             let self_record =
                 vox_populi::node_record_for_current_process(self_id, env.control_addr.clone());
             let as_json = json || global_json;
@@ -164,8 +164,3 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
     }
 }
 
-fn uuid_simple() -> String {
-    use std::time::Instant;
-    let n = Instant::now().elapsed().as_nanos();
-    format!("{n:x}")
-}

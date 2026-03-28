@@ -119,6 +119,17 @@ Before marking any PR or task complete, verify:
 - **Scope Violation**: Writing outside assigned scope emits a `ScopeViolation` event
   which is logged and surfaced in the VS Code extension status bar.
 
+## Anti-stub completion policy
+
+- **No-write tasks** now require completion attestation (`completion_summary`, explicit non-placeholder declaration, and evidence via checks/artifact paths) before `complete_task` is accepted.
+- **Plan quality gate** blocks vague/placeholder/destructive plan nodes unless explicitly overridden with `execution_policy.force_risky=true` and a non-empty `force_risky_reason`.
+- **MENS scorecard** emits anti-stub metrics (`placeholder_*`, `construct_richness_*`, `anti_stub_pass_*`) and decision gates consider them alongside compile/semantic rates.
+
+## Monitor-first rollout
+
+- Run anti-stub gates in observation mode for at least one sprint (collect false-positive samples and root causes).
+- Promote to blocking only after threshold tuning; keep every override path auditable with explicit reason text.
+
 ## Build Environment Notes (Windows)
 
 ```powershell

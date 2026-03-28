@@ -40,7 +40,7 @@ crates/
 | `vox bundle` | Full-stack bundle |
 | `vox dev` | Watch + rebuild via **`vox-compilerd`** (stdio JSON-RPC; daemon on `PATH` or next to `vox`) |
 | `vox lsp` | Start Language Server over stdio |
-| `vox stub-check` | TOESTUB scan — **`cargo build -p vox-cli --features stub-check`** (see `docs/src/ref-cli.md`) |
+| `vox stub-check` | TOESTUB scan — **`cargo build -p vox-cli --features stub-check`** (see `docs/src/reference/cli.md`) |
 | `vox review` | AI code review |
 | `vox train` | Orchestrate fine-tuning |
 | `vox train --native` | Burn-based Rust training loop |
@@ -82,7 +82,7 @@ With **`cargo build -p vox-cli --features stub-check`**, the same rules are avai
 vox stub-check --path .
 ```
 
-See `docs/src/ref-cli.md` for flags (`--suggest-fixes`, not `--fix`).
+See `docs/src/reference/cli.md` for flags (`--suggest-fixes`, not `--fix`).
 God-object thresholds (from `vox-schema.json`):
 - Files > 500 lines → warning
 - Structs > 12 methods → warning

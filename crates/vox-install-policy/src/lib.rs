@@ -8,12 +8,8 @@
 pub const SOURCE_INSTALL_CLI_REL_PATH: &str = "crates/vox-cli";
 
 /// `cargo …` arguments for a reproducible install from a local checkout (uses workspace `Cargo.lock`).
-pub const CARGO_INSTALL_CLI_FROM_SOURCE: &[&str] = &[
-    "install",
-    "--locked",
-    "--path",
-    SOURCE_INSTALL_CLI_REL_PATH,
-];
+pub const CARGO_INSTALL_CLI_FROM_SOURCE: &[&str] =
+    &["install", "--locked", "--path", SOURCE_INSTALL_CLI_REL_PATH];
 
 /// Default GitHub **owner** for release downloads (`vox-bootstrap`, `vox upgrade --provider github`).
 pub const DEFAULT_RELEASE_GITHUB_OWNER: &str = "vox-foundation";
@@ -28,6 +24,15 @@ pub const SUPPORTED_RELEASE_TARGETS: &[&str] = &[
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
 ];
+
+/// Managed OpenClaw sidecar executable base name installed alongside `vox`.
+pub const OPENCLAW_SIDECAR_BIN_BASENAME: &str = "openclaw-gateway";
+
+/// Candidate filename prefixes searched in release `checksums.txt` for managed sidecar install.
+pub const OPENCLAW_SIDECAR_ASSET_PREFIXES: &[&str] = &["openclaw-gateway-", "openclaw-"];
+
+/// Opt-out environment variable for managed OpenClaw sidecar installs.
+pub const VOX_OPENCLAW_SIDECAR_DISABLE_ENV: &str = "VOX_OPENCLAW_SIDECAR_DISABLE";
 
 /// Compile-time host triple when it matches a supported release target; used by `vox-bootstrap`
 /// to pick a prebuilt asset. Returns [`None`] on unsupported hosts.
@@ -56,7 +61,10 @@ mod tests {
         assert_eq!(CARGO_INSTALL_CLI_FROM_SOURCE[0], "install");
         assert_eq!(CARGO_INSTALL_CLI_FROM_SOURCE[1], "--locked");
         assert_eq!(CARGO_INSTALL_CLI_FROM_SOURCE[2], "--path");
-        assert_eq!(CARGO_INSTALL_CLI_FROM_SOURCE[3], SOURCE_INSTALL_CLI_REL_PATH);
+        assert_eq!(
+            CARGO_INSTALL_CLI_FROM_SOURCE[3],
+            SOURCE_INSTALL_CLI_REL_PATH
+        );
     }
 
     #[test]

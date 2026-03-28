@@ -14,7 +14,7 @@ The committed machine-readable doc map is **`docs/agents/doc-inventory.json`** (
 
 | Action | Command |
 |--------|---------|
-| Regenerate | `vox ci doc-inventory generate` (fallback: `cargo run -p vox-doc-inventory --bin doc-inventory-generate`). If `doc-inventory.json` is mmap-locked on Windows, `… doc-inventory-generate -- --output docs/agents/doc-inventory.gen.json` then copy over. |
+| Regenerate | `vox ci doc-inventory generate` (fallback: `cargo run -p vox-doc-inventory --bin vox-doc-inventory-generate`; legacy `--bin doc-inventory-generate`). If `doc-inventory.json` is mmap-locked on Windows, use `--output docs/agents/doc-inventory.gen.json` then copy over. |
 | CI verify | `vox ci doc-inventory verify` |
 
 **Drift tip:** the scanner walks `crates/`, `docs/`, `scripts/`, etc. A temporary `.py` / `.md` left under those trees changes the next `generate`/`verify` output; remove side files (or regenerate after cleanup) before expecting `verify` to pass.

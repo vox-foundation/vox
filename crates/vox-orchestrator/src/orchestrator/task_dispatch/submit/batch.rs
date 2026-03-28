@@ -340,6 +340,9 @@ impl Orchestrator {
 
         let reputation_routing =
             crate::sync_lock::rw_read(&*self.config).socrates_reputation_routing;
+        let task_domain = task_description
+            .map(extract_phase_domain)
+            .unwrap_or_else(|| "single_shot".to_string());
         let reliability_map: Option<HashMap<AgentId, f64>> = if reputation_routing {
             self.db().map(|db| {
                 db.block_on(async { db.list_agent_reliability().await })
@@ -350,6 +353,25 @@ impl Orchestrator {
                         (AgentId(numeric_id), r)
                     })
                     .collect()
+            })
+        } else {
+            None
+        };
+        let task_completion_trust_scores: Option<HashMap<AgentId, f64>> = if reputation_routing {
+            self.db().map(|db| {
+                db.block_on(async {
+                    db.list_trust_scores_for_dimension(
+                        "agent",
+                        "task_completion",
+                        Some(task_domain.as_str()),
+                        2048,
+                    )
+                    .await
+                })
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|(id, score)| id.parse::<u64>().ok().map(|aid| (AgentId(aid), score)))
+                .collect()
             })
         } else {
             None
@@ -383,6 +405,7 @@ impl Orchestrator {
                 task_capability_requirements,
                 task_description,
                 remote,
+                task_completion_trust_scores.as_ref(),
                 attention_trust_scores.as_ref(),
             )
         };
@@ -393,6 +416,17 @@ impl Orchestrator {
             RouteResult::SpawnAgent(name) => self.spawn_dynamic_agent(&name),
         }
     }
+}
+
+fn extract_phase_domain(desc: &str) -> String {
+    const PREFIX: &str = "[PHASE:";
+    if let Some(start) = desc.find(PREFIX) {
+        let suffix = &desc[start + PREFIX.len()..];
+        if let Some(end) = suffix.find(']') {
+            return suffix[..end].trim().to_ascii_lowercase();
+        }
+    }
+    "single_shot".to_string()
 }
 
 fn build_repo_shard_descriptors(

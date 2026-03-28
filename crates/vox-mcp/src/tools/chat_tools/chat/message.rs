@@ -10,7 +10,8 @@ use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{
     clarification_turn_for_session, mcp_questioning_session_key, socrates_tool_meta,
-    spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
+    socrates_surface_tags, spawn_questioning_trace_from_socrates,
+    spawn_socrates_telemetry_with_meta,
 };
 use vox_orchestrator::session_retrieval_envelope_key;
 use vox_runtime::prompt_canonical;
@@ -506,15 +507,28 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         spent_att,
         max_att,
     );
-    let retrieval_meta = retrieval_evidence
+    let mut retrieval_meta = retrieval_evidence
         .as_ref()
-        .and_then(|ev| serde_json::to_value(ev).ok());
+        .and_then(|ev| serde_json::to_value(ev).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    if let Some(meta_obj) = retrieval_meta.as_object_mut() {
+        meta_obj.insert(
+            "task_class".to_string(),
+            serde_json::Value::String("chat_turn".to_string()),
+        );
+        meta_obj.insert(
+            "domain_tags".to_string(),
+            serde_json::json!(["interactive", "general_coding"]),
+        );
+    } else {
+        retrieval_meta = socrates_surface_tags("chat_turn", &["interactive", "general_coding"]);
+    }
     spawn_socrates_telemetry_with_meta(
         state,
         "vox_chat_message",
         soc.clone(),
         Some(model_used.clone()),
-        retrieval_meta,
+        Some(retrieval_meta),
     );
     spawn_questioning_trace_from_socrates(
         state,

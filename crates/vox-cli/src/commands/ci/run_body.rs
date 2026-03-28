@@ -5,13 +5,15 @@ use std::process::Command;
 
 use super::build_timings;
 use super::check_links;
-use super::cmd_enums::{CiCmd, DocInventoryCmd, EvalMatrixCmd};
+use super::cmd_enums::{CiCmd, DocInventoryCmd, EvalMatrixCmd, MensScorecardCmd};
 use super::command_compliance;
 use super::command_sync;
 use super::contracts_index;
 use super::coverage_gates;
 use super::eval_matrix;
 use super::line_endings;
+use super::mens_scorecard;
+use super::openclaw_contract;
 use super::release_build;
 use super::scaling_audit;
 use super::scientia_worthiness_contract;
@@ -37,6 +39,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
+        CiCmd::OpenClawContract => openclaw_contract::run(&root),
         CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
@@ -76,7 +79,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
             // 3. sitemap.xml (mdbook-sitemap-generator is a post-build CLI, not a preprocessor)
             let domain = std::env::var("MDBOOK_SITEMAP_DOMAIN")
-                .unwrap_or_else(|_| "https://vox-foundation.github.io/vox/".to_string());
+                .unwrap_or_else(|_| "https://vox-lang.org/".to_string());
             let domain_arg = domain.trim_end_matches('/').to_string();
             let st = Command::new("mdbook-sitemap-generator")
                 .current_dir(root.join("docs"))
@@ -114,6 +117,23 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             EvalMatrixCmd::Verify => eval_matrix::run_verify(&root),
             EvalMatrixCmd::Run { milestone } => {
                 eval_matrix::run_executions(&root, milestone.as_deref())
+            }
+        },
+        CiCmd::MensScorecard { cmd: sub } => match sub {
+            MensScorecardCmd::Verify { spec } => mens_scorecard::run_verify(&root, &spec),
+            MensScorecardCmd::Run { spec, out_dir } => {
+                mens_scorecard::run_execute(&root, &spec, out_dir.as_deref()).await
+            }
+            MensScorecardCmd::Decide { summaries, json } => {
+                mens_scorecard::run_decide(&root, &summaries, json)
+            }
+            MensScorecardCmd::BurnRnd {
+                qlora_summary,
+                burn_summary,
+                json,
+            } => mens_scorecard::run_burn_rnd(&root, &qlora_summary, burn_summary.as_deref(), json),
+            MensScorecardCmd::IngestTrust { summary } => {
+                mens_scorecard::run_ingest_trust(&root, &summary).await
             }
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),

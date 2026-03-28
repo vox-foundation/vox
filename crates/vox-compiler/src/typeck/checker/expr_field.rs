@@ -44,6 +44,12 @@ impl<'a> Checker<'a> {
                 "env" => Ty::Named("StdEnvNs".into()),
                 "process" => Ty::Named("StdProcessNs".into()),
                 "json" => Ty::Named("StdJsonNs".into()),
+                "crypto" => Ty::Named("StdCryptoNs".into()),
+                "time" => Ty::Named("StdTimeNs".into()),
+                "log" => Ty::Named("StdLogNs".into()),
+                "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
+                "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
+                "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
                 "args" => Ty::List(Box::new(Ty::Str)),
                 _ => {
                     self.diags.push(Diagnostic::error(
@@ -168,6 +174,40 @@ impl<'a> Checker<'a> {
                 _ => {
                     self.diags.push(Diagnostic::error(
                         format!("Unknown std.json method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }
+            },
+            Ty::Named(n) if n == "StdCryptoNs" => match field {
+                "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
+                "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.crypto method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }
+            },
+            Ty::Named(n) if n == "StdTimeNs" => match field {
+                "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.time method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }
+            },
+            Ty::Named(n) if n == "StdLogNs" => match field {
+                "debug" | "info" | "warn" | "error" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.log method '{field}'"),
                         span,
                         self.source,
                     ));

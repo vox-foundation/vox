@@ -8,6 +8,8 @@ use crate::{ChannelOutcome, SyndicationResult};
 
 /// Legacy metadata root key accepted for backward compatibility (prefer `syndication`).
 pub const LEGACY_METADATA_SYNDICATION_KEY: &str = "scientia_distribution";
+const ROOT_CHANNEL_POLICY_KEY: &str = "channel_policy";
+const ROOT_CROSSPOST_PLAN_KEY: &str = "crosspost_plan";
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct ManifestSyndicationParseNotes {
@@ -23,8 +25,13 @@ pub fn unified_news_item_from_manifest_parts(
     body_markdown: &str,
     metadata_json: Option<&str>,
 ) -> anyhow::Result<UnifiedNewsItem> {
-    let (item, notes) =
-        unified_news_item_from_manifest_parts_notes(publication_id, title, author, body_markdown, metadata_json)?;
+    let (item, notes) = unified_news_item_from_manifest_parts_notes(
+        publication_id,
+        title,
+        author,
+        body_markdown,
+        metadata_json,
+    )?;
     for w in &notes.warnings {
         tracing::warn!(target: "vox.publisher.switching", "{}", w);
     }
@@ -53,7 +60,12 @@ pub fn unified_news_item_from_manifest_parts_notes(
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .filter_map(|x| x.as_str().map(str::trim).filter(|s| !s.is_empty()).map(String::from))
+                .filter_map(|x| {
+                    x.as_str()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(String::from)
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -74,12 +86,18 @@ pub fn unified_news_item_from_manifest_parts_notes(
         ));
     }
 
-    let merged_syndication_val = merge_syndication_json_values(legacy, canonical)?;
-    let syndication: SyndicationConfig = if merged_syndication_val.is_null() || merged_syndication_val.as_object().is_some_and(|m| m.is_empty()) {
+    let merged_syndication_val = merge_syndication_json_values(legacy, canonical, &mut notes)?;
+    let syndication: SyndicationConfig = if merged_syndication_val.is_null()
+        || merged_syndication_val
+            .as_object()
+            .is_some_and(|m| m.is_empty())
+    {
         SyndicationConfig::default()
     } else {
         serde_json::from_value(merged_syndication_val).map_err(|e| {
-            anyhow::anyhow!("metadata_json syndication (after legacy merge / shape normalization): {e}")
+            anyhow::anyhow!(
+                "metadata_json syndication (after legacy merge / shape normalization): {e}"
+            )
         })?
     };
 
@@ -103,14 +121,29 @@ pub fn unified_news_item_from_manifest_parts_notes(
 fn merge_syndication_json_values(
     legacy: Option<Value>,
     canonical: Option<Value>,
+    notes: &mut ManifestSyndicationParseNotes,
 ) -> anyhow::Result<Value> {
-    let base = normalize_distribution_json_value(legacy.unwrap_or(Value::Null))?;
-    let overlay = normalize_distribution_json_value(canonical.unwrap_or(Value::Null))?;
+    let base = normalize_distribution_json_value_with_warnings(
+        legacy.unwrap_or(Value::Null),
+        &mut notes.warnings,
+    )?;
+    let overlay = normalize_distribution_json_value_with_warnings(
+        canonical.unwrap_or(Value::Null),
+        &mut notes.warnings,
+    )?;
     Ok(deep_merge_json(base, overlay))
 }
 
 /// Normalizes contract `channels` / `channel_payloads` shape into a flat [`SyndicationConfig`]-compatible object.
 pub fn normalize_distribution_json_value(v: Value) -> anyhow::Result<Value> {
+    let mut warnings = Vec::new();
+    normalize_distribution_json_value_with_warnings(v, &mut warnings)
+}
+
+fn normalize_distribution_json_value_with_warnings(
+    v: Value,
+    warnings: &mut Vec<String>,
+) -> anyhow::Result<Value> {
     if v.is_null() {
         return Ok(json!({}));
     }
@@ -130,7 +163,11 @@ pub fn normalize_distribution_json_value(v: Value) -> anyhow::Result<Value> {
         .unwrap_or_default();
     let channel_ids: Vec<String> = channels
         .iter()
-        .filter_map(|c| c.as_str().map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty()))
+        .filter_map(|c| {
+            c.as_str()
+                .map(|s| s.trim().to_lowercase())
+                .filter(|s| !s.is_empty())
+        })
         .collect();
 
     let payloads = obj
@@ -138,6 +175,11 @@ pub fn normalize_distribution_json_value(v: Value) -> anyhow::Result<Value> {
         .and_then(|c| c.as_object())
         .cloned()
         .unwrap_or_default();
+    if obj.contains_key(ROOT_CROSSPOST_PLAN_KEY) {
+        warnings.push(format!(
+            "`{ROOT_CROSSPOST_PLAN_KEY}` is reserved and currently ignored by runtime hydration."
+        ));
+    }
 
     let rss_on = channel_ids.iter().any(|c| c == "rss");
     out.insert("rss".to_string(), json!(rss_on));
@@ -155,11 +197,27 @@ pub fn normalize_distribution_json_value(v: Value) -> anyhow::Result<Value> {
             out.insert(key.to_string(), payload.clone());
         } else if channel_ids.iter().any(|c| c == key) && channel_allows_empty_payload(key) {
             out.insert(key.to_string(), json!({}));
+        } else if channel_ids.iter().any(|c| c == key) {
+            warnings.push(format!(
+                "syndication.channels lists `{key}`, but runtime needs `channel_payloads.{key}` before that channel will materialize."
+            ));
         }
     }
 
-    if let Some(dp) = obj.get("distribution_policy") {
-        out.insert("distribution_policy".to_string(), dp.clone());
+    let mut distribution_policy = obj.get("distribution_policy").cloned();
+    if let Some(root_policy) = obj.get(ROOT_CHANNEL_POLICY_KEY) {
+        warnings.push(format!(
+            "root `{ROOT_CHANNEL_POLICY_KEY}` is deprecated; prefer `distribution_policy.channel_policy`."
+        ));
+        let target = distribution_policy.get_or_insert_with(|| json!({}));
+        if let Some(map) = target.as_object_mut()
+            && !map.contains_key(ROOT_CHANNEL_POLICY_KEY)
+        {
+            map.insert(ROOT_CHANNEL_POLICY_KEY.to_string(), root_policy.clone());
+        }
+    }
+    if let Some(dp) = distribution_policy {
+        out.insert("distribution_policy".to_string(), dp);
     }
     if let Some(d) = obj.get("dry_run") {
         out.insert("dry_run".to_string(), d.clone());
@@ -405,10 +463,7 @@ pub fn failed_channels_from_latest_digest_attempt(
     attempts: &[AttemptOutcome<'_>],
     digest: &str,
 ) -> anyhow::Result<Option<Vec<String>>> {
-    Ok(
-        plan_publication_retry_channels(attempts, digest, None)?
-            .map(|p| p.will_retry_channels),
-    )
+    Ok(plan_publication_retry_channels(attempts, digest, None)?.map(|p| p.will_retry_channels))
 }
 
 #[cfg(test)]
@@ -449,7 +504,8 @@ mod tests {
             "syndication": { "twitter": { "short_text": "hello" } }
         }"#;
         let (item, notes) =
-            unified_news_item_from_manifest_parts_notes("p", "t", "a", "b", Some(meta)).expect("item");
+            unified_news_item_from_manifest_parts_notes("p", "t", "a", "b", Some(meta))
+                .expect("item");
         assert!(notes.used_legacy_distribution_key);
         assert!(item.syndication.rss);
         let tw = item.syndication.twitter.expect("twitter");
@@ -472,8 +528,51 @@ mod tests {
         let tw = item.syndication.twitter.expect("twitter");
         assert!(tw.thread);
         assert_eq!(
-            item.syndication.distribution_policy.retry_profile.as_deref(),
+            item.syndication
+                .distribution_policy
+                .retry_profile
+                .as_deref(),
             Some("minimal")
+        );
+    }
+
+    #[test]
+    fn contract_shape_warns_on_inert_fields_and_missing_payloads() {
+        let meta = r#"{
+            "syndication": {
+                "channels": ["reddit"],
+                "channel_policy": {
+                    "reddit": { "enabled": true }
+                },
+                "crosspost_plan": [{ "from": "reddit", "to": "twitter" }]
+            }
+        }"#;
+        let (_item, notes) =
+            unified_news_item_from_manifest_parts_notes("p", "t", "a", "b", Some(meta))
+                .expect("item");
+        assert!(
+            notes
+                .warnings
+                .iter()
+                .any(|w| w.contains("root `channel_policy` is deprecated")),
+            "{:?}",
+            notes.warnings
+        );
+        assert!(
+            notes
+                .warnings
+                .iter()
+                .any(|w| w.contains("`crosspost_plan` is reserved")),
+            "{:?}",
+            notes.warnings
+        );
+        assert!(
+            notes
+                .warnings
+                .iter()
+                .any(|w| w.contains("channel_payloads.reddit")),
+            "{:?}",
+            notes.warnings
         );
     }
 

@@ -1,13 +1,13 @@
 ---
 description: When adding or renaming vox CLI commands, keep registry and docs in sync.
-globs: crates/vox-cli/**/*.rs, contracts/cli/*.yaml, contracts/cli/*.json, docs/src/ref-cli.md, docs/src/architecture/cli-*.md, docs/src/ci/command-*.md
+globs: crates/vox-cli/**/*.rs, contracts/cli/*.yaml, contracts/cli/*.json, docs/src/reference/cli.md, docs/src/architecture/cli-*.md, docs/src/ci/command-*.md
 alwaysApply: false
 ---
 
 # CLI command changes
 
 - Add the operation to **`contracts/cli/command-registry.yaml`** (and respect **`command-registry.schema.json`**).
-- Update **`docs/src/ref-cli.md`** for any `vox-cli` row with default **`ref_cli_required`** (omit `ref_cli_required: false` only when intentionally exempt).
+- Update **`docs/src/reference/cli.md`** for any `vox-cli` row with default **`ref_cli_required`** (omit `ref_cli_required: false` only when intentionally exempt).
 - For new **top-level** subcommands, add a row to **`docs/src/architecture/cli-reachability-ssot.md`** unless the registry sets **`reachability_required: false`**.
 - Run **`cargo run -p vox-cli -- ci command-compliance`** from the repo root before merging.
 - See **`docs/src/architecture/cli-design-rules-ssot.md`** and **`docs/src/ci/command-compliance-ssot.md`**.

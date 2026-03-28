@@ -8,14 +8,14 @@
 |----------|----------------|
 | `legacy` (default) | Fail if any finding ≥ `Error` (unchanged historical behavior) |
 | `audit` | Never fail; report `Info`+ (use with `--format json` for snapshots) |
-| `enforce-warn` | Fail if any `Critical` |
+| `enforce-warn` | Fail if any `Critical` (not default CI mode) |
 | `enforce-strict` | Fail if any `Warning`+ |
 
 ## Recommended rollout
 
 1. **Now:** `toestub-scoped` stays `legacy`; scaling findings are mostly `Warning`/`Info` so they surface without failing CI.
 2. **After backlog burn-down:** run scoped paths with `enforce-strict` in optional workflows.
-3. **Critical-only gate:** introduce targeted `Critical` rules (e.g. confirmed blocking HTTP without timeouts) and use `enforce-warn` on hot paths.
+3. **Critical-only gate:** introduce targeted `Critical` rules (e.g. confirmed blocking HTTP without timeouts) and use `enforce-warn` only on explicitly approved hot paths.
 
 ## Commands
 

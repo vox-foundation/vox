@@ -6,7 +6,12 @@
 
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
+use vox_compiler::generated_vox::{
+    OutputSurfaceMode, normalize_generated_vox, validate_generated_vox,
+};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -14,6 +19,39 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 const SYSTEM_PREAMBLE: &str = "You are an expert Vox language programmer. Vox is a full-stack AI-native programming \
      language that compiles to Rust/WASM. Generate clean, idiomatic Vox code. \
      Output ONLY valid Vox source — no markdown fences, no English explanation.";
+const RUNTIME_GENERATION_KPI_SCHEMA: &str = "vox_runtime_generation_kpi_v1";
+
+fn runtime_generation_kpi(
+    success: bool,
+    validate_requested: bool,
+    compile_pass: Option<bool>,
+    canonical_pass: Option<bool>,
+    attempts: u32,
+    repair_stalled: bool,
+    time_to_first_valid_ms: Option<u128>,
+    output_tokens: usize,
+    surface_contract_failures: u32,
+    canonicalization_failures: Option<u32>,
+    failure_category: Option<&str>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema": RUNTIME_GENERATION_KPI_SCHEMA,
+        "schema_version": 1,
+        "surface": "vox-cli",
+        "success": success,
+        "validate_requested": validate_requested,
+        "compile_pass": compile_pass,
+        "canonical_pass": canonical_pass,
+        "attempts": attempts,
+        "repair_stalled": repair_stalled,
+        "time_to_first_valid_ms": time_to_first_valid_ms.map(|v| v as u64),
+        "output_tokens": output_tokens,
+        "surface_contract_failures": surface_contract_failures,
+        "strictness_failures": surface_contract_failures,
+        "canonicalization_failures": canonicalization_failures,
+        "failure_category": failure_category,
+    })
+}
 
 /// Collect schema context from the current working directory (if a Vox project).
 fn collect_schema_context() -> String {
@@ -48,45 +86,19 @@ fn build_prompt(prompt: &str, context_mode: Option<&str>) -> String {
     format!("{SYSTEM_PREAMBLE}{ctx}\n\n# Task:\n{prompt}")
 }
 
-/// Validate generated Vox source via the full lex→parse→typecheck frontend.
-fn validate_vox(source: &str) -> Result<()> {
-    let synthetic_path = std::path::Path::new("<generated>");
-    let result = crate::pipeline::run_frontend_str(source, synthetic_path, false)?;
-    if result.has_errors() {
-        let msgs: Vec<String> = result
-            .diagnostics
-            .iter()
-            .filter(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
-            .map(|d| d.message.clone())
-            .collect();
-        anyhow::bail!(
-            "Generated code has {} error(s): {}",
-            msgs.len(),
-            msgs.join("; ")
-        );
-    }
-    Ok(())
-}
-
-/// Validate against a JSON schema file (requires `output_mode` + `schema` path).
+/// Full [`jsonschema`] validation against a JSON Schema file (requires `output_mode` + `schema` path).
 fn validate_json_schema(source: &str, schema_path: &Path) -> Result<()> {
     let schema_str = read_utf8_path_capped(schema_path)
         .with_context(|| format!("Failed to read schema: {}", schema_path.display()))?;
-    let schema: serde_json::Value =
-        serde_json::from_str(&schema_str).context("Schema file is not valid JSON")?;
+    let validator =
+        vox_jsonschema_util::compile_validator_from_utf8(&schema_str, schema_path)?;
     let instance: serde_json::Value = serde_json::from_str(source)
         .context("Generated output is not valid JSON (required by --output-mode + --schema)")?;
-
-    // Walk the schema's `required` fields and verify each exists in the instance.
-    if let Some(required) = schema.get("required").and_then(|v| v.as_array()) {
-        for field in required {
-            let key = field.as_str().unwrap_or("");
-            if instance.get(key).is_none() {
-                anyhow::bail!("Generated JSON missing required field: {key}");
-            }
-        }
-    }
-    Ok(())
+    vox_jsonschema_util::validate(
+        &instance,
+        &validator,
+        format!("generated output vs {}", schema_path.display()),
+    )
 }
 
 /// Call the vox-dei-d daemon and collect the full streamed generation result.
@@ -153,7 +165,7 @@ pub async fn run(
     queue: bool,
 ) -> Result<()> {
     let retries = max_retries.unwrap_or(2);
-    let full_prompt = build_prompt(prompt, context_mode);
+    let mut full_prompt = build_prompt(prompt, context_mode);
 
     println!("{} Generating Vox code…", "◆".cyan().bold());
     if let Some(mode) = context_mode.filter(|m| *m != "minimal") {
@@ -162,6 +174,13 @@ pub async fn run(
 
     let mut last_result = String::new();
     let mut last_err: Option<anyhow::Error> = None;
+    let mut strictness_failures: u32 = 0;
+    let mut canonical_failures: u32 = 0;
+    let run_started = Instant::now();
+    let mut time_to_first_valid_ms: Option<u128> = None;
+    let mut repair_stalled = false;
+    let mut prev_error_sig: Option<u64> = None;
+    let mut attempts_used: u32 = 0;
 
     // Build the HTTP client once outside the retry loop — creating a Client per
     // attempt is expensive (TLS handshake, connection pool teardown).
@@ -184,6 +203,7 @@ pub async fn run(
         .unwrap_or(2048);
 
     for attempt in 0..=retries {
+        attempts_used = attempt + 1;
         if attempt > 0 {
             eprintln!(
                 "{} Retry {}/{} — regenerating…",
@@ -224,14 +244,20 @@ pub async fn run(
             )?
         };
 
-        // Strip markdown code fences that some models emit.
-        let stripped = raw
-            .trim()
-            .trim_start_matches("```vox")
-            .trim_start_matches("```")
-            .trim_end_matches("```")
-            .trim()
-            .to_string();
+        let normalized = normalize_generated_vox(&raw, OutputSurfaceMode::RawCodeOnly);
+        let stripped = normalized.normalized;
+        if normalized.had_fence || normalized.had_prose_markers {
+            strictness_failures += 1;
+        }
+
+        tracing::debug!(
+            attempt,
+            retries,
+            prompt_len = full_prompt.len(),
+            raw_len = raw.len(),
+            stripped_len = stripped.len(),
+            "generate parser payload snapshot"
+        );
 
         last_result = stripped.clone();
 
@@ -240,21 +266,82 @@ pub async fn run(
         }
 
         // Validate: JSON schema (if provided) or Vox parse/typecheck.
-        let validation_result = if let (Some(mode), Some(sch)) = (output_mode, schema) {
-            if matches!(mode, "strict_json" | "jsonl_records" | "tool_args_json") {
-                validate_json_schema(&stripped, sch)
+        let validation_result: Result<Vec<String>> =
+            if let (Some(mode), Some(sch)) = (output_mode, schema) {
+                if matches!(mode, "strict_json" | "jsonl_records" | "tool_args_json") {
+                    validate_json_schema(&stripped, sch)?;
+                    Ok(Vec::new())
+                } else {
+                    let validation = validate_generated_vox(&stripped, true);
+                    if validation.is_valid() {
+                        Ok(Vec::new())
+                    } else {
+                        Ok(validation.errors.into_iter().map(|e| e.message).collect())
+                    }
+                }
             } else {
-                validate_vox(&stripped)
-            }
-        } else {
-            validate_vox(&stripped)
-        };
+                let validation = validate_generated_vox(&stripped, true);
+                if validation.is_valid() {
+                    Ok(Vec::new())
+                } else {
+                    Ok(validation.errors.into_iter().map(|e| e.message).collect())
+                }
+            };
 
         match validation_result {
-            Ok(()) => break,
-            Err(e) if attempt < retries => {
-                last_err = Some(e);
+            Ok(errors) if errors.is_empty() => {
+                if time_to_first_valid_ms.is_none() {
+                    time_to_first_valid_ms = Some(run_started.elapsed().as_millis());
+                }
+                // Enforce canonicalized/de-whitespaced valid `.vox` output by default.
+                if output_mode.is_none() {
+                    let validation = validate_generated_vox(&stripped, true);
+                    if let Some(canon) = validation.canonicalized {
+                        last_result = canon;
+                    } else {
+                        canonical_failures += 1;
+                        last_result = stripped;
+                    }
+                } else {
+                    last_result = stripped;
+                }
+                break;
+            }
+            Ok(errs) if attempt < retries => {
+                if !errs.is_empty() {
+                    let sig = {
+                        use std::collections::hash_map::DefaultHasher;
+                        use std::hash::{Hash, Hasher};
+                        let mut rows = errs.clone();
+                        rows.sort();
+                        let mut h = DefaultHasher::new();
+                        rows.hash(&mut h);
+                        h.finish()
+                    };
+                    if prev_error_sig == Some(sig) {
+                        repair_stalled = true;
+                    }
+                    prev_error_sig = Some(sig);
+                    let mut feedback = String::from(
+                        "\n\nThe previous generation had compiler errors. Regenerate ONLY corrected .vox code.\n",
+                    );
+                    for (idx, msg) in errs.iter().enumerate() {
+                        feedback.push_str(&format!("{}. {}\n", idx + 1, msg));
+                    }
+                    full_prompt.push_str(&feedback);
+                }
+                last_err = Some(anyhow::anyhow!("generated code had validation errors"));
                 continue;
+            }
+            Ok(errs) => {
+                eprintln!(
+                    "{} Validation failed after {} attempt(s): {}",
+                    "✗".red().bold(),
+                    attempt + 1,
+                    errs.join("; ")
+                );
+                last_err = Some(anyhow::anyhow!(errs.join("; ")));
+                break;
             }
             Err(e) => {
                 eprintln!(
@@ -290,6 +377,50 @@ pub async fn run(
             "⚠".yellow(),
             err
         );
+    }
+    eprintln!(
+        "{} Strictness/canonicalization accounting: strictness_failures={} canonicalization_failures={}",
+        "ℹ".cyan(),
+        strictness_failures,
+        canonical_failures
+    );
+    let compile_pass = if no_validate {
+        None
+    } else {
+        Some(last_err.is_none())
+    };
+    let canonical_pass = if no_validate {
+        None
+    } else {
+        Some(canonical_failures == 0)
+    };
+    let failure_category = if last_err.is_some() {
+        Some("validation")
+    } else {
+        None
+    };
+    let kpi = runtime_generation_kpi(
+        last_err.is_none(),
+        !no_validate,
+        compile_pass,
+        canonical_pass,
+        attempts_used,
+        repair_stalled,
+        time_to_first_valid_ms,
+        last_result.split_whitespace().count(),
+        strictness_failures,
+        Some(canonical_failures),
+        failure_category,
+    );
+    eprintln!("{} Generation KPIs: {}", "ℹ".cyan(), kpi);
+    if let Ok(kpi_path) = std::env::var("VOX_GEN_KPI_JSONL") {
+        let mut row = serde_json::to_string(&kpi)?;
+        row.push('\n');
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&kpi_path)?
+            .write_all(row.as_bytes())?;
     }
 
     Ok(())

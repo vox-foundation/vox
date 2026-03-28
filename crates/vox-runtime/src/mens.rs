@@ -2,6 +2,8 @@
 //!
 //! `PopuliClient` communicates with the Mens LLM (local or remote) for
 //! code generation, text embedding, classification, and fine-tuning data submission.
+//! The type keeps the historical `Populi*` naming because environment and control-plane
+//! compatibility still use `POPULI_*`; the module path (`mens`) is the domain-facing name.
 //!
 //! ## Modes
 //! - **Local**: `http://localhost:11434` (Ollama-compatible API)

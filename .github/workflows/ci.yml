@@ -74,6 +74,7 @@ jobs:
       - name: Contracts index + scaling policy SSOT
         run: |
           cargo run -p vox-cli --quiet -- ci contracts-index
+          cargo run -p vox-cli --quiet -- ci openclaw-contract
           cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
 
@@ -103,9 +104,9 @@ jobs:
       - name: Lint Check (Clippy)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      # Scoped TOESTUB: enforce-warn (critical-only) after false-positive burn-down; override `--mode` locally if needed.
+      # Scoped TOESTUB: legacy mode (Error/Critical blocking) for cross-CI consistency.
       - name: TOESTUB (scoped)
-        run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode enforce-warn
+        run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
 
       - name: Repository SSOT + MCP smoke
         run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
@@ -145,6 +146,11 @@ jobs:
         env:
           VOX_WEBIR_VALIDATE: "1"
         run: cargo test -p vox-compiler --test web_ir_lower_emit
+
+      - name: Projection parity gate (WebIR + AppContract + RuntimeProjection)
+        env:
+          VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
+        run: cargo test -p vox-compiler --test projection_parity
 
       - name: Line coverage report (summary, LCOV, gates enforce)
         run: |

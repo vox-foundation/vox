@@ -382,7 +382,9 @@ pub fn route_transcript_with_options(
         RouteMode::Chat => {
             let cap = runtime.routing.chat_max_messages.max(4);
             let max_turns = runtime.routing.route_max_user_turns.max(1);
-            let mut map = routing_sessions().lock().expect("routing session mutex poisoned");
+            let mut map = routing_sessions()
+                .lock()
+                .expect("routing session mutex poisoned");
             prune_routing_sessions(&mut map);
             let rec = map.entry(session_id.to_string()).or_default();
             rec.last_touch = Instant::now();

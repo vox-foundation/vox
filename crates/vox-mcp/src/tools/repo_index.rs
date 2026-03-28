@@ -30,6 +30,12 @@ pub struct RepoIndexSummary {
     pub skills_discovered: usize,
     /// Number of workflows discovered (`workflows/**/*.md` or `*.yaml`).
     pub workflows_discovered: usize,
+    /// Number of files under test-like paths (`tests/`, `*_test.*`, `test_*.*`).
+    pub tests_discovered: usize,
+    /// Number of files under `contracts/`.
+    pub contracts_discovered: usize,
+    /// Number of markdown/docs anchors under `docs/`.
+    pub docs_discovered: usize,
 }
 
 fn index_cache_path(state: &ServerState) -> std::path::PathBuf {
@@ -51,6 +57,9 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
     let mut stopped = false;
     let mut skills_discovered = 0usize;
     let mut workflows_discovered = 0usize;
+    let mut tests_discovered = 0usize;
+    let mut contracts_discovered = 0usize;
+    let mut docs_discovered = 0usize;
     const SKIP_DIRS: &[&str] = &[
         ".git",
         "target",
@@ -97,6 +106,19 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
             {
                 workflows_discovered += 1;
             }
+            let path_str = p.to_string_lossy().replace('\\', "/");
+            if path_str.contains("/tests/")
+                || name_str.contains("_test.")
+                || name_str.starts_with("test_")
+            {
+                tests_discovered += 1;
+            }
+            if path_str.contains("/contracts/") {
+                contracts_discovered += 1;
+            }
+            if path_str.contains("/docs/") && (ext == "md" || ext == "mdx" || ext == "rst") {
+                docs_discovered += 1;
+            }
 
             let key = if ext.is_empty() {
                 "(no ext)".to_string()
@@ -119,6 +141,9 @@ fn build_summary(state: &ServerState) -> Result<RepoIndexSummary, String> {
         by_extension_top: pairs,
         skills_discovered,
         workflows_discovered,
+        tests_discovered,
+        contracts_discovered,
+        docs_discovered,
     })
 }
 

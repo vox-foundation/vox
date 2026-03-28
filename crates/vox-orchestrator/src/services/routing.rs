@@ -42,6 +42,8 @@ impl RoutingService {
         task_capability_requirements: Option<&TaskCapabilityHints>,
         task_description: Option<&str>,
         remote_populi_hints: Option<&[RemotePopuliRoutingHint]>,
+        // Multi-dimensional trust rollups keyed by agent id (task_completion dimension).
+        task_completion_trust_scores: Option<&HashMap<AgentId, f64>>,
         // Phase 15: prefer agents with higher trust to reduce pilot interrupts.
         attention_trust_scores: Option<&HashMap<AgentId, crate::attention::AgentTrustScore>>,
     ) -> RouteResult {
@@ -113,7 +115,20 @@ impl RoutingService {
         // 3d. Repo shard workflow specialization and reliability penalties.
         Self::apply_repo_shard_phase_signals(&mut scores, agents, config, task_description);
 
-        // 3e. Attention-aware routing: prefer agents with higher EWMA trust score.
+        // 3e. Dimension-specific trust floor and utility blend.
+        if let Some(trust_scores) = task_completion_trust_scores {
+            for (agent_id, score) in scores.iter_mut() {
+                if let Some(ts) = trust_scores.get(agent_id) {
+                    if *ts < config.trust_task_completion_floor {
+                        // Hard floor: keep the agent selectable only as last resort.
+                        *score -= 10_000.0;
+                    }
+                    *score += ts * config.trust_task_completion_weight;
+                }
+            }
+        }
+
+        // 3f. Attention-aware routing: prefer agents with higher EWMA trust score.
         if config.attention_enabled {
             if let Some(trust_map) = attention_trust_scores {
                 let w = config.attention_trust_routing_weight;
@@ -575,6 +590,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a2));
@@ -640,6 +656,7 @@ mod tests {
             Some(&hints),
             None,
             None,
+            None,
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(gpu));
@@ -694,6 +711,7 @@ mod tests {
             Some(&hints),
             None,
             Some(remote.as_slice()),
+            None,
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a1));
@@ -742,6 +760,7 @@ mod tests {
             &config,
             None,
             Some(&req),
+            None,
             None,
             None,
             None,
@@ -810,7 +829,53 @@ mod tests {
             None,
             None,
             None,
+            None,
             Some(&trust),
+        );
+        assert_eq!(route, RouteResult::Existing(a2));
+    }
+
+    #[test]
+    fn task_completion_trust_floor_disqualifies_low_score_agents() {
+        let manifest = vec![FileAffinity::write("src/lib.rs")];
+        let affinity = FileAffinityMap::new();
+        let groups = AffinityGroupRegistry::new(vec![AffinityGroup {
+            name: "core-group".to_string(),
+            patterns: vec!["**/src/**".to_string()],
+            default_agent: None,
+        }]);
+        let mut agents = HashMap::new();
+        let a1 = AgentId(1);
+        let a2 = AgentId(2);
+        agents.insert(
+            a1,
+            Arc::new(std::sync::RwLock::new(AgentQueue::new(a1, "core-group"))),
+        );
+        agents.insert(
+            a2,
+            Arc::new(std::sync::RwLock::new(AgentQueue::new(a2, "core-group"))),
+        );
+
+        let mut config = OrchestratorConfig::for_testing();
+        config.trust_task_completion_floor = 0.4;
+        config.trust_task_completion_weight = 2.0;
+
+        let mut trust_scores = HashMap::new();
+        trust_scores.insert(a1, 0.10);
+        trust_scores.insert(a2, 0.80);
+
+        let route = RoutingService::route(
+            &manifest,
+            &affinity,
+            &groups,
+            &agents,
+            &config,
+            None,
+            None,
+            None,
+            None,
+            Some(&trust_scores),
+            None,
         );
         assert_eq!(route, RouteResult::Existing(a2));
     }

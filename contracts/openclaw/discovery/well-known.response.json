@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "gateway": {
+    "httpUrl": "https://gateway.openclaw.example",
+    "wsUrl": "wss://gateway.openclaw.example/ws"
+  },
+  "catalog": {
+    "listUrl": "https://gateway.openclaw.example/v1/skills",
+    "searchUrl": "https://gateway.openclaw.example/v1/skills/search"
+  },
+  "protocol": {
+    "minVersion": 3,
+    "maxVersion": 3
+  },
+  "cacheTtlSeconds": 600
+}

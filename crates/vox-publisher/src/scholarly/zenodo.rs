@@ -402,17 +402,18 @@ async fn zenodo_upload_staging_files(
             message: format!("{rel}: {e}"),
         })?;
         if let Some(map) = sha_expected
-            && let Some(hex) = map.get(rel) {
-                let d = Sha3_256::digest(&bytes);
-                let got = format!("{d:x}");
-                if got != *hex {
-                    return Err(ScholarlyError::Config {
-                        message: format!(
-                            "SHA-256 mismatch for {rel}: expected {hex}, got {got}; re-run staging export"
-                        ),
-                    });
-                }
+            && let Some(hex) = map.get(rel)
+        {
+            let d = Sha3_256::digest(&bytes);
+            let got = format!("{d:x}");
+            if got != *hex {
+                return Err(ScholarlyError::Config {
+                    message: format!(
+                        "SHA-256 mismatch for {rel}: expected {hex}, got {got}; re-run staging export"
+                    ),
+                });
             }
+        }
         let ct = zenodo_staging_content_type(rel);
         client.put_bucket_object(bucket, rel, &bytes, ct).await?;
     }
@@ -504,9 +505,10 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
             message: format!("deposition as JSON value: {e}"),
         })?;
         if let Some(doi) = dep.doi.clone().filter(|s| !s.trim().is_empty())
-            && let Some(m) = dep_val.as_object_mut() {
-                m.insert("expected_doi_hint".into(), serde_json::Value::String(doi));
-            }
+            && let Some(m) = dep_val.as_object_mut()
+        {
+            m.insert("expected_doi_hint".into(), serde_json::Value::String(doi));
+        }
         let meta_json = serde_json::to_string(&dep_val).map_err(|e| ScholarlyError::Fatal {
             code: "zenodo_receipt_encode".into(),
             message: format!("serialize deposition: {e}"),

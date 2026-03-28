@@ -6,7 +6,7 @@ use crate::oplog::OperationKind;
 use crate::planning::PlanningTaskMeta;
 use crate::scope::ScopeEnforcement;
 use crate::services::{PolicyCheckResult, PolicyEngine};
-use crate::types::{AccessKind, AgentTask, FileAffinity, TaskId, TaskPriority};
+use crate::types::{AccessKind, AgentTask, FileAffinity, TaskEnqueueHints, TaskId, TaskPriority};
 
 use super::super::super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, TaskTraceStep};
 
@@ -32,8 +32,16 @@ impl Orchestrator {
         priority: Option<TaskPriority>,
         session_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
-        self.submit_task_with_agent(description, file_manifest, priority, None, None, session_id)
-            .await
+        self.submit_task_with_agent(
+            description,
+            file_manifest,
+            priority,
+            None,
+            None,
+            None,
+            session_id,
+        )
+        .await
     }
 
     /// Submit a new task to the orchestrator, potentially targeting a specific agent name (async).
@@ -44,6 +52,7 @@ impl Orchestrator {
         priority: Option<TaskPriority>,
         target_agent: Option<String>,
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
+        enqueue_hints: Option<TaskEnqueueHints>,
         session_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         let (default_priority, scope_enforcement) = {
@@ -63,7 +72,43 @@ impl Orchestrator {
         let mut task = AgentTask::new(task_id, description, priority, file_manifest.clone());
         task.capability_requirements = capability_requirements.clone();
         task.session_id = session_id.clone();
+        if let Some(h) = &enqueue_hints {
+            if let Some(c) = h.complexity {
+                task.estimated_complexity = c.clamp(1, 10);
+            }
+            if let Some(ref m) = h.model_override {
+                task.model_override = Some(m.clone());
+            }
+            if let Some(ref p) = h.model_preference {
+                task.model_preference = Some(p.clone());
+            }
+            if let Some(cat) = h.task_category {
+                task.task_category = cat;
+            }
+            if let Some(ref campaign_id) = h.campaign_id {
+                let trimmed = campaign_id.trim();
+                if !trimmed.is_empty() {
+                    task.campaign_id = Some(trimmed.to_string());
+                }
+            }
+            if let Some(tier) = h.benchmark_tier {
+                task.benchmark_tier = Some(tier);
+            }
+            if let Some(role) = h.execution_role {
+                task.execution_role = Some(role);
+            }
+        }
         task.start(); // ensure started_at_ms is populated for orchestrator-submitted tasks
+        if let (Some(campaign_id), Some(tier)) = (task.campaign_id.clone(), task.benchmark_tier) {
+            let _ = self
+                .begin_reconstruction_campaign(
+                    campaign_id,
+                    tier,
+                    task.description.clone(),
+                    session_id.as_deref(),
+                )
+                .await;
+        }
 
         // Route to the right agent via RoutingService
         let agent_id = self
@@ -152,6 +197,9 @@ impl Orchestrator {
 
         let remote_relay_desc = task.description.clone();
         let lineage_desc_preview: String = remote_relay_desc.chars().take(240).collect();
+        let lineage_campaign_id = task.campaign_id.clone();
+        let lineage_benchmark_tier = task.benchmark_tier;
+        let lineage_execution_role = task.execution_role;
         // Enqueue the task
         let handle = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
@@ -329,9 +377,23 @@ impl Orchestrator {
         if crate::lineage::orchestration_lineage_persist_enabled() {
             if let Some(db) = self.db() {
                 let repo = crate::lineage::repository_id();
-                let payload = serde_json::json!({
+                let mut payload = serde_json::json!({
                     "description_preview": lineage_desc_preview,
                 });
+                if let Some(ref campaign_id) = lineage_campaign_id {
+                    payload["task_campaign_id"] = serde_json::Value::String(campaign_id.clone());
+                }
+                if let Some(tier) = lineage_benchmark_tier {
+                    payload["benchmark_tier"] =
+                        serde_json::Value::String(tier.as_str().to_string());
+                }
+                if let Some(role) = lineage_execution_role {
+                    payload["execution_role"] =
+                        serde_json::Value::String(role.as_str().to_string());
+                }
+                if let Some(cid) = crate::lineage::orchestration_campaign_id() {
+                    payload["orchestration_campaign_id"] = serde_json::Value::String(cid);
+                }
                 let payload_str = payload.to_string();
                 let _ = db
                     .append_orchestration_lineage_event(
@@ -361,6 +423,7 @@ impl Orchestrator {
         target_agent: Option<String>,
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
         session_id: Option<String>,
+        enqueue_hints: Option<TaskEnqueueHints>,
         planning_meta: Option<PlanningTaskMeta>,
     ) -> Result<TaskId, OrchestratorError> {
         let task_id = self
@@ -370,6 +433,7 @@ impl Orchestrator {
                 priority,
                 target_agent,
                 capability_requirements,
+                enqueue_hints,
                 session_id,
             )
             .await?;

@@ -85,15 +85,13 @@ pub fn run_verify(repo_root: &Path) -> Result<()> {
         .with_context(|| format!("parse {}", schema_path.display()))?;
     let data_val: serde_json::Value = serde_json::from_str(&data_src)
         .with_context(|| format!("parse {}", data_path.display()))?;
-    let validator = jsonschema::validator_for(&schema_val)
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
         .with_context(|| format!("compile JSON Schema {}", schema_path.display()))?;
-    validator.validate(&data_val).map_err(|e| {
-        anyhow::anyhow!(
-            "{} failed validation against {}: {e}",
-            data_path.display(),
-            schema_path.display()
-        )
-    })?;
+    vox_jsonschema_util::validate(
+        &data_val,
+        &validator,
+        format!("{} vs {}", data_path.display(), schema_path.display()),
+    )?;
     println!(
         "OK: {} matches {}",
         data_path.display(),

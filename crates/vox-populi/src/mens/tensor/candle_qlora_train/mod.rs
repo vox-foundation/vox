@@ -98,6 +98,14 @@ pub(super) enum TrainingDbEvent {
         last_loss: Option<f32>,
         adapter_path: String,
     },
+    EpochSummary {
+        run_id: String,
+        epoch: u32,
+        global_step: u32,
+        avg_loss: f64,
+        avg_val_loss: f64,
+        val_steps: u32,
+    },
     Complete {
         run_id: String,
         global_step: u32,

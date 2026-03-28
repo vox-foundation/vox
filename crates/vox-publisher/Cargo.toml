@@ -29,7 +29,8 @@ mime_guess = "2.0"
 sha3 = { workspace = true }
 regex = { workspace = true }
 pulldown-cmark = "0.13"
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
+vox-primitives = { workspace = true }
 vox-clavis = { path = "../vox-clavis" }
 vox-db = { path = "../vox-db", optional = true }
 

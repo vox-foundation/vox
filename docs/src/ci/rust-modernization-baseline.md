@@ -38,7 +38,7 @@ Priority set from the master plan (error handling / async / tracing / process):
 ## TOESTUB
 
 - Crate: `vox-toestub`; CLI entry: `vox` diagnostics / stub-check (see plan § Wave 5–6).
-- CI: default job uses `ci toestub-scoped --mode enforce-warn` (see `.github/workflows/ci.yml`). **Tightening:** switch to `enforce-error` when scoped backlog is cleared so regressions fail the pipeline.
+- CI: default job uses `ci toestub-scoped --mode legacy` (see `.github/workflows/ci.yml`). **Tightening:** switch to stricter modes only after backlog burn-down and cross-provider parity review.
 
 ## Verification commands
 

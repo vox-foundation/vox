@@ -61,6 +61,20 @@ pub(crate) fn spawn_socrates_telemetry(
     spawn_socrates_telemetry_with_meta(state, surface, socrates_value, model_used, None);
 }
 
+#[must_use]
+pub(crate) fn socrates_surface_tags(task_class: &str, domain_tags: &[&str]) -> Value {
+    let tags = domain_tags
+        .iter()
+        .copied()
+        .filter(|s| !s.is_empty())
+        .map(serde_json::Value::from)
+        .collect::<Vec<_>>();
+    serde_json::json!({
+        "task_class": task_class,
+        "domain_tags": tags,
+    })
+}
+
 pub(crate) fn spawn_socrates_telemetry_with_meta(
     state: &ServerState,
     surface: &'static str,

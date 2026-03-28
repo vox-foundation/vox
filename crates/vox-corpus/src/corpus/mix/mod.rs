@@ -18,6 +18,7 @@
 //! Lines are JSON objects with `refined_transcript` (spoken intent) and `vox_code` (validated .vox source), optional
 //! `transcript_alternatives`, `repair_metadata`, and `diagnostics_snapshot` (compiler/LSP repair loop). See `mens/schemas/speech_to_code_trace.schema.json`.
 
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -66,6 +67,12 @@ pub struct MixConfigSchema {
     pub sources: Vec<MixSource>,
     /// Output JSONL path (relative to cwd unless absolute).
     pub output: String,
+    /// Optional lane allow-list. When set, only rows in these lanes are emitted.
+    #[serde(default)]
+    pub include_lanes: Vec<String>,
+    /// Optional lane deny-list. Rows in these lanes are skipped.
+    #[serde(default)]
+    pub exclude_lanes: Vec<String>,
 }
 
 impl MixConfigSchema {
@@ -272,6 +279,72 @@ pub fn normalize_training_jsonl_line(
     }
 }
 
+fn default_lane_from_row(row: &serde_json::Value) -> &'static str {
+    let category = row
+        .get("category")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if category.contains("tool_trace") {
+        "vox_tooling"
+    } else if category.contains("speech") || category.contains("asr_refine") {
+        "vox_speech"
+    } else if category.contains("documentation") {
+        "vox_docs_qa"
+    } else {
+        "vox_codegen"
+    }
+}
+
+fn default_response_mode_for_lane(lane: &str) -> &'static str {
+    if lane == "vox_docs_qa" {
+        "prose_only"
+    } else {
+        "code_only"
+    }
+}
+
+fn default_task_family_from_lane(lane: &str) -> &'static str {
+    match lane {
+        "vox_docs_qa" => "docs_qa",
+        "vox_tooling" => "tool_trace",
+        "vox_speech" => "speech_to_code",
+        _ => "vox_codegen",
+    }
+}
+
+fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
+    let mut v: serde_json::Value =
+        serde_json::from_str(line).map_err(|e| format!("invalid training row json: {e}"))?;
+    let inferred_lane = default_lane_from_row(&v).to_string();
+    let obj = v
+        .as_object_mut()
+        .ok_or_else(|| "training row must be JSON object".to_string())?;
+    let lane = obj
+        .get("lane")
+        .and_then(|x| x.as_str())
+        .map(str::to_string)
+        .unwrap_or(inferred_lane);
+    if !obj.contains_key("lane") {
+        obj.insert("lane".to_string(), serde_json::Value::String(lane.clone()));
+    }
+    if !obj.contains_key("response_mode") {
+        obj.insert(
+            "response_mode".to_string(),
+            serde_json::Value::String(default_response_mode_for_lane(&lane).to_string()),
+        );
+    }
+    if !obj.contains_key("task_family") {
+        obj.insert(
+            "task_family".to_string(),
+            serde_json::Value::String(default_task_family_from_lane(&lane).to_string()),
+        );
+    }
+    serde_json::to_string(&v)
+        .map(|s| (s, lane))
+        .map_err(|e| e.to_string())
+}
+
 /// Same as [`run_mix_with_options`] with [`MixRunOptions::default`] (lenient; writes report).
 ///
 /// Resolves relative `output` / source paths in the YAML against [`std::env::current_dir`].
@@ -401,6 +474,14 @@ pub fn run_mix_with_options(
     let mut out = File::create(&out_path)
         .with_context(|| format!("create mix output {}", out_path.display()))?;
     let mut total_out = 0usize;
+    let include_lanes: HashSet<String> = if cfg.include_lanes.is_empty() {
+        HashSet::from(["vox_codegen".to_string()])
+    } else {
+        cfg.include_lanes.iter().cloned().collect()
+    };
+    let exclude_lanes: HashSet<String> = cfg.exclude_lanes.iter().cloned().collect();
+    let mut lane_counts: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
 
     for (row_idx, src) in cfg.sources.iter().enumerate() {
         let p = cwd.join(&src.path);
@@ -431,6 +512,20 @@ pub fn run_mix_with_options(
                             continue;
                         }
                     };
+                let (normalized, lane) = match enrich_lane_metadata(&normalized) {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        eprintln!("  [mix] skip line in {}: {e}", p.display());
+                        continue;
+                    }
+                };
+                if !include_lanes.is_empty() && !include_lanes.contains(&lane) {
+                    continue;
+                }
+                if exclude_lanes.contains(&lane) {
+                    continue;
+                }
+                *lane_counts.entry(lane).or_insert(0) += 1;
                 writeln!(out, "{normalized}")?;
                 total_out += 1;
                 emitted_this_src += 1;
@@ -492,6 +587,9 @@ pub fn run_mix_with_options(
         eprintln!("  [mix] report → {}", report_path.display());
     }
 
+    if !lane_counts.is_empty() {
+        eprintln!("  [mix] lane distribution: {:?}", lane_counts);
+    }
     eprintln!("  [mix] wrote {} lines → {}", total_out, out_path.display());
     Ok(())
 }

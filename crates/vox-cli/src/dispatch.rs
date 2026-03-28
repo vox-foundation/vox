@@ -5,6 +5,7 @@
 //! until the daemon emits `Done` or its stdout closes.
 
 use crate::dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+use crate::process_supervision::{resolve_managed_binary_path, terminate_process_tree};
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -30,14 +31,21 @@ pub async fn call_daemon(
 ) -> anyhow::Result<serde_json::Value> {
     // Resolve the daemon path: prefer a sibling binary first (installed alongside vox),
     // then fall back to PATH lookup so dev builds with `cargo run` still work.
-    let daemon_path = resolve_daemon_path(daemon);
+    let daemon_path = resolve_managed_binary_path(daemon);
 
     let mut child = Command::new(&daemon_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit()) // raw stderr (tracing logs) pass through immediately
         .spawn()
-        .map_err(|e| anyhow::anyhow!("{} '{}': {}", DAEMON_SPAWN_FAILED_PREFIX, daemon_path, e))?;
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "{} '{}': {}",
+                DAEMON_SPAWN_FAILED_PREFIX,
+                daemon_path.display(),
+                e
+            )
+        })?;
 
     let mut stdin = child.stdin.take().expect("stdin was piped");
     let stdout = child.stdout.take().expect("stdout was piped");
@@ -138,14 +146,21 @@ pub async fn call_daemon_streaming(
     params: serde_json::Value,
     auto_open: bool,
 ) -> anyhow::Result<()> {
-    let daemon_path = resolve_daemon_path(daemon);
+    let daemon_path = resolve_managed_binary_path(daemon);
 
     let mut child = Command::new(&daemon_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
-        .map_err(|e| anyhow::anyhow!("{} '{}': {}", DAEMON_SPAWN_FAILED_PREFIX, daemon_path, e))?;
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "{} '{}': {}",
+                DAEMON_SPAWN_FAILED_PREFIX,
+                daemon_path.display(),
+                e
+            )
+        })?;
 
     let mut stdin = child.stdin.take().expect("stdin was piped");
     let stdout = child.stdout.take().expect("stdout was piped");
@@ -167,17 +182,7 @@ pub async fn call_daemon_streaming(
             && let Some(pid) = child_id
         {
             // Best-effort: send SIGINT/SIGKILL to the child
-            #[cfg(unix)]
-            unsafe {
-                libc::kill(pid as libc::pid_t, libc::SIGINT);
-            }
-            #[cfg(windows)]
-            {
-                // On Windows, taskkill is the cleanest cross-version way
-                let _ = std::process::Command::new("taskkill")
-                    .args(["/PID", &pid.to_string(), "/F"])
-                    .output();
-            }
+            let _ = terminate_process_tree(pid);
         }
     });
 
@@ -258,45 +263,4 @@ async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched
     } else {
         println!("{}", line);
     }
-}
-
-/// Resolve a daemon binary name to an executable path.
-///
-/// Priority:
-/// 1. Sibling to the current executable (production installs)
-/// 2. `~/.vox/bin/<name>` (user-local installs)
-/// 3. Bare name — let the OS PATH resolve it (dev/cargo builds)
-fn resolve_daemon_path(name: &str) -> String {
-    let exe_name = if cfg!(windows) {
-        format!("{}.exe", name)
-    } else {
-        name.to_string()
-    };
-
-    // 1. Sibling to the current binary
-    if let Ok(current_exe) = std::env::current_exe()
-        && let Some(parent) = current_exe.parent()
-    {
-        let sibling = parent.join(&exe_name);
-        if sibling.exists() {
-            return sibling.to_string_lossy().into_owned();
-        }
-    }
-
-    // 2. ~/.vox/bin/
-    let home = std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_default();
-    if !home.is_empty() {
-        let vox_bin = std::path::Path::new(&home)
-            .join(".vox")
-            .join("bin")
-            .join(&exe_name);
-        if vox_bin.exists() {
-            return vox_bin.to_string_lossy().into_owned();
-        }
-    }
-
-    // 3. Fall back to PATH / bare name
-    name.to_string()
 }

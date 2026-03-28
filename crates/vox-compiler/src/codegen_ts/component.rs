@@ -30,6 +30,61 @@ use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing,
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, react_hook_export_for_vox_ident};
 use std::collections::{BTreeSet, HashSet};
 
+/// Generate a React component from WebIR when a lowered view root is available.
+#[must_use]
+pub fn generate_component_from_web_ir(
+    func: &FnDecl,
+    has_styles: bool,
+    web: &crate::web_ir::WebIrModule,
+) -> Option<(String, String)> {
+    let view = crate::web_ir::emit_tsx::emit_component_view_tsx(web, &func.name)?;
+    let name = &func.name;
+    let filename = format!("{name}.tsx");
+    let mut out = String::new();
+    out.push_str("import React from \"react\";\n");
+    if has_styles {
+        out.push_str(&format!("import \"./{name}.css\";\n"));
+    }
+    out.push('\n');
+
+    if !func.params.is_empty() {
+        out.push_str(&format!("export interface {name}Props {{\n"));
+        for param in &func.params {
+            let ts_type = param
+                .type_ann
+                .as_ref()
+                .map_or("any".to_string(), map_vox_type_to_ts);
+            let optional = if param.default.is_some() { "?" } else { "" };
+            out.push_str(&format!("  {}{optional}: {ts_type};\n", param.name));
+        }
+        out.push_str("}\n\n");
+    }
+
+    if func.params.is_empty() {
+        out.push_str(&format!(
+            "export function {name}(): React.ReactElement {{\n"
+        ));
+    } else {
+        let params = func
+            .params
+            .iter()
+            .map(|p| p.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(
+            "export function {name}({{ {params} }}: {name}Props): React.ReactElement {{\n"
+        ));
+    }
+    out.push_str("  return (\n");
+    for line in view.lines() {
+        out.push_str("    ");
+        out.push_str(line);
+        out.push('\n');
+    }
+    out.push_str("  );\n}\n");
+    Some((filename, out))
+}
+
 /// Generate a React component from a Vox @component function declaration.
 /// Returns (filename, content) tuple.
 pub fn generate_component(

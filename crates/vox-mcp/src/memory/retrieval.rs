@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_orchestrator::MemorySearchEngine;
 use vox_orchestrator::services::embeddings::EmbeddingService;
@@ -7,7 +8,7 @@ use super::config::memory_config_for_state;
 use crate::server::ServerState;
 
 /// Why retrieval is being invoked for this turn/tool path.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RetrievalTriggerMode {
     /// Silent preamble enrichment for chat turns.
@@ -19,7 +20,7 @@ pub enum RetrievalTriggerMode {
 }
 
 /// Structured retrieval metadata shared between MCP surfaces and Socrates telemetry.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RetrievalEvidenceEnvelope {
     /// Trigger mode that initiated this retrieval pass.
     pub trigger: RetrievalTriggerMode,

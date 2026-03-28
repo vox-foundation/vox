@@ -45,6 +45,19 @@ Values come from [`contracts/cli/command-registry.yaml`](../../contracts/cli/com
 
 **No `latin_ns`:** Some operations omit the field (e.g. `populi`, `island` in the registry). That means they are grouped under English top-level names only; add `latin_ns` only if you introduce a documented Latin umbrella for them.
 
+## `product_lane` (bell-curve grouping metadata)
+
+`product_lane` is distinct from `latin_ns`. It groups commands and docs by the kind of software Vox is optimizing for, not by CLI theme.
+
+| `product_lane` | Meaning | Typical examples |
+|----------------|---------|------------------|
+| `app` | full-stack app construction | `build`, `run`, `island`, `fabrica` |
+| `workflow` | automation and background execution | `script`, `populi` |
+| `ai` | generation, review, eval, orchestration, speech | `mens`, `review`, `dei`, `oratio` |
+| `interop` | approved bindings and remote capability bridges | `openclaw`, `skill`, `snippet`, `share` |
+| `data` | database and publication workflows | `db`, `codex`, `scientia` |
+| `platform` | packaging, compliance, diagnostics, and secrets | `pm`, `ci`, `doctor`, `clavis` |
+
 ## CLI command migrations
 
 | Old | New | Notes |

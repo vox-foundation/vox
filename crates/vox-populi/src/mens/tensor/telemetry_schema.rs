@@ -23,6 +23,12 @@ pub mod keys {
     pub const STEP: &str = "step";
     pub const LOSS: &str = "loss";
     pub const LR: &str = "lr";
+    pub const LEARNING_RATE: &str = "learning_rate";
+    pub const TOKENS_PER_SEC: &str = "tokens_per_sec";
+    pub const TOKENS_PER_SEC_IS_PROXY: &str = "tokens_per_sec_is_proxy";
+    pub const VALID_TOKENS: &str = "valid_tokens";
+    pub const THEORETICAL_TOKENS: &str = "theoretical_tokens";
+    pub const SUPERVISED_RATIO_PCT: &str = "supervised_ratio_pct";
     /// Candle QLoRA: optimizer micro-steps expected per epoch if no vocab/hidden skips (upper bound).
     pub const PLANNED_STEPS_PER_EPOCH: &str = "planned_steps_per_epoch";
     /// `planned_steps_per_epoch` × `epochs` (upper bound over the full run).

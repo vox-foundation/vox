@@ -1,7 +1,19 @@
 use crate::planning::{PlanningMode, PlanningStrategy};
-use crate::types::{FileAffinity, TaskId, TaskPriority};
+use crate::types::{AccessKind, FileAffinity, TaskId, TaskPriority};
+use std::collections::HashSet;
 
 use super::super::super::{Orchestrator, OrchestratorError};
+
+fn merge_file_affinities(into: &mut Vec<FileAffinity>, extra: &[FileAffinity]) {
+    let mut have: HashSet<(std::path::PathBuf, AccessKind)> =
+        into.iter().map(|f| (f.path.clone(), f.access)).collect();
+    for f in extra {
+        let key = (f.path.clone(), f.access);
+        if have.insert(key) {
+            into.push(f.clone());
+        }
+    }
+}
 
 impl Orchestrator {
     /// If the context store holds a session-scoped retrieval envelope, attach it to the task.
@@ -37,6 +49,7 @@ impl Orchestrator {
         priority: Option<TaskPriority>,
         planning_mode: Option<PlanningMode>,
         session_id: Option<String>,
+        enqueue_hints: Option<crate::types::TaskEnqueueHints>,
     ) -> Result<TaskId, OrchestratorError> {
         let goal = goal.into();
         let cfg = crate::sync_lock::rw_read(&*self.config).clone();
@@ -44,14 +57,30 @@ impl Orchestrator {
             && (!cfg.planning_auto_mode_enabled || cfg.planning_rollout_percent == 0)
         {
             return self
-                .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)
+                .submit_task_with_agent(
+                    goal,
+                    file_manifest,
+                    priority,
+                    None,
+                    None,
+                    enqueue_hints.clone(),
+                    session_id,
+                )
                 .await;
         }
         if planning_mode.is_none() {
             let selector = xxhash_rust::xxh3::xxh3_64(goal.as_bytes()) % 100;
             if selector >= u64::from(cfg.planning_rollout_percent) {
                 return self
-                    .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)
+                    .submit_task_with_agent(
+                        goal,
+                        file_manifest,
+                        priority,
+                        None,
+                        None,
+                        enqueue_hints.clone(),
+                        session_id,
+                    )
                     .await;
             }
         }
@@ -66,7 +95,15 @@ impl Orchestrator {
 
         if cfg.planning_shadow_mode || eval.strategy == PlanningStrategy::ImmediateAct {
             return self
-                .submit_task_with_agent(goal, file_manifest, priority, None, None, session_id)
+                .submit_task_with_agent(
+                    goal,
+                    file_manifest,
+                    priority,
+                    None,
+                    None,
+                    enqueue_hints.clone(),
+                    session_id,
+                )
                 .await;
         }
 
@@ -74,13 +111,28 @@ impl Orchestrator {
             && cfg.planning_workflow_handoff_enabled
         {
             return self
-                .submit_workflow_handoff_goal(goal, file_manifest, priority, session_id)
+                .submit_workflow_handoff_goal(
+                    goal,
+                    file_manifest,
+                    priority,
+                    session_id,
+                    enqueue_hints,
+                )
                 .await;
         }
 
         let plan_session_id = format!("plan-{}", uuid::Uuid::new_v4());
         let plan_version = 1_u32;
-        let nodes = crate::planning::synthesizer::synthesize_plan_nodes(&goal);
+        let mut nodes = crate::planning::synthesizer::synthesize_plan_nodes(&goal);
+        for n in &mut nodes {
+            if let Some(ref h) = enqueue_hints {
+                n.execution_policy.enqueue_hints = Some(h.clone());
+            }
+            if !file_manifest.is_empty() {
+                merge_file_affinities(&mut n.execution_policy.file_manifest, &file_manifest);
+            }
+        }
+        crate::planning::quality_gate::validate_plan_nodes(&nodes)?;
         let db_opt = self.db();
         if let Some(db) = db_opt.as_ref() {
             let strategy = format!("{:?}", eval.strategy);
@@ -115,6 +167,35 @@ impl Orchestrator {
                 strategy: format!("{:?}", eval.strategy),
                 version: plan_version as i64,
             });
+
+        if crate::lineage::orchestration_lineage_persist_enabled() {
+            if let Some(db) = self.db() {
+                let repo = crate::lineage::repository_id();
+                let mut payload = serde_json::json!({
+                    "strategy": format!("{:?}", eval.strategy),
+                    "plan_version": plan_version,
+                    "node_count": nodes.len(),
+                    "goal_preview": goal.chars().take(240).collect::<String>(),
+                });
+                if let Some(cid) = crate::lineage::orchestration_campaign_id() {
+                    payload["campaign_id"] = serde_json::Value::String(cid);
+                }
+                let payload_str = payload.to_string();
+                let _ = db
+                    .append_orchestration_lineage_event(
+                        &repo,
+                        "plan_session_created",
+                        0_i64,
+                        None,
+                        session_id.as_deref(),
+                        None,
+                        Some(plan_session_id.as_str()),
+                        None,
+                        Some(payload_str.as_str()),
+                    )
+                    .await;
+            }
+        }
 
         if db_opt.is_some() {
             let enqueued = crate::planning::schedule::enqueue_runnable_plan_nodes(

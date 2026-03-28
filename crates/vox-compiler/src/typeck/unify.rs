@@ -191,7 +191,22 @@ impl InferenceContext {
                 }
                 Ok(())
             }
-            (Ty::Error, _) | (_, Ty::Error) | (Ty::Never, _) | (_, Ty::Never) => Ok(()),
+            (Ty::Error, Ty::Error) => Ok(()),
+            (Ty::Never, Ty::Never) => Ok(()),
+            (Ty::Error, other) | (other, Ty::Error) => Err(format!(
+                "Cannot unify error type with {}",
+                crate::typeck::ty::ty_display(other)
+            )),
+            (Ty::Never, other) | (other, Ty::Never) => Err(format!(
+                "Cannot unify never type with {}",
+                crate::typeck::ty::ty_display(other)
+            )),
+            (Ty::ImportPlaceholder(a), Ty::ImportPlaceholder(b)) if a == b => Ok(()),
+            (Ty::ImportPlaceholder(a), other) | (other, Ty::ImportPlaceholder(a)) => Err(format!(
+                "Cannot unify unresolved import '{}' with {}",
+                a,
+                crate::typeck::ty::ty_display(other)
+            )),
             (Ty::Named(a), Ty::Named(b)) if a == b => Ok(()),
             (Ty::ActorRef(a), Ty::ActorRef(b)) if a == b => Ok(()),
             (Ty::Table(an, af), Ty::Table(bn, bf)) if an == bn => {
@@ -266,5 +281,20 @@ mod tests {
             .is_ok()
         );
         assert_eq!(ctx.resolve(&var), Ty::Int);
+    }
+
+    #[test]
+    fn test_unify_never_with_concrete_is_error() {
+        let mut ctx = InferenceContext::new();
+        assert!(ctx.unify(&Ty::Never, &Ty::Int).is_err());
+    }
+
+    #[test]
+    fn test_unify_import_placeholder_with_concrete_is_error() {
+        let mut ctx = InferenceContext::new();
+        assert!(
+            ctx.unify(&Ty::ImportPlaceholder("foo".into()), &Ty::Str)
+                .is_err()
+        );
     }
 }

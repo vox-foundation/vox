@@ -9,7 +9,7 @@ use vox_publisher::scholarly_external_jobs::publication_scholarly_submit_with_le
 
 use super::common::{
     REM_PUBLICATION_ID, REM_SCIENTIA_APPROVER, REM_SCIENTIA_DB, REM_SCIENTIA_METADATA,
-    no_voxdb_tool_string,
+    no_voxdb_tool_string, publication_manifest_from_row,
 };
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -46,6 +46,113 @@ impl From<PreflightProfileParam> for PreflightProfile {
             PreflightProfileParam::DoubleBlind => Self::DoubleBlind,
             PreflightProfileParam::MetadataComplete => Self::MetadataComplete,
         }
+    }
+}
+
+async fn publication_attention_inputs_for_row(
+    db: &vox_db::VoxDb,
+    row: &vox_db::PublicationManifestRow,
+    item: &vox_publisher::types::UnifiedNewsItem,
+    orchestrator_dry_run: bool,
+    publish_armed: bool,
+) -> Result<vox_publisher::publication_preflight::PreflightAttentionInputs, String> {
+    let dual = db
+        .has_dual_publication_approval_for_digest(
+            row.publication_id.as_str(),
+            row.content_sha3_256.as_str(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    let gate = vox_publisher::gate::evaluate_publish_gate(
+        vox_publisher::gate::publish_gate_inputs_for_mcp(
+            false,
+            orchestrator_dry_run,
+            publish_armed,
+            true,
+            dual,
+            item,
+        ),
+    );
+    Ok(vox_publisher::publication_preflight::PreflightAttentionInputs { gate: Some(gate) })
+}
+
+pub(super) async fn publication_preflight_report_for_row(
+    db: &vox_db::VoxDb,
+    row: &vox_db::PublicationManifestRow,
+    manifest: &PublicationManifest,
+    profile: PreflightProfile,
+    orchestrator_dry_run: bool,
+    publish_armed: bool,
+    repo_root: &std::path::Path,
+    repository_id_fallback: Option<&str>,
+    with_worthiness: bool,
+) -> Result<vox_publisher::publication_preflight::PreflightReport, String> {
+    let item = vox_publisher::switching::unified_news_item_from_manifest_parts(
+        row.publication_id.as_str(),
+        row.title.as_str(),
+        row.author.as_str(),
+        row.body_markdown.as_str(),
+        row.metadata_json.as_deref(),
+    )
+    .map_err(|e| format!("parse metadata_json for gate: {e}"))?;
+    let attention =
+        publication_attention_inputs_for_row(db, row, &item, orchestrator_dry_run, publish_armed)
+            .await?;
+    if with_worthiness {
+        let mut manifest = manifest.clone();
+        let rid = manifest
+            .metadata_json
+            .as_deref()
+            .and_then(|raw| {
+                let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+                v.get("repository_id")
+                    .and_then(|x| x.as_str())
+                    .map(std::string::ToString::to_string)
+            })
+            .or_else(|| repository_id_fallback.map(std::string::ToString::to_string));
+        if let Some(rid) = rid {
+            let merged = db
+                .merge_scientia_live_socrates_into_metadata_json(
+                    manifest.metadata_json.as_deref(),
+                    rid.as_str(),
+                )
+                .await
+                .map_err(|e| format!("socrates telemetry merge: {e}"))?;
+            manifest.metadata_json = Some(merged);
+        }
+        if let Some(updated) =
+            vox_publisher::scientia_evidence::enrich_metadata_json_with_repo_files(
+                manifest.metadata_json.as_deref(),
+                repo_root,
+            )
+            .map_err(|e| format!("scientia_evidence file hydration: {e}"))?
+        {
+            manifest.metadata_json = Some(updated);
+        }
+        let contract_path =
+            repo_root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
+        let yaml = std::fs::read_to_string(&contract_path)
+            .map_err(|e| format!("read worthiness contract {}: {e}", contract_path.display()))?;
+        let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)
+            .map_err(|e| format!("parse worthiness contract: {e}"))?;
+        vox_publisher::publication_worthiness::validate_contract_invariants(&contract)
+            .map_err(|e| format!("worthiness contract invariants: {e}"))?;
+        Ok(
+            vox_publisher::publication_preflight::run_preflight_with_worthiness_attention(
+                &manifest,
+                profile,
+                &contract,
+                Some(attention),
+            ),
+        )
+    } else {
+        Ok(
+            vox_publisher::publication_preflight::run_preflight_with_attention(
+                manifest,
+                profile,
+                Some(attention),
+            ),
+        )
     }
 }
 
@@ -265,6 +372,8 @@ pub async fn vox_scientia_publication_submit_local(
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaPublicationStatusParams {
     pub publication_id: String,
+    #[serde(default)]
+    pub with_worthiness: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -275,6 +384,7 @@ struct ScientiaPublicationStatusBody {
     digest: String,
     version: i64,
     approvals_for_digest: i64,
+    preflight_report: vox_publisher::publication_preflight::PreflightReport,
     scholarly_submissions: Vec<vox_db::ScholarlySubmissionRow>,
     media_assets: Vec<vox_db::PublicationMediaAssetRow>,
     publication_attempts: Vec<vox_db::PublicationAttemptRow>,
@@ -304,6 +414,25 @@ pub async fn vox_scientia_publication_status(
             REM_PUBLICATION_ID,
         )
         .to_json();
+    };
+    let manifest = publication_manifest_from_row(&row);
+    let preflight_report = match publication_preflight_report_for_row(
+        db,
+        &row,
+        &manifest,
+        PreflightProfile::Default,
+        state.orchestrator_config.news.dry_run,
+        state.orchestrator_config.news.publish_armed,
+        &state.repository.root,
+        Some(state.repository.repository_id.as_str()),
+        params.with_worthiness,
+    )
+    .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e, REM_SCIENTIA_METADATA).to_json();
+        }
     };
     let approvals = match db
         .count_publication_approvers_for_digest(&params.publication_id, &row.content_sha3_256)
@@ -371,6 +500,7 @@ pub async fn vox_scientia_publication_status(
         digest: row.content_sha3_256,
         version: row.version,
         approvals_for_digest: approvals,
+        preflight_report,
         scholarly_submissions: submissions,
         media_assets,
         publication_attempts,

@@ -263,12 +263,6 @@ pub fn publish_local_registry_best_effort() -> Result<(), PopuliRegistryError> {
     reg.upsert_node(record)
 }
 
-fn uuid_simple() -> String {
-    use std::time::Instant;
-    let n = Instant::now().elapsed().as_nanos();
-    format!("{n:x}")
-}
-
 /// [`NodeRecord`] for this process — same id and `listen_addr` as [`publish_local_registry_best_effort`].
 #[must_use]
 pub fn populi_registration_record_for_process() -> NodeRecord {
@@ -277,7 +271,7 @@ pub fn populi_registration_record_for_process() -> NodeRecord {
     let id = env
         .node_id
         .clone()
-        .unwrap_or_else(|| format!("local-{}", uuid_simple()));
+        .unwrap_or_else(|| format!("local-{}", vox_primitives::id::simple_hex_id()));
     let listen = env.control_addr.clone();
     node_record_for_current_process(id, listen)
 }

@@ -180,9 +180,8 @@ impl crate::VoxDb {
     ) -> Result<i64, StoreError> {
         let tq = quote_sqlite_ident(table)?;
         let cq = quote_sqlite_ident(expires_at_column)?;
-        let sql = format!(
-            "SELECT COUNT(*) FROM {tq} WHERE {cq} IS NOT NULL AND {cq} < datetime('now')"
-        );
+        let sql =
+            format!("SELECT COUNT(*) FROM {tq} WHERE {cq} IS NOT NULL AND {cq} < datetime('now')");
         let mut rows = self.conn.query(&sql, ()).await?;
         let row = rows
             .next()

@@ -100,7 +100,7 @@ impl<'a> Checker<'a> {
                                 ));
                             }
                         }
-                        "timeout" | "activity_id" | "meta" => {
+                        "timeout" | "activity_id" | "id" | "meta" | "mens" | "initial_backoff" => {
                             if self.uf.unify(&Ty::Str, &v_res).is_err() {
                                 self.diags.push(Diagnostic::warning(
                                     format!(

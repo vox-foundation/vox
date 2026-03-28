@@ -6,7 +6,7 @@
 //!
 //! **Docs SSOT:** tool names in [`tools::TOOL_REGISTRY`]; per-tool JSON
 //! schemas live in `tools/input_schemas.rs` (`tool_input_schema`, wired from `server`). Long-form: mdBook
-//! [`vox-mcp.md`](../../../docs/src/api/vox-mcp.md), [`ref-cli.md`](../../../docs/src/ref-cli.md),
+//! [`vox-mcp.md`](../../../docs/src/api/vox-mcp.md), [`reference/cli.md`](../../../docs/src/reference/cli.md),
 //! [`mens-training-ssot.md`](../../../docs/src/architecture/mens-training-ssot.md), repo
 //! [`AGENTS.md`](../../../AGENTS.md) §2.2.1 (Codex / Arca / Turso).
 //!

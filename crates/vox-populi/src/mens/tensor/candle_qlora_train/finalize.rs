@@ -74,6 +74,7 @@ pub(super) fn finalize_training_run(
     total_tokens: usize,
     total_step_count: u32,
     total_loss_sum: f64,
+    last_avg_val_loss: Option<f64>,
     stats: TrainingLoopStats,
     run_start_inst: Instant,
 ) -> Result<TrainingSummary> {
@@ -201,6 +202,26 @@ pub(super) fn finalize_training_run(
         0,
         stats.skip_short_seq,
         true,
+    )?;
+    std::fs::write(
+        out.join("run_summary.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "vox_mens_run_summary_v1",
+            "run_id": run_id,
+            "base_model": config.base_model,
+            "adapter_tag": config.adapter_tag,
+            "global_step": global_step,
+            "optimizer_step_count": optimizer_step_count,
+            "avg_train_loss": final_avg_loss,
+            "avg_val_loss_last_epoch": last_avg_val_loss,
+            "total_tokens": total_tokens,
+            "artifacts": {
+                "final_adapter": final_path.display().to_string(),
+                "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),
+                "telemetry_jsonl": out.join("telemetry.jsonl").display().to_string(),
+                "model_card": out.join("MODEL_CARD.md").display().to_string()
+            }
+        }))?,
     )?;
 
     train_log::info(&format!(

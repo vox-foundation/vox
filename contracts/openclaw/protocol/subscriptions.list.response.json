@@ -1,0 +1,17 @@
+{
+  "type": "res",
+  "id": "fixture-subscriptions-id",
+  "ok": true,
+  "payload": {
+    "subscriptions": [
+      {
+        "domain": "vox.typeck",
+        "count": 2
+      },
+      {
+        "domain": "vox.runtime",
+        "count": 1
+      }
+    ]
+  }
+}

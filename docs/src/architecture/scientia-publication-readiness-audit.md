@@ -47,10 +47,10 @@ It also defines the implementation gap between where the codebase is now and wha
 ### Implemented workflow
 
 1. Prepare manifest (`publication-prepare`)
-2. Record digest-bound approvals (`publication-approve`)
-3. Require dual approvers before submit
-4. Submit through `LocalLedgerAdapter` (`publication-submit-local`)
-5. Track state/submissions (`publication-status`)
+2. Run `publication-preflight` and follow ordered `next_actions`
+3. Record digest-bound approvals (`publication-approve`)
+4. Use `publication-scholarly-pipeline-run` as the default scholarly path (dry-run first, then live)
+5. Track state/submissions/checklist state in `publication-status`
 
 ### Architecture strengths
 
@@ -125,9 +125,9 @@ Publication manifests may embed structured scholarly fields under `metadata_json
 
 |Item|Current SCIENTIA state|Gap|Risk|Recommended slice|
 |---|---|---|---|---|
-|Journal/preprint connectors|`LocalLedgerAdapter` only|No `OpenReview`, `arXiv`, `Zenodo`, `Crossref` adapters|Manual submission bottleneck|Add adapter trait implementations with credentialed execution mode|
-|Venue-specific payloads|Generic manifest only|No venue payload mappers|Manual copy/paste error risk|Add mapper layer per adapter|
-|Retry/idempotency semantics|Basic DB upsert tracking|No adapter-level retry/backoff/error taxonomy|Operational fragility|Add adapter operation log with retry strategy|
+|Journal/preprint connectors|`local_ledger`, `echo_ledger`, `zenodo`, `openreview`, plus arXiv-assist staging/handoff|No `Crossref` or journal-portal adapters; some venues remain human-submit by design|Manual steps persist for account-bound portals and DOI deposit|Keep current adapters, add `Crossref` export/deposit only when operationally real|
+|Venue-specific payloads|Manifest + staging/export helpers exist for Zenodo/OpenReview/arXiv-assist|Still no single default checklist across scholarly/social surfaces without reading multiple docs|Operator routing overhead|Use `publication-preflight` / `publication-status` as the checklist surfaces and `publication-scholarly-pipeline-run` as the default path|
+|Retry/idempotency semantics|Digest-bound jobs, polling, and retry taxonomy exist|Worker preflight and permanent-vs-retryable classification need to stay aligned with operator preflight|Operational fragility if workers retry conceptually permanent failures|Reuse preflight in worker ticks and keep a small explicit classification enum|
 
 ### Lifecycle stage 5: post-submission tracking
 

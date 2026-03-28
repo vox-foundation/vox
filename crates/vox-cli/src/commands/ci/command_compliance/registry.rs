@@ -30,11 +30,14 @@ pub(crate) fn validate_registry_against_json_schema(
         })?;
     let instance: JsonValue =
         serde_yaml::from_str(yaml_text).context("parse command-registry.yaml to JSON value")?;
-    let validator =
-        jsonschema::validator_for(&schema_val).context("compile command-registry JSON Schema")?;
-    validator
-        .validate(&instance)
-        .map_err(|e| anyhow!("command-registry.yaml does not match schema: {e}"))?;
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+        .context("compile command-registry JSON Schema")?;
+    vox_jsonschema_util::validate(
+        &instance,
+        &validator,
+        "command-registry.yaml vs command-registry.schema.json",
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
     Ok(())
 }
 

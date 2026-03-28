@@ -85,8 +85,48 @@ fn latin_ns_to_catalog_group(ns: &str, path: &[String]) -> String {
     }
 }
 
+fn top_level_product_lane(path: &[String]) -> Option<&'static str> {
+    match path.first().map(String::as_str) {
+        Some(
+            "build" | "check" | "test" | "run" | "dev" | "bundle" | "fmt" | "lsp" | "completions"
+            | "fabrica" | "island",
+        ) => Some("app"),
+        Some("script" | "populi") => Some("workflow"),
+        Some("mens" | "dei" | "review" | "recensio" | "oratio" | "speech" | "train" | "live") => {
+            Some("ai")
+        }
+        Some("openclaw" | "skill" | "snippet" | "share" | "ars") => Some("interop"),
+        Some("codex" | "db" | "scientia") => Some("data"),
+        Some(
+            "add" | "remove" | "update" | "lock" | "sync" | "upgrade" | "pm" | "ci" | "doctor"
+            | "diag" | "architect" | "stub-check" | "clavis" | "login" | "logout" | "commands",
+        ) => Some("platform"),
+        _ => None,
+    }
+}
+
+fn product_lane_from_registry(path: &[String]) -> Option<String> {
+    let hits = ops_for_path(path);
+    if let Some(h) = hits.iter().find(|h| h.product_lane.is_some()) {
+        return h.product_lane.clone();
+    }
+
+    if path.len() > 1 {
+        let top_only = vec![path[0].clone()];
+        let top_hits = ops_for_path(&top_only);
+        if let Some(h) = top_hits.iter().find(|h| h.product_lane.is_some()) {
+            return h.product_lane.clone();
+        }
+    }
+
+    top_level_product_lane(path).map(str::to_string)
+}
+
 /// `source_group` for `vox commands` JSON/text (registry-first, then heuristic).
 pub(crate) fn catalog_source_group(path: &[String]) -> String {
+    if let Some(lane) = product_lane_from_registry(path) {
+        return lane;
+    }
     if let Some(g) = catalog_source_group_from_registry(path) {
         return g;
     }

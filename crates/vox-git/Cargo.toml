@@ -15,7 +15,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 anyhow.workspace = true
 tokio = { workspace = true }
 # gix: pure Rust Git implementation — no C, no libgit2.

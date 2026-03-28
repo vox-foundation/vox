@@ -16,5 +16,6 @@ pub use messages::{
     ThreadId, VcsContext,
 };
 pub use tasks::{
-    AccessKind, AgentTask, FileAffinity, TaskCategory, TaskDescriptor, TaskPriority, TaskStatus,
+    AccessKind, AgentTask, CompletionAttestation, FileAffinity, TaskCategory, TaskDescriptor,
+    TaskEnqueueHints, TaskPriority, TaskStatus,
 };

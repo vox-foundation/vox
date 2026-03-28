@@ -311,9 +311,10 @@ pub async fn poll_scholarly_remote_status_batch_loop(
     let mut done = 0_u32;
     for i in 0..iterations {
         if let Some(limit_s) = max_runtime
-            && started.elapsed().as_secs() >= limit_s {
-                break;
-            }
+            && started.elapsed().as_secs() >= limit_s
+        {
+            break;
+        }
         if i > 0 && interval_secs > 0 {
             tokio::time::sleep(loop_sleep_interval(interval_secs, jitter_secs)).await;
         }
@@ -352,9 +353,10 @@ pub async fn run_external_submit_jobs_tick_loop(
     let mut done = 0_u32;
     for i in 0..iterations {
         if let Some(limit_s) = max_runtime
-            && started.elapsed().as_secs() >= limit_s {
-                break;
-            }
+            && started.elapsed().as_secs() >= limit_s
+        {
+            break;
+        }
         if i > 0 && interval_secs > 0 {
             tokio::time::sleep(loop_sleep_interval(interval_secs, jitter_secs)).await;
         }
@@ -502,34 +504,117 @@ pub async fn submit_finish_ledger(
 async fn external_job_tick_preflight(
     db: &VoxDb,
     job: &ExternalSubmissionJobRow,
-) -> Result<(), String> {
+) -> Result<(), ExternalJobPreflightFailure> {
     if job.operation != "submit" {
-        return Err(format!(
+        return Err(ExternalJobPreflightFailure::permanent(format!(
             "unsupported external_submission_jobs.operation={:?} (only \"submit\" is supported)",
             job.operation
-        ));
+        )));
     }
     let Some(row) = db
         .get_publication_manifest(&job.publication_id)
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| ExternalJobPreflightFailure::retryable(e.to_string()))?
     else {
-        return Err("publication manifest not found".into());
+        return Err(ExternalJobPreflightFailure::permanent(
+            "publication manifest not found".into(),
+        ));
     };
     if row.content_sha3_256 != job.content_sha3_256 {
-        return Err(
+        return Err(ExternalJobPreflightFailure::permanent(
             "job content_sha3_256 does not match current publication manifest digest (re-submit from CLI or delete job)"
                 .into(),
-        );
+        ));
     }
     let dual = db
         .has_dual_publication_approval_for_digest(&job.publication_id, &job.content_sha3_256)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| ExternalJobPreflightFailure::retryable(e.to_string()))?;
     if !dual {
-        return Err("dual digest-bound approvals required before scholarly submit or retry".into());
+        return Err(ExternalJobPreflightFailure::retryable(
+            "dual digest-bound approvals required before scholarly submit or retry".into(),
+        ));
+    }
+    let manifest = PublicationManifest {
+        publication_id: row.publication_id,
+        content_type: row.content_type,
+        source_ref: row.source_ref,
+        title: row.title,
+        author: row.author,
+        abstract_text: row.abstract_text,
+        body_markdown: row.body_markdown,
+        citations_json: row.citations_json,
+        metadata_json: row.metadata_json,
+    };
+    let profile = scholarly_job_preflight_profile(job.adapter.as_str());
+    let report = crate::publication_preflight::run_preflight(&manifest, profile);
+    if !report.ok {
+        return Err(ExternalJobPreflightFailure::permanent(format!(
+            "preflight {:?} rejected submit: readiness={} errors={} warnings={}",
+            profile,
+            report.readiness_score,
+            report
+                .findings
+                .iter()
+                .filter(|f| f.severity == crate::publication_preflight::PreflightSeverity::Error)
+                .count(),
+            report
+                .findings
+                .iter()
+                .filter(|f| f.severity == crate::publication_preflight::PreflightSeverity::Warning)
+                .count(),
+        )));
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExternalJobPreflightDisposition {
+    Permanent,
+    Retryable,
+}
+
+#[derive(Debug, Clone)]
+struct ExternalJobPreflightFailure {
+    disposition: ExternalJobPreflightDisposition,
+    message: String,
+}
+
+impl ExternalJobPreflightFailure {
+    fn permanent(message: String) -> Self {
+        Self {
+            disposition: ExternalJobPreflightDisposition::Permanent,
+            message,
+        }
+    }
+
+    fn retryable(message: String) -> Self {
+        Self {
+            disposition: ExternalJobPreflightDisposition::Retryable,
+            message,
+        }
+    }
+
+    fn is_permanent(&self) -> bool {
+        matches!(self.disposition, ExternalJobPreflightDisposition::Permanent)
+    }
+}
+
+fn scholarly_job_preflight_profile(
+    adapter: &str,
+) -> crate::publication_preflight::PreflightProfile {
+    match adapter.trim().to_ascii_lowercase().as_str() {
+        "zenodo" | "openreview" => crate::publication_preflight::PreflightProfile::MetadataComplete,
+        _ => crate::publication_preflight::PreflightProfile::Default,
+    }
+}
+
+fn scholarly_job_preflight_profile_label(adapter: &str) -> &'static str {
+    match scholarly_job_preflight_profile(adapter) {
+        crate::publication_preflight::PreflightProfile::Default => "default",
+        crate::publication_preflight::PreflightProfile::DoubleBlind => "double_blind",
+        crate::publication_preflight::PreflightProfile::MetadataComplete => "metadata_complete",
+    }
 }
 
 async fn external_job_mark_preflight_outcome(
@@ -597,16 +682,21 @@ pub async fn run_external_submit_jobs_tick(
         .map_err(|e| anyhow!("{e}"))?;
     let mut results: Vec<Value> = Vec::new();
     for job in jobs {
-        if let Err(msg) = external_job_tick_preflight(db, &job).await {
-            let permanent = msg.contains("unsupported external_submission_jobs")
-                || msg.contains("publication manifest not found")
-                || msg.contains("does not match current publication");
-            external_job_mark_preflight_outcome(db, &job, now_ms, permanent, &msg).await?;
+        if let Err(failure) = external_job_tick_preflight(db, &job).await {
+            external_job_mark_preflight_outcome(
+                db,
+                &job,
+                now_ms,
+                failure.is_permanent(),
+                &failure.message,
+            )
+            .await?;
             results.push(serde_json::json!({
                 "job_id": job.id,
                 "outcome": "preflight_rejected",
-                "permanent": permanent,
-                "message": msg,
+                "permanent": failure.is_permanent(),
+                "message": failure.message,
+                "preflight_profile": scholarly_job_preflight_profile_label(job.adapter.as_str()),
             }));
             continue;
         }
@@ -707,4 +797,31 @@ pub async fn run_external_submit_jobs_tick(
         lock_ttl_ms,
         results,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scholarly_job_preflight_profile_matches_adapter_capability() {
+        assert_eq!(
+            scholarly_job_preflight_profile("zenodo"),
+            crate::publication_preflight::PreflightProfile::MetadataComplete
+        );
+        assert_eq!(
+            scholarly_job_preflight_profile("openreview"),
+            crate::publication_preflight::PreflightProfile::MetadataComplete
+        );
+        assert_eq!(
+            scholarly_job_preflight_profile("local_ledger"),
+            crate::publication_preflight::PreflightProfile::Default
+        );
+    }
+
+    #[test]
+    fn preflight_failure_tracks_retryability() {
+        assert!(ExternalJobPreflightFailure::permanent("x".into()).is_permanent());
+        assert!(!ExternalJobPreflightFailure::retryable("x".into()).is_permanent());
+    }
 }

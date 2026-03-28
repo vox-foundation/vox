@@ -1,36 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// OpenAI-compatible chat completion response (OpenRouter, HF router, etc.).
-#[derive(Debug, Deserialize)]
-pub(crate) struct OpenAiChatResponse {
-    pub choices: Vec<OpenAiChoice>,
-    pub usage: Option<OpenAiUsage>,
-    #[serde(default)]
-    pub id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct OpenAiChoice {
-    pub message: Option<OpenAiMessage>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct OpenAiMessage {
-    pub content: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct OpenAiUsage {
-    #[serde(default)]
-    pub prompt_tokens: u32,
-    #[serde(default)]
-    pub completion_tokens: u32,
-    #[serde(default)]
-    pub cost: Option<f64>,
-    #[serde(default)]
-    pub total_cost: Option<f64>,
-}
-
 #[derive(Debug, Deserialize)]
 pub(crate) struct GeminiResponse {
     pub candidates: Option<Vec<GeminiCandidate>>,
@@ -73,23 +42,6 @@ pub(crate) struct OllamaChatResponse {
 #[derive(Debug, Deserialize)]
 pub(crate) struct OllamaMsg {
     pub content: Option<String>,
-}
-
-#[derive(Serialize)]
-pub(crate) struct OpenAiChatRequest<'a> {
-    pub model: &'a str,
-    pub messages: Vec<OpenAiMsg<'a>>,
-    pub temperature: f32,
-    pub max_tokens: u64,
-    pub stream: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_format: Option<serde_json::Value>,
-}
-
-#[derive(Serialize)]
-pub(crate) struct OpenAiMsg<'a> {
-    pub role: &'a str,
-    pub content: &'a str,
 }
 
 #[derive(Serialize)]

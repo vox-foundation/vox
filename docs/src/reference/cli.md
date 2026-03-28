@@ -29,6 +29,19 @@ The **`vox`** executable is built from `crates/vox-cli` (repository root). This 
 - **Secrets namespace:** **`vox clavis`** (alias **`vox secrets`**) centralizes token health checks and credential compatibility storage.
 - **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/bundle/fmt/script; **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
+### Product lanes
+
+The command registry also carries a separate **`product_lane`** value used for bell-curve planning and discoverability. This is not a CLI rename and does not replace **`latin_ns`**.
+
+| `product_lane` | Meaning | Representative commands |
+|----------------|---------|-------------------------|
+| `app` | typed app construction | `vox build`, `vox run`, `vox island` |
+| `workflow` | automation and background execution | `vox script`, `vox populi` |
+| `ai` | generation, review, eval, orchestration | `vox mens`, `vox review`, `vox dei`, `vox oratio` |
+| `interop` | approved integration surfaces | `vox openclaw`, `vox skill`, `vox share` |
+| `data` | database and publication workflows | `vox db`, `vox codex`, `vox scientia` |
+| `platform` | packaging, diagnostics, compliance, secrets | `vox pm`, `vox ci`, `vox doctor`, `vox clavis` |
+
 ## Package management (`vox-pm`)
 
 Project dependencies are **declared** in `Vox.toml`, **locked** in `vox.lock`, and **materialized** under `.vox_modules/`. This is separate from **`vox upgrade`**, which refreshes the **Vox toolchain** (never edits `Vox.toml` / `vox.lock`): either a **release binary** or a **local git checkout** + source install.
@@ -130,6 +143,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `doc-inventory generate \| verify` | Regenerate or verify `docs/agents/doc-inventory.json` (Rust; replaces retired Python scripts) |
 | `eval-matrix verify` | Validates `contracts/eval/benchmark-matrix.json` against `contracts/eval/benchmark-matrix.schema.json` (M1–M5 milestones; `benchmark_classes` ids are a fixed enum in the schema) |
 | `eval-matrix run [--milestone <id>]` | Runs `cargo` checks/tests mapped from each `benchmark_classes` entry (deduped); always re-runs `verify` first |
+| `mens-scorecard verify \| run \| decide \| burn-rnd \| ingest-trust` | Validates and executes the Mens scorecard harness (`contracts/eval/mens-scorecard*.json`), computes promotion decisions from scorecard summaries, and can ingest `summary.json` into VoxDb trust observations. |
 | `feature-matrix` / `no-dei-import` | `vox-cli` compile matrix + import guard (alias: `no-vox-dei-import`) |
 | `workflow-scripts` | Fail if `.github/workflows/*.yml` references `scripts/…` not in `docs/agents/workflow-script-allowlist.txt` |
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
@@ -151,6 +165,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `command-sync [--write]` | Regenerates or verifies [`cli-command-surface.generated.md`](cli-command-surface.generated.md) from the registry (run `--write` after editing `command-registry.yaml`) |
 | `pm-provenance [--strict] [--root <dir>]` | Validates `vox.pm.provenance/1` JSON under `<dir>/.vox_modules/provenance/` (emitted by **`vox pm publish`**). Without **`--strict`**, missing/empty dir is OK. Use **`--strict`** on release pipelines after publishing. |
 | `contracts-index` | Validates `contracts/index.yaml` against `contracts/index.schema.json` and checks every listed contract path exists |
+| `openclaw-contract` | Validates OpenClaw protocol fixture contracts under `contracts/openclaw/protocol/` (required event/response shapes). |
 | `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `command-compliance`, `contracts-index`, and `scientia-worthiness-contract` in one pass |
 
@@ -266,20 +281,20 @@ Common subcommands: `status`, `audit`, `schema`, `sample`, `migrate`, `export` /
 
 - Research/capability helpers: `capability-list`, `research-list`, `research-map-list`, `retrieval-status`, `research-refresh`.
 - Scientific publication lifecycle:
-  - `vox scientia publication-prepare --publication-id <id> --author <name> --title <title> [--scholarly-metadata-json <file>] [--preflight] [--preflight-profile default|double-blind] <path.md>`
+  - `vox scientia publication-prepare --publication-id <id> --author <name> [--title <title>] [--scholarly-metadata-json <file>] [--eval-gate-report-json <file>] [--benchmark-pair-report-json <file>] [--human-meaningful-advance] [--human-ai-disclosure-complete] [--preflight] [--preflight-profile default|double-blind] <path.md>` (title defaults from markdown frontmatter/first heading; structured evidence seeds `metadata_json.scientia_evidence` with discovery signals and draft-prep hints)
   - `vox scientia publication-prepare-validated` (same flags as prepare except preflight is always on)
-  - `vox scientia publication-preflight --publication-id <id> [--profile default|double-blind] [--with-worthiness]`
+  - `vox scientia publication-preflight --publication-id <id> [--profile default|double-blind] [--with-worthiness]` (returns readiness findings plus `manual_required` and ordered `next_actions`)
   - `vox scientia publication-zenodo-metadata --publication-id <id>` (stdout JSON for Zenodo deposit metadata; no HTTP)
   - `vox scientia publication-openreview-profile --publication-id <id>` (stdout JSON: merged OpenReview invitation/signature/readers + API base; no HTTP)
   - `vox scientia publication-worthiness-evaluate [--contract-yaml <path>] --metrics-json <path>` (stdout worthiness decision JSON from repo contract + metrics file; no DB)
   - `vox scientia publication-approve --publication-id <id> --approver <identity>`
   - `vox scientia publication-submit-local --publication-id <id>`
-  - `vox scientia publication-status --publication-id <id>`
+  - `vox scientia publication-status --publication-id <id> [--with-worthiness]` (includes the embedded default preflight report so status doubles as the operator checklist surface; `--with-worthiness` adds the worthiness rubric to that same report)
   - `vox scientia publication-scholarly-remote-status --publication-id <id> [--external-submission-id <id>]` (poll remote scholarly repository / deposit state for a stored submission)
   - `vox scientia publication-scholarly-remote-status-sync-all --publication-id <id>` (poll remote status for every `scholarly_submissions` row on that publication)
   - `vox scientia publication-scholarly-remote-status-sync-batch [--limit <n>] [--iterations <n>] [--interval-secs <s>] [--max-runtime-secs <s>] [--jitter-secs <s>]` (batch sync across publications ranked by recent submission activity; optional bounded loop for supervised workers)
   - `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo|open-review|arxiv-assist` (write venue-scoped scholarly staging artifacts under `output-dir` and validate layout; Zenodo adds `zenodo.json`, arXiv assist adds `arxiv_handoff.json`, **`main.tex`** stub, and `arxiv_bundle.tar.gz`; mirrors `vox db publication-scholarly-staging-export`)
-  - `vox scientia publication-scholarly-pipeline-run --publication-id <id> [--preflight-profile default|double-blind|metadata-complete] [--dry-run] [--staging-output-dir <dir> --venue zenodo|open-review|arxiv-assist] [--adapter <kind>] [--json]` (preflight → dual-approval gate → optional staging export → scholarly submit unless `--dry-run`; `--json` = compact single-line JSON on stdout; mirrors `vox db publication-scholarly-pipeline-run`)
+  - `vox scientia publication-scholarly-pipeline-run --publication-id <id> [--preflight-profile default|double-blind|metadata-complete] [--dry-run] [--staging-output-dir <dir> --venue zenodo|open-review|arxiv-assist] [--adapter <kind>] [--json]` (default scholarly happy path: preflight → dual-approval gate → optional staging export → scholarly submit unless `--dry-run`; `--json` = compact single-line JSON on stdout; mirrors `vox db publication-scholarly-pipeline-run`)
   - `vox scientia publication-arxiv-handoff-record --publication-id <id> --stage <staging-exported|…|published> [--operator <id>] [--note <text>] [--arxiv-id <id>]` (append-only operator milestone for arXiv assist; `published` requires `--arxiv-id`)
   - `vox scientia publication-external-jobs-due [--limit <n>]` (list external submission jobs due for retry/tick)
   - `vox scientia publication-external-jobs-dead-letter [--limit <n>]` (list terminal `failed` external submission jobs)
@@ -352,7 +367,7 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 
 ### `vox openclaw` (feature `ars`)
 
-**Not in default builds.** Build with `cargo build -p vox-cli --features ars`, then run `vox openclaw` (alias `oc`). Talks to an OpenClaw- or ClawHub-compatible HTTP gateway (`VOX_OPENCLAW_URL`, optional `VOX_OPENCLAW_TOKEN`). Subcommands include `import`, `list-remote`, `config`, MCP-backed `approvals` / `approve` / `deny`, and gateway helpers (`serve` expects a `vox-gateway` binary on `PATH`).
+**Not in default builds.** Build with `cargo build -p vox-cli --features ars`, then run `vox openclaw` (alias `oc`). Vox resolves endpoints from explicit flags, env/Clavis, and upstream discovery (`/.well-known/openclaw.json`) with cache fallback. Subcommands include `import`, `list-remote`, `vox openclaw search-remote <query>`, `config` (prints resolved HTTP/WS/catalog/discovery source), `vox openclaw doctor` (health + optional sidecar autostart), MCP-backed `approvals` / `approve` / `deny`, WS-backed `subscribe` / `unsubscribe` / `subscriptions` / `notify` (JSON-capable), and `vox openclaw gateway-call --method <name> --params-json '{...}'` for direct WS method invocation. Sidecar lifecycle is also exposed via `vox openclaw sidecar status`, `vox openclaw sidecar start`, and `vox openclaw sidecar stop` (state-backed PID lifecycle). `serve` expects a `vox-gateway` binary on `PATH`. SSOT: [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-ssot.md).
 
 ### `vox lsp`
 
@@ -499,6 +514,7 @@ Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md
 ## Hierarchy and naming
 
 - **One primary tree** of nouns/verbs; avoid near-synonyms (`update` vs `upgrade`) for the same action.
+- **One canonical spelling per command** in docs/registries/scripts; preserve compatibility aliases in clap (example: canonical `mesh-gate`, alias `mens-gate`).
 - **Latin-themed group commands** (`fabrica`, `mens`, `ars`, `recensio`) mirror the flat top-level commands for discoverability; legacy top-level names remain **active** (not hidden).
 - **Subcommand depth** should stay ≤ 2 for most flows; deeper trees only for dense domains (e.g. `mens corpus`).
 - **Retired / deprecated** commands stay in the registry with `status` and doc’d migration (see [`command-surface-duals.md`](../ci/command-surface-duals.md)).
@@ -534,7 +550,7 @@ Use one canonical command description in clap for each command, then reuse it in
 
 1. Implement in `crates/vox-cli` (and internal surfaces as needed).
 2. Add or update rows in **`contracts/cli/command-registry.yaml`** (schema: **`contracts/cli/command-registry.schema.json`**).
-3. Update **`docs/src/ref-cli.md`** and, for top-level reachability, **`cli-reachability.md`** when `reachability_required` is not `false`.
+3. Update **`docs/src/reference/cli.md`** and, for top-level reachability, **`cli-reachability.md`** when `reachability_required` is not `false`.
 4. Run **`vox ci command-compliance`** before merge (also enforced in CI).
 
 

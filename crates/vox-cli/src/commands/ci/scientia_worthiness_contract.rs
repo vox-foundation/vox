@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use serde_json::Value as JsonValue;
 
 use super::bounded_read::read_utf8_path_capped;
@@ -24,15 +24,13 @@ pub fn run(repo_root: &Path) -> Result<()> {
     let data_val: JsonValue = serde_yaml::from_str(&yaml_src)
         .with_context(|| format!("parse YAML {}", data_path.display()))?;
 
-    let validator = jsonschema::validator_for(&schema_val)
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
         .with_context(|| format!("compile JSON Schema {}", schema_path.display()))?;
-    validator.validate(&data_val).map_err(|e| {
-        anyhow!(
-            "{} failed validation against {}: {e}",
-            data_path.display(),
-            schema_path.display()
-        )
-    })?;
+    vox_jsonschema_util::validate(
+        &data_val,
+        &validator,
+        format!("{} vs {}", data_path.display(), schema_path.display()),
+    )?;
 
     let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml_src)?;
     vox_publisher::publication_worthiness::validate_contract_invariants(&contract)

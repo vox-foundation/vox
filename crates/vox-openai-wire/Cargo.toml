@@ -1,0 +1,13 @@
+[package]
+name = "vox-openai-wire"
+description = "OpenAI-compatible chat completions JSON types (non-streaming wire) shared across MCP and runtime."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

@@ -9,9 +9,10 @@
 //! TanStack route files are still assembled here alongside [`super::routes`]; migrating printers to consume
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
 
+use crate::app_contract::project_app_contract;
 use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
-use crate::codegen_ts::component::generate_component;
+use crate::codegen_ts::component::{generate_component, generate_component_from_web_ir};
 use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
@@ -62,11 +63,15 @@ pub fn generate_with_options(
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
     let island_names = collect_island_names(hir);
+    let app_contract = project_app_contract(hir);
 
     // Generate type definitions
     let types_content = generate_types(hir);
     if !types_content.is_empty() {
         files.push(("types.ts".to_string(), types_content));
+    }
+    if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
+        files.push(("vox-app-contract.json".to_string(), contract_json));
     }
 
     files.push((
@@ -74,22 +79,31 @@ pub fn generate_with_options(
         vox_tanstack_query_tsx(),
     ));
 
-    // Generate components
-    for hir_comp in &hir.components {
-        let comp = &hir_comp.0;
-        let (filename, content) =
-            generate_component(&comp.func, !comp.styles.is_empty(), &island_names);
-        files.push((filename, content));
-    }
-
-    // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
-    // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
-    let web_projection_cache = if hir.reactive_components.is_empty() {
+    let web_projection_cache = if hir.reactive_components.is_empty()
+        && hir.components.is_empty()
+        && hir.loadings.is_empty()
+    {
         None
     } else {
         Some(crate::web_ir::lower::project_web_from_core(hir))
     };
     let web_projection_ref = web_projection_cache.as_ref();
+
+    // Generate components
+    for hir_comp in &hir.components {
+        let comp = &hir_comp.0;
+        let (filename, content) = web_projection_ref
+            .and_then(|web| {
+                generate_component_from_web_ir(&comp.func, !comp.styles.is_empty(), web)
+            })
+            .unwrap_or_else(|| {
+                generate_component(&comp.func, !comp.styles.is_empty(), &island_names)
+            });
+        files.push((filename, content));
+    }
+
+    // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
+    // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
     for rc in &hir.reactive_components {
         let (filename, content) =
             generate_reactive_component(hir, rc, &island_names, web_projection_ref);
@@ -98,7 +112,9 @@ pub fn generate_with_options(
 
     // Route loading / suspense UI (`@loading fn … to Element`) — TanStack `pendingComponent`
     for hir_loading in &hir.loadings {
-        let (filename, content) = generate_component(&hir_loading.0.func, false, &island_names);
+        let (filename, content) = web_projection_ref
+            .and_then(|web| generate_component_from_web_ir(&hir_loading.0.func, false, web))
+            .unwrap_or_else(|| generate_component(&hir_loading.0.func, false, &island_names));
         files.push((filename, content));
     }
 

@@ -58,6 +58,62 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: eval-runtime-generation-kpi-schema
+    path: contracts/eval/runtime-generation-kpi.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for normalized runtime generation KPI artifacts emitted by CLI and MCP generation paths.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: eval-external-serving-handoff-schema
+    path: contracts/eval/external-serving-handoff.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for exported external-serving handoff metadata from QLoRA-style deployment paths.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: eval-mens-scorecard-spec
+    path: contracts/eval/mens-scorecard.baseline.json
+    owner: mens
+    kind: json
+    description: Baseline Mens scorecard benchmark specification fixture.
+    enforced_by:
+      - vox ci mens-scorecard verify
+
+  - id: eval-mens-scorecard-invalid-spec
+    path: contracts/eval/mens-scorecard.invalid.json
+    owner: mens
+    kind: json
+    description: Negative fixture for Mens scorecard benchmark schema validation.
+    enforced_by:
+      - vox ci mens-scorecard verify
+
+  - id: eval-mens-scorecard-schema
+    path: contracts/eval/mens-scorecard.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for Mens scorecard benchmark specifications.
+    enforced_by:
+      - vox ci mens-scorecard verify
+
+  - id: eval-mens-scorecard-event-schema
+    path: contracts/eval/mens-scorecard-event.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for Mens scorecard per-task event rows.
+    enforced_by:
+      - vox ci mens-scorecard verify
+
+  - id: eval-mens-scorecard-summary-schema
+    path: contracts/eval/mens-scorecard-summary.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for Mens scorecard summary artifacts.
+    enforced_by:
+      - vox ci mens-scorecard verify
+
   - id: contracts-index
     path: contracts/index.yaml
     owner: platform-ci
@@ -98,6 +154,54 @@ contracts:
       - vox ci command-compliance
       - cargo build -p vox-mcp-registry
 
+  - id: openclaw-connect-challenge-fixture
+    path: contracts/openclaw/protocol/connect.challenge.json
+    owner: ars
+    kind: json
+    description: OpenClaw WS event fixture for connect challenge framing.
+    enforced_by:
+      - vox ci openclaw-contract
+
+  - id: openclaw-connect-request-operator-fixture
+    path: contracts/openclaw/protocol/connect.request.operator.json
+    owner: ars
+    kind: json
+    description: OpenClaw WS operator connect request fixture.
+    enforced_by:
+      - vox ci openclaw-contract
+
+  - id: openclaw-connect-hello-ok-fixture
+    path: contracts/openclaw/protocol/connect.hello-ok.json
+    owner: ars
+    kind: json
+    description: OpenClaw WS hello-ok response fixture.
+    enforced_by:
+      - vox ci openclaw-contract
+
+  - id: openclaw-subscriptions-list-response-fixture
+    path: contracts/openclaw/protocol/subscriptions.list.response.json
+    owner: ars
+    kind: json
+    description: OpenClaw WS subscriptions list response fixture.
+    enforced_by:
+      - vox ci openclaw-contract
+
+  - id: openclaw-discovery-well-known-response-fixture
+    path: contracts/openclaw/discovery/well-known.response.json
+    owner: ars
+    kind: json
+    description: OpenClaw well-known discovery response fixture with gateway and catalog endpoints.
+    enforced_by:
+      - vox ci openclaw-contract
+
+  - id: openclaw-discovery-well-known-minimal-fixture
+    path: contracts/openclaw/discovery/well-known.minimal.json
+    owner: ars
+    kind: json
+    description: Minimal OpenClaw well-known discovery fixture used for fallback compatibility checks.
+    enforced_by:
+      - vox ci openclaw-contract
+
   - id: scientia-publication-worthiness-schema
     path: contracts/scientia/publication-worthiness.schema.json
     owner: scientia
@@ -111,16 +215,25 @@ contracts:
     path: contracts/scientia/publication-worthiness.default.yaml
     owner: scientia
     kind: yaml
-    description: Default publication worthiness thresholds, red lines, and venue profile checks.
+    description: Default publication worthiness thresholds, red lines, and advisory venue profile notes.
     enforced_by:
       - vox ci scientia-worthiness-contract
+      - vox ci ssot-drift
+
+  - id: scientia-arxiv-handoff-schema
+    path: contracts/scientia/arxiv-handoff.schema.json
+    owner: scientia
+    kind: json-schema
+    description: JSON Schema for operator-facing arXiv assist handoff exports (`arxiv_handoff.json`).
+    enforced_by:
+      - cargo test -p vox-publisher submission_package
       - vox ci ssot-drift
 
   - id: scientia-distribution-schema
     path: contracts/scientia/distribution.schema.json
     owner: scientia
     kind: json-schema
-    description: JSON Schema for scientia social distribution metadata_json.scientia_distribution payload.
+    description: JSON Schema for scientia social distribution metadata_json.syndication payload (legacy scientia_distribution still hydrates with warnings).
     enforced_by:
       - vox ci ssot-drift
 

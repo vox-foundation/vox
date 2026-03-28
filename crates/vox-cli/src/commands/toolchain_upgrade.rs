@@ -59,7 +59,7 @@ pub fn run_toolchain_upgrade(args: &UpgradeToolchainArgs, json_output: bool) -> 
         );
     }
 
-    install_candidate(&candidate, &auth, json_output, current_str)?;
+    install_candidate(&candidate, &auth, json_output, current_str, &triple)?;
 
     if json_output {
         println!(
@@ -625,6 +625,7 @@ fn install_candidate(
     auth: &AuthTokens,
     json_output: bool,
     _current_str: &str,
+    target_triple: &str,
 ) -> Result<()> {
     let asset_bytes = download_bytes(&candidate.asset.download_url, auth)?;
     let checksum_txt = download_checksum_manifest(&candidate.checksums_url, auth)?;
@@ -658,7 +659,103 @@ fn install_candidate(
     Move::from_source(extracted.as_path())
         .to_dest(dest.as_path())
         .map_err(map_self_update)?;
+
+    maybe_install_openclaw_sidecar(
+        candidate,
+        auth,
+        target_triple,
+        &checksum_txt,
+        &dest_dir,
+        json_output,
+    )?;
     Ok(())
+}
+
+fn maybe_install_openclaw_sidecar(
+    candidate: &Candidate,
+    auth: &AuthTokens,
+    target_triple: &str,
+    checksum_txt: &str,
+    dest_dir: &std::path::Path,
+    json_output: bool,
+) -> Result<()> {
+    if std::env::var(vox_install_policy::VOX_OPENCLAW_SIDECAR_DISABLE_ENV)
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+    {
+        return Ok(());
+    }
+    let ext = if cfg!(target_os = "windows") {
+        ".zip"
+    } else {
+        ".tar.gz"
+    };
+    let sidecar_asset = find_sidecar_asset(checksum_txt, target_triple, ext);
+    let Some(sidecar_asset) = sidecar_asset else {
+        return Ok(());
+    };
+
+    let mut base = candidate.asset.download_url.clone();
+    if let Some(idx) = base.rfind('/') {
+        base.truncate(idx + 1);
+    }
+    let sidecar_url = format!("{base}{sidecar_asset}");
+    let sidecar_bytes = match download_bytes(&sidecar_url, auth) {
+        Ok(b) => b,
+        Err(_) => return Ok(()),
+    };
+    if verify_checksum(&sidecar_bytes, checksum_txt, &sidecar_asset).is_err() {
+        return Ok(());
+    }
+
+    let tmp = TempDir::new().map_err(|e| anyhow!("temp dir: {e}"))?;
+    let archive_path = tmp.path().join(&sidecar_asset);
+    std::fs::write(&archive_path, &sidecar_bytes).map_err(|e| anyhow!(e))?;
+    let sidecar_bin = if cfg!(target_os = "windows") {
+        format!("{}.exe", vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME)
+    } else {
+        vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME.to_string()
+    };
+    let mut ex = Extract::from_source(&archive_path);
+    ex.archive(archive_kind_for_asset_name(&sidecar_asset));
+    if ex.extract_file(tmp.path(), &sidecar_bin).is_err() {
+        return Ok(());
+    }
+    let extracted = tmp.path().join(&sidecar_bin);
+    let dest = dest_dir.join(&sidecar_bin);
+    if Move::from_source(extracted.as_path())
+        .to_dest(dest.as_path())
+        .is_err()
+    {
+        return Ok(());
+    }
+    if !json_output {
+        eprintln!("Installed OpenClaw sidecar: {}", dest.display());
+    }
+    Ok(())
+}
+
+fn find_sidecar_asset(checksum_txt: &str, target_triple: &str, ext: &str) -> Option<String> {
+    for line in checksum_txt.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(_hash) = parts.next() else {
+            continue;
+        };
+        let Some(path) = parts.next() else {
+            continue;
+        };
+        let file = path.rsplit('/').next().unwrap_or(path).to_string();
+        if !file.contains(target_triple) || !file.ends_with(ext) {
+            continue;
+        }
+        if vox_install_policy::OPENCLAW_SIDECAR_ASSET_PREFIXES
+            .iter()
+            .any(|prefix| file.starts_with(prefix))
+        {
+            return Some(file);
+        }
+    }
+    None
 }
 
 fn emit_up_to_date(
@@ -794,6 +891,16 @@ mod policy_tests {
                 true
             )
             .is_some()
+        );
+    }
+
+    #[test]
+    fn sidecar_asset_discovery_matches_prefix_and_target() {
+        let txt = "abc123  openclaw-gateway-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n";
+        let found = find_sidecar_asset(txt, "x86_64-unknown-linux-gnu", ".tar.gz");
+        assert_eq!(
+            found.as_deref(),
+            Some("openclaw-gateway-v1.2.3-x86_64-unknown-linux-gnu.tar.gz")
         );
     }
 }

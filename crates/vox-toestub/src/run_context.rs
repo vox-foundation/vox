@@ -30,8 +30,7 @@ pub enum ToestubTestsMode {
 
 /// When set to a non-empty list, enhanced detector paths apply only under `crates/<name>/`.
 /// `None` or empty list ⇒ unrestricted (full rollout).
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct RunContext {
     pub canary_crates: Option<Vec<String>>,
     pub tests_mode: ToestubTestsMode,
@@ -44,7 +43,6 @@ pub struct RunContext {
     /// For each workspace member under `crates/<name>/`, module names referenced as `crate::<name>` anywhere in that crate's scanned Rust sources (cross-file wiring for [`unwired/module`]).
     pub workspace_crate_mod_refs: HashMap<String, HashSet<String>>,
 }
-
 
 static RUN_STATE: OnceLock<Mutex<RunContext>> = OnceLock::new();
 

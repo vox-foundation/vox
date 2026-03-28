@@ -126,3 +126,35 @@ Process spawning, supervisors, schedulers, subscription system, feedback loops f
 | Sandbox/security | ★★☆☆☆ | ★★★★☆ | **OpenClaw** |
 | Browser automation | ☆☆☆☆☆ | ★★★★☆ | **OpenClaw** |
 | Structured DB | ★★★★★ | ★★☆☆☆ | **Vox** |
+
+## Native WS-First Interop Contract (Vox, 2026-03)
+
+Vox now treats OpenClaw interoperability as a WS-first runtime contract, not only a skill import path:
+
+- **Primary transport:** OpenClaw Gateway WebSocket protocol (`connect.challenge` event, `connect` request, request/response/event frames).
+- **Secondary fallback:** OpenClaw HTTP compatibility surfaces where needed (`/v1/chat/completions`, `/v1/responses`) and existing skills endpoints.
+- **Internal boundary:** `OpenClawRuntimeAdapter` in Rust (`vox-ars`) isolates wire protocol details from CLI/runtime consumers.
+- **Script surface:** `.vox` gets a low-complexity builtin module (`OpenClaw.*`) that lowers into runtime helper calls and still passes normal parse/type/HIR gates.
+- **Endpoint SSOT:** adapter resolution prefers explicit overrides, then env/Clavis, then upstream discovery (`/.well-known/openclaw.json`) with cached last-known-good fallback, then deterministic local defaults.
+- **Packaging posture:** Vox bootstrap/upgrade can install a managed `openclaw-gateway` sidecar from release assets when present in `checksums.txt`, avoiding hardcoded URL catalogs.
+
+### Security and policy posture
+
+- Resolve auth through Clavis (`VOX_OPENCLAW_TOKEN`) where available.
+- Keep TLS verification enabled by default.
+- Prefer loopback/tailnet WS URLs in dev (`VOX_OPENCLAW_WS_URL`), with explicit token/pass-through for remote.
+- Treat adapter errors as typed contract failures (transport/protocol/method) for deterministic script/CLI handling.
+
+### Contract fixtures
+
+Protocol fixtures are versioned in:
+
+- `contracts/openclaw/protocol/connect.challenge.json`
+- `contracts/openclaw/protocol/connect.hello-ok.json`
+- `contracts/openclaw/protocol/subscriptions.list.response.json`
+- `contracts/openclaw/discovery/well-known.response.json`
+- `contracts/openclaw/discovery/well-known.minimal.json`
+
+The CI guard `vox ci openclaw-contract` validates required fixture presence and baseline shape invariants.
+
+Resolver and sidecar lifecycle SSOT: `docs/src/reference/openclaw-discovery-sidecar-ssot.md`.

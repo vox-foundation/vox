@@ -21,8 +21,9 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 vox-socrates-policy = { workspace = true }
-jsonschema = { workspace = true }
+vox-jsonschema-util = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

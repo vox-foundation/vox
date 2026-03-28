@@ -21,6 +21,9 @@ pub struct RegistryOperation {
     pub status: String,
     #[serde(default)]
     pub latin_ns: Option<String>,
+    /// Product lane for bell-curve planning and catalog grouping (`app`, `workflow`, `ai`, `interop`, `data`, `platform`).
+    #[serde(default)]
+    pub product_lane: Option<String>,
     /// Cargo feature expression (`|` = alternatives, `+` = all required) documented in CLI inventory.
     #[serde(default)]
     pub feature_gate: Option<String>,

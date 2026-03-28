@@ -21,6 +21,12 @@ pub struct TrainingPair {
     pub category: Option<String>,
     /// Optional difficulty level (1-10) for curriculum learning.
     pub difficulty: Option<u8>,
+    /// Optional data lane for segmented training mixes (e.g. `vox_codegen`, `vox_docs_qa`).
+    pub lane: Option<String>,
+    /// Optional expected answer surface (e.g. `code_only`, `prose_only`).
+    pub response_mode: Option<String>,
+    /// Optional task family tag (e.g. `docs_code`, `tool_trace`, `speech_to_code`).
+    pub task_family: Option<String>,
 }
 
 // ─── Minimal character-level vocabulary ──────────────────────────────────────

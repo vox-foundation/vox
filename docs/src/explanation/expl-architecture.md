@@ -8,7 +8,7 @@ training_eligible: true
 
 # Compiler Architecture
 
-The Vox compiler follows a modern, modular pipeline architecture. Each stage is implemented as an independent Rust crate within the `crates/` workspace.
+The Vox compiler follows a modular pipeline architecture with conceptual stages. The current implementation is consolidated under `crates/vox-compiler/src/`, where each stage is represented by explicit modules.
 
 Current implementation note: the practical pipeline is currently consolidated under `crates/vox-compiler/src/` for lexer, parser, AST, HIR, typecheck, and emitters. This document keeps conceptual stage boundaries while implementation modules may live in one crate.
 
@@ -26,9 +26,9 @@ Source Code (.vox)
        │ Vec<Token>
        ▼
 ┌──────────────┐
-│  vox-parser  │  Recursive descent → lossless GreenTree (Rowan)
+│  vox-parser  │  Recursive descent parser → AST Module
 └──────┬───────┘
-       │ GreenTree / CST
+       │ Module (AST root)
        ▼
 ┌──────────────┐
 │   vox-ast    │  Strongly-typed AST wrappers
@@ -46,9 +46,19 @@ Source Code (.vox)
        │ Typed HIR + Vec<Diagnostic>
        ▼
 ┌──────────────┐
-│   web_ir     │  HIR→WebIR lower + validate (gated/bridge path)
+│   web_ir     │  HIR→WebIR lower + validate
 └──────┬───────┘
-       │ WebIrModule + diagnostics (when enabled)
+       │ WebIrModule
+       ▼
+┌──────────────┐
+│ app_contract │  HIR→AppContract (HTTP/RPC/islands/server config)
+└──────┬───────┘
+       │ AppContractModule
+       ▼
+┌──────────────┐
+│ runtime_proj │  HIR→RuntimeProjection (DB/task capability hints)
+└──────┬───────┘
+       │ RuntimeProjectionModule
        ▼
 ┌──────────────────┬─────────────────────┐
 │ vox-codegen-rust │  vox-codegen-ts     │
@@ -60,6 +70,8 @@ Current path note:
 
 - `codegen_ts` is still the production TS emitter path.
 - `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a build gate.
+- `app_contract::project_app_contract` is the SSOT for route/RPC/island/server-config codegen inputs.
+- `runtime_projection::project_runtime_from_hir` is the SSOT for orchestration-facing DB capability projection.
 - `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` TSX bridge output only when parity checks pass.
 
 ---
@@ -90,21 +102,21 @@ The training loop is defined in `crates/vox-cli/src/training/native.rs`.
 
 ## Stage Details
 
-### 1. Lexer (`vox-lexer`)
+### 1. Lexer (`vox-compiler::lexer`)
 
 **Purpose**: Converts source text into a flat stream of tokens.
 
 **Implementation**: Uses the [`logos`](https://docs.rs/logos) crate for high-performance, zero-copy tokenization.
 
-**Output**: `Vec<Token>` — each token carries its kind and span. See [vox-lexer API](../api/vox-lexer.md) for details.
+**Output**: `Vec<Token>` — each token carries its kind and span.
 
 ---
 
-### 2. Parser (`vox-parser`)
+### 2. Parser (`vox-compiler::parser`)
 
-**Purpose**: Transforms a token stream into a lossless Concrete Syntax Tree (CST).
+**Purpose**: Transforms a token stream into an AST module.
 
-**Implementation**: A hand-written recursive descent parser producing a [Rowan](https://docs.rs/rowan)-based GreenTree. The parser is **resilient to errors**, meaning it continues parsing after encountering invalid syntax — this is critical for LSP support, where the user is actively typing.
+**Implementation**: A hand-written recursive descent parser producing `ast::decl::Module`. The parser is **resilient to errors**, meaning it continues parsing after encountering invalid syntax — this is critical for LSP support, where the user is actively typing.
 
 **Key features**:
 - Error recovery with synchronization points
@@ -112,23 +124,23 @@ The training loop is defined in `crates/vox-cli/src/training/native.rs`.
 - Duplicate parameter name detection
 - Indentation-aware formatting (`indent.rs`)
 
-See [vox-parser API](../api/vox-parser.md) for implementation details.
+See `crates/vox-compiler/src/parser/descent/mod.rs` for the implementation entrypoint.
 
-**Output**: `GreenTree` — a lossless syntax tree preserving all whitespace and comments.
+**Output**: `Module` (AST root) with source spans on declarations and expressions.
 
 ---
 
-### 3. AST (`vox-ast`)
+### 3. AST (`vox-compiler::ast`)
 
 **Purpose**: Strongly-typed wrappers around the untyped CST nodes.
 
-See [vox-ast API](../api/vox-ast.md) for the full node hierarchy.
+See `crates/vox-compiler/src/ast/` for the node hierarchy.
 
 ---
 
 ### 6. Code Generation
 
-#### Rust Codegen (`vox-codegen-rust`)
+#### Rust Codegen (`vox-compiler::codegen_rust`)
 
 Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decorator maps to specific Rust constructs:
 
@@ -141,7 +153,7 @@ Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decora
 | `actor` | Tokio task + mpsc mailbox |
 | `workflow` | State machine with durable step recording |
 
-#### TypeScript Codegen (`vox-compiler` / `codegen_ts`)
+#### TypeScript Codegen (`vox-compiler::codegen_ts`)
 
 Emits TypeScript/TSX in modular files:
 

@@ -184,6 +184,9 @@ pub struct VoxScientiaWorthinessEvaluateParams {
     /// Repo-relative contract YAML (defaults to `contracts/scientia/publication-worthiness.default.yaml`).
     #[serde(default)]
     pub contract_yaml_relative: Option<String>,
+    /// When true and [`ServerState::db`] is set, attach [`vox_db::VoxDb::summarize_trust_rollups`] slices for the workspace repository.
+    #[serde(default)]
+    pub with_live_trust: Option<bool>,
     /// [`vox_publisher::publication_worthiness::WorthinessInputs`] as a JSON object.
     pub metrics: serde_json::Value,
 }
@@ -237,7 +240,64 @@ pub async fn vox_scientia_worthiness_evaluate(
             }
         };
     let out = vox_publisher::publication_worthiness::evaluate_worthiness(&contract, &inputs);
-    ToolResult::ok(out).to_json()
+    if params.with_live_trust != Some(true) {
+        return ToolResult::ok(out).to_json();
+    }
+    let Some(db) = &state.db else {
+        let mut v = match serde_json::to_value(&out) {
+            Ok(v) => v,
+            Err(e) => {
+                return ToolResult::<serde_json::Value>::err_with_remediation(
+                    format!("serialize evaluation: {e}"),
+                    REM_WORTHINESS_CONTRACT,
+                )
+                .to_json();
+            }
+        };
+        if let serde_json::Value::Object(ref mut m) = v {
+            m.insert(
+                "live_trust_note".to_string(),
+                serde_json::Value::String("with_live_trust requested but VoxDb is not connected.".into()),
+            );
+        }
+        return ToolResult::ok(v).to_json();
+    };
+    let repo = state.repository.repository_id.as_str();
+    let mut v = match serde_json::to_value(&out) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("serialize evaluation: {e}"),
+                REM_WORTHINESS_CONTRACT,
+            )
+            .to_json();
+        }
+    };
+    if let serde_json::Value::Object(ref mut m) = v {
+        let mut live = serde_json::json!({});
+        if let Ok(rows) = db
+            .summarize_trust_rollups(None, None, None, Some(repo), "dimension", 32)
+            .await
+        {
+            live["by_dimension"] = serde_json::to_value(&rows).unwrap_or_else(|_| serde_json::json!([]));
+        }
+        if let Ok(rows) = db
+            .summarize_trust_rollups(None, None, None, Some(repo), "dimension_domain", 32)
+            .await
+        {
+            live["by_dimension_domain"] =
+                serde_json::to_value(&rows).unwrap_or_else(|_| serde_json::json!([]));
+        }
+        if let Ok(rows) = db
+            .summarize_trust_rollups(None, None, None, Some(repo), "entity_dimension", 32)
+            .await
+        {
+            live["by_entity_dimension"] =
+                serde_json::to_value(&rows).unwrap_or_else(|_| serde_json::json!([]));
+        }
+        m.insert("live_trust_rollups".to_string(), live);
+    }
+    ToolResult::ok(v).to_json()
 }
 
 /// Preferred Rust alias (same JSON shape as [`VoxScientiaPublicationPreflightParams`]).

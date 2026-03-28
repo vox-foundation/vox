@@ -2,7 +2,9 @@
 //!
 //! Covers: submit, status, complete, fail, cancel, reorder, drain, and publish.
 
-use vox_orchestrator::{AgentEventKind, AgentId, FileAffinity, TaskId, TaskPriority};
+use vox_orchestrator::{
+    AgentEventKind, AgentId, FileAffinity, TaskCategory, TaskEnqueueHints, TaskId, TaskPriority,
+};
 use vox_repository::{load_agent_scopes, normalize_task_path};
 use vox_runtime::prompt_canonical;
 
@@ -21,6 +23,217 @@ const REM_TASK_SUBMIT: &str =
 const REM_TASK_ID: &str =
     "Confirm `task_id` with task/orchestrator status; it may be stale, completed, or cancelled.";
 const REM_TASK_ORCH_OP: &str = "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
+
+fn task_category_from_mcp_str(raw: &str) -> Option<TaskCategory> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "parsing" => Some(TaskCategory::Parsing),
+        "type_checking" | "typechecking" => Some(TaskCategory::TypeChecking),
+        "debugging" => Some(TaskCategory::Debugging),
+        "research" => Some(TaskCategory::Research),
+        "testing" => Some(TaskCategory::Testing),
+        "codegen" | "code_gen" | "implementation" => Some(TaskCategory::CodeGen),
+        "review" => Some(TaskCategory::Review),
+        _ => {
+            tracing::debug!(%raw, "submit_task: unknown task_category; ignoring");
+            None
+        }
+    }
+}
+
+fn parse_campaign_from_description(
+    description: &str,
+) -> (
+    Option<String>,
+    Option<vox_orchestrator::ReconstructionBenchmarkTier>,
+) {
+    let mut campaign_id = None;
+    let mut tier = None;
+    for token in description.split_whitespace() {
+        let t = token.trim_matches(|c: char| c == '[' || c == ']' || c == ',' || c == ';');
+        let t_lower = t.to_ascii_lowercase();
+        if t_lower.starts_with("campaign:") {
+            if campaign_id.is_some() {
+                tracing::debug!("submit_task: multiple campaign tags found; using first");
+                continue;
+            }
+            let v = &t["campaign:".len()..];
+            let vv = v.trim();
+            if !vv.is_empty() {
+                campaign_id = Some(vv.to_string());
+            }
+        }
+        if t_lower.starts_with("tier:") {
+            if tier.is_some() {
+                tracing::debug!("submit_task: multiple tier tags found; using first");
+                continue;
+            }
+            let v = &t_lower["tier:".len()..];
+            tier = match v.trim() {
+                "issue_repair" => Some(vox_orchestrator::ReconstructionBenchmarkTier::IssueRepair),
+                "subsystem_regen" => {
+                    Some(vox_orchestrator::ReconstructionBenchmarkTier::SubsystemRegen)
+                }
+                "crate_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen),
+                "repo_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::RepoRegen),
+                other => {
+                    tracing::debug!(tier = %other, "submit_task: unknown reconstruction tier; ignoring");
+                    None
+                }
+            };
+        }
+    }
+    (campaign_id, tier)
+}
+
+fn parse_benchmark_tier(raw: &str) -> Option<vox_orchestrator::ReconstructionBenchmarkTier> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "issue_repair" => Some(vox_orchestrator::ReconstructionBenchmarkTier::IssueRepair),
+        "subsystem_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::SubsystemRegen),
+        "crate_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen),
+        "repo_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::RepoRegen),
+        _ => None,
+    }
+}
+
+fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnqueueHints> {
+    let category = params
+        .task_category
+        .as_deref()
+        .and_then(task_category_from_mcp_str);
+    let execution_role = match category {
+        Some(TaskCategory::Parsing) => Some(vox_orchestrator::AgentExecutionRole::Builder),
+        Some(TaskCategory::TypeChecking) => Some(vox_orchestrator::AgentExecutionRole::Builder),
+        Some(TaskCategory::Research) => Some(vox_orchestrator::AgentExecutionRole::Researcher),
+        Some(TaskCategory::Testing) => Some(vox_orchestrator::AgentExecutionRole::Verifier),
+        Some(TaskCategory::Review) => Some(vox_orchestrator::AgentExecutionRole::Verifier),
+        Some(TaskCategory::Debugging) => Some(vox_orchestrator::AgentExecutionRole::Reproducer),
+        Some(TaskCategory::CodeGen) => Some(vox_orchestrator::AgentExecutionRole::Builder),
+        _ => None,
+    };
+    let (campaign_from_desc, tier_from_desc) = parse_campaign_from_description(&params.description);
+    let campaign_id = params
+        .campaign_id
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or(campaign_from_desc);
+    let benchmark_tier = params
+        .benchmark_tier
+        .as_deref()
+        .and_then(parse_benchmark_tier)
+        .or(tier_from_desc);
+    if category.is_none()
+        && params.complexity.is_none()
+        && params.model_preference.is_none()
+        && params.model_override.is_none()
+        && campaign_id.is_none()
+        && benchmark_tier.is_none()
+        && execution_role.is_none()
+    {
+        return None;
+    }
+    Some(TaskEnqueueHints {
+        task_category: category,
+        complexity: params.complexity.map(|c| c.clamp(1, 10)),
+        model_preference: params.model_preference.clone(),
+        model_override: params.model_override.clone(),
+        campaign_id,
+        benchmark_tier,
+        execution_role,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_params(description: &str) -> SubmitTaskParams {
+        SubmitTaskParams {
+            description: description.to_string(),
+            files: vec![],
+            priority: None,
+            agent_name: None,
+            capabilities: None,
+            task_category: None,
+            complexity: None,
+            model_preference: None,
+            model_override: None,
+            session_id: None,
+            planning_mode: None,
+            goal_type: None,
+            retrieval: None,
+            goal_scope: None,
+            max_plan_depth: None,
+            campaign_id: None,
+            benchmark_tier: None,
+        }
+    }
+
+    #[test]
+    fn parse_campaign_from_description_extracts_campaign_and_tier_tokens() {
+        let (cid, tier) =
+            parse_campaign_from_description("do work [campaign:alpha1] [tier:crate_regen]");
+        assert_eq!(cid.as_deref(), Some("alpha1"));
+        assert_eq!(
+            tier,
+            Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen)
+        );
+    }
+
+    #[test]
+    fn parse_campaign_from_description_is_case_insensitive_for_prefixes() {
+        let (cid, tier) =
+            parse_campaign_from_description("do work [Campaign:Alpha] [TIER:repo_regen]");
+        assert_eq!(cid.as_deref(), Some("Alpha"));
+        assert_eq!(
+            tier,
+            Some(vox_orchestrator::ReconstructionBenchmarkTier::RepoRegen)
+        );
+    }
+
+    #[test]
+    fn enqueue_hints_from_submit_params_returns_none_when_no_signals_present() {
+        let params = base_params("plain task");
+        assert!(enqueue_hints_from_submit_params(&params).is_none());
+    }
+
+    #[test]
+    fn enqueue_hints_from_submit_params_maps_testing_category_to_verifier_role() {
+        let mut params = base_params("run tests");
+        params.task_category = Some("testing".to_string());
+        let hints = enqueue_hints_from_submit_params(&params).expect("hints");
+        assert_eq!(
+            hints.execution_role,
+            Some(vox_orchestrator::AgentExecutionRole::Verifier)
+        );
+    }
+
+    #[test]
+    fn enqueue_hints_from_submit_params_merges_campaign_tokens_from_description() {
+        let mut params = base_params("fix bug campaign:campA tier:issue_repair");
+        params.complexity = Some(8);
+        let hints = enqueue_hints_from_submit_params(&params).expect("hints");
+        assert_eq!(hints.campaign_id.as_deref(), Some("campA"));
+        assert_eq!(
+            hints.benchmark_tier,
+            Some(vox_orchestrator::ReconstructionBenchmarkTier::IssueRepair)
+        );
+        assert_eq!(hints.complexity, Some(8));
+    }
+
+    #[test]
+    fn enqueue_hints_prefers_structured_campaign_and_tier_over_description_tags() {
+        let mut params = base_params("campaign:desc tier:issue_repair");
+        params.campaign_id = Some("structured".to_string());
+        params.benchmark_tier = Some("crate_regen".to_string());
+        let hints = enqueue_hints_from_submit_params(&params).expect("hints");
+        assert_eq!(hints.campaign_id.as_deref(), Some("structured"));
+        assert_eq!(
+            hints.benchmark_tier,
+            Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen)
+        );
+    }
+}
 
 fn socrates_context_from_retrieval(
     retrieval: &crate::memory::RetrievalEvidenceEnvelope,
@@ -109,9 +322,9 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     let manifest: Vec<FileAffinity> = params
         .files
         .iter()
-        .map(|f| match f.access.as_str() {
-            "write" => FileAffinity::write(&f.path),
-            _ => FileAffinity::read(&f.path),
+        .map(|f| match f.access {
+            crate::params::FileAccess::Write => FileAffinity::write(&f.path),
+            crate::params::FileAccess::Read => FileAffinity::read(&f.path),
         })
         .collect();
 
@@ -159,6 +372,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
         }
     };
 
+    let enqueue_hints = enqueue_hints_from_submit_params(&params);
     let submit_result = if params.planning_mode.is_some() {
         orch.submit_goal(
             description.clone(),
@@ -166,6 +380,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             priority,
             planning_mode,
             params.session_id.clone(),
+            enqueue_hints,
         )
         .await
     } else {
@@ -175,6 +390,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             priority,
             params.agent_name.clone(),
             params.capabilities.clone(),
+            enqueue_hints,
             params.session_id.clone(),
         )
         .await
@@ -279,7 +495,18 @@ pub async fn task_status(state: &ServerState, params: TaskStatusParams) -> Strin
 pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
-    let res = state.orchestrator.complete_task(task_id).await;
+    let attestation = vox_orchestrator::CompletionAttestation {
+        completion_summary: params.completion_summary,
+        checks_passed: params.checks_passed,
+        artifact_paths: params.artifact_paths.into_iter().map(Into::into).collect(),
+        declared_non_placeholder: params.declared_non_placeholder,
+        force_risky: params.force_risky,
+        force_risky_reason: params.force_risky_reason,
+    };
+    let res = state
+        .orchestrator
+        .complete_task_with_attestation(task_id, Some(attestation))
+        .await;
 
     match res {
         Ok(()) => {

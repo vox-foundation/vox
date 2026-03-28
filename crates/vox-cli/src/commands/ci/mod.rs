@@ -8,6 +8,8 @@ mod command_sync;
 mod contracts_index;
 mod eval_matrix;
 mod line_endings;
+mod mens_scorecard;
+mod openclaw_contract;
 mod pm_provenance;
 mod release_build;
 mod scaling_audit;
@@ -24,7 +26,8 @@ use std::process::{Command, Stdio};
 use anyhow::Result;
 
 pub use cmd_enums::{
-    CiCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, ScalingAuditCmd,
+    CiCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, MensScorecardCmd,
+    ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

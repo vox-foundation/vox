@@ -5,7 +5,8 @@ use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{
     clarification_turn_for_session, mcp_questioning_session_key, socrates_system_rider,
-    socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry,
+    socrates_surface_tags, socrates_tool_meta, spawn_questioning_trace_from_socrates,
+    spawn_socrates_telemetry_with_meta,
 };
 
 const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
@@ -169,11 +170,15 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
     let turn = clarification_turn_for_session(state, &session_key).await;
     let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
     let soc = socrates_tool_meta(&pol, grounding, thin_context, turn, spent_att, max_att);
-    spawn_socrates_telemetry(
+    spawn_socrates_telemetry_with_meta(
         state,
         "vox_ghost_text",
         soc.clone(),
         Some(result.model_used.clone()),
+        Some(socrates_surface_tags(
+            "code_completion",
+            &["interactive", "code_generation"],
+        )),
     );
     spawn_questioning_trace_from_socrates(
         state,

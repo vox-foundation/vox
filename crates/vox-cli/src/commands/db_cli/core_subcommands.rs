@@ -283,7 +283,7 @@ pub enum DbCliCore {
     /// List reliability scores for LLM endpoints, skills, workflows, or repositories
     #[command(name = "reliability-list")]
     ReliabilityList {
-        /// Target domain: endpoints, skills, workflows, repositories
+        /// Target domain: endpoints, skills, workflows, repositories, trust
         #[arg(long, default_value = "endpoints")]
         domain: String,
         /// Row limit for listing.

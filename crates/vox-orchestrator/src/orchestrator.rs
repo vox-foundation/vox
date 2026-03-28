@@ -13,6 +13,7 @@
 //! | [`vcs_ops`] | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
 
 mod agent_lifecycle;
+mod campaigns;
 mod core;
 mod scaling;
 mod vcs_ops;

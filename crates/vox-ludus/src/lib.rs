@@ -49,7 +49,7 @@ pub mod util; // toestub-ignore(unwired/module)
 
 // Re-export key types for ergonomic access.
 pub use achievement::{Achievement, AchievementTracker};
-pub use ai::{AiError, FreeAiClient, FreeAiProvider};
+pub use ai::{AiError, FreeAiClient, FreeAiProvider, LudusStreamBackend, StreamRoute};
 pub use battle::{Battle, BugType};
 pub use challenge::{Challenge, ChallengeManager, ChallengeType};
 pub use companion::{Companion, Interaction, Mood};

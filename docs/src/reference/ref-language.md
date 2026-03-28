@@ -103,8 +103,8 @@ fn get_user_email(id: int) to Option[str]:
     ret Some(user.email)
 ```
 
-### Durable Async Logic
-`workflow` functions ensure that long-running tasks remain durable across system interruptions.
+### Workflow Async Logic
+`workflow` functions express long-running orchestration intent. Current generated Rust lowers them to async functions, while the interpreted workflow runtime provides the repo's partial journal/replay path today.
 
 ```vox
 # Skip-Test
@@ -113,6 +113,8 @@ workflow fn TransactionFlow(userId: int, amount: float):
     await process_payment(userId, amount)
     await notify_user(userId, "Success")
 ```
+
+For the current durability boundary and supported `with { ... }` behavior, see [Actors & Workflows](../explanation/expl-actors-workflows.md).
 
 ---
 

@@ -8,8 +8,6 @@
 
 #![allow(missing_docs)]
 
-mod bounded_fs;
-
 pub mod tensor;
 
 #[cfg(feature = "mens-hf-hub")]

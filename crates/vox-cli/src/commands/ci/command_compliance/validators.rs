@@ -24,6 +24,7 @@ use vox_install_policy::{
 const KNOWN_LATIN_NS: &[&str] = &[
     "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm",
 ];
+const KNOWN_PRODUCT_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
 
 fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
@@ -88,6 +89,32 @@ pub(crate) fn check_root_readme_cli_drift(readme: &str) -> Result<()> {
             ));
         }
     }
+
+    // SSOT drift prevention: ensure README doesn't duplicate long-form content from docs/src/index.md
+    let forbidden_long_form_headers = [
+        "## What Vox Saves You",
+        "### No Duplicate Type Definitions",
+        "### No Separate API Layer",
+        "### No Null Checks, No Runtime Surprises",
+        "### Durable Workflows That Survive Crashes",
+        "### Persistent Actors",
+        "### AI Agents out-of-the-box",
+        "## Installation",
+    ];
+    for header in forbidden_long_form_headers {
+        if readme.contains(header) {
+            return Err(anyhow!(
+                "README.md contains forbidden long-form content header `{header}`. This content belongs in docs/src/index.md (SSOT)."
+            ));
+        }
+    }
+
+    if !readme.contains("https://vox-lang.org") {
+        return Err(anyhow!(
+            "README.md must link to the canonical domain https://vox-lang.org"
+        ));
+    }
+
     let section = markdown_section(readme, "## The CLI").ok_or_else(|| {
         anyhow!("README.md is missing `## The CLI` section required for discoverability")
     })?;
@@ -129,8 +156,7 @@ fn env_var_call_regexes() -> (&'static Regex, &'static Regex) {
     static CALL: OnceLock<Regex> = OnceLock::new();
     static OPTION: OnceLock<Regex> = OnceLock::new();
     let call = CALL.get_or_init(|| {
-        Regex::new(r#"(?:std::)?env::var(?:_os)?\(\s*"([^"]+)""#)
-            .expect("env::var literal regex")
+        Regex::new(r#"(?:std::)?env::var(?:_os)?\(\s*"([^"]+)""#).expect("env::var literal regex")
     });
     let option = OPTION.get_or_init(|| {
         Regex::new(r#"option_env!\(\s*"([^"]+)""#).expect("option_env literal regex")
@@ -458,6 +484,19 @@ pub(crate) fn check_registry_latin_and_handlers(
                 ));
             }
         }
+        if let Some(ref lane) = op.product_lane {
+            if !KNOWN_PRODUCT_LANES.contains(&lane.as_str()) {
+                return Err(anyhow!(
+                    "command-registry: unknown product_lane `{lane}` for vox-cli path {:?}",
+                    op.path
+                ));
+            }
+        } else {
+            return Err(anyhow!(
+                "command-registry: missing product_lane for vox-cli path {:?} (bell-curve lane SSOT)",
+                op.path
+            ));
+        }
         if let Some(ref h) = op.handler_rust {
             if matches!(op.status.as_str(), "deprecated") {
                 continue;
@@ -727,6 +766,26 @@ pub(crate) fn check_packaging_pm_docs_no_resurrected_uv_copies(repo_root: &Path)
                     p.display()
                 ));
             }
+        }
+    }
+    Ok(())
+}
+
+/// `feature-growth-boundaries.md` must name the triplet parity integration test and cargo invocation
+/// so LLM/doc edits do not drop the canonical drift gate.
+pub(crate) fn check_feature_growth_boundaries_projection_gate(repo_root: &Path) -> Result<()> {
+    let p = repo_root.join("docs/src/architecture/feature-growth-boundaries.md");
+    let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+    for needle in [
+        "projection_parity",
+        "projection_triplet_is_deterministic",
+        "cargo test -p vox-compiler --test projection_parity",
+    ] {
+        if !s.contains(needle) {
+            return Err(anyhow!(
+                "{} must document the WebIR/AppContract/RuntimeProjection drift gate (`{needle}` missing)",
+                p.display()
+            ));
         }
     }
     Ok(())

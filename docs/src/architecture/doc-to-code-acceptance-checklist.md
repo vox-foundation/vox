@@ -10,7 +10,7 @@ training_eligible: true
 
 Use this before merging changes that affect user-visible behavior or agent guidance.
 
-- [ ] `docs/src/ref-cli.md` matches `crates/vox-cli/src/lib.rs` `Cli` subcommands (dispatch lives there; `main.rs` only calls `run_vox_cli`).
+- [ ] `docs/src/reference/cli.md` matches `crates/vox-cli/src/lib.rs` `Cli` subcommands (dispatch lives there; `main.rs` only calls `run_vox_cli`).
 - [ ] `AGENTS.md` Phase / crate bullets match workspace reality (`Cargo.toml` members / excludes).
 - [ ] [orphan-surface-inventory.md](orphan-surface-inventory.md) updated if a crate or CLI surface changed.
 - [ ] ADR 004 cross-links still valid if Codex/Turso boundaries changed.

@@ -108,8 +108,11 @@ pub fn arxiv_operator_handoff_value(manifest: &PublicationManifest) -> serde_jso
         "title": manifest.title,
         "primary_author": manifest.author,
         "content_sha3_256": manifest.content_sha3_256(),
+        "main_tex_relpath": "main.tex",
+        "body_markdown_relpath": "body.md",
         "staging_generated_by": "vox-publisher/submission_package",
         "arxiv_bundle_relpath": "arxiv_bundle.tar.gz",
+        "staging_checksums_relpath": "staging_checksums.json",
         "note": "Operator-assisted arXiv submission; not an automated arXiv API deposit.",
     })
 }
@@ -260,6 +263,7 @@ pub fn validate_arxiv_submission_tar_gz(bytes: &[u8]) -> Vec<ValidationFinding> 
     let dec = GzDecoder::new(Cursor::new(bytes));
     let mut archive = Archive::new(dec);
     let mut tex_count = 0_usize;
+    let mut main_tex_present = false;
     let mut entries = match archive.entries() {
         Ok(e) => e,
         Err(e) => {
@@ -297,6 +301,9 @@ pub fn validate_arxiv_submission_tar_gz(bytes: &[u8]) -> Vec<ValidationFinding> 
         if lower.ends_with(".tex") {
             tex_count += 1;
         }
+        if lower == "main.tex" {
+            main_tex_present = true;
+        }
         for bad in [".exe", ".dll", ".dmg", ".pkg", ".deb", ".msi", ".app/"] {
             if lower.contains(bad) {
                 findings.push(ValidationFinding {
@@ -305,11 +312,34 @@ pub fn validate_arxiv_submission_tar_gz(bytes: &[u8]) -> Vec<ValidationFinding> 
                 });
             }
         }
+        for bad in [".zip", ".rar", ".7z", ".tar"] {
+            if lower.ends_with(bad) {
+                findings.push(ValidationFinding {
+                    code: "arxiv_disallowed_nested_archive",
+                    message: format!("path {path_s:?} uses nested archive suffix {bad:?}"),
+                });
+            }
+        }
+        if !arxiv_allowed_archive_path(&lower) {
+            findings.push(ValidationFinding {
+                code: "arxiv_unrecognized_file_family",
+                message: format!(
+                    "path {path_s:?} is not in the supported arXiv assist file families"
+                ),
+            });
+        }
     }
     if tex_count == 0 {
         findings.push(ValidationFinding {
             code: "arxiv_missing_tex",
             message: "arXiv bundle must contain at least one .tex source".into(),
+        });
+    }
+    if tex_count > 0 && !main_tex_present {
+        findings.push(ValidationFinding {
+            code: "arxiv_missing_main_tex",
+            message: "arXiv assist bundle must include main.tex as the primary handoff entrypoint"
+                .into(),
         });
     }
     findings
@@ -387,6 +417,38 @@ fn pack_arxiv_staging_tar_gz(staging_dir: &Path, dest: &Path) -> Result<(), Stag
 pub struct ValidationFinding {
     pub code: &'static str,
     pub message: String,
+}
+
+fn arxiv_allowed_archive_path(lower: &str) -> bool {
+    [
+        ".tex", ".sty", ".cls", ".bst", ".bib", ".bbl", ".bbx", ".cbx", ".cfg", ".clo", ".def",
+        ".fd", ".ist", ".txt", ".md", ".json", ".yaml", ".yml", ".cff", ".png", ".jpg", ".jpeg",
+        ".pdf", ".eps", ".ps", ".svg", ".csv", ".tsv",
+    ]
+    .iter()
+    .any(|suffix| lower.ends_with(suffix))
+}
+
+fn validate_arxiv_handoff_value(v: &serde_json::Value) -> bool {
+    v.get("schema_version").and_then(|n| n.as_i64()) == Some(1)
+        && v.get("workflow").and_then(|s| s.as_str()) == Some("arxiv_operator_assist")
+        && v.get("publication_id")
+            .and_then(|s| s.as_str())
+            .is_some_and(|s| !s.is_empty())
+        && v.get("title")
+            .and_then(|s| s.as_str())
+            .is_some_and(|s| !s.is_empty())
+        && v.get("primary_author")
+            .and_then(|s| s.as_str())
+            .is_some_and(|s| !s.is_empty())
+        && v.get("content_sha3_256")
+            .and_then(|s| s.as_str())
+            .is_some_and(|s| !s.is_empty())
+        && v.get("main_tex_relpath").and_then(|s| s.as_str()) == Some("main.tex")
+        && v.get("body_markdown_relpath").and_then(|s| s.as_str()) == Some("body.md")
+        && v.get("arxiv_bundle_relpath").and_then(|s| s.as_str()) == Some("arxiv_bundle.tar.gz")
+        && v.get("staging_checksums_relpath").and_then(|s| s.as_str())
+            == Some("staging_checksums.json")
 }
 
 /// Validate staging directory contents against the venue plan.
@@ -495,46 +557,52 @@ fn content_checks(
                 });
             }
         }
-        _ => {}
-    }
-    if matches!(venue, ScholarlyVenue::Zenodo) && relative_path == "zenodo.json"
-        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes)
-            && val.get("metadata").and_then(|m| m.as_object()).is_none() {
-                out.push(ValidationFinding {
-                    code: "staging_zenodo_json_shape",
-                    message: format!(
-                        "{} must be an object with a `metadata` object (Zenodo deposit envelope)",
-                        path.display()
-                    ),
-                });
-            }
-    if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_handoff.json"
-        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-            let ok = val.get("schema_version").is_some()
-                && val
-                    .get("workflow")
-                    .and_then(|s| s.as_str())
-                    .is_some_and(|w| w == "arxiv_operator_assist")
-                && val
-                    .get("publication_id")
-                    .and_then(|s| s.as_str())
-                    .is_some_and(|s| !s.is_empty())
-                && val
-                    .get("content_sha3_256")
-                    .and_then(|s| s.as_str())
-                    .is_some_and(|s| !s.is_empty())
-                && val.get("arxiv_bundle_relpath").and_then(|s| s.as_str())
-                    == Some("arxiv_bundle.tar.gz");
-            if !ok {
-                out.push(ValidationFinding {
-                    code: "staging_arxiv_handoff_shape",
-                    message: format!(
-                        "{} must include schema_version, workflow=arxiv_operator_assist, publication_id, content_sha3_256, arxiv_bundle_relpath",
-                        path.display()
-                    ),
-                });
+        "main.tex" => {
+            if let Ok(text) = std::str::from_utf8(&bytes) {
+                for (needle, code) in [
+                    ("\\documentclass", "staging_arxiv_main_tex_documentclass"),
+                    ("\\title{", "staging_arxiv_main_tex_title"),
+                    ("\\author{", "staging_arxiv_main_tex_author"),
+                    ("\\begin{abstract}", "staging_arxiv_main_tex_abstract"),
+                ] {
+                    if !text.contains(needle) {
+                        out.push(ValidationFinding {
+                            code,
+                            message: format!("{} must contain {}", path.display(), needle),
+                        });
+                    }
+                }
             }
         }
+        _ => {}
+    }
+    if matches!(venue, ScholarlyVenue::Zenodo)
+        && relative_path == "zenodo.json"
+        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes)
+        && val.get("metadata").and_then(|m| m.as_object()).is_none()
+    {
+        out.push(ValidationFinding {
+            code: "staging_zenodo_json_shape",
+            message: format!(
+                "{} must be an object with a `metadata` object (Zenodo deposit envelope)",
+                path.display()
+            ),
+        });
+    }
+    if matches!(venue, ScholarlyVenue::ArxivAssist)
+        && relative_path == "arxiv_handoff.json"
+        && let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes)
+    {
+        if !validate_arxiv_handoff_value(&val) {
+            out.push(ValidationFinding {
+                    code: "staging_arxiv_handoff_shape",
+                    message: format!(
+                        "{} must include schema_version=1, workflow=arxiv_operator_assist, publication_id, title, primary_author, content_sha3_256, main_tex_relpath, body_markdown_relpath, arxiv_bundle_relpath, staging_checksums_relpath",
+                        path.display()
+                    ),
+                });
+        }
+    }
     if matches!(venue, ScholarlyVenue::ArxivAssist) && relative_path == "arxiv_bundle.tar.gz" {
         for f in validate_arxiv_submission_tar_gz(&bytes) {
             if f.code == "arxiv_bundle_not_gzip" {
@@ -687,9 +755,28 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&handoff).unwrap();
         assert_eq!(v["workflow"], "arxiv_operator_assist");
         assert_eq!(v["publication_id"], "pub-arxiv");
+        assert_eq!(v["main_tex_relpath"], "main.tex");
+        assert_eq!(v["body_markdown_relpath"], "body.md");
         assert_eq!(v["arxiv_bundle_relpath"], "arxiv_bundle.tar.gz");
+        assert_eq!(v["staging_checksums_relpath"], "staging_checksums.json");
         let bundle = fs::read(tmp.path().join("arxiv_bundle.tar.gz")).unwrap();
         assert!(bundle.len() >= 2 && bundle[0] == 0x1f && bundle[1] == 0x8b);
         validate_scholarly_staging(tmp.path(), ScholarlyVenue::ArxivAssist, &manifest).unwrap();
+    }
+
+    #[test]
+    fn arxiv_bundle_validation_requires_main_tex() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("body.md"), "body").unwrap();
+        fs::write(dir.path().join("appendix.tex"), "\\documentclass{article}").unwrap();
+        fs::write(
+            dir.path().join("staging_checksums.json"),
+            "{\"schema_version\":1}",
+        )
+        .unwrap();
+        let bundle = dir.path().join("arxiv_bundle.tar.gz");
+        pack_arxiv_staging_tar_gz(dir.path(), &bundle).unwrap();
+        let findings = validate_arxiv_submission_tar_gz(&fs::read(bundle).unwrap());
+        assert!(findings.iter().any(|f| f.code == "arxiv_missing_main_tex"));
     }
 }

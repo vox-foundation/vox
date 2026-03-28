@@ -13,8 +13,11 @@ training_eligible: true
 | Check | Source |
 |-------|--------|
 | Top-level `vox` subcommands exist in `Cli` | `crates/vox-cli/src/lib.rs` |
-| Doc needles for `ref_cli_required` operations | `docs/src/ref-cli.md` if present, else canonical `docs/src/reference/cli.md` — checks **always** run (no skip). `vox ci …` and `vox codex` subcommands are validated **only inside** their `### \`vox ci …\`` / `### \`vox codex\`` sections (not whole-file substring matches) |
+| Doc needles for `ref_cli_required` operations | Canonical body: `docs/src/reference/cli.md`. Legacy redirect `docs/src/ref-cli.md` (if present) is merged into the compliance read for stable links — checks **always** run (no skip). `vox ci …` and `vox codex` subcommands are validated **only inside** their `### \`vox ci …\`` / `### \`vox codex\`` sections (not whole-file substring matches) |
 | Top-level reachability table rows | `docs/src/reference/cli.md` under **CLI command reachability** (legacy `cli-reachability.md` merged there; rows skipped for `completions`, `fabrica`, `mens`, `ars`, `recensio`, and when `reachability_required: false`) |
+| Registry metadata enums | `latin_ns` and `product_lane` values are validated against the command-registry schema and `vox-cli` validators |
+| `product_lane` required on `vox-cli` rows | Active / deprecated `surface: vox-cli` operations must declare `product_lane` (retired/internal rows exempt from handler checks only) |
+| Feature-growth projection gate | `docs/src/architecture/feature-growth-boundaries.md` must name `projection_parity` / `projection_triplet_is_deterministic` and the `cargo test -p vox-compiler --test projection_parity` reproducer |
 | Compiler daemon RPC method names | `crates/vox-cli/src/compilerd.rs` |
 | DeI daemon RPC method ids | `crates/vox-cli/src/dei_daemon.rs` |
 | MCP tool names vs `handle_tool_call` arms | `crates/vox-mcp/src/tools/mod.rs` — `TOOL_REGISTRY` names from the value array (`[` … `]` bracket scan); handler arms parsed inside `match name { … }` up to the first line that matches `^\s*_\s*=>` (indent-tolerant), collecting every `"(vox_…)"` literal on each arm line (aliases are **not** duplicated in `match`: they live in `crates/vox-mcp/src/tools/tool_aliases.rs` as `TOOL_WIRE_ALIASES`, normalized before `match`) |

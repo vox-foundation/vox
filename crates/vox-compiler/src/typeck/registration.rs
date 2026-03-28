@@ -21,7 +21,11 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnos
         if env.lookup(&imp.item).is_none() {
             env.define(
                 imp.item.clone(),
-                Binding::new(Ty::Error, false, BindingKind::Import),
+                Binding::new(
+                    Ty::ImportPlaceholder(imp.item.clone()),
+                    false,
+                    BindingKind::Import,
+                ),
             );
         }
     }
@@ -187,6 +191,31 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
         }
         HirType::Unit => Ty::Unit,
     }
+}
+
+/// Render a deterministic function signature from HIR params + optional return annotation.
+#[must_use]
+pub fn type_signature_from_hir(
+    params: &[crate::hir::HirParam],
+    ret: Option<&HirType>,
+    env: &TypeEnv,
+) -> String {
+    let params = params
+        .iter()
+        .map(|p| {
+            let ty = p
+                .type_ann
+                .as_ref()
+                .map(|t| resolve_hir_type(t, env).signature())
+                .unwrap_or_else(|| "unknown".to_string());
+            format!("{}: {ty}", p.name)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let ret = ret
+        .map(|r| resolve_hir_type(r, env).signature())
+        .unwrap_or_else(|| "Unit".to_string());
+    format!("fn({params}) -> {ret}")
 }
 
 pub fn register_hir_typedef(env: &mut TypeEnv, td: &HirTypeDef) {

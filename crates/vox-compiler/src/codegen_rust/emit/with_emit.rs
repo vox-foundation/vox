@@ -60,12 +60,31 @@ where
 
     let operand_str = emit_expr(operand);
     format!(
-        "match vox_runtime::execute_activity(\"activity\", &{opts}, || async {{ {call} }}).await {{ \
-            vox_runtime::ActivityResult::Ok(v) => v, \
-            vox_runtime::ActivityResult::Failed(e) => panic!(\"Activity failed: {{}}\", e), \
-            vox_runtime::ActivityResult::Cancelled => panic!(\"Activity cancelled\"), \
-        }}",
+        "vox_runtime::execute_activity_result(\"activity\", &{opts}, || async {{ {call} }}).await",
         opts = opts_builder,
         call = operand_str,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_with;
+    use crate::ast::span::Span;
+    use crate::hir::HirExpr;
+
+    #[test]
+    fn emits_typed_activity_result_path_without_panics() {
+        let span = Span::new(0, 0);
+        let operand = HirExpr::Ident("work".to_string(), span);
+        let options = HirExpr::ObjectLit(vec![], span);
+        let emitted = emit_with(&|_| "work()".to_string(), &operand, &options);
+        assert!(
+            emitted.contains("execute_activity_result"),
+            "expected typed result helper in {emitted}"
+        );
+        assert!(
+            !emitted.contains("panic!("),
+            "with emission should not panic-map failures: {emitted}"
+        );
+    }
 }

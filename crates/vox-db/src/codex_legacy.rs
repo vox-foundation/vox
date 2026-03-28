@@ -212,6 +212,8 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "topic_evolution_events",
     "topics",
     "training_throughput_profiles",
+    "trust_observations",
+    "trust_rollups",
     "trusted_evidence_bundles",
     "typed_stream_events",
     "usage_counter_snapshots",
@@ -433,8 +435,7 @@ pub async fn import_legacy_jsonl<R: BufRead>(
 
     match body.await {
         Ok(n) => {
-            conn
-                .execute("COMMIT", ())
+            conn.execute("COMMIT", ())
                 .await
                 .map_err(|e| StoreError::Db(format!("legacy import commit: {e}")))?;
             restore_fk.await?;

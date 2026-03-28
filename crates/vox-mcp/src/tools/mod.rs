@@ -22,6 +22,8 @@ mod input_schemas;
 pub mod introspection_tools;
 /// Unified News Publishing System tools
 pub mod news_tools;
+/// OpenClaw native gateway and skill tools.
+pub mod openclaw_tools;
 /// Oratio speech-to-text (Candle Whisper).
 pub mod oratio_tools;
 /// Local mens registry status (`vox_populi_local_status`).
@@ -35,6 +37,8 @@ pub mod repo_index;
 pub mod scientia_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
+/// Trust rollup inspection tools (`trust_rollups` over VoxDb).
+pub mod trust_tools;
 pub(crate) mod text_normalization;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
 pub mod toestub_tools;

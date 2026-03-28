@@ -56,7 +56,7 @@ pub fn generate(root: &Path, out_path: &Path) -> Result<DocInventory> {
         first_read_for_agents: vec![
             "AGENTS.md".into(),
             "docs/agents/orchestrator.md".into(),
-            "docs/src/ref-cli.md".into(),
+            "docs/src/reference/cli.md".into(),
             "crates/vox-mcp/src/tools/mod.rs".into(),
             "docs/agents/doc-inventory.json".into(),
         ],

@@ -9,12 +9,13 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::time::Instant;
 
 use crate::params::{
     DiagnosticInfo, RunTestsParams, ToolResult, ValidateFileParams, ValidateResponse,
 };
 use crate::server::ServerState;
-use tower_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
+use tower_lsp::lsp_types::DiagnosticSeverity;
 
 const REM_CARGO_DISABLED: &str = "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
 const REM_CARGO_TEST: &str = "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
@@ -30,60 +31,37 @@ const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
 const REM_CODEGEN_REPAIR: &str = "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
 const REM_CODEGEN_STALL: &str = "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
+const RUNTIME_GENERATION_KPI_SCHEMA: &str = "vox_runtime_generation_kpi_v1";
 
-fn diagnostics_snapshot_from_lsp(
-    errors: &[&tower_lsp::lsp_types::Diagnostic],
-) -> Vec<serde_json::Value> {
-    errors
-        .iter()
-        .map(|d| {
-            let severity = d.severity.map(|s| match s {
-                DiagnosticSeverity::ERROR => "error",
-                DiagnosticSeverity::WARNING => "warning",
-                DiagnosticSeverity::INFORMATION => "information",
-                DiagnosticSeverity::HINT => "hint",
-                _ => "unknown",
-            });
-            let code = d.code.as_ref().map(|c| match c {
-                NumberOrString::String(s) => serde_json::Value::String(s.clone()),
-                NumberOrString::Number(n) => serde_json::json!(n),
-            });
-            serde_json::json!({
-                "severity": severity,
-                "message": d.message,
-                "start_line": d.range.start.line,
-                "start_character": d.range.start.character,
-                "code": code,
-            })
-        })
-        .collect()
-}
-
-fn hir_error_signature(errors: &[&tower_lsp::lsp_types::Diagnostic]) -> u64 {
-    let mut rows: Vec<(String, u32, u32, String)> = errors
-        .iter()
-        .map(|e| {
-            let code = e
-                .code
-                .as_ref()
-                .map(|c| match c {
-                    tower_lsp::lsp_types::NumberOrString::String(s) => s.clone(),
-                    tower_lsp::lsp_types::NumberOrString::Number(n) => n.to_string(),
-                })
-                .unwrap_or_default();
-            let norm: String = e.message.split_whitespace().collect::<Vec<_>>().join(" ");
-            (norm, e.range.start.line, e.range.start.character, code)
-        })
-        .collect();
-    rows.sort();
-    let mut h = DefaultHasher::new();
-    for (msg, line, col, code) in rows {
-        msg.hash(&mut h);
-        line.hash(&mut h);
-        col.hash(&mut h);
-        code.hash(&mut h);
-    }
-    h.finish()
+fn runtime_generation_kpi(
+    success: bool,
+    validate_requested: bool,
+    compile_pass: Option<bool>,
+    canonical_pass: Option<bool>,
+    attempts: u64,
+    repair_stalled: bool,
+    time_to_first_valid_ms: Option<u128>,
+    output_tokens: u64,
+    surface_contract_failures: u64,
+    failure_category: Option<&str>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema": RUNTIME_GENERATION_KPI_SCHEMA,
+        "schema_version": 1,
+        "surface": "mcp",
+        "success": success,
+        "validate_requested": validate_requested,
+        "compile_pass": compile_pass,
+        "canonical_pass": canonical_pass,
+        "attempts": attempts,
+        "repair_stalled": repair_stalled,
+        "time_to_first_valid_ms": time_to_first_valid_ms.map(|v| v as u64),
+        "output_tokens": output_tokens,
+        "surface_contract_failures": surface_contract_failures,
+        "strictness_failures": surface_contract_failures,
+        "canonicalization_failures": null,
+        "failure_category": failure_category,
+    })
 }
 
 async fn record_expensive_op(state: &ServerState) {
@@ -424,6 +402,14 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         .and_then(|v| v.as_u64())
         .unwrap_or(2)
         .min(crate::speech_constraints::SPEECH_CODE_MAX_REPAIR_ATTEMPTS as u64);
+    let output_surface_mode = match args
+        .get("output_surface_mode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("raw_code_only")
+    {
+        "fenced_transport" => crate::speech_constraints::OutputSurfaceMode::FencedTransport,
+        _ => crate::speech_constraints::OutputSurfaceMode::RawCodeOnly,
+    };
 
     if prompt.is_empty() {
         return ToolResult::<String>::err_with_remediation(
@@ -436,6 +422,10 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
     let mut current_prompt = prompt.to_string();
     let mut retry_count = 0u64;
     let mut prev_error_sig: Option<u64> = None;
+    let started = Instant::now();
+    let mut first_valid_ms: Option<u128> = None;
+    let mut surface_contract_failures: u64 = 0;
+    let mut repair_stalled = false;
 
     let grammar_addon =
         crate::speech_constraints::grammar_artifact_prompt_addon(&state.repository.root);
@@ -444,13 +434,22 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
 
     loop {
         let hint_stub = crate::speech_constraints::TypeHintStub;
+        let output_surface_instruction = match output_surface_mode {
+            crate::speech_constraints::OutputSurfaceMode::RawCodeOnly => {
+                "- Return ONLY raw .vox code (no markdown fences, no prose).\n"
+            }
+            crate::speech_constraints::OutputSurfaceMode::FencedTransport => {
+                "- Wrap output in a ```vox fenced code block.\n"
+            }
+        };
         let system_prompt = format!(
             "You are an expert compiler engineer. Generate VALD .vox code.\n\n\
              Rules:\n\
              - Only output the code, no explanation.\n\
-             - Wrap in a ```vox code block.\n\
+             {}\
              {}{}\
              {}\n",
+            output_surface_instruction,
             grammar_addon,
             hint_stub.system_prompt_addon(),
             crate::tools::chat_tools::ANTI_LAZINESS_RIDER
@@ -523,25 +522,167 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             }
         };
 
-        completion = crate::tools::text_normalization::strip_vox_codegen_fence(&completion);
+        let normalized = vox_compiler::generated_vox::normalize_generated_vox(
+            &completion,
+            match output_surface_mode {
+                crate::speech_constraints::OutputSurfaceMode::RawCodeOnly => {
+                    vox_compiler::generated_vox::OutputSurfaceMode::RawCodeOnly
+                }
+                crate::speech_constraints::OutputSurfaceMode::FencedTransport => {
+                    vox_compiler::generated_vox::OutputSurfaceMode::FencedTransport
+                }
+            },
+        );
+        completion = normalized.normalized;
+        if decode_policy.enabled {
+            if !normalized.surface_contract_ok
+                || !decode_policy.surface_contract_ok(&completion, output_surface_mode)
+            {
+                surface_contract_failures += 1;
+                retry_count += 1;
+                if retry_count > max_retries {
+                    let kpi = runtime_generation_kpi(
+                        false,
+                        validate_flag,
+                        None,
+                        None,
+                        retry_count,
+                        repair_stalled,
+                        first_valid_ms,
+                        completion.split_whitespace().count() as u64,
+                        surface_contract_failures,
+                        Some("surface_contract"),
+                    );
+                    return ToolResult::<String>::err_with_remediation_meta(
+                        "constrained-decode policy rejected non-code surface repeatedly"
+                            .to_string(),
+                        REM_CODEGEN_REPAIR,
+                        serde_json::json!({
+                            "repair": {
+                                "attempts": retry_count,
+                                "failure_category": "surface_contract",
+                                "decode_policy": "grammar_surface_guard"
+                            },
+                            "runtime_generation_kpi": kpi
+                        }),
+                    )
+                    .to_json();
+                }
+                current_prompt.push_str(
+                    "\n\nYour previous output violated output-surface constraints. Regenerate using only the required output mode.",
+                );
+                continue;
+            }
+        }
 
         if !validate_flag {
-            return ToolResult::ok(completion).to_json();
+            let kpi = runtime_generation_kpi(
+                true,
+                false,
+                None,
+                None,
+                retry_count + 1,
+                repair_stalled,
+                Some(started.elapsed().as_millis()),
+                completion.split_whitespace().count() as u64,
+                surface_contract_failures,
+                None,
+            );
+            tracing::info!(
+                target: "vox_mcp_speech",
+                time_to_first_valid_ms = started.elapsed().as_millis() as u64,
+                repair_attempts = retry_count + 1,
+                repair_stalled,
+                output_tokens = completion.split_whitespace().count() as u64,
+                surface_contract_failures,
+                "vox_generate_code runtime_kpi"
+            );
+            return ToolResult::ok_with_meta(
+                completion,
+                serde_json::json!({ "runtime_generation_kpi": kpi }),
+            )
+            .to_json();
         }
 
-        let diagnostics = vox_lsp::validate_document_with_hir(&completion);
-        let errors: Vec<_> = diagnostics
-            .iter()
-            .filter(|d| d.severity == Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR))
-            .collect();
+        let validation = vox_compiler::generated_vox::validate_generated_vox(&completion, true);
+        let errors: Vec<_> = validation.errors.iter().collect();
 
         if errors.is_empty() {
-            return ToolResult::ok(completion).to_json();
+            if first_valid_ms.is_none() {
+                first_valid_ms = Some(started.elapsed().as_millis());
+            }
+            let canonicalized = validation.canonicalized;
+            let canonical_pass = canonicalized.is_some();
+            let canonical = canonicalized.unwrap_or_else(|| completion.clone());
+            let kpi = runtime_generation_kpi(
+                true,
+                true,
+                Some(true),
+                Some(canonical_pass),
+                retry_count + 1,
+                repair_stalled,
+                first_valid_ms,
+                canonical.split_whitespace().count() as u64,
+                surface_contract_failures,
+                None,
+            );
+            tracing::info!(
+                target: "vox_mcp_speech",
+                time_to_first_valid_ms = first_valid_ms.unwrap_or(0) as u64,
+                repair_attempts = retry_count + 1,
+                repair_stalled,
+                output_tokens = canonical.split_whitespace().count() as u64,
+                surface_contract_failures,
+                "vox_generate_code runtime_kpi"
+            );
+            return ToolResult::ok_with_meta(
+                canonical,
+                serde_json::json!({ "runtime_generation_kpi": kpi }),
+            )
+            .to_json();
         }
 
-        let snapshot = diagnostics_snapshot_from_lsp(&errors);
-        let sig = hir_error_signature(&errors);
+        let snapshot: Vec<serde_json::Value> = errors
+            .iter()
+            .map(|e| {
+                serde_json::json!({
+                    "severity": "error",
+                    "message": e.message,
+                    "code": e.code,
+                    "category": e.category,
+                })
+            })
+            .collect();
+        let mut rows: Vec<(String, String, String)> = errors
+            .iter()
+            .map(|e| {
+                (
+                    e.category.to_string(),
+                    e.message.split_whitespace().collect::<Vec<_>>().join(" "),
+                    e.code.clone().unwrap_or_default(),
+                )
+            })
+            .collect();
+        rows.sort();
+        let mut hasher = DefaultHasher::new();
+        for row in rows {
+            row.hash(&mut hasher);
+        }
+        let sig = hasher.finish();
         if prev_error_sig == Some(sig) {
+            repair_stalled = true;
+            let kpi = runtime_generation_kpi(
+                false,
+                true,
+                Some(false),
+                Some(false),
+                retry_count,
+                true,
+                first_valid_ms,
+                completion.split_whitespace().count() as u64,
+                surface_contract_failures,
+                Some("repair_stall"),
+            );
             return ToolResult::<String>::err_with_remediation_meta(
                 format!(
                     "repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"
@@ -549,7 +690,8 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 REM_CODEGEN_STALL,
                 serde_json::json!({
                     "diagnostics_snapshot": snapshot,
-                    "repair": { "attempts": retry_count, "stalled": true }
+                    "repair": { "attempts": retry_count, "stalled": true },
+                    "runtime_generation_kpi": kpi
                 }),
             )
             .to_json();
@@ -559,6 +701,18 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         retry_count += 1;
         if retry_count > max_retries {
             let err_msgs: Vec<_> = errors.iter().map(|e| &e.message).collect();
+            let kpi = runtime_generation_kpi(
+                false,
+                true,
+                Some(false),
+                Some(false),
+                retry_count,
+                false,
+                first_valid_ms,
+                completion.split_whitespace().count() as u64,
+                surface_contract_failures,
+                Some("semantic"),
+            );
             return ToolResult::<String>::err_with_remediation_meta(
                 format!(
                     "Failed to generate valid code after {} retries. Errors: {:?}",
@@ -571,7 +725,8 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                         "attempts": retry_count,
                         "stalled": false,
                         "failure_category": "semantic"
-                    }
+                    },
+                    "runtime_generation_kpi": kpi
                 }),
             )
             .to_json();
@@ -581,21 +736,8 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         let mut feedback = String::from(
             "\n\nThe previous generation had these errors. Fix them and re-generate ONLY the corrected .vox code:\n",
         );
-        if let Some(e) = errors.first() {
-            feedback.push_str(&format!(
-                "\nApply a **minimal-span** edit first around line {} col {} — preserve the rest of the program unless a shared fix is required.\n",
-                e.range.start.line + 1,
-                e.range.start.character + 1
-            ));
-        }
         for (i, err) in errors.iter().enumerate() {
-            feedback.push_str(&format!(
-                "{}. [L{}:C{}] {}\n",
-                i + 1,
-                err.range.start.line,
-                err.range.start.character,
-                err.message
-            ));
+            feedback.push_str(&format!("{}. [{}] {}\n", i + 1, err.category, err.message));
         }
         if let Ok(json) =
             serde_json::to_string_pretty(&serde_json::json!({ "diagnostics_snapshot": &snapshot }))

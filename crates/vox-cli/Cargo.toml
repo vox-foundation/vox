@@ -51,7 +51,6 @@ cloud = ["gpu", "vox-populi/mens-cloud"]
 script-execution = [
     "dep:dirs",
     "dep:xxhash-rust",
-    "dep:which",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
     "dep:landlock",
@@ -66,7 +65,7 @@ stub-check = [
     "dep:vox-ludus",
 ]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to excluded `vox-dei`.
-# Dashboard UX is the VS Code extension (see `docs/src/ref-cli.md`).
+# Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
 dashboard = []
 # Pulls `vox-ars` + `vox-skills` for OpenClaw / skill registry (`openclaw`, ARS extras).
 ars = ["dep:vox-ars", "dep:vox-skills"]
@@ -94,7 +93,7 @@ coderabbit = [
     "dep:vox-toestub",
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:comfy-table", "dep:dirs", "dep:which"]
+island = ["dep:comfy-table", "dep:dirs"]
 # Local populi registry + `vox populi status|serve` (`vox-populi` / optional HTTP control plane).
 populi = ["dep:vox-populi", "vox-populi/transport"]
 # Interpreted `vox mens workflow run` (journal + mens activities); implies mens hooks.
@@ -115,7 +114,6 @@ reqwest = { workspace = true, features = ["multipart"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-jsonschema = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true }
 base64 = { workspace = true }
@@ -145,7 +143,10 @@ glob = { workspace = true }
 vox-corpus = { workspace = true }
 vox-tensor = { workspace = true, optional = true }
 vox-runtime = { workspace = true }
+vox-primitives = { workspace = true }
 vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true, features = ["async"] }
+vox-jsonschema-util = { workspace = true }
 vox-protocol = { workspace = true }
 vox-oratio = { workspace = true, optional = true }
 uuid = { version = "1", features = ["v4"] }
@@ -154,12 +155,13 @@ axum = { version = "0.8", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 dirs = { version = "6", optional = true }
 walkdir = "2"
+sysinfo = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-forge = { workspace = true, optional = true, features = ["github"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
-which = { version = "8", optional = true }
+which = "8"
 wasmtime = { version = "42.0.1", optional = true }
 wasmtime-wasi = { version = "42.0.1", optional = true }
 flate2 = "1.1.9"

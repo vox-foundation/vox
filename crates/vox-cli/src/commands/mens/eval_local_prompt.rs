@@ -17,6 +17,7 @@ pub(crate) struct PreparedBench {
     pub(crate) description: String,
     pub(crate) context_files: Vec<String>,
     pub(crate) prompt: String,
+    pub(crate) semantic_expected_contains: Vec<String>,
 }
 
 /// Sort prompts lexicographically so consecutive inferences share common prefixes (KV / prefix-cache friendly).
@@ -111,6 +112,14 @@ pub(crate) fn prepare_bench_item(
     } else {
         format!("{context_blob}{body}")
     };
+    let semantic_expected_contains: Vec<String> = bench_item["semantic_expected_contains"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
 
     PreparedBench {
         manifest_index,
@@ -120,6 +129,7 @@ pub(crate) fn prepare_bench_item(
         description,
         context_files,
         prompt,
+        semantic_expected_contains,
     }
 }
 

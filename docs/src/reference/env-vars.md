@@ -88,6 +88,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
 | `VOX_A2A_CONSUMER_ID` | Override the **claim owner** string for [`VoxDb::poll_a2a_inbox`](../../../crates/vox-db/src/store/ops_ludus/gamify_extended.rs) (default `pid:<process_id>`). |
 | `VOX_ORCH_LINEAGE_OFF` | When `1` / `true` / `yes`, skips append-only `orchestration_lineage_events` writes from the orchestrator (rollback toggle). |
+| `VOX_ORCH_CAMPAIGN_ID` | Optional opaque string (trimmed) stored in select lineage payloads (`plan_session_created`, workflow handoff, replan, etc.) to group runs across `plan_session_id` values. |
 | `VOX_WORKFLOW_JOURNAL_CODEX_OFF` | When `1` / `true` / `yes`, skips Codex persistence for interpreted workflow journals after `vox mens workflow run` (see [`workflow_journal_codex`](../../../crates/vox-cli/src/workflow_journal_codex.rs)). |
 | `VOX_DB_CIRCUIT_BREAKER` | When enabled in [`DbCircuitBreaker::from_env`](../../../crates/vox-db/src/circuit_breaker.rs), gates selected Turso writes (locks, heartbeats, lineage, CAS, sessions, LLM logs, `agent_events`, Codex skills + **`chat_*`** user chat / usage / topics, generic `actor_state`, registry preference wipe, research ingest + capability map, `populi_training_run`, legacy JSONL data rows + `legacy_import_extras`, TOESTUB persistence, schemaless `Collection` document writes, agent memory/knowledge/search/embeddings, publication + scholarly/external jobs + planning + news + mens cloud + questioning, Ludus `gamify_*` / A2A / oplog / Ludus `actor_state`, learning + workflow journal + retention deletes + MCP chat transcripts, build observability + `components` — see `circuit_breaker.rs`). |
 | `VOX_DB_SYNC_INTEGRATION` | Set to `1` with remote URL+token to enable the opt-in [`sync_for(ReplicaLatest)`](../../../crates/vox-db/src/store/open.rs) integration test (`vox-db` `sync_remote_integration.rs`). |
@@ -163,6 +164,23 @@ Wall-time and attention telemetry for information-theoretic clarification (chat,
 | `VOX_MCP_LLM_COST_EVENTS` | When truthy, enables LLM cost telemetry emission ([`infer`](../../../crates/vox-mcp/src/llm_bridge/infer.rs)). |
 | `OLLAMA_HOST` | Upstream Ollama base URL override read by MCP provider metadata ([`metadata`](../../../crates/vox-mcp/src/llm_bridge/providers/metadata.rs)). |
 | `VOX_ORCHESTRATOR_EVENT_LOG` | Path to a **JSONL** file: **`vox-mcp`** appends one JSON object per orchestrator [`AgentEvent`](../../../crates/vox-orchestrator/src/events.rs) when set ([`spawn_orchestrator_event_log_sink`](../../../crates/vox-mcp/src/server/lifecycle.rs)). **`vox live`** can tail the same file when built with the `live` feature. |
+
+## OpenClaw gateway interop (`vox-ars`, `vox openclaw`, script builtins)
+
+| Variable | Role |
+|----------|------|
+| `VOX_OPENCLAW_URL` | OpenClaw HTTP gateway base URL for skill import/list and compatibility calls (default in CLI/adapter codepaths is localhost). |
+| `VOX_OPENCLAW_WS_URL` | OpenClaw Gateway WebSocket control-plane URL (WS-first runtime path for subscribe/notify and generic gateway methods). |
+| `VOX_OPENCLAW_TOKEN` | Optional OpenClaw bearer token; resolves via Clavis (`SecretId::OpenClawToken`) where configured. |
+| `VOX_OPENCLAW_WELL_KNOWN_URL` | Optional explicit upstream discovery endpoint (`/.well-known/openclaw.json`) used to resolve canonical HTTP/WS/catalog URLs. |
+| `VOX_OPENCLAW_CATALOG_LIST_URL` | Optional override for the resolved OpenClaw catalog list endpoint. |
+| `VOX_OPENCLAW_CATALOG_SEARCH_URL` | Optional override for the resolved OpenClaw catalog search endpoint. |
+| `VOX_OPENCLAW_SIDECAR_DISABLE` | When `1`/`true`, skips managed OpenClaw sidecar install during bootstrap/upgrade release flows. |
+| `VOX_OPENCLAW_SIDECAR_EXPECT_VERSION` | Optional operator hint checked by `vox openclaw doctor`; reports match/mismatch against detected sidecar `--version` output. |
+| `VOX_OPENCLAW_SIDECAR_START_MAX_ATTEMPTS` | Optional bounded retry count for `vox openclaw doctor --auto-start` WS readiness checks after spawn/state restore (default `3`). |
+| `VOX_OPENCLAW_SIDECAR_START_BACKOFF_MS` | Optional initial retry backoff in milliseconds for sidecar readiness checks (default `500`, exponential up to cap). |
+
+See also: [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-ssot.md).
 
 **MCP tools (VoxDb required for persistence):** `vox_questioning_pending` (unanswered assistant questions + structured `question_options` and session `belief_state_json`), `vox_questioning_submit_answer`, `vox_questioning_sync_ssot`. Canonical names: [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml). Protocol SSOT: [Information-theoretic questioning](information-theoretic-questioning.md).
 

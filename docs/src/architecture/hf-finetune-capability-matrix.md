@@ -39,3 +39,7 @@ Single control plane: [`crates/vox-populi/src/mens/tensor/finetune_contract.rs`]
 - [HF fine-tune gap matrix](../reference/hf-finetune-gap-matrix.md) — remaining risks vs resolved items (SSOT ↔ code).
 - [Mens LLM PR checklist](mens-llm-pr-checklist.md) — PR gate for LoRA duplication, layouts, parity tiers.
 - ADR 006 / 007 — QLoRA graph scope and qlora-rs API gate.
+
+## Burn production policy
+
+Burn training is held as an opt-in research lane. Promotion to production requires scorecard evidence with explicit backend comparisons (`backend=burn` vs `backend=qlora`) over at least two benchmark cycles, including syntax + semantic KPI deltas and runtime repair KPIs.

@@ -141,8 +141,42 @@ pub async fn reliability_list(domain: &str, limit: i64) -> anyhow::Result<()> {
                 println!("(no records found)");
             }
         }
+        "trust" | "trust-rollups" => {
+            let headers = vec![
+                "EntityType",
+                "EntityID",
+                "Dimension",
+                "Domain",
+                "Score",
+                "Samples",
+                "Model",
+            ];
+            let rows = db
+                .list_trust_rollups(None, None, None, None, limit)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            for h in &headers {
+                print!("{:<20} ", h);
+            }
+            println!();
+            let mut count = 0;
+            for row in rows {
+                print!("{:<20} ", summarize_text(&row.entity_type, 18));
+                print!("{:<20} ", summarize_text(&row.entity_id, 18));
+                print!("{:<20} ", summarize_text(&row.dimension, 18));
+                print!("{:<20} ", summarize_text(&row.domain, 18));
+                print!("{:<20.4} ", row.score);
+                print!("{:<20} ", row.sample_size);
+                print!("{:<20} ", summarize_text(&row.model_id, 18));
+                println!();
+                count += 1;
+            }
+            if count == 0 {
+                println!("(no records found)");
+            }
+        }
         _ => anyhow::bail!(
-            "Unknown reliability domain '{}'. Use endpoints, skills, workflows, or repositories.",
+            "Unknown reliability domain '{}'. Use endpoints, skills, workflows, repositories, or trust.",
             domain
         ),
     }

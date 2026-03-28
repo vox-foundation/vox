@@ -2,7 +2,7 @@
 title: "Orphan surface inventory"
 description: "Official documentation for Orphan surface inventory for the Vox language. Detailed technical reference, architecture guides, and implemen"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: 2026-03-27
 training_eligible: true
 ---
 
@@ -52,6 +52,8 @@ vox-cli
 vox-compiler
 vox-config
 vox-container
+vox-checksum-manifest
+vox-install-policy
 vox-corpus
 vox-db
 vox-dei

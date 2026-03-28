@@ -22,6 +22,13 @@ Use **strict** in CI or when preparing golden corpora so silent data loss is vis
 - **`min_rating`**: pairs below rating threshold are excluded after parse.
 - **`--context-filter`**: retains only rows whose category contains the needle; **empty result** errors (`No training pairs found`).
 - **In-loop skips** (short sequences, curriculum, etc.) are counted in training logs/telemetry; see Candle QLoRA training loop.
+- **Lane metadata contract** (backward compatible):
+  - optional `lane` (`vox_codegen`, `vox_docs_qa`, `vox_tooling`, `vox_speech`),
+  - optional `response_mode` (`code_only`, `prose_only`),
+  - optional `task_family` (freeform short tag).
+  Missing fields are backfilled by corpus mix before write.
+- **Default production lane policy**: code-only by default (`include_lanes: [vox_codegen]` in `mens/config/mix.yaml`).
+  Docs QA/prose rows are excluded unless operators explicitly opt in.
 
 ## Related
 

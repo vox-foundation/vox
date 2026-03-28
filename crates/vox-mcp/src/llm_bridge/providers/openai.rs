@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use super::metadata::HttpCallMetadata;
-use super::types::{OpenAiChatRequest, OpenAiChatResponse, OpenAiMsg, OpenAiUsage};
 use crate::llm_bridge::error::HttpInferError;
+use vox_openai_wire::{
+    ChatCompletionRequest as OpenAiChatRequest, ChatCompletionResponse as OpenAiChatResponse,
+    ChatCompletionUsage as OpenAiUsage, ChatMessageTurn as OpenAiMsg,
+};
 
 pub(crate) async fn http_openai_compatible(
     client: &reqwest::Client,
@@ -111,12 +114,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
         .and_then(|m| m.content)
         .unwrap_or_default();
 
-    let u = parsed.usage.unwrap_or(OpenAiUsage {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        cost: None,
-        total_cost: None,
-    });
+    let u = parsed.usage.unwrap_or_default();
     let provider_reported_cost_usd = u.total_cost.or(u.cost);
     Ok((
         text,

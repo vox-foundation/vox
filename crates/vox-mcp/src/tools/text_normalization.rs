@@ -26,26 +26,7 @@ pub(crate) fn strip_json_codeblock_fence(s: &str) -> String {
 /// Strip ```vox or plain ``` fences around generated `.vox` source.
 #[must_use]
 pub(crate) fn strip_vox_codegen_fence(s: &str) -> String {
-    let block = s.trim();
-    if block.starts_with("```vox") {
-        return block
-            .strip_prefix("```vox")
-            .unwrap_or(block)
-            .strip_suffix("```")
-            .unwrap_or(block)
-            .trim()
-            .to_string();
-    }
-    if block.starts_with("```") {
-        return block
-            .strip_prefix("```")
-            .unwrap_or(block)
-            .strip_suffix("```")
-            .unwrap_or(block)
-            .trim()
-            .to_string();
-    }
-    block.to_string()
+    vox_compiler::generated_vox::strip_vox_codeblock_fence(s)
 }
 
 pub(crate) fn validate_llm_surface(original: &str, corrected: &str) -> bool {
@@ -115,5 +96,40 @@ pub(crate) fn llm_confidence_field_ok(v: &Value) -> bool {
     match v.get("confidence") {
         None => true,
         Some(c) => c.as_f64().is_some_and(|x| (0.0..=1.0).contains(&x)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_vox_codegen_fence;
+
+    #[test]
+    fn strips_vox_fence() {
+        let input = "```vox\nactor Ping { state n: i32 }\n```";
+        assert_eq!(
+            strip_vox_codegen_fence(input),
+            "actor Ping { state n: i32 }"
+        );
+    }
+
+    #[test]
+    fn leaves_plain_code_unchanged() {
+        let input = "actor Pong { state n: i32 }";
+        assert_eq!(strip_vox_codegen_fence(input), input);
+    }
+
+    #[test]
+    fn strips_mixed_prose_and_fence() {
+        let input = "Here is code:\n```vox\nactor A { state n: i32 }\n```";
+        assert_eq!(
+            strip_vox_codegen_fence(input),
+            "Here is code:\n```vox\nactor A { state n: i32 }\n```"
+        );
+    }
+
+    #[test]
+    fn handles_malformed_fence_block() {
+        let input = "```vox\nactor Broken {";
+        assert_eq!(strip_vox_codegen_fence(input), input);
     }
 }

@@ -7,6 +7,7 @@ use futures_util::Stream;
 use crate::ai::constants::*;
 use crate::ai::error::AiError;
 use crate::ai::fallback::deterministic_response;
+use crate::ai::keys::{resolve_gemini_key, resolve_openrouter_key};
 use crate::ai::provider::FreeAiProvider;
 use crate::ai::validate::urlencode;
 
@@ -65,11 +66,7 @@ impl FreeAiClient {
         model: &str,
         prompt: &str,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
-        let resolved_key = if api_key.is_empty() {
-            std::env::var("GEMINI_API_KEY").unwrap_or_default()
-        } else {
-            api_key.to_string()
-        };
+        let resolved_key = resolve_gemini_key(api_key);
 
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:streamGenerateContent?key={}",
@@ -109,6 +106,91 @@ impl FreeAiClient {
         })
     }
 
+    /// OpenRouter chat completions with `stream: true` (SSE `data:` lines).
+    pub(crate) fn stream_openrouter(
+        http: &reqwest::Client,
+        api_key: &str,
+        model: &str,
+        prompt: &str,
+    ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
+        let http = http.clone();
+        let model = model.to_string();
+        let prompt = prompt.to_string();
+        let api_key = api_key.to_string();
+        Box::pin(async_stream::try_stream! {
+            let resolved_key = if api_key.is_empty() {
+                std::env::var("OPENROUTER_API_KEY").unwrap_or_default()
+            } else {
+                api_key
+            };
+            if resolved_key.is_empty() {
+                Err(AiError::AllProvidersFailed(
+                    "OPENROUTER_API_KEY not set".to_string(),
+                ))?;
+            }
+            let body = serde_json::json!({
+                "model": &model,
+                "messages": [{ "role": "user", "content": &prompt }],
+                "max_tokens": 512u32,
+                "stream": true,
+            });
+            let resp = http
+                .post(OPENROUTER_BASE)
+                .header("Authorization", format!("Bearer {}", resolved_key))
+                .header("HTTP-Referer", "https://github.com/vox-foundation/vox")
+                .header("X-Title", "Vox Gamify")
+                .header(reqwest::header::ACCEPT, "text/event-stream")
+                .json(&body)
+                .send()
+                .await
+                .map_err(AiError::Http)?;
+            let status = resp.status();
+            if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                let retry_after = resp
+                    .headers()
+                    .get(reqwest::header::RETRY_AFTER)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse().ok());
+                Err(AiError::RateLimited {
+                    provider: format!("openrouter:{}", model),
+                    retry_after_secs: retry_after,
+                })?;
+            }
+            let mut bytes_stream = if status.is_success() {
+                resp.bytes_stream()
+            } else {
+                let body_txt = resp.text().await.unwrap_or_default();
+                Err(AiError::AllProvidersFailed(format!(
+                    "OpenRouter stream HTTP {} {}",
+                    status, body_txt
+                )))?
+            };
+            use vox_openai_sse::{Utf8LineBuffer, sse_data_line_delta};
+            let mut line_buf = Utf8LineBuffer::new();
+            while let Some(item) = bytes_stream.next().await {
+                let chunk: Bytes = item.map_err(AiError::Http)?;
+                let mut emitted: Vec<String> = Vec::new();
+                line_buf.push_lossy_bytes(&chunk, |line| {
+                    if let Some(t) = sse_data_line_delta(line) {
+                        emitted.push(t);
+                    }
+                });
+                for t in emitted {
+                    yield t;
+                }
+            }
+            let mut tail_emit: Vec<String> = Vec::new();
+            line_buf.flush_trailing(|line| {
+                if let Some(t) = sse_data_line_delta(line) {
+                    tail_emit.push(t);
+                }
+            });
+            for t in tail_emit {
+                yield t;
+            }
+        })
+    }
+
     pub(crate) async fn call_provider_static(
         http: &reqwest::Client,
         provider: &FreeAiProvider,
@@ -139,14 +221,10 @@ impl FreeAiClient {
         models: &[String],
         prompt: &str,
     ) -> Result<String, AiError> {
-        let resolved_key = if api_key.is_empty() {
-            std::env::var("OPENROUTER_API_KEY").unwrap_or_default()
-        } else {
-            api_key.to_string()
-        };
+        let resolved_key = resolve_openrouter_key(api_key);
         if resolved_key.is_empty() {
             return Err(AiError::AllProvidersFailed(
-                "OPENROUTER_API_KEY not set".to_string(),
+                "OpenRouter API key not set (configure Clavis or OPENROUTER_API_KEY)".to_string(),
             ));
         }
         let model_list: Vec<&str> = if models.is_empty() {
@@ -299,11 +377,7 @@ impl FreeAiClient {
         model: &str,
         prompt: &str,
     ) -> Result<String, AiError> {
-        let resolved_key = if api_key.is_empty() {
-            std::env::var("GEMINI_API_KEY").unwrap_or_default()
-        } else {
-            api_key.to_string()
-        };
+        let resolved_key = resolve_gemini_key(api_key);
         let url = GEMINI_ENDPOINT_TEMPLATE
             .replace("{MODEL}", model)
             .replace("{KEY}", &resolved_key);

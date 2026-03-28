@@ -18,6 +18,9 @@ pub enum HandoffInvariantError {
     /// Pending tasks require at least one verification criterion for the receiver.
     #[error("handoff with pending tasks must include at least one verification criterion")]
     MissingVerificationCriteria,
+    /// Campaign role handoff should preserve role metadata for pending work.
+    #[error("handoff with pending tasks should include execution_role metadata")]
+    MissingExecutionRoleMetadata,
 }
 
 /// A single step in the execution history preserved during handoff.
@@ -229,6 +232,11 @@ pub fn validate_handoff_invariants(payload: &HandoffPayload) -> Result<(), Hando
     if !payload.pending_tasks.is_empty() && payload.verification_criteria.is_empty() {
         return Err(HandoffInvariantError::MissingVerificationCriteria);
     }
+    if !payload.pending_tasks.is_empty()
+        && !payload.metadata.iter().any(|(k, _)| k == "execution_role")
+    {
+        return Err(HandoffInvariantError::MissingExecutionRoleMetadata);
+    }
     Ok(())
 }
 
@@ -273,20 +281,24 @@ mod tests {
             .with_pending(vec![TaskId(3)])
             .with_files(vec![PathBuf::from("src/parser.rs")])
             .with_context("The parser has 3 failing tests")
-            .with_metadata("priority", "high");
+            .with_metadata("priority", "high")
+            .with_metadata("execution_role", "builder")
+            .with_verification_criteria(vec!["cargo check -p vox-orchestrator".to_string()]);
 
         assert_eq!(payload.from_agent, AgentId(1));
         assert_eq!(payload.to_agent, Some(AgentId(2)));
         assert_eq!(payload.completed_tasks.len(), 2);
         assert_eq!(payload.pending_tasks.len(), 1);
         assert_eq!(payload.owned_files.len(), 1);
-        assert_eq!(payload.metadata.len(), 1);
+        assert_eq!(payload.metadata.len(), 2);
     }
 
     #[test]
     fn json_roundtrip() {
         let payload = HandoffPayload::new(AgentId(1), None, "Implement type checker")
-            .with_pending(vec![TaskId(10)]);
+            .with_pending(vec![TaskId(10)])
+            .with_metadata("execution_role", "verifier")
+            .with_verification_criteria(vec!["run targeted tests".to_string()]);
 
         let json = payload.to_json();
         let back = HandoffPayload::from_json(&json).expect("deserialize");
@@ -298,7 +310,9 @@ mod tests {
     fn markdown_output() {
         let payload = HandoffPayload::new(AgentId(1), Some(AgentId(2)), "Fix bugs")
             .with_completed(vec![TaskId(1)])
-            .with_pending(vec![TaskId(2), TaskId(3)]);
+            .with_pending(vec![TaskId(2), TaskId(3)])
+            .with_metadata("execution_role", "builder")
+            .with_verification_criteria(vec!["verify bugfix".to_string()]);
 
         let md = payload.to_markdown();
         assert!(md.contains("# Handoff from A-01"));
@@ -333,6 +347,25 @@ mod tests {
             HandoffPayload::new(AgentId(1), None, "Work left").with_pending(vec![TaskId(1)]);
         let err = execute_handoff(&payload, &bus).unwrap_err();
         assert_eq!(err, HandoffInvariantError::MissingVerificationCriteria);
+    }
+
+    #[test]
+    fn handoff_pending_requires_execution_role_metadata() {
+        let bus = EventBus::new(4);
+        let payload = HandoffPayload::new(AgentId(1), None, "Work left")
+            .with_pending(vec![TaskId(1)])
+            .with_verification_criteria(vec!["verify".to_string()]);
+        let err = execute_handoff(&payload, &bus).unwrap_err();
+        assert_eq!(err, HandoffInvariantError::MissingExecutionRoleMetadata);
+    }
+
+    #[test]
+    fn validate_handoff_invariants_ok_when_pending_has_role_and_criteria() {
+        let payload = HandoffPayload::new(AgentId(1), None, "Work left")
+            .with_pending(vec![TaskId(1)])
+            .with_metadata("execution_role", "builder")
+            .with_verification_criteria(vec!["verify outputs".to_string()]);
+        assert!(validate_handoff_invariants(&payload).is_ok());
     }
 
     #[test]

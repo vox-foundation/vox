@@ -19,6 +19,9 @@ pub enum CiCmd {
     /// Validate `contracts/index.yaml` against JSON Schema and listed file paths.
     #[command(name = "contracts-index")]
     ContractsIndex,
+    /// Validate OpenClaw gateway protocol fixture contracts.
+    #[command(name = "openclaw-contract")]
+    OpenClawContract,
     /// Validate `publication-worthiness.default.yaml` against its JSON Schema + numeric invariants.
     #[command(name = "scientia-worthiness-contract")]
     ScientiaWorthinessContract,
@@ -50,6 +53,13 @@ pub enum CiCmd {
         /// Subcommand execution variant.
         #[command(subcommand)]
         cmd: EvalMatrixCmd,
+    },
+    /// Mens model scorecard harness (`contracts/eval/mens-scorecard*.json`).
+    #[command(name = "mens-scorecard")]
+    MensScorecard {
+        /// Subcommand execution variant.
+        #[command(subcommand)]
+        cmd: MensScorecardCmd,
     },
     /// Fail if workflow YAML references `scripts/` paths not in the allowlist file.
     #[command(name = "workflow-scripts")]
@@ -295,5 +305,54 @@ pub enum EvalMatrixCmd {
         /// Restrict to one milestone `id` from the matrix (e.g. `m3-dei-contracts`).
         #[arg(long)]
         milestone: Option<String>,
+    },
+}
+
+/// Subcommands for [`CiCmd::MensScorecard`].
+#[derive(Subcommand)]
+pub enum MensScorecardCmd {
+    /// Validate scorecard spec against `contracts/eval/mens-scorecard.schema.json`.
+    Verify {
+        /// Benchmark spec path (repo-relative unless absolute).
+        #[arg(long, default_value = "contracts/eval/mens-scorecard.baseline.json")]
+        spec: PathBuf,
+    },
+    /// Execute scorecard benchmark and emit artifacts (`events.jsonl`, `summary.json`).
+    Run {
+        /// Benchmark spec path (repo-relative unless absolute).
+        #[arg(long, default_value = "contracts/eval/mens-scorecard.baseline.json")]
+        spec: PathBuf,
+        /// Optional output directory; default `mens/eval/runs/<utc_ts>`.
+        #[arg(long)]
+        out_dir: Option<PathBuf>,
+    },
+    /// Apply custom-model go/no-go threshold policy from one or more summary files.
+    Decide {
+        /// Summary JSON paths from prior `mens-scorecard run`.
+        #[arg(long = "summary", required = true)]
+        summaries: Vec<PathBuf>,
+        /// Print machine-readable JSON only.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Evaluate Burn R&D expected-value role against QLoRA summaries.
+    #[command(name = "burn-rnd")]
+    BurnRnd {
+        /// Baseline QLoRA summary JSON.
+        #[arg(long)]
+        qlora_summary: PathBuf,
+        /// Optional Burn/scratch summary JSON.
+        #[arg(long)]
+        burn_summary: Option<PathBuf>,
+        /// Print machine-readable JSON only.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Ingest `summary.json` from a scorecard run into VoxDb trust observations (needs Turso/Arca).
+    #[command(name = "ingest-trust")]
+    IngestTrust {
+        /// Summary JSON path (repo-relative unless absolute).
+        #[arg(long = "summary")]
+        summary: PathBuf,
     },
 }

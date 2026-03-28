@@ -3,7 +3,12 @@
 //! All `#[derive(Deserialize)]` structs accepted by tool handlers live here.
 //! All `#[derive(Serialize)]` response types live here.
 //! The generic [`ToolResult<T>`] envelope lives here.
+//!
+//! Tool [`input_schema`](crate::tools::input_schemas::tool_input_schema) is generated with
+//! [`schemars::JsonSchema`] for most shapes; hand-tuned JSON remains for `Value`-parsed or
+//! `anyOf`-heavy tools (see comments in `input_schemas.rs`).
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -38,6 +43,17 @@ impl<T: Serialize> ToolResult<T> {
             error: None,
             remediation: None,
             meta: None,
+        }
+    }
+
+    /// Successful [`ToolResult`] with additional machine-readable metadata.
+    pub fn ok_with_meta(data: T, meta: serde_json::Value) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+            remediation: None,
+            meta: Some(meta),
         }
     }
 
@@ -133,19 +149,33 @@ mod tool_result_tests {
 // File / task request types
 // ---------------------------------------------------------------------------
 
+/// Read vs write access for a [`FileSpec`] (MCP + task affinity).
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum FileAccess {
+    /// Read-only affinity hint.
+    Read,
+    /// Read/write affinity hint.
+    Write,
+}
+
 /// File path and access mode for task affinity.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct FileSpec {
     /// Workspace-relative or absolute file path.
+    #[schemars(length(min = 1, max = 4096))]
     pub path: String,
-    /// Access mode, e.g. `"read"` or `"write"`.
-    pub access: String,
+    /// Access mode (`read` or `write`).
+    pub access: FileAccess,
 }
 
 /// Arguments for submitting a new orchestrator task.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct SubmitTaskParams {
     /// Natural-language task description.
+    #[schemars(length(min = 1, max = 131072))]
     pub description: String,
     /// Files this task may touch (drives locking and routing).
     pub files: Vec<FileSpec>,
@@ -169,6 +199,30 @@ pub struct SubmitTaskParams {
     /// Optional retrieval envelope to seed Socrates task context.
     #[serde(default)]
     pub retrieval: Option<crate::memory::RetrievalEvidenceEnvelope>,
+    /// Optional task category for model routing (`parsing`, `type_checking`, `debugging`, `research`, `testing`, `codegen`, `review`).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub task_category: Option<String>,
+    /// Optional complexity 1–10 (clamped when applied to the task).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 10))]
+    pub complexity: Option<u8>,
+    /// Optional model preference string (non-binding hint on the task).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub model_preference: Option<String>,
+    /// Optional model override id for labeling and routing hints.
+    #[serde(default)]
+    #[schemars(length(max = 512))]
+    pub model_override: Option<String>,
+    /// Optional explicit reconstruction campaign id (preferred over description tags).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub campaign_id: Option<String>,
+    /// Optional reconstruction benchmark tier (`issue_repair`, `subsystem_regen`, `crate_regen`, `repo_regen`).
+    #[serde(default)]
+    #[schemars(length(max = 64))]
+    pub benchmark_tier: Option<String>,
 }
 
 /// Identifier payload returned after a successful [`SubmitTaskParams`] submission.
@@ -193,21 +247,44 @@ pub struct SubmitTaskResponse {
 }
 
 /// Query the status of a single task by id.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct TaskStatusParams {
     /// Task id to look up.
     pub task_id: u64,
 }
 
 /// Mark a task completed.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct CompleteTaskParams {
     /// Task id to complete.
     pub task_id: u64,
+    /// Optional summary of what was completed.
+    #[serde(default)]
+    #[schemars(length(max = 131072))]
+    pub completion_summary: Option<String>,
+    /// Optional list of checks that were run before completion.
+    #[serde(default)]
+    pub checks_passed: Vec<String>,
+    /// Optional task artifacts to validate (workspace-relative preferred).
+    #[serde(default)]
+    pub artifact_paths: Vec<String>,
+    /// Explicit declaration that the completion avoids placeholder/stub output.
+    #[serde(default)]
+    pub declared_non_placeholder: bool,
+    /// Allow risky completion with explicit reason (audited).
+    #[serde(default)]
+    pub force_risky: bool,
+    /// Required when `force_risky` is true.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub force_risky_reason: Option<String>,
 }
 
 /// Mark a task failed with a reason string.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct FailTaskParams {
     /// Task id to fail.
     pub task_id: u64,
@@ -223,7 +300,8 @@ pub struct CancelTaskParams {
 }
 
 /// Change priority of a queued task.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ReorderTaskParams {
     /// Task id to reorder.
     pub task_id: u64,
@@ -232,30 +310,36 @@ pub struct ReorderTaskParams {
 }
 
 /// Remove all queued work from an agent without retiring it.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct DrainAgentParams {
     /// Target agent id.
     pub agent_id: u64,
 }
 
 /// Bind an external session id to an orchestrator agent.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct MapAgentSessionParams {
     /// Agent id to update.
     pub agent_id: u64,
     /// Opaque session identifier from the client.
+    #[schemars(length(min = 1, max = 2048))]
     pub session_id: String,
 }
 
 /// Validate a `.vox` source file through the compiler pipeline.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ValidateFileParams {
     /// Path to the `.vox` file.
+    #[schemars(length(min = 1))]
     pub path: String,
 }
 
 /// Run `cargo test` for one crate with an optional name filter.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct RunTestsParams {
     /// Cargo package name (`-p` target).
     pub crate_name: String,
@@ -263,8 +347,72 @@ pub struct RunTestsParams {
     pub test_filter: Option<String>,
 }
 
-/// Publish a bulletin-board style message (orchestrator-internal).
+/// Optional Cargo `-p` target for workspace-level build / lint / coverage tools.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OptionalCrateNameParams {
+    /// Cargo package name or omit for entire workspace.
+    pub crate_name: Option<String>,
+}
+
+/// Generic OpenClaw gateway call payload.
 #[derive(Debug, Deserialize)]
+pub struct OpenClawGatewayCallParams {
+    /// Gateway method name, e.g. `subscriptions.list`.
+    pub method: String,
+    /// JSON params object passed through to the gateway.
+    #[serde(default)]
+    pub params: serde_json::Value,
+}
+
+/// Single-domain OpenClaw operation payload.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawDomainParams {
+    /// OpenClaw domain identifier.
+    #[schemars(length(min = 1))]
+    pub domain: String,
+}
+
+/// OpenClaw notify payload.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawNotifyParams {
+    /// OpenClaw domain identifier.
+    #[schemars(length(min = 1))]
+    pub domain: String,
+    /// Free-form domain message.
+    #[schemars(length(min = 1))]
+    pub message: String,
+}
+
+/// Search remote OpenClaw skills by query.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawSearchParams {
+    /// Case-insensitive keyword query.
+    #[schemars(length(min = 1))]
+    pub query: String,
+}
+
+/// Import an OpenClaw skill by slug.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawImportParams {
+    /// Skill slug to import.
+    pub slug: String,
+    /// Whether to install into local skill registry (default true).
+    #[serde(default = "default_true")]
+    pub install: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Publish a bulletin-board style message (orchestrator-internal).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PublishMessageParams {
     /// Message body to publish.
     pub message: String,
@@ -307,16 +455,19 @@ pub struct OrchestratorRuntimeProbe {
 }
 
 /// Spawn a new orchestrator agent queue.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct SpawnAgentParams {
     /// Display name for the agent / queue.
+    #[schemars(length(min = 1, max = 256))]
     pub name: String,
     /// When true, use [`Orchestrator::spawn_dynamic_agent`] (auto-retire when idle).
     pub dynamic: Option<bool>,
 }
 
 /// Single `agent_id` argument for lifecycle helpers.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct AgentIdToolParams {
     /// Target agent id.
     pub agent_id: u64,

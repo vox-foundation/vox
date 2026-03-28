@@ -12,8 +12,8 @@ use vox_publisher::scholarly_external_jobs::{
 use super::common::default_one_u32;
 use super::common::{
     REM_PUBLICATION_ID, REM_SCIENTIA_ARXIV, REM_SCIENTIA_DB, REM_SCIENTIA_EXT_SUBMIT,
-    REM_SCIENTIA_OUTPUT_DIR, REM_SCIENTIA_REMOTE, REM_SCIENTIA_STAGE, no_voxdb_tool_string,
-    publication_manifest_from_row,
+    REM_SCIENTIA_METADATA, REM_SCIENTIA_OUTPUT_DIR, REM_SCIENTIA_REMOTE, REM_SCIENTIA_STAGE,
+    no_voxdb_tool_string, publication_manifest_from_row,
 };
 use super::lifecycle::PreflightProfileParam;
 
@@ -294,7 +294,24 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let report = vox_publisher::publication_preflight::run_preflight(&manifest, profile);
+    let report = match super::lifecycle::publication_preflight_report_for_row(
+        db,
+        &row,
+        &manifest,
+        profile,
+        state.orchestrator_config.news.dry_run,
+        state.orchestrator_config.news.publish_armed,
+        &state.repository.root,
+        Some(state.repository.repository_id.as_str()),
+        false,
+    )
+    .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e, REM_SCIENTIA_METADATA).to_json();
+        }
+    };
     if !report.ok {
         return ToolResult::<String>::err_with_remediation(
             format!(

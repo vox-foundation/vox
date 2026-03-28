@@ -67,36 +67,37 @@ fn merge_openreview_config(
 
     if let Some(meta) = manifest.metadata_json.as_deref()
         && let Ok(root) = serde_json::from_str::<ManifestMetadataOpenReviewRoot>(meta)
-            && let Some(or) = root.openreview {
-                if invitation.is_empty()
-                    && let Some(s) = or
-                        .invitation
-                        .as_deref()
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                    {
-                        invitation = s.to_string();
-                    }
-                if signature.is_empty()
-                    && let Some(s) = or
-                        .signature
-                        .as_deref()
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                    {
-                        signature = s.to_string();
-                    }
-                if let Some(r) = or.readers.filter(|x| !x.is_empty()) {
-                    let r: Vec<String> = r
-                        .into_iter()
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                    if !r.is_empty() {
-                        readers = Some(r);
-                    }
-                }
+        && let Some(or) = root.openreview
+    {
+        if invitation.is_empty()
+            && let Some(s) = or
+                .invitation
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+        {
+            invitation = s.to_string();
+        }
+        if signature.is_empty()
+            && let Some(s) = or
+                .signature
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+        {
+            signature = s.to_string();
+        }
+        if let Some(r) = or.readers.filter(|x| !x.is_empty()) {
+            let r: Vec<String> = r
+                .into_iter()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if !r.is_empty() {
+                readers = Some(r);
             }
+        }
+    }
 
     if invitation.is_empty() {
         return Err(ScholarlyError::Config {

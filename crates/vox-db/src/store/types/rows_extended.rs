@@ -23,6 +23,23 @@ pub struct EndpointReliabilityEntry {
     pub updated_at_ms: i64,
 }
 
+/// One row from `trust_rollups`.
+#[derive(Debug, Clone)]
+pub struct TrustRollupEntry {
+    pub entity_type: String,
+    pub entity_id: String,
+    pub dimension: String,
+    pub domain: String,
+    pub task_class: String,
+    pub provider: String,
+    pub model_id: String,
+    pub repository_id: String,
+    pub score: f64,
+    pub sample_size: u64,
+    pub ewma_alpha: f64,
+    pub updated_at_ms: i64,
+}
+
 /// A single training data row exported from the database for Mens.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CorpusRow {

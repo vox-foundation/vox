@@ -371,6 +371,7 @@ mod orch_smoke {
                 None,
                 None,
                 None,
+                None,
             )
             .await
             .expect("submit goal");
@@ -391,6 +392,7 @@ mod orch_smoke {
                 None,
                 Some(crate::planning::PlanningMode::ForcePlan),
                 Some("s1".to_string()),
+                None,
             )
             .await
             .expect("submit planned goal");
@@ -480,6 +482,7 @@ mod orch_smoke {
                 None,
                 Some(crate::planning::PlanningMode::ForcePlan),
                 Some("plan-dag-test".into()),
+                None,
             )
             .await
             .expect("planned goal");

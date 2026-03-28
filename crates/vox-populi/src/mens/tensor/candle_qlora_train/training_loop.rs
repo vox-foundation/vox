@@ -189,6 +189,8 @@ pub(super) enum MaskedCeForward {
     Finite {
         loss: candle_core::Tensor,
         loss_scalar: f32,
+        supervised_tokens: u64,
+        theoretical_tokens: u64,
     },
 }
 
@@ -258,7 +260,12 @@ pub(super) fn forward_masked_ce(
         return Ok(MaskedCeForward::NonFinite { kind, mask_sum });
     }
 
-    Ok(MaskedCeForward::Finite { loss, loss_scalar })
+    Ok(MaskedCeForward::Finite {
+        loss,
+        loss_scalar,
+        supervised_tokens: mask_sum.max(0.0) as u64,
+        theoretical_tokens: (ids_len.saturating_sub(1)) as u64,
+    })
 }
 
 pub(super) fn qlora_forward_logits_smoke(
@@ -480,6 +487,7 @@ pub(super) fn run_training_loop(
     let mut total_loss_sum = 0.0f64;
     let mut total_step_count: u32 = 0;
     let mut total_tokens: usize = 0;
+    let mut last_avg_val_loss: Option<f64> = None;
     let grad_accum = config.grad_accum.max(1) as u32;
     let mut skip_no_supervised_positions: u64 = 0;
     let mut skip_short_seq: u64 = 0;
@@ -488,6 +496,8 @@ pub(super) fn run_training_loop(
     let mut token_oob_warned = false;
     let mut trajectory_weighted_pairs: u64 = 0;
     let mut trajectory_clamped_pairs: u64 = 0;
+    let mut total_valid_tokens: u64 = 0;
+    let mut total_theoretical_tokens: u64 = 0;
 
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
@@ -621,10 +631,18 @@ pub(super) fn run_training_loop(
                         ));
                         Ok(None)
                     }
-                    MaskedCeForward::Finite { loss, loss_scalar } => {
+                    MaskedCeForward::Finite {
+                        loss,
+                        loss_scalar,
+                        supervised_tokens,
+                        theoretical_tokens,
+                    } => {
                         trainer
                             .backward_step(&loss)
                             .map_err(|e| anyhow::anyhow!("{e}"))?;
+                        total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
+                        total_theoretical_tokens =
+                            total_theoretical_tokens.saturating_add(theoretical_tokens);
 
                         lr_applied_this_step = trainer.current_lr();
 
@@ -734,6 +752,10 @@ pub(super) fn run_training_loop(
                     trajectory_weighted_pairs,
                     trajectory_clamped_pairs,
                     ema_steps_per_sec,
+                    total_valid_tokens,
+                    total_theoretical_tokens,
+                    config.batch_size.max(1) as u64,
+                    config.seq_len as u64,
                 );
                 telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;
                 progress_anchor_step = optimizer_step_count;
@@ -804,6 +826,9 @@ pub(super) fn run_training_loop(
             system_prompt,
             config,
         );
+        if val_steps > 0 {
+            last_avg_val_loss = Some(val_loss_sum / val_steps as f64);
+        }
 
         // ── Epoch boundary: summary + checkpoint ──────────────────────────────
         super::epoch_boundary::finish_epoch(
@@ -838,6 +863,7 @@ pub(super) fn run_training_loop(
         total_tokens,
         total_step_count,
         total_loss_sum,
+        last_avg_val_loss,
         TrainingLoopStats {
             skip_no_supervised_positions,
             skip_short_seq,
@@ -928,16 +954,32 @@ fn build_train_step_payload(
     trajectory_weighted_pairs: u64,
     trajectory_clamped_pairs: u64,
     ema_steps_per_sec: Option<f64>,
+    total_valid_tokens: u64,
+    total_theoretical_tokens: u64,
+    batch_size: u64,
+    seq_len: u64,
 ) -> serde_json::Value {
+    let supervised_ratio_pct = if total_theoretical_tokens == 0 {
+        0.0
+    } else {
+        (total_valid_tokens as f64 / total_theoretical_tokens as f64) * 100.0
+    };
+    let token_throughput_proxy = ema_steps_per_sec.map(|s| s * batch_size as f64 * seq_len as f64);
     serde_json::json!({
         telemetry_schema::keys::EPOCH: epoch,
         telemetry_schema::keys::STEP: global_step,
         "optimizer_step": optimizer_step_count,
         telemetry_schema::keys::LOSS: loss_val,
         telemetry_schema::keys::LR: lr_applied_this_step,
+        telemetry_schema::keys::LEARNING_RATE: lr_applied_this_step,
         telemetry_schema::keys::ETA_SECONDS_REMAINING: eta_s,
         telemetry_schema::keys::PROGRESS_FRACTION: optimizer_step_count as f64 / total_optimizer_steps_planned.max(1) as f64,
         telemetry_schema::keys::STEPS_PER_SEC_EMA: ema_steps_per_sec,
+        telemetry_schema::keys::TOKENS_PER_SEC: token_throughput_proxy,
+        telemetry_schema::keys::TOKENS_PER_SEC_IS_PROXY: true,
+        telemetry_schema::keys::VALID_TOKENS: total_valid_tokens,
+        telemetry_schema::keys::THEORETICAL_TOKENS: total_theoretical_tokens,
+        telemetry_schema::keys::SUPERVISED_RATIO_PCT: supervised_ratio_pct,
         "skip_no_supervised_positions": skip_no_supervised_positions,
         "skip_short_seq": skip_short_seq,
         "skip_curriculum": skip_curriculum,
@@ -1080,6 +1122,10 @@ mod tests {
             6,
             3,
             Some(2.2),
+            128,
+            256,
+            2,
+            128,
         );
         assert_eq!(
             payload.get("skip_token_id_oob").and_then(|v| v.as_u64()),

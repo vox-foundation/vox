@@ -29,8 +29,8 @@ fn render_generated_md(reg: &RegistryFile) -> String {
             .filter(|o| o.surface == "vox-cli")
             .count()
     ));
-    out.push_str("| Path | Status | Feature gate | Latin ns | Catalog group |\n");
-    out.push_str("|------|--------|--------------|----------|----------------|\n");
+    out.push_str("| Path | Status | Feature gate | Latin ns | Product lane | Catalog group |\n");
+    out.push_str("|------|--------|--------------|----------|--------------|----------------|\n");
     let mut ops: Vec<_> = reg
         .operations
         .iter()
@@ -41,10 +41,11 @@ fn render_generated_md(reg: &RegistryFile) -> String {
         let path = op.path.join(" ");
         let gate = op.feature_gate.as_deref().unwrap_or("—");
         let latin = op.latin_ns.as_deref().unwrap_or("—");
+        let lane = op.product_lane.as_deref().unwrap_or("—");
         let cg = op.catalog_group.as_deref().unwrap_or("—");
         out.push_str(&format!(
-            "| `vox {}` | {} | {} | {} | {} |\n",
-            path, op.status, gate, latin, cg
+            "| `vox {}` | {} | {} | {} | {} | {} |\n",
+            path, op.status, gate, latin, lane, cg
         ));
     }
     out

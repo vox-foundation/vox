@@ -106,6 +106,8 @@ pub mod qa;
 pub mod queue;
 /// Load-based agent scale-up/down suggestions.
 pub mod rebalance;
+/// Reconstruction campaign tiers, evidence scoring, and resumable campaign state.
+pub mod reconstruction;
 /// JSON schemas for persisted orchestrator artifacts.
 pub mod schema;
 /// Task path scopes and enforcement guards.
@@ -190,6 +192,10 @@ pub use planning::{
     PlanningStrategy, PlanningTaskMeta, ReplanTrigger, RouterEvaluation,
 };
 pub use populi_federation::{PopuliNodeBrief, RemotePopuliRoutingHint, RemotePopuliSnapshot};
+pub use reconstruction::{
+    AgentExecutionRole, CampaignMemorySnapshot, ReconstructionBenchmarkTier,
+    ReconstructionEvidence, VerificationLayerStatus, campaign_context_prefix,
+};
 pub use scope::{ScopeCheckResult, ScopeEnforcement, ScopeGuard};
 pub use security::{
     AuditEntry, AuditLog, AuditResult, PolicyRule, SecurityAction, SecurityGuard, SecurityPolicy,
@@ -207,9 +213,9 @@ pub use socrates::{
 pub use summary::SummaryManager;
 pub use types::{
     A2AMessage, A2AMessageType, AccessKind, AgentId, AgentIdGenerator, AgentMessage, AgentTask,
-    BatchId, CorrelationId, CorrelationIdGenerator, FileAffinity, MessageEnvelope, MessageId,
-    MessagePriority, TaskCategory, TaskDescriptor, TaskId, TaskIdGenerator, TaskPriority,
-    TaskStatus, ThreadId, VcsContext, now_unix_ms,
+    BatchId, CompletionAttestation, CorrelationId, CorrelationIdGenerator, FileAffinity,
+    MessageEnvelope, MessageId, MessagePriority, TaskCategory, TaskDescriptor, TaskEnqueueHints,
+    TaskId, TaskIdGenerator, TaskPriority, TaskStatus, ThreadId, VcsContext, now_unix_ms,
 };
 
 pub use usage::LlmUsageKey;

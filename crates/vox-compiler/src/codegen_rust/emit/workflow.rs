@@ -76,12 +76,14 @@ pub fn emit_lib(module: &HirModule) -> String {
         }
     }
 
-    // Workflows (async functions with durable execution semantics)
+    // Workflows currently lower to plain async functions. Durable replay/journaling lives in the
+    // interpreted workflow runtime, not in generated Rust state-machine code yet.
     for workflow in &module.workflows {
         out.push_str(&emit_workflow(workflow));
     }
 
-    // Activities (async functions with retry/timeout support)
+    // Activities currently lower to plain async functions. Retry/timeout semantics come from
+    // interpreted runtime paths and `with` helpers, not full native durable codegen yet.
     for activity in &module.activities {
         out.push_str(&emit_activity(activity));
     }
@@ -164,7 +166,7 @@ fn emit_activity(func: &HirActivity) -> String {
 
 fn emit_workflow(wf: &HirWorkflow) -> String {
     let mut out = String::new();
-    // Workflows are async public functions (orchestrators of activities)
+    // Workflows are currently emitted as async public functions (orchestrators of activities).
     out.push_str(&format!("pub async fn {}(", wf.name));
     for param in &wf.params {
         out.push_str(&format!(
@@ -257,11 +259,17 @@ fn emit_actor(actor: &HirActor) -> String {
                         value: Some(val), ..
                     } => {
                         let val_str = emit_expr(val);
-                        out.push_str(&format!("                                    serde_json::to_string(&({})).unwrap_or_default()\n", val_str));
+                        out.push_str(&format!(
+                            "                                    match serde_json::to_string(&({})) {{ Ok(s) => s, Err(e) => format!(\"{{\\\"error\\\":\\\"{{}}\\\"}}\", e) }}\n",
+                            val_str
+                        ));
                     }
                     HirStmt::Expr { expr, .. } => {
                         let val_str = emit_expr(expr);
-                        out.push_str(&format!("                                    serde_json::to_string(&({})).unwrap_or_default()\n", val_str));
+                        out.push_str(&format!(
+                            "                                    match serde_json::to_string(&({})) {{ Ok(s) => s, Err(e) => format!(\"{{\\\"error\\\":\\\"{{}}\\\"}}\", e) }}\n",
+                            val_str
+                        ));
                     }
                     _ => {
                         out.push_str(&emit_stmt(last, 10, false, true, false));
@@ -330,7 +338,7 @@ fn emit_actor(actor: &HirActor) -> String {
                 )
             ));
         }
-        out.push_str(") -> String {\n");
+        out.push_str(") -> Result<String, vox_runtime::CallError> {\n");
         out.push_str(&format!(
             "        let msg = {}::{} {{ ",
             msg_enum,
@@ -341,7 +349,7 @@ fn emit_actor(actor: &HirActor) -> String {
         }
         out.push_str("};\n");
         out.push_str("        let payload = vox_runtime::MessagePayload::Json(serde_json::to_string(&msg).expect(\"vox codegen: actor message JSON\"));\n");
-        out.push_str("        self.handle.call(payload).await.unwrap_or_else(|e| format!(\"Actor error: {}\", e))\n");
+        out.push_str("        self.handle.call(payload).await\n");
         out.push_str("    }\n");
     }
     out.push_str("}\n\n");
@@ -354,5 +362,39 @@ fn capitalize(s: &str) -> String {
     match c.next() {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_lib;
+    use crate::ast::span::Span;
+    use crate::hir::{DefId, HirActor, HirActorHandler, HirModule};
+
+    #[test]
+    fn actor_handle_methods_return_call_error_result() {
+        let span = Span::new(0, 0);
+        let mut module = HirModule::default();
+        module.actors.push(HirActor {
+            id: DefId(1),
+            name: "Worker".to_string(),
+            handlers: vec![HirActorHandler {
+                event_name: "ping".to_string(),
+                params: vec![],
+                return_type: None,
+                body: vec![],
+                span,
+            }],
+            span,
+        });
+        let out = emit_lib(&module);
+        assert!(
+            out.contains("pub async fn ping(&self, ) -> Result<String, vox_runtime::CallError>"),
+            "actor method should return typed call result:\n{out}"
+        );
+        assert!(
+            !out.contains("unwrap_or_else(|e| format!(\"Actor error: {}\", e))"),
+            "actor method should not collapse runtime errors into payload strings:\n{out}"
+        );
     }
 }

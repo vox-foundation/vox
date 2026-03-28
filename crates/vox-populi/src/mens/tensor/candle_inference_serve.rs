@@ -76,7 +76,7 @@ impl InferenceEngine {
             );
         }
 
-        let meta_raw = crate::mens::bounded_fs::read_utf8_path_capped(&meta_path)?;
+        let meta_raw = vox_bounded_fs::read_utf8_path_capped(&meta_path)?;
         let meta: crate::mens::tensor::candle_qlora_merge::QloraAdapterMetaV2 =
             serde_json::from_str(&meta_raw)?;
 
@@ -145,7 +145,7 @@ impl InferenceEngine {
 
         let config_path = model_dir.join("config.json");
         let mut layout = if config_path.is_file() {
-            let s = crate::mens::bounded_fs::read_utf8_path_capped(&config_path)?;
+            let s = vox_bounded_fs::read_utf8_path_capped(&config_path)?;
             crate::mens::tensor::hf_load::HfTransformerLayout::from_config_json_str(&s)?
         } else {
             anyhow::bail!("config.json missing in {}", model_dir.display());

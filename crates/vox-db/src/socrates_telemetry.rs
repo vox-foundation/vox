@@ -2,8 +2,8 @@
 //! and proxy “hallucination risk” tracking when gold labels are absent.
 
 use crate::research_metrics_contract::{
-    METRIC_TYPE_MEMORY_HYBRID_FUSION, METRIC_TYPE_SOCRATES_SURFACE, SESSION_ID_MEMORY_HYBRID_FUSION,
-    TelemetryWriteOptions,
+    METRIC_TYPE_MEMORY_HYBRID_FUSION, METRIC_TYPE_SOCRATES_SURFACE,
+    SESSION_ID_MEMORY_HYBRID_FUSION, TelemetryWriteOptions,
 };
 use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
@@ -43,9 +43,62 @@ pub struct SocratesSurfaceTelemetry {
     /// LLM id / label when available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_used: Option<String>,
+    /// Provider parsed from `model_used` when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// Model family parsed from `model_used` when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_family: Option<String>,
+    /// Optional model revision parsed from `model_used`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_revision: Option<String>,
+    /// Optional domain labels attached at emit-time (for trust slicing).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub domain_tags: Vec<String>,
+    /// Optional task class attached at emit-time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_class: Option<String>,
+    /// Optional policy profile identifier used for this turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_profile_id: Option<String>,
+    /// Optional refusal classification when decision abstains for policy reasons.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refusal_kind: Option<String>,
+    /// Optional normalized evidence quality score.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_quality: Option<f64>,
+    /// Optional normalized citation coverage score.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citation_coverage: Option<f64>,
     /// Optional retrieval evidence envelope (tier, contradictions, modality flags).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retrieval: Option<Value>,
+}
+
+fn parse_model_identity(model_used: Option<&str>) -> (Option<String>, Option<String>, Option<String>) {
+    let Some(raw) = model_used.map(str::trim).filter(|s| !s.is_empty()) else {
+        return (None, None, None);
+    };
+    // Common forms: "provider/model:rev" or "provider/model".
+    let mut provider = None;
+    let mut family = None;
+    let mut revision = None;
+    let mut slash = raw.splitn(2, '/');
+    if let (Some(p), Some(rest)) = (slash.next(), slash.next()) {
+        if !p.is_empty() {
+            provider = Some(p.to_string());
+        }
+        let mut rev = rest.splitn(2, ':');
+        if let Some(f) = rev.next().filter(|s| !s.is_empty()) {
+            family = Some(f.to_string());
+        }
+        if let Some(r) = rev.next().filter(|s| !s.is_empty()) {
+            revision = Some(r.to_string());
+        }
+    } else {
+        family = Some(raw.to_string());
+    }
+    (provider, family, revision)
 }
 
 /// Rollup over recent `socrates_surface` rows (parsed from `metadata_json`).
@@ -88,6 +141,36 @@ impl VoxDb {
         retrieval: Option<Value>,
     ) -> Result<i64, StoreError> {
         let proxy = hallucination_risk_proxy(decision, contradiction_ratio);
+        let (provider, model_family, model_revision) = parse_model_identity(model_used);
+        let mut domain_tags: Vec<String> = Vec::new();
+        let mut task_class: Option<String> = None;
+        let mut policy_profile_id: Option<String> = None;
+        let mut refusal_kind: Option<String> = None;
+        let mut evidence_quality: Option<f64> = None;
+        let mut citation_coverage: Option<f64> = None;
+        if let Some(ref r) = retrieval {
+            if let Some(tags) = r.get("domain_tags").and_then(|v| v.as_array()) {
+                domain_tags = tags
+                    .iter()
+                    .filter_map(|v| v.as_str())
+                    .map(std::string::ToString::to_string)
+                    .collect();
+            }
+            task_class = r
+                .get("task_class")
+                .and_then(|v| v.as_str())
+                .map(std::string::ToString::to_string);
+            policy_profile_id = r
+                .get("policy_profile_id")
+                .and_then(|v| v.as_str())
+                .map(std::string::ToString::to_string);
+            refusal_kind = r
+                .get("refusal_kind")
+                .and_then(|v| v.as_str())
+                .map(std::string::ToString::to_string);
+            evidence_quality = r.get("evidence_quality").and_then(|v| v.as_f64());
+            citation_coverage = r.get("citation_coverage").and_then(|v| v.as_f64());
+        }
         let meta = SocratesSurfaceTelemetry {
             surface: surface.to_string(),
             repository_id: repository_id.to_string(),
@@ -96,18 +179,98 @@ impl VoxDb {
             contradiction_ratio,
             hallucination_risk_proxy: proxy,
             model_used: model_used.map(std::string::ToString::to_string),
+            provider,
+            model_family,
+            model_revision,
+            domain_tags: domain_tags.clone(),
+            task_class: task_class.clone(),
+            policy_profile_id,
+            refusal_kind: refusal_kind.clone(),
+            evidence_quality,
+            citation_coverage,
             retrieval,
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
         let tw = TelemetryWriteOptions::new(repository_id);
-        self.append_research_metric(
+        let row_id = self
+            .append_research_metric(
             &tw.session_mcp(),
             METRIC_TYPE_SOCRATES_SURFACE,
             Some(proxy),
             Some(&json),
         )
-        .await
+        .await?;
+
+        let entity_id = model_used.unwrap_or("unknown-model");
+        let trust_domain = domain_tags
+            .first()
+            .map(std::string::String::as_str)
+            .unwrap_or_default();
+        let _ = self
+            .record_trust_observation(crate::TrustObservationInput {
+                entity_type: "model",
+                entity_id,
+                dimension: "factuality",
+                domain: Some(trust_domain),
+                task_class: task_class.as_deref(),
+                provider: meta.provider.as_deref(),
+                model_id: meta.model_family.as_deref(),
+                repository_id: Some(repository_id),
+                source_kind: Some("socrates_surface"),
+                observation_value: (1.0 - proxy).clamp(0.0, 1.0),
+                confidence_weight: 1.0,
+                sample_size: 1,
+                artifact_ref: Some(surface),
+                metadata_json: Some(&json),
+                ewma_alpha: 0.10,
+            })
+            .await;
+        let _ = self
+            .record_trust_observation(crate::TrustObservationInput {
+                entity_type: "model",
+                entity_id,
+                dimension: "contradiction_rate",
+                domain: Some(trust_domain),
+                task_class: task_class.as_deref(),
+                provider: meta.provider.as_deref(),
+                model_id: meta.model_family.as_deref(),
+                repository_id: Some(repository_id),
+                source_kind: Some("socrates_surface"),
+                observation_value: (1.0 - contradiction_ratio).clamp(0.0, 1.0),
+                confidence_weight: 1.0,
+                sample_size: 1,
+                artifact_ref: Some(surface),
+                metadata_json: Some(&json),
+                ewma_alpha: 0.10,
+            })
+            .await;
+        let refusal_observation = match decision {
+            RiskDecision::Abstain => 0.0,
+            RiskDecision::Ask => 0.5,
+            RiskDecision::Answer => 1.0,
+        };
+        let _ = self
+            .record_trust_observation(crate::TrustObservationInput {
+                entity_type: "model",
+                entity_id,
+                dimension: "refusal_propensity",
+                domain: Some(trust_domain),
+                task_class: task_class.as_deref(),
+                provider: meta.provider.as_deref(),
+                model_id: meta.model_family.as_deref(),
+                repository_id: Some(repository_id),
+                source_kind: Some("socrates_surface"),
+                observation_value: refusal_observation,
+                confidence_weight: if refusal_kind.is_some() { 1.0 } else { 0.6 },
+                sample_size: 1,
+                artifact_ref: Some(surface),
+                metadata_json: Some(&json),
+                ewma_alpha: 0.10,
+            })
+            .await;
+
+        Ok(row_id)
     }
 
     /// Best-effort telemetry for hybrid memory retrieval (BM25 + vector fusion via `fuse_hybrid_results`).
@@ -235,8 +398,8 @@ impl VoxDb {
                     .into(),
             ));
         }
-        let mut agg_for_meta = serde_json::to_value(&agg)
-            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let mut agg_for_meta =
+            serde_json::to_value(&agg).map_err(|e| StoreError::Serialization(e.to_string()))?;
         if let serde_json::Value::Object(ref mut m) = agg_for_meta {
             m.insert(
                 "rate_denominator".into(),
@@ -254,10 +417,7 @@ impl VoxDb {
                 "mean_proxy_denominator_n".into(),
                 serde_json::json!(agg.rows_with_metric_value),
             );
-            m.insert(
-                "rows_total_n".into(),
-                serde_json::json!(agg.sample_size),
-            );
+            m.insert("rows_total_n".into(), serde_json::json!(agg.sample_size));
         }
         let meta = serde_json::to_string(&agg_for_meta)
             .map_err(|e| StoreError::Serialization(e.to_string()))?;

@@ -1,0 +1,8 @@
+{
+  "type": "event",
+  "event": "connect.challenge",
+  "payload": {
+    "nonce": "fixture-nonce",
+    "ts": 1737264000000
+  }
+}

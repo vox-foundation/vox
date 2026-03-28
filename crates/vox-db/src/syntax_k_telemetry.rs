@@ -4,9 +4,7 @@
 
 use serde::Serialize;
 
-use crate::research_metrics_contract::{
-    METRIC_TYPE_SYNTAX_K_EVENT, TelemetryWriteOptions,
-};
+use crate::research_metrics_contract::{METRIC_TYPE_SYNTAX_K_EVENT, TelemetryWriteOptions};
 use crate::{StoreError, VoxDb};
 
 /// Payload for one syntax-K observation.

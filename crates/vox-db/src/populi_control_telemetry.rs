@@ -3,9 +3,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::research_metrics_contract::{
-    METRIC_TYPE_POPULI_CONTROL_EVENT, TelemetryWriteOptions,
-};
+use crate::research_metrics_contract::{METRIC_TYPE_POPULI_CONTROL_EVENT, TelemetryWriteOptions};
 use crate::{StoreError, VoxDb};
 
 #[derive(Debug, Clone, Serialize)]

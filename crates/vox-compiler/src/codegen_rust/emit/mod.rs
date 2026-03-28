@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+use crate::app_contract::project_app_contract;
 use crate::hir::HirModule;
 
 mod client;
@@ -53,6 +54,9 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
 
     // src/lib.rs (Types, Actors, Workflows, Functions)
     files.insert("src/lib.rs".to_string(), emit_lib(module));
+    if let Ok(contract_json) = serde_json::to_string_pretty(&project_app_contract(module)) {
+        files.insert("app_contract.json".to_string(), contract_json);
+    }
 
     // TypeScript API client
     let api_client_ts = emit_api_client(module);

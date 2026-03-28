@@ -24,3 +24,5 @@ sources:
     optional: true              # Self-improvement loop; absent until first dogfood run
 
 output: target/dogfood/train_mixed.jsonl
+include_lanes:
+  - vox_codegen

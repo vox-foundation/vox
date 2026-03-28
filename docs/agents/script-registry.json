@@ -9,9 +9,9 @@
       "notes": "Primary path for SSOT guards; shell twins are thin delegates only."
     },
     {
-      "id": "mens-gates",
+      "id": "mesh-gates",
       "owner": "mens",
-      "replacement": "cargo run -p vox-cli -- ci mens-gate --profile ci_full|m1m4|training",
+      "replacement": "cargo run -p vox-cli -- ci mesh-gate --profile ci_full|m1m4|training",
       "manifest": "scripts/populi/gates.yaml"
     },
     {
@@ -97,44 +97,44 @@
     {
       "path": "scripts/populi_release_gate.sh",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile m1m4",
+      "replacement": "vox ci mesh-gate --profile m1m4",
       "status": "wrapper"
     },
     {
       "path": "scripts/populi_release_gate.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile m1m4",
+      "replacement": "vox ci mesh-gate --profile m1m4",
       "status": "wrapper"
     },
     {
       "path": "scripts/populi/release_training_gate.sh",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile training",
+      "replacement": "vox ci mesh-gate --profile training",
       "status": "wrapper"
     },
     {
       "path": "scripts/populi/release_training_gate.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile training",
+      "replacement": "vox ci mesh-gate --profile training",
       "status": "wrapper"
     },
     {
       "path": "scripts/populi/release_ci_full_gate.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile ci_full",
+      "replacement": "vox ci mesh-gate --profile ci_full",
       "status": "wrapper"
     },
     {
       "path": "scripts/populi/mens_gate_safe.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile training|ci_full|m1m4 --isolated-runner [--gate-log-file PATH]",
+      "replacement": "vox ci mesh-gate --profile training|ci_full|m1m4 --isolated-runner [--gate-log-file PATH]",
       "status": "wrapper",
       "notes": "Delegates to Rust runner; -Detach still uses Start-Process"
     },
     {
       "path": "scripts/populi/mens_gate_safe.sh",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile training|ci_full|m1m4 --isolated-runner [--gate-log-file PATH]",
+      "replacement": "vox ci mesh-gate --profile training|ci_full|m1m4 --isolated-runner [--gate-log-file PATH]",
       "status": "wrapper",
       "notes": "Delegates to Rust isolated runner; --detach via nohup"
     },
@@ -148,14 +148,14 @@
     {
       "path": "scripts/mens/release_training_gate.sh",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile training",
+      "replacement": "vox ci mesh-gate --profile training",
       "status": "wrapper",
       "notes": "Legacy path; forwards to scripts/populi/release_training_gate.sh"
     },
     {
       "path": "scripts/mens/release_training_gate.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile training",
+      "replacement": "vox ci mesh-gate --profile training",
       "status": "wrapper",
       "notes": "Legacy path; forwards to scripts/populi/release_training_gate.ps1"
     },
@@ -222,13 +222,13 @@
     {
       "path": "scripts/mens_release_gate.sh",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile m1m4",
+      "replacement": "vox ci mesh-gate --profile m1m4",
       "status": "wrapper"
     },
     {
       "path": "scripts/mens_release_gate.ps1",
       "invoked_by_ci": false,
-      "replacement": "vox ci mens-gate --profile m1m4",
+      "replacement": "vox ci mesh-gate --profile m1m4",
       "status": "wrapper"
     },
     {

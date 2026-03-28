@@ -1,4 +1,8 @@
 //! Map `distribution_policy.retry_profile` / `rate_limit_profile` into bounded HTTP retries for social syndication.
+//!
+//! **Crate `backon`:** not used here — [`vox_primitives::backoff::backoff_ms_geometric_attempt`] matches
+//! publisher policy (capped geometric delay, no extra dependency). Revisit only if we unify many async
+//! retry loops behind one tower-style abstraction.
 
 use std::time::Duration;
 
@@ -62,11 +66,12 @@ where
             Err(e) => {
                 last_err = Some(e);
                 if attempt < budget.max_attempts && budget.base_delay_ms > 0 {
-                    let pow = attempt.saturating_sub(1).min(6);
-                    let ms = budget
-                        .base_delay_ms
-                        .saturating_mul(2u64.pow(pow))
-                        .min(60_000);
+                    let ms = vox_primitives::backoff::backoff_ms_geometric_attempt(
+                        attempt,
+                        budget.base_delay_ms,
+                        60_000,
+                        6,
+                    );
                     tokio::time::sleep(Duration::from_millis(ms)).await;
                 }
             }

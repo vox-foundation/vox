@@ -37,11 +37,20 @@ Current production behavior (important for migration planning):
 
 Separately, **backend-oriented** lowering remains optimized for Rust emission (database, actors, HTTP). The older “Frontend LIR” label maps to this split: **WebIR** for structured web UI, **HIR emitters** for expedient TS until the printer fully migrates.
 
+### 3b. HIR to AppContract and RuntimeProjection (contract layers)
+
+Two additional HIR-derived contract layers are authoritative for non-UI emitters and orchestration:
+
+- `app_contract::project_app_contract` produces `AppContractModule` (HTTP routes, server/query/mutation functions, client routes, islands, server config).
+- `runtime_projection::project_runtime_from_hir` produces `RuntimeProjectionModule` (DB planning policy snapshots and inferred task capability hints).
+
+These projections are generated from the same lowered HIR input as WebIR and are validated in parity tests to prevent split semantic ownership.
+
 ## 4. Code Generation (Emission)
 
-The final phase where LIR is converted into source files:
-- **`vox-codegen-rust`**: Produces `main.rs`, `models.rs`, and `api.rs`.
-- **`vox-codegen-ts`**: Produces `App.tsx`, `client.ts`, and `types.ts`.
+The final phase where lowered IR is converted into source files:
+- **`vox-compiler::codegen_rust`**: Produces generated Rust app files (`src/main.rs`, `src/lib.rs`, API client output, and DB scaffolding).
+- **`vox-compiler::codegen_ts`**: Produces TS/TSX output (`App.tsx`/route trees, server-fn wrappers, component files, and generated contracts).
 
 For frontend IR layering and migration phases, see [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
 For detailed implementation sequencing, see [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
@@ -57,5 +66,5 @@ By having multiple intermediate representations, Vox can perform complex archite
 ---
 
 **Related Reference**:
-- [Architecture Index](expl-architecture.md) — High-level map of the compiler crates.
+- [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
 - [API Reference: vox-hir](../api/vox-hir.md) — Details on the HIR data structures.

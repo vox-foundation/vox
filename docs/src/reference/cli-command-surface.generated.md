@@ -4,162 +4,176 @@
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../contracts/cli/command-registry.yaml).
 
-**schema_version:** `1` · **vox-cli operations:** 155
+**schema_version:** `1` · **vox-cli operations:** 169
 
-| Path | Status | Feature gate | Latin ns | Catalog group |
-|------|--------|--------------|----------|----------------|
-| `vox add` | active | — | pm | — |
-| `vox architect` | active | codex|stub-check | diag | — |
-| `vox ars` | active | — | ars | — |
-| `vox build` | active | — | fabrica | — |
-| `vox bundle` | active | — | fabrica | — |
-| `vox check` | active | — | fabrica | — |
-| `vox ci` | active | — | ci | — |
-| `vox ci build-timings` | active | — | — | — |
-| `vox ci check-codex-ssot` | active | — | — | — |
-| `vox ci check-docs-ssot` | active | — | — | — |
-| `vox ci clavis-parity` | active | — | — | — |
-| `vox ci command-compliance` | active | — | — | — |
-| `vox ci command-sync` | active | — | — | — |
-| `vox ci contracts-index` | active | — | — | — |
-| `vox ci coverage-gates` | active | — | — | — |
-| `vox ci cuda-features` | active | — | — | — |
-| `vox ci cuda-release-build` | active | — | — | — |
-| `vox ci data-ssot-guards` | active | — | — | — |
-| `vox ci doc-inventory` | active | — | — | — |
-| `vox ci eval-matrix` | active | — | — | — |
-| `vox ci eval-matrix run` | active | — | — | — |
-| `vox ci eval-matrix verify` | active | — | — | — |
-| `vox ci feature-matrix` | active | — | — | — |
-| `vox ci grammar-drift` | active | — | — | — |
-| `vox ci line-endings` | active | — | — | — |
-| `vox ci manifest` | active | — | — | — |
-| `vox ci mesh-gate` | active | — | — | — |
-| `vox ci no-dei-import` | active | — | — | — |
-| `vox ci pm-provenance` | active | — | — | — |
-| `vox ci release-build` | active | — | — | — |
-| `vox ci repo-guards` | active | — | — | — |
-| `vox ci scaling-audit` | active | — | — | — |
-| `vox ci scaling-audit emit-reports` | active | — | — | — |
-| `vox ci scaling-audit verify` | active | — | — | — |
-| `vox ci scientia-worthiness-contract` | active | — | — | — |
-| `vox ci secret-env-guard` | active | — | — | — |
-| `vox ci sql-surface-guard` | active | — | — | — |
-| `vox ci ssot-drift` | active | — | — | — |
-| `vox ci toestub-scoped` | active | — | — | — |
-| `vox ci toestub-self-apply` | active | — | — | — |
-| `vox ci workflow-scripts` | active | — | — | — |
-| `vox clavis` | active | — | ars | — |
-| `vox clavis backend-status` | active | — | ars | — |
-| `vox clavis get` | active | — | ars | — |
-| `vox clavis migrate-auth-store` | active | — | ars | — |
-| `vox clavis set` | active | — | ars | — |
-| `vox clavis status` | active | — | ars | — |
-| `vox codex` | active | — | codex | — |
-| `vox codex cutover` | active | — | codex | — |
-| `vox codex export-legacy` | active | — | codex | — |
-| `vox codex import-legacy` | active | — | codex | — |
-| `vox codex import-orchestrator-memory` | active | — | codex | — |
-| `vox codex import-skill-bundle` | active | — | codex | — |
-| `vox codex socrates-eval-snapshot` | active | — | codex | — |
-| `vox codex socrates-metrics` | active | — | codex | — |
-| `vox codex verify` | active | — | codex | — |
-| `vox commands` | active | — | — | — |
-| `vox completions` | active | — | fabrica | — |
-| `vox db` | active | — | codex | — |
-| `vox db audit` | active | — | codex | — |
-| `vox db prune-apply` | active | — | codex | — |
-| `vox db prune-plan` | active | — | codex | — |
-| `vox dei` | active | dei | dei | — |
-| `vox dev` | active | — | fabrica | — |
-| `vox diag` | active | — | diag | — |
-| `vox doctor` | active | — | diag | — |
-| `vox fabrica` | active | — | fabrica | — |
-| `vox fmt` | active | — | fabrica | — |
-| `vox island` | active | island | — | — |
-| `vox live` | active | live | — | — |
-| `vox lock` | active | — | pm | — |
-| `vox login` | deprecated | — | ars | — |
-| `vox logout` | deprecated | — | ars | — |
-| `vox lsp` | active | — | fabrica | — |
-| `vox ludus` | active | extras-ludus | ars | — |
-| `vox ludus hud` | active | ludus-hud | ars | — |
-| `vox mens` | active | — | mens | — |
-| `vox mens` | active | mens-base|gpu | mens | — |
-| `vox mens bench-completion` | active | mens-base | mens | — |
-| `vox mens check` | active | mens-dei | mens | — |
-| `vox mens corpus` | active | mens-base | mens | — |
-| `vox mens eval-gate` | active | mens-base | mens | — |
-| `vox mens eval-local` | active | gpu | mens | — |
-| `vox mens fix` | active | mens-dei | mens | — |
-| `vox mens generate` | active | mens-dei | mens | — |
-| `vox mens merge-qlora` | active | gpu | mens | — |
-| `vox mens merge-weights` | active | gpu | mens | — |
-| `vox mens pipeline` | active | mens-base | mens | — |
-| `vox mens plan` | active | mens-base | mens | — |
-| `vox mens probe` | active | gpu | mens | — |
-| `vox mens review` | active | mens-dei | mens | — |
-| `vox mens serve` | active | gpu | mens | — |
-| `vox mens status` | active | mens-base | mens | — |
-| `vox mens system-prompt-template` | active | mens-base | mens | — |
-| `vox mens train` | active | gpu | mens | — |
-| `vox mens train-uv` | retired | mens-base | mens | — |
-| `vox mens watch-telemetry` | active | mens-base | mens | — |
-| `vox mens workflow check` | active | mens-dei | mens | — |
-| `vox mens workflow inspect` | active | mens-dei | mens | — |
-| `vox mens workflow list` | active | mens-dei | mens | — |
-| `vox mens workflow run` | active | mens-dei | mens | — |
-| `vox openclaw` | active | ars | ars | — |
-| `vox oratio` | active | oratio | fabrica | oratio |
-| `vox pm` | active | — | pm | — |
-| `vox pm cache` | active | — | pm | — |
-| `vox pm cache clear` | active | — | pm | — |
-| `vox pm cache status` | active | — | pm | — |
-| `vox pm info` | active | — | pm | — |
-| `vox pm mirror` | active | — | pm | — |
-| `vox pm publish` | active | — | pm | — |
-| `vox pm search` | active | — | pm | — |
-| `vox pm vendor` | active | — | pm | — |
-| `vox pm verify` | active | — | pm | — |
-| `vox pm yank` | active | — | pm | — |
-| `vox populi` | active | populi | — | — |
-| `vox populi down` | active | populi | — | — |
-| `vox populi registry-snapshot` | active | populi | — | — |
-| `vox populi serve` | active | populi | — | — |
-| `vox populi status` | active | populi | — | — |
-| `vox populi up` | active | populi | — | — |
-| `vox recensio` | active | coderabbit | recensio | — |
-| `vox remove` | active | — | pm | — |
-| `vox review` | active | coderabbit | recensio | — |
-| `vox run` | active | — | fabrica | — |
-| `vox scientia` | active | — | codex | — |
-| `vox scientia publication-approve` | active | — | codex | — |
-| `vox scientia publication-arxiv-handoff-record` | active | — | codex | — |
-| `vox scientia publication-external-jobs-dead-letter` | active | — | codex | — |
-| `vox scientia publication-external-jobs-due` | active | — | codex | — |
-| `vox scientia publication-external-jobs-replay` | active | — | codex | — |
-| `vox scientia publication-external-jobs-tick` | active | — | codex | — |
-| `vox scientia publication-external-pipeline-metrics` | active | — | codex | — |
-| `vox scientia publication-openreview-profile` | active | — | codex | — |
-| `vox scientia publication-preflight` | active | — | codex | — |
-| `vox scientia publication-prepare` | active | — | codex | — |
-| `vox scientia publication-prepare-validated` | active | — | codex | — |
-| `vox scientia publication-scholarly-pipeline-run` | active | — | codex | — |
-| `vox scientia publication-scholarly-remote-status` | active | — | codex | — |
-| `vox scientia publication-scholarly-remote-status-sync-all` | active | — | codex | — |
-| `vox scientia publication-scholarly-remote-status-sync-batch` | active | — | codex | — |
-| `vox scientia publication-scholarly-staging-export` | active | — | codex | — |
-| `vox scientia publication-status` | active | — | codex | — |
-| `vox scientia publication-submit-local` | active | — | codex | — |
-| `vox scientia publication-worthiness-evaluate` | active | — | codex | — |
-| `vox scientia publication-zenodo-metadata` | active | — | codex | — |
-| `vox script` | active | script-execution | fabrica | — |
-| `vox share` | active | — | ars | — |
-| `vox skill` | active | ars | ars | — |
-| `vox snippet` | active | — | ars | — |
-| `vox stub-check` | active | stub-check | diag | — |
-| `vox sync` | active | — | pm | — |
-| `vox test` | active | — | fabrica | — |
-| `vox train` | deprecated | gpu+mens-dei | mens | — |
-| `vox update` | active | — | pm | — |
-| `vox upgrade` | active | — | pm | — |
+| Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
+|------|--------|--------------|----------|--------------|----------------|
+| `vox add` | active | — | pm | platform | — |
+| `vox architect` | active | codex|stub-check | diag | platform | — |
+| `vox ars` | active | — | ars | interop | — |
+| `vox build` | active | — | fabrica | app | — |
+| `vox bundle` | active | — | fabrica | app | — |
+| `vox check` | active | — | fabrica | app | — |
+| `vox ci` | active | — | ci | platform | — |
+| `vox ci build-timings` | active | — | — | platform | — |
+| `vox ci check-codex-ssot` | active | — | — | platform | — |
+| `vox ci check-docs-ssot` | active | — | — | platform | — |
+| `vox ci clavis-parity` | active | — | — | platform | — |
+| `vox ci command-compliance` | active | — | — | platform | — |
+| `vox ci command-sync` | active | — | — | platform | — |
+| `vox ci contracts-index` | active | — | — | platform | — |
+| `vox ci coverage-gates` | active | — | — | platform | — |
+| `vox ci cuda-features` | active | — | — | platform | — |
+| `vox ci cuda-release-build` | active | — | — | platform | — |
+| `vox ci data-ssot-guards` | active | — | — | platform | — |
+| `vox ci doc-inventory` | active | — | — | platform | — |
+| `vox ci eval-matrix` | active | — | — | platform | — |
+| `vox ci eval-matrix run` | active | — | — | platform | — |
+| `vox ci eval-matrix verify` | active | — | — | platform | — |
+| `vox ci feature-matrix` | active | — | — | platform | — |
+| `vox ci grammar-drift` | active | — | — | platform | — |
+| `vox ci line-endings` | active | — | — | platform | — |
+| `vox ci manifest` | active | — | — | platform | — |
+| `vox ci mens-scorecard` | active | — | — | platform | — |
+| `vox ci mens-scorecard burn-rnd` | active | — | — | platform | — |
+| `vox ci mens-scorecard decide` | active | — | — | platform | — |
+| `vox ci mens-scorecard ingest-trust` | active | — | — | platform | — |
+| `vox ci mens-scorecard run` | active | — | — | platform | — |
+| `vox ci mens-scorecard verify` | active | — | — | platform | — |
+| `vox ci mesh-gate` | active | — | — | platform | — |
+| `vox ci no-dei-import` | active | — | — | platform | — |
+| `vox ci openclaw-contract` | active | — | — | platform | — |
+| `vox ci pm-provenance` | active | — | — | platform | — |
+| `vox ci release-build` | active | — | — | platform | — |
+| `vox ci repo-guards` | active | — | — | platform | — |
+| `vox ci scaling-audit` | active | — | — | platform | — |
+| `vox ci scaling-audit emit-reports` | active | — | — | platform | — |
+| `vox ci scaling-audit verify` | active | — | — | platform | — |
+| `vox ci scientia-worthiness-contract` | active | — | — | platform | — |
+| `vox ci secret-env-guard` | active | — | — | platform | — |
+| `vox ci sql-surface-guard` | active | — | — | platform | — |
+| `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci toestub-scoped` | active | — | — | platform | — |
+| `vox ci toestub-self-apply` | active | — | — | platform | — |
+| `vox ci workflow-scripts` | active | — | — | platform | — |
+| `vox clavis` | active | — | ars | platform | — |
+| `vox clavis backend-status` | active | — | ars | platform | — |
+| `vox clavis get` | active | — | ars | platform | — |
+| `vox clavis migrate-auth-store` | active | — | ars | platform | — |
+| `vox clavis set` | active | — | ars | platform | — |
+| `vox clavis status` | active | — | ars | platform | — |
+| `vox codex` | active | — | codex | data | — |
+| `vox codex cutover` | active | — | codex | data | — |
+| `vox codex export-legacy` | active | — | codex | data | — |
+| `vox codex import-legacy` | active | — | codex | data | — |
+| `vox codex import-orchestrator-memory` | active | — | codex | data | — |
+| `vox codex import-skill-bundle` | active | — | codex | data | — |
+| `vox codex socrates-eval-snapshot` | active | — | codex | data | — |
+| `vox codex socrates-metrics` | active | — | codex | data | — |
+| `vox codex verify` | active | — | codex | data | — |
+| `vox commands` | active | — | — | platform | — |
+| `vox completions` | active | — | fabrica | app | — |
+| `vox db` | active | — | codex | data | — |
+| `vox db audit` | active | — | codex | data | — |
+| `vox db prune-apply` | active | — | codex | data | — |
+| `vox db prune-plan` | active | — | codex | data | — |
+| `vox dei` | active | dei | dei | ai | — |
+| `vox dev` | active | — | fabrica | app | — |
+| `vox diag` | active | — | diag | platform | — |
+| `vox doctor` | active | — | diag | platform | — |
+| `vox fabrica` | active | — | fabrica | app | — |
+| `vox fmt` | active | — | fabrica | app | — |
+| `vox island` | active | island | — | app | — |
+| `vox live` | active | live | — | ai | — |
+| `vox lock` | active | — | pm | platform | — |
+| `vox login` | deprecated | — | ars | platform | — |
+| `vox logout` | deprecated | — | ars | platform | — |
+| `vox lsp` | active | — | fabrica | app | — |
+| `vox ludus` | active | extras-ludus | ars | ai | — |
+| `vox ludus hud` | active | ludus-hud | ars | ai | — |
+| `vox mens` | active | — | mens | ai | — |
+| `vox mens` | active | mens-base|gpu | mens | ai | — |
+| `vox mens bench-completion` | active | mens-base | mens | ai | — |
+| `vox mens check` | active | mens-dei | mens | ai | — |
+| `vox mens corpus` | active | mens-base | mens | ai | — |
+| `vox mens eval-gate` | active | mens-base | mens | ai | — |
+| `vox mens eval-local` | active | gpu | mens | ai | — |
+| `vox mens fix` | active | mens-dei | mens | ai | — |
+| `vox mens generate` | active | mens-dei | mens | ai | — |
+| `vox mens merge-qlora` | active | gpu | mens | ai | — |
+| `vox mens merge-weights` | active | gpu | mens | ai | — |
+| `vox mens pipeline` | active | mens-base | mens | ai | — |
+| `vox mens plan` | active | mens-base | mens | ai | — |
+| `vox mens probe` | active | gpu | mens | ai | — |
+| `vox mens review` | active | mens-dei | mens | ai | — |
+| `vox mens serve` | active | gpu | mens | ai | — |
+| `vox mens status` | active | mens-base | mens | ai | — |
+| `vox mens system-prompt-template` | active | mens-base | mens | ai | — |
+| `vox mens train` | active | gpu | mens | ai | — |
+| `vox mens train-uv` | retired | mens-base | mens | ai | — |
+| `vox mens watch-telemetry` | active | mens-base | mens | ai | — |
+| `vox mens workflow check` | active | mens-dei | mens | ai | — |
+| `vox mens workflow inspect` | active | mens-dei | mens | ai | — |
+| `vox mens workflow list` | active | mens-dei | mens | ai | — |
+| `vox mens workflow run` | active | mens-dei | mens | ai | — |
+| `vox openclaw` | active | ars | ars | interop | — |
+| `vox openclaw doctor` | active | ars | ars | interop | — |
+| `vox openclaw gateway-call` | active | ars | ars | interop | — |
+| `vox openclaw search-remote` | active | ars | ars | interop | — |
+| `vox openclaw sidecar` | active | ars | ars | interop | — |
+| `vox openclaw sidecar start` | active | ars | ars | interop | — |
+| `vox openclaw sidecar status` | active | ars | ars | interop | — |
+| `vox openclaw sidecar stop` | active | ars | ars | interop | — |
+| `vox oratio` | active | oratio | fabrica | ai | oratio |
+| `vox pm` | active | — | pm | platform | — |
+| `vox pm cache` | active | — | pm | platform | — |
+| `vox pm cache clear` | active | — | pm | platform | — |
+| `vox pm cache status` | active | — | pm | platform | — |
+| `vox pm info` | active | — | pm | platform | — |
+| `vox pm mirror` | active | — | pm | platform | — |
+| `vox pm publish` | active | — | pm | platform | — |
+| `vox pm search` | active | — | pm | platform | — |
+| `vox pm vendor` | active | — | pm | platform | — |
+| `vox pm verify` | active | — | pm | platform | — |
+| `vox pm yank` | active | — | pm | platform | — |
+| `vox populi` | active | populi | — | workflow | — |
+| `vox populi down` | active | populi | — | workflow | — |
+| `vox populi registry-snapshot` | active | populi | — | workflow | — |
+| `vox populi serve` | active | populi | — | workflow | — |
+| `vox populi status` | active | populi | — | workflow | — |
+| `vox populi up` | active | populi | — | workflow | — |
+| `vox recensio` | active | coderabbit | recensio | ai | — |
+| `vox remove` | active | — | pm | platform | — |
+| `vox review` | active | coderabbit | recensio | ai | — |
+| `vox run` | active | — | fabrica | app | — |
+| `vox scientia` | active | — | codex | data | — |
+| `vox scientia publication-approve` | active | — | codex | data | — |
+| `vox scientia publication-arxiv-handoff-record` | active | — | codex | data | — |
+| `vox scientia publication-external-jobs-dead-letter` | active | — | codex | data | — |
+| `vox scientia publication-external-jobs-due` | active | — | codex | data | — |
+| `vox scientia publication-external-jobs-replay` | active | — | codex | data | — |
+| `vox scientia publication-external-jobs-tick` | active | — | codex | data | — |
+| `vox scientia publication-external-pipeline-metrics` | active | — | codex | data | — |
+| `vox scientia publication-openreview-profile` | active | — | codex | data | — |
+| `vox scientia publication-preflight` | active | — | codex | data | — |
+| `vox scientia publication-prepare` | active | — | codex | data | — |
+| `vox scientia publication-prepare-validated` | active | — | codex | data | — |
+| `vox scientia publication-scholarly-pipeline-run` | active | — | codex | data | — |
+| `vox scientia publication-scholarly-remote-status` | active | — | codex | data | — |
+| `vox scientia publication-scholarly-remote-status-sync-all` | active | — | codex | data | — |
+| `vox scientia publication-scholarly-remote-status-sync-batch` | active | — | codex | data | — |
+| `vox scientia publication-scholarly-staging-export` | active | — | codex | data | — |
+| `vox scientia publication-status` | active | — | codex | data | — |
+| `vox scientia publication-submit-local` | active | — | codex | data | — |
+| `vox scientia publication-worthiness-evaluate` | active | — | codex | data | — |
+| `vox scientia publication-zenodo-metadata` | active | — | codex | data | — |
+| `vox script` | active | script-execution | fabrica | workflow | — |
+| `vox share` | active | — | ars | interop | — |
+| `vox skill` | active | ars | ars | interop | — |
+| `vox snippet` | active | — | ars | interop | — |
+| `vox stub-check` | active | stub-check | diag | platform | — |
+| `vox sync` | active | — | pm | platform | — |
+| `vox test` | active | — | fabrica | app | — |
+| `vox train` | deprecated | gpu+mens-dei | mens | ai | — |
+| `vox update` | active | — | pm | platform | — |
+| `vox upgrade` | active | — | pm | platform | — |

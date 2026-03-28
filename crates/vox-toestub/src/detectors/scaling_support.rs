@@ -90,11 +90,12 @@ pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
     impl<'ast> Visit<'ast> for FsReadVisitor<'_> {
         fn visit_expr_call(&mut self, c: &'ast syn::ExprCall) {
             if let Expr::Path(p) = c.func.as_ref()
-                && path_expr_is_fs_unbounded_read(p) {
-                    let span = c.span();
-                    let line = span.start().line;
-                    let column = span.start().column;
-                    self.out.push(Finding {
+                && path_expr_is_fs_unbounded_read(p)
+            {
+                let span = c.span();
+                let line = span.start().line;
+                let column = span.start().column;
+                self.out.push(Finding {
                         rule_id: "scaling/unbounded-read".to_string(),
                         rule_name: "Scaling — fs read_to_string".to_string(),
                         severity: Severity::Info,
@@ -111,7 +112,7 @@ pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
                             "evidence": ["ast"]
                         })),
                     });
-                }
+            }
             visit::visit_expr_call(self, c);
         }
     }

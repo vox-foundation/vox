@@ -19,7 +19,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 keyring = { workspace = true }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 
 [lints]
 workspace = true

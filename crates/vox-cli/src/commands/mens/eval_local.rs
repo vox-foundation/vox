@@ -7,6 +7,7 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
+const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.20;
 
 pub fn run_eval_local(
     model: PathBuf,
@@ -86,6 +87,11 @@ pub fn run_eval_local(
     let mut results: Vec<serde_json::Value> = Vec::new();
     let mut passed_k = 0usize;
     let mut passed_1 = 0usize;
+    let mut semantic_passed_k = 0usize;
+    let mut anti_stub_passed_k = 0usize;
+    let mut placeholder_event_count = 0usize;
+    let mut trivial_placeholder_event_count = 0usize;
+    let mut construct_richness_sum = 0.0_f64;
     let mut category_stats: std::collections::HashMap<String, (usize, usize, usize)> =
         std::collections::HashMap::new();
 
@@ -106,101 +112,108 @@ pub fn run_eval_local(
         let category = w.category;
         let description = w.description;
         let context_files = w.context_files;
+        let semantic_expected_contains = w.semantic_expected_contains;
         let manifest_index = w.manifest_index;
 
-        let (pass_at_1, pass_at_k, samples_json): (bool, bool, Vec<serde_json::Value>) = if prompt
-            .is_empty()
-            || !model.exists()
-        {
-            (
-                false,
-                false,
-                vec![serde_json::json!({
-                    "sample_index": 0,
-                    "pass": false,
-                    "error": "no prompt or model"
-                })],
-            )
-        } else {
-            #[cfg(feature = "gpu")]
-            {
-                if let Some(ref mut eng) = engine {
-                    let k = samples.max(1);
-                    let mut per_sample = Vec::with_capacity(k);
-                    for sample_idx in 0..k {
-                        let seed = seed_base
-                            .saturating_add((manifest_index as u64).saturating_mul(1_000))
-                            .saturating_add(sample_idx as u64);
-                        let seed_opt = if temperature > 0.0 { Some(seed) } else { None };
-                        // InferenceEngine currently accepts `top_p` rather than seed.
-                        // Keep seed in eval metadata for reproducibility bookkeeping.
-                        match eng.generate(&prompt, max_tokens, temperature as f64, None) {
-                            Ok(output) => {
-                                let verify =
-                                    verify_completion(&output, &bench, &file, &id, manifest_index);
-                                per_sample.push(serde_json::json!({
-                                    "sample_index": sample_idx,
-                                    "seed": seed_opt,
-                                    "pass": verify.pass,
-                                    "checks": verify.checks,
-                                    "completion_chars": output.len(),
-                                }));
-                            }
-                            Err(e) => {
-                                eprintln!(
-                                    "  {} Inference failed for {} sample {}: {}",
-                                    "⚠".yellow(),
-                                    id,
-                                    sample_idx,
-                                    e
-                                );
-                                per_sample.push(serde_json::json!({
-                                    "sample_index": sample_idx,
-                                    "seed": seed_opt,
-                                    "pass": false,
-                                    "error": e.to_string(),
-                                }));
-                            }
-                        }
-                    }
-                    let pass1 = per_sample
-                        .first()
-                        .and_then(|v| v.get("pass"))
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
-                    let passk = per_sample
-                        .iter()
-                        .any(|v| v.get("pass").and_then(|x| x.as_bool()).unwrap_or(false));
-                    (pass1, passk, per_sample)
-                } else {
-                    (
-                        false,
-                        false,
-                        vec![serde_json::json!({
-                            "sample_index": 0,
-                            "pass": false,
-                            "error": "engine fail to load"
-                        })],
-                    )
-                }
-            }
-            #[cfg(not(feature = "gpu"))]
-            {
+        let (pass_at_1, pass_at_k, samples_json): (bool, bool, Vec<serde_json::Value>) =
+            if prompt.is_empty() || !model.exists() {
                 (
                     false,
                     false,
                     vec![serde_json::json!({
                         "sample_index": 0,
                         "pass": false,
-                        "error": format!(
-                            "CPU: GPU needed for inference — model {:.1}MB, prompt {} chars",
-                            model_size as f64 / 1_048_576.0,
-                            prompt.len()
-                        )
+                        "error": "no prompt or model"
                     })],
                 )
-            }
-        };
+            } else {
+                #[cfg(feature = "gpu")]
+                {
+                    if let Some(ref mut eng) = engine {
+                        let k = samples.max(1);
+                        let mut per_sample = Vec::with_capacity(k);
+                        for sample_idx in 0..k {
+                            let seed = seed_base
+                                .saturating_add((manifest_index as u64).saturating_mul(1_000))
+                                .saturating_add(sample_idx as u64);
+                            let seed_opt = if temperature > 0.0 { Some(seed) } else { None };
+                            // InferenceEngine currently accepts `top_p` rather than seed.
+                            // Keep seed in eval metadata for reproducibility bookkeeping.
+                            match eng.generate(&prompt, max_tokens, temperature as f64, None) {
+                                Ok(output) => {
+                                    let verify = verify_completion(
+                                        &output,
+                                        &bench,
+                                        &file,
+                                        &id,
+                                        manifest_index,
+                                        &semantic_expected_contains,
+                                    );
+                                    per_sample.push(serde_json::json!({
+                                        "sample_index": sample_idx,
+                                        "seed": seed_opt,
+                                        "pass": verify.pass,
+                                        "semantic_pass": verify.semantic_pass,
+                                        "anti_stub_pass": verify.anti_stub_pass,
+                                        "checks": verify.checks,
+                                        "completion_chars": output.len(),
+                                    }));
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "  {} Inference failed for {} sample {}: {}",
+                                        "⚠".yellow(),
+                                        id,
+                                        sample_idx,
+                                        e
+                                    );
+                                    per_sample.push(serde_json::json!({
+                                        "sample_index": sample_idx,
+                                        "seed": seed_opt,
+                                        "pass": false,
+                                        "error": e.to_string(),
+                                    }));
+                                }
+                            }
+                        }
+                        let pass1 = per_sample
+                            .first()
+                            .and_then(|v| v.get("pass"))
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let passk = per_sample
+                            .iter()
+                            .any(|v| v.get("pass").and_then(|x| x.as_bool()).unwrap_or(false));
+                        (pass1, passk, per_sample)
+                    } else {
+                        (
+                            false,
+                            false,
+                            vec![serde_json::json!({
+                                "sample_index": 0,
+                                "pass": false,
+                                "error": "engine fail to load"
+                            })],
+                        )
+                    }
+                }
+                #[cfg(not(feature = "gpu"))]
+                {
+                    (
+                        false,
+                        false,
+                        vec![serde_json::json!({
+                            "sample_index": 0,
+                            "pass": false,
+                            "error": format!(
+                                "CPU: GPU needed for inference — model {:.1}MB, prompt {} chars",
+                                model_size as f64 / 1_048_576.0,
+                                prompt.len()
+                            )
+                        })],
+                    )
+                }
+            };
 
         let entry = serde_json::json!({
             "manifest_index": manifest_index,
@@ -211,6 +224,9 @@ pub fn run_eval_local(
             "description": description,
             "pass_at_1": pass_at_1,
             "pass_at_k": pass_at_k,
+            "semantic_pass_at_k": samples_json
+                .iter()
+                .any(|v| v.get("semantic_pass").and_then(|x| x.as_bool()).unwrap_or(false)),
             "k": samples.max(1),
             "samples": samples_json,
         });
@@ -226,6 +242,46 @@ pub fn run_eval_local(
             *pk += 1;
             passed_k += 1;
         }
+        if entry
+            .get("semantic_pass_at_k")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
+            semantic_passed_k += 1;
+        }
+        if samples_json.iter().any(|v| {
+            v.get("anti_stub_pass")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false)
+        }) {
+            anti_stub_passed_k += 1;
+        }
+        if samples_json.iter().any(|v| {
+            v.get("checks")
+                .and_then(|c| c.get("placeholder_marker_hits"))
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0)
+                > 0
+        }) {
+            placeholder_event_count += 1;
+        }
+        if samples_json.iter().any(|v| {
+            v.get("checks")
+                .and_then(|c| c.get("trivial_placeholder_output"))
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false)
+        }) {
+            trivial_placeholder_event_count += 1;
+        }
+        let construct_richness_best = samples_json
+            .iter()
+            .filter_map(|v| {
+                v.get("checks")
+                    .and_then(|c| c.get("construct_richness_score"))
+                    .and_then(|x| x.as_f64())
+            })
+            .fold(0.0_f64, f64::max);
+        construct_richness_sum += construct_richness_best;
 
         let icon = if pass_at_k {
             "✓".green().to_string()
@@ -261,17 +317,43 @@ pub fn run_eval_local(
     } else {
         0.0
     };
+    let semantic_task_success = if total > 0 {
+        semantic_passed_k as f64 / total as f64
+    } else {
+        0.0
+    };
+    let anti_stub_task_success = if total > 0 {
+        anti_stub_passed_k as f64 / total as f64
+    } else {
+        0.0
+    };
+    let placeholder_event_rate = if total > 0 {
+        placeholder_event_count as f64 / total as f64
+    } else {
+        0.0
+    };
+    let trivial_placeholder_event_rate = if total > 0 {
+        trivial_placeholder_event_count as f64 / total as f64
+    } else {
+        0.0
+    };
+    let construct_richness_mean = if total > 0 {
+        construct_richness_sum / total as f64
+    } else {
+        0.0
+    };
     eprintln!();
     eprintln!("  {}", "─".repeat(54));
     eprintln!(
-        "  Overall: pass@1 {}/{} ({:.0}%) | pass@{} {}/{} ({:.0}%)",
+        "  Overall: pass@1 {}/{} ({:.0}%) | pass@{} {}/{} ({:.0}%) | semantic {:.0}%",
         passed_1,
         total,
         pass_rate_at_1 * 100.0,
         samples.max(1),
         passed_k,
         total,
-        pass_rate_at_k * 100.0
+        pass_rate_at_k * 100.0,
+        semantic_task_success * 100.0
     );
     for (cat, (p1, pk, t)) in &category_stats {
         eprintln!("    {:12} p@1 {}/{} p@k {}/{}", cat, p1, t, pk, t);
@@ -290,6 +372,11 @@ pub fn run_eval_local(
         "passed_at_k": passed_k,
         "pass_rate_at_1": pass_rate_at_1,
         "pass_rate_at_k": pass_rate_at_k,
+        "semantic_task_success": semantic_task_success,
+        "anti_stub_task_success": anti_stub_task_success,
+        "placeholder_event_rate": placeholder_event_rate,
+        "trivial_placeholder_event_rate": trivial_placeholder_event_rate,
+        "construct_richness_mean": construct_richness_mean,
         "category_stats": category_stats.iter().map(|(k, (p1, pk, t))| {
             serde_json::json!({
                 "category": k,
@@ -343,7 +430,37 @@ pub fn run_eval_local(
 
 struct CompletionVerification {
     pass: bool,
+    semantic_pass: bool,
+    anti_stub_pass: bool,
     checks: serde_json::Value,
+}
+
+fn placeholder_marker_hits(source: &str) -> usize {
+    let lower = source.to_ascii_lowercase();
+    [
+        "todo",
+        "tbd",
+        "placeholder",
+        "stub",
+        "not implemented",
+        "coming soon",
+    ]
+    .iter()
+    .filter(|m| lower.contains(**m))
+    .count()
+}
+
+fn is_trivial_placeholder_output(source: &str) -> bool {
+    let trimmed = source.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+    let code_lines = trimmed
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with("//"))
+        .count();
+    code_lines <= 1 || trimmed.eq_ignore_ascii_case("ret")
 }
 
 fn verify_completion(
@@ -352,6 +469,7 @@ fn verify_completion(
     file_hint: &str,
     sample_id: &str,
     manifest_index: usize,
+    semantic_expected_contains: &[String],
 ) -> CompletionVerification {
     let non_empty = !completion.trim().is_empty();
     let mut parse_ok = false;
@@ -387,14 +505,32 @@ fn verify_completion(
     }
 
     let pass = non_empty && parse_ok && typecheck_ok;
+    let placeholder_hits = placeholder_marker_hits(completion);
+    let trivial_placeholder = is_trivial_placeholder_output(completion);
+    let construct_richness = vox_compiler::eval::construct_coverage_score(completion);
+    let anti_stub_pass = placeholder_hits == 0
+        && !trivial_placeholder
+        && construct_richness >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
+    let semantic_pass = pass
+        && semantic_expected_contains
+            .iter()
+            .all(|needle| completion.contains(needle));
     CompletionVerification {
-        pass,
+        pass: pass && anti_stub_pass,
+        semantic_pass,
+        anti_stub_pass,
         checks: serde_json::json!({
             "non_empty": non_empty,
             "parse_ok": parse_ok,
             "typecheck_ok": typecheck_ok,
             "diag_errors": diag_errors,
-            "parse_error": parse_error
+            "parse_error": parse_error,
+            "placeholder_marker_hits": placeholder_hits,
+            "trivial_placeholder_output": trivial_placeholder,
+            "construct_richness_score": construct_richness,
+            "anti_stub_pass": anti_stub_pass,
+            "semantic_expected_contains": semantic_expected_contains,
+            "semantic_pass": semantic_pass
         }),
     }
 }

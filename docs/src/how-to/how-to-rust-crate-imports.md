@@ -10,6 +10,8 @@ training_eligible: true
 
 This page is the **SSOT for the current `import rust:…` feature**: what it does in the toolchain, what it does *not* do yet, and how to evolve it with **high leverage and low Kolmogorov complexity** (small mental model, few rules, familiar Cargo concepts).
 
+In the bell-curve interop model, `import rust:...` is a **Tier 3 escape hatch**. See [Interop tier policy](../architecture/interop-tier-policy.md).
+
 ## Syntax (what you can write today)
 
 Rust crate imports use the reserved prefix `rust:` on an `import` entry. They can be comma-separated with ordinary symbol imports in the same `import` statement.
@@ -89,6 +91,13 @@ Project dependencies for **Vox packages** still flow through `Vox.toml` / `vox.l
 - **No linkage to `cargo vendor` / vendoring policy** in this path alone; reproducibility remains “whatever Cargo resolves” unless you tighten versions or use path/git explicitly.
 
 **Plain language:** today’s feature is best thought of as **“make this script’s generated crate depend on these Rust packages.”** It is **not** yet **“call arbitrary Rust APIs from Vox with one line.”**
+
+For common app capabilities, prefer:
+
+1. builtins and `std.*` surfaces,
+2. approved wrappers,
+3. package-managed Vox libraries,
+4. `import rust:...` only when the earlier tiers do not fit.
 
 ## Reducing K-complexity and boilerplate (without breaking compatibility)
 

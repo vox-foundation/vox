@@ -3,15 +3,12 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use reqwest::Client;
-
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 use crate::{ActivityOptions, ActivityResult, execute_activity};
 
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use super::wire::{
-    OpenRouterRequest, OpenRouterResponse, OpenRouterUsage, chat_requires_nonempty_api_key,
-    resolve_chat_api_key,
+    OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key, resolve_chat_api_key,
 };
 
 type LlmChatActivityFuture =
@@ -55,7 +52,7 @@ pub async fn llm_chat(
                 ));
             }
 
-            let client = Client::new();
+            let client = vox_reqwest_defaults::client();
             let req_body = OpenRouterRequest {
                 model: &config.model,
                 messages: &messages,
@@ -95,10 +92,7 @@ pub async fn llm_chat(
                 .and_then(|m| m.content)
                 .unwrap_or_default();
 
-            let usage = llm_res.usage.unwrap_or(OpenRouterUsage {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-            });
+            let usage = llm_res.usage.unwrap_or_default();
 
             Ok(Ok(LlmResponse {
                 content,

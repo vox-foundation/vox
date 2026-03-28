@@ -272,6 +272,9 @@ pub(super) async fn run_pairs(
                     "source": source,
                     "rating": 5,
                     "schema_version": crate::training::SCHEMA_VERSION,
+                    "lane": "vox_codegen",
+                    "response_mode": "code_only",
+                    "task_family": "vox_codegen",
                 });
                 all_pairs.push(pair);
 
@@ -302,6 +305,9 @@ pub(super) async fn run_pairs(
                 "source": source,
                 "rating": 4,
                 "schema_version": crate::training::SCHEMA_VERSION,
+                "lane": "vox_codegen",
+                "response_mode": "code_only",
+                "task_family": "error_correction",
             });
             all_pairs.push(fix_pair);
         }
@@ -458,6 +464,9 @@ fn extract_doc_pairs(docs_dir: &Path) -> Vec<serde_json::Value> {
                         "source": format!("docs/{}", md_file.file_name().unwrap_or_default().to_string_lossy()),
                         "rating": 4,
                         "schema_version": crate::training::SCHEMA_VERSION,
+                        "lane": "vox_codegen",
+                        "response_mode": "code_only",
+                        "task_family": "docs_code",
                     }));
                 }
                 continue;

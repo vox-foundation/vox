@@ -12,6 +12,7 @@ use vox_runtime::{
 };
 
 use crate::events::AgentEventKind;
+use crate::models::ProviderType;
 use crate::orchestrator::Orchestrator;
 use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
@@ -70,6 +71,29 @@ pub struct AiTaskProcessor {
     model: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum ExecutorPhase {
+    Inspect,
+    Localize,
+    Hypothesize,
+    Act,
+    Verify,
+    Decide,
+}
+
+impl ExecutorPhase {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Inspect => "inspect",
+            Self::Localize => "localize",
+            Self::Hypothesize => "hypothesize",
+            Self::Act => "act",
+            Self::Verify => "verify",
+            Self::Decide => "decide",
+        }
+    }
+}
+
 impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
     pub async fn new(event_bus: crate::events::EventBus, orchestrator: Arc<Orchestrator>) -> Self {
@@ -84,6 +108,39 @@ impl AiTaskProcessor {
             model,
         }
     }
+
+    async fn run_phase_stream(
+        &self,
+        agent_id: crate::types::AgentId,
+        task: &crate::types::AgentTask,
+        phase: ExecutorPhase,
+        usage_model: &str,
+        prior_notes: &str,
+        route: vox_ludus::StreamRoute<'_>,
+    ) -> String {
+        let prompt = format!(
+            "Task: {}\n\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
+            task.description,
+            phase.as_str(),
+            task.task_category,
+            usage_model,
+            prior_notes
+        );
+
+        let mut stream = self.client.generate_stream_routed(&prompt, route).await;
+        let mut phase_text = String::new();
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(text) => {
+                    phase_text.push_str(&text);
+                    self.event_bus
+                        .emit(AgentEventKind::TokenStreamed { agent_id, text });
+                }
+                Err(e) => tracing::error!("AI stream error [{}]: {}", phase.as_str(), e),
+            }
+        }
+        phase_text
+    }
 }
 
 #[async_trait::async_trait]
@@ -93,28 +150,102 @@ impl TaskProcessor for AiTaskProcessor {
         agent_id: crate::types::AgentId,
         task: crate::types::AgentTask,
     ) -> anyhow::Result<crate::types::TaskId> {
-        let prompt = format!(
-            "Task: {}\n\nContext: {:?}\n\nAction: Execute this task and provide the output.",
-            task.description, task.task_category
-        );
+        let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        let routed = {
+            let registry = crate::sync_lock::rw_read(&*self.orchestrator.models);
+            registry.best_for(task.task_category, task.estimated_complexity, cost_pref)
+        };
+        let (usage_provider, usage_model) = if let Some(ref mo) = task.model_override {
+            ("task_override".to_string(), mo.clone())
+        } else if let Some(m) = routed.as_ref() {
+            (m.provider.clone(), m.id.clone())
+        } else {
+            (self.provider.clone(), self.model.clone())
+        };
 
-        let mut stream = self.client.generate_stream(&prompt).await;
-        let mut full_text = String::new();
-
-        while let Some(chunk_result) = stream.next().await {
-            match chunk_result {
-                Ok(text) => {
-                    full_text.push_str(&text);
-                    // Emit token stream event
-                    self.event_bus
-                        .emit(AgentEventKind::TokenStreamed { agent_id, text });
+        let route = if let Some(mo) = task
+            .model_override
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+        {
+            vox_ludus::StreamRoute::UserModelOverride(mo)
+        } else if let Some(m) = routed.as_ref() {
+            match m.provider_type {
+                ProviderType::Ollama => vox_ludus::StreamRoute::Registry {
+                    backend: vox_ludus::LudusStreamBackend::Ollama,
+                    model: m.id.as_str(),
+                },
+                ProviderType::GoogleDirect => vox_ludus::StreamRoute::Registry {
+                    backend: vox_ludus::LudusStreamBackend::Gemini,
+                    model: m.id.as_str(),
+                },
+                ProviderType::OpenRouter => vox_ludus::StreamRoute::Registry {
+                    backend: vox_ludus::LudusStreamBackend::OpenRouter,
+                    model: m.id.as_str(),
+                },
+                ProviderType::Groq
+                | ProviderType::Mistral
+                | ProviderType::DeepSeek
+                | ProviderType::Cerebras
+                | ProviderType::SambaNova
+                | ProviderType::Custom(_) => {
+                    if m.id.contains('/') {
+                        vox_ludus::StreamRoute::Registry {
+                            backend: vox_ludus::LudusStreamBackend::OpenRouter,
+                            model: m.id.as_str(),
+                        }
+                    } else {
+                        vox_ludus::StreamRoute::Cascade
+                    }
                 }
-                Err(e) => tracing::error!("AI stream error: {}", e),
+            }
+        } else {
+            vox_ludus::StreamRoute::Cascade
+        };
+        let mut notes = String::new();
+        let phases = [
+            ExecutorPhase::Inspect,
+            ExecutorPhase::Localize,
+            ExecutorPhase::Hypothesize,
+            ExecutorPhase::Act,
+            ExecutorPhase::Verify,
+            ExecutorPhase::Decide,
+        ];
+        // Keep execution bounded: no infinite self-reflection or uncontrolled loops.
+        for phase in phases {
+            let phase_out = self
+                .run_phase_stream(
+                    agent_id,
+                    &task,
+                    phase,
+                    usage_model.as_str(),
+                    notes.as_str(),
+                    route.clone(),
+                )
+                .await;
+            if !notes.is_empty() {
+                notes.push_str("\n\n");
+            }
+            notes.push_str(&format!("[{}]\n{}", phase.as_str(), phase_out));
+            // Lightweight tool intent tracing: explicit breadcrumbs for future bridge adapters.
+            if let Some(tool_line) = phase_out
+                .lines()
+                .map(str::trim)
+                .find(|line| line.starts_with("@tool "))
+            {
+                tracing::info!(
+                    agent_id = agent_id.0,
+                    task_id = task.id.0,
+                    phase = phase.as_str(),
+                    tool_intent = %tool_line,
+                    "bounded executor emitted tool intent"
+                );
             }
         }
+        let full_text = notes;
 
         // Estimate token counts (4 chars ≈ 1 token as a rough heuristic)
-        let input_tokens = (prompt.len() / 4).max(1) as u32;
+        let input_tokens = (task.description.len() / 4).max(1) as u32;
         let output_tokens = (full_text.len() / 4).max(1) as u32;
         // Approximate cost: $0.000001 per token (conservative free-tier estimate)
         let cost_usd = (input_tokens + output_tokens) as f64 * 0.000_001;
@@ -122,8 +253,8 @@ impl TaskProcessor for AiTaskProcessor {
         // Record usage through the unified pipeline (event bus + budget + oplog)
         self.orchestrator.record_ai_usage(
             agent_id,
-            &self.provider,
-            &self.model,
+            usage_provider.as_str(),
+            usage_model.as_str(),
             input_tokens,
             output_tokens,
             cost_usd,

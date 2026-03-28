@@ -13,6 +13,13 @@ training_eligible: true
 ## Naming Convention
 
 - `VOX_*`: Vox-owned platform contracts (mesh, runtime auth, DB, cloud orchestration, internal boundaries).
+
+## Non-secret environment parsing
+
+Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. HTTP retry caps, timeouts expressed as plain integers). Do **not** route API keys or other credentials through those helpers — use **`vox_clavis::resolve_secret`** (and the `SecretId` inventory below) so precedence and aliases stay consistent.
+
+**`vox-ludus` free-tier AI:** when `FreeAiProvider::{Gemini,OpenRouter}` carries an empty `api_key`, resolution goes through Clavis (`GeminiApiKey`, `OpenRouterApiKey`) — same canonical + compat env names as the rest of the repo; do not read `GEMINI_API_KEY` / `OPENROUTER_API_KEY` directly in new Ludus codepaths.
+
 - Provider-native names (for example `OPENROUTER_API_KEY`, `OPENAI_API_KEY`): upstream ecosystem names kept for compatibility.
 - Optional `VOX_*` provider aliases are accepted as migration aids; canonical names remain stable.
 

@@ -16,7 +16,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 vox-compiler = { workspace = true }
 vox-db = { path = "../vox-db" }
 vox-ludus = { path = "../vox-ludus" }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 anyhow = { workspace = true }
 
 [lints]

@@ -35,6 +35,9 @@ pub struct EvalGatePolicy {
     /// pass@k gate from `benchmark_passatk.json`.
     #[serde(default)]
     pub pass_at_k: PassAtKGate,
+    /// Anti-stub thresholds from eval-local report.
+    #[serde(default)]
+    pub anti_stub: AntiStubGate,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).
@@ -187,6 +190,25 @@ pub struct ModalMixGate {
     #[serde(default)]
     pub max_voice_fraction: f64,
     /// If true, a violation blocks the run.
+    #[serde(default)]
+    pub block: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AntiStubGate {
+    /// Minimum anti-stub pass rate expected in `eval_results.json`.
+    #[serde(default)]
+    pub min_pass_rate: f64,
+    /// Maximum placeholder marker event rate tolerated.
+    #[serde(default)]
+    pub max_placeholder_event_rate: f64,
+    /// Maximum trivial placeholder event rate tolerated.
+    #[serde(default)]
+    pub max_trivial_placeholder_event_rate: f64,
+    /// Minimum construct richness mean expected from eval-local.
+    #[serde(default)]
+    pub min_construct_richness_mean: f64,
+    /// If true, violations block the run.
     #[serde(default)]
     pub block: bool,
 }

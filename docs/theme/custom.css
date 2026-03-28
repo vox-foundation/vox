@@ -1,0 +1,75 @@
+/* Custom Vox Theme Overrides */
+
+/* Hero Section */
+.vox-hero {
+    text-align: center;
+    padding: 2rem 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--table-border-color);
+}
+
+.vox-hero img.logo {
+    max-width: 200px;
+    height: auto;
+    margin-bottom: 1rem;
+}
+
+.vox-hero h1 {
+    font-size: 2.5em;
+    margin-bottom: 0.5rem;
+    color: var(--fg);
+}
+
+.vox-hero p.subtitle {
+    font-size: 1.2em;
+    color: var(--fg);
+    opacity: 0.8;
+    margin-bottom: 1.5rem;
+}
+
+/* Call to Action Buttons */
+.vox-cta-container {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+}
+
+.vox-cta {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1em;
+    font-weight: bold;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+}
+
+.vox-cta.primary {
+    background-color: var(--links);
+    color: var(--bg);
+    border: 2px solid var(--links);
+}
+
+.vox-cta.primary:hover {
+    background-color: transparent;
+    color: var(--links);
+}
+
+.vox-cta.secondary {
+    background-color: transparent;
+    color: var(--fg);
+    border: 2px solid var(--table-border-color);
+}
+
+.vox-cta.secondary:hover {
+    border-color: var(--links);
+    color: var(--links);
+}
+
+/* Fix image max-width */
+img {
+    max-width: 100%;
+    height: auto;
+}

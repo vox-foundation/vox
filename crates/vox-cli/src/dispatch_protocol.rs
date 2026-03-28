@@ -37,7 +37,8 @@ mod tests {
             .unwrap_or_else(|e| panic!("read {}: {e}", schema_path.display()));
         let schema_val: serde_json::Value =
             serde_json::from_str(&schema_src).expect("parse DeI RPC schema");
-        let validator = jsonschema::validator_for(&schema_val).expect("compile DeI RPC schema");
+        let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+            .expect("compile DeI RPC schema");
 
         let req = DispatchRequest {
             id: "req-1".into(),
@@ -45,9 +46,12 @@ mod tests {
             params: serde_json::json!({ "prompt": "hello" }),
         };
         let instance = serde_json::to_value(&req).expect("serialize DispatchRequest");
-        validator
-            .validate(&instance)
-            .expect("DispatchRequest must match contracts/dei/rpc-methods.schema.json");
+        vox_jsonschema_util::validate(
+            &instance,
+            &validator,
+            "DispatchRequest vs contracts/dei/rpc-methods.schema.json",
+        )
+        .expect("DispatchRequest must match contracts/dei/rpc-methods.schema.json");
     }
 
     #[test]

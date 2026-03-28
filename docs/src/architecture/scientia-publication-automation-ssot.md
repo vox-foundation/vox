@@ -134,8 +134,9 @@ postPublishAudit --> codexLedger[CodexLedgerAndMetrics]
 
 - SCIENTIA canonical manifest lifecycle with digest-bound approvals and submission ledger.
 - Structured scholarly metadata in `metadata_json.scientific_publication`.
-- Preflight checks with readiness score, profile-aware gating, consolidated `manual_required` / `confidence`, and (CLI/MCP with VoxDb) live-publish gate hints mirrored from the same rules as `publication-publish`.
+- Preflight checks with readiness score, profile-aware gating, consolidated `manual_required` / `confidence`, and ordered `next_actions`; CLI/MCP status surfaces now embed the same checklist so operators can keep one default attention surface open.
 - Syndication hydrate accepts canonical `metadata_json.syndication`, legacy `scientia_distribution`, and contract `channels`/`channel_payloads` normalization; Twitter uses the same retry budget machinery as other HTTP adapters; `publication-retry-failed` skips channels already marked `Success` for the current digest.
+- Scholarly adapters already include `local_ledger`, `echo_ledger`, `zenodo`, and `openreview`, while arXiv remains operator-assist via staging export + handoff events.
 - Zenodo deposition metadata JSON generation.
 - MCP/CLI parity for core prepare/approve/submit/status and preflight.
 - Socrates anti-hallucination telemetry and gate concepts.
@@ -187,16 +188,16 @@ Required evidence pair per claim:
   - run compile/format checks and include machine-readable report in manifest metadata.
 - **Success criteria:** >=95% package validation pass in CI dry-runs before human submission.
 
-### Gap 2: adapter execution beyond local stub (complex)
+### Gap 2: operator routing still dominates more than it should (medium)
 
-- **Where:** `LocalLedgerAdapter` is the only scholarly adapter.
-- **Why:** no direct publication path means manual bottlenecks and error-prone handoff.
-- **Minimum viable fix:** implement Zenodo adapter first (draft create + metadata upload path).
+- **Where:** the code already has multiple adapters, but the user still has to think in terms of low-level surfaces (`preflight`, approvals, pipeline, status, social simulation, retry).
+- **Why:** time is still lost on choosing the right command sequence rather than following one obvious happy path.
+- **Minimum viable fix:** standardize on `publication-preflight` / `publication-status` as the checklist surfaces and `publication-scholarly-pipeline-run` as the default scholarly path.
 - **Expanded solution:**
-  - create adapter implementations for Zenodo then OpenReview/arXiv-assist/Crossref export;
-  - add per-adapter idempotency keys and retry taxonomy;
-  - store external status/revision IDs in `scholarly_submissions` plus status events.
-- **Success criteria:** end-to-end draft submission success rate >=90% in staging/sandbox workflows.
+  - keep low-level commands, but lead docs and MCP/CLI outputs with ordered `next_actions`;
+  - make `publication-status` the persistent operator checklist for approvals, worker outcomes, and retries;
+  - keep adapter work focused on hard gaps (`Crossref`, journal portals) instead of inventing a new orchestration layer.
+- **Success criteria:** a new operator can follow one obvious scholarly path without reconstructing the command graph from docs.
 
 ### Gap 3: anti-slop policy gate depth (medium)
 
@@ -243,7 +244,7 @@ This architecture SSOT defines pipeline shape, boundaries, and implementation pr
 
 ## Scientia social distribution (2026)
 
-Scientia publication manifests may include `metadata_json.scientia_distribution` for
+Scientia publication manifests should use `metadata_json.syndication` for
 cross-channel routing metadata and policy. Canonical schema artifacts:
 
 - `contracts/scientia/distribution.schema.json`
@@ -269,7 +270,7 @@ Required controls for live distribution:
 Distribution precedence:
 
 1. explicit per-item manifest/channel overrides,
-2. `metadata_json.scientia_distribution.distribution_policy.channel_policy`,
+2. `metadata_json.syndication.distribution_policy.channel_policy`,
 3. orchestrator runtime/env overrides for live operations.
 
 ## External policy URL appendix

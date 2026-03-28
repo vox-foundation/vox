@@ -68,9 +68,7 @@ impl crate::VoxDb {
             .await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            let sid: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            let mv: Option<f64> = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            let meta: Option<String> = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            crate::row_cols!(row; 0 => sid: String, 1 => mv: Option<f64>, 2 => meta: Option<String>);
             out.push((sid, mv, meta));
         }
         Ok(out)
@@ -122,10 +120,7 @@ impl crate::VoxDb {
         };
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
-            let sid: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            let mtype: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            let mv: Option<f64> = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
-            let meta: Option<String> = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+            crate::row_cols!(row; 0 => sid: String, 1 => mtype: String, 2 => mv: Option<f64>, 3 => meta: Option<String>);
             out.push((sid, mtype, mv, meta));
         }
         Ok(out)
@@ -262,6 +257,8 @@ impl crate::VoxDb {
 
         let endpoint_url = endpoint_url.to_string();
         let model_id = model_id.to_string();
+        let endpoint_url_for_obs = endpoint_url.clone();
+        let model_id_for_obs = model_id.clone();
         let rl = i64::from(is_rate_limit);
         let to = i64::from(is_timeout);
         let breaker = self.breaker.clone();
@@ -296,7 +293,68 @@ impl crate::VoxDb {
                 .await?;
                 Ok::<(), StoreError>(())
             })
-            .await
+            .await?;
+
+        // Keep a multidimensional trust rollup alongside endpoint EWMA.
+        let _ = self
+            .record_trust_observation(crate::TrustObservationInput {
+                entity_type: "endpoint",
+                    entity_id: endpoint_url_for_obs.as_str(),
+                dimension: "factuality",
+                domain: None,
+                task_class: None,
+                provider: None,
+                    model_id: Some(model_id_for_obs.as_str()),
+                repository_id: None,
+                source_kind: Some("endpoint_observation"),
+                observation_value: (1.0 - hallucination_signal).clamp(0.0, 1.0),
+                confidence_weight: 1.0,
+                sample_size: 1,
+                artifact_ref: None,
+                metadata_json: None,
+                ewma_alpha: 0.05,
+            })
+            .await;
+        let _ = self
+            .record_trust_observation(crate::TrustObservationInput {
+                entity_type: "endpoint",
+                    entity_id: endpoint_url_for_obs.as_str(),
+                dimension: "contradiction_rate",
+                domain: None,
+                task_class: None,
+                provider: None,
+                    model_id: Some(model_id_for_obs.as_str()),
+                repository_id: None,
+                source_kind: Some("endpoint_observation"),
+                observation_value: (1.0 - contradiction_signal).clamp(0.0, 1.0),
+                confidence_weight: 1.0,
+                sample_size: 1,
+                artifact_ref: None,
+                metadata_json: None,
+                ewma_alpha: 0.05,
+            })
+            .await;
+        let _ = self
+            .record_trust_observation(crate::TrustObservationInput {
+                entity_type: "endpoint",
+                    entity_id: endpoint_url_for_obs.as_str(),
+                dimension: "latency_reliability",
+                domain: None,
+                task_class: None,
+                provider: None,
+                    model_id: Some(model_id_for_obs.as_str()),
+                repository_id: None,
+                source_kind: Some("endpoint_observation"),
+                observation_value: (1.0 - infra_failure).clamp(0.0, 1.0),
+                confidence_weight: 1.0,
+                sample_size: 1,
+                artifact_ref: None,
+                metadata_json: None,
+                ewma_alpha: 0.05,
+            })
+            .await;
+
+        Ok(())
     }
 
     /// Fetch all `endpoint_reliability` rows sorted by composite degradation score (worst first).
@@ -446,9 +504,12 @@ impl crate::VoxDb {
         let run_id = run_id.to_string();
         let model_path = model_path.map(str::to_string);
         let metadata_json = metadata_json.map(str::to_string);
+        let run_id_for_obs = run_id.clone();
+        let model_path_for_obs = model_path.clone();
+        let metadata_json_for_obs = metadata_json.clone();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        breaker
+        let row_id = breaker
             .call(|| async move {
                 conn.execute(
                     "INSERT OR REPLACE INTO eval_runs
@@ -469,7 +530,55 @@ impl crate::VoxDb {
                 .await?;
                 Ok::<_, StoreError>(conn.last_insert_rowid())
             })
-            .await
+            .await?;
+
+        let entity_id = model_path_for_obs
+            .as_deref()
+            .unwrap_or(run_id_for_obs.as_str());
+        if let Some(q) = quality_proxy {
+            let _ = self
+                .record_trust_observation(crate::TrustObservationInput {
+                    entity_type: "model",
+                    entity_id,
+                    dimension: "factuality",
+                    domain: Some("eval_run"),
+                    task_class: Some("eval"),
+                    provider: None,
+                    model_id: model_path_for_obs.as_deref(),
+                    repository_id: None,
+                    source_kind: Some("eval_run"),
+                    observation_value: q.clamp(0.0, 1.0),
+                    confidence_weight: 1.0,
+                    sample_size: 1,
+                    artifact_ref: Some(run_id_for_obs.as_str()),
+                    metadata_json: metadata_json_for_obs.as_deref(),
+                    ewma_alpha: 0.10,
+                })
+                .await;
+        }
+        if let Some(fv) = format_validity {
+            let _ = self
+                .record_trust_observation(crate::TrustObservationInput {
+                    entity_type: "model",
+                    entity_id,
+                    dimension: "evidence_coverage",
+                    domain: Some("eval_run"),
+                    task_class: Some("eval"),
+                    provider: None,
+                    model_id: model_path_for_obs.as_deref(),
+                    repository_id: None,
+                    source_kind: Some("eval_run"),
+                    observation_value: fv.clamp(0.0, 1.0),
+                    confidence_weight: 0.8,
+                    sample_size: 1,
+                    artifact_ref: Some(run_id_for_obs.as_str()),
+                    metadata_json: metadata_json_for_obs.as_deref(),
+                    ewma_alpha: 0.10,
+                })
+                .await;
+        }
+
+        Ok(row_id)
     }
 
     // ── Corpus Snapshots (corpus_snapshots) ───────────────────────────────────

@@ -7,7 +7,7 @@
 use crate::events::EventBus;
 use crate::locks::{FileLockManager, LockConflict, LockKind};
 use crate::scope::{ScopeCheckResult, ScopeGuard};
-use crate::types::{AccessKind, AgentId, FileAffinity};
+use crate::types::{AccessKind, AgentId, AgentTask, CompletionAttestation, FileAffinity};
 
 /// Result of a policy check before queueing a task.
 #[derive(Debug, Clone)]
@@ -31,6 +31,76 @@ impl PolicyCheckResult {
 pub struct PolicyEngine;
 
 impl PolicyEngine {
+    fn has_placeholder_marker(text: &str) -> bool {
+        let lower = text.to_ascii_lowercase();
+        [
+            "todo",
+            "tbd",
+            "placeholder",
+            "stub",
+            "not implemented",
+            "coming soon",
+        ]
+        .iter()
+        .any(|m| lower.contains(m))
+    }
+
+    /// Completion policy for no-write tasks: require a concrete attestation and reject
+    /// obvious placeholder markers unless `force_risky` is explicitly set with a reason.
+    pub fn check_completion_before_complete(
+        task: Option<&AgentTask>,
+        attestation: Option<&CompletionAttestation>,
+    ) -> PolicyCheckResult {
+        let Some(task) = task else {
+            return PolicyCheckResult::Allowed;
+        };
+        if !task.write_files().is_empty() {
+            return PolicyCheckResult::Allowed;
+        }
+
+        let Some(att) = attestation else {
+            return PolicyCheckResult::ScopeDenied(
+                "Completion policy denied: no-write task requires completion attestation"
+                    .to_string(),
+            );
+        };
+        if att.force_risky {
+            let reason_ok = match &att.force_risky_reason {
+                Some(r) => !r.trim().is_empty(),
+                None => false,
+            };
+            if !reason_ok {
+                return PolicyCheckResult::ScopeDenied(
+                    "Completion policy denied: force_risky requires non-empty force_risky_reason"
+                        .to_string(),
+                );
+            }
+            return PolicyCheckResult::Allowed;
+        }
+        if !att.declared_non_placeholder {
+            return PolicyCheckResult::ScopeDenied(
+                "Completion policy denied: declared_non_placeholder must be true for no-write tasks"
+                    .to_string(),
+            );
+        }
+        let summary_ok = match &att.completion_summary {
+            Some(s) => s.trim().len() >= 24 && !Self::has_placeholder_marker(s),
+            None => false,
+        };
+        if !summary_ok {
+            return PolicyCheckResult::ScopeDenied(
+                "Completion policy denied: completion_summary is missing/too short or includes placeholder markers".to_string(),
+            );
+        }
+        let has_evidence = !att.artifact_paths.is_empty() || !att.checks_passed.is_empty();
+        if !has_evidence {
+            return PolicyCheckResult::ScopeDenied(
+                "Completion policy denied: no-write task requires artifact_paths or checks_passed evidence".to_string(),
+            );
+        }
+        PolicyCheckResult::Allowed
+    }
+
     /// Check whether the agent can acquire locks for all write files.
     /// Does not actually acquire locks; use for dry-run or pre-check.
     pub fn check_locks(
@@ -86,6 +156,7 @@ impl PolicyEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{AgentTask, CompletionAttestation, TaskId, TaskPriority};
     use std::path::PathBuf;
 
     #[test]
@@ -111,6 +182,30 @@ mod tests {
         let a1 = AgentId(1);
         let _ = lock_manager.try_acquire(&path, a1, LockKind::Exclusive);
         let r = PolicyEngine::check_before_queue(&lock_manager, None, &event_bus, &manifest, a1);
+        assert!(r.is_allowed());
+    }
+
+    #[test]
+    fn no_write_completion_requires_attestation() {
+        let task = AgentTask::new(TaskId(1), "no write task", TaskPriority::Normal, vec![]);
+        let r = PolicyEngine::check_completion_before_complete(Some(&task), None);
+        assert!(!r.is_allowed());
+    }
+
+    #[test]
+    fn no_write_completion_allows_valid_attestation() {
+        let task = AgentTask::new(TaskId(2), "no write task", TaskPriority::Normal, vec![]);
+        let att = CompletionAttestation {
+            completion_summary: Some(
+                "Validated documentation output and emitted artifacts.".into(),
+            ),
+            checks_passed: vec!["schema-verify".into()],
+            artifact_paths: vec![],
+            declared_non_placeholder: true,
+            force_risky: false,
+            force_risky_reason: None,
+        };
+        let r = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att));
         assert!(r.is_allowed());
     }
 }

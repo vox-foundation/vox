@@ -1,3 +1,4 @@
+use crate::builtin_registry::builtin_registry_entries;
 use crate::typeck::env::{AdtDef, Binding, BindingKind, TypeEnv, VariantDef};
 use crate::typeck::ty::Ty;
 
@@ -6,7 +7,7 @@ use crate::typeck::ty::Ty;
 /// This populates the root scope of a `TypeEnv` with:
 /// - Built-in types (Option, Result as ADTs with proper constructors)
 /// - Standard library functions (print, str, int, float, len)
-/// - React/frontend bindings (use_state, use_effect)
+/// - React/frontend bindings (`use_state`, `use_effect`, `use_memo`, `use_ref`, `use_callback`)
 /// - HTTP/network module bindings
 /// - String, list, and record methods
 pub struct BuiltinTypes {
@@ -137,7 +138,8 @@ impl BuiltinTypes {
             },
         );
 
-        // std — namespace for `std.fs.*`, `std.path.*`, `std.env.*`, `std.process.*`, `std.json.*` (script codegen)
+        // std — namespace for `std.fs.*`, `std.path.*`, `std.env.*`, `std.process.*`,
+        // `std.json.*`, `std.crypto.*`, `std.time.*`, `std.log.*`, and direct hash/time helpers.
         env.define(
             "std".into(),
             Binding {
@@ -223,6 +225,39 @@ impl BuiltinTypes {
             },
         );
 
+        env.define(
+            "use_memo".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::Fn(vec![], Box::new(Ty::GenericParam(0)))],
+                    Box::new(Ty::GenericParam(0)),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        env.define(
+            "use_ref".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::GenericParam(0))),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        env.define(
+            "use_callback".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::GenericParam(0))),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // DOM / synthetic types (field access is special-cased in `Checker`)
         env.define_type("KeyboardEvent".into(), Ty::Named("KeyboardEvent".into()));
 
@@ -258,6 +293,17 @@ impl BuiltinTypes {
             "Speech".into(),
             Binding {
                 ty: Ty::Named("SpeechModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // OpenClaw gateway module (WS-first runtime adapter).
+        env.define(
+            "OpenClaw".into(),
+            Binding {
+                ty: Ty::Named("OpenClawModule".into()),
                 mutable: false,
                 kind: BindingKind::Import,
                 is_deprecated: false,
@@ -347,6 +393,25 @@ impl BuiltinTypes {
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         methods.insert("SpeechModule".into(), speech_methods);
+
+        // OpenClaw module methods come from shared builtin registry entries.
+        let mut openclaw_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .filter(|e| e.namespace == "OpenClaw")
+        {
+            let params = match entry.arg_count {
+                0 => vec![],
+                1 => vec![Ty::Str],
+                2 => vec![Ty::Str, Ty::Str],
+                _ => continue,
+            };
+            openclaw_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(Ty::Result(Box::new(Ty::Str)))),
+            );
+        }
+        methods.insert("OpenClawModule".into(), openclaw_methods);
 
         // Request methods
         let mut req_methods = std::collections::HashMap::new();

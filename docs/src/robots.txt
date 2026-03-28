@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://vox-foundation.github.io/vox/sitemap.xml
+Sitemap: https://vox-lang.org/sitemap.xml
 

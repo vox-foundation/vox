@@ -8,7 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 
 [lints]
 workspace = true

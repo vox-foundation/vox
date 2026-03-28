@@ -46,6 +46,19 @@ pub struct ExecutionPolicy {
     pub allowed_skills: Vec<String>,
     #[serde(default)]
     pub allowed_action_labels: Vec<String>,
+    /// When non-empty, used as the orchestrator file manifest for this plan node instead of the
+    /// `Cargo.toml` placeholder in [`crate::planning::executor_bridge`].
+    #[serde(default)]
+    pub file_manifest: Vec<crate::types::FileAffinity>,
+    /// Hints merged at enqueue (e.g. from MCP `submit_goal`); persisted with the plan node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enqueue_hints: Option<crate::types::TaskEnqueueHints>,
+    /// Audited override for plan quality gate findings.
+    #[serde(default)]
+    pub force_risky: bool,
+    /// Required when `force_risky` is true.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub force_risky_reason: Option<String>,
     #[serde(default)]
     pub replan_triggers: Vec<ReplanTrigger>,
     /// Omitted in minimal JSON blobs (e.g. tests, hand-authored policy); defaults to `1` like `ExecutionPolicy::default()`.
@@ -67,6 +80,10 @@ impl Default for ExecutionPolicy {
                 "write".to_string(),
                 "execute".to_string(),
             ],
+            file_manifest: vec![],
+            enqueue_hints: None,
+            force_risky: false,
+            force_risky_reason: None,
             replan_triggers: vec![],
             max_retries: 1,
             timeout_ms: None,
@@ -122,4 +139,10 @@ pub struct PlanningTaskMeta {
     pub plan_node_id: String,
     pub plan_version: u32,
     pub execution_policy_json: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub benchmark_tier: Option<crate::reconstruction::ReconstructionBenchmarkTier>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_role: Option<crate::reconstruction::AgentExecutionRole>,
 }

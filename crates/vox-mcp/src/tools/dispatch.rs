@@ -5,8 +5,9 @@ use crate::server::ServerState;
 
 use super::{
     benchmark_tools, chat_tools, codex_tools, compiler_tools, db_tools, git_tools,
-    introspection_tools, news_tools, oratio_tools, populi_tools, questioning_tools, repo_index,
-    scientia_tools, task_tools, toestub_tools, tool_aliases, training_tools, vcs_tools,
+    introspection_tools, news_tools, openclaw_tools, oratio_tools, populi_tools, questioning_tools,
+    repo_index, scientia_tools, task_tools, toestub_tools, tool_aliases, training_tools,
+    trust_tools, vcs_tools,
 };
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
@@ -112,6 +113,28 @@ async fn handle_tool_call_inner(
         "vox_publish_message" => {
             Ok(task_tools::publish_message(state, serde_json::from_value(args)?).await)
         }
+        "vox_openclaw_list_remote" => Ok(openclaw_tools::openclaw_list_remote(state).await),
+        "vox_openclaw_search_remote" => {
+            Ok(openclaw_tools::openclaw_search_remote(state, serde_json::from_value(args)?).await)
+        }
+        "vox_openclaw_import_skill" => {
+            Ok(openclaw_tools::openclaw_import_skill(state, serde_json::from_value(args)?).await)
+        }
+        "vox_openclaw_discover" => Ok(openclaw_tools::openclaw_discover(state).await),
+        "vox_openclaw_health" => Ok(openclaw_tools::openclaw_health(state).await),
+        "vox_openclaw_gateway_call" => {
+            Ok(openclaw_tools::openclaw_gateway_call(state, serde_json::from_value(args)?).await)
+        }
+        "vox_openclaw_subscriptions" => Ok(openclaw_tools::openclaw_subscriptions(state).await),
+        "vox_openclaw_subscribe" => {
+            Ok(openclaw_tools::openclaw_subscribe(state, serde_json::from_value(args)?).await)
+        }
+        "vox_openclaw_unsubscribe" => {
+            Ok(openclaw_tools::openclaw_unsubscribe(state, serde_json::from_value(args)?).await)
+        }
+        "vox_openclaw_notify" => {
+            Ok(openclaw_tools::openclaw_notify(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_git_log" => Ok(git_tools::git_log(
             state,
@@ -185,6 +208,10 @@ async fn handle_tool_call_inner(
         "vox_db_research_metric_linked" => {
             Ok(codex_tools::codex_research_metric_linked(state, args).await)
         }
+        "vox_db_trust_rollups" => Ok(trust_tools::trust_rollups_list(state, args).await),
+        "vox_db_trust_summary" => Ok(trust_tools::trust_rollups_summary(state, args).await),
+        "vox_db_trust_drift" => Ok(trust_tools::trust_observation_drift(state, args).await),
+        "vox_db_trust_propagate" => Ok(trust_tools::trust_propagate(state, args).await),
 
         "vox_generate_code" => Ok(compiler_tools::generate_vox_code(state, args).await),
         "vox_list_models" => {
@@ -676,6 +703,16 @@ mod registry_dispatch_tests {
         "vox_validate_file",
         "vox_generate_code",
         "vox_oratio_transcribe",
+        "vox_openclaw_list_remote",
+        "vox_openclaw_search_remote",
+        "vox_openclaw_import_skill",
+        "vox_openclaw_discover",
+        "vox_openclaw_health",
+        "vox_openclaw_gateway_call",
+        "vox_openclaw_subscriptions",
+        "vox_openclaw_subscribe",
+        "vox_openclaw_unsubscribe",
+        "vox_openclaw_notify",
     ];
 
     #[tokio::test]

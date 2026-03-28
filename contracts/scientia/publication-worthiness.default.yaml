@@ -47,6 +47,8 @@ weights:
   reliability: 0.15
   metadata_policy: 0.10
 
+# Advisory only: these profile notes document venue expectations for operators and docs.
+# Current runtime evaluation does not automatically execute `required_checks`.
 venue_profiles:
   tmlr_double_blind:
     description: "Double-blind profile with broader-impact and stronger anonymization checks."

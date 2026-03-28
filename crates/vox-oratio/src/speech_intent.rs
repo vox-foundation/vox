@@ -22,7 +22,6 @@ pub enum SpeechIntentAction {
     None,
 }
 
-
 /// Slots and confidence for downstream codegen tools.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SpeechIntentEnvelope {

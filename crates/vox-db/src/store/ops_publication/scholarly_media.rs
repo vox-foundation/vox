@@ -52,16 +52,7 @@ impl VoxDb {
                     updated_at_ms = excluded.updated_at_ms,
                     response_fingerprint = excluded.response_fingerprint,
                     metadata_json = excluded.metadata_json",
-                    (
-                        pub_id,
-                        digest,
-                        adapter_s,
-                        ext_id,
-                        status_s,
-                        ts,
-                        rf,
-                        mj,
-                    ),
+                    (pub_id, digest, adapter_s, ext_id, status_s, ts, rf, mj),
                 )
                 .await?;
                 Ok::<(), StoreError>(())
@@ -109,9 +100,7 @@ impl VoxDb {
                     updated_at_ms = ?2,
                     metadata_json = COALESCE(?3, metadata_json)
                  WHERE publication_id = ?4 AND adapter = ?5 AND external_submission_id = ?6",
-                        (
-                            status_s, ts, meta, pub_id, adapter_s, ext_id,
-                        ),
+                        (status_s, ts, meta, pub_id, adapter_s, ext_id),
                     )
                     .await?;
                 Ok::<_, StoreError>(n)

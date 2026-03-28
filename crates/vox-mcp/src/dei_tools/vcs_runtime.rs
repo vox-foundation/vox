@@ -195,6 +195,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             None,
             None,
             None,
+            None,
             params.session_id,
         )
         .await

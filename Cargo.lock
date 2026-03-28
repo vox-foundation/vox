@@ -9189,6 +9189,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tungstenite"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edc5f74e248dc973e0dbb7b74c7e0d6fcc301c694ff50049504004ef4d0cdcd9"
+dependencies = [
+ "futures-util",
+ "log",
+ "rustls 0.23.36",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls 0.26.4",
+ "tungstenite",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9625,6 +9641,26 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "tungstenite"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18e5b8366ee7a95b16d32197d0b2604b43a0be89dc5fac9f8e96ccafbaedda8a"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "data-encoding",
+ "http",
+ "httparse",
+ "log",
+ "rand 0.8.5",
+ "rustls 0.23.36",
+ "rustls-pki-types",
+ "sha1",
+ "thiserror 1.0.69",
+ "utf-8",
+]
 
 [[package]]
 name = "turso"
@@ -10081,6 +10117,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
+name = "utf-8"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
+
+[[package]]
 name = "utf8-zero"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10167,11 +10209,14 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 name = "vox-ars"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "futures-util",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-tungstenite",
  "tracing",
  "uuid",
  "vox-db",
@@ -10192,6 +10237,16 @@ dependencies = [
  "vox-checksum-manifest",
  "vox-install-policy",
  "zip 8.4.0",
+]
+
+[[package]]
+name = "vox-bounded-fs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tempfile",
+ "tokio",
+ "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10217,7 +10272,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
- "vox-scaling-policy",
+ "vox-bounded-fs",
 ]
 
 [[package]]
@@ -10235,7 +10290,6 @@ dependencies = [
  "dirs",
  "flate2",
  "glob",
- "jsonschema",
  "landlock",
  "libc",
  "miette",
@@ -10251,6 +10305,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "sha2",
+ "sysinfo 0.38.4",
  "tar",
  "tempfile",
  "tokio",
@@ -10261,6 +10316,7 @@ dependencies = [
  "turso",
  "uuid",
  "vox-ars",
+ "vox-bounded-fs",
  "vox-checksum-manifest",
  "vox-clavis",
  "vox-compiler",
@@ -10272,11 +10328,13 @@ dependencies = [
  "vox-forge",
  "vox-git",
  "vox-install-policy",
+ "vox-jsonschema-util",
  "vox-ludus",
  "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
  "vox-populi",
+ "vox-primitives",
  "vox-protocol",
  "vox-publisher",
  "vox-repository",
@@ -10354,12 +10412,12 @@ dependencies = [
  "tempfile",
  "tracing",
  "turso",
+ "vox-bounded-fs",
  "vox-compiler",
  "vox-db",
  "vox-mcp-meta",
  "vox-mcp-registry",
  "vox-repository",
- "vox-scaling-policy",
  "xxhash-rust",
 ]
 
@@ -10396,8 +10454,8 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "vox-bounded-fs",
  "vox-repository",
- "vox-scaling-policy",
  "walkdir",
 ]
 
@@ -10406,7 +10464,7 @@ name = "vox-doc-pipeline"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "vox-scaling-policy",
+ "vox-bounded-fs",
 ]
 
 [[package]]
@@ -10447,7 +10505,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "vox-scaling-policy",
+ "vox-bounded-fs",
 ]
 
 [[package]]
@@ -10479,6 +10537,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-jsonschema-util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "jsonschema",
+ "serde_json",
+]
+
+[[package]]
 name = "vox-lsp"
 version = "0.1.0"
 dependencies = [
@@ -10490,10 +10557,10 @@ dependencies = [
  "tower-lsp-server",
  "tracing",
  "tracing-subscriber",
+ "vox-bounded-fs",
  "vox-compiler",
  "vox-db",
  "vox-ludus",
- "vox-scaling-policy",
 ]
 
 [[package]]
@@ -10518,9 +10585,12 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "turso",
+ "vox-bounded-fs",
+ "vox-clavis",
  "vox-config",
  "vox-db",
- "vox-scaling-policy",
+ "vox-openai-sse",
+ "vox-reqwest-defaults",
  "xxhash-rust",
 ]
 
@@ -10530,6 +10600,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "async-trait",
  "axum",
  "chrono",
  "futures-core",
@@ -10552,6 +10623,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "vox-ars",
+ "vox-bounded-fs",
  "vox-clavis",
  "vox-compiler",
  "vox-config",
@@ -10559,6 +10632,7 @@ dependencies = [
  "vox-lsp",
  "vox-ludus",
  "vox-mcp-registry",
+ "vox-openai-wire",
  "vox-oratio",
  "vox-orchestrator",
  "vox-pm",
@@ -10567,7 +10641,6 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-runtime",
- "vox-scaling-policy",
  "vox-skills",
  "vox-socrates-policy",
  "vox-toestub",
@@ -10589,6 +10662,21 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_yaml",
+]
+
+[[package]]
+name = "vox-openai-sse"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "vox-openai-wire"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -10641,6 +10729,7 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
+ "vox-bounded-fs",
  "vox-config",
  "vox-db",
  "vox-lsp",
@@ -10650,7 +10739,6 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-runtime",
- "vox-scaling-policy",
  "vox-socrates-policy",
  "vox-toestub",
  "walkdir",
@@ -10714,13 +10802,18 @@ dependencies = [
  "tower-http 0.6.8",
  "tower_governor",
  "tracing",
+ "vox-bounded-fs",
  "vox-clavis",
  "vox-corpus",
  "vox-db",
+ "vox-primitives",
  "vox-repository",
- "vox-scaling-policy",
  "vox-tensor",
 ]
+
+[[package]]
+name = "vox-primitives"
+version = "0.1.0"
 
 [[package]]
 name = "vox-protocol"
@@ -10753,9 +10846,10 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "vox-bounded-fs",
  "vox-clavis",
  "vox-db",
- "vox-scaling-policy",
+ "vox-primitives",
 ]
 
 [[package]]
@@ -10771,13 +10865,21 @@ dependencies = [
  "thiserror 1.0.69",
  "toml 0.8.23",
  "tracing",
- "vox-scaling-policy",
+ "vox-bounded-fs",
+]
+
+[[package]]
+name = "vox-reqwest-defaults"
+version = "0.1.0"
+dependencies = [
+ "reqwest 0.12.28",
 ]
 
 [[package]]
 name = "vox-runtime"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "blake3",
  "futures-util",
  "glob",
@@ -10788,9 +10890,14 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "vox-ars",
  "vox-clavis",
  "vox-config",
  "vox-db",
+ "vox-openai-sse",
+ "vox-openai-wire",
+ "vox-primitives",
+ "vox-reqwest-defaults",
  "xxhash-rust",
 ]
 
@@ -10916,7 +11023,6 @@ dependencies = [
  "anyhow",
  "clap",
  "globset",
- "jsonschema",
  "miette",
  "owo-colors",
  "proc-macro2",
@@ -10928,6 +11034,8 @@ dependencies = [
  "syn",
  "thiserror 1.0.69",
  "tracing",
+ "vox-bounded-fs",
+ "vox-jsonschema-util",
  "vox-scaling-policy",
  "vox-socrates-policy",
  "walkdir",

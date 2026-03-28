@@ -71,7 +71,103 @@ pub(super) fn install_from_binary(version: Option<&str>, w: &mut impl Write) -> 
     });
     extract_binary(&asset_bytes, target, &dst)?;
     writeln!(w, "  Installed binary to {}", dst.display())?;
+
+    maybe_install_openclaw_sidecar(&client, &checksums, &tag, target, &install_dir, w)?;
     Ok(())
+}
+
+fn maybe_install_openclaw_sidecar(
+    client: &Client,
+    checksums_txt: &str,
+    tag: &str,
+    target: &str,
+    install_dir: &Path,
+    w: &mut impl Write,
+) -> io::Result<()> {
+    if std::env::var(vox_install_policy::VOX_OPENCLAW_SIDECAR_DISABLE_ENV)
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+    {
+        writeln!(
+            w,
+            "  Skipping OpenClaw sidecar install ({} set).",
+            vox_install_policy::VOX_OPENCLAW_SIDECAR_DISABLE_ENV
+        )?;
+        return Ok(());
+    }
+
+    let ext = if target.contains("windows") {
+        ".zip"
+    } else {
+        ".tar.gz"
+    };
+    let sidecar_asset = find_sidecar_asset_name(checksums_txt, target, ext);
+    let Some(sidecar_asset) = sidecar_asset else {
+        writeln!(
+            w,
+            "  OpenClaw sidecar asset not present in release checksums; skipping."
+        )?;
+        return Ok(());
+    };
+
+    let (_, checksums_url) = release_download_urls(tag, &sidecar_asset);
+    let base = checksums_url.trim_end_matches("checksums.txt");
+    let sidecar_url = format!("{base}{sidecar_asset}");
+    match http_get_bytes(client, &sidecar_url) {
+        Ok(bytes) => {
+            if let Err(err) =
+                vox_checksum_manifest::verify_checksum(&bytes, checksums_txt, &sidecar_asset)
+            {
+                writeln!(
+                    w,
+                    "  OpenClaw sidecar checksum verification failed; skipping: {err}"
+                )?;
+                return Ok(());
+            }
+            let dst = install_dir.join(if target.contains("windows") {
+                format!("{}.exe", vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME)
+            } else {
+                vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME.to_string()
+            });
+            let bin_name = if target.contains("windows") {
+                format!("{}.exe", vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME)
+            } else {
+                vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME.to_string()
+            };
+            if let Err(err) = extract_named_binary(&bytes, target, &bin_name, &dst) {
+                writeln!(w, "  OpenClaw sidecar extract failed; skipping: {err}")?;
+                return Ok(());
+            }
+            writeln!(w, "  Installed OpenClaw sidecar to {}", dst.display())?;
+        }
+        Err(err) => {
+            writeln!(w, "  OpenClaw sidecar download failed; skipping: {err}")?;
+        }
+    }
+    Ok(())
+}
+
+fn find_sidecar_asset_name(checksums_txt: &str, target: &str, ext: &str) -> Option<String> {
+    for line in checksums_txt.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(_hash) = parts.next() else {
+            continue;
+        };
+        let Some(path) = parts.next() else {
+            continue;
+        };
+        let file = path.rsplit('/').next().unwrap_or(path).to_string();
+        if !file.contains(target) || !file.ends_with(ext) {
+            continue;
+        }
+        if vox_install_policy::OPENCLAW_SIDECAR_ASSET_PREFIXES
+            .iter()
+            .any(|prefix| file.starts_with(prefix))
+        {
+            return Some(file);
+        }
+    }
+    None
 }
 
 fn resolve_vox_repo_root() -> io::Result<PathBuf> {
@@ -191,24 +287,38 @@ fn http_get_text(client: &Client, url: &str) -> io::Result<String> {
 }
 
 fn extract_binary(archive: &[u8], target: &str, destination: &Path) -> io::Result<()> {
-    if target.contains("windows") {
-        extract_zip_binary(archive, destination)
+    let binary_name = if target.contains("windows") {
+        "vox.exe".to_string()
     } else {
-        extract_tar_binary(archive, destination)
+        "vox".to_string()
+    };
+    extract_named_binary(archive, target, &binary_name, destination)
+}
+
+fn extract_named_binary(
+    archive: &[u8],
+    target: &str,
+    binary_name: &str,
+    destination: &Path,
+) -> io::Result<()> {
+    if target.contains("windows") {
+        extract_zip_binary(archive, binary_name, destination)
+    } else {
+        extract_tar_binary(archive, binary_name, destination)
     }
 }
 
-fn extract_zip_binary(archive: &[u8], destination: &Path) -> io::Result<()> {
+fn extract_zip_binary(archive: &[u8], binary_name: &str, destination: &Path) -> io::Result<()> {
     let cursor = Cursor::new(archive);
     let mut zip = ZipArchive::new(cursor).map_err(io::Error::other)?;
     let mut file = zip
-        .by_name("vox.exe")
-        .map_err(|e| io::Error::other(format!("vox.exe not found in zip: {e}")))?;
+        .by_name(binary_name)
+        .map_err(|e| io::Error::other(format!("{binary_name} not found in zip: {e}")))?;
     write_reader_to_path(&mut file, destination)?;
     Ok(())
 }
 
-fn extract_tar_binary(archive: &[u8], destination: &Path) -> io::Result<()> {
+fn extract_tar_binary(archive: &[u8], binary_name: &str, destination: &Path) -> io::Result<()> {
     let cursor = Cursor::new(archive);
     let decoder = GzDecoder::new(cursor);
     let mut tar = Archive::new(decoder);
@@ -218,14 +328,16 @@ fn extract_tar_binary(archive: &[u8], destination: &Path) -> io::Result<()> {
         let is_vox = path
             .file_name()
             .and_then(|f| f.to_str())
-            .map(|f| f == "vox")
+            .map(|f| f == binary_name)
             .unwrap_or(false);
         if is_vox {
             write_reader_to_path(&mut entry, destination)?;
             return Ok(());
         }
     }
-    Err(io::Error::other("vox binary not found in tar.gz"))
+    Err(io::Error::other(format!(
+        "{binary_name} binary not found in tar.gz"
+    )))
 }
 
 fn write_reader_to_path(reader: &mut impl Read, destination: &Path) -> io::Result<()> {
@@ -275,7 +387,7 @@ fn install_bin_dir() -> io::Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{latest_download_urls, release_download_urls};
+    use super::{find_sidecar_asset_name, latest_download_urls, release_download_urls};
 
     #[test]
     fn release_urls_support_latest_and_tagged() {
@@ -305,5 +417,15 @@ mod tests {
     fn sha256_hex_has_expected_length() {
         let h = vox_checksum_manifest::sha256_hex(b"vox");
         assert_eq!(h.len(), 64);
+    }
+
+    #[test]
+    fn sidecar_asset_is_discovered_from_checksums() {
+        let txt = "abc123  openclaw-gateway-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n";
+        let found = find_sidecar_asset_name(txt, "x86_64-unknown-linux-gnu", ".tar.gz");
+        assert_eq!(
+            found.as_deref(),
+            Some("openclaw-gateway-v1.2.3-x86_64-unknown-linux-gnu.tar.gz")
+        );
     }
 }

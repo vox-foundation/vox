@@ -1,3 +1,10 @@
+//! Resilient HTTP with geometric backoff ([`vox_primitives::backoff`]).
+//!
+//! **`backon` (crate):** evaluated and not adopted here: our retry surface is
+//! endpoint fallback + capped geometric delay only; `backon` would add another
+//! policy layer without simplifying multi-endpoint loops. Revisit if we
+//! centralize **single-URL** async retries (e.g. Ludus transport) behind one helper.
+
 use std::time::Duration;
 
 /// Retry policy for resilient outbound HTTP calls.
@@ -40,21 +47,16 @@ impl ResilientHttpClient {
     /// Wraps a fresh `reqwest` client with the given retry policy.
     pub fn new(policy: RetryPolicy) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: vox_reqwest_defaults::client(),
             policy,
         }
     }
 
     /// Builds a client from `VOX_HTTP_RETRY_MAX_ATTEMPTS` and `VOX_HTTP_RETRY_BASE_DELAY_MS` (with defaults).
     pub fn from_env() -> Self {
-        let max_attempts = std::env::var("VOX_HTTP_RETRY_MAX_ATTEMPTS")
-            .ok()
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(3);
-        let base_delay_ms = std::env::var("VOX_HTTP_RETRY_BASE_DELAY_MS")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(200);
+        let max_attempts = vox_config::env_parse::env_usize("VOX_HTTP_RETRY_MAX_ATTEMPTS", 3).max(1);
+        let base_delay_ms =
+            vox_config::env_parse::env_u64("VOX_HTTP_RETRY_BASE_DELAY_MS", 200);
         Self::new(RetryPolicy {
             max_attempts,
             base_delay_ms,
@@ -99,9 +101,13 @@ impl ResilientHttpClient {
     }
 
     fn backoff_duration(&self, attempt: usize) -> Duration {
-        let factor = (attempt.saturating_sub(1)) as u32;
-        let backoff = self.policy.base_delay_ms.saturating_mul(2u64.pow(factor));
-        Duration::from_millis(backoff)
+        let ms = vox_primitives::backoff::backoff_ms_geometric_attempt(
+            attempt as u32,
+            self.policy.base_delay_ms,
+            60_000,
+            16,
+        );
+        Duration::from_millis(ms)
     }
 }
 

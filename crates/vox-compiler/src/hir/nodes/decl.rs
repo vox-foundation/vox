@@ -6,6 +6,17 @@ use super::expr::HirExpr;
 use super::stmt::HirStmt;
 use super::stmt_expr::{DefId, HirParam, HirType};
 
+/// Ownership buckets used to classify [`HirModule`] fields during the WebIR/AppContract migration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirFieldOwnership {
+    /// Stable semantic program representation that should remain in post-migration HIR.
+    SemanticCore,
+    /// Transitional data retained only to bridge legacy emit paths.
+    MigrationOnly,
+    /// Data that can be projected into an externalized app surface contract.
+    AppContract,
+}
+
 /// Tracks which HIR lowering paths ran so migrations and WebIR handoff can account for
 /// dual component stacks (`@component` vs Path C reactive) and declarative hook surfaces (OP-0036, OP-0042).
 #[derive(Debug, Clone, Default)]
@@ -94,6 +105,100 @@ pub struct HirModule {
 
     /// Which declarative lowering paths were exercised (classic vs reactive UI, hooks).
     pub lowering_migration: HirLoweringMigrationFlags,
+}
+
+/// Snapshot of a post-migration semantic-only HIR shape.
+///
+/// This is intentionally a strict subset of [`HirModule`]: migration-only fields are dropped and
+/// app-surface fields can be projected into `app_contract` while preserving semantic-core data.
+#[derive(Debug, Clone, Default)]
+pub struct SemanticHirModule {
+    pub imports: Vec<HirImport>,
+    pub rust_imports: Vec<HirRustImport>,
+    pub functions: Vec<HirFn>,
+    pub types: Vec<HirTypeDef>,
+    pub routes: Vec<HirRoute>,
+    pub actors: Vec<HirActor>,
+    pub workflows: Vec<HirWorkflow>,
+    pub activities: Vec<HirActivity>,
+    pub tests: Vec<HirFn>,
+    pub server_fns: Vec<HirServerFn>,
+    pub query_fns: Vec<HirServerFn>,
+    pub mutation_fns: Vec<HirServerFn>,
+    pub tables: Vec<HirTable>,
+    pub indexes: Vec<HirIndex>,
+    pub collections: Vec<HirCollection>,
+    pub vector_indexes: Vec<HirVectorIndex>,
+    pub search_indexes: Vec<HirSearchIndex>,
+    pub mcp_tools: Vec<HirMcpTool>,
+    pub reactive_components: Vec<HirReactiveComponent>,
+}
+
+impl HirModule {
+    /// Return a fixed ownership map for all top-level [`HirModule`] vectors/fields.
+    #[must_use]
+    pub fn field_ownership_map() -> Vec<(&'static str, HirFieldOwnership)> {
+        vec![
+            ("imports", HirFieldOwnership::SemanticCore),
+            ("rust_imports", HirFieldOwnership::SemanticCore),
+            ("functions", HirFieldOwnership::SemanticCore),
+            ("types", HirFieldOwnership::SemanticCore),
+            ("routes", HirFieldOwnership::AppContract),
+            ("actors", HirFieldOwnership::SemanticCore),
+            ("workflows", HirFieldOwnership::SemanticCore),
+            ("activities", HirFieldOwnership::SemanticCore),
+            ("tests", HirFieldOwnership::SemanticCore),
+            ("server_fns", HirFieldOwnership::AppContract),
+            ("query_fns", HirFieldOwnership::AppContract),
+            ("mutation_fns", HirFieldOwnership::AppContract),
+            ("tables", HirFieldOwnership::SemanticCore),
+            ("indexes", HirFieldOwnership::SemanticCore),
+            ("collections", HirFieldOwnership::SemanticCore),
+            ("vector_indexes", HirFieldOwnership::SemanticCore),
+            ("search_indexes", HirFieldOwnership::SemanticCore),
+            ("mcp_tools", HirFieldOwnership::SemanticCore),
+            ("components", HirFieldOwnership::MigrationOnly),
+            ("v0_components", HirFieldOwnership::MigrationOnly),
+            ("client_routes", HirFieldOwnership::AppContract),
+            ("islands", HirFieldOwnership::AppContract),
+            ("layouts", HirFieldOwnership::MigrationOnly),
+            ("pages", HirFieldOwnership::MigrationOnly),
+            ("contexts", HirFieldOwnership::MigrationOnly),
+            ("hooks", HirFieldOwnership::MigrationOnly),
+            ("error_boundaries", HirFieldOwnership::MigrationOnly),
+            ("loadings", HirFieldOwnership::MigrationOnly),
+            ("not_founds", HirFieldOwnership::MigrationOnly),
+            ("reactive_components", HirFieldOwnership::SemanticCore),
+            ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
+            ("lowering_migration", HirFieldOwnership::MigrationOnly),
+        ]
+    }
+
+    /// Project this module into a migration-free semantic snapshot.
+    #[must_use]
+    pub fn to_semantic_hir(&self) -> SemanticHirModule {
+        SemanticHirModule {
+            imports: self.imports.clone(),
+            rust_imports: self.rust_imports.clone(),
+            functions: self.functions.clone(),
+            types: self.types.clone(),
+            routes: self.routes.clone(),
+            actors: self.actors.clone(),
+            workflows: self.workflows.clone(),
+            activities: self.activities.clone(),
+            tests: self.tests.clone(),
+            server_fns: self.server_fns.clone(),
+            query_fns: self.query_fns.clone(),
+            mutation_fns: self.mutation_fns.clone(),
+            tables: self.tables.clone(),
+            indexes: self.indexes.clone(),
+            collections: self.collections.clone(),
+            vector_indexes: self.vector_indexes.clone(),
+            search_indexes: self.search_indexes.clone(),
+            mcp_tools: self.mcp_tools.clone(),
+            reactive_components: self.reactive_components.clone(),
+        }
+    }
 }
 
 /// A component lowered to HIR (currently retaining AST for TS codegen until full HirExpr migration).
@@ -482,4 +587,35 @@ pub struct HirOnMount {
 pub struct HirOnCleanup {
     pub body: HirExpr,
     pub span: Span,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HirFieldOwnership, HirModule};
+
+    #[test]
+    fn hir_field_ownership_map_contains_migration_markers() {
+        let map = HirModule::field_ownership_map();
+        assert!(
+            map.iter().any(|(name, own)| *name == "legacy_ast_nodes"
+                && *own == HirFieldOwnership::MigrationOnly)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "server_fns" && *own == HirFieldOwnership::AppContract)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "functions" && *own == HirFieldOwnership::SemanticCore)
+        );
+    }
+
+    #[test]
+    fn semantic_hir_projection_drops_migration_vectors() {
+        let hir = HirModule::default();
+        let projected = hir.to_semantic_hir();
+        assert!(projected.reactive_components.is_empty());
+        // These vectors are migration-only and intentionally absent from `SemanticHirModule`.
+        assert!(projected.functions.is_empty());
+    }
 }

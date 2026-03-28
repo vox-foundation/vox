@@ -37,3 +37,10 @@ mcp_tool_schema:
   min_strict_validity_rate: 0.0
   block: false
   metrics_file: mcp_tool_schema_kpi.json
+
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.20
+  block: true

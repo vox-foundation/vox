@@ -78,6 +78,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
             Some(TaskPriority::Background),
             None,
             Some(caps),
+            None,
             params.session_id.clone(),
         )
         .await

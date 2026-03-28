@@ -10,10 +10,11 @@ mod client;
 mod constants;
 mod error;
 mod fallback;
+mod keys;
 mod provider;
 mod validate;
 
-pub use client::{AiReportFn, FreeAiClient};
+pub use client::{AiReportFn, FreeAiClient, LudusStreamBackend, StreamRoute};
 pub use error::AiError;
 pub use fallback::deterministic_response;
 pub use provider::FreeAiProvider;

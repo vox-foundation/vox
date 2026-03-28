@@ -16,7 +16,7 @@ turso = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
 anyhow = { workspace = true }
 vox-repository = { path = "../vox-repository" }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 vox-mcp-meta = { path = "../vox-mcp-meta" }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 chrono = { workspace = true }

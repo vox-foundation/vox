@@ -2,6 +2,7 @@
 
 use std::pin::Pin;
 
+use async_stream::stream;
 use futures_util::StreamExt;
 use reqwest::Client;
 use tokio_stream::Stream;
@@ -40,7 +41,7 @@ pub async fn llm_stream(
         );
     }
 
-    let client = Client::new();
+    let client: Client = vox_reqwest_defaults::client();
     let req_body = OpenRouterRequest {
         model: &config.model,
         messages: &messages,
@@ -75,34 +76,40 @@ pub async fn llm_stream(
 
     let byte_stream = res.bytes_stream();
 
-    let string_stream = byte_stream.map(|chunk_res| match chunk_res {
-        Ok(bytes) => {
-            let text = String::from_utf8_lossy(&bytes);
-            let mut token_text = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" {
-                        continue;
-                    }
-                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
-                        if let Some(choices) = parsed.get("choices") {
-                            if let Some(choice) = choices.get(0) {
-                                if let Some(delta) = choice.get("delta") {
-                                    if let Some(content) =
-                                        delta.get("content").and_then(|c| c.as_str())
-                                    {
-                                        token_text.push_str(content);
-                                    }
-                                }
-                            }
+    let string_stream = stream! {
+        use vox_openai_sse::{Utf8LineBuffer, sse_data_line_delta};
+
+        let mut buf = Utf8LineBuffer::new();
+        futures_util::pin_mut!(byte_stream);
+        while let Some(chunk_res) = byte_stream.next().await {
+            match chunk_res {
+                Ok(bytes) => {
+                    let mut emitted: Vec<String> = Vec::new();
+                    buf.push_lossy_bytes(&bytes, |line| {
+                        if let Some(s) = sse_data_line_delta(line) {
+                            emitted.push(s);
                         }
+                    });
+                    for s in emitted {
+                        yield Ok(s);
                     }
                 }
+                Err(e) => {
+                    yield Err(format!("Stream read error: {}", e));
+                    return;
+                }
             }
-            Ok(token_text)
         }
-        Err(e) => Err(format!("Stream read error: {}", e)),
-    });
+        let mut tail_emit: Vec<String> = Vec::new();
+        buf.flush_trailing(|line| {
+            if let Some(s) = sse_data_line_delta(line) {
+                tail_emit.push(s);
+            }
+        });
+        for s in tail_emit {
+            yield Ok(s);
+        }
+    };
 
     Ok(Box::pin(string_stream))
 }

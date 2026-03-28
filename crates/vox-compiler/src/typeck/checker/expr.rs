@@ -733,7 +733,20 @@ impl<'a> Checker<'a> {
             HirExpr::With(resource, options, span) => {
                 let res_ty = self.check_expr(resource);
                 self.check_with_options(options.as_ref(), *span);
-                res_ty
+                let expected = Ty::Result(Box::new(self.uf.fresh_var()));
+                if let Err(msg) = self.uf.unify(&res_ty, &expected) {
+                    self.diags.push(Diagnostic::error(
+                        format!(
+                            "'with' operand must have type Result[T]; found incompatible type ({:?}): {msg}",
+                            self.uf.resolve(&res_ty)
+                        ),
+                        *span,
+                        self.source,
+                    ));
+                    Ty::Error
+                } else {
+                    self.uf.resolve(&expected)
+                }
             }
 
             HirExpr::Jsx(el) => {

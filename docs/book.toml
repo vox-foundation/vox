@@ -16,6 +16,7 @@ renderer = ["html"]
 # then from `docs/`: `mdbook-sitemap-generator --domain <origin> --output book/html/sitemap.xml`
 
 [output.html]
+additional-css = ["theme/custom.css"]
 mathjax-support = false
 git-repository-url = "https://github.com/vox-foundation/vox"
 git-repository-icon = "fab-github"

@@ -150,7 +150,7 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 )
             })?;
             let pid = state.pid.context("populi state has no pid")?;
-            terminate_pid(pid)?;
+            crate::process_supervision::terminate_process_tree(pid)?;
             fs::remove_file(&state_file).ok();
             println!("Populi stopped (pid {pid})");
             Ok(())
@@ -434,28 +434,6 @@ fn tailscale_ip() -> anyhow::Result<String> {
         .find(|l| !l.is_empty())
         .context("tailscale produced no IPv4 address")?;
     Ok(ip.to_string())
-}
-
-fn terminate_pid(pid: u32) -> anyhow::Result<()> {
-    if cfg!(windows) {
-        let status = std::process::Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .status()
-            .context("run taskkill")?;
-        if !status.success() {
-            bail!("taskkill failed for pid {pid}");
-        }
-        return Ok(());
-    }
-
-    let status = std::process::Command::new("kill")
-        .args(["-TERM", &pid.to_string()])
-        .status()
-        .context("run kill")?;
-    if !status.success() {
-        bail!("kill failed for pid {pid}");
-    }
-    Ok(())
 }
 
 async fn control_plane_health(control_url: &str) -> bool {

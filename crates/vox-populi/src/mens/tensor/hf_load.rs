@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::Context;
 
-use crate::mens::bounded_fs::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use serde::Deserialize;
 use serde_json::Value;
 

@@ -9,7 +9,8 @@ use crate::server::ServerState;
 use crate::tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::tools::chat_socrates_meta::{
     clarification_turn_for_session, mcp_questioning_session_key, socrates_tool_meta,
-    spawn_questioning_trace_from_socrates, spawn_socrates_telemetry,
+    socrates_surface_tags, spawn_questioning_trace_from_socrates,
+    spawn_socrates_telemetry_with_meta,
 };
 
 const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
@@ -352,7 +353,16 @@ Rules:
     let turn = clarification_turn_for_session(state, &session_key).await;
     let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
     let soc = socrates_tool_meta(&pol, grounding, false, turn, spent_att, max_att);
-    spawn_socrates_telemetry(state, "vox_plan", soc.clone(), Some(model_used.clone()));
+    spawn_socrates_telemetry_with_meta(
+        state,
+        "vox_plan",
+        soc.clone(),
+        Some(model_used.clone()),
+        Some(socrates_surface_tags(
+            "planning",
+            &["planning", "decomposition"],
+        )),
+    );
     spawn_questioning_trace_from_socrates(
         state,
         "vox_plan",
@@ -383,7 +393,13 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
             let turn = clarification_turn_for_session(state, &session_key).await;
             let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
             let soc = socrates_tool_meta(&pol, 0.62, false, turn, spent_att, max_att);
-            spawn_socrates_telemetry(state, "vox_replan", soc.clone(), None);
+            spawn_socrates_telemetry_with_meta(
+                state,
+                "vox_replan",
+                soc.clone(),
+                None,
+                Some(socrates_surface_tags("planning", &["planning", "replan"])),
+            );
             spawn_questioning_trace_from_socrates(
                 state,
                 "vox_replan",
@@ -417,7 +433,13 @@ pub async fn plan_status(state: &ServerState, params: PlanStatusParams) -> Strin
             let turn = clarification_turn_for_session(state, &session_key).await;
             let (spent_att, max_att) = state.questioning_attention_bounds(&session_key);
             let soc = socrates_tool_meta(&pol, 0.58, false, turn, spent_att, max_att);
-            spawn_socrates_telemetry(state, "vox_plan_status", soc.clone(), None);
+            spawn_socrates_telemetry_with_meta(
+                state,
+                "vox_plan_status",
+                soc.clone(),
+                None,
+                Some(socrates_surface_tags("planning_status", &["planning", "status"])),
+            );
             spawn_questioning_trace_from_socrates(
                 state,
                 "vox_plan_status",

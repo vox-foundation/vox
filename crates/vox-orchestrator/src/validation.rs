@@ -9,22 +9,99 @@ use std::path::PathBuf;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 use vox_toestub::{Severity, ToestubConfig, ToestubEngine};
 
-use crate::types::AgentTask;
+use crate::types::{AgentTask, CompletionAttestation};
 use std::process::Command;
 
 /// Run TOESTUB validation on the files in a completed task's manifest.
 ///
 /// Returns the number of findings at or above the `error` severity level.
 /// If the count is > 0, the task should be considered failed (quality gate not passed).
-pub fn post_task_validate(task: &AgentTask) -> ValidationResult {
+fn has_placeholder_marker(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    [
+        "todo",
+        "tbd",
+        "placeholder",
+        "stub",
+        "not implemented",
+        "coming soon",
+    ]
+    .iter()
+    .any(|m| lower.contains(m))
+}
+
+pub fn post_task_validate(
+    task: &AgentTask,
+    completion_attestation: Option<&CompletionAttestation>,
+) -> ValidationResult {
     let write_files: Vec<PathBuf> = task.write_files().into_iter().cloned().collect();
 
     if write_files.is_empty() {
+        let Some(att) = completion_attestation else {
+            return ValidationResult {
+                passed: false,
+                error_count: 1,
+                warning_count: 0,
+                report: "Completion policy: no-write task is missing completion attestation"
+                    .to_string(),
+            };
+        };
+        if att.force_risky {
+            return ValidationResult {
+                passed: true,
+                error_count: 0,
+                warning_count: 0,
+                report: String::new(),
+            };
+        }
+        let mut artifact_roots: Vec<PathBuf> = Vec::new();
+        let mut artifact_errors = 0usize;
+        let mut artifact_report = String::new();
+        for path in att.artifact_paths.iter() {
+            if let Some(parent) = path.parent() {
+                artifact_roots.push(parent.to_path_buf());
+            }
+            if let Ok(text) = crate::bounded_fs::read_utf8_path_capped(path)
+                && has_placeholder_marker(&text)
+            {
+                artifact_errors += 1;
+                artifact_report.push_str(&format!(
+                    "Placeholder marker detected in attested artifact {}\n",
+                    path.display()
+                ));
+            }
+        }
+        if artifact_roots.is_empty() {
+            return ValidationResult {
+                passed: false,
+                error_count: 1,
+                warning_count: 0,
+                report: "Completion policy: no-write task requires attested artifact_paths for validation".to_string(),
+            };
+        }
+        let config = ToestubConfig {
+            roots: artifact_roots,
+            min_severity: Severity::Warning,
+            suggest_fixes: true,
+            ..Default::default()
+        };
+        let engine = ToestubEngine::new(config);
+        let (result, output) = engine.run_and_report();
+        let summary = result.summary();
+        let toestub_errors = summary.error + summary.critical;
+        let total_errors = toestub_errors + artifact_errors;
+        let mut report = String::new();
+        if toestub_errors > 0 {
+            report.push_str(&output);
+        }
+        if artifact_errors > 0 {
+            report.push_str(&artifact_report);
+        }
         return ValidationResult {
-            passed: true,
-            error_count: 0,
-            warning_count: 0,
-            report: String::new(),
+            passed: total_errors == 0,
+            error_count: total_errors,
+            warning_count: summary.warning,
+            report,
         };
     }
 
@@ -148,9 +225,9 @@ mod tests {
             TaskPriority::Normal,
             vec![], // no files
         );
-        let result = post_task_validate(&task);
-        assert!(result.passed);
-        assert_eq!(result.error_count, 0);
+        let result = post_task_validate(&task, None);
+        assert!(!result.passed);
+        assert_eq!(result.error_count, 1);
     }
 
     #[test]

@@ -1,3 +1,11 @@
+---
+title: "Troubleshooting FAQ"
+description: "Troubleshooting common issues with Vox and AI Agents Integration."
+category: "how-to"
+last_updated: 2026-03-28
+training_eligible: true
+---
+
 # Troubleshooting FAQ — Vox ↔ AI Agents Integration
 
 ## Common Issues & Fixes

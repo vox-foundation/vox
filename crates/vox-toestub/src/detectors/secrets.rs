@@ -106,24 +106,26 @@ impl SecretDetector {
         }
 
         if let Some(m) = self.generic_secret.find(line)
-            && !skip_if_comment(m.start()) {
-                findings.push(self.make_finding(
-                    file,
-                    line_num,
-                    "Potential hardcoded secret or API key detected.".to_string(),
-                    Severity::Error,
-                ));
-            }
+            && !skip_if_comment(m.start())
+        {
+            findings.push(self.make_finding(
+                file,
+                line_num,
+                "Potential hardcoded secret or API key detected.".to_string(),
+                Severity::Error,
+            ));
+        }
 
         if let Some(m) = self.jwt_token.find(line)
-            && !skip_if_comment(m.start()) {
-                findings.push(self.make_finding(
-                    file,
-                    line_num,
-                    "Potential hardcoded JWT token detected.".to_string(),
-                    Severity::Error,
-                ));
-            }
+            && !skip_if_comment(m.start())
+        {
+            findings.push(self.make_finding(
+                file,
+                line_num,
+                "Potential hardcoded JWT token detected.".to_string(),
+                Severity::Error,
+            ));
+        }
 
         findings
     }

@@ -37,11 +37,14 @@ pub fn run(repo_root: &Path) -> Result<()> {
         .with_context(|| format!("parse {}", schema_path.display()))?;
     let instance: JsonValue =
         serde_yaml::from_str(&raw).context("parse contracts/index.yaml as JSON value")?;
-    let validator =
-        jsonschema::validator_for(&schema_val).context("compile contracts/index.schema.json")?;
-    validator
-        .validate(&instance)
-        .map_err(|e| anyhow!("contracts/index.yaml does not match schema: {e}"))?;
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+        .context("compile contracts/index.schema.json")?;
+    vox_jsonschema_util::validate(
+        &instance,
+        &validator,
+        format!("contracts/index.yaml vs {}", schema_path.display()),
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
 
     let idx: IndexFile = serde_yaml::from_str(&raw).context("parse contracts/index.yaml")?;
     for c in &idx.contracts {

@@ -76,7 +76,7 @@ vox-ci-guards:
     - cargo run -p vox-cli --quiet -- ci build-timings --crates
     - cargo run -p vox-cli --quiet -- ci feature-matrix
     - cargo run -p vox-cli --quiet -- ci no-vox-dei-import
-    - cargo run -p vox-cli --quiet -- ci toestub-scoped
+    - cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
     - cargo run -p vox-cli --quiet -- ci cuda-features
     - cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
 
@@ -188,10 +188,11 @@ build-docs:
   extends: .base
   stage: docs
   variables:
-    MDBOOK_SITEMAP_DOMAIN: "https://vox-foundation.github.io/vox/"
+    MDBOOK_SITEMAP_DOMAIN: "https://vox-lang.org/"
   script:
     # Match .github/workflows/docs-deploy.yml (peaceiris/actions-mdbook mdbook-version).
     - cargo install mdbook --version 0.4.40 --locked
+    - cargo install mdbook-metadata --locked
     - cargo install mdbook-sitemap-generator --version 0.2.0 --locked
     - cargo build -p vox-doc-pipeline
     - cargo run -p vox-doc-pipeline

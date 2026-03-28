@@ -1,7 +1,7 @@
 # Single source of truth for Mens CI gates (replaces duplicated shell/PowerShell matrices).
-# Run: `vox ci mens-gate --profile m1m4` | `training` | `ci_full`
+# Run: `vox ci mesh-gate --profile m1m4|training|ci_full` (alias: `mens-gate`)
 profiles:
-  # Union of the former `ci.yml` Mens matrix + legacy shell gate (now `vox ci mens-gate`; no duplicate steps).
+  # Union of the former `ci.yml` Mens matrix + legacy shell gate (now `vox ci mesh-gate`; no duplicate steps).
   ci_full:
     steps:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, execution_planner] }

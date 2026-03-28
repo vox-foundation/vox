@@ -13,10 +13,16 @@ All examples are located in the [`examples/`](../../../examples) directory. Each
 
 ## Quick Reference
 
-Golden (parse in CI) live at `examples/*.vox` — see [`examples/README.md`](../adr/README.md). Archive paths are under `examples/archive/…`.
+The most current bell-curve examples live under `examples/golden/` and are intended to be the easiest paths for both humans and LLMs to copy.
 
 | Example | Path | Features demonstrated |
 |---------|------|------------------------|
+| [CRUD API](#crud-api) | `examples/golden/crud_api.vox` | routes, tables, typed mutations, app-lane server work |
+| [Dashboard UI](#dashboard-ui) | `examples/golden/dashboard_ui.vox` | components, lists, dashboards, app-lane UI |
+| [Config & deploy](#config--deploy) | `examples/golden/config_deploy.vox` | env/config style workflows, operator-friendly patterns |
+| [Checkout workflow](#checkout-workflow) | `examples/golden/checkout_workflow.vox` | workflow/activity syntax with honest current semantics |
+| [MCP tools](#mcp-tools-current) | `examples/golden/mcp_tools.vox` | tool-oriented AI integration surfaces |
+| [Agent pipeline](#agent-pipeline) | `examples/golden/agent_pipeline.vox` | orchestration-shaped AI lane example |
 | [Server functions](#server-functions) | `examples/archive/simple_server_fn.vox` | `@server`, `@component`, fetch wrapper |
 | [Full-stack chatbot](#full-stack-chatbot) | `examples/chatbot.vox` | `@component`, actors, `style`, `routes`, `http` |
 | [Chatbot + server fn](#chatbot-with-server-functions) | `examples/archive/chatbot_server_fn.vox` | `@server`, `@component`, ADTs |
@@ -55,6 +61,38 @@ Demonstrates how `@server` generates both a backend HTTP route and a frontend fe
 ```
 
 **Key insight**: `greet("Alice")` in the component compiles to a typed `fetch()` call — the compiler generates the HTTP client automatically.
+
+---
+
+## CRUD API
+
+**File**: `examples/golden/crud_api.vox`
+
+Use this when you want the center-of-bell-curve backend example: typed tables, typed HTTP surfaces, and routine line-of-business data handling.
+
+---
+
+## Dashboard UI
+
+**File**: `examples/golden/dashboard_ui.vox`
+
+Use this as the primary app-lane frontend reference for lists, cards, and dashboard-style layouts.
+
+---
+
+## Config & Deploy
+
+**File**: `examples/golden/config_deploy.vox`
+
+This is the operator-facing bell-curve example for configuration and deployment-flavored scripting patterns.
+
+---
+
+## Checkout Workflow
+
+**File**: `examples/golden/checkout_workflow.vox`
+
+This is the current workflow golden path. Treat it as workflow syntax and planning guidance, not proof that generated Rust workflows are already durable state machines.
 
 ---
 

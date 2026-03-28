@@ -146,7 +146,7 @@ fn xml_escape(s: &str) -> String {
 
 /// Generate `docs/src/feed.xml` from pages that have `last_updated`.
 pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
-    const BASE_URL: &str = "https://vox-foundation.github.io/vox";
+    const BASE_URL: &str = "https://vox-lang.org";
     const MAX_ITEMS: usize = 20;
 
     let mut dated: Vec<&Page> = pages.iter().filter(|p| p.last_updated.is_some()).collect();

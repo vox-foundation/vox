@@ -54,11 +54,7 @@ pub enum CollectionError {
 
 impl Collection {
     /// Create a new collection handle. Does NOT create the underlying table.
-    pub fn new(
-        name: impl Into<String>,
-        conn: Connection,
-        breaker: Arc<DbCircuitBreaker>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, conn: Connection, breaker: Arc<DbCircuitBreaker>) -> Self {
         Self {
             name: name.into(),
             conn,

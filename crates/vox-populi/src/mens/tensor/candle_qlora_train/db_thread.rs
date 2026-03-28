@@ -112,6 +112,28 @@ pub(super) fn spawn_training_db_writer(
                                 )
                                 .await;
                         }
+                        TrainingDbEvent::EpochSummary {
+                            run_id,
+                            epoch,
+                            global_step,
+                            avg_loss,
+                            avg_val_loss,
+                            val_steps,
+                        } => {
+                            let _ = db
+                                .record_training_event(
+                                    &run_id,
+                                    "epoch_summary",
+                                    serde_json::json!({
+                                        "epoch": epoch,
+                                        "global_step": global_step,
+                                        "avg_loss": avg_loss,
+                                        "avg_val_loss": avg_val_loss,
+                                        "val_steps": val_steps
+                                    }),
+                                )
+                                .await;
+                        }
                         TrainingDbEvent::Complete {
                             run_id,
                             global_step,

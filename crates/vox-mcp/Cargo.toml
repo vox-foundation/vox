@@ -19,6 +19,7 @@ vox-publisher = { workspace = true, features = ["scientia-reddit", "scientia-you
 vox-populi = { workspace = true, features = ["transport"] }
 vox-repository   = { workspace = true, features = ["json-schema"] }
 vox-runtime      = { workspace = true }
+vox-openai-wire  = { workspace = true }
 vox-config       = { workspace = true }
 vox-clavis       = { workspace = true }
 vox-protocol     = { workspace = true }
@@ -41,13 +42,14 @@ reqwest          = { workspace = true }
 vox-toestub      = { workspace = true }
 vox-oratio       = { path = "../vox-oratio", features = ["compiler-rerank"] }
 turso            = { workspace = true }
+vox-ars          = { workspace = true }
 
 # MCP protocol
 rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
 tower-lsp-server = "0.23"
 
 # JSON Schema generation for typed tool parameters
-schemars = "1"
+schemars = { workspace = true }
 wasmtime = { version = "42.0.1", optional = true }
 rmp-serde = "1.3.1"
 lru = "0.16.3"
@@ -58,13 +60,14 @@ regex      = "1"
 walkdir    = "2"
 chrono     = { workspace = true }
 vox-pm = { version = "0.1.0", path = "../vox-pm" }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
 insta = { workspace = true }
 serial_test = { workspace = true }
+async-trait = { workspace = true }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 
 [lints]

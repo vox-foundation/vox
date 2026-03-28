@@ -155,11 +155,15 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                     &body.publication_id,
                     &content_type,
                     &body.author,
-                    &body.title,
+                    body.title.as_deref(),
                     body.path.as_path(),
                     body.abstract_text.as_deref(),
                     body.citations_json.as_deref(),
                     body.scholarly_metadata_json.as_deref(),
+                    body.eval_gate_report_json.as_deref(),
+                    body.benchmark_pair_report_json.as_deref(),
+                    body.human_meaningful_advance,
+                    body.human_ai_disclosure_complete,
                     preflight,
                     preflight_profile.into(),
                 )
@@ -174,11 +178,15 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                     &body.publication_id,
                     &content_type,
                     &body.author,
-                    &body.title,
+                    body.title.as_deref(),
                     body.path.as_path(),
                     body.abstract_text.as_deref(),
                     body.citations_json.as_deref(),
                     body.scholarly_metadata_json.as_deref(),
+                    body.eval_gate_report_json.as_deref(),
+                    body.benchmark_pair_report_json.as_deref(),
+                    body.human_meaningful_advance,
+                    body.human_ai_disclosure_complete,
                     true,
                     preflight_profile.into(),
                 )
@@ -219,9 +227,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 publication_id,
                 adapter,
             } => db::publication_submit_local(&publication_id, adapter.as_deref()).await,
-            DbCliPublication::PublicationStatus { publication_id } => {
-                db::publication_status(&publication_id).await
-            }
+            DbCliPublication::PublicationStatus {
+                publication_id,
+                with_worthiness,
+            } => db::publication_status(&publication_id, with_worthiness).await,
             DbCliPublication::PublicationScholarlyRemoteStatus {
                 publication_id,
                 external_submission_id,

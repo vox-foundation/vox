@@ -54,7 +54,7 @@ uuid = { version = "1.22.0", features = ["v4"] }
 turso.workspace = true
 chrono = { workspace = true }
 walkdir = { workspace = true }
-vox-scaling-policy = { workspace = true }
+vox-bounded-fs = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.10.0"

@@ -5,38 +5,43 @@ use crate::commands::db_cli::{ArxivHandoffStageCli, ScholarlyVenueCli};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-/// Prepare (upsert) a canonical publication manifest from markdown body content.
-pub async fn publication_prepare(
-    publication_id: &str,
-    content_type: &str,
-    author: &str,
-    title: &str,
-    path: &Path,
-    abstract_text: Option<&str>,
-    citations_json_path: Option<&Path>,
-    scholarly_metadata_json_path: Option<&Path>,
-    preflight: bool,
-    preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
-) -> Result<()> {
-    let db = vox_db::VoxDb::connect_default().await?;
-    let body_markdown = read_utf8_path_capped(path)
-        .with_context(|| format!("failed to read markdown body from {}", path.display()))?;
-    let citations_json = if let Some(p) = citations_json_path {
-        Some(
-            read_utf8_path_capped(p)
-                .with_context(|| format!("failed to read citations JSON from {}", p.display()))?,
-        )
+fn repo_relative_string(repo_root: &Path, path: &Path) -> Result<String> {
+    let abs = if path.is_absolute() {
+        path.to_path_buf()
     } else {
-        None
+        repo_root.join(path)
     };
-    let scientific = if let Some(p) = scholarly_metadata_json_path {
+    let canon = std::fs::canonicalize(&abs)
+        .with_context(|| format!("resolve path under repo root: {}", abs.display()))?;
+    let rel = canon.strip_prefix(repo_root).with_context(|| {
+        format!(
+            "path must live under repo root {}: {}",
+            repo_root.display(),
+            canon.display()
+        )
+    })?;
+    Ok(rel.to_string_lossy().replace('\\', "/"))
+}
+
+fn source_ref_string(repo_root: &Path, path: &Path) -> String {
+    repo_relative_string(repo_root, path).unwrap_or_else(|_| path.display().to_string())
+}
+
+fn repository_id_for_prepare(repo_root: &Path) -> String {
+    vox_repository::compute_repository_id(repo_root, None)
+}
+
+fn read_scientific_metadata_json(
+    scholarly_metadata_json_path: Option<&Path>,
+) -> Result<Option<vox_publisher::scientific_metadata::ScientificPublicationMetadata>> {
+    if let Some(p) = scholarly_metadata_json_path {
         let raw = read_utf8_path_capped(p).with_context(|| {
             format!(
                 "failed to read scholarly metadata JSON from {}",
                 p.display()
             )
         })?;
-        Some(
+        Ok(Some(
             serde_json::from_str::<vox_publisher::scientific_metadata::ScientificPublicationMetadata>(
                 raw.trim(),
             )
@@ -46,22 +51,114 @@ pub async fn publication_prepare(
                     p.display()
                 )
             })?,
+        ))
+    } else {
+        Ok(None)
+    }
+}
+
+fn build_scientia_evidence_context(
+    repo_root: &Path,
+    source_ref: &str,
+    abstract_text: Option<&str>,
+    citations_json: Option<&str>,
+    scientific: Option<&vox_publisher::scientific_metadata::ScientificPublicationMetadata>,
+    eval_gate_report_json_path: Option<&Path>,
+    benchmark_pair_report_json_path: Option<&Path>,
+    human_meaningful_advance: bool,
+    human_ai_disclosure_complete: bool,
+) -> Result<Option<vox_publisher::scientia_evidence::ScientiaEvidenceContext>> {
+    let mut evidence = vox_publisher::scientia_evidence::ScientiaEvidenceContext {
+        eval_gate_report_repo_relative: match eval_gate_report_json_path {
+            Some(p) => Some(repo_relative_string(repo_root, p)?),
+            None => None,
+        },
+        benchmark_pair_report_repo_relative: match benchmark_pair_report_json_path {
+            Some(p) => Some(repo_relative_string(repo_root, p)?),
+            None => None,
+        },
+        human_meaningful_advance,
+        human_ai_disclosure_complete,
+        ..Default::default()
+    };
+    vox_publisher::scientia_evidence::populate_candidate_context_defaults(
+        Some(source_ref),
+        abstract_text,
+        citations_json,
+        scientific,
+        &mut evidence,
+    );
+    if evidence.discovery_signals.is_empty()
+        && evidence.eval_gate_report_repo_relative.is_none()
+        && evidence.benchmark_pair_report_repo_relative.is_none()
+        && !human_meaningful_advance
+        && !human_ai_disclosure_complete
+    {
+        return Ok(None);
+    }
+    Ok(Some(evidence))
+}
+
+/// Prepare (upsert) a canonical publication manifest from markdown body content.
+pub async fn publication_prepare(
+    publication_id: &str,
+    content_type: &str,
+    author: &str,
+    title: Option<&str>,
+    path: &Path,
+    abstract_text: Option<&str>,
+    citations_json_path: Option<&Path>,
+    scholarly_metadata_json_path: Option<&Path>,
+    eval_gate_report_json_path: Option<&Path>,
+    benchmark_pair_report_json_path: Option<&Path>,
+    human_meaningful_advance: bool,
+    human_ai_disclosure_complete: bool,
+    preflight: bool,
+    preflight_profile: vox_publisher::publication_preflight::PreflightProfile,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let repository_id = repository_id_for_prepare(&repo_root);
+    let body_markdown = read_utf8_path_capped(path)
+        .with_context(|| format!("failed to read markdown body from {}", path.display()))?;
+    let inferred_title = title
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string)
+        .unwrap_or_else(|| vox_publisher::scientia_evidence::infer_markdown_title(&body_markdown));
+    let citations_json = if let Some(p) = citations_json_path {
+        Some(
+            read_utf8_path_capped(p)
+                .with_context(|| format!("failed to read citations JSON from {}", p.display()))?,
         )
     } else {
         None
     };
+    let scientific = read_scientific_metadata_json(scholarly_metadata_json_path)?;
+    let source_ref = source_ref_string(&repo_root, path);
+    let scientia_evidence = build_scientia_evidence_context(
+        &repo_root,
+        &source_ref,
+        abstract_text,
+        citations_json.as_deref(),
+        scientific.as_ref(),
+        eval_gate_report_json_path,
+        benchmark_pair_report_json_path,
+        human_meaningful_advance,
+        human_ai_disclosure_complete,
+    )?;
     let metadata_json = vox_publisher::scientific_metadata::build_scientia_metadata_json(
         "vox db publication-prepare",
-        None,
+        Some(repository_id.as_str()),
         scientific.as_ref(),
-        None,
+        scientia_evidence.as_ref(),
     )
     .context("build publication metadata_json")?;
     let manifest = vox_publisher::publication::PublicationManifest {
         publication_id: publication_id.to_string(),
         content_type: content_type.to_string(),
-        source_ref: Some(path.display().to_string()),
-        title: title.to_string(),
+        source_ref: Some(source_ref.clone()),
+        title: inferred_title,
         author: author.to_string(),
         abstract_text: abstract_text.map(std::string::ToString::to_string),
         body_markdown,
@@ -95,9 +192,32 @@ pub async fn publication_prepare(
         state: "draft",
     })
     .await?;
+    if let Some(ref evidence) = scientia_evidence
+        && !evidence.discovery_signals.is_empty()
+    {
+        let detail = serde_json::json!({
+            "source_ref": source_ref,
+            "candidate_note": evidence.candidate_note,
+            "discovery_signals": evidence.discovery_signals,
+            "draft_preparation": evidence.draft_preparation,
+        });
+        db.append_publication_status_event(
+            publication_id,
+            "discovery_candidate_prepared",
+            Some(&serde_json::to_string(&detail)?),
+        )
+        .await?;
+    }
     println!(
-        "Prepared publication '{}' ({}) digest={}",
-        publication_id, content_type, digest
+        "Prepared publication '{}' ({}) digest={}{}",
+        publication_id,
+        content_type,
+        digest,
+        scientia_evidence
+            .as_ref()
+            .and_then(|e| e.candidate_note.as_deref())
+            .map(|note| format!(" note={note}"))
+            .unwrap_or_default()
     );
     Ok(())
 }
@@ -124,14 +244,7 @@ pub async fn publication_preflight(
         metadata_json: row.metadata_json.clone(),
     };
     let item = publication_item_from_manifest(&row)?;
-    let dual = db
-        .has_dual_publication_approval_for_digest(publication_id, row.content_sha3_256.as_str())
-        .await?;
-    let gate = vox_publisher::gate::evaluate_publish_gate(
-        vox_publisher::gate::publish_gate_inputs_for_cli(false, true, dual, &item),
-    );
-    let attention =
-        vox_publisher::publication_preflight::PreflightAttentionInputs { gate: Some(gate) };
+    let attention = publication_attention_inputs_for_row(&db, &row, &item).await?;
     let report = if with_worthiness {
         let root = vox_repository::resolve_repo_root_for_ci();
         manifest =
@@ -311,7 +424,9 @@ pub async fn publication_scholarly_pipeline_run(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
-    let report = vox_publisher::publication_preflight::run_preflight(&manifest, preflight_profile);
+    let report =
+        publication_preflight_report_for_row(&db, &row, &manifest, preflight_profile, false)
+            .await?;
     if !report.ok {
         anyhow::bail!(
             "scholarly pipeline preflight failed (readiness {}):\n{}",
@@ -436,11 +551,20 @@ pub async fn publication_submit_local(publication_id: &str, adapter: Option<&str
 }
 
 /// Show publication state and scholarly submission rows.
-pub async fn publication_status(publication_id: &str) -> Result<()> {
+pub async fn publication_status(publication_id: &str, with_worthiness: bool) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let Some(row) = db.get_publication_manifest(publication_id).await? else {
         anyhow::bail!("publication not found: {publication_id}");
     };
+    let manifest = publication_manifest_from_row(&row);
+    let preflight_report = publication_preflight_report_for_row(
+        &db,
+        &row,
+        &manifest,
+        vox_publisher::publication_preflight::PreflightProfile::Default,
+        with_worthiness,
+    )
+    .await?;
     let approvals = db
         .count_publication_approvers_for_digest(publication_id, &row.content_sha3_256)
         .await?;
@@ -457,6 +581,7 @@ pub async fn publication_status(publication_id: &str) -> Result<()> {
             "digest": row.content_sha3_256,
             "version": row.version,
             "approvals_for_digest": approvals,
+            "preflight_report": preflight_report,
             "scholarly_submissions": submissions,
             "media_assets": media_assets,
             "publication_attempts": attempts,
@@ -802,6 +927,71 @@ fn publication_manifest_from_row(
         body_markdown: row.body_markdown.clone(),
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
+    }
+}
+
+async fn publication_attention_inputs_for_row(
+    db: &vox_db::VoxDb,
+    row: &vox_db::PublicationManifestRow,
+    item: &vox_publisher::types::UnifiedNewsItem,
+) -> Result<vox_publisher::publication_preflight::PreflightAttentionInputs> {
+    let dual = db
+        .has_dual_publication_approval_for_digest(
+            row.publication_id.as_str(),
+            row.content_sha3_256.as_str(),
+        )
+        .await?;
+    let gate = vox_publisher::gate::evaluate_publish_gate(
+        vox_publisher::gate::publish_gate_inputs_for_cli(false, true, dual, item),
+    );
+    Ok(vox_publisher::publication_preflight::PreflightAttentionInputs { gate: Some(gate) })
+}
+
+async fn publication_preflight_report_for_row(
+    db: &vox_db::VoxDb,
+    row: &vox_db::PublicationManifestRow,
+    manifest: &vox_publisher::publication::PublicationManifest,
+    profile: vox_publisher::publication_preflight::PreflightProfile,
+    with_worthiness: bool,
+) -> Result<vox_publisher::publication_preflight::PreflightReport> {
+    let item = publication_item_from_manifest(row)?;
+    let attention = publication_attention_inputs_for_row(db, row, &item).await?;
+    if with_worthiness {
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let manifest =
+            crate::commands::scientia_worthiness_enrich::enrich_manifest_for_worthiness_preflight(
+                manifest.clone(),
+                db,
+                &root,
+                None,
+            )
+            .await?;
+        let contract_path =
+            root.join(vox_publisher::publication_worthiness::DEFAULT_CONTRACT_REL_PATH);
+        let yaml = read_utf8_path_capped(&contract_path).with_context(|| {
+            format!(
+                "read worthiness contract {} (repo root discovery required)",
+                contract_path.display()
+            )
+        })?;
+        let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
+        vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
+        Ok(
+            vox_publisher::publication_preflight::run_preflight_with_worthiness_attention(
+                &manifest,
+                profile,
+                &contract,
+                Some(attention),
+            ),
+        )
+    } else {
+        Ok(
+            vox_publisher::publication_preflight::run_preflight_with_attention(
+                manifest,
+                profile,
+                Some(attention),
+            ),
+        )
     }
 }
 

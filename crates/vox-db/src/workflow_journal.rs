@@ -3,9 +3,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::research_metrics_contract::{
-    METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY, TelemetryWriteOptions,
-};
+use crate::research_metrics_contract::{METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY, TelemetryWriteOptions};
 use crate::{StoreError, VoxDb};
 
 #[derive(Debug, Clone, Serialize)]

@@ -135,6 +135,8 @@ pub enum ScientiaCmd {
         /// Stable publication id.
         #[arg(long)]
         publication_id: String,
+        #[arg(long, default_value_t = false)]
+        with_worthiness: bool,
     },
     /// Poll remote scholarly repository status for a stored submission.
     #[command(name = "publication-scholarly-remote-status")]
@@ -328,9 +330,13 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
             publication_id,
             adapter,
         }),
-        ScientiaCmd::PublicationStatus { publication_id } => {
-            DbCli::Publication(DbCliPublication::PublicationStatus { publication_id })
-        }
+        ScientiaCmd::PublicationStatus {
+            publication_id,
+            with_worthiness,
+        } => DbCli::Publication(DbCliPublication::PublicationStatus {
+            publication_id,
+            with_worthiness,
+        }),
         ScientiaCmd::PublicationScholarlyRemoteStatus {
             publication_id,
             external_submission_id,

@@ -88,6 +88,8 @@ impl Default for OrchestratorConfig {
             trust_trusted_threshold: default_trust_trusted_threshold(),
             trust_auto_approve_min: default_trust_auto_approve_min(),
             attention_trust_routing_weight: default_attention_trust_routing_weight(),
+            trust_task_completion_floor: default_trust_task_completion_floor(),
+            trust_task_completion_weight: default_trust_task_completion_weight(),
             repo_shard_specialization_weight: default_repo_shard_specialization_weight(),
             repo_shard_validation_failure_penalty: default_repo_shard_validation_failure_penalty(),
             repo_reduce_conflict_cooldown_penalty: default_repo_reduce_conflict_cooldown_penalty(),

@@ -3,11 +3,14 @@
 //! This crate consolidates all core compiler stages: lexing, parsing,
 //! AST definition, HIR lowering, type checking, and code generation.
 
+pub mod app_contract;
 pub mod ast;
+pub mod builtin_registry;
 pub mod codegen_rust;
 pub mod codegen_ts;
 pub mod eval;
 pub mod fmt;
+pub mod generated_vox;
 pub mod hir;
 pub mod lexer;
 pub mod parser;

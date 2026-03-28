@@ -354,6 +354,41 @@ CREATE TABLE IF NOT EXISTS repository_reliability (
     updated_at_ms      INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS trust_observations (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type         TEXT    NOT NULL,
+    entity_id           TEXT    NOT NULL,
+    dimension           TEXT    NOT NULL,
+    domain              TEXT    NOT NULL DEFAULT '',
+    task_class          TEXT    NOT NULL DEFAULT '',
+    provider            TEXT    NOT NULL DEFAULT '',
+    model_id            TEXT    NOT NULL DEFAULT '',
+    repository_id       TEXT    NOT NULL DEFAULT '',
+    source_kind         TEXT    NOT NULL DEFAULT '',
+    observation_value   REAL    NOT NULL,
+    confidence_weight   REAL    NOT NULL DEFAULT 1.0,
+    sample_size         INTEGER NOT NULL DEFAULT 1,
+    artifact_ref        TEXT,
+    metadata_json       TEXT,
+    created_at_ms       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS trust_rollups (
+    entity_type         TEXT    NOT NULL,
+    entity_id           TEXT    NOT NULL,
+    dimension           TEXT    NOT NULL,
+    domain              TEXT    NOT NULL DEFAULT '',
+    task_class          TEXT    NOT NULL DEFAULT '',
+    provider            TEXT    NOT NULL DEFAULT '',
+    model_id            TEXT    NOT NULL DEFAULT '',
+    repository_id       TEXT    NOT NULL DEFAULT '',
+    score               REAL    NOT NULL DEFAULT 0.5,
+    sample_size         INTEGER NOT NULL DEFAULT 0,
+    ewma_alpha          REAL    NOT NULL DEFAULT 0.10,
+    updated_at_ms       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (entity_type, entity_id, dimension, domain, task_class, provider, model_id, repository_id)
+);
+
 CREATE TABLE IF NOT EXISTS trusted_evidence_bundles (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     bundle_key          TEXT    NOT NULL UNIQUE,
@@ -410,4 +445,7 @@ CREATE INDEX IF NOT EXISTS idx_trusted_evidence_repo_session ON trusted_evidence
 CREATE INDEX IF NOT EXISTS idx_skill_reliability_score ON skill_reliability(reliability);
 CREATE INDEX IF NOT EXISTS idx_workflow_reliability_score ON workflow_reliability(reliability);
 CREATE INDEX IF NOT EXISTS idx_repository_reliability_score ON repository_reliability(reliability);
+CREATE INDEX IF NOT EXISTS idx_trust_observations_entity_dim ON trust_observations(entity_type, entity_id, dimension, created_at_ms);
+CREATE INDEX IF NOT EXISTS idx_trust_observations_scope ON trust_observations(domain, task_class, provider, model_id, repository_id);
+CREATE INDEX IF NOT EXISTS idx_trust_rollups_entity_dim ON trust_rollups(entity_type, entity_id, dimension, score);
 ";

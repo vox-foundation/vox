@@ -71,8 +71,15 @@ impl ProcessRegistry {
     /// Register a named process.
     pub fn register_name(&self, name: String, handle: ProcessHandle) -> Result<(), RegistryError> {
         let pid = handle.pid;
-        write_names(&self.by_name, "register_name(insert by_name)")?.insert(name, pid);
-        write_pid(&self.by_pid, "register_name(insert by_pid)")?.insert(pid, handle);
+        let replaced_pid =
+            write_names(&self.by_name, "register_name(insert by_name)")?.insert(name, pid);
+        let mut pid_map = write_pid(&self.by_pid, "register_name(insert by_pid)")?;
+        if let Some(old_pid) = replaced_pid
+            && old_pid != pid
+        {
+            pid_map.remove(&old_pid);
+        }
+        pid_map.insert(pid, handle);
         Ok(())
     }
 
@@ -141,6 +148,25 @@ mod tests {
         let handle = spawn_process(|_ctx| async {});
         registry.register_name("worker".to_string(), handle)?;
         assert!(registry.lookup_name("worker")?.is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_register_name_replaces_prior_pid_entry() -> Result<(), RegistryError> {
+        let registry = ProcessRegistry::new();
+        let first = spawn_process(|_ctx| async {});
+        let first_pid = first.pid;
+        registry.register_name("worker".to_string(), first)?;
+        assert!(registry.lookup(&first_pid)?.is_some());
+        assert_eq!(registry.len()?, 1);
+
+        let second = spawn_process(|_ctx| async {});
+        let second_pid = second.pid;
+        registry.register_name("worker".to_string(), second)?;
+
+        assert!(registry.lookup(&first_pid)?.is_none());
+        assert!(registry.lookup(&second_pid)?.is_some());
+        assert_eq!(registry.len()?, 1);
         Ok(())
     }
 }

@@ -5,10 +5,6 @@ edition.workspace = true
 description = "Host toolchain bootstrap and install plan (rustup, clang for Turso) — no Turso/vox-pm dependency"
 readme = "README.md"
 
-[lib]
-name = "vox_bootstrap"
-path = "src/lib.rs"
-
 [[bin]]
 name = "vox-bootstrap"
 path = "src/main.rs"

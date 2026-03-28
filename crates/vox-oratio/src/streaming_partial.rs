@@ -27,13 +27,15 @@ impl StreamingStabilizationConfig {
     pub fn from_env() -> Self {
         let mut c = Self::default();
         if let Ok(s) = std::env::var("VOX_ORATIO_STREAM_PARTIAL_QUIET_MS")
-            && let Ok(v) = s.parse::<u64>() {
-                c.partial_quiet_ms = v.max(50);
-            }
+            && let Ok(v) = s.parse::<u64>()
+        {
+            c.partial_quiet_ms = v.max(50);
+        }
         if let Ok(s) = std::env::var("VOX_ORATIO_STREAM_MAX_WAIT_MS")
-            && let Ok(v) = s.parse::<u64>() {
-                c.max_wait_ms = v.max(200);
-            }
+            && let Ok(v) = s.parse::<u64>()
+        {
+            c.max_wait_ms = v.max(200);
+        }
         c
     }
 }
