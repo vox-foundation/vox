@@ -30,6 +30,7 @@ pub use syndication_outcome::{ChannelOutcome, SyndicationResult};
 pub use topic_packs::{apply_topic_pack_from_metadata_json, hydrate_syndication_from_pack_id};
 
 use anyhow::Result;
+use std::collections::BTreeMap;
 use tracing::{info, warn};
 #[cfg(feature = "scientia-youtube")]
 use types::YouTubeConfig;
@@ -41,6 +42,115 @@ pub use contract::NewsSiteConfig;
 
 fn summarize_for_social(raw: &str, max_chars: usize) -> String {
     contract::clamp_text(raw, max_chars)
+}
+
+#[must_use]
+fn syndication_template_profile_enabled() -> bool {
+    std::env::var("VOX_SYNDICATION_TEMPLATE_PROFILE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn channel_template_profile_label(item: &UnifiedNewsItem, channel: &str) -> Option<String> {
+    let map = &item.syndication.distribution_policy.channel_policy;
+    let p = map.get(channel).or_else(|| {
+        map.iter()
+            .find(|(k, _)| k.trim().eq_ignore_ascii_case(channel))
+            .map(|(_, v)| v)
+    })?;
+    p.template_profile
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string)
+}
+
+fn note_template_profile_inert(
+    item: &UnifiedNewsItem,
+    channel: &str,
+    decision_reasons: &mut BTreeMap<String, String>,
+) {
+    if channel_template_profile_label(item, channel).is_some()
+        && !syndication_template_profile_enabled()
+        && !decision_reasons.contains_key("template_profile_inert")
+    {
+        decision_reasons.insert(
+            "template_profile_inert".to_string(),
+            "VOX_SYNDICATION_TEMPLATE_PROFILE is not enabled; channel template_profile keys are ignored"
+                .to_string(),
+        );
+    }
+}
+
+fn twitter_effective_summary_max_chars(
+    item: &UnifiedNewsItem,
+    cfg: &PublisherConfig,
+    decision_reasons: &mut BTreeMap<String, String>,
+) -> usize {
+    let margin_base = cfg
+        .twitter_summary_margin_chars
+        .unwrap_or(contract::TWITTER_SUMMARY_MARGIN_CHARS);
+    note_template_profile_inert(item, "twitter", decision_reasons);
+    if !syndication_template_profile_enabled() {
+        return contract::TWITTER_TEXT_CHUNK_MAX.saturating_sub(margin_base);
+    }
+    let Some(ref p) = channel_template_profile_label(item, "twitter") else {
+        return contract::TWITTER_TEXT_CHUNK_MAX.saturating_sub(margin_base);
+    };
+    let p_low = p.to_ascii_lowercase();
+    let margin_adj = match p_low.as_str() {
+        "brief" | "tight" | "compact" => margin_base.saturating_sub(16).max(4),
+        "roomy" | "spacious" | "narrative" => (margin_base.saturating_add(24))
+            .min(contract::TWITTER_TEXT_CHUNK_MAX.saturating_div(3)),
+        _ => {
+            decision_reasons.insert(
+                "template_profile_fallback_twitter".to_string(),
+                format!("unknown template_profile {p:?}; using default twitter margin"),
+            );
+            margin_base
+        }
+    };
+    decision_reasons.insert(
+        "template_profile_resolved_twitter".to_string(),
+        format!("{p}:margin_chars={margin_adj}"),
+    );
+    contract::TWITTER_TEXT_CHUNK_MAX.saturating_sub(margin_adj)
+}
+
+#[cfg(any(feature = "scientia-reddit", feature = "scientia-youtube"))]
+fn social_text_cap_with_template_profile(
+    item: &UnifiedNewsItem,
+    channel: &str,
+    base_cap: usize,
+    decision_reasons: &mut BTreeMap<String, String>,
+) -> usize {
+    note_template_profile_inert(item, channel, decision_reasons);
+    if !syndication_template_profile_enabled() {
+        return base_cap;
+    }
+    let Some(ref p) = channel_template_profile_label(item, channel) else {
+        return base_cap;
+    };
+    let p_low = p.to_ascii_lowercase();
+    let scaled = match p_low.as_str() {
+        "brief" | "tight" | "compact" => base_cap.saturating_mul(88).saturating_div(100).max(120),
+        "roomy" | "spacious" | "narrative" => base_cap
+            .saturating_mul(114)
+            .saturating_div(100)
+            .min(base_cap.saturating_add(900)),
+        _ => {
+            decision_reasons.insert(
+                format!("template_profile_fallback_{channel}"),
+                format!("unknown template_profile {p:?}; using default cap"),
+            );
+            base_cap
+        }
+    };
+    decision_reasons.insert(
+        format!("template_profile_resolved_{channel}"),
+        format!("{p}:cap={scaled}"),
+    );
+    scaled
 }
 
 fn normalized_tags(item: &UnifiedNewsItem) -> Vec<String> {
@@ -391,13 +501,14 @@ impl Publisher {
                     .unwrap_or("")
                     .is_empty()
                 {
-                    let margin = self
-                        .config
-                        .twitter_summary_margin_chars
-                        .unwrap_or(contract::TWITTER_SUMMARY_MARGIN_CHARS);
+                    let max_chars = twitter_effective_summary_max_chars(
+                        item,
+                        &self.config,
+                        &mut result.decision_reasons,
+                    );
                     cfg.short_text = Some(summarize_for_social(
                         item.content_markdown.as_str(),
-                        contract::TWITTER_TEXT_CHUNK_MAX.saturating_sub(margin),
+                        max_chars,
                     ));
                 }
                 cfg
@@ -411,12 +522,17 @@ impl Publisher {
             .and_then(|yt| yt.description_override.as_deref())
             .unwrap_or(item.content_markdown.as_str());
         #[cfg(feature = "scientia-reddit")]
-        let derived_summary = summarize_for_social(
-            social_source,
-            self.config
+        let reddit_cap = social_text_cap_with_template_profile(
+            item,
+            "reddit",
+            self
+                .config
                 .reddit_selfpost_summary_max
                 .unwrap_or(contract::REDDIT_SELFPOST_SUMMARY_MAX),
+            &mut result.decision_reasons,
         );
+        #[cfg(feature = "scientia-reddit")]
+        let derived_summary = summarize_for_social(social_source, reddit_cap);
         #[cfg(feature = "scientia-reddit")]
         let derived_reddit: Option<RedditConfig> =
             item.syndication.reddit.clone().map(|mut cfg| {
@@ -476,10 +592,14 @@ impl Publisher {
                     .unwrap_or("")
                     .is_empty()
                 {
-                    cfg.description_override = Some(summarize_for_social(
-                        item.content_markdown.as_str(),
+                    let yt_cap = social_text_cap_with_template_profile(
+                        item,
+                        "youtube",
                         contract::YOUTUBE_DESCRIPTION_MAX,
-                    ));
+                        &mut result.decision_reasons,
+                    );
+                    cfg.description_override =
+                        Some(summarize_for_social(item.content_markdown.as_str(), yt_cap));
                 }
                 if cfg
                     .title_override
@@ -551,7 +671,11 @@ impl Publisher {
                     external_id: Some(format!("dry-run-tweet-{}", item.id)),
                 };
             } else if let Some(token) = &self.config.twitter_bearer_token {
-                match adapters::twitter::post(&self.config, token, item, twitter).await {
+                match social_retry::run_with_retries(social_retry_budget, || {
+                    adapters::twitter::post(&self.config, token.as_str(), item, twitter)
+                })
+                .await
+                {
                     Ok(id) => {
                         result.twitter = ChannelOutcome::Success {
                             external_id: Some(id),

@@ -84,8 +84,15 @@ pub fn generate_with_options(
 
     // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
     // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
+    let web_projection_cache = if hir.reactive_components.is_empty() {
+        None
+    } else {
+        Some(crate::web_ir::lower::project_web_from_core(hir))
+    };
+    let web_projection_ref = web_projection_cache.as_ref();
     for rc in &hir.reactive_components {
-        let (filename, content) = generate_reactive_component(hir, rc, &island_names);
+        let (filename, content) =
+            generate_reactive_component(hir, rc, &island_names, web_projection_ref);
         files.push((filename, content));
     }
 
@@ -269,7 +276,7 @@ fn maybe_web_ir_validate(hir: &HirModule) -> Result<(), String> {
     if !enabled {
         return Ok(());
     }
-    let web = crate::web_ir::lower::lower_hir_to_web_ir(hir);
+    let web = crate::web_ir::lower::project_web_from_core(hir);
     let diags = crate::web_ir::validate::validate_web_ir(&web);
     if diags.is_empty() {
         return Ok(());

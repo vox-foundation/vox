@@ -1,20 +1,20 @@
 //! MCP tools for Vox Oratio (Candle Whisper STT).
 
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
 use crate::llm_bridge::{McpInferRouting, mcp_infer_completion};
 use crate::server::ServerState;
+use crate::tools::text_normalization::{
+    llm_changes_well_formed, llm_confidence_field_ok, protected_tokens_preserved,
+    strip_json_codeblock_fence, validate_llm_surface,
+};
+use crate::tools::workspace_path;
 
 fn resolve_audio_path(state: &ServerState, path: &str) -> PathBuf {
-    let p = Path::new(path);
-    if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        state.repository.root.join(p)
-    }
+    workspace_path::resolve_under_repository_root(state, path)
 }
 
 fn parse_profile(args: &Value) -> vox_oratio::refine::OratioCorrectionProfile {
@@ -79,94 +79,10 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
         out["correction_trace"] = json!(detail.correction_trace);
         out["runtime_config"] = vox_oratio::runtime_config_diagnostic_json(&rtc);
     }
+    if let Some(ref nb) = detail.n_best {
+        out["n_best"] = json!(nb);
+    }
     Ok(serde_json::to_string(&out)?)
-}
-
-fn validate_llm_surface(original: &str, corrected: &str) -> bool {
-    if corrected.is_empty() {
-        return false;
-    }
-    let max_len = original.len().saturating_mul(5).max(1024).min(32_768);
-    if corrected.len() > max_len {
-        return false;
-    }
-    for marker in ["::", "--"] {
-        let oc = original.matches(marker).count();
-        let cc = corrected.matches(marker).count();
-        if cc + 2 < oc {
-            return false;
-        }
-    }
-    let om = original.matches('/').count() + original.matches('\\').count();
-    let cm = corrected.matches('/').count() + corrected.matches('\\').count();
-    if om > 0 && cm + 2 < om {
-        return false;
-    }
-    true
-}
-
-/// Ensure flag-like, path-like, and module-path tokens from the deterministic transcript appear in the LLM output.
-fn protected_tokens_preserved(original: &str, corrected: &str) -> bool {
-    for raw in original.split_whitespace() {
-        let flag_like = raw.starts_with("--");
-        let path_like = raw.contains('/') || raw.contains('\\');
-        let mod_like = raw.contains("::");
-        if flag_like || path_like || mod_like {
-            if !corrected.contains(raw) {
-                let redacted = if path_like {
-                    Path::new(raw.trim_matches(|c| c == '`' || c == '"'))
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("(path)")
-                } else {
-                    raw
-                };
-                tracing::debug!(
-                    target: "vox_mcp_oratio",
-                    stage = "llm_pass",
-                    missing_token_redacted = redacted,
-                    "protected token not preserved in LLM correction"
-                );
-                return false;
-            }
-        }
-    }
-    true
-}
-
-fn llm_changes_well_formed(v: &Value) -> bool {
-    match v.get("changes") {
-        None => true,
-        Some(Value::Array(arr)) => arr.iter().all(|item| {
-            item.get("before").and_then(|x| x.as_str()).is_some()
-                && item.get("after").and_then(|x| x.as_str()).is_some()
-        }),
-        Some(_) => false,
-    }
-}
-
-fn llm_confidence_field_ok(v: &Value) -> bool {
-    match v.get("confidence") {
-        None => true,
-        Some(c) => c.as_f64().is_some_and(|x| (0.0..=1.0).contains(&x)),
-    }
-}
-
-fn strip_json_fence(s: &str) -> String {
-    let block = s.trim();
-    if let Some(rest) = block.strip_prefix("```json") {
-        let mut inner = rest.trim_start_matches(['\n', '\r']).trim();
-        if let Some(pos) = inner.rfind("```") {
-            inner = inner[..pos].trim();
-        }
-        return inner.to_string();
-    }
-    if block.starts_with("```") {
-        let rest = block.strip_prefix("```").unwrap_or(block).trim();
-        let inner = rest.strip_suffix("```").unwrap_or(rest).trim();
-        return inner.to_string();
-    }
-    block.to_string()
 }
 
 async fn maybe_llm_polish(
@@ -280,7 +196,7 @@ Reply with ONLY compact JSON (no markdown) matching this shape:\n\
         }
     };
 
-    let trimmed = strip_json_fence(&raw);
+    let trimmed = strip_json_codeblock_fence(&raw);
     let parsed: Value = match serde_json::from_str(&trimmed) {
         Ok(v) => v,
         Err(e) => {
@@ -503,6 +419,9 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
             rtc.routing.tool_route_min_confidence,
         ),
     });
+    if let Some(nb) = &session.n_best {
+        response["n_best"] = json!(nb);
+    }
     if let Some((env, slot_hint, gaps)) = intent_envelope {
         response["intent_envelope"] = serde_json::to_value(&env)?;
         response["speech_escalation_recommended"] =

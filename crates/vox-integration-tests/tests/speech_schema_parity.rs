@@ -112,6 +112,19 @@ fn speech_trace_mens_validates_minimal_training_row() {
         validator.validate(&missing_code).is_err(),
         "missing vox_code must fail MENS schema"
     );
+
+    let with_diag = serde_json::json!({
+        "schema_version": "1",
+        "session_id": "s2",
+        "refined_transcript": "add hello",
+        "vox_code": "fn hello() {}",
+        "diagnostics_snapshot": [
+            {"message": "type mismatch", "code": "vox-type-001", "severity": "error"}
+        ]
+    });
+    validator
+        .validate(&with_diag)
+        .expect("row with diagnostics_snapshot should validate");
 }
 
 #[test]

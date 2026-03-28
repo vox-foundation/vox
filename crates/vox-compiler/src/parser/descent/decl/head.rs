@@ -157,10 +157,11 @@ impl Parser {
             }
 
             if let Token::Ident(word) = self.peek().clone()
-                && word == "as" {
-                    self.advance();
-                    alias = Some(self.parse_ident_name()?);
-                }
+                && word == "as"
+            {
+                self.advance();
+                alias = Some(self.parse_ident_name()?);
+            }
 
             return Ok(ImportPath {
                 kind: ImportPathKind::RustCrate(rust_meta),
@@ -180,10 +181,11 @@ impl Parser {
             }
         }
         if let Token::Ident(word) = self.peek().clone()
-            && word == "as" {
-                self.advance();
-                alias = Some(self.parse_ident_name()?);
-            }
+            && word == "as"
+        {
+            self.advance();
+            alias = Some(self.parse_ident_name()?);
+        }
 
         Ok(ImportPath {
             kind: ImportPathKind::SymbolPath { segments },

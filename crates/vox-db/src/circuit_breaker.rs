@@ -3,6 +3,32 @@
 //! Activated by `VOX_DB_CIRCUIT_BREAKER=1`. When the breaker is **Open**,
 //! write callers receive [`CircuitBreakerError::Open`] immediately so they can
 //! buffer locally or enqueue for retry rather than hammering a degraded primary.
+//! Gated paths include coordination writes (locks, heartbeats, lineage append/prune), CAS
+//! (`store`, `bind_name`, `take_db_snapshot`), agent sessions (`create_session`, `close_session`,
+//! `record_agent_event`, `record_task_reliability_observation`, `append_session_event`, `log_interaction`, `submit_feedback`),
+//! Codex skill manifests (`publish_skill`, `unpublish_skill`, `record_skill_execution`), **`chat_*`**
+//! Codex user chat / tool calls / usage counters / topics, generic actor state (`save_actor_state_generic`),
+//! registry preference bulk `DELETE`, research ingest (`knowledge_nodes` / `snippets`) and
+//! `codex_capability_map` inserts, `populi_training_run` writes, legacy JSONL import row
+//! `DELETE`/`INSERT` (not txn `BEGIN`/`COMMIT`/`ROLLBACK` / `PRAGMA`), `legacy_import_extras`,
+//! agent memory /
+//! knowledge / search-ingest / embeddings (`save_memory`, `delete_memories_created_before`,
+//! `upsert_knowledge_node`, `create_knowledge_edge`, `upsert_search_document`,
+//! `replace_search_document_chunks`, `store_embedding`), publication manifest writes
+//! (`upsert_publication_manifest`, approvals, attempts, status events), planning graph writes,
+//! news publish/approval paths, mens cloud throughput job rows, information-theoretic questioning
+//! tables (sessions, events, options, `belief_state_json` merges), and Ludus / `gamify_*` CRUD
+//! (profiles, quests, battles, counters, A2A inbox send/claim/ack/prune, oplog, `actor_state`,
+//! file locks, teaching profiles), behavioral learning (`behavior_events`, `learned_patterns`,
+//! `user_preferences`, `snippets`), durable workflow journal rows (`workflow_activity_log`), optional
+//! retention `DELETE … datetime(...)` helpers, scholarly pipeline tables (submissions, media assets),
+//! external submission jobs/attempts and remote snapshot/link/revision sidecars, and MCP
+//! `chat_transcripts` inserts, Codex graph / research session writes (`workflow_executions`,
+//! `execution_log`, `codex_change_log`, `research_sessions`, conversation tables), and research
+//! metrics / endpoint reliability / eval / corpus / PM mirror package rows, build observability
+//! (`build_run` / crate samples / warnings), `components` registration, TOESTUB auxiliary tables,
+//! and schemaless [`crate::collection::Collection`] DML (`insert` / `patch` / `replace` / `delete`;
+//! not `ensure_table` DDL).
 //!
 //! State machine: **Closed** → (N consecutive failures) → **Open** → (reset timeout) → **HalfOpen** → (first success) → **Closed** / (any failure) → **Open**.
 

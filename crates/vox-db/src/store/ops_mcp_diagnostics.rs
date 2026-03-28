@@ -81,22 +81,34 @@ impl crate::VoxDb {
         context_files_json: &str,
         repository_id: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
+        let id = id.to_string();
+        let session_id = session_id.to_string();
+        let role = role.to_string();
+        let content = content.to_string();
+        let model_used = model_used.map(str::to_string);
+        let context_files_json = context_files_json.to_string();
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO chat_transcripts (id, session_id, role, content, model_used, tokens, context_files, repository_id)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    id,
-                    session_id,
-                    role,
-                    content,
-                    model_used,
-                    tokens,
-                    context_files_json,
-                    repository_id,
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        id.as_str(),
+                        session_id.as_str(),
+                        role.as_str(),
+                        content.as_str(),
+                        model_used.as_deref(),
+                        tokens,
+                        context_files_json.as_str(),
+                        repository_id.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

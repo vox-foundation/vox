@@ -169,6 +169,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "news_publish_approvals_v2",
     "news_publish_attempts",
     "objects",
+    "orchestration_lineage_events",
     "package_deps",
     "packages",
     "plan_node_attempts",
@@ -329,8 +330,8 @@ pub async fn import_legacy_jsonl<R: BufRead>(
     store: &crate::VoxDb,
     reader: R,
 ) -> Result<u64, StoreError> {
-    let conn = store.connection();
-    let fk_was_on = pragma_foreign_keys_enabled(conn).await?;
+    let conn = store.conn.clone();
+    let fk_was_on = pragma_foreign_keys_enabled(&conn).await?;
     conn.execute("PRAGMA foreign_keys = OFF", ())
         .await
         .map_err(|e| StoreError::Db(format!("legacy import pragma foreign_keys off: {e}")))?;
@@ -342,10 +343,18 @@ pub async fn import_legacy_jsonl<R: BufRead>(
         // Replace semantics: clear allowlisted user tables so a second import does not append duplicates.
         // `schema_version` is not in LEGACY_EXPORT_TABLES — baseline row remains intact.
         for table in LEGACY_EXPORT_TABLES.iter().rev() {
+            let table = *table;
             let sql = format!("DELETE FROM {table}");
-            conn.execute(&sql, ())
-                .await
-                .map_err(|e| StoreError::Db(format!("legacy import clear {table}: {e}")))?;
+            let c = conn.clone();
+            let breaker = store.breaker.clone();
+            breaker
+                .call(|| async move {
+                    c.execute(&sql, ())
+                        .await
+                        .map_err(|e| StoreError::Db(format!("legacy import clear {table}: {e}")))?;
+                    Ok::<(), StoreError>(())
+                })
+                .await?;
         }
         let mut applied = 0u64;
         for line in reader.lines() {
@@ -396,20 +405,26 @@ pub async fn import_legacy_jsonl<R: BufRead>(
                 let cell = row.get(c).unwrap_or(&serde_json::Value::Null);
                 values.push(json_to_sql_value(cell)?);
             }
-            store.connection().execute(&sql, values).await?;
+            let c = conn.clone();
+            let breaker = store.breaker.clone();
+            breaker
+                .call(|| async move {
+                    c.execute(&sql, values).await?;
+                    Ok::<(), StoreError>(())
+                })
+                .await?;
             applied += 1;
         }
         Ok::<u64, StoreError>(applied)
     };
 
     let restore_fk = async {
-        let c = store.connection();
         if fk_was_on {
-            c.execute("PRAGMA foreign_keys = ON", ())
+            conn.execute("PRAGMA foreign_keys = ON", ())
                 .await
                 .map_err(|e| StoreError::Db(format!("legacy import restore foreign_keys: {e}")))?;
         } else {
-            c.execute("PRAGMA foreign_keys = OFF", ())
+            conn.execute("PRAGMA foreign_keys = OFF", ())
                 .await
                 .map_err(|e| StoreError::Db(format!("legacy import restore foreign_keys: {e}")))?;
         }
@@ -418,8 +433,7 @@ pub async fn import_legacy_jsonl<R: BufRead>(
 
     match body.await {
         Ok(n) => {
-            store
-                .connection()
+            conn
                 .execute("COMMIT", ())
                 .await
                 .map_err(|e| StoreError::Db(format!("legacy import commit: {e}")))?;
@@ -427,7 +441,7 @@ pub async fn import_legacy_jsonl<R: BufRead>(
             Ok(n)
         }
         Err(e) => {
-            let _ = store.connection().execute("ROLLBACK", ()).await;
+            let _ = conn.execute("ROLLBACK", ()).await;
             let _ = restore_fk.await;
             Err(e)
         }

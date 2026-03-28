@@ -406,29 +406,67 @@ pub async fn prune_plan(policy: Option<&Path>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
     let mut rows_out = Vec::new();
     for (table, rule) in pol.tables.iter() {
-        if rule.kind != "days" {
+        if rule.kind == "days" {
+            let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
+                anyhow::bail!(
+                    "retention policy: table `{table}` kind=days requires `days` and `time_column`"
+                );
+            };
+            let n = db
+                .retention_count_older_than_days(table, col, days)
+                .await
+                .with_context(|| format!("plan {table}"))?;
             rows_out.push(serde_json::json!({
                 "table": table,
-                "mode": rule.kind,
-                "would_delete": serde_json::Value::Null,
+                "mode": "days",
+                "days": days,
+                "time_column": col,
+                "would_delete": n,
             }));
             continue;
         }
-        let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
-            anyhow::bail!(
-                "retention policy: table `{table}` kind=days requires `days` and `time_column`"
-            );
-        };
-        let n = db
-            .retention_count_older_than_days(table, col, days)
-            .await
-            .with_context(|| format!("plan {table}"))?;
+        if rule.kind == "ms_days" {
+            let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
+                anyhow::bail!(
+                    "retention policy: table `{table}` kind=ms_days requires `days` and `time_column`"
+                );
+            };
+            let cutoff = vox_db::VoxDb::retention_cutoff_ms_exclusive_for_days(days);
+            let n = db
+                .retention_count_older_than_ms_cutoff(table, col, cutoff)
+                .await
+                .with_context(|| format!("plan {table}"))?;
+            rows_out.push(serde_json::json!({
+                "table": table,
+                "mode": "ms_days",
+                "days": days,
+                "time_column": col,
+                "would_delete": n,
+            }));
+            continue;
+        }
+        if rule.kind == "expires_lt_now" {
+            let Some(col) = rule.time_column.as_deref() else {
+                anyhow::bail!(
+                    "retention policy: table `{table}` kind=expires_lt_now requires `time_column`"
+                );
+            };
+            let n = db
+                .retention_count_expires_lt_now(table, col)
+                .await
+                .with_context(|| format!("plan {table}"))?;
+            rows_out.push(serde_json::json!({
+                "table": table,
+                "mode": "expires_lt_now",
+                "time_column": col,
+                "would_delete": n,
+            }));
+            continue;
+        }
         rows_out.push(serde_json::json!({
             "table": table,
-            "mode": "days",
-            "days": days,
-            "time_column": col,
-            "would_delete": n,
+            "mode": rule.kind,
+            "would_delete": serde_json::Value::Null,
         }));
     }
     let out = serde_json::json!({
@@ -439,7 +477,7 @@ pub async fn prune_plan(policy: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
-/// Execute `days` rules from the retention policy (DELETE).
+/// Execute `days` and `ms_days` rules from the retention policy (DELETE).
 pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()> {
     if !i_understand {
         anyhow::bail!("refusing prune-apply without `--i-understand` (destructive deletes)");
@@ -451,18 +489,36 @@ pub async fn prune_apply(policy: Option<&Path>, i_understand: bool) -> Result<()
     let db = vox_db::VoxDb::connect_default().await?;
     let mut total: u64 = 0;
     for (table, rule) in pol.tables.iter() {
-        if rule.kind != "days" {
+        let n = if rule.kind == "days" {
+            let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
+                anyhow::bail!(
+                    "retention policy: table `{table}` kind=days requires `days` and `time_column`"
+                );
+            };
+            db.retention_delete_older_than_days(table, col, days)
+                .await
+                .with_context(|| format!("delete {table}"))?
+        } else if rule.kind == "ms_days" {
+            let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
+                anyhow::bail!(
+                    "retention policy: table `{table}` kind=ms_days requires `days` and `time_column`"
+                );
+            };
+            db.retention_delete_all_ms_older_than_days(table, col, days)
+                .await
+                .with_context(|| format!("delete {table}"))?
+        } else if rule.kind == "expires_lt_now" {
+            let Some(col) = rule.time_column.as_deref() else {
+                anyhow::bail!(
+                    "retention policy: table `{table}` kind=expires_lt_now requires `time_column`"
+                );
+            };
+            db.retention_delete_expires_lt_now(table, col)
+                .await
+                .with_context(|| format!("delete {table}"))?
+        } else {
             continue;
-        }
-        let (Some(days), Some(col)) = (rule.days, rule.time_column.as_deref()) else {
-            anyhow::bail!(
-                "retention policy: table `{table}` kind=days requires `days` and `time_column`"
-            );
         };
-        let n = db
-            .retention_delete_older_than_days(table, col, days)
-            .await
-            .with_context(|| format!("delete {table}"))?;
         total += n;
     }
     println!(

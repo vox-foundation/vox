@@ -72,10 +72,7 @@ pub struct AiTaskProcessor {
 
 impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
-    pub async fn new(
-        event_bus: crate::events::EventBus,
-        orchestrator: Arc<Orchestrator>,
-    ) -> Self {
+    pub async fn new(event_bus: crate::events::EventBus, orchestrator: Arc<Orchestrator>) -> Self {
         let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
         // Reflect the active provider in costs/logs
         let (provider, model) = client.active_provider_info();
@@ -192,7 +189,8 @@ impl ActorAgent {
         match cmd {
             AgentCommand::ProcessQueue => {
                 let task_to_run = {
-                    let dequeued = if let Some(queue_lock) = orchestrator_ref.agent_queue(agent_id) {
+                    let dequeued = if let Some(queue_lock) = orchestrator_ref.agent_queue(agent_id)
+                    {
                         let mut queue = crate::sync_lock::rw_write(&queue_lock);
                         if !queue.is_paused() {
                             let t = queue.dequeue();
@@ -211,11 +209,13 @@ impl ActorAgent {
                         None
                     };
                     if let Some(ref task) = dequeued {
-                        orchestrator_ref.event_bus().emit(AgentEventKind::TaskStarted {
-                            task_id: task.id,
-                            agent_id,
-                            session_id: task.session_id.clone(),
-                        });
+                        orchestrator_ref
+                            .event_bus()
+                            .emit(AgentEventKind::TaskStarted {
+                                task_id: task.id,
+                                agent_id,
+                                session_id: task.session_id.clone(),
+                            });
                     }
                     dequeued
                 };

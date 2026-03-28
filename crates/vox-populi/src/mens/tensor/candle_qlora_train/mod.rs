@@ -143,7 +143,11 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
     }
 }
 
-fn synthesize_rope_inv_freq(head_dim: usize, rope_theta: Option<f64>, device: &Device) -> Result<Tensor> {
+fn synthesize_rope_inv_freq(
+    head_dim: usize,
+    rope_theta: Option<f64>,
+    device: &Device,
+) -> Result<Tensor> {
     let half = head_dim / 2;
     if half == 0 {
         anyhow::bail!("invalid head_dim={} for RoPE synthesis", head_dim);
@@ -252,12 +256,13 @@ pub fn run_candle_qlora_train(
         );
     }
     if let Some(cap) = config.qlora_proxy_max_layers
-        && cap < n_layer {
-            anyhow::bail!(
-                "Candle QLoRA: `--qlora-proxy-max-layers={cap}` is less than model depth ({n_layer}); \
+        && cap < n_layer
+    {
+        anyhow::bail!(
+            "Candle QLoRA: `--qlora-proxy-max-layers={cap}` is less than model depth ({n_layer}); \
                  partial-stack training is not implemented. Omit the flag or set the cap to at least {n_layer}."
-            );
-        }
+        );
+    }
 
     let tokenizer = Tokenizer::from_file(&bundle.tokenizer_path)
         .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
@@ -268,18 +273,14 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
-    let jsonl_policy =
-        if std::env::var("VOX_MENS_TRAIN_JSONL_STRICT").unwrap_or_default() == "1" {
-            vox_tensor::data::MalformedJsonlPolicy::FailFast
-        } else {
-            vox_tensor::data::MalformedJsonlPolicy::Skip
-        };
-    let mut pairs = vox_tensor::data::load_all_with_policy(
-        &train_path,
-        config.min_rating,
-        jsonl_policy,
-    )
-    .with_context(|| format!("load training data from {}", train_path.display()))?;
+    let jsonl_policy = if std::env::var("VOX_MENS_TRAIN_JSONL_STRICT").unwrap_or_default() == "1" {
+        vox_tensor::data::MalformedJsonlPolicy::FailFast
+    } else {
+        vox_tensor::data::MalformedJsonlPolicy::Skip
+    };
+    let mut pairs =
+        vox_tensor::data::load_all_with_policy(&train_path, config.min_rating, jsonl_policy)
+            .with_context(|| format!("load training data from {}", train_path.display()))?;
     if let Some(filter) = config.context_filter.as_deref() {
         let needle = filter.trim().to_ascii_lowercase();
         if !needle.is_empty() {
@@ -447,8 +448,20 @@ pub fn run_candle_qlora_train(
                     .get((bundle.d_model, v_dim), &o_key)?
                     .to_dtype(DType::F32)?;
                 let w_conv = vb_mmap
-                    .get((qkv_rows, 1, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)), &conv_key)
-                    .or_else(|_| vb_mmap.get((qkv_rows, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)), &conv_key))?
+                    .get(
+                        (
+                            qkv_rows,
+                            1,
+                            bundle.layout.linear_conv_kernel_dim.unwrap_or(4),
+                        ),
+                        &conv_key,
+                    )
+                    .or_else(|_| {
+                        vb_mmap.get(
+                            (qkv_rows, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)),
+                            &conv_key,
+                        )
+                    })?
                     .to_dtype(DType::F32)?;
                 let conv_weight = if w_conv.rank() == 3 {
                     w_conv.squeeze(1)?
@@ -471,8 +484,12 @@ pub fn run_candle_qlora_train(
                 let a_label = format!("l{i}.lin_a");
                 let o_label = format!("l{i}.lin_o");
 
-                let qkv_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_qkv, None, &qlora_cfg, vb.pp(&qkv_label))?;
+                let qkv_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_qkv,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&qkv_label),
+                )?;
                 let z_proj = QuantizedLinear::from_weight_with_varbuilder(
                     &w_z,
                     None,
@@ -491,8 +508,12 @@ pub fn run_candle_qlora_train(
                     &qlora_cfg,
                     vb.pp(&a_label),
                 )?;
-                let out_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+                let out_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_o,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&o_label),
+                )?;
                 adapter_layer_order.push(qkv_label.clone());
                 base_key_map.insert(qkv_label, qkv_key);
                 adapter_layer_order.push(z_label.clone());
@@ -504,23 +525,25 @@ pub fn run_candle_qlora_train(
                 adapter_layer_order.push(o_label.clone());
                 base_key_map.insert(o_label, o_key);
 
-                qwen35_attn = Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Linear(
-                    crate::mens::tensor::candle_model_qwen::Qwen35LinearAttention {
-                        qkv_proj,
-                        z_proj,
-                        b_proj,
-                        a_proj,
-                        out_proj,
-                        conv_weight,
-                        dt_bias,
-                        a_log,
-                        norm: candle_nn::RmsNorm::new(norm_w, 1e-6),
-                        num_k_heads: linear_key_heads,
-                        num_v_heads: linear_value_heads,
-                        head_k_dim: linear_key_dim,
-                        head_v_dim: linear_value_dim,
-                    },
-                ));
+                qwen35_attn = Some(
+                    crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Linear(
+                        crate::mens::tensor::candle_model_qwen::Qwen35LinearAttention {
+                            qkv_proj,
+                            z_proj,
+                            b_proj,
+                            a_proj,
+                            out_proj,
+                            conv_weight,
+                            dt_bias,
+                            a_log,
+                            norm: candle_nn::RmsNorm::new(norm_w, 1e-6),
+                            num_k_heads: linear_key_heads,
+                            num_v_heads: linear_value_heads,
+                            head_k_dim: linear_key_dim,
+                            head_v_dim: linear_value_dim,
+                        },
+                    ),
+                );
             } else if is_qwen35 {
                 let q_key = format!("{layer_prefix}.self_attn.q_proj.weight");
                 let k_key = format!("{layer_prefix}.self_attn.k_proj.weight");
@@ -551,14 +574,30 @@ pub fn run_candle_qlora_train(
                 let v_label = format!("l{i}.v");
                 let o_label = format!("l{i}.o");
 
-                let q_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_q, None, &qlora_cfg, vb.pp(&q_label))?;
-                let k_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_k, None, &qlora_cfg, vb.pp(&k_label))?;
-                let v_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_v, None, &qlora_cfg, vb.pp(&v_label))?;
-                let o_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+                let q_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_q,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&q_label),
+                )?;
+                let k_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_k,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&k_label),
+                )?;
+                let v_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_v,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&v_label),
+                )?;
+                let o_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_o,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&o_label),
+                )?;
 
                 for (lbl, bk) in [
                     (&q_label, &q_key),
@@ -578,7 +617,8 @@ pub fn run_candle_qlora_train(
                     n_kv_heads,
                     head_dim,
                 };
-                qwen35_attn = Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Full(attn));
+                qwen35_attn =
+                    Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Full(attn));
             } else {
                 let q_key = format!("{layer_prefix}.self_attn.q_proj.weight");
                 let k_key = format!("{layer_prefix}.self_attn.k_proj.weight");
@@ -603,14 +643,30 @@ pub fn run_candle_qlora_train(
                 let v_label = format!("l{i}.v");
                 let o_label = format!("l{i}.o");
 
-                let q_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_q, None, &qlora_cfg, vb.pp(&q_label))?;
-                let k_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_k, None, &qlora_cfg, vb.pp(&k_label))?;
-                let v_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_v, None, &qlora_cfg, vb.pp(&v_label))?;
-                let o_proj =
-                    QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+                let q_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_q,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&q_label),
+                )?;
+                let k_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_k,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&k_label),
+                )?;
+                let v_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_v,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&v_label),
+                )?;
+                let o_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_o,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&o_label),
+                )?;
 
                 for (lbl, bk) in [
                     (&q_label, &q_key),
@@ -712,7 +768,9 @@ pub fn run_candle_qlora_train(
                         .ok()
                         .and_then(|t| t.to_dtype(DType::F32).ok())
                 })
-                .or_else(|| synthesize_rope_inv_freq(rope_dim, bundle.layout.rope_theta, &device).ok())
+                .or_else(|| {
+                    synthesize_rope_inv_freq(rope_dim, bundle.layout.rope_theta, &device).ok()
+                })
                 .or_else(|| synthesized_rope_inv_freq.clone());
 
             let mlp = crate::mens::tensor::candle_model_qwen::Qwen2MLP {
@@ -746,7 +804,9 @@ pub fn run_candle_qlora_train(
                 .or_else(|_| vb_mmap.get(bundle.d_model, "model.norm.weight"))?
                 .to_dtype(DType::F32)?
         } else {
-            vb_mmap.get(bundle.d_model, "model.norm.weight")?.to_dtype(DType::F32)?
+            vb_mmap
+                .get(bundle.d_model, "model.norm.weight")?
+                .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
         let w_lm = wte.to_dtype(DType::F32)?;
@@ -769,14 +829,14 @@ pub fn run_candle_qlora_train(
         .context("init qlora optimizer")?;
 
     let model = match bundle.layout.architecture {
-        HfArchitecture::Qwen35 => TrainGraphModel::Qwen35(
-            crate::mens::tensor::candle_model_qwen::Qwen35Model {
+        HfArchitecture::Qwen35 => {
+            TrainGraphModel::Qwen35(crate::mens::tensor::candle_model_qwen::Qwen35Model {
                 embed_tokens: wte,
                 layers: model_layers_qwen35,
                 norm: final_norm,
                 lm_head,
-            },
-        ),
+            })
+        }
         _ => TrainGraphModel::Qwen2(crate::mens::tensor::candle_model_qwen::Qwen2Model {
             embed_tokens: wte,
             layers: model_layers_qwen2,

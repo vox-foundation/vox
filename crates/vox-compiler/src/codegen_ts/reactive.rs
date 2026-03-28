@@ -21,6 +21,7 @@ use crate::codegen_ts::hir_emit::{
 };
 use crate::hir::*;
 use crate::react_bridge::react_exports::{USE_EFFECT, USE_MEMO, USE_STATE};
+use crate::web_ir::WebIrModule;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -127,6 +128,7 @@ fn emit_reactive_view_body(
     rc: &HirReactiveComponent,
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
+    web_projection: Option<&WebIrModule>,
 ) -> String {
     let Some(view) = &rc.view else {
         return String::new();
@@ -139,8 +141,14 @@ fn emit_reactive_view_body(
         }
         return legacy;
     }
-    let web = crate::web_ir::lower::lower_hir_to_web_ir(hir);
-    if !crate::web_ir::validate::validate_web_ir(&web).is_empty() {
+    let owned_web;
+    let web: &WebIrModule = if let Some(w) = web_projection {
+        w
+    } else {
+        owned_web = crate::web_ir::lower::lower_hir_to_web_ir(hir);
+        &owned_web
+    };
+    if !crate::web_ir::validate::validate_web_ir(web).is_empty() {
         record_pathway(ReactiveViewEmitPathway::LegacyFallbackValidateFailed);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
@@ -149,7 +157,7 @@ fn emit_reactive_view_body(
         }
         return legacy;
     }
-    let Some(tsx) = crate::web_ir::emit_tsx::emit_component_view_tsx(&web, &rc.name) else {
+    let Some(tsx) = crate::web_ir::emit_tsx::emit_component_view_tsx(web, &rc.name) else {
         record_pathway(ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
@@ -212,10 +220,14 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
 /// `island_names` should be [`crate::codegen_ts::island_emit::collect_island_names`] for the enclosing [`crate::hir::HirModule`].
 ///
 /// `hir` must be the full module (needed for optional Web IR view bridge).
+///
+/// When `web_projection` is `Some`, it must be [`crate::web_ir::lower::lower_hir_to_web_ir`]`(hir)` (or
+/// [`crate::web_ir::lower::project_web_from_core`]) so reactive emit avoids N× full-module lowers.
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
     island_names: &HashSet<String>,
+    web_projection: Option<&WebIrModule>,
 ) -> (String, String) {
     let name = &rc.name;
     let filename = format!("{name}.tsx");
@@ -296,7 +308,8 @@ pub fn generate_reactive_component(
     }
 
     if rc.view.is_some() {
-        let view_js = emit_reactive_view_body(name, hir, rc, &state_names, island_names);
+        let view_js =
+            emit_reactive_view_body(name, hir, rc, &state_names, island_names, web_projection);
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 

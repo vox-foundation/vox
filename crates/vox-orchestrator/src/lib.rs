@@ -40,6 +40,7 @@
 pub mod sync_lock;
 
 mod bounded_fs;
+mod lineage;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;

@@ -341,6 +341,34 @@ impl Orchestrator {
                 )
                 .await;
             }
+
+            if crate::lineage::orchestration_lineage_persist_enabled() {
+                let repo = crate::lineage::repository_id();
+                let (ps, pn) = plan_completion_meta
+                    .as_ref()
+                    .map(|m| {
+                        (
+                            Some(m.plan_session_id.as_str()),
+                            Some(m.plan_node_id.as_str()),
+                        )
+                    })
+                    .unwrap_or((None, None));
+                let payload = serde_json::json!({ "phase": phase_label });
+                let payload_str = payload.to_string();
+                let _ = db
+                    .append_orchestration_lineage_event(
+                        &repo,
+                        "task_completed",
+                        task_id.0 as i64,
+                        Some(agent_id.0 as i64),
+                        session_id.as_deref(),
+                        None,
+                        ps,
+                        pn,
+                        Some(payload_str.as_str()),
+                    )
+                    .await;
+            }
         }
         {
             let cfg = crate::sync_lock::rw_read(&*self.config).clone();
@@ -466,7 +494,7 @@ impl Orchestrator {
         let planning_cfg = crate::sync_lock::rw_read(&*self.config).clone();
         if planning_cfg.planning_enabled
             && planning_cfg.planning_replan_enabled
-            && let Some(meta) = planning_meta
+            && let Some(ref meta) = planning_meta
             && crate::planning::replan::trigger_matches(
                 &reason,
                 meta.execution_policy_json.as_deref(),
@@ -523,6 +551,37 @@ impl Orchestrator {
                 session_id.clone(),
             )
             .await;
+        }
+
+        if crate::lineage::orchestration_lineage_persist_enabled() {
+            if let Some(db) = self.db() {
+                let repo = crate::lineage::repository_id();
+                let (ps, pn) = planning_meta
+                    .as_ref()
+                    .map(|m| {
+                        (
+                            Some(m.plan_session_id.as_str()),
+                            Some(m.plan_node_id.as_str()),
+                        )
+                    })
+                    .unwrap_or((None, None));
+                let preview: String = reason.chars().take(500).collect();
+                let payload = serde_json::json!({ "reason_preview": preview });
+                let payload_str = payload.to_string();
+                let _ = db
+                    .append_orchestration_lineage_event(
+                        &repo,
+                        "task_failed",
+                        task_id.0 as i64,
+                        Some(agent_id.0 as i64),
+                        session_id.as_deref(),
+                        None,
+                        ps,
+                        pn,
+                        Some(payload_str.as_str()),
+                    )
+                    .await;
+            }
         }
 
         tracing::warn!("Task {} failed: {}", task_id, reason);

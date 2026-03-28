@@ -98,8 +98,20 @@ pub async fn run_train(
         vram_limit_fraction
     };
 
-    // Preflight auto-regen check
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
+    let data_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
+        data_dir,
+        workspace_root.as_deref(),
+    );
+    let output_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
+        output_dir,
+        workspace_root.as_deref(),
+    );
+    let resume = resume.map(|r| {
+        vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
+    });
+
+    // Preflight auto-regen check
     if let Some(ref root) = workspace_root {
         use owo_colors::OwoColorize;
         let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
@@ -152,9 +164,7 @@ pub async fn run_train(
             let mix_yaml = root.join(vox_corpus::training::mix_prepare::MIX_CONFIG_REL);
             if mix_yaml.is_file() {
                 match vox_corpus::training::mix_prepare::copy_mix_output_to_train_jsonl(
-                    root,
-                    &data_dir,
-                    &mix_yaml,
+                    root, &data_dir, &mix_yaml,
                 ) {
                     Ok(true) => {
                         eprintln!(

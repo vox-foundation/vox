@@ -134,7 +134,8 @@ postPublishAudit --> codexLedger[CodexLedgerAndMetrics]
 
 - SCIENTIA canonical manifest lifecycle with digest-bound approvals and submission ledger.
 - Structured scholarly metadata in `metadata_json.scientific_publication`.
-- Preflight checks with readiness score and profile-aware gating.
+- Preflight checks with readiness score, profile-aware gating, consolidated `manual_required` / `confidence`, and (CLI/MCP with VoxDb) live-publish gate hints mirrored from the same rules as `publication-publish`.
+- Syndication hydrate accepts canonical `metadata_json.syndication`, legacy `scientia_distribution`, and contract `channels`/`channel_payloads` normalization; Twitter uses the same retry budget machinery as other HTTP adapters; `publication-retry-failed` skips channels already marked `Success` for the current digest.
 - Zenodo deposition metadata JSON generation.
 - MCP/CLI parity for core prepare/approve/submit/status and preflight.
 - Socrates anti-hallucination telemetry and gate concepts.

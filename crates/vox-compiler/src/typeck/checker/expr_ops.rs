@@ -157,6 +157,8 @@ impl<'a> Checker<'a> {
                     context: Some(Diagnostic::capture_context(self.source, arg_span)),
                     suggestions: vec![],
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
+                    code: Some("typecheck.arg_mismatch".into()),
+                    fixes: vec![],
                 });
             }
         }

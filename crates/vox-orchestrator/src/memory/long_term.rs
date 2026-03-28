@@ -1,4 +1,5 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::error::MemoryError;
@@ -103,7 +104,9 @@ impl LongTermMemory {
             out
         };
 
-        fs::write(&self.path, updated.as_bytes()).map_err(MemoryError::Io)?;
+        let mut f = File::create(&self.path).map_err(MemoryError::Io)?;
+        f.write_all(updated.as_bytes()).map_err(MemoryError::Io)?;
+        f.sync_all().map_err(MemoryError::Io)?;
         Ok(())
     }
 

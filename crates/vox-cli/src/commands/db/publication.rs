@@ -123,6 +123,15 @@ pub async fn publication_preflight(
         citations_json: row.citations_json.clone(),
         metadata_json: row.metadata_json.clone(),
     };
+    let item = publication_item_from_manifest(&row)?;
+    let dual = db
+        .has_dual_publication_approval_for_digest(publication_id, row.content_sha3_256.as_str())
+        .await?;
+    let gate = vox_publisher::gate::evaluate_publish_gate(
+        vox_publisher::gate::publish_gate_inputs_for_cli(false, true, dual, &item),
+    );
+    let attention =
+        vox_publisher::publication_preflight::PreflightAttentionInputs { gate: Some(gate) };
     let report = if with_worthiness {
         let root = vox_repository::resolve_repo_root_for_ci();
         manifest =
@@ -140,11 +149,18 @@ pub async fn publication_preflight(
         })?;
         let contract = vox_publisher::publication_worthiness::load_contract_from_str(&yaml)?;
         vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
-        vox_publisher::publication_preflight::run_preflight_with_worthiness(
-            &manifest, profile, &contract,
+        vox_publisher::publication_preflight::run_preflight_with_worthiness_attention(
+            &manifest,
+            profile,
+            &contract,
+            Some(attention),
         )
     } else {
-        vox_publisher::publication_preflight::run_preflight(&manifest, profile)
+        vox_publisher::publication_preflight::run_preflight_with_attention(
+            &manifest,
+            profile,
+            Some(attention),
+        )
     };
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
@@ -946,9 +962,6 @@ pub async fn publication_retry_failed(
     dry_run: bool,
     json: bool,
 ) -> Result<()> {
-    if let Some(ch) = channel {
-        return publication_publish(publication_id, Some(ch), dry_run, json).await;
-    }
     let db = vox_db::VoxDb::connect_default().await?;
     let Some(row) = db.get_publication_manifest(publication_id).await? else {
         anyhow::bail!("publication not found: {publication_id}");
@@ -962,24 +975,61 @@ pub async fn publication_retry_failed(
             outcome_json: a.outcome_json.as_str(),
         })
         .collect();
-    let Some(failed) = vox_publisher::switching::failed_channels_from_latest_digest_attempt(
+
+    let explicit: Option<Vec<String>> =
+        channel.map(|c| vox_publisher::switching::parse_channels_csv(c));
+    let plan = match vox_publisher::switching::plan_publication_retry_channels(
         attempt_refs.as_slice(),
         digest,
-    )?
-    else {
-        anyhow::bail!(
-            "no syndication attempt outcome for current manifest digest; run `vox db publication-publish` first"
-        );
+        explicit.as_deref(),
+    )? {
+        None => {
+            anyhow::bail!(
+                "no syndication attempt outcome for current manifest digest; run `vox db publication-publish` first"
+            );
+        }
+        Some(p) => p,
     };
-    if failed.is_empty() {
+
+    if !plan.skipped_success_channels.is_empty() && plan.will_retry_channels.is_empty() {
         println!(
             "{}",
-            serde_json::to_string_pretty(
-                &serde_json::json!({"publication_id": publication_id, "retried": false, "reason": "no_failed_channels"})
-            )?
+            serde_json::to_string_pretty(&serde_json::json!({
+                "publication_id": publication_id,
+                "retried": false,
+                "reason": "channels_already_succeeded_for_digest",
+                "skipped_success_channels": plan.skipped_success_channels,
+                "blocked_channels": plan.blocked_channels,
+            }))?
         );
         return Ok(());
     }
-    let csv = failed.join(",");
+
+    if plan.will_retry_channels.is_empty() {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "publication_id": publication_id,
+                "retried": false,
+                "reason": if channel.is_some() { "no_channels_eligible_for_retry" } else { "no_failed_channels" },
+                "skipped_success_channels": plan.skipped_success_channels,
+                "blocked_channels": plan.blocked_channels,
+            }))?
+        );
+        return Ok(());
+    }
+
+    let csv = plan.will_retry_channels.join(",");
+    if !json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "publication_id": publication_id,
+                "will_retry_channels": plan.will_retry_channels,
+                "skipped_success_channels": plan.skipped_success_channels,
+                "blocked_channels": plan.blocked_channels,
+            }))?
+        );
+    }
     publication_publish(publication_id, Some(csv.as_str()), dry_run, json).await
 }

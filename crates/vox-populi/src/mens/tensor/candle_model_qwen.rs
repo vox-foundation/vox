@@ -480,11 +480,17 @@ impl Qwen35LinearAttention {
 
         let a_log = self.a_log.to_dtype(DType::F32)?;
         let dt_bias = self.dt_bias.to_dtype(DType::F32)?;
-        let g_pre = (a.broadcast_add(&dt_bias.reshape((1, 1, self.num_v_heads))?)?).to_dtype(DType::F32)?;
+        let g_pre =
+            (a.broadcast_add(&dt_bias.reshape((1, 1, self.num_v_heads))?)?).to_dtype(DType::F32)?;
         let g_soft = (g_pre.exp()?.broadcast_add(&Tensor::new(1f32, device)?)?).log()?;
+        // Bound exp(a_log) so g_soft * scale cannot blow up before exp(g_t) in the recurrence
+        // (CUDA f32 exp overflow -> inf state -> NaN logits).
+        let a_log_scale = a_log.exp()?.clamp(1e-6f64, 1e4f64)?;
         let g = g_soft
-            .broadcast_mul(&a_log.exp()?.reshape((1, 1, self.num_v_heads))?)?
+            .broadcast_mul(&a_log_scale.reshape((1, 1, self.num_v_heads))?)?
             .neg()?;
+        // g_t.exp() is applied per timestep; keep g_t where exp(g_t) stays finite in f32.
+        let g = g.clamp(-80f64, 20f64)?;
 
         let mut query = Self::l2norm_last(&query, 1e-6)?;
         let mut key = Self::l2norm_last(&key, 1e-6)?;

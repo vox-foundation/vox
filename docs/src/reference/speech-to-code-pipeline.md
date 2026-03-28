@@ -27,6 +27,8 @@ End-to-end flow: **audio or transcript** → **Oratio** (`vox-oratio`, optional 
 - **LSP-fast path**: `validate_document` — lex, parse, typecheck (plus mesh warnings).
 - **CLI / speech gate**: `validate_document_with_hir` — same plus **HIR structural validation** (matches `vox-cli` `run_frontend_str` for type/HIR diagnostics).
 
+MCP **`vox_validate_file`** joins relative paths to the **MCP repository root**, then canonicalizes and rejects paths outside that root (absolute paths must still resolve under the bound workspace). **`vox_generate_code`** MCP input schema is strict (`additionalProperties: false`) for `prompt`, optional `validate`, `max_retries`, and `session_id`.
+
 MCP `validate_file` and `generate_vox_code` validation retries use **`validate_document_with_hir`**.
 
 ## Corpus mix

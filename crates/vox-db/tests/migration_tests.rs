@@ -55,9 +55,7 @@ async fn schema_version_above_baseline_surfaces_legacy_chain_on_reopen() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("schema_probe.db");
     let s = path.to_string_lossy().to_string();
-    let db = VoxDb::connect(DbConfig::local(s.clone()))
-        .await
-        .unwrap();
+    let db = VoxDb::connect(DbConfig::local(s.clone())).await.unwrap();
     let bad = vec![Migration {
         version: vox_db::schema::BASELINE_VERSION + 50,
         name: "non_baseline_adhoc_probe".to_string(),

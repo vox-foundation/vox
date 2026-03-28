@@ -97,7 +97,30 @@
       }
     },
     "support_metrics": {
-      "type": "object"
+      "type": "object",
+      "description": "Tooling metrics (lowering counts, representability, LLM-surface proxies, runtime projection digests).",
+      "additionalProperties": true,
+      "properties": {
+        "representability": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "parse_ok": { "type": "boolean" },
+            "hir_ok": { "type": "boolean" },
+            "web_ir_validate_ok": { "type": "boolean" },
+            "emit_preview_ok": { "type": ["boolean", "null"] },
+            "first_failing_stage": { "type": ["string", "null"] }
+          }
+        },
+        "llm_surface": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "runtime_projection": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
     },
     "toolchain_fingerprint": {
       "type": "object",

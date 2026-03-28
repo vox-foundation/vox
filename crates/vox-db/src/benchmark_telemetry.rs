@@ -4,6 +4,9 @@
 
 use serde::Serialize;
 
+use crate::research_metrics_contract::{
+    METRIC_TYPE_BENCHMARK_EVENT, TelemetryWriteOptions,
+};
 use crate::{StoreError, VoxDb};
 
 /// Payload for one benchmark observation.
@@ -40,8 +43,13 @@ impl VoxDb {
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
-        let session = format!("bench:{repository_id}");
-        self.append_research_metric(&session, "benchmark_event", metric_value, Some(&json))
-            .await
+        let tw = TelemetryWriteOptions::new(repository_id);
+        self.append_research_metric(
+            &tw.session_bench(),
+            METRIC_TYPE_BENCHMARK_EVENT,
+            metric_value,
+            Some(&json),
+        )
+        .await
     }
 }

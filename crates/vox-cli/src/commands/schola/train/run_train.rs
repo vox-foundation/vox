@@ -171,6 +171,19 @@ pub async fn run_train(
         }
     }
 
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+    let data_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
+        data_dir,
+        workspace_root.as_deref(),
+    );
+    let output_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
+        output_dir,
+        workspace_root.as_deref(),
+    );
+    let resume = resume.map(|r| {
+        vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
+    });
+
     let gpu_info = vox_populi::mens::probe_gpu();
     let device_profile =
         vox_populi::mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);

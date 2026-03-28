@@ -58,44 +58,59 @@ impl crate::VoxDb {
         &self,
         p: SkillExecutionParams<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO skill_executions
-                 (skill_id, version, session_id, workflow_id, agent_id, status, duration_ms,
-                  input_hash, output_size, error_kind, reflection_score)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                params![
-                    p.skill_id,
-                    p.version,
-                    p.session_id,
-                    p.workflow_id,
-                    p.agent_id,
-                    p.status,
-                    p.duration_ms,
-                    p.input_hash,
-                    p.output_size,
-                    p.error_kind,
-                    p.reflection_score
-                ],
-            )
-            .await?;
-        let exec_id = self.conn.last_insert_rowid();
-        // Update skill_manifests counters (best-effort — ignore if skill not registered)
-        let ok = p.status == "ok";
-        let (sc_delta, inv_delta): (i64, i64) = if ok { (1, 1) } else { (0, 1) };
-        let _ = self
-            .conn
-            .execute(
-                "UPDATE skill_manifests SET
-                   invocation_count = invocation_count + ?1,
-                   success_count    = success_count + ?2,
-                   last_used_at     = datetime('now')
-                 WHERE id = ?3
-                   AND version = (SELECT MAX(version) FROM skill_manifests WHERE id = ?3)",
-                params![inv_delta, sc_delta, p.skill_id],
-            )
-            .await;
-        Ok(exec_id)
+        let skill_id = p.skill_id.to_string();
+        let version = p.version.to_string();
+        let session_id = p.session_id.map(str::to_string);
+        let workflow_id = p.workflow_id.map(str::to_string);
+        let agent_id = p.agent_id.map(str::to_string);
+        let status = p.status.to_string();
+        let duration_ms = p.duration_ms;
+        let input_hash = p.input_hash.map(str::to_string);
+        let output_size = p.output_size;
+        let error_kind = p.error_kind.map(str::to_string);
+        let reflection_score = p.reflection_score;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO skill_executions
+                     (skill_id, version, session_id, workflow_id, agent_id, status, duration_ms,
+                      input_hash, output_size, error_kind, reflection_score)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                    params![
+                        skill_id.as_str(),
+                        version.as_str(),
+                        session_id.as_deref(),
+                        workflow_id.as_deref(),
+                        agent_id.as_deref(),
+                        status.as_str(),
+                        duration_ms,
+                        input_hash.as_deref(),
+                        output_size,
+                        error_kind.as_deref(),
+                        reflection_score,
+                    ],
+                )
+                .await?;
+                let exec_id = conn.last_insert_rowid();
+                // Update skill_manifests counters (best-effort — ignore if skill not registered)
+                let ok = status == "ok";
+                let (sc_delta, inv_delta): (i64, i64) = if ok { (1, 1) } else { (0, 1) };
+                let _ = conn
+                    .execute(
+                        "UPDATE skill_manifests SET
+                           invocation_count = invocation_count + ?1,
+                           success_count    = success_count + ?2,
+                           last_used_at     = datetime('now')
+                         WHERE id = ?3
+                           AND version = (SELECT MAX(version) FROM skill_manifests WHERE id = ?3)",
+                        params![inv_delta, sc_delta, skill_id.as_str()],
+                    )
+                    .await;
+                Ok::<_, StoreError>(exec_id)
+            })
+            .await
     }
 
     /// List the most recent executions for a given skill, newest first.
@@ -147,15 +162,21 @@ impl crate::VoxDb {
         workflow_id: &str,
         step_count: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO workflow_executions (workflow_id, status, step_count)
+        let workflow_id = workflow_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO workflow_executions (workflow_id, status, step_count)
                  VALUES (?1, 'running', ?2)
                  ON CONFLICT(workflow_id) DO UPDATE SET status = 'running', step_count = ?2",
-                params![workflow_id, step_count],
-            )
-            .await?;
-        Ok(())
+                    params![workflow_id.as_str(), step_count],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Check if an activity was already completed successfully in a previous run.
@@ -185,29 +206,46 @@ impl crate::VoxDb {
         &self,
         p: &crate::store::types::LogExecutionParams<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO execution_log (
+        let workflow_id = p.workflow_id.to_string();
+        let agent_id = p.agent_id.map(str::to_string);
+        let skill_id = p.skill_id.map(str::to_string);
+        let activity_name = p.activity_name.to_string();
+        let status = p.status.to_string();
+        let attempt = p.attempt;
+        let duration_ms = p.duration_ms;
+        let output_size = p.output_size;
+        let input = p.input.map(|b| b.to_vec());
+        let output = p.output.map(|b| b.to_vec());
+        let error = p.error.map(str::to_string);
+        let options = p.options.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO execution_log (
                     workflow_id, agent_id, skill_id, activity_name, status,
                     attempt, duration_ms, output_size, input, output, error, options
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-                params![
-                    p.workflow_id,
-                    p.agent_id,
-                    p.skill_id,
-                    p.activity_name,
-                    p.status,
-                    p.attempt,
-                    p.duration_ms,
-                    p.output_size,
-                    p.input,
-                    p.output,
-                    p.error,
-                    p.options
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        workflow_id.as_str(),
+                        agent_id.as_deref(),
+                        skill_id.as_deref(),
+                        activity_name.as_str(),
+                        status.as_str(),
+                        attempt,
+                        duration_ms,
+                        output_size,
+                        input.as_deref(),
+                        output.as_deref(),
+                        error.as_deref(),
+                        options.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Mark a `workflow_executions` row as finished (sets `finished_at`, `status`).
@@ -220,16 +258,23 @@ impl crate::VoxDb {
         status: &str,
         error_count: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE workflow_executions
+        let workflow_id = workflow_id.to_string();
+        let status = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE workflow_executions
                  SET status = ?2, error_count = ?3,
                      finished_at = datetime('now')
                  WHERE workflow_id = ?1 AND finished_at IS NULL",
-                params![workflow_id, status, error_count],
-            )
-            .await?;
-        Ok(())
+                    params![workflow_id.as_str(), status.as_str(), error_count],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Fetch the current `workflow_executions` row for `workflow_id`.
@@ -274,14 +319,30 @@ impl crate::VoxDb {
         change_kind: &str,
         payload_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO codex_change_log (topic, entity_kind, entity_id, change_kind, payload_json)
+        let topic = topic.to_string();
+        let entity_kind = entity_kind.map(str::to_string);
+        let entity_id = entity_id.map(str::to_string);
+        let change_kind = change_kind.to_string();
+        let payload_json = payload_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO codex_change_log (topic, entity_kind, entity_id, change_kind, payload_json)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![topic, entity_kind, entity_id, change_kind, payload_json],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        topic.as_str(),
+                        entity_kind.as_deref(),
+                        entity_id.as_deref(),
+                        change_kind.as_str(),
+                        payload_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Read `codex_change_log` rows with `id > after_id`, optionally filtered by `topic`.
@@ -342,14 +403,26 @@ impl crate::VoxDb {
         schema_digest: &str,
         provenance: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO codex_schema_lineage (baseline_id, schema_digest, provenance)
+        let baseline_id = baseline_id.to_string();
+        let schema_digest = schema_digest.to_string();
+        let provenance = provenance.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO codex_schema_lineage (baseline_id, schema_digest, provenance)
                  VALUES (?1, ?2, ?3)",
-                params![baseline_id, schema_digest, provenance],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        baseline_id.as_str(),
+                        schema_digest.as_str(),
+                        provenance.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     // ── Research Graph (research_sessions, conversation_versions, …) ──────────
@@ -366,9 +439,19 @@ impl crate::VoxDb {
         config_json: Option<&str>,
         summary_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO research_sessions
+        let session_key = session_key.to_string();
+        let title = title.to_string();
+        let status = status.to_string();
+        let repository_id = repository_id.to_string();
+        let config_json = config_json.map(str::to_string);
+        let summary_json = summary_json.map(str::to_string);
+        let sk_readback = session_key.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_sessions
                      (session_key, title, status, repository_id, config_json, summary_json)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                  ON CONFLICT(session_key) DO UPDATE SET
@@ -377,14 +460,24 @@ impl crate::VoxDb {
                      config_json  = COALESCE(excluded.config_json,  research_sessions.config_json),
                      summary_json = COALESCE(excluded.summary_json, research_sessions.summary_json),
                      updated_at   = datetime('now')",
-                params![session_key, title, status, repository_id, config_json, summary_json],
-            )
+                    params![
+                        session_key.as_str(),
+                        title.as_str(),
+                        status.as_str(),
+                        repository_id.as_str(),
+                        config_json.as_deref(),
+                        summary_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         let mut rows = self
             .conn
             .query(
                 "SELECT id FROM research_sessions WHERE session_key = ?1 LIMIT 1",
-                params![session_key],
+                params![sk_readback.as_str()],
             )
             .await?;
         let row = rows
@@ -403,19 +496,31 @@ impl crate::VoxDb {
         label: &str,
         snapshot_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO conversation_versions
+        let label = label.to_string();
+        let snapshot_json = snapshot_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversation_versions
                      (conversation_id, version_index, label, snapshot_json)
                  VALUES (?1, ?2, ?3, ?4)
                  ON CONFLICT(conversation_id, version_index) DO UPDATE SET
                      label         = excluded.label,
                      snapshot_json = COALESCE(excluded.snapshot_json,
                                               conversation_versions.snapshot_json)",
-                params![conversation_id, version_index, label, snapshot_json],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        conversation_id,
+                        version_index,
+                        label.as_str(),
+                        snapshot_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Insert a `conversation_edges` row. Returns its `rowid`.
@@ -427,21 +532,28 @@ impl crate::VoxDb {
         weight: f64,
         metadata_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO conversation_edges
+        let edge_kind = edge_kind.to_string();
+        let metadata_json = metadata_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversation_edges
                      (from_conversation_id, to_conversation_id, edge_kind, weight, metadata_json)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    from_conversation_id,
-                    to_conversation_id,
-                    edge_kind,
-                    weight,
-                    metadata_json
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        from_conversation_id,
+                        to_conversation_id,
+                        edge_kind.as_str(),
+                        weight,
+                        metadata_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Append a `topic_evolution_events` row. Returns its `rowid`.
@@ -453,14 +565,29 @@ impl crate::VoxDb {
         new_label: Option<&str>,
         detail_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO topic_evolution_events
+        let event_kind = event_kind.to_string();
+        let prior_label = prior_label.map(str::to_string);
+        let new_label = new_label.map(str::to_string);
+        let detail_json = detail_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO topic_evolution_events
                      (topic_id, event_kind, prior_label, new_label, detail_json)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![topic_id, event_kind, prior_label, new_label, detail_json],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        topic_id,
+                        event_kind.as_str(),
+                        prior_label.as_deref(),
+                        new_label.as_deref(),
+                        detail_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 }

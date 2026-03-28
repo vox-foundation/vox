@@ -25,10 +25,42 @@ fn has_col(cols: &[String], name: &str) -> bool {
     cols.iter().any(|c| c == name)
 }
 
+/// Baseline `CREATE IF NOT EXISTS` does not run on already-migrated DBs; ensure lineage table exists.
+///
+/// Note: greenfield databases already get this DDL from `schema/domains/sql/coordination.sql`; this
+/// cutover remains for stores created before that fragment landed.
+async fn align_orchestration_lineage_events(conn: &Connection) -> Result<(), StoreError> {
+    let batch = r#"
+CREATE TABLE IF NOT EXISTS orchestration_lineage_events (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    repository_id     TEXT    NOT NULL DEFAULT '',
+    kind              TEXT    NOT NULL,
+    task_id           INTEGER NOT NULL,
+    agent_id          INTEGER,
+    session_id        TEXT,
+    workflow_id       TEXT,
+    plan_session_id   TEXT,
+    plan_node_id      TEXT,
+    payload_json      TEXT,
+    created_at_ms     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_orch_lineage_repo_task
+    ON orchestration_lineage_events(repository_id, task_id);
+CREATE INDEX IF NOT EXISTS idx_orch_lineage_repo_ts
+    ON orchestration_lineage_events(repository_id, created_at_ms);
+CREATE INDEX IF NOT EXISTS idx_orch_lineage_repo_kind
+    ON orchestration_lineage_events(repository_id, kind);
+"#;
+    conn.execute_batch(batch).await?;
+    Ok(())
+}
+
 /// Apply additive migrations and renames that baseline `IF NOT EXISTS` cannot perform.
 pub async fn apply_schema_cutover(conn: &Connection) -> Result<(), StoreError> {
+    align_orchestration_lineage_events(conn).await?;
     align_question_sessions_belief(conn).await?;
     align_plan_sessions_iterative(conn).await?;
+    align_a2a_claim_columns(conn).await?;
     align_agent_events(conn).await?;
     migrate_published_news_news_id(conn).await?;
     migrate_published_news_content_digest(conn).await?;
@@ -47,11 +79,52 @@ CREATE INDEX IF NOT EXISTS idx_behavior_user_created ON behavior_events(user_id,
 CREATE INDEX IF NOT EXISTS idx_codex_change_log_topic_id ON codex_change_log(topic, id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_ack_created ON a2a_messages(acknowledged, created_at);
+CREATE INDEX IF NOT EXISTS idx_a2a_inbox_claim ON a2a_messages(receiver_agent, repository_id, acknowledged, claim_until_ms);
 CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo_ts ON agent_oplog(repository_id, timestamp_ms);
 CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attempts(news_id);
 CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id ON publication_status_events(publication_id, id);
 "#;
     conn.execute_batch(batch).await?;
+    Ok(())
+}
+
+async fn align_a2a_claim_columns(conn: &Connection) -> Result<(), StoreError> {
+    let cols = table_column_names(conn, "PRAGMA table_info(a2a_messages)").await?;
+    if cols.is_empty() {
+        return Ok(());
+    }
+    if !has_col(&cols, "claim_owner") {
+        conn.execute("ALTER TABLE a2a_messages ADD COLUMN claim_owner TEXT", ())
+            .await?;
+    }
+    if !has_col(&cols, "claim_until_ms") {
+        conn.execute(
+            "ALTER TABLE a2a_messages ADD COLUMN claim_until_ms INTEGER",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "delivery_attempts") {
+        conn.execute(
+            "ALTER TABLE a2a_messages ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "last_claim_error") {
+        conn.execute(
+            "ALTER TABLE a2a_messages ADD COLUMN last_claim_error TEXT",
+            (),
+        )
+        .await?;
+    }
+    if !has_col(&cols, "processed_at_ms") {
+        conn.execute(
+            "ALTER TABLE a2a_messages ADD COLUMN processed_at_ms INTEGER",
+            (),
+        )
+        .await?;
+    }
     Ok(())
 }
 

@@ -14,10 +14,8 @@ use crate::params::{
     DiagnosticInfo, RunTestsParams, ToolResult, ValidateFileParams, ValidateResponse,
 };
 use crate::server::ServerState;
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use tower_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 
-const REM_VALIDATE_IO: &str =
-    "Confirm the path is inside the MCP workspace, exists, and is readable UTF-8 text.";
 const REM_CARGO_DISABLED: &str = "Bind the MCP server to a Cargo workspace or package root, or use repository capabilities that enable Cargo tools.";
 const REM_CARGO_TEST: &str = "Read STDOUT/STDERR for failing tests; run `cargo test` locally with the same filter and fix code or env.";
 const REM_CARGO_SPAWN: &str = "Ensure `cargo` is installed and on PATH for the MCP process (see build-environment docs for agent shells).";
@@ -33,12 +31,57 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 const REM_CODEGEN_REPAIR: &str = "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
 const REM_CODEGEN_STALL: &str = "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
 
+fn diagnostics_snapshot_from_lsp(
+    errors: &[&tower_lsp::lsp_types::Diagnostic],
+) -> Vec<serde_json::Value> {
+    errors
+        .iter()
+        .map(|d| {
+            let severity = d.severity.map(|s| match s {
+                DiagnosticSeverity::ERROR => "error",
+                DiagnosticSeverity::WARNING => "warning",
+                DiagnosticSeverity::INFORMATION => "information",
+                DiagnosticSeverity::HINT => "hint",
+                _ => "unknown",
+            });
+            let code = d.code.as_ref().map(|c| match c {
+                NumberOrString::String(s) => serde_json::Value::String(s.clone()),
+                NumberOrString::Number(n) => serde_json::json!(n),
+            });
+            serde_json::json!({
+                "severity": severity,
+                "message": d.message,
+                "start_line": d.range.start.line,
+                "start_character": d.range.start.character,
+                "code": code,
+            })
+        })
+        .collect()
+}
+
 fn hir_error_signature(errors: &[&tower_lsp::lsp_types::Diagnostic]) -> u64 {
+    let mut rows: Vec<(String, u32, u32, String)> = errors
+        .iter()
+        .map(|e| {
+            let code = e
+                .code
+                .as_ref()
+                .map(|c| match c {
+                    tower_lsp::lsp_types::NumberOrString::String(s) => s.clone(),
+                    tower_lsp::lsp_types::NumberOrString::Number(n) => n.to_string(),
+                })
+                .unwrap_or_default();
+            let norm: String = e.message.split_whitespace().collect::<Vec<_>>().join(" ");
+            (norm, e.range.start.line, e.range.start.character, code)
+        })
+        .collect();
+    rows.sort();
     let mut h = DefaultHasher::new();
-    for e in errors {
-        e.message.hash(&mut h);
-        e.range.start.line.hash(&mut h);
-        e.range.start.character.hash(&mut h);
+    for (msg, line, col, code) in rows {
+        msg.hash(&mut h);
+        line.hash(&mut h);
+        col.hash(&mut h);
+        code.hash(&mut h);
     }
     h.finish()
 }
@@ -65,34 +108,25 @@ fn cargo_unavailable_message(state: &ServerState) -> Option<String> {
 }
 
 /// Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
-pub async fn validate_file(params: ValidateFileParams) -> String {
-    let path = PathBuf::from(&params.path);
-
-    let exists = match tokio::fs::try_exists(&path).await {
-        Ok(e) => e,
+pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> String {
+    let path = match super::workspace_path::resolve_existing_path_in_repository(state, &params.path)
+    {
+        Ok(p) => p,
         Err(e) => {
             return ToolResult::<ValidateResponse>::err_with_remediation(
-                format!("failed to stat file: {e}"),
-                REM_VALIDATE_IO,
+                e.message(),
+                e.remediation(),
             )
             .to_json();
         }
     };
-
-    if !exists {
-        return ToolResult::<ValidateResponse>::err_with_remediation(
-            format!("file not found: {}", params.path),
-            REM_VALIDATE_IO,
-        )
-        .to_json();
-    }
 
     let text = match tokio::fs::read_to_string(&path).await {
         Ok(t) => t,
         Err(e) => {
             return ToolResult::<ValidateResponse>::err_with_remediation(
                 format!("failed to read file: {e}"),
-                REM_VALIDATE_IO,
+                super::workspace_path::REM_VALIDATE_IO,
             )
             .to_json();
         }
@@ -489,27 +523,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             }
         };
 
-        // Robust fence stripping: strip the language tag and then any trailing ```
-        let block = completion.trim();
-        completion = if block.starts_with("```vox") {
-            block
-                .strip_prefix("```vox")
-                .unwrap_or(block)
-                .strip_suffix("```")
-                .unwrap_or(block)
-                .trim()
-                .to_string()
-        } else if block.starts_with("```") {
-            block
-                .strip_prefix("```")
-                .unwrap_or(block)
-                .strip_suffix("```")
-                .unwrap_or(block)
-                .trim()
-                .to_string()
-        } else {
-            block.to_string()
-        };
+        completion = crate::tools::text_normalization::strip_vox_codegen_fence(&completion);
 
         if !validate_flag {
             return ToolResult::ok(completion).to_json();
@@ -525,13 +539,18 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             return ToolResult::ok(completion).to_json();
         }
 
+        let snapshot = diagnostics_snapshot_from_lsp(&errors);
         let sig = hir_error_signature(&errors);
         if prev_error_sig == Some(sig) {
-            return ToolResult::<String>::err_with_remediation(
+            return ToolResult::<String>::err_with_remediation_meta(
                 format!(
                     "repair loop stalled: diagnostics unchanged after retry (signature={sig:#x})"
                 ),
                 REM_CODEGEN_STALL,
+                serde_json::json!({
+                    "diagnostics_snapshot": snapshot,
+                    "repair": { "attempts": retry_count, "stalled": true }
+                }),
             )
             .to_json();
         }
@@ -540,12 +559,20 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
         retry_count += 1;
         if retry_count > max_retries {
             let err_msgs: Vec<_> = errors.iter().map(|e| &e.message).collect();
-            return ToolResult::<String>::err_with_remediation(
+            return ToolResult::<String>::err_with_remediation_meta(
                 format!(
                     "Failed to generate valid code after {} retries. Errors: {:?}",
                     max_retries, err_msgs
                 ),
                 REM_CODEGEN_REPAIR,
+                serde_json::json!({
+                    "diagnostics_snapshot": snapshot,
+                    "repair": {
+                        "attempts": retry_count,
+                        "stalled": false,
+                        "failure_category": "semantic"
+                    }
+                }),
             )
             .to_json();
         }
@@ -569,6 +596,13 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
                 err.range.start.character,
                 err.message
             ));
+        }
+        if let Ok(json) =
+            serde_json::to_string_pretty(&serde_json::json!({ "diagnostics_snapshot": &snapshot }))
+        {
+            feedback.push_str("\nStructured diagnostics (JSON):\n");
+            feedback.push_str(&json);
+            feedback.push('\n');
         }
         current_prompt.push_str(&feedback);
     }

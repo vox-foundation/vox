@@ -220,6 +220,14 @@ impl crate::VoxDb {
         }
         Ok(())
     }
+
+    /// Explicit read boundary for replica-backed handles (see [`crate::ReadConsistency`]).
+    pub async fn sync_for(&self, consistency: crate::ReadConsistency) -> Result<(), StoreError> {
+        match consistency {
+            crate::ReadConsistency::Local => Ok(()),
+            crate::ReadConsistency::ReplicaLatest => self.sync().await,
+        }
+    }
 }
 
 fn sqlite_quote_ident(name: &str) -> String {
@@ -238,8 +246,14 @@ fn sqlite_quote_ident(name: &str) -> String {
 
 #[cfg(all(test, feature = "local"))]
 mod tests {
-    use crate::VoxDb;
+    use crate::{ReadConsistency, VoxDb};
     use turso::Builder;
+
+    #[tokio::test]
+    async fn sync_for_local_skips_pull() {
+        let db = VoxDb::open_memory().await.expect("open");
+        db.sync_for(ReadConsistency::Local).await.expect("sync");
+    }
 
     #[tokio::test]
     async fn fresh_db_schema_version_is_baseline_latest() {

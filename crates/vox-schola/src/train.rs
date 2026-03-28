@@ -127,18 +127,30 @@ pub async fn run(args: Args) -> Result<()> {
 
     // ── Corpus preflight (shared mix / train-input prep with `vox mens train`) ──
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
+    let data_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
+        data_dir,
+        workspace_root.as_deref(),
+    );
+    let output_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
+        output_dir,
+        workspace_root.as_deref(),
+    );
+    let resume = resume.map(|r| {
+        vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
+    });
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
     let mix_path =
         vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref());
     if !skip_mix && mix_path.is_file() {
         eprintln!("  🔄 Running corpus mix to refresh training data...");
     }
-    let contract_override = vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
-        workspace_root.as_deref(),
-        &data_dir,
-        skip_mix,
-        true,
-    )?;
+    let contract_override =
+        vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
+            workspace_root.as_deref(),
+            &data_dir,
+            skip_mix,
+            true,
+        )?;
 
     let resolved = vox_corpus::training::preflight::validate_train_preflight(
         &data_dir,
@@ -206,6 +218,15 @@ pub async fn run(args: Args) -> Result<()> {
         }
     }
 
+    let train_file_path =
+        vox_corpus::training::mix_prepare::recover_train_input_path_after_prefetch(
+            workspace_root.as_deref(),
+            &data_dir,
+            &mix_path,
+            skip_mix,
+            &resolved.path,
+        )?;
+
     // ── Banner ────────────────────────────────────────────────────────────────
     let rank = profile.rank;
     let alpha = profile.alpha;
@@ -255,7 +276,7 @@ pub async fn run(args: Args) -> Result<()> {
         attribution_required,
         base_model_paths,
         tokenizer_path,
-        train_file: Some(resolved.path),
+        train_file: Some(train_file_path),
         rank,
         alpha,
         seq_len: profile.seq_len,

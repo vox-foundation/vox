@@ -4,6 +4,11 @@ pub mod contract;
 pub mod mix_prepare;
 pub mod preflight;
 
+pub use contract::{
+    find_workspace_root, normalize_training_data_dir, normalize_training_resume_path,
+    normalize_workspace_relative_path, resolve_from_workspace,
+};
+
 /// Default directory for merged `train.jsonl` (matches corpus merge output).
 pub const CANONICAL_TRAIN_DATA_DIR: &str = "target/dogfood";
 

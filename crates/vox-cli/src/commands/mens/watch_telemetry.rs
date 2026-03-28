@@ -65,15 +65,15 @@ pub fn run(telemetry: PathBuf, err_log: PathBuf, interval_ms: u64) -> ! {
                                 off_tel = len;
                                 let s = String::from_utf8_lossy(&buf);
                                 for line in s.lines() {
-                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
-                                    {
-                                        let event = v
-                                            .get("event")
-                                            .and_then(|x| x.as_str())
-                                            .unwrap_or("");
+                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                                        let event =
+                                            v.get("event").and_then(|x| x.as_str()).unwrap_or("");
                                         if !matches!(
                                             event,
-                                            "train_start" | "step" | "train_complete" | "gpu_fallback"
+                                            "train_start"
+                                                | "step"
+                                                | "train_complete"
+                                                | "gpu_fallback"
                                         ) {
                                             continue;
                                         }
@@ -82,7 +82,8 @@ pub fn run(telemetry: PathBuf, err_log: PathBuf, interval_ms: u64) -> ! {
                                             println!("[telemetry] {event}");
                                             continue;
                                         }
-                                        let payload = v.get("payload").cloned().unwrap_or_else(|| v.clone());
+                                        let payload =
+                                            v.get("payload").cloned().unwrap_or_else(|| v.clone());
                                         if !table_header {
                                             println!(
                                                 "\n {:>6} {:>5} {:>10} {:>8} {:>6}",
@@ -108,9 +109,8 @@ pub fn run(telemetry: PathBuf, err_log: PathBuf, interval_ms: u64) -> ! {
                                             .and_then(|x| x.as_f64())
                                             .map(|x| format!("{x:.2}"))
                                             .unwrap_or_else(|| "—".to_string());
-                                        let eta_sec = payload
-                                            .get("eta_seconds_remaining")
-                                            .and_then(|x| {
+                                        let eta_sec =
+                                            payload.get("eta_seconds_remaining").and_then(|x| {
                                                 x.as_u64().or_else(|| {
                                                     x.as_f64().map(|f| f.max(0.0).round() as u64)
                                                 })

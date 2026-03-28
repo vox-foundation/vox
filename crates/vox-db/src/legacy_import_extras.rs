@@ -25,6 +25,8 @@ pub async fn import_orchestrator_memory_dir(
             dir.display()
         )));
     }
+    let agent_id = agent_id.to_string();
+    let session_id = session_id.to_string();
     let mut inserted = 0u64;
     let mut read_dir = tokio::fs::read_dir(dir)
         .await
@@ -50,21 +52,29 @@ pub async fn import_orchestrator_memory_dir(
             .map_err(|e| StoreError::Db(format!("read {}: {e}", path.display())))?;
         let meta = serde_json::json!({ "source_file": name, "source": "orchestrator_memory_dir" })
             .to_string();
-        store
-            .connection()
-            .execute(
-                "INSERT INTO memories (agent_id, session_id, memory_type, content, metadata, importance)
+        let name_for_err = name.clone();
+        let breaker = store.breaker.clone();
+        let conn = store.conn.clone();
+        let agent_id = agent_id.clone();
+        let session_id = session_id.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO memories (agent_id, session_id, memory_type, content, metadata, importance)
                  VALUES (?1, ?2, ?3, ?4, ?5, 1.0)",
-                params![
-                    agent_id,
-                    session_id,
-                    "orchestrator_markdown",
-                    content,
-                    meta,
-                ],
-            )
-            .await
-            .map_err(|e| StoreError::Db(format!("insert memory {name}: {e}")))?;
+                    params![
+                        agent_id.as_str(),
+                        session_id.as_str(),
+                        "orchestrator_markdown",
+                        content,
+                        meta,
+                    ],
+                )
+                .await
+                .map_err(|e| StoreError::Db(format!("insert memory {name_for_err}: {e}")))?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
         inserted += 1;
     }
     Ok(inserted)
@@ -98,18 +108,32 @@ pub async fn import_skill_bundle_json_file(
         .get("skill_md")
         .and_then(|x| x.as_str())
         .ok_or_else(|| StoreError::Db("skill bundle: missing skill_md".into()))?;
-    let c = store.connection();
-    c.execute(
-        "DELETE FROM skill_manifests WHERE id = ?1 AND version = ?2",
-        params![id, version],
-    )
-    .await
-    .map_err(|e| StoreError::Db(format!("skill_manifests delete: {e}")))?;
-    c.execute(
-        "INSERT INTO skill_manifests (id, version, manifest_json, skill_md) VALUES (?1, ?2, ?3, ?4)",
-        params![id, version, manifest_json, skill_md],
-    )
-    .await
-    .map_err(|e| StoreError::Db(format!("skill_manifests insert: {e}")))?;
-    Ok(())
+    let id = id.to_string();
+    let version = version.to_string();
+    let manifest_json = manifest_json.to_string();
+    let skill_md = skill_md.to_string();
+    let breaker = store.breaker.clone();
+    let conn = store.conn.clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "DELETE FROM skill_manifests WHERE id = ?1 AND version = ?2",
+                params![id.as_str(), version.as_str()],
+            )
+            .await
+            .map_err(|e| StoreError::Db(format!("skill_manifests delete: {e}")))?;
+            conn.execute(
+                "INSERT INTO skill_manifests (id, version, manifest_json, skill_md) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    id.as_str(),
+                    version.as_str(),
+                    manifest_json.as_str(),
+                    skill_md.as_str(),
+                ],
+            )
+            .await
+            .map_err(|e| StoreError::Db(format!("skill_manifests insert: {e}")))?;
+            Ok::<(), StoreError>(())
+        })
+        .await
 }

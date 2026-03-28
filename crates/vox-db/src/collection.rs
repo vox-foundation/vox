@@ -14,8 +14,12 @@
 //! Documents are stored as JSON in the `_data` column.
 //! Queries use `json_extract()` for filtering and indexing.
 
+use std::sync::Arc;
+
 use serde_json::Value;
 use turso::{Connection, params};
+
+use crate::DbCircuitBreaker;
 
 /// A handle to a schemaless document collection.
 ///
@@ -25,9 +29,10 @@ use turso::{Connection, params};
 /// - `find`   → `SELECT _id, _data FROM <name> WHERE json_extract(_data, '$.<key>') = <value>`
 /// - `patch`  → `UPDATE <name> SET _data = json_patch(_data, ?1) WHERE _id = ?2`
 /// - `delete` → `DELETE FROM <name> WHERE _id = ?1`
-pub struct Collection<'a> {
+pub struct Collection {
     name: String,
-    conn: &'a Connection,
+    conn: Connection,
+    breaker: Arc<DbCircuitBreaker>,
 }
 
 /// Error type for collection operations.
@@ -42,14 +47,22 @@ pub enum CollectionError {
     /// Caller or invariant error (e.g. missing row after insert).
     #[error("{0}")]
     InvalidInput(String),
+    /// [`DbCircuitBreaker`] is open.
+    #[error(transparent)]
+    CircuitBreaker(#[from] crate::CircuitBreakerError),
 }
 
-impl<'a> Collection<'a> {
+impl Collection {
     /// Create a new collection handle. Does NOT create the underlying table.
-    pub fn new(name: impl Into<String>, conn: &'a Connection) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        conn: Connection,
+        breaker: Arc<DbCircuitBreaker>,
+    ) -> Self {
         Self {
             name: name.into(),
             conn,
+            breaker,
         }
     }
 
@@ -140,30 +153,51 @@ impl<'a> Collection<'a> {
             .ok_or_else(|| CollectionError::InvalidInput("patch must be a JSON object".into()))?;
 
         let patch_str = serde_json::to_string(partial)?;
-        let sql = format!(
-            "UPDATE {} SET _data = json_patch(_data, ?1), _updated_at = datetime('now') WHERE _id = ?2",
-            self.name
-        );
-        self.conn.execute(&sql, params![patch_str, id]).await?;
-        Ok(())
+        let table = self.name.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let sql = format!(
+                    "UPDATE {} SET _data = json_patch(_data, ?1), _updated_at = datetime('now') WHERE _id = ?2",
+                    table
+                );
+                conn.execute(&sql, params![patch_str, id]).await?;
+                Ok::<(), CollectionError>(())
+            })
+            .await
     }
 
     /// Replace the entire document at the given `_id`.
     pub async fn replace(&self, id: i64, doc: &Value) -> Result<(), CollectionError> {
         let json_str = serde_json::to_string(doc)?;
-        let sql = format!(
-            "UPDATE {} SET _data = ?1, _updated_at = datetime('now') WHERE _id = ?2",
-            self.name
-        );
-        self.conn.execute(&sql, params![json_str, id]).await?;
-        Ok(())
+        let table = self.name.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let sql = format!(
+                    "UPDATE {} SET _data = ?1, _updated_at = datetime('now') WHERE _id = ?2",
+                    table
+                );
+                conn.execute(&sql, params![json_str, id]).await?;
+                Ok::<(), CollectionError>(())
+            })
+            .await
     }
 
     /// Delete a document by its `_id`.
     pub async fn delete(&self, id: i64) -> Result<(), CollectionError> {
-        let sql = format!("DELETE FROM {} WHERE _id = ?1", self.name);
-        self.conn.execute(&sql, params![id]).await?;
-        Ok(())
+        let table = self.name.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let sql = format!("DELETE FROM {} WHERE _id = ?1", table);
+                conn.execute(&sql, params![id]).await?;
+                Ok::<(), CollectionError>(())
+            })
+            .await
     }
 
     /// List documents with pagination.

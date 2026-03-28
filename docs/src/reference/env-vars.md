@@ -20,6 +20,7 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | **Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). |
 | `TURSO_URL` / `TURSO_AUTH_TOKEN` | **Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. |
 | `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | Integer ≥ 1: multiplier for brute-force embedding search window (`limit * mult`, capped). See [`capabilities`](../../../crates/vox-db/src/capabilities.rs). |
+| `vox-db` / **`replication`** feature | Cargo feature enabling Turso embedded-replica connect paths (`vox-pm` exposes `replication = ["vox-db/replication"]`). Pair with [`VoxDb::sync`](../../../crates/vox-db/src/store/open.rs) / [`ReadConsistency::ReplicaLatest`](../../../crates/vox-db/src/lib.rs) before reads that need fresher remote state. |
 
 **Precedence (remote):** `VOX_DB_URL`+`VOX_DB_TOKEN` → `VOX_TURSO_*` → `TURSO_*`. **Project VoxDb** (operational store + snippets/share) uses [`DbConfig::resolve_project_code_store_config`](../../../crates/vox-db/src/config.rs): empty env maps to the project-relative default store path, not the user-data default.
 
@@ -46,6 +47,13 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | Variable | Role |
 |----------|------|
 | `VOX_REPO_ROOT` | Absolute or normalized path to the logical repo root for **`vox ci`**, doc-inventory, **`vox upgrade --source repo`** (when **`--repo-root`** is omitted), and other tools that must not depend on cwd alone. |
+| `VOX_REPOSITORY_ROOT` | Compatibility alias read **before** `VOX_REPO_ROOT` in some tools ([`lineage`](../../../crates/vox-orchestrator/src/lineage.rs), TOESTUB/MCP/repo-id probes). Prefer `VOX_REPO_ROOT`; set both only if tooling disagrees. |
+
+## User data directory (`vox-config`)
+
+| Variable | Role |
+|----------|------|
+| `VOX_DATA_DIR` | Absolute path overriding the platform default Vox **data directory** (configs, canonical local store parent, etc.). See [`resolve_vox_data_dir`](../../../crates/vox-config/src/paths.rs). |
 
 ## Toolchain self-update (`vox upgrade`)
 
@@ -78,6 +86,12 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_FALLBACK_SINGLE` | Ambiguous routing → single agent. |
 | `VOX_ORCHESTRATOR_MESH_CONTROL_URL` | Base URL of the mens HTTP control plane for **read-only** node snapshots in MCP/orchestrator (e.g. `http://mens-ctrl:9847`). See [mens SSOT](populi.md), [deployment compose SSOT](deployment-compose.md). |
 | `VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS` | Poll interval for mens HTTP client (see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs)). |
+| `VOX_A2A_CONSUMER_ID` | Override the **claim owner** string for [`VoxDb::poll_a2a_inbox`](../../../crates/vox-db/src/store/ops_ludus/gamify_extended.rs) (default `pid:<process_id>`). |
+| `VOX_ORCH_LINEAGE_OFF` | When `1` / `true` / `yes`, skips append-only `orchestration_lineage_events` writes from the orchestrator (rollback toggle). |
+| `VOX_WORKFLOW_JOURNAL_CODEX_OFF` | When `1` / `true` / `yes`, skips Codex persistence for interpreted workflow journals after `vox mens workflow run` (see [`workflow_journal_codex`](../../../crates/vox-cli/src/workflow_journal_codex.rs)). |
+| `VOX_DB_CIRCUIT_BREAKER` | When enabled in [`DbCircuitBreaker::from_env`](../../../crates/vox-db/src/circuit_breaker.rs), gates selected Turso writes (locks, heartbeats, lineage, CAS, sessions, LLM logs, `agent_events`, Codex skills + **`chat_*`** user chat / usage / topics, generic `actor_state`, registry preference wipe, research ingest + capability map, `populi_training_run`, legacy JSONL data rows + `legacy_import_extras`, TOESTUB persistence, schemaless `Collection` document writes, agent memory/knowledge/search/embeddings, publication + scholarly/external jobs + planning + news + mens cloud + questioning, Ludus `gamify_*` / A2A / oplog / Ludus `actor_state`, learning + workflow journal + retention deletes + MCP chat transcripts, build observability + `components` — see `circuit_breaker.rs`). |
+| `VOX_DB_SYNC_INTEGRATION` | Set to `1` with remote URL+token to enable the opt-in [`sync_for(ReplicaLatest)`](../../../crates/vox-db/src/store/open.rs) integration test (`vox-db` `sync_remote_integration.rs`). |
+| `VOX_DB_EMBEDDED_REPLICA_INTEGRATION` | Set to `1` with URL+token to run the opt-in embedded-replica test (`cargo test -p vox-db --features replication sync_embedded_replica_smoke`). |
 | `VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS` | HTTP timeout for mens control-plane requests. |
 | `VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL` | Experimental routing hooks (see [mens SSOT](populi.md)). |
 | `VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL` | Enables training-task-specific scoring boosts/penalties in local routing. |
@@ -87,6 +101,8 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT` | Originator agent id for relay (defaults to `1` when unset/invalid). |
 | `VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS` | When experimental remote execute is on, MCP polls populi A2A inbox for **`remote_task_result`** on this interval (default **5**). **`0`** disables the dedicated poller. Independent of **`VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS`**. |
 | `VOX_ORCHESTRATOR_MIN_AGENTS` / `SCALING_*` / `COST_PREFERENCE` / `RESOURCE_*` | Scaling and economy knobs — see [`OrchestratorConfig::merge_env_overrides`](../../../crates/vox-orchestrator/src/config.rs). |
+| `POPULI_MODEL` | Default **Ollama** model id when routing uses local inference ([`usage`](../../../crates/vox-orchestrator/src/usage.rs), [`spec`](../../../crates/vox-orchestrator/src/models/spec.rs)). |
+| `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Clavis** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../architecture/news_syndication_security.md). |
 | `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter: `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
 | `VOX_SCHOLARLY_DISABLE` | When truthy (`1`, `true`, `yes`, `y`, `on`), blocks all scholarly submit/status paths. |
@@ -121,6 +137,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN` | YouTube refresh token for user-channel upload scopes. |
 | `VOX_SOCIAL_YOUTUBE_DEFAULT_CATEGORY_ID` | Optional default YouTube `categoryId` used when a manifest omits `youtube.category_id` (publisher fallback defaults to `28`). |
 | `VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS` | Optional integer reserve applied when deriving `twitter.short_text` from markdown (`twitter_text_chunk_max - margin`). |
+| `VOX_SYNDICATION_TEMPLATE_PROFILE` | When `1`/`true`, applies `distribution_policy.channel_policy.<channel>.template_profile` to derived social copy caps (Twitter margin, Reddit self-post summary, YouTube description). When unset/false, profiles are ignored and `SyndicationResult.decision_reasons` may record `template_profile_inert` if a profile key is set. |
 | `VOX_SOCIAL_REDDIT_SELFPOST_SUMMARY_MAX` | Optional integer cap for derived Reddit self-post body text when `text_override` is empty. |
 | `VOX_SOCIAL_HN_MODE` | Hacker News publish mode (`manual_assist` only; official HN API is read-only). |
 | `VOX_SOCIAL_WORTHINESS_ENFORCE` | `0`/`1`: enforce aggregate worthiness floor before **live** fan-out (orchestrator news tick, `vox db publication-publish`, MCP `vox_scientia_publication_publish` when not dry-run). On MCP, `[orchestrator.news].worthiness_enforce` also applies. |
@@ -139,6 +156,13 @@ Wall-time and attention telemetry for information-theoretic clarification (chat,
 | `VOX_QUESTIONING_MAX_ATTENTION_MS` | Optional **unsigned** cap (milliseconds) for the per-session clarification attention analogue. **Unset** or invalid → `QuestioningPolicy::default().max_clarification_attention_ms`. Used by [`questioning_attention_bounds`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
 | `VOX_SUBMIT_TASK_BYPASS_QUESTIONING_GATE` | When truthy, allows orchestrator **task submit** via MCP to skip the “pending Socrates clarification” gate (operator / CI escape hatch). See [`task_tools`](../../../crates/vox-mcp/src/tools/task_tools.rs). |
 | `VOX_MCP_AGENT_FLEET` | When **unset** or truthy, **vox-mcp** spawns the embedded `AgentFleet` loop (`sync_fleet` + periodic `tick`) so vox-runtime worker handles are registered and queued tasks receive `ProcessQueue` wakes (**default on**). Set **`0`**, **`false`**, **`no`**, or **`off`** to disable. See [`spawn_embedded_agent_fleet_if_enabled`](../../../crates/vox-mcp/src/server/lifecycle.rs). |
+| `VOX_EMBEDDING_MODEL` | Optional embedding model id override for MCP memory retrieval (`vox-mcp` [`retrieval`](../../../crates/vox-mcp/src/memory/retrieval.rs)). |
+| `VOX_OPENROUTER_HTTP_REFERER` | Optional `HTTP-Referer` header for OpenRouter-compatible calls ([`provider_auth`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
+| `VOX_OPENROUTER_APP_TITLE` | Optional `X-Title` header for OpenRouter-compatible calls ([`provider_auth`](../../../crates/vox-mcp/src/llm_bridge/provider_auth.rs)). |
+| `VOX_MCP_GRAMMAR_MASK` | Grammar-mask knob for speech constraints ([`speech_constraints`](../../../crates/vox-mcp/src/speech_constraints.rs)). |
+| `VOX_MCP_LLM_COST_EVENTS` | When truthy, enables LLM cost telemetry emission ([`infer`](../../../crates/vox-mcp/src/llm_bridge/infer.rs)). |
+| `OLLAMA_HOST` | Upstream Ollama base URL override read by MCP provider metadata ([`metadata`](../../../crates/vox-mcp/src/llm_bridge/providers/metadata.rs)). |
+| `VOX_ORCHESTRATOR_EVENT_LOG` | Path to a **JSONL** file: **`vox-mcp`** appends one JSON object per orchestrator [`AgentEvent`](../../../crates/vox-orchestrator/src/events.rs) when set ([`spawn_orchestrator_event_log_sink`](../../../crates/vox-mcp/src/server/lifecycle.rs)). **`vox live`** can tail the same file when built with the `live` feature. |
 
 **MCP tools (VoxDb required for persistence):** `vox_questioning_pending` (unanswered assistant questions + structured `question_options` and session `belief_state_json`), `vox_questioning_submit_answer`, `vox_questioning_sync_ssot`. Canonical names: [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml). Protocol SSOT: [Information-theoretic questioning](information-theoretic-questioning.md).
 
@@ -155,6 +179,8 @@ Wall-time and attention telemetry for information-theoretic clarification (chat,
 | `VOX_GEMINI_ROUTE_POLICY` | Gemini routing policy: `openrouter_first` (default), `google_direct_only`, or `registry_default`. |
 | `OPENROUTER_GEMINI_MODEL` / `GEMINI_DIRECT_MODEL` | Explicit OpenRouter/GoogleDirect Gemini model pair for policy routing/fallback. |
 | `VOX_PROVIDER_DAILY_LIMIT_DEFAULT` / `VOX_PROVIDER_LIMIT_PROVIDERS` | Dynamic provider quota defaults before JSON/file overrides in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs). |
+| `VOX_PROVIDER_DAILY_LIMITS_FILE` | Optional JSON file of per-provider daily limits (merged after defaults in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs)). |
+| `VOX_PROVIDER_DAILY_LIMITS_JSON` | Inline JSON for the same structure as the file variant. |
 
 ## Mens (`vox-populi`, orchestrator probe)
 
@@ -220,6 +246,7 @@ Full table: [mens SSOT](populi.md). Common entries:
 | `VOX_WEBIR_VALIDATE` | When **`1`** / **`true`**, **`vox_compiler::codegen_ts::generate`** runs Web IR lower + [`validate_web_ir`](../../../crates/vox-compiler/src/web_ir/validate.rs) after HIR and **fails codegen** if validation returns diagnostics (opt-in hard gate). See [`maybe_web_ir_validate`](../../../crates/vox-compiler/src/codegen_ts/emitter.rs). |
 | `VOX_WEBIR_EMIT_REACTIVE_VIEWS` | When **`1`** / **`true`**, Path C reactive **`view:`** may use Web IR preview TSX **only when** validation is clean **and** whitespace-normalized TSX matches legacy `emit_hir_expr` (parity guard). See [`codegen_ts::reactive`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |
 | `VOX_WEBIR_REACTIVE_TRACE` | When **`1`** / **`true`**, logs one **`eprintln!`** line per reactive view decision (`component=…` + `pathway=…`). Pairs with aggregate counters via [`reactive_view_bridge_stats`](../../../crates/vox-compiler/src/codegen_ts/reactive.rs). |
+| `VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE` | When **`1`** / **`true`**, [`project_runtime_from_hir`](../../../crates/vox-compiler/src/runtime_projection.rs) includes [`probe_host_capabilities`](../../../crates/vox-repository/src/capabilities.rs) in the serialized runtime projection (telemetry / envelope alignment). Default **off** so JSON stays machine-independent in tests. |
 | `VOX_ISLAND_MOUNT_V2` | Reserved: when **`1`** / **`true`**, **`vox-cli`** logs once that **V2** `index.html` injection is not implemented and continues with the **V1** `/islands/island-mount.js` snippet ([`apply_island_mount_script_to_index_html`](../../../crates/vox-cli/src/frontend.rs)). |
 
 ## Related

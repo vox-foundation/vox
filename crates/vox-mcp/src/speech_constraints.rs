@@ -1,9 +1,12 @@
-//! Speech-to-code constrained decoding integration.
+//! Speech-to-code “constrained decoding” integration (grammar **hints** only).
 //!
-//! Full token masking against a Vox CFG is not wired yet; we inject a short **controlled vocabulary
-//! hint** from `contracts/speech-to-code/vox_grammar_artifact.json` so models favor legal surface
-//! tokens. MCP `generate_vox_code` still relies on `validate_document_with_hir` + diagnostic retries
-//! as the hard gate.
+//! **Not** tokenizer-level masking: there is no logits processor or CFG-enforced beam today. When
+//! `contracts/speech-to-code/vox_grammar_artifact.json` is present we inject a short **controlled
+//! vocabulary paragraph** into the system prompt so models favor legal surface tokens.
+//!
+//! **Hard gate:** MCP `vox_generate_code` still depends on `validate_document_with_hir` and bounded
+//! diagnostic repair retries. Setting `VOX_MCP_GRAMMAR_MASK=1` records intent for a future bridge but
+//! does not change generation semantics until a mask backend is wired.
 
 use std::path::Path;
 
@@ -85,7 +88,8 @@ impl ConstrainedDecodePolicy {
         tracing::debug!(
             target: "vox_mcp_speech",
             grammar_mask_enabled = self.enabled,
-            "constrained decode: tokenizer↔grammar bridge not installed; using validator repair loop"
+            mode = "prompt_hint_and_hir_validator",
+            "constrained decode: no token-mask backend; grammar artifact is prompt-only; HIR validator is the gate"
         );
     }
 }

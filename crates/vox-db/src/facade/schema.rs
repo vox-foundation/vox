@@ -22,8 +22,8 @@ impl crate::VoxDb {
     /// The collection stores JSON documents in a SQLite table with `json_extract`
     /// based querying. Call `ensure_table()` on the returned handle to create the
     /// backing table if it doesn't exist.
-    pub fn collection(&self, name: impl Into<String>) -> collection::Collection<'_> {
-        collection::Collection::new(name, &self.conn)
+    pub fn collection(&self, name: impl Into<String>) -> collection::Collection {
+        collection::Collection::new(name, self.conn.clone(), self.breaker.clone())
     }
 
     /// Create an auto-migrator for schema synchronization.

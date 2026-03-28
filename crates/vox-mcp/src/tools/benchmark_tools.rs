@@ -3,6 +3,9 @@
 //! Writers use [`vox_db::benchmark_telemetry`] from CLI / tests when Codex is available.
 
 use serde::Deserialize;
+use vox_db::research_metrics_contract::{
+    METRIC_TYPE_BENCHMARK_EVENT, METRIC_TYPE_SYNTAX_K_EVENT, TelemetryWriteOptions,
+};
 
 use crate::params::ToolResult;
 use crate::server::ServerState;
@@ -85,21 +88,23 @@ pub async fn benchmark_record(state: &ServerState, params: BenchmarkRecordParams
     let metric_type = params
         .metric_type
         .as_deref()
-        .unwrap_or("benchmark_event")
+        .unwrap_or(METRIC_TYPE_BENCHMARK_EVENT)
         .to_string();
     let res = match metric_type.as_str() {
-        "syntax_k_event" => db
-            .record_syntax_k_event(
+        METRIC_TYPE_SYNTAX_K_EVENT => {
+            db.record_syntax_k_event(
                 &rid,
                 &params.name,
                 params.fixture_id.as_deref().unwrap_or("manual"),
                 params.value,
                 params.details,
             )
-            .await,
-        _ => db
-            .record_benchmark_event(&rid, &params.name, params.value, None, params.details)
-            .await,
+            .await
+        }
+        _ => {
+            db.record_benchmark_event(&rid, &params.name, params.value, None, params.details)
+                .await
+        }
     };
     match res {
         Ok(_) => ToolResult::ok("Recorded.").to_json(),

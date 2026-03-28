@@ -48,7 +48,7 @@ Core payload fields:
 - `compressor_results`
 - `k_est_bytes`
 - `ncd_vs_baseline` (optional)
-- `support_metrics` (optional)
+- `support_metrics` (optional): may include `representability`, `llm_surface`, and `runtime_projection` summaries (canonical SHA-3 of runtime projection JSON, policy counts, host-probe flag when `VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE=1`, and whether module-level task hints were inferred from `db.*` `.using` / `.scope` metadata). Shape is forward-compatible (`additionalProperties` allowed in eval schema).
 - `toolchain_fingerprint`
 
 ## Reproducibility protocol

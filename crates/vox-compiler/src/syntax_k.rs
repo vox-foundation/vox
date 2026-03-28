@@ -83,9 +83,35 @@ pub fn sha3_hex(bytes: &[u8]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-/// Deterministic JSON bytes for WebIR.
+/// Recursively sort JSON object keys for cross-toolchain-stable canonical bytes.
+pub fn sort_json_value_keys(v: &mut serde_json::Value) {
+    match v {
+        serde_json::Value::Object(map) => {
+            let mut pairs: Vec<(String, serde_json::Value)> = map
+                .iter()
+                .map(|(k, val)| (k.clone(), val.clone()))
+                .collect();
+            pairs.sort_by(|a, b| a.0.cmp(&b.0));
+            map.clear();
+            for (k, mut val) in pairs {
+                sort_json_value_keys(&mut val);
+                map.insert(k, val);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                sort_json_value_keys(item);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Deterministic JSON bytes for WebIR (sorted keys at every object depth).
 pub fn canonical_web_ir_bytes(module: &WebIrModule) -> Result<Vec<u8>, serde_json::Error> {
-    serde_json::to_vec(module)
+    let mut v = serde_json::to_value(module)?;
+    sort_json_value_keys(&mut v);
+    serde_json::to_vec(&v)
 }
 
 /// Deterministic canonical bytes for emitted file outputs.
@@ -188,6 +214,62 @@ fn median(vals: &mut [f64]) -> f64 {
     } else {
         (vals[mid - 1] + vals[mid]) / 2.0
     }
+}
+
+/// Pipeline stages for [`enrich_syntax_k_support_metrics`] (`first_failing_stage`).
+#[derive(Debug, Clone, Copy)]
+pub struct RepresentabilityPayload {
+    pub parse_ok: bool,
+    pub hir_ok: bool,
+    pub web_ir_validate_ok: bool,
+    /// `None` when not applicable to this Syntax-K target (e.g. raw `webir_json` bytes only).
+    pub emit_preview_ok: Option<bool>,
+}
+
+/// Attach `representability`, optional `llm_surface`, and optional `runtime_projection` to Syntax-K `support_metrics`.
+#[must_use]
+pub fn enrich_syntax_k_support_metrics(
+    base: serde_json::Value,
+    rep: RepresentabilityPayload,
+    llm_surface: Option<serde_json::Value>,
+    runtime_projection: Option<serde_json::Value>,
+) -> serde_json::Value {
+    let first = if !rep.parse_ok {
+        Some("parse")
+    } else if !rep.hir_ok {
+        Some("hir")
+    } else if !rep.web_ir_validate_ok {
+        Some("web_ir_validate")
+    } else if rep.emit_preview_ok == Some(false) {
+        Some("emit_tsx_preview")
+    } else {
+        None
+    };
+    let rep_json = json!({
+        "parse_ok": rep.parse_ok,
+        "hir_ok": rep.hir_ok,
+        "web_ir_validate_ok": rep.web_ir_validate_ok,
+        "emit_preview_ok": rep.emit_preview_ok,
+        "first_failing_stage": first,
+    });
+
+    let mut obj = match base {
+        serde_json::Value::Object(m) => m,
+        serde_json::Value::Null => serde_json::Map::new(),
+        other => {
+            let mut m = serde_json::Map::new();
+            m.insert("base".to_string(), other);
+            m
+        }
+    };
+    obj.insert("representability".to_string(), rep_json);
+    if let Some(ls) = llm_surface {
+        obj.insert("llm_surface".to_string(), ls);
+    }
+    if let Some(rp) = runtime_projection {
+        obj.insert("runtime_projection".to_string(), rp);
+    }
+    serde_json::Value::Object(obj)
 }
 
 fn toolchain_fingerprint() -> serde_json::Value {

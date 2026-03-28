@@ -1,17 +1,16 @@
-//! Opt-in Codex persistence for interpreted workflow journals (`VOX_WORKFLOW_JOURNAL_CODEX`).
+//! Codex persistence for interpreted workflow journals.
+//!
+//! **Default:** persistence runs when DB config resolves. Set **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`**
+//! to skip writes (escape hatch).
 
 use std::path::PathBuf;
 
 use serde_json::Value;
+use vox_config::workflow_journal_codex_persist_enabled;
 use vox_db::{DbConfig, VoxDb};
 
-fn journal_codex_enabled() -> bool {
-    std::env::var("VOX_WORKFLOW_JOURNAL_CODEX")
-        .map(|v| {
-            let v = v.trim();
-            v == "1" || v.eq_ignore_ascii_case("true")
-        })
-        .unwrap_or(false)
+fn journal_codex_disabled() -> bool {
+    !workflow_journal_codex_persist_enabled()
 }
 
 fn discovery_start() -> PathBuf {
@@ -25,7 +24,7 @@ fn discovery_start() -> PathBuf {
 }
 
 async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
-    if !journal_codex_enabled() || journal.is_empty() {
+    if journal_codex_disabled() || journal.is_empty() {
         return;
     }
     let Ok(cfg) = DbConfig::resolve_canonical() else {
@@ -55,12 +54,12 @@ async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
     }
 }
 
-/// When **`VOX_WORKFLOW_JOURNAL_CODEX=1`** and DB config resolves, append one journal row to Codex.
+/// When workflow journal persistence is not disabled and DB config resolves, append one row to Codex.
 pub async fn persist_workflow_journal_entry_opt(workflow_name: &str, entry: &Value) {
     persist_workflow_journal_rows(workflow_name, std::slice::from_ref(entry)).await;
 }
 
-/// When **`VOX_WORKFLOW_JOURNAL_CODEX=1`** and DB config resolves, append each journal row to Codex.
+/// Batch append when persistence is enabled and DB config resolves.
 #[allow(dead_code)] // Public batch API; CLI uses [`persist_workflow_journal_entry_opt`] for row-by-row control.
 pub async fn persist_workflow_journal_opt(workflow_name: &str, journal: &[Value]) {
     persist_workflow_journal_rows(workflow_name, journal).await;

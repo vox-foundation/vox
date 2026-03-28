@@ -1,6 +1,10 @@
 //! Persist **Socrates** calibration signals into `research_metrics` / `eval_runs` for drift monitoring
 //! and proxy “hallucination risk” tracking when gold labels are absent.
 
+use crate::research_metrics_contract::{
+    METRIC_TYPE_MEMORY_HYBRID_FUSION, METRIC_TYPE_SOCRATES_SURFACE, SESSION_ID_MEMORY_HYBRID_FUSION,
+    TelemetryWriteOptions,
+};
 use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -49,6 +53,9 @@ pub struct SocratesSurfaceTelemetry {
 pub struct SocratesSurfaceAggregate {
     /// Rows returned from the store for this query (includes rows with missing/bad metadata).
     pub sample_size: usize,
+    /// Subset of [`Self::sample_size`] where `metric_value` is SQL non-NULL (proxy present).
+    #[serde(default)]
+    pub rows_with_metric_value: usize,
     /// Subset of [`Self::sample_size`] where `metadata_json` deserialized as [`SocratesSurfaceTelemetry`].
     #[serde(default)]
     pub parsed_metadata_rows: usize,
@@ -93,9 +100,14 @@ impl VoxDb {
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
-        let session = format!("mcp:{repository_id}");
-        self.append_research_metric(&session, "socrates_surface", Some(proxy), Some(&json))
-            .await
+        let tw = TelemetryWriteOptions::new(repository_id);
+        self.append_research_metric(
+            &tw.session_mcp(),
+            METRIC_TYPE_SOCRATES_SURFACE,
+            Some(proxy),
+            Some(&json),
+        )
+        .await
     }
 
     /// Best-effort telemetry for hybrid memory retrieval (BM25 + vector fusion via `fuse_hybrid_results`).
@@ -124,8 +136,8 @@ impl VoxDb {
         });
         let s = meta.to_string();
         self.append_research_metric(
-            "socrates:retrieval",
-            "memory_hybrid_fusion",
+            SESSION_ID_MEMORY_HYBRID_FUSION,
+            METRIC_TYPE_MEMORY_HYBRID_FUSION,
             Some(contradiction_rate),
             Some(&s),
         )
@@ -139,9 +151,10 @@ impl VoxDb {
         limit: i64,
     ) -> Result<Vec<(String, Option<f64>, Option<String>)>, StoreError> {
         let prefix = repository_id
-            .map(|r| format!("mcp:{r}"))
+            .map(TelemetryWriteOptions::new)
+            .map(|tw| tw.session_mcp())
             .unwrap_or_default();
-        self.list_research_metrics_by_type("socrates_surface", &prefix, limit)
+        self.list_research_metrics_by_type(METRIC_TYPE_SOCRATES_SURFACE, &prefix, limit)
             .await
     }
 
@@ -168,6 +181,7 @@ impl VoxDb {
             if let Some(v) = metric_value {
                 sum_proxy += v;
                 n_proxy += 1;
+                agg.rows_with_metric_value += 1;
             }
             if let Some(ref m) = meta {
                 if let Ok(t) = serde_json::from_str::<SocratesSurfaceTelemetry>(m) {
@@ -221,8 +235,32 @@ impl VoxDb {
                     .into(),
             ));
         }
-        let meta =
-            serde_json::to_string(&agg).map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let mut agg_for_meta = serde_json::to_value(&agg)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        if let serde_json::Value::Object(ref mut m) = agg_for_meta {
+            m.insert(
+                "rate_denominator".into(),
+                serde_json::json!("parsed_metadata_rows"),
+            );
+            m.insert(
+                "abstain_rate_denominator_n".into(),
+                serde_json::json!(agg.parsed_metadata_rows),
+            );
+            m.insert(
+                "answer_rate_denominator_n".into(),
+                serde_json::json!(agg.parsed_metadata_rows),
+            );
+            m.insert(
+                "mean_proxy_denominator_n".into(),
+                serde_json::json!(agg.rows_with_metric_value),
+            );
+            m.insert(
+                "rows_total_n".into(),
+                serde_json::json!(agg.sample_size),
+            );
+        }
+        let meta = serde_json::to_string(&agg_for_meta)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
         let p = agg.parsed_metadata_rows as f64;
         let abstain_rate = if p > 0.0 {
             agg.abstain_count as f64 / p
@@ -234,7 +272,11 @@ impl VoxDb {
         } else {
             0.0
         };
-        let quality = (1.0 - agg.mean_hallucination_risk_proxy).clamp(0.0, 1.0);
+        let quality = if agg.rows_with_metric_value > 0 {
+            (1.0 - agg.mean_hallucination_risk_proxy).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         self.record_eval_run(
             eval_id,
             repository_id,

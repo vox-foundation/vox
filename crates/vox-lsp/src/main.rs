@@ -29,13 +29,12 @@ fn ludus_lsp_events_disabled() -> bool {
 async fn cached_project_db() -> Option<Arc<vox_db::VoxDb>> {
     let cell = LUDUS_PROJECT_DB.get_or_init(|| Mutex::new(None));
     let need_open = cell.lock().ok()?.is_none();
-    if need_open
-        && let Ok(db) = vox_db::open_project_db().await {
-            let mut g = cell.lock().ok()?;
-            if g.is_none() {
-                *g = Some(Arc::new(db));
-            }
+    if need_open && let Ok(db) = vox_db::open_project_db().await {
+        let mut g = cell.lock().ok()?;
+        if g.is_none() {
+            *g = Some(Arc::new(db));
         }
+    }
     let g = cell.lock().ok()?;
     g.as_ref().map(Arc::clone)
 }

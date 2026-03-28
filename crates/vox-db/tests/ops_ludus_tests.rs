@@ -1,5 +1,6 @@
 //! Integration tests for `CodeStore` gamification CRUD (`ops_ludus`).
 
+use turso::params;
 use vox_db::VoxDb;
 
 /// Gamification DDL not included in the vox-pm baseline or coordination schema.
@@ -346,6 +347,58 @@ async fn a2a_send_poll_acknowledge() {
 }
 
 #[tokio::test]
+async fn a2a_claim_prevents_duplicate_poll_by_second_consumer() {
+    let store: VoxDb = open().await;
+    store
+        .send_a2a_message(
+            "uuid-dup", "agent-1", "agent-2", "ping", "{}", 1, None, "repo-x",
+        )
+        .await
+        .unwrap();
+    let first = store
+        .poll_a2a_inbox_claimed("agent-2", "repo-x", "consumer-a", 8, 300_000)
+        .await
+        .unwrap();
+    assert_eq!(first.len(), 1);
+    let second = store
+        .poll_a2a_inbox_claimed("agent-2", "repo-x", "consumer-b", 8, 300_000)
+        .await
+        .unwrap();
+    assert!(
+        second.is_empty(),
+        "active claim must hide the row from other consumers"
+    );
+}
+
+#[tokio::test]
+async fn a2a_expired_claim_allows_handoff() {
+    let store: VoxDb = open().await;
+    store
+        .send_a2a_message(
+            "uuid-expiry",
+            "agent-1",
+            "agent-2",
+            "ping",
+            "{}",
+            1,
+            None,
+            "repo-y",
+        )
+        .await
+        .unwrap();
+    let _ = store
+        .poll_a2a_inbox_claimed("agent-2", "repo-y", "consumer-a", 8, -60_000)
+        .await
+        .unwrap();
+    let handoff = store
+        .poll_a2a_inbox_claimed("agent-2", "repo-y", "consumer-b", 8, 300_000)
+        .await
+        .unwrap();
+    assert_eq!(handoff.len(), 1);
+    assert_eq!(handoff[0].message_uuid, "uuid-expiry");
+}
+
+#[tokio::test]
 async fn oplog_append_and_list() {
     let store: VoxDb = open().await;
     store
@@ -387,6 +440,70 @@ async fn actor_state_crud() {
     store.delete_actor_state("my_key").await.unwrap();
     let gone = store.load_actor_state("my_key").await.unwrap();
     assert!(gone.is_none());
+}
+
+#[tokio::test]
+async fn orchestration_lineage_append_and_list() {
+    let store: VoxDb = open().await;
+    let repo = "repo-lineage-1";
+    store
+        .append_orchestration_lineage_event(
+            repo,
+            "task_submitted",
+            99,
+            Some(7),
+            Some("sess-a"),
+            None,
+            None,
+            None,
+            Some(r#"{"x":1}"#),
+        )
+        .await
+        .unwrap();
+    let rows = store
+        .list_orchestration_lineage_for_task(repo, 99, 10)
+        .await
+        .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].1.as_str(), "task_submitted");
+}
+
+#[tokio::test]
+async fn orchestration_lineage_prune_respects_cutoff() {
+    let store: VoxDb = open().await;
+    let repo = "repo-prune-L";
+    store
+        .append_orchestration_lineage_event(
+            repo,
+            "task_submitted",
+            1,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+    let pruned = store
+        .prune_orchestration_lineage_older_than_ms(0, 50)
+        .await
+        .unwrap();
+    assert_eq!(pruned, 0, "positive created_at_ms must not be < 0");
+    store
+        .connection()
+        .execute(
+            "UPDATE orchestration_lineage_events SET created_at_ms = 100 WHERE repository_id = ?1",
+            params![repo],
+        )
+        .await
+        .unwrap();
+    let pruned2 = store
+        .prune_orchestration_lineage_older_than_ms(500, 10)
+        .await
+        .unwrap();
+    assert_eq!(pruned2, 1);
 }
 
 #[tokio::test]

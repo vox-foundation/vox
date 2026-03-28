@@ -45,6 +45,50 @@ pub async fn vox_scientia_publication_preflight(
     };
     let mut manifest = publication_manifest_from_row(&row);
     let profile: PreflightProfile = params.profile.unwrap_or_default().into();
+    let item = match vox_publisher::switching::unified_news_item_from_manifest_parts(
+        row.publication_id.as_str(),
+        row.title.as_str(),
+        row.author.as_str(),
+        row.body_markdown.as_str(),
+        row.metadata_json.as_deref(),
+    ) {
+        Ok(i) => i,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("parse metadata_json for gate: {e}"),
+                REM_SCIENTIA_METADATA,
+            )
+            .to_json();
+        }
+    };
+    let dual = match db
+        .has_dual_publication_approval_for_digest(
+            &params.publication_id,
+            row.content_sha3_256.as_str(),
+        )
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("DB error: {e}"),
+                REM_SCIENTIA_DB,
+            )
+            .to_json();
+        }
+    };
+    let gate = vox_publisher::gate::evaluate_publish_gate(
+        vox_publisher::gate::publish_gate_inputs_for_mcp(
+            false,
+            state.orchestrator_config.news.dry_run,
+            state.orchestrator_config.news.publish_armed,
+            true,
+            dual,
+            &item,
+        ),
+    );
+    let attention =
+        vox_publisher::publication_preflight::PreflightAttentionInputs { gate: Some(gate) };
     let report = if params.with_worthiness {
         let rid = manifest
             .metadata_json
@@ -119,11 +163,18 @@ pub async fn vox_scientia_publication_preflight(
             )
             .to_json();
         }
-        vox_publisher::publication_preflight::run_preflight_with_worthiness(
-            &manifest, profile, &contract,
+        vox_publisher::publication_preflight::run_preflight_with_worthiness_attention(
+            &manifest,
+            profile,
+            &contract,
+            Some(attention),
         )
     } else {
-        vox_publisher::publication_preflight::run_preflight(&manifest, profile)
+        vox_publisher::publication_preflight::run_preflight_with_attention(
+            &manifest,
+            profile,
+            Some(attention),
+        )
     };
     ToolResult::ok(report).to_json()
 }

@@ -436,11 +436,9 @@ async fn connect_default_with_training_fallback_resets_stale_sidecar() {
     }
 
     let sidecar = dir.path().join("vox_training_telemetry.db");
-    let check = VoxDb::connect(DbConfig::local(
-        sidecar.to_string_lossy().to_string(),
-    ))
-    .await
-    .expect("reopen sidecar");
+    let check = VoxDb::connect(DbConfig::local(sidecar.to_string_lossy().to_string()))
+        .await
+        .expect("reopen sidecar");
     assert_eq!(
         check.schema_version().await.expect("sidecar version"),
         BASELINE_VERSION

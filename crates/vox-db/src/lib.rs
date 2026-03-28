@@ -60,17 +60,18 @@
 pub mod auto_migrate;
 /// Benchmark observations stored in `research_metrics` (`bench:<repository_id>` sessions).
 pub mod benchmark_telemetry;
+pub mod research_metrics_contract;
 pub mod build_hints;
 /// Turso / search tuning helpers (`VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`, etc.).
 pub mod capabilities;
 /// Circuit breaker for write operations.
 pub mod circuit_breaker;
-/// Canonical connect policy helpers (strict vs optional degraded surfaces).
-pub mod connect_policy;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
 mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
+/// Canonical connect policy helpers (strict vs optional degraded surfaces).
+pub mod connect_policy;
 /// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
 mod ludus_schema_cutover;
 pub mod schema;
@@ -79,13 +80,13 @@ mod schema_cutover;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
 
+/// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
+pub mod canonical_store;
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
 pub mod collection;
 mod config;
-/// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
-pub mod canonical_store;
 pub mod data_flow;
 pub mod ddl;
 pub mod error_enrichment;
@@ -116,8 +117,8 @@ pub mod schema_digest;
 /// OS keyring helpers for API tokens and similar secrets.
 pub mod secrets;
 mod socrates_telemetry;
-pub mod syntax_k_telemetry;
 mod sync_invocables;
+pub mod syntax_k_telemetry;
 pub mod toestub_store;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
@@ -125,17 +126,17 @@ pub mod training_run;
 pub mod workflow_journal;
 
 pub use auto_migrate::AutoMigrator;
+pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
-pub use connect_policy::{
-    DbConnectSurface, REMEDIATION_CANONICAL_DB, connect_canonical_optional, connect_canonical_strict,
-    format_degraded_optional_connect,
-};
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
 pub use collection::Collection;
-pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use config::DbConfig;
+pub use connect_policy::{
+    DbConnectSurface, REMEDIATION_CANONICAL_DB, connect_canonical_optional,
+    connect_canonical_strict, format_degraded_optional_connect,
+};
 pub use data_flow::{DataFlowMap, build_data_flow};
 pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
@@ -155,7 +156,6 @@ pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, genera
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
-pub use syntax_k_telemetry::SyntaxKEventMeta;
 pub use store::{
     A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
     BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
@@ -179,6 +179,7 @@ pub use store::{
     WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
+pub use syntax_k_telemetry::SyntaxKEventMeta;
 pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
@@ -188,6 +189,15 @@ pub use toestub_store::{
 ///
 /// `VoxDb` remains the stable Rust type name; new documentation should prefer **Codex**.
 pub type Codex = VoxDb;
+
+/// Whether to pull embedded-replica updates before application-level reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReadConsistency {
+    /// Use the current local database state only.
+    Local,
+    /// Best-effort `pull` when a sync-backed client is attached (no-op for pure local files).
+    ReplicaLatest,
+}
 
 /// High-level database facade for the Vox ecosystem (**Codex**).
 ///

@@ -65,23 +65,32 @@ impl crate::VoxDb {
         output_tokens: i64,
         cost_usd: f64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO cost_records (agent_id, session_id, provider, model,
+        let agent_id = agent_id.to_string();
+        let session_id = session_id.map(str::to_string);
+        let provider = provider.to_string();
+        let model = model.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO cost_records (agent_id, session_id, provider, model,
              input_tokens, output_tokens, cost_usd)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    agent_id,
-                    session_id,
-                    provider,
-                    model,
-                    input_tokens,
-                    output_tokens,
-                    cost_usd
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        agent_id.as_str(),
+                        session_id.as_deref(),
+                        provider.as_str(),
+                        model.as_deref(),
+                        input_tokens,
+                        output_tokens,
+                        cost_usd
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Get total cost in USD for an agent.
@@ -150,11 +159,21 @@ impl crate::VoxDb {
         agent_id: &str,
         agent_name: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT OR IGNORE INTO agent_sessions (id, agent_id, agent_name) VALUES (?1, ?2, ?3)",
-            params![id, agent_id, agent_name],
-        ).await?;
-        Ok(())
+        let id = id.to_string();
+        let agent_id = agent_id.to_string();
+        let agent_name = agent_name.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO agent_sessions (id, agent_id, agent_name) VALUES (?1, ?2, ?3)",
+                    params![id.as_str(), agent_id.as_str(), agent_name.as_deref()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Update an agent session's status and optional context.
@@ -165,22 +184,45 @@ impl crate::VoxDb {
         task_snapshot: Option<&str>,
         context_summary: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE agent_sessions SET status=?1, task_snapshot=?2, context_summary=?3 WHERE id=?4",
-            params![status, task_snapshot, context_summary, id],
-        ).await?;
-        Ok(())
+        let id = id.to_string();
+        let status = status.to_string();
+        let task_snapshot = task_snapshot.map(str::to_string);
+        let context_summary = context_summary.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE agent_sessions SET status=?1, task_snapshot=?2, context_summary=?3 WHERE id=?4",
+                    params![
+                        status.as_str(),
+                        task_snapshot.as_deref(),
+                        context_summary.as_deref(),
+                        id.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// End a session with a status and set ended_at.
     pub async fn end_gamify_session(&self, id: &str, status: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE agent_sessions SET status=?1, ended_at=datetime('now') WHERE id=?2",
-                params![status, id],
-            )
-            .await?;
-        Ok(())
+        let id = id.to_string();
+        let status = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE agent_sessions SET status=?1, ended_at=datetime('now') WHERE id=?2",
+                    params![status.as_str(), id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List active sessions.
@@ -230,16 +272,29 @@ impl crate::VoxDb {
         metric_value: f64,
         period: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
+        let agent_id = agent_id.to_string();
+        let metric_name = metric_name.to_string();
+        let period = period.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
              VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(agent_id, metric_name, period) DO UPDATE SET
                metric_value=excluded.metric_value, timestamp=datetime('now')",
-                params![agent_id, metric_name, metric_value, period],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        agent_id.as_str(),
+                        metric_name.as_str(),
+                        metric_value,
+                        period.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Get all metrics for an agent in a period.
@@ -288,14 +343,21 @@ impl crate::VoxDb {
         name: &str,
         value: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
+        let user_id = user_id.to_string();
+        let name = name.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
              ON CONFLICT(user_id, name) DO UPDATE SET count=excluded.count",
-                params![user_id, name, value],
-            )
-            .await?;
-        Ok(())
+                    params![user_id.as_str(), name.as_str(), value],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Increment a persistent counter and return the new value.
@@ -317,12 +379,20 @@ impl crate::VoxDb {
         if delta <= 0 {
             return self.get_gamify_counter(user_id, name).await;
         }
-        self.conn
-            .execute(
-                "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
+        let user_id_s = user_id.to_string();
+        let name_s = name.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_counters (user_id, name, count) VALUES (?1, ?2, ?3)
              ON CONFLICT(user_id, name) DO UPDATE SET count=count+excluded.count",
-                params![user_id, name, delta],
-            )
+                    params![user_id_s.as_str(), name_s.as_str(), delta],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         self.get_gamify_counter(user_id, name).await
     }
@@ -334,15 +404,26 @@ impl crate::VoxDb {
         event_type: &str,
         day: i64,
     ) -> Result<i64, StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, 1)
+        let user_id_s = user_id.to_string();
+        let event_type_s = event_type.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, 1)
              ON CONFLICT(user_id, event_type, day) DO UPDATE SET count=count+1",
-            params![user_id, event_type, day],
-        ).await?;
+                    params![user_id_s.as_str(), event_type_s.as_str(), day],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
         let mut rows = self.conn.query(
             "SELECT count FROM gamify_daily_counters WHERE user_id=?1 AND event_type=?2 AND day=?3",
             params![user_id, event_type, day],
-        ).await?;
+        )
+        .await?;
         Ok(rows
             .next()
             .await?
@@ -376,14 +457,21 @@ impl crate::VoxDb {
         day: i64,
         count: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, ?4)
+        let user_id = user_id.to_string();
+        let event_type = event_type.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT (user_id, event_type, day) DO UPDATE SET count = excluded.count",
-                params![user_id, event_type, day, count],
-            )
-            .await?;
-        Ok(())
+                    params![user_id.as_str(), event_type.as_str(), day, count],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Event Config (gamify_event_config) ────────────────────────────────────
@@ -420,14 +508,29 @@ impl crate::VoxDb {
         enabled: bool,
         updated_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO gamify_event_config (event_type, xp_override, crystals_override, enabled, updated_at)
+        let event_type = event_type.to_string();
+        let enabled_flag = if enabled { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_event_config (event_type, xp_override, crystals_override, enabled, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(event_type) DO UPDATE SET
                xp_override=excluded.xp_override, crystals_override=excluded.crystals_override,
                enabled=excluded.enabled, updated_at=excluded.updated_at",
-            params![event_type, xp_override, crystals_override, if enabled { 1i64 } else { 0i64 }, updated_at],
-        ).await?;
-        Ok(())
+                    params![
+                        event_type.as_str(),
+                        xp_override,
+                        crystals_override,
+                        enabled_flag,
+                        updated_at
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

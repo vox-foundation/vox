@@ -18,6 +18,7 @@ training_eligible: true
 
 ## Security and privacy
 
+- MCP **`vox_validate_file`** resolves relative paths against the bound repository root and rejects canonical paths outside it (including traversal via `..` and absolute paths in other trees).
 - Avoid persisting raw audio in shared logs; redact paths if needed. MCP `vox_oratio_listen` logs **path basename only** for protected path-like tokens when LLM polish rejects a correction.
 - Speech trace / training rows: follow repo retention policy; use `mens/schemas/speech_to_code_trace.schema.json` only for **opt-in** export.
 - Labeling rubric (human QA): [`contracts/speech-to-code/labeling_rubric.md`](../../contracts/speech-to-code/labeling_rubric.md).

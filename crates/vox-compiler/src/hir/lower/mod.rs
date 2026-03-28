@@ -1,6 +1,6 @@
-//! Lower AST [`Module`] to [`HirModule`].
+//! Lower AST [`Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
 //!
-//! This module is the **HIR boundary** before [`crate::web_ir::lower::lower_hir_to_web_ir`].
+//! This module is the **HIR boundary** before [`crate::web_ir::lower::project_web_from_core`].
 //! Declaration arms here define what structured data reaches WebIR (islands, `HirRoutes`,
 //! reactive components, server/query/mutation `route_path` contracts). See internal Web IR
 //! implementation blueprint (lane P → S).
@@ -498,12 +498,14 @@ fn f() to int {
         for st in body {
             if let crate::hir::HirStmt::Return { value: Some(e), .. } = st
                 && let crate::hir::HirExpr::Call(callee, cargs, _, _) = e
-                    && let crate::hir::HirExpr::Ident(name, _) = callee.as_ref()
-                        && name == "len" && cargs.len() == 1
-                            && let crate::hir::HirExpr::DbTableOp { op, .. } = &cargs[0].value
-                                && *op == crate::hir::HirDbTableOp::FilterRecord {
-                                    found = true;
-                                }
+                && let crate::hir::HirExpr::Ident(name, _) = callee.as_ref()
+                && name == "len"
+                && cargs.len() == 1
+                && let crate::hir::HirExpr::DbTableOp { op, .. } = &cargs[0].value
+                && *op == crate::hir::HirDbTableOp::FilterRecord
+            {
+                found = true;
+            }
         }
         assert!(found, "expected FilterRecord in len(db.User.filter(...))");
     }
@@ -523,9 +525,11 @@ fn f() to int {
         for st in body {
             if let crate::hir::HirStmt::Return { value: Some(e), .. } = st
                 && let crate::hir::HirExpr::DbTableOp { op, args, .. } = e
-                    && *op == crate::hir::HirDbTableOp::Count && args.len() == 1 {
-                        found = true;
-                    }
+                && *op == crate::hir::HirDbTableOp::Count
+                && args.len() == 1
+            {
+                found = true;
+            }
         }
         assert!(
             found,
@@ -553,12 +557,12 @@ fn f() to Unit {
                     limit,
                     ..
                 } = expr
-                    && *op == crate::hir::HirDbTableOp::FilterRecord
-                        && matches!(order_by, Some((col, false)) if col == "name")
-                        && limit.is_some()
-                    {
-                        found = true;
-                    }
+                && *op == crate::hir::HirDbTableOp::FilterRecord
+                && matches!(order_by, Some((col, false)) if col == "name")
+                && limit.is_some()
+            {
+                found = true;
+            }
         }
         assert!(found, "expected DbTableOp with order_by+limit modifiers");
     }
@@ -578,18 +582,19 @@ fn f() to int {
         for st in body {
             if let crate::hir::HirStmt::Return { value: Some(e), .. } = st
                 && let crate::hir::HirExpr::Call(callee, cargs, ..) = e
-                    && let crate::hir::HirExpr::Ident(fn_name, _) = callee.as_ref()
-                        && fn_name == "len" && cargs.len() == 1
-                            && let crate::hir::HirExpr::DbTableOp {
-                                op, select_cols, ..
-                            } = &cargs[0].value
-                                && *op == crate::hir::HirDbTableOp::All
-                                    && select_cols.as_ref().is_some_and(|c| {
-                                        c.len() == 2 && c[0] == "name" && c[1] == "active"
-                                    })
-                                {
-                                    found = true;
-                                }
+                && let crate::hir::HirExpr::Ident(fn_name, _) = callee.as_ref()
+                && fn_name == "len"
+                && cargs.len() == 1
+                && let crate::hir::HirExpr::DbTableOp {
+                    op, select_cols, ..
+                } = &cargs[0].value
+                && *op == crate::hir::HirDbTableOp::All
+                && select_cols
+                    .as_ref()
+                    .is_some_and(|c| c.len() == 2 && c[0] == "name" && c[1] == "active")
+            {
+                found = true;
+            }
         }
         assert!(found, "expected All with select_cols on db chain");
     }
@@ -610,12 +615,13 @@ fn f() to int {
             if let crate::hir::HirStmt::Return { value: Some(e), .. } = st
                 && let crate::hir::HirExpr::Call(_, cargs, _, _) = e
                 && let crate::hir::HirExpr::DbTableOp { plan, .. } = &cargs[0].value
-                && let Some(p) = plan {
-                    found = matches!(
-                        p.predicate,
-                        Some(crate::hir::HirDbPredicate::And(ref parts)) if parts.len() == 2
-                    );
-                }
+                && let Some(p) = plan
+            {
+                found = matches!(
+                    p.predicate,
+                    Some(crate::hir::HirDbPredicate::And(ref parts)) if parts.len() == 2
+                );
+            }
         }
         assert!(found, "expected where(...) predicate in DbQueryPlan");
     }

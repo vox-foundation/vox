@@ -483,6 +483,12 @@ pub fn lower_hir_to_web_ir(hir: &HirModule) -> WebIrModule {
     lower_hir_to_web_ir_with_summary(hir).0
 }
 
+/// Project web IR from typed core ([`crate::hir::TypedCoreIR_v2`]) — alias for [`lower_hir_to_web_ir`].
+#[must_use]
+pub fn project_web_from_core(hir: &crate::hir::TypedCoreIR_v2) -> super::WebProjectionIR {
+    lower_hir_to_web_ir(hir)
+}
+
 /// Lower only the `view:` expression of a single reactive component (tests / tools).
 #[must_use]
 pub fn lower_hir_view_expr(

@@ -102,6 +102,111 @@ impl<'a> Checker<'a> {
         for r in &module.routes {
             self.check_route(r);
         }
+        for rc in &module.reactive_components {
+            self.check_reactive_component(rc);
+        }
+    }
+
+    fn check_reactive_component(&mut self, rc: &HirReactiveComponent) {
+        self.env.push_scope();
+        self.env.define(
+            "db".into(),
+            Binding::new(Ty::Database, false, BindingKind::Variable),
+        );
+
+        for p in &rc.params {
+            let p_ty = p
+                .type_ann
+                .as_ref()
+                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+            self.env.define(
+                p.name.clone(),
+                Binding::new(p_ty, false, BindingKind::Parameter),
+            );
+        }
+
+        for m in &rc.members {
+            match m {
+                HirReactiveMember::State(s) => {
+                    let init_ty = self.check_expr(&s.init);
+                    let state_ty = if let Some(ann) = &s.ty {
+                        let t = resolve_hir_type(ann, self.env);
+                        if let Err(msg) = self.uf.unify(&init_ty, &t) {
+                            self.diags.push(Diagnostic {
+                                severity: TypeckSeverity::Error,
+                                message: format!(
+                                    "reactive state '{}': initializer does not match type annotation: {msg}",
+                                    s.name
+                                ),
+                                span: s.span,
+                                expected_type: Some(format!("{t:?}")),
+                                found_type: Some(format!("{init_ty:?}")),
+                                context: Some(Diagnostic::capture_context(self.source, s.span)),
+                                suggestions: vec![],
+                                category: DiagnosticCategory::Typecheck,
+                                code: Some("typecheck.reactive.state".into()),
+                                fixes: vec![],
+                            });
+                        }
+                        t
+                    } else {
+                        init_ty
+                    };
+                    let resolved = self.uf.resolve(&state_ty);
+                    // Path C views use `name = expr` in handlers; treat reactive state as assignable.
+                    self.env.define(
+                        s.name.clone(),
+                        Binding::new(resolved, true, BindingKind::Variable),
+                    );
+                }
+                HirReactiveMember::Derived(d) => {
+                    let expr_ty = self.check_expr(&d.expr);
+                    let derived_ty = if let Some(ann) = &d.ty {
+                        let t = resolve_hir_type(ann, self.env);
+                        if let Err(msg) = self.uf.unify(&expr_ty, &t) {
+                            self.diags.push(Diagnostic {
+                                severity: TypeckSeverity::Error,
+                                message: format!(
+                                    "reactive derived '{}': expression does not match type annotation: {msg}",
+                                    d.name
+                                ),
+                                span: d.span,
+                                expected_type: Some(format!("{t:?}")),
+                                found_type: Some(format!("{expr_ty:?}")),
+                                context: Some(Diagnostic::capture_context(self.source, d.span)),
+                                suggestions: vec![],
+                                category: DiagnosticCategory::Typecheck,
+                                code: Some("typecheck.reactive.derived".into()),
+                                fixes: vec![],
+                            });
+                        }
+                        t
+                    } else {
+                        expr_ty
+                    };
+                    let resolved = self.uf.resolve(&derived_ty);
+                    self.env.define(
+                        d.name.clone(),
+                        Binding::new(resolved, false, BindingKind::Variable),
+                    );
+                }
+                HirReactiveMember::Effect(e) => {
+                    let _ = self.check_expr(&e.body);
+                }
+                HirReactiveMember::OnMount(m) => {
+                    let _ = self.check_expr(&m.body);
+                }
+                HirReactiveMember::OnCleanup(c) => {
+                    let _ = self.check_expr(&c.body);
+                }
+            }
+        }
+
+        if let Some(view) = &rc.view {
+            let _ = self.check_expr(view);
+        }
+
+        self.env.pop_scope();
     }
 
     fn check_function(&mut self, f: &HirFn) {
@@ -298,6 +403,8 @@ impl<'a> Checker<'a> {
                     "Replace `.query(clause)` with typed table operations.".into(),
                 ],
                 category: DiagnosticCategory::Lint,
+                code: Some("lint.query_not_readonly".into()),
+                fixes: vec![],
             });
         }
     }

@@ -167,6 +167,8 @@ impl<'a> Checker<'a> {
                             context: Some(Diagnostic::capture_context(self.source, *span)),
                             suggestions: vec![],
                             category: DiagnosticCategory::Typecheck,
+                            code: Some("typecheck.deprecated_ident".into()),
+                            fixes: vec![],
                         });
                     }
                     binding.ty.clone()
@@ -323,6 +325,8 @@ impl<'a> Checker<'a> {
                                 .into(),
                         ],
                         category: DiagnosticCategory::Lint,
+                        code: Some("lint.db_unsafe_query".into()),
+                        fixes: vec![],
                     });
                 }
                 let Some(binding) = self.env.lookup(table) else {

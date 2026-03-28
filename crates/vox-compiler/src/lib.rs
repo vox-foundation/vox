@@ -12,6 +12,7 @@ pub mod hir;
 pub mod lexer;
 pub mod parser;
 pub mod react_bridge;
+pub mod runtime_projection;
 pub mod serialization;
 pub mod syntax_k;
 pub mod typeck;
@@ -20,7 +21,7 @@ pub mod web_prefixes;
 
 /// Re-export of common types if needed.
 pub use ast::decl::Module;
-pub use hir::HirModule;
+pub use hir::{HirModule, TypedCoreIR_v2};
 pub use typeck::checker::Checker;
 
 /// Re-export the canonical formatter so callers use `vox_compiler::format(src)`.

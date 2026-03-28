@@ -7,22 +7,32 @@ impl VoxDb {
         p: ExternalStatusSnapshotParams<'_>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO external_status_snapshots (
+        let adapter = p.adapter.to_string();
+        let external_submission_id = p.external_submission_id.to_string();
+        let publication_id = p.publication_id.to_string();
+        let content_sha3_256 = p.content_sha3_256.to_string();
+        let snapshot_json = p.snapshot_json.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO external_status_snapshots (
                     adapter, external_submission_id, publication_id, content_sha3_256, snapshot_json, fetched_at_ms
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                (
-                    p.adapter.to_string(),
-                    p.external_submission_id.to_string(),
-                    p.publication_id.to_string(),
-                    p.content_sha3_256.to_string(),
-                    p.snapshot_json.to_string(),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+                    (
+                        adapter,
+                        external_submission_id,
+                        publication_id,
+                        content_sha3_256,
+                        snapshot_json,
+                        ts,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Latest remote snapshot for adapter + external id.
@@ -61,27 +71,38 @@ impl VoxDb {
         p: PublicationExternalLinkUpsertParams<'_>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO publication_external_links (
+        let publication_id = p.publication_id.to_string();
+        let content_sha3_256 = p.content_sha3_256.to_string();
+        let adapter = p.adapter.to_string();
+        let link_kind = p.link_kind.to_string();
+        let link_value = p.link_value.to_string();
+        let metadata_json = p.metadata_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO publication_external_links (
                     publication_id, content_sha3_256, adapter, link_kind, link_value, metadata_json, created_at_ms
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                 ON CONFLICT(publication_id, content_sha3_256, adapter, link_kind) DO UPDATE SET
                     link_value = excluded.link_value,
                     metadata_json = excluded.metadata_json,
                     created_at_ms = excluded.created_at_ms",
-                (
-                    p.publication_id.to_string(),
-                    p.content_sha3_256.to_string(),
-                    p.adapter.to_string(),
-                    p.link_kind.to_string(),
-                    p.link_value.to_string(),
-                    p.metadata_json.map(std::string::ToString::to_string),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+                    (
+                        publication_id,
+                        content_sha3_256,
+                        adapter,
+                        link_kind,
+                        link_value,
+                        metadata_json,
+                        ts,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List external links for publication id + digest.
@@ -124,26 +145,36 @@ impl VoxDb {
         p: PublicationExternalRevisionUpsertParams<'_>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO publication_external_revisions (
+        let publication_id = p.publication_id.to_string();
+        let content_sha3_256 = p.content_sha3_256.to_string();
+        let adapter = p.adapter.to_string();
+        let external_revision = p.external_revision.to_string();
+        let metadata_json = p.metadata_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO publication_external_revisions (
                     publication_id, content_sha3_256, adapter, external_revision, metadata_json, updated_at_ms
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                 ON CONFLICT(publication_id, content_sha3_256, adapter) DO UPDATE SET
                     external_revision = excluded.external_revision,
                     metadata_json = excluded.metadata_json,
                     updated_at_ms = excluded.updated_at_ms",
-                (
-                    p.publication_id.to_string(),
-                    p.content_sha3_256.to_string(),
-                    p.adapter.to_string(),
-                    p.external_revision.to_string(),
-                    p.metadata_json.map(std::string::ToString::to_string),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+                    (
+                        publication_id,
+                        content_sha3_256,
+                        adapter,
+                        external_revision,
+                        metadata_json,
+                        ts,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Load revision pointer for publication id + digest + adapter, if present.

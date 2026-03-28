@@ -138,12 +138,20 @@ jobs:
       - name: Run Tests (llvm-cov + nextest, bounded timeouts)
         run: cargo llvm-cov nextest --workspace --profile ci
 
+      - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
+        run: cargo test -p vox-db --features replication sync_embedded_replica_smoke
+
+      - name: WebIR structural validate gate (TS codegen path)
+        env:
+          VOX_WEBIR_VALIDATE: "1"
+        run: cargo test -p vox-compiler --test web_ir_lower_emit
+
       - name: Line coverage report (summary, LCOV, gates enforce)
         run: |
           set -euo pipefail
-          cargo llvm-cov report --workspace --text --summary-only
-          cargo llvm-cov report --workspace --json --summary-only --output-path target/llvm-cov-summary.json
-          cargo llvm-cov report --workspace --lcov --output-path target/llvm-cov-lcov.info
+          cargo llvm-cov report --text --summary-only
+          cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
+          cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
           cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
 
       - name: Upload LLVM coverage artifacts

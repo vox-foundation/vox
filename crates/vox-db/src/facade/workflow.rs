@@ -24,16 +24,20 @@ impl crate::VoxDb {
         .await?;
 
         // Also store the path in user_preferences as a 'known_project'
-        let _ = self
-            .conn
-            .execute(
-                "INSERT OR REPLACE INTO user_preferences (user_id, key, value) VALUES (?1, ?2, ?3)",
-                (
-                    local_user_id(),
-                    format!("project.{}.path", name),
-                    path_str.to_string(),
-                ),
-            )
+        let user_id = local_user_id();
+        let key = format!("project.{}.path", name);
+        let value = path_str.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let _ = breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO user_preferences (user_id, key, value) VALUES (?1, ?2, ?3)",
+                    (user_id, key, value),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await;
 
         Ok(())
@@ -65,11 +69,21 @@ impl crate::VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-        self.conn.execute(
+        let run_id = run_id.to_string();
+        let workflow_name = workflow_name.to_string();
+        let activity_name = activity_name.to_string();
+        let activity_id = activity_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
             "INSERT OR IGNORE INTO workflow_activity_log (run_id, workflow_name, activity_name, activity_id, status, recorded_at_ms) VALUES (?1, ?2, ?3, ?4, 'started', ?5)",
-            (run_id.to_string(), workflow_name.to_string(), activity_name.to_string(), activity_id.to_string(), now)
+            (run_id, workflow_name, activity_name, activity_id, now)
         ).await?;
-        Ok(())
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Record that an activity has successfully completed in the durable journal.
@@ -84,10 +98,20 @@ impl crate::VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-        self.conn.execute(
+        let run_id = run_id.to_string();
+        let workflow_name = workflow_name.to_string();
+        let activity_name = activity_name.to_string();
+        let activity_id = activity_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
             "INSERT OR REPLACE INTO workflow_activity_log (run_id, workflow_name, activity_name, activity_id, status, recorded_at_ms) VALUES (?1, ?2, ?3, ?4, 'completed', ?5)",
-            (run_id.to_string(), workflow_name.to_string(), activity_name.to_string(), activity_id.to_string(), now)
+            (run_id, workflow_name, activity_name, activity_id, now)
         ).await?;
-        Ok(())
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

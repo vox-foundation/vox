@@ -63,8 +63,7 @@ pub fn auth_allows_admin_route(ctx: PopuliAuthContext) -> bool {
 }
 
 /// Resolved populi bearer material from Clavis / env (captured at router build time).
-#[derive(Clone, Debug)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct PopuliMeshAuthRuntime {
     mesh: Option<Arc<str>>,
     worker: Option<Arc<str>>,
@@ -73,7 +72,6 @@ pub struct PopuliMeshAuthRuntime {
     /// When set, HS256 JWT bearer is accepted (`role`, `jti`, `exp` claims).
     pub(crate) jwt_hmac: Option<Arc<str>>,
 }
-
 
 #[derive(Debug, Deserialize)]
 struct MeshJwtClaims {

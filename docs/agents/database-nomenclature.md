@@ -47,6 +47,16 @@ To add a new table:
 3. Add `VoxDb` methods in `store/ops_<domain>.rs`.
 4. Add tests under `crates/vox-db/tests/`.
 
+### Baseline vs cutover consolidation (backlog)
+
+When `schema_cutover.rs` grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” blocks that are **stable** for new databases, prefer promoting them into the matching domain fragment under `schema/domains/` so **greenfield `migrate`** and **digest** stay authoritative. Use cutover only for **ordering-sensitive** fixes on databases that already passed an older baseline (column type widens, backfills, index renames). Steps before moving DDL:
+
+1. Prove idempotence on an empty DB (`VoxDb::migrate` only) and on a snapshot from the prior `BASELINE_VERSION`.
+2. Extend `crates/vox-db/tests/migration_tests.rs` (or a domain smoke test) so both paths stay covered.
+3. Bump `BASELINE_VERSION` only when the baseline digest must change; keep cutover steps until no shipped DB is expected to need them (then delete redundant cutover branches in a later release).
+
+**Why some cutover DDL mirrors baseline:** [`VoxDb::migrate`](../../crates/vox-db/src/store/open.rs) runs the full [`baseline_sql`](../../crates/vox-db/src/schema/manifest.rs) only when `schema_version < BASELINE_VERSION`. Once a file is pinned at the baseline integer, **opening it again skips the baseline batch** and runs [`apply_schema_cutover`](../../crates/vox-db/src/schema_cutover.rs) only. Tables first introduced in a domain fragment during an era when many DBs were already at baseline therefore need an idempotent `CREATE TABLE IF NOT EXISTS` (or additive `ALTER`) in cutover until every replica can be assumed to have the table — not merely because greenfield installs already see the DDL in `schema/domains/`.
+
 ## Naming Conventions
 
 | Suffix | Use For | Example |

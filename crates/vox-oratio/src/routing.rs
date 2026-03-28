@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
@@ -176,19 +177,58 @@ fn intent_action_id(intent: IntentKind) -> &'static str {
     }
 }
 
-fn chat_sessions() -> &'static Mutex<HashMap<String, Vec<String>>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, Vec<String>>>> = OnceLock::new();
+#[derive(Debug, Clone)]
+struct RoutingSessionRecord {
+    chat_history: Vec<String>,
+    user_turns: usize,
+    last_user_transcript: Option<String>,
+    last_touch: Instant,
+}
+
+impl Default for RoutingSessionRecord {
+    fn default() -> Self {
+        Self {
+            chat_history: Vec::new(),
+            user_turns: 0,
+            last_user_transcript: None,
+            last_touch: Instant::now(),
+        }
+    }
+}
+
+fn routing_session_cap_ttl() -> (usize, Duration) {
+    const DEF_CAP: usize = 4096;
+    const DEF_TTL_SECS: u64 = 86_400;
+    let cap = std::env::var("VOX_ORATIO_ROUTING_SESSION_CAP")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEF_CAP);
+    let ttl_secs = std::env::var("VOX_ORATIO_ROUTING_SESSION_TTL_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEF_TTL_SECS);
+    (cap.max(64), Duration::from_secs(ttl_secs.max(60)))
+}
+
+fn routing_sessions() -> &'static Mutex<HashMap<String, RoutingSessionRecord>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, RoutingSessionRecord>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn user_turn_counts() -> &'static Mutex<HashMap<String, usize>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-fn last_user_transcript() -> &'static Mutex<HashMap<String, String>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+fn prune_routing_sessions(map: &mut HashMap<String, RoutingSessionRecord>) {
+    let (cap, ttl) = routing_session_cap_ttl();
+    let now = Instant::now();
+    map.retain(|_, v| now.duration_since(v.last_touch) <= ttl);
+    while map.len() > cap {
+        let Some(oldest_key) = map
+            .iter()
+            .min_by_key(|(_, v)| v.last_touch)
+            .map(|(k, _)| k.clone())
+        else {
+            break;
+        };
+        map.remove(&oldest_key);
+    }
 }
 
 /// Route modes for transcript-driven execution.
@@ -238,23 +278,25 @@ pub fn route_transcript_with_options(
         };
     }
 
-    if let Ok(mut last) = last_user_transcript().lock() {
-        if let Some(prev) = last.get(session_id)
-            && !transcript.trim().is_empty()
-            && prev == transcript
-        {
-            return RouteResponse {
-                mode: RouteMode::None,
-                action: "none".to_string(),
-                status: "repetition_breaker".to_string(),
-                payload: serde_json::json!({
-                    "note": "Identical consecutive transcript for session",
-                    "session_id": session_id,
-                }),
-            };
-        }
+    if let Ok(mut map) = routing_sessions().lock() {
+        prune_routing_sessions(&mut map);
         if !transcript.trim().is_empty() {
-            last.insert(session_id.to_string(), transcript.to_string());
+            let rec = map.entry(session_id.to_string()).or_default();
+            rec.last_touch = Instant::now();
+            if let Some(prev) = rec.last_user_transcript.as_ref()
+                && prev == transcript
+            {
+                return RouteResponse {
+                    mode: RouteMode::None,
+                    action: "none".to_string(),
+                    status: "repetition_breaker".to_string(),
+                    payload: serde_json::json!({
+                        "note": "Identical consecutive transcript for session",
+                        "session_id": session_id,
+                    }),
+                };
+            }
+            rec.last_user_transcript = Some(transcript.to_string());
         }
     }
 
@@ -340,30 +382,32 @@ pub fn route_transcript_with_options(
         RouteMode::Chat => {
             let cap = runtime.routing.chat_max_messages.max(4);
             let max_turns = runtime.routing.route_max_user_turns.max(1);
-            let mut turns = user_turn_counts().lock().expect("user turn mutex poisoned");
-            let n = turns.entry(session_id.to_string()).or_insert(0);
-            *n += 1;
-            if *n > max_turns {
+            let mut map = routing_sessions().lock().expect("routing session mutex poisoned");
+            prune_routing_sessions(&mut map);
+            let rec = map.entry(session_id.to_string()).or_default();
+            rec.last_touch = Instant::now();
+            rec.user_turns += 1;
+            let n = rec.user_turns;
+            if n > max_turns {
                 return RouteResponse {
                     mode: RouteMode::None,
                     action: "none".to_string(),
                     status: "guard_max_user_turns".to_string(),
                     payload: serde_json::json!({
                         "session_id": session_id,
-                        "user_turns": *n,
+                        "user_turns": n,
                         "max_user_turns": max_turns,
                     }),
                 };
             }
 
-            let mut cache = chat_sessions().lock().expect("chat session mutex poisoned");
-            let history = cache.entry(session_id.to_string()).or_default();
+            let history = &mut rec.chat_history;
             history.push(format!("user:{transcript}"));
             if history.len() > cap {
                 let drain = history.len() - cap;
                 history.drain(0..drain);
             }
-            let response = format!("Session {session_id}: received '{}'", transcript);
+            let response = format!("Session {session_id}: received '{transcript}'");
             history.push(format!("assistant:{response}"));
             if history.len() > cap {
                 let drain = history.len() - cap;
@@ -377,7 +421,7 @@ pub fn route_transcript_with_options(
                     "session_id": session_id,
                     "turns": history.len(),
                     "response": response,
-                    "user_turn": *n,
+                    "user_turn": n,
                 }),
             }
         }

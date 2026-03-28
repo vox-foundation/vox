@@ -86,6 +86,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             context: None,
             suggestions: vec![],
             category: DiagnosticCategory::Lint,
+            code: Some("lint.search_index_unknown_table".into()),
+            fixes: vec![],
         });
         return;
     };
@@ -103,6 +105,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             context: None,
             suggestions: vec![],
             category: DiagnosticCategory::Lint,
+            code: Some("lint.search_index_not_table".into()),
+            fixes: vec![],
         });
         return;
     };
@@ -120,6 +124,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             context: None,
             suggestions: vec![],
             category: DiagnosticCategory::Lint,
+            code: Some("lint.search_index_unknown_field".into()),
+            fixes: vec![],
         });
         return;
     };
@@ -137,6 +143,8 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
             context: None,
             suggestions: vec![],
             category: DiagnosticCategory::Lint,
+            code: Some("lint.search_index_field_type".into()),
+            fixes: vec![],
         });
     }
 }
@@ -163,6 +171,8 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
                     "Keep advanced React-only logic in `@island` TypeScript under islands/.".into(),
                 ],
                 category: DiagnosticCategory::Lint,
+                code: Some("lint.component_react_hook".into()),
+                fixes: vec![],
             });
         });
     }
@@ -195,6 +205,8 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                             "Or rename to a non-reserved column name that is not `id`.".into(),
                         ],
                         category: DiagnosticCategory::Lint,
+                        code: Some("lint.table_id_column".into()),
+                        fixes: vec![],
                     });
                 }
             }
@@ -221,6 +233,8 @@ pub fn lint_ast_declarations(module: &Module) -> Vec<Diagnostic> {
                         context: None,
                         suggestions: vec![],
                         category: DiagnosticCategory::Lint,
+                        code: Some("lint.index_unknown_table".into()),
+                        fixes: vec![],
                     });
                 }
             }

@@ -7,9 +7,23 @@ impl VoxDb {
         params: PublicationManifestParams<'_>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO publication_manifests (
+        let publication_id = params.publication_id.to_string();
+        let content_type = params.content_type.to_string();
+        let source_ref = params.source_ref.map(std::string::ToString::to_string);
+        let title = params.title.to_string();
+        let author = params.author.to_string();
+        let abstract_text = params.abstract_text.map(std::string::ToString::to_string);
+        let body_markdown = params.body_markdown.to_string();
+        let citations_json = params.citations_json.map(std::string::ToString::to_string);
+        let metadata_json = params.metadata_json.map(std::string::ToString::to_string);
+        let content_sha3_256 = params.content_sha3_256.to_string();
+        let state = params.state.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO publication_manifests (
                     publication_id, content_type, source_ref, title, author, abstract_text,
                     body_markdown, citations_json, metadata_json, content_sha3_256, state,
                     created_at_ms, updated_at_ms
@@ -31,23 +45,25 @@ impl VoxDb {
                         ELSE publication_manifests.version + 1
                     END,
                     updated_at_ms=excluded.updated_at_ms",
-                (
-                    params.publication_id.to_string(),
-                    params.content_type.to_string(),
-                    params.source_ref.map(std::string::ToString::to_string),
-                    params.title.to_string(),
-                    params.author.to_string(),
-                    params.abstract_text.map(std::string::ToString::to_string),
-                    params.body_markdown.to_string(),
-                    params.citations_json.map(std::string::ToString::to_string),
-                    params.metadata_json.map(std::string::ToString::to_string),
-                    params.content_sha3_256.to_string(),
-                    params.state.to_string(),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+                    (
+                        publication_id,
+                        content_type,
+                        source_ref,
+                        title,
+                        author,
+                        abstract_text,
+                        body_markdown,
+                        citations_json,
+                        metadata_json,
+                        content_sha3_256,
+                        state,
+                        ts,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Fetch one manifest by id.
@@ -89,18 +105,22 @@ impl VoxDb {
         content_sha3_256: &str,
         approver: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO publication_approvals (publication_id, content_sha3_256, approver, approved_at_ms) VALUES (?1, ?2, ?3, ?4)",
-                (
-                    publication_id.to_string(),
-                    content_sha3_256.to_string(),
-                    approver.to_string(),
-                    now_ms(),
-                ),
-            )
-            .await?;
-        Ok(())
+        let publication_id = publication_id.to_string();
+        let content_sha3_256 = content_sha3_256.to_string();
+        let approver = approver.to_string();
+        let ts = now_ms();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO publication_approvals (publication_id, content_sha3_256, approver, approved_at_ms) VALUES (?1, ?2, ?3, ?4)",
+                    (publication_id, content_sha3_256, approver, ts),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Count distinct approvers for id+digest.
@@ -141,19 +161,29 @@ impl VoxDb {
         channel: &str,
         outcome_json: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO publication_attempts (publication_id, content_sha3_256, channel, attempted_at_ms, outcome_json) VALUES (?1, ?2, ?3, ?4, ?5)",
-                (
-                    publication_id.to_string(),
-                    content_sha3_256.to_string(),
-                    channel.to_string(),
-                    now_ms(),
-                    outcome_json.to_string(),
-                ),
-            )
-            .await?;
-        Ok(())
+        let publication_id = publication_id.to_string();
+        let content_sha3_256 = content_sha3_256.to_string();
+        let channel = channel.to_string();
+        let outcome_json = outcome_json.to_string();
+        let ts = now_ms();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO publication_attempts (publication_id, content_sha3_256, channel, attempted_at_ms, outcome_json) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    (
+                        publication_id,
+                        content_sha3_256,
+                        channel,
+                        ts,
+                        outcome_json,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Set the current manifest state and append an immutable status event.
@@ -164,24 +194,30 @@ impl VoxDb {
         detail_json: Option<&str>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "UPDATE publication_manifests SET state = ?2, updated_at_ms = ?3 WHERE publication_id = ?1",
-                (publication_id.to_string(), state.to_string(), ts),
-            )
-            .await?;
-        self.conn
-            .execute(
-                "INSERT INTO publication_status_events (publication_id, status, detail_json, recorded_at_ms) VALUES (?1, ?2, ?3, ?4)",
-                (
-                    publication_id.to_string(),
-                    state.to_string(),
-                    detail_json.map(std::string::ToString::to_string),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+        let publication_id = publication_id.to_string();
+        let state = state.to_string();
+        let detail_json = detail_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE publication_manifests SET state = ?2, updated_at_ms = ?3 WHERE publication_id = ?1",
+                    (
+                        publication_id.clone(),
+                        state.clone(),
+                        ts,
+                    ),
+                )
+                .await?;
+                conn.execute(
+                    "INSERT INTO publication_status_events (publication_id, status, detail_json, recorded_at_ms) VALUES (?1, ?2, ?3, ?4)",
+                    (publication_id, state, detail_json, ts),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Append one `publication_status_events` row without updating `publication_manifests.state`.
@@ -192,17 +228,20 @@ impl VoxDb {
         detail_json: Option<&str>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO publication_status_events (publication_id, status, detail_json, recorded_at_ms) VALUES (?1, ?2, ?3, ?4)",
-                (
-                    publication_id.to_string(),
-                    status.to_string(),
-                    detail_json.map(std::string::ToString::to_string),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+        let publication_id = publication_id.to_string();
+        let status = status.to_string();
+        let detail_json = detail_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO publication_status_events (publication_id, status, detail_json, recorded_at_ms) VALUES (?1, ?2, ?3, ?4)",
+                    (publication_id, status, detail_json, ts),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

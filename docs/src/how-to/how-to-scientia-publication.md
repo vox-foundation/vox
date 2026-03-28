@@ -24,7 +24,7 @@ vox scientia publication-prepare \
 
 Optional: pass `--abstract-text`, `--citations-json <file>`, and `--scholarly-metadata-json <file>` (structured JSON for `scientific_publication`: authors with optional ORCID/affiliation, `license_spdx`, `funding_statement`, `competing_interests_statement`, `reproducibility`, `ethics_and_impact` — see `vox_publisher::scientific_metadata`). The same `--scholarly-metadata-json` flag works on `vox db publication-prepare`.
 
-Use `--preflight` (or `publication-prepare-validated`) to run `vox_publisher::publication_preflight` before persisting. Use `publication-preflight` to inspect readiness JSON for an existing id; add `--with-worthiness` to score against `contracts/scientia/publication-worthiness.default.yaml`. With `--with-worthiness`, VoxDb rolls up recent `socrates_surface` metrics into `metadata_json.scientia_evidence` when that block is empty (requires `repository_id` in metadata). You may also embed `scientia_evidence` manually (eval-gate result, baseline/candidate run ids, `human_meaningful_advance`, `human_ai_disclosure_complete`) so worthiness blends orchestrator telemetry with explicit human attestations. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
+Use `--preflight` (or `publication-prepare-validated`) to run `vox_publisher::publication_preflight` before persisting. Use `publication-preflight` to inspect readiness JSON for an existing id (including `manual_required`, `confidence`, and live-publish gate hints when VoxDb is attached); add `--with-worthiness` to score against `contracts/scientia/publication-worthiness.default.yaml`. With `--with-worthiness`, VoxDb rolls up recent `socrates_surface` metrics into `metadata_json.scientia_evidence` when that block is empty (requires `repository_id` in metadata). You may also embed `scientia_evidence` manually (eval-gate result, baseline/candidate run ids, `human_meaningful_advance`, `human_ai_disclosure_complete`) so worthiness blends orchestrator telemetry with explicit human attestations. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
 
 ## 2) Record approvals (two distinct approvers)
 
@@ -60,19 +60,23 @@ The status payload includes:
 ## 5) Optional social distribution metadata
 
 To drive Reddit/Hacker News/YouTube planning from the same manifest, embed a
-`metadata_json.scientia_distribution` block conforming to:
+**`metadata_json.syndication`** object conforming to:
 
 - `contracts/scientia/distribution.schema.json`
 - `contracts/scientia/distribution.default.yaml`
 
-Optional **`metadata_json.topic_pack`**: set to a pack id from `contracts/scientia/distribution.topic-packs.yaml` (for example `research_breakthrough`). At hydrate time the pack **merges** worthiness floors, template profiles, and topic filters into `scientia_distribution`. **Channel allowlists** in the pack **drop** any channel not listed for that pack (after merge), so operators can tighten routing without editing every manifest.
+Legacy manifests may still use **`metadata_json.scientia_distribution`**. At hydrate time the publisher **deep-merges** legacy + canonical keys (canonical `syndication` wins on conflicts), normalizes contract `channels` / `channel_payloads` into the flat runtime shape, and logs a deprecation warning when the legacy root is present. `vox db publication-preflight` surfaces the same hint under `manual_required`.
+
+Optional **`metadata_json.topic_pack`**: set to a pack id from `contracts/scientia/distribution.topic-packs.yaml` (for example `research_breakthrough`). At hydrate time the pack **merges** worthiness floors, template profiles, and topic filters into the effective syndication config. **Channel allowlists** in the pack **drop** any channel not listed for that pack (after merge), so operators can tighten routing without editing every manifest.
+
+**Minimum-input recipe:** set `topic_pack` + enable only the channels you need (or rely on pack allowlists). Omit per-channel payloads when the pack supplies policy; add `channel_payloads` / flat `twitter` / `reddit` blocks only for overrides.
 
 Example skeleton:
 
 ```json
 {
   "topic_pack": "research_breakthrough",
-  "scientia_distribution": {
+  "syndication": {
     "channels": ["reddit", "hacker_news", "youtube"],
     "channel_payloads": {
       "reddit": {
@@ -112,6 +116,7 @@ Notes:
 - Hacker News support is manual-assist only (official API is read-only).
 - YouTube support uses OAuth refresh + resumable upload and should remain policy-gated by quota and audit readiness.
 - `crates_io` is modeled in routing policy and outcomes; live publish adapter wiring remains intentionally explicit (non-implicit).
+- `distribution_policy.channel_policy.*.template_profile` **does not change copy** unless `VOX_SYNDICATION_TEMPLATE_PROFILE=1` / `true` (then Twitter/Reddit/YouTube derived text caps follow named profiles such as `brief` / `roomy`; see `docs/src/reference/env-vars.md`).
 - Configure social credentials via `VOX_SOCIAL_*` environment variables (`docs/src/reference/env-vars.md`).
 - SSOT precedence is: manifest overrides > distribution policy defaults/contracts > runtime env overrides.
 
@@ -129,3 +134,5 @@ vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run t
 ```
 
 Add `--json` for machine-readable stdout (one structured object per invocation). MCP equivalents `vox_scientia_publication_publish` and `vox_scientia_publication_retry_failed` accept **`json: true`** for a single-line compact JSON tool envelope.
+
+**Retry-failed idempotency:** `publication-retry-failed` / MCP `vox_scientia_publication_retry_failed` pick candidates from the latest **digest-bound** attempt. Channels that already have a `Success` outcome for that digest are **not** republished (they appear as `skipped_success_channels`). Explicit `--channel` / `channel` follows the same planner so operators cannot accidentally duplicate a succeeded post when retrying a subset.

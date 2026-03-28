@@ -182,7 +182,10 @@ pub(super) fn token_ids_in_model_vocab(ids: &[u32], vocab: usize) -> bool {
 
 pub(super) enum MaskedCeForward {
     NoSupervision,
-    NonFinite { kind: &'static str, mask_sum: f32 },
+    NonFinite {
+        kind: &'static str,
+        mask_sum: f32,
+    },
     Finite {
         loss: candle_core::Tensor,
         loss_scalar: f32,
@@ -251,15 +254,39 @@ pub(super) fn forward_masked_ce(
         }
     };
     if !loss_scalar.is_finite() {
-        let kind = if loss_scalar.is_nan() {
-            "nan"
-        } else {
-            "inf"
-        };
+        let kind = if loss_scalar.is_nan() { "nan" } else { "inf" };
         return Ok(MaskedCeForward::NonFinite { kind, mask_sum });
     }
 
     Ok(MaskedCeForward::Finite { loss, loss_scalar })
+}
+
+pub(super) fn qlora_forward_logits_smoke(
+    model: &super::TrainGraphModel,
+    vocab: usize,
+    device: &Device,
+) -> Result<()> {
+    if vocab < 2 {
+        return Ok(());
+    }
+    let input_ids = candle_core::Tensor::new(&[0u32, 1u32], device)?.unsqueeze(0)?;
+    let logits = model.forward(&input_ids)?;
+    let sample = logits
+        .narrow(0, 0, 1)?
+        .narrow(1, 0, 1)?
+        .flatten_all()?
+        .to_vec1::<f32>()?;
+    let bad = sample
+        .iter()
+        .take(16_384)
+        .filter(|x| !x.is_finite())
+        .count();
+    if bad > 0 {
+        anyhow::bail!(
+            "QLoRA forward smoke test: {bad} non-finite values in first logits row on trivial input_ids=[0,1] — check CUDA/NF4 path or VOX_CANDLE_DEVICE=cpu to isolate"
+        );
+    }
+    Ok(())
 }
 
 pub(super) fn preflight_masked_ce_finite(
@@ -272,16 +299,13 @@ pub(super) fn preflight_masked_ce_finite(
     system_prompt: &str,
     start_epoch: usize,
 ) -> Result<()> {
+    qlora_forward_logits_smoke(model, bundle.vocab, device)?;
+
     let max_diff = max_difficulty_for_epoch(start_epoch, config);
     let vocab = bundle.vocab;
     for (pair_idx, pair) in pairs.iter().enumerate() {
-        let enc = match try_encode_training_step(
-            pair,
-            system_prompt,
-            tokenizer,
-            config,
-            max_diff,
-        )? {
+        let enc = match try_encode_training_step(pair, system_prompt, tokenizer, config, max_diff)?
+        {
             TryEncodeOutcome::SkipCurriculum | TryEncodeOutcome::SkipShortSeq => continue,
             TryEncodeOutcome::Encoded(enc) => enc,
         };
@@ -307,7 +331,7 @@ pub(super) fn preflight_masked_ce_finite(
             MaskedCeForward::NonFinite { kind, mask_sum } => {
                 anyhow::bail!(
                     "masked CE preflight failed: non-finite loss ({kind}) before training (mask_sum={mask_sum:.6}, pair_idx={pair_idx}); \
-                     check vocab/tokenizer alignment, logits NaNs, or CUDA numerics"
+                     trivial forward smoke on input_ids=[0,1] already passed — inspect this row, try a smaller --seq-len, or compare VOX_CANDLE_DEVICE=cpu vs cuda"
                 );
             }
             MaskedCeForward::Finite { .. } => {
@@ -358,23 +382,22 @@ pub(super) fn run_training_loop(
     }
 
     // The trainer always runs a full forward graph; this flag tracks middle-projection key completeness in base shards.
-    let proxy_stack_complete = match crate::mens::tensor::candle_qlora_weights::tensor_keys_union(
-        &bundle.weight_paths,
-    ) {
-        Ok(present) => {
-            let cov = crate::mens::tensor::candle_qlora_weights::middle_projection_coverage(
-                &bundle.layout,
-                &present,
-            );
-            cov.expected == 0 || cov.complete
-        }
-        Err(err) => {
-            train_log::warn(&format!(
-                "Could not recompute middle projection coverage for manifest: {err}"
-            ));
-            false
-        }
-    };
+    let proxy_stack_complete =
+        match crate::mens::tensor::candle_qlora_weights::tensor_keys_union(&bundle.weight_paths) {
+            Ok(present) => {
+                let cov = crate::mens::tensor::candle_qlora_weights::middle_projection_coverage(
+                    &bundle.layout,
+                    &present,
+                );
+                cov.expected == 0 || cov.complete
+            }
+            Err(err) => {
+                train_log::warn(&format!(
+                    "Could not recompute middle projection coverage for manifest: {err}"
+                ));
+                false
+            }
+        };
 
     let QloraTrainingResume {
         start_epoch,
@@ -1043,7 +1066,20 @@ mod tests {
     #[test]
     fn trajectory_telemetry_payload_reports_clamped_pairs() {
         let payload = build_train_step_payload(
-            1, 10, 4, 0.55, 1e-4, Some(90), 25, 0, 0, 0, 2, 6, 3, Some(2.2),
+            1,
+            10,
+            4,
+            0.55,
+            1e-4,
+            Some(90),
+            25,
+            0,
+            0,
+            0,
+            2,
+            6,
+            3,
+            Some(2.2),
         );
         assert_eq!(
             payload.get("skip_token_id_oob").and_then(|v| v.as_u64()),

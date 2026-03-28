@@ -27,14 +27,28 @@ impl crate::VoxDb {
         context: Option<&str>,
         metadata: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO behavior_events (user_id, event_type, context, metadata)
+        let user_id = user_id.to_string();
+        let event_type = event_type.to_string();
+        let context = context.map(str::to_string);
+        let metadata = metadata.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO behavior_events (user_id, event_type, context, metadata)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![user_id, event_type, context, metadata],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        user_id.as_str(),
+                        event_type.as_str(),
+                        context.as_deref(),
+                        metadata.as_deref()
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Fetch `behavior_events` for `user_id`, newest first, optionally filtered by `event_type`.
@@ -122,22 +136,32 @@ impl crate::VoxDb {
         confidence: f64,
         vcs_snapshot_id: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO learned_patterns
+        let user_id = user_id.to_string();
+        let pattern_type = pattern_type.to_string();
+        let category = category.to_string();
+        let description = description.to_string();
+        let vcs_snapshot_id = vcs_snapshot_id.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO learned_patterns
                      (user_id, pattern_type, category, description, confidence, vcs_snapshot_id)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    user_id,
-                    pattern_type,
-                    category,
-                    description,
-                    confidence,
-                    vcs_snapshot_id
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        user_id.as_str(),
+                        pattern_type.as_str(),
+                        category.as_str(),
+                        description.as_str(),
+                        confidence,
+                        vcs_snapshot_id.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Fetch all `learned_patterns` for `user_id`, sorted by confidence descending.
@@ -183,13 +207,18 @@ impl crate::VoxDb {
         id: i64,
         confidence: f64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE learned_patterns SET confidence = ?2 WHERE id = ?1",
-                params![id, confidence],
-            )
-            .await?;
-        Ok(())
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE learned_patterns SET confidence = ?2 WHERE id = ?1",
+                    params![id, confidence],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Command Analytics ─────────────────────────────────────────────────────
@@ -240,16 +269,24 @@ impl crate::VoxDb {
         key: &str,
         value: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO user_preferences (user_id, key, value, updated_at)
+        let user_id = user_id.to_string();
+        let key = key.to_string();
+        let value = value.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO user_preferences (user_id, key, value, updated_at)
                  VALUES (?1, ?2, ?3, datetime('now'))
                  ON CONFLICT(user_id, key)
                  DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
-                params![user_id, key, value],
-            )
-            .await?;
-        Ok(())
+                    params![user_id.as_str(), key.as_str(), value.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Read a single `user_preferences` value by `(user_id, key)`, or `None` if absent.
@@ -354,23 +391,36 @@ impl crate::VoxDb {
     ///
     /// Called from `vox-cli/src/commands/extras/snippet/mod.rs`.
     pub async fn save_snippet(&self, p: SaveSnippetParams<'_>) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO snippets (language, title, code, description, tags, author_id, source_ref, embedding_ref)
+        let language = p.language.to_string();
+        let title = p.title.to_string();
+        let code = p.code.to_string();
+        let description = p.description.map(str::to_string);
+        let tags = p.tags.map(str::to_string);
+        let author_id = p.author_id.map(str::to_string);
+        let source_ref = p.source_ref.map(str::to_string);
+        let embedding_ref = p.embedding_ref.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO snippets (language, title, code, description, tags, author_id, source_ref, embedding_ref)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    p.language,
-                    p.title,
-                    p.code,
-                    p.description,
-                    p.tags,
-                    p.author_id,
-                    p.source_ref,
-                    p.embedding_ref
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        language.as_str(),
+                        title.as_str(),
+                        code.as_str(),
+                        description.as_deref(),
+                        tags.as_deref(),
+                        author_id.as_deref(),
+                        source_ref.as_deref(),
+                        embedding_ref.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Search `snippets` by keyword with an optional tag filter.

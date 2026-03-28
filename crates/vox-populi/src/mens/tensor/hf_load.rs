@@ -126,7 +126,8 @@ impl HfTransformerLayout {
                 vocab_size: vs,
                 intermediate_size: json_usize(cfg_source, "intermediate_size"),
                 max_position_embeddings: json_usize(cfg_source, "max_position_embeddings"),
-                rope_theta: qwen35_rope_theta(cfg_source).or_else(|| json_f64(cfg_source, "rope_theta")),
+                rope_theta: qwen35_rope_theta(cfg_source)
+                    .or_else(|| json_f64(cfg_source, "rope_theta")),
                 rope_partial_rotary_factor: qwen35_partial_rotary_factor(cfg_source),
                 layer_types,
                 linear_attention_heads: json_usize(cfg_source, "num_linear_heads"),

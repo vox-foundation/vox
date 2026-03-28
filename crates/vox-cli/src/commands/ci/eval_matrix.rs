@@ -254,15 +254,30 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
         ),
         "vox_compiler_syntax_k_webir" => cargo_test_nocapture(
             repo_root,
-            &["test", "-p", PKG_VOX_COMPILER, FILTER_COMPILER_SYNTAX_K_GOLDEN],
+            &[
+                "test",
+                "-p",
+                PKG_VOX_COMPILER,
+                FILTER_COMPILER_SYNTAX_K_GOLDEN,
+            ],
         ),
         "vox_compiler_syntax_k_emit" => cargo_test_nocapture(
             repo_root,
-            &["test", "-p", PKG_VOX_COMPILER, FILTER_COMPILER_SYNTAX_K_PARITY],
+            &[
+                "test",
+                "-p",
+                PKG_VOX_COMPILER,
+                FILTER_COMPILER_SYNTAX_K_PARITY,
+            ],
         ),
         "vox_compiler_syntax_k_regression_gate" => cargo_test_nocapture(
             repo_root,
-            &["test", "-p", PKG_VOX_COMPILER, FILTER_COMPILER_SYNTAX_K_GATE],
+            &[
+                "test",
+                "-p",
+                PKG_VOX_COMPILER,
+                FILTER_COMPILER_SYNTAX_K_GATE,
+            ],
         ),
         "contracts_eval_benchmark_matrix_schema" => run_verify(repo_root),
         // In-process: avoids `cargo run -p vox-cli` replacing `vox.exe` (Windows file-lock errors).

@@ -13,10 +13,10 @@ use uuid::Uuid;
 #[path = "populi_lifecycle_cmd.rs"]
 mod populi_lifecycle_cmd;
 
+use populi_lifecycle_cmd::{OverlayDiagnostics, PopuliDaemonState};
 pub use populi_lifecycle_cmd::{
     OverlayProvider, OverlayProviderArg, PopuliConnectivityMode, PopuliLifecycleCmd,
 };
-use populi_lifecycle_cmd::{OverlayDiagnostics, PopuliDaemonState};
 
 pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<()> {
     match cmd {

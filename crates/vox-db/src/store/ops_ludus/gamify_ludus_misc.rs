@@ -22,26 +22,39 @@ impl crate::VoxDb {
         contributed_to_corpus: bool,
         created_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_ai_feedback
+        let id = id.to_string();
+        let user_id = user_id.to_string();
+        let session_id = session_id.to_string();
+        let response_id = response_id.to_string();
+        let comment = comment.to_string();
+        let example_code = example_code.to_string();
+        let thumbs = if thumbs_up { 1i64 } else { 0i64 };
+        let corpus = if contributed_to_corpus { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_ai_feedback
              (id, user_id, session_id, response_id, thumbs_up, comment, tokens_generated, example_code, contributed_to_corpus, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                params![
-                    id,
-                    user_id,
-                    session_id,
-                    response_id,
-                    if thumbs_up { 1i64 } else { 0i64 },
-                    comment,
-                    tokens_generated,
-                    example_code,
-                    if contributed_to_corpus { 1i64 } else { 0i64 },
-                    created_at,
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        id.as_str(),
+                        user_id.as_str(),
+                        session_id.as_str(),
+                        response_id.as_str(),
+                        thumbs,
+                        comment.as_str(),
+                        tokens_generated,
+                        example_code.as_str(),
+                        corpus,
+                        created_at,
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Dedupe (gamify_processed_events) ──────────────────────────────────────
@@ -52,14 +65,21 @@ impl crate::VoxDb {
         user_id: &str,
         dedupe_key: &str,
     ) -> Result<bool, StoreError> {
-        let n = self
-            .conn
-            .execute(
-                "INSERT OR IGNORE INTO gamify_processed_events (user_id, dedupe_key) VALUES (?1, ?2)",
-                params![user_id, dedupe_key],
-            )
-            .await?;
-        Ok(n > 0)
+        let user_id = user_id.to_string();
+        let dedupe_key = dedupe_key.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "INSERT OR IGNORE INTO gamify_processed_events (user_id, dedupe_key) VALUES (?1, ?2)",
+                        params![user_id.as_str(), dedupe_key.as_str()],
+                    )
+                    .await?;
+                Ok::<_, StoreError>(n > 0)
+            })
+            .await
     }
 
     // ── Hint telemetry (gamify_hint_telemetry) ────────────────────────────────
@@ -71,14 +91,28 @@ impl crate::VoxDb {
         action: &str,
         reason: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_hint_telemetry (user_id, kind, action, reason)
+        let user_id = user_id.to_string();
+        let kind = kind.to_string();
+        let action = action.to_string();
+        let reason = reason.unwrap_or("").to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_hint_telemetry (user_id, kind, action, reason)
              VALUES (?1, ?2, ?3, ?4)",
-                params![user_id, kind, action, reason.unwrap_or("")],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        user_id.as_str(),
+                        kind.as_str(),
+                        action.as_str(),
+                        reason.as_str()
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Periodic rewards (gamify_periodic_rewards) ────────────────────────────
@@ -99,29 +133,41 @@ impl crate::VoxDb {
         created_at: i64,
         unlock_condition_json: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_periodic_rewards
+        let reward_id = reward_id.to_string();
+        let user_id = user_id.to_string();
+        let name = name.to_string();
+        let icon = icon.to_string();
+        let description = description.to_string();
+        let unlock_condition_json = unlock_condition_json.to_string();
+        let redeemed_flag = if redeemed { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_periodic_rewards
              (reward_id, user_id, name, icon, description, xp_bonus, crystal_bonus, redeemed, expires_at, created_at, unlock_condition)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
          ON CONFLICT(reward_id, user_id) DO UPDATE SET
             redeemed = excluded.redeemed",
-                params![
-                    reward_id,
-                    user_id,
-                    name,
-                    icon,
-                    description,
-                    xp_bonus,
-                    crystal_bonus,
-                    if redeemed { 1i64 } else { 0i64 },
-                    expires_at,
-                    created_at,
-                    unlock_condition_json,
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        reward_id.as_str(),
+                        user_id.as_str(),
+                        name.as_str(),
+                        icon.as_str(),
+                        description.as_str(),
+                        xp_bonus,
+                        crystal_bonus,
+                        redeemed_flag,
+                        expires_at,
+                        created_at,
+                        unlock_condition_json.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Load one periodic reward claim row.
@@ -164,14 +210,29 @@ impl crate::VoxDb {
         leader_id: &str,
         created_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_collegium (id, name, description, leader_id, created_at)
+        let id = id.to_string();
+        let name = name.to_string();
+        let description = description.map(str::to_string);
+        let leader_id = leader_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_collegium (id, name, description, leader_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![id, name, description, leader_id, created_at],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        id.as_str(),
+                        name.as_str(),
+                        description.as_deref(),
+                        leader_id.as_str(),
+                        created_at
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn insert_gamify_collegium_member_or_ignore(
@@ -181,14 +242,27 @@ impl crate::VoxDb {
         role: &str,
         joined_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR IGNORE INTO gamify_collegium_members (collegium_id, user_id, role, joined_at)
+        let collegium_id = collegium_id.to_string();
+        let user_id = user_id.to_string();
+        let role = role.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO gamify_collegium_members (collegium_id, user_id, role, joined_at)
          VALUES (?1, ?2, ?3, ?4)",
-                params![collegium_id, user_id, role, joined_at],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        collegium_id.as_str(),
+                        user_id.as_str(),
+                        role.as_str(),
+                        joined_at
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn list_gamify_collegiums_with_counts(
@@ -294,14 +368,21 @@ impl crate::VoxDb {
         user_id: &str,
         joined_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR IGNORE INTO gamify_arena_participants (event_id, user_id, joined_at)
+        let event_id = event_id.to_string();
+        let user_id = user_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO gamify_arena_participants (event_id, user_id, joined_at)
          VALUES (?1, ?2, ?3)",
-                params![event_id, user_id, joined_at],
-            )
-            .await?;
-        Ok(())
+                    params![event_id.as_str(), user_id.as_str(), joined_at],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn get_gamify_arena_contribution(
@@ -366,24 +447,35 @@ impl crate::VoxDb {
         created_at: i64,
         expires_at: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR IGNORE INTO gamify_notifications
+        let id = id.to_string();
+        let user_id = user_id.to_string();
+        let notification_type = notification_type.to_string();
+        let title = title.to_string();
+        let message = message.to_string();
+        let read_flag = if read { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO gamify_notifications
              (id, user_id, notification_type, title, message, read, created_at, expires_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    id,
-                    user_id,
-                    notification_type,
-                    title,
-                    message,
-                    if read { 1i64 } else { 0i64 },
-                    created_at,
-                    expires_at,
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        id.as_str(),
+                        user_id.as_str(),
+                        notification_type.as_str(),
+                        title.as_str(),
+                        message.as_str(),
+                        read_flag,
+                        created_at,
+                        expires_at,
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn list_gamify_unread_notifications(
@@ -417,13 +509,19 @@ impl crate::VoxDb {
     }
 
     pub async fn mark_gamify_notification_read(&self, notif_id: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE gamify_notifications SET read = 1 WHERE id = ?1",
-                params![notif_id],
-            )
-            .await?;
-        Ok(())
+        let notif_id = notif_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE gamify_notifications SET read = 1 WHERE id = ?1",
+                    params![notif_id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn mark_gamify_notification_read_for_user(
@@ -431,41 +529,59 @@ impl crate::VoxDb {
         user_id: &str,
         notif_id: &str,
     ) -> Result<u64, StoreError> {
-        let n = self
-            .conn
-            .execute(
-                "UPDATE gamify_notifications SET read = 1 WHERE id = ?1 AND user_id = ?2",
-                params![notif_id, user_id],
-            )
-            .await?;
-        Ok(n)
+        let notif_id = notif_id.to_string();
+        let user_id = user_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "UPDATE gamify_notifications SET read = 1 WHERE id = ?1 AND user_id = ?2",
+                        params![notif_id.as_str(), user_id.as_str()],
+                    )
+                    .await?;
+                Ok::<_, StoreError>(n)
+            })
+            .await
     }
 
     pub async fn mark_all_gamify_notifications_read(
         &self,
         user_id: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE gamify_notifications SET read = 1 WHERE user_id = ?1 AND read = 0",
-                params![user_id],
-            )
-            .await?;
-        Ok(())
+        let user_id = user_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE gamify_notifications SET read = 1 WHERE user_id = ?1 AND read = 0",
+                    params![user_id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn delete_expired_gamify_notifications(
         &self,
         now_ts: i64,
     ) -> Result<u64, StoreError> {
-        let n = self
-            .conn
-            .execute(
-                "DELETE FROM gamify_notifications WHERE expires_at > 0 AND expires_at < ?1",
-                params![now_ts],
-            )
-            .await?;
-        Ok(n)
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "DELETE FROM gamify_notifications WHERE expires_at > 0 AND expires_at < ?1",
+                        params![now_ts],
+                    )
+                    .await?;
+                Ok::<_, StoreError>(n)
+            })
+            .await
     }
 
     // ── KPI / policy audit ───────────────────────────────────────────────────

@@ -169,19 +169,31 @@ impl SessionManager {
         state: serde_json::Value,
     ) -> Result<(), SessionError> {
         let plugin_id = plugin_id.into();
+        let at = now_secs();
+        let event = SessionEvent::PluginStateUpdated {
+            plugin_id: plugin_id.clone(),
+            state: state.clone(),
+            at,
+        };
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            run_session_db_io(async move {
+                db.append_session_event(&sid, "plugin_state_updated", &payload)
+                    .await
+            })?;
+        }
+
         let session = self
             .sessions
             .get_mut(session_id)
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
-        session.set_plugin_state(&plugin_id, state.clone());
+        session.set_plugin_state(&plugin_id, state);
 
         if self.config.persist {
-            let event = SessionEvent::PluginStateUpdated {
-                plugin_id,
-                state,
-                at: now_secs(),
-            };
             self.append_event(session_id, &event)?;
         }
         Ok(())
@@ -189,6 +201,18 @@ impl SessionManager {
 
     /// Reset a session (clear history but keep metadata).
     pub fn reset(&mut self, session_id: &str) -> Result<usize, SessionError> {
+        let at = now_secs();
+        let event = SessionEvent::Reset { at };
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            run_session_db_io(
+                async move { db.append_session_event(&sid, "reset", &payload).await },
+            )?;
+        }
+
         let session = self
             .sessions
             .get_mut(session_id)
@@ -197,7 +221,6 @@ impl SessionManager {
         let cleared = session.reset();
 
         if self.config.persist {
-            let event = SessionEvent::Reset { at: now_secs() };
             self.append_event(session_id, &event)?;
         }
         Ok(cleared)
@@ -211,13 +234,23 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
         let removed = session.compact(summary);
+        let at = now_secs();
+        let event = SessionEvent::Compacted {
+            summary: summary.to_string(),
+            turns_removed: removed,
+            at,
+        };
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            run_session_db_io(async move {
+                db.append_session_event(&sid, "compacted", &payload).await
+            })?;
+        }
 
         if self.config.persist {
-            let event = SessionEvent::Compacted {
-                summary: summary.to_string(),
-                turns_removed: removed,
-                at: now_secs(),
-            };
             self.append_event(session_id, &event)?;
         }
         Ok(removed)
@@ -225,15 +258,28 @@ impl SessionManager {
 
     /// Record an expensive op for the session and persist the event.
     pub fn record_expensive_op(&mut self, session_id: &str) -> Result<(), SessionError> {
+        let at = now_secs();
+        let event = SessionEvent::ExpensiveOpRecorded { at };
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let sid = session_id.to_string();
+            let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+            run_session_db_io(async move {
+                db.append_session_event(&sid, "expensive_op_recorded", &payload)
+                    .await
+            })?;
+        }
+
         let session = self
             .sessions
             .get_mut(session_id)
             .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
 
-        session.record_expensive_op();
+        session.last_expensive_op_at = Some(at);
+        session.last_active = at;
 
         if self.config.persist {
-            let event = SessionEvent::ExpensiveOpRecorded { at: now_secs() };
             self.append_event(session_id, &event)?;
         }
         Ok(())

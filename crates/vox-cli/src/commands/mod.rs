@@ -5,7 +5,6 @@
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
 pub mod add;
-pub mod remove;
 /// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;
@@ -25,6 +24,7 @@ pub mod codex;
 pub mod corpus;
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
+pub mod remove;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.
 #[allow(unused_imports)]
 use self::db_research as _;

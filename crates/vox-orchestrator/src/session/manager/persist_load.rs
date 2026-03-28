@@ -132,16 +132,15 @@ impl SessionManager {
     pub async fn load(&mut self, session_id: &str) -> Result<(), SessionError> {
         if let Some(db) = &self.db {
             let db = db.clone();
-            let session_rows =
-                db.list_active_sessions()
+            let sid_owned = session_id.to_string();
+            let row =
+                db.get_agent_session_row(&sid_owned)
                     .await
                     .map_err(|e: vox_db::StoreError| {
                         SessionError::Io(std::io::Error::other(e.to_string()))
                     })?;
 
-            if let Some((_, agent_id_str, _)) =
-                session_rows.iter().find(|(sid, _, _)| sid == session_id)
-            {
+            if let Some((_, agent_id_str, _)) = row {
                 let aid = agent_id_str.parse::<AgentId>().unwrap_or(AgentId(0));
                 let mut session = Session {
                     id: session_id.to_string(),

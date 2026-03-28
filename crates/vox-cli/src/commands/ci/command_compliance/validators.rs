@@ -2,8 +2,11 @@
 
 use anyhow::{Context, Result, anyhow};
 use regex::Regex;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use walkdir::WalkDir;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -115,9 +118,140 @@ pub(crate) fn check_env_var_ssot_index(reg: &RegistryFile, env_ssot_md: &str) ->
         let needle = format!("`{name}`");
         if !env_ssot_md.contains(&needle) {
             return Err(anyhow!(
-                "command-registry env_var_ssot_index: {needle} not found in docs/src/reference/env-vars-ssot.md"
+                "command-registry env_var_ssot_index: {needle} not found in docs/src/reference/env-vars.md (or env-vars-ssot.md)"
             ));
         }
+    }
+    Ok(())
+}
+
+fn env_var_call_regexes() -> (&'static Regex, &'static Regex) {
+    static CALL: OnceLock<Regex> = OnceLock::new();
+    static OPTION: OnceLock<Regex> = OnceLock::new();
+    let call = CALL.get_or_init(|| {
+        Regex::new(r#"(?:std::)?env::var(?:_os)?\(\s*"([^"]+)""#)
+            .expect("env::var literal regex")
+    });
+    let option = OPTION.get_or_init(|| {
+        Regex::new(r#"option_env!\(\s*"([^"]+)""#).expect("option_env literal regex")
+    });
+    (call, option)
+}
+
+fn should_skip_scanned_env_name(name: &str) -> bool {
+    if name.len() < 2 {
+        return true;
+    }
+    if !name.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+        return true;
+    }
+    for prefix in ["CARGO_", "RUST_", "DEP_", "OUT_", "LLVM_", "DYLD_"] {
+        if name.starts_with(prefix) {
+            return true;
+        }
+    }
+    matches!(
+        name,
+        "PATH"
+            | "HOME"
+            | "USER"
+            | "USERPROFILE"
+            | "HOMEDRIVE"
+            | "HOMEPATH"
+            | "USERNAME"
+            | "SYSTEMROOT"
+            | "WINDIR"
+            | "COMSPEC"
+            | "PATHEXT"
+            | "LOCALAPPDATA"
+            | "APPDATA"
+            | "TMP"
+            | "TEMP"
+            | "TMPDIR"
+            | "PWD"
+            | "OLDPWD"
+            | "SHLVL"
+            | "TERM"
+            | "NUMBER_OF_PROCESSORS"
+    )
+}
+
+fn collect_env_var_names_from_rs_source(src: &str, found: &mut HashSet<String>) {
+    let (call_re, opt_re) = env_var_call_regexes();
+    for cap in call_re.captures_iter(src) {
+        if let Some(m) = cap.get(1) {
+            found.insert(m.as_str().to_string());
+        }
+    }
+    for cap in opt_re.captures_iter(src) {
+        if let Some(m) = cap.get(1) {
+            found.insert(m.as_str().to_string());
+        }
+    }
+}
+
+/// Tier-1 guard: `std::env::var("…")` / `option_env!` string literals in `vox-db`, `vox-mcp`, and
+/// selected orchestrator modules must appear in the env-var SSOT doc as `` `NAME` ``.
+pub(crate) fn check_tier1_env_vars_documented(repo_root: &Path, env_ssot_md: &str) -> Result<()> {
+    let mut found: HashSet<String> = HashSet::new();
+
+    for rel in ["crates/vox-db/src", "crates/vox-mcp/src"] {
+        let root = repo_root.join(rel);
+        if !root.is_dir() {
+            continue;
+        }
+        for entry in WalkDir::new(&root)
+            .into_iter()
+            .filter_entry(|e| {
+                let name = e.file_name().to_string_lossy();
+                name != "target" && !name.starts_with('.')
+            })
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if !p.is_file() {
+                continue;
+            }
+            if p.extension().and_then(|s| s.to_str()) != Some("rs") {
+                continue;
+            }
+            let rel_path = p.strip_prefix(repo_root).unwrap_or(p);
+            let s = rel_path.to_string_lossy();
+            if s.contains("/tests/") || s.contains("\\tests\\") {
+                continue;
+            }
+            let src = read_utf8_path_capped(p).with_context(|| format!("read {}", p.display()))?;
+            collect_env_var_names_from_rs_source(&src, &mut found);
+        }
+    }
+
+    for rel in [
+        "crates/vox-orchestrator/src/usage.rs",
+        "crates/vox-orchestrator/src/usage_policy.rs",
+        "crates/vox-orchestrator/src/lineage.rs",
+        "crates/vox-orchestrator/src/models/spec.rs",
+    ] {
+        let p = repo_root.join(rel);
+        if p.is_file() {
+            let src = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+            collect_env_var_names_from_rs_source(&src, &mut found);
+        }
+    }
+
+    let mut missing: Vec<String> = found
+        .into_iter()
+        .filter(|n| !should_skip_scanned_env_name(n))
+        .filter(|n| {
+            let needle = format!("`{n}`");
+            !env_ssot_md.contains(&needle)
+        })
+        .collect();
+    missing.sort();
+    if !missing.is_empty() {
+        return Err(anyhow!(
+            "env SSOT: the following env vars are read in tier-1 crates but missing from docs (use backticks `NAME`): {}",
+            missing.join(", ")
+        ));
     }
     Ok(())
 }
@@ -342,8 +476,8 @@ pub(crate) fn check_registry_latin_and_handlers(
 /// Release/install SSOT (`vox-install-policy`) matches docs and key Rust entrypoints.
 pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
     let contract_path = repo_root.join("docs/src/ci/binary-release-contract.md");
-    let contract =
-        read_utf8_path_capped(&contract_path).with_context(|| format!("read {}", contract_path.display()))?;
+    let contract = read_utf8_path_capped(&contract_path)
+        .with_context(|| format!("read {}", contract_path.display()))?;
     for triple in SUPPORTED_RELEASE_TARGETS {
         if !contract.contains(triple) {
             return Err(anyhow!(
@@ -554,7 +688,8 @@ pub(crate) fn check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root: &Pat
                 if allowed(&rel_posix) {
                     continue;
                 }
-                let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+                let s =
+                    read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
                 let lower = s.to_lowercase();
                 for b in bad {
                     if lower.contains(&b.to_lowercase()) {

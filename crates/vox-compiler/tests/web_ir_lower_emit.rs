@@ -16,9 +16,12 @@ use vox_compiler::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::{HirModule, HirReactiveMember, lower_module};
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
+use vox_compiler::runtime_projection::{
+    RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
+};
 use vox_compiler::syntax_k::{
-    SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes, measure_syntax_k_event,
-    sha3_hex,
+    RepresentabilityPayload, SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes,
+    enrich_syntax_k_support_metrics, measure_syntax_k_event, sha3_hex,
 };
 use vox_compiler::web_ir::emit_tsx::{emit_component_view_tsx, emit_component_view_tsx_with_stats};
 use vox_compiler::web_ir::lower::{lower_hir_to_web_ir, lower_hir_to_web_ir_with_summary};
@@ -1291,14 +1294,22 @@ fn syntax_k_artifact_for_parity_chain() {
     let web_ir_bytes = canonical_web_ir_bytes(&web).expect("canonical web ir bytes");
     let source_hash = sha3_hex(OP_S_PARITY_CHAIN_FIXTURE.as_bytes());
     let web_ir_hash = sha3_hex(&web_ir_bytes);
-    let web_event = measure_syntax_k_event(SyntaxKInput {
-        fixture_id,
-        target_kind: "webir_json",
-        bytes: &web_ir_bytes,
-        source_hash: Some(&source_hash),
-        web_ir_hash: Some(&web_ir_hash),
-        baseline_bytes: None,
-        support_metrics: Some(serde_json::json!({
+    let hir_ok = hir.legacy_ast_nodes.is_empty();
+    let rp = project_runtime_from_hir(&hir);
+    let rp_bytes = canonical_runtime_projection_bytes(&rp).expect("runtime projection bytes");
+    let rp_summary = serde_json::json!({
+        "schema_version": RUNTIME_PROJECTION_SCHEMA_VERSION,
+        "sha3_hex": sha3_hex(&rp_bytes),
+        "db_planning_policy_count": rp.db_planning_policies.len(),
+        "has_host_capability_probe": rp.host_capability_probe.is_some(),
+        "has_module_task_capability_hints": rp.module_task_capability_hints.is_some(),
+    });
+    let llm_surface = serde_json::json!({
+        "interop_nodes": web.interop_nodes.len(),
+        "web_ir_lowering_diagnostics": web.diagnostic_nodes.len(),
+    });
+    let web_support = enrich_syntax_k_support_metrics(
+        serde_json::json!({
             "web_ir_lower_summary": {
                 "client_route_trees": lower_summary.client_route_trees,
                 "http_loader_contracts": lower_summary.http_loader_contracts,
@@ -1320,7 +1331,24 @@ fn syntax_k_artifact_for_parity_chain() {
                 "style_nodes_checked": validate_metrics.style_nodes_checked,
                 "island_mounts_checked": validate_metrics.island_mounts_checked
             }
-        })),
+        }),
+        RepresentabilityPayload {
+            parse_ok: true,
+            hir_ok,
+            web_ir_validate_ok: true,
+            emit_preview_ok: None,
+        },
+        Some(llm_surface),
+        Some(rp_summary),
+    );
+    let web_event = measure_syntax_k_event(SyntaxKInput {
+        fixture_id,
+        target_kind: "webir_json",
+        bytes: &web_ir_bytes,
+        source_hash: Some(&source_hash),
+        web_ir_hash: Some(&web_ir_hash),
+        baseline_bytes: None,
+        support_metrics: Some(web_support),
     })
     .expect("syntax-k web event");
 
@@ -1331,6 +1359,19 @@ fn syntax_k_artifact_for_parity_chain() {
         }
     }
     let emitted_bytes = canonical_emitted_files_bytes(&emitted);
+    let emit_support = enrich_syntax_k_support_metrics(
+        serde_json::json!({
+            "emitted_file_count": emitted.len()
+        }),
+        RepresentabilityPayload {
+            parse_ok: true,
+            hir_ok,
+            web_ir_validate_ok: true,
+            emit_preview_ok: Some(!emitted.is_empty()),
+        },
+        None,
+        None,
+    );
     let emit_event = measure_syntax_k_event(SyntaxKInput {
         fixture_id,
         target_kind: "emit_tsx_preview",
@@ -1338,9 +1379,7 @@ fn syntax_k_artifact_for_parity_chain() {
         source_hash: Some(&source_hash),
         web_ir_hash: Some(&web_ir_hash),
         baseline_bytes: None,
-        support_metrics: Some(serde_json::json!({
-            "emitted_file_count": emitted.len()
-        })),
+        support_metrics: Some(emit_support),
     })
     .expect("syntax-k emit event");
 
@@ -1369,6 +1408,18 @@ component Gate() {
     let hir = lower_module(&parse(lex(source)).expect("parse"));
     let web = lower_hir_to_web_ir(&hir);
     let bytes = canonical_web_ir_bytes(&web).expect("canonical web_ir");
+    let web_clean = validate_web_ir(&web).is_empty();
+    let gate_support = enrich_syntax_k_support_metrics(
+        serde_json::json!({}),
+        RepresentabilityPayload {
+            parse_ok: true,
+            hir_ok: hir.legacy_ast_nodes.is_empty(),
+            web_ir_validate_ok: web_clean,
+            emit_preview_ok: None,
+        },
+        None,
+        None,
+    );
     let evt = measure_syntax_k_event(SyntaxKInput {
         fixture_id: "syntax_k_gate_smoke",
         target_kind: "webir_json",
@@ -1376,7 +1427,7 @@ component Gate() {
         source_hash: Some(&sha3_hex(source.as_bytes())),
         web_ir_hash: Some(&sha3_hex(&bytes)),
         baseline_bytes: None,
-        support_metrics: None,
+        support_metrics: Some(gate_support),
     })
     .expect("measure syntax_k gate smoke");
 

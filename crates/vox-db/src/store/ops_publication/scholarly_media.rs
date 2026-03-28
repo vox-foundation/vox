@@ -31,9 +31,19 @@ impl VoxDb {
             }
         }
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO scholarly_submissions (
+        let pub_id = publication_id.to_string();
+        let digest = content_sha3_256.to_string();
+        let adapter_s = adapter.to_string();
+        let ext_id = external_submission_id.to_string();
+        let status_s = status.to_string();
+        let rf = response_fingerprint.map(std::string::ToString::to_string);
+        let mj = metadata_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scholarly_submissions (
                     publication_id, content_sha3_256, adapter, external_submission_id, status,
                     submitted_at_ms, updated_at_ms, response_fingerprint, metadata_json
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8)
@@ -42,17 +52,20 @@ impl VoxDb {
                     updated_at_ms = excluded.updated_at_ms,
                     response_fingerprint = excluded.response_fingerprint,
                     metadata_json = excluded.metadata_json",
-                (
-                    publication_id.to_string(),
-                    content_sha3_256.to_string(),
-                    adapter.to_string(),
-                    external_submission_id.to_string(),
-                    status.to_string(),
-                    ts,
-                    response_fingerprint.map(std::string::ToString::to_string),
-                    metadata_json.map(std::string::ToString::to_string),
-                ),
-            )
+                    (
+                        pub_id,
+                        digest,
+                        adapter_s,
+                        ext_id,
+                        status_s,
+                        ts,
+                        rf,
+                        mj,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         self.set_publication_state(
             publication_id,
@@ -80,25 +93,30 @@ impl VoxDb {
         metadata_json: Option<&str>,
     ) -> Result<u64, StoreError> {
         let ts = now_ms();
-        let n = self
-            .conn
-            .execute(
-                "UPDATE scholarly_submissions SET
+        let status_s = status.to_string();
+        let meta = metadata_json.map(std::string::ToString::to_string);
+        let pub_id = publication_id.to_string();
+        let adapter_s = adapter.to_string();
+        let ext_id = external_submission_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "UPDATE scholarly_submissions SET
                     status = ?1,
                     updated_at_ms = ?2,
                     metadata_json = COALESCE(?3, metadata_json)
                  WHERE publication_id = ?4 AND adapter = ?5 AND external_submission_id = ?6",
-                (
-                    status.to_string(),
-                    ts,
-                    metadata_json.map(std::string::ToString::to_string),
-                    publication_id.to_string(),
-                    adapter.to_string(),
-                    external_submission_id.to_string(),
-                ),
-            )
-            .await?;
-        Ok(n)
+                        (
+                            status_s, ts, meta, pub_id, adapter_s, ext_id,
+                        ),
+                    )
+                    .await?;
+                Ok::<_, StoreError>(n)
+            })
+            .await
     }
 
     /// Insert or update one publication media asset row.
@@ -107,9 +125,18 @@ impl VoxDb {
         params: PublicationMediaAssetParams<'_>,
     ) -> Result<(), StoreError> {
         let ts = now_ms();
-        self.conn
-            .execute(
-                "INSERT INTO publication_media_assets (
+        let publication_id = params.publication_id.to_string();
+        let asset_ref = params.asset_ref.to_string();
+        let media_type = params.media_type.to_string();
+        let storage_uri = params.storage_uri.map(std::string::ToString::to_string);
+        let status = params.status.to_string();
+        let metadata_json = params.metadata_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO publication_media_assets (
                     publication_id, asset_ref, media_type, storage_uri, status, metadata_json, created_at_ms, updated_at_ms
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
                 ON CONFLICT(publication_id, asset_ref) DO UPDATE SET
@@ -118,18 +145,20 @@ impl VoxDb {
                     status = excluded.status,
                     metadata_json = excluded.metadata_json,
                     updated_at_ms = excluded.updated_at_ms",
-                (
-                    params.publication_id.to_string(),
-                    params.asset_ref.to_string(),
-                    params.media_type.to_string(),
-                    params.storage_uri.map(std::string::ToString::to_string),
-                    params.status.to_string(),
-                    params.metadata_json.map(std::string::ToString::to_string),
-                    ts,
-                ),
-            )
-            .await?;
-        Ok(())
+                    (
+                        publication_id,
+                        asset_ref,
+                        media_type,
+                        storage_uri,
+                        status,
+                        metadata_json,
+                        ts,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List media assets for one publication.
@@ -169,13 +198,20 @@ impl VoxDb {
         publication_id: &str,
         asset_ref: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "DELETE FROM publication_media_assets WHERE publication_id = ?1 AND asset_ref = ?2",
-                (publication_id.to_string(), asset_ref.to_string()),
-            )
-            .await?;
-        Ok(())
+        let publication_id = publication_id.to_string();
+        let asset_ref = asset_ref.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM publication_media_assets WHERE publication_id = ?1 AND asset_ref = ?2",
+                    (publication_id, asset_ref),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List scholarly submissions for one publication.

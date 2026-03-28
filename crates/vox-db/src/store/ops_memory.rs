@@ -17,23 +17,35 @@ impl crate::VoxDb {
     ///
     /// Called from `vox-db/src/lib.rs` `VoxDb::store_memory`.
     pub async fn save_memory(&self, p: SaveMemoryParams<'_>) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO memories
-                     (agent_id, session_id, memory_type, content, metadata, importance, vcs_snapshot_id)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    p.agent_id,
-                    p.session_id,
-                    p.memory_type,
-                    p.content,
-                    p.metadata,
-                    p.importance,
-                    p.vcs_snapshot_id
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+        let agent_id = p.agent_id.to_string();
+        let session_id = p.session_id.to_string();
+        let memory_type = p.memory_type.to_string();
+        let content = p.content.to_string();
+        let metadata = p.metadata.map(str::to_string);
+        let importance = p.importance;
+        let vcs_snapshot_id = p.vcs_snapshot_id.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO memories
+                         (agent_id, session_id, memory_type, content, metadata, importance, vcs_snapshot_id)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![
+                        agent_id.as_str(),
+                        session_id.as_str(),
+                        memory_type.as_str(),
+                        content.as_str(),
+                        metadata.as_deref(),
+                        importance,
+                        vcs_snapshot_id.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Delete `memories` rows for `agent_id` with `created_at` strictly before `created_before`
@@ -43,14 +55,21 @@ impl crate::VoxDb {
         agent_id: &str,
         created_before: &str,
     ) -> Result<u64, StoreError> {
-        let n = self
-            .conn
-            .execute(
-                "DELETE FROM memories WHERE agent_id = ?1 AND created_at < ?2",
-                params![agent_id, created_before],
-            )
-            .await?;
-        Ok(n)
+        let agent_id = agent_id.to_string();
+        let created_before = created_before.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "DELETE FROM memories WHERE agent_id = ?1 AND created_at < ?2",
+                        params![agent_id.as_str(), created_before.as_str()],
+                    )
+                    .await?;
+                Ok::<_, StoreError>(n)
+            })
+            .await
     }
 
     /// Fetch recent `memories` for `agent_id`, newest first.
@@ -121,19 +140,35 @@ impl crate::VoxDb {
         metadata: Option<&str>,
         _vcs_snapshot_id: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO knowledge_nodes (id, label, content, node_type, metadata)
-                 VALUES (?1, ?2, ?3, ?4, ?5)
-                 ON CONFLICT(id) DO UPDATE SET
-                    label = excluded.label,
-                    content = excluded.content,
-                    node_type = excluded.node_type,
-                    metadata = excluded.metadata",
-                params![id, label, content, node_type, metadata],
-            )
-            .await?;
-        Ok(())
+        let id = id.to_string();
+        let label = label.to_string();
+        let content = content.to_string();
+        let node_type = node_type.map(str::to_string);
+        let metadata = metadata.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO knowledge_nodes (id, label, content, node_type, metadata)
+                     VALUES (?1, ?2, ?3, ?4, ?5)
+                     ON CONFLICT(id) DO UPDATE SET
+                        label = excluded.label,
+                        content = excluded.content,
+                        node_type = excluded.node_type,
+                        metadata = excluded.metadata",
+                    params![
+                        id.as_str(),
+                        label.as_str(),
+                        content.as_str(),
+                        node_type.as_deref(),
+                        metadata.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Create an edge between knowledge nodes
@@ -145,16 +180,29 @@ impl crate::VoxDb {
         weight: f32,
         _metadata: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO knowledge_edges (src_id, dst_id, relation, weight)
-                 VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT(src_id, dst_id, relation) DO UPDATE SET
-                    weight = excluded.weight",
-                params![source_id, target_id, relation, weight],
-            )
-            .await?;
-        Ok(())
+        let source_id = source_id.to_string();
+        let target_id = target_id.to_string();
+        let relation = relation.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO knowledge_edges (src_id, dst_id, relation, weight)
+                     VALUES (?1, ?2, ?3, ?4)
+                     ON CONFLICT(src_id, dst_id, relation) DO UPDATE SET
+                        weight = excluded.weight",
+                    params![
+                        source_id.as_str(),
+                        target_id.as_str(),
+                        relation.as_str(),
+                        weight
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Fetch neighboring nodes along with their relations
@@ -307,30 +355,43 @@ impl crate::VoxDb {
         mime_type: &str,
         content_hash: &str,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO search_documents (source_uri, title, mime_type, content_hash)
-                 VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT(source_uri) DO UPDATE SET
-                    title = excluded.title,
-                    mime_type = excluded.mime_type,
-                    content_hash = excluded.content_hash,
-                    ingested_at = datetime('now')",
-                params![source_uri, title, mime_type, content_hash],
-            )
-            .await?;
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT id FROM search_documents WHERE source_uri = ?1 LIMIT 1",
-                params![source_uri],
-            )
-            .await?;
-        let row = rows
-            .next()
-            .await?
-            .ok_or_else(|| StoreError::Db("search_documents upsert did not return id".into()))?;
-        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+        let source_uri = source_uri.to_string();
+        let title = title.to_string();
+        let mime_type = mime_type.to_string();
+        let content_hash = content_hash.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO search_documents (source_uri, title, mime_type, content_hash)
+                     VALUES (?1, ?2, ?3, ?4)
+                     ON CONFLICT(source_uri) DO UPDATE SET
+                        title = excluded.title,
+                        mime_type = excluded.mime_type,
+                        content_hash = excluded.content_hash,
+                        ingested_at = datetime('now')",
+                    params![
+                        source_uri.as_str(),
+                        title.as_str(),
+                        mime_type.as_str(),
+                        content_hash.as_str()
+                    ],
+                )
+                .await?;
+                let mut rows = conn
+                    .query(
+                        "SELECT id FROM search_documents WHERE source_uri = ?1 LIMIT 1",
+                        params![source_uri.as_str()],
+                    )
+                    .await?;
+                let row = rows.next().await?.ok_or_else(|| {
+                    StoreError::Db("search_documents upsert did not return id".into())
+                })?;
+                let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                Ok::<_, StoreError>(id)
+            })
+            .await
     }
 
     /// Replace all chunks for `document_id` with the provided ordered bodies.
@@ -339,22 +400,27 @@ impl crate::VoxDb {
         document_id: i64,
         chunk_bodies: &[String],
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "DELETE FROM search_document_chunks WHERE document_id = ?1",
-                params![document_id],
-            )
-            .await?;
-        for (idx, body) in chunk_bodies.iter().enumerate() {
-            self.conn
-                .execute(
-                    "INSERT INTO search_document_chunks (document_id, chunk_index, body_text)
-                     VALUES (?1, ?2, ?3)",
-                    params![document_id, idx as i64, body.as_str()],
+        let chunk_bodies = chunk_bodies.to_vec();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM search_document_chunks WHERE document_id = ?1",
+                    params![document_id],
                 )
                 .await?;
-        }
-        Ok(())
+                for (idx, body) in chunk_bodies.iter().enumerate() {
+                    conn.execute(
+                        "INSERT INTO search_document_chunks (document_id, chunk_index, body_text)
+                         VALUES (?1, ?2, ?3)",
+                        params![document_id, idx as i64, body.as_str()],
+                    )
+                    .await?;
+                }
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     async fn search_document_chunks_fts_ready(&self) -> Result<bool, StoreError> {
@@ -421,18 +487,33 @@ impl crate::VoxDb {
         metadata: Option<&str>,
         _vcs_snapshot_id: Option<&str>,
     ) -> Result<i64, StoreError> {
+        let source_type = source_type.to_string();
+        let source_id = source_id.to_string();
+        let metadata = metadata.map(str::to_string);
         let mut blob = Vec::with_capacity(vector.len() * 4);
         for &v in vector {
             blob.extend_from_slice(&v.to_le_bytes());
         }
-        self.conn
-            .execute(
-                "INSERT INTO embeddings (source_type, source_id, dim, vector, metadata)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![source_type, source_id, vector.len() as i64, blob, metadata],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+        let dim = vector.len() as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO embeddings (source_type, source_id, dim, vector, metadata)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        source_type.as_str(),
+                        source_id.as_str(),
+                        dim,
+                        blob,
+                        metadata.as_deref()
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Brute-force cosine similarity search over the `embeddings` table.
@@ -522,19 +603,35 @@ impl crate::VoxDb {
         description: Option<&str>,
         version: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO components (name, namespace, schema_hash, version, description)
+        let name = name.to_string();
+        let namespace = namespace.to_string();
+        let schema_hash = schema_hash.map(str::to_string);
+        let description = description.map(str::to_string);
+        let version = version.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO components (name, namespace, schema_hash, version, description)
                  VALUES (?1, ?2, ?3, ?4, ?5)
                  ON CONFLICT(name)
                  DO UPDATE SET namespace   = excluded.namespace,
                                schema_hash = COALESCE(excluded.schema_hash, components.schema_hash),
                                version     = excluded.version,
                                description = COALESCE(excluded.description, components.description)",
-                params![name, namespace, schema_hash, version, description],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        name.as_str(),
+                        namespace.as_str(),
+                        schema_hash.as_deref(),
+                        version.as_str(),
+                        description.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }
 

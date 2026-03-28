@@ -14,24 +14,36 @@ impl VoxDb {
         user_id: Option<&str>,
         title: &str,
     ) -> Result<i64, StoreError> {
-        self.connection()
-            .execute(
-                "INSERT INTO conversations (user_id, title) VALUES (?1, ?2)",
-                params![user_id, title],
-            )
-            .await?;
-        Ok(self.connection().last_insert_rowid())
+        let user_id = user_id.map(str::to_string);
+        let title = title.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversations (user_id, title) VALUES (?1, ?2)",
+                    params![user_id.as_deref(), title.as_str()],
+                )
+                .await?;
+                Ok::<i64, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Bump `conversations.updated_at` for listing recency (V11+).
     pub async fn chat_touch_conversation(&self, conversation_id: i64) -> Result<(), StoreError> {
-        self.connection()
-            .execute(
-                "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?1",
-                params![conversation_id],
-            )
-            .await?;
-        Ok(())
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?1",
+                    params![conversation_id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Append a `conversation_messages` row (V11+). Returns message `id`.
@@ -42,17 +54,33 @@ impl VoxDb {
         content_text: &str,
         payload_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self
-            .connection()
-            .execute(
-                "INSERT INTO conversation_messages (conversation_id, role, content_text, payload_json)
+        let role = role.to_string();
+        let content_text = content_text.to_string();
+        let payload_json = payload_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversation_messages (conversation_id, role, content_text, payload_json)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![conversation_id, role, content_text, payload_json],
-            )
-            .await?;
-        let id = self.connection().last_insert_rowid();
-        self.chat_touch_conversation(conversation_id).await?;
-        Ok(id)
+                    params![
+                        conversation_id,
+                        role.as_str(),
+                        content_text.as_str(),
+                        payload_json.as_deref(),
+                    ],
+                )
+                .await?;
+                let id = conn.last_insert_rowid();
+                conn.execute(
+                    "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?1",
+                    params![conversation_id],
+                )
+                .await?;
+                Ok::<i64, StoreError>(id)
+            })
+            .await
     }
 
     /// Record a tool invocation for an assistant message (V12+). Returns tool-call row `id`.
@@ -68,23 +96,30 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        self
-            .connection()
-            .execute(
-                "INSERT INTO conversation_tool_calls
+        let tool_name = tool_name.to_string();
+        let arguments_json = arguments_json.to_string();
+        let status = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversation_tool_calls
                     (conversation_message_id, ordinal, tool_name, arguments_json, status, started_at_ms)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    conversation_message_id,
-                    ordinal,
-                    tool_name,
-                    arguments_json,
-                    status,
-                    now
-                ],
-            )
-            .await?;
-        Ok(self.connection().last_insert_rowid())
+                    params![
+                        conversation_message_id,
+                        ordinal,
+                        tool_name.as_str(),
+                        arguments_json.as_str(),
+                        status.as_str(),
+                        now
+                    ],
+                )
+                .await?;
+                Ok::<i64, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Update result / terminal state for a tool call (V12+).
@@ -99,15 +134,29 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        self.connection()
-            .execute(
-                "UPDATE conversation_tool_calls
+        let status = status.to_string();
+        let result_json = result_json.map(str::to_string);
+        let error_text = error_text.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE conversation_tool_calls
                  SET status = ?2, result_json = ?3, error_text = ?4, finished_at_ms = ?5
                  WHERE id = ?1",
-                params![tool_call_id, status, result_json, error_text, now],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        tool_call_id,
+                        status.as_str(),
+                        result_json.as_deref(),
+                        error_text.as_deref(),
+                        now,
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Upsert a usage limit policy row (V13+).
@@ -120,27 +169,36 @@ impl VoxDb {
         limit_value: i64,
         enforcement: &str,
     ) -> Result<(), StoreError> {
-        self
-            .connection()
-            .execute(
-                "INSERT INTO usage_limit_definitions
+        let metric_key = metric_key.to_string();
+        let scope_kind = scope_kind.to_string();
+        let scope_id = scope_id.to_string();
+        let period_kind = period_kind.to_string();
+        let enforcement = enforcement.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO usage_limit_definitions
                     (metric_key, scope_kind, scope_id, period_kind, limit_value, enforcement, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
                  ON CONFLICT(metric_key, scope_kind, scope_id, period_kind) DO UPDATE SET
                     limit_value = excluded.limit_value,
                     enforcement = excluded.enforcement,
                     updated_at = datetime('now')",
-                params![
-                    metric_key,
-                    scope_kind,
-                    scope_id,
-                    period_kind,
-                    limit_value,
-                    enforcement
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        metric_key.as_str(),
+                        scope_kind.as_str(),
+                        scope_id.as_str(),
+                        period_kind.as_str(),
+                        limit_value,
+                        enforcement.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Add `delta` to a usage counter for the given window (V13+). Returns the new total `amount`.
@@ -152,16 +210,26 @@ impl VoxDb {
         period_start: &str,
         delta: i64,
     ) -> Result<i64, StoreError> {
-        self.connection()
-            .execute(
-                "INSERT INTO usage_counter_snapshots
+        let mk = metric_key.to_string();
+        let sk = scope_kind.to_string();
+        let sid = scope_id.to_string();
+        let ps = period_start.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO usage_counter_snapshots
                     (metric_key, scope_kind, scope_id, period_start, amount, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))
                  ON CONFLICT(metric_key, scope_kind, scope_id, period_start) DO UPDATE SET
                     amount = usage_counter_snapshots.amount + excluded.amount,
                     updated_at = datetime('now')",
-                params![metric_key, scope_kind, scope_id, period_start, delta],
-            )
+                    params![mk.as_str(), sk.as_str(), sid.as_str(), ps.as_str(), delta],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         let mut rows = self
             .connection()
@@ -231,11 +299,19 @@ impl VoxDb {
 
     /// `INSERT OR IGNORE` then return `topics.id` for `slug` (V14+).
     pub async fn chat_ensure_topic(&self, slug: &str, label: &str) -> Result<i64, StoreError> {
-        self.connection()
-            .execute(
-                "INSERT OR IGNORE INTO topics (slug, label) VALUES (?1, ?2)",
-                params![slug, label],
-            )
+        let slug_own = slug.to_string();
+        let label_own = label.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO topics (slug, label) VALUES (?1, ?2)",
+                    params![slug_own.as_str(), label_own.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         let mut rows = self
             .connection()
@@ -259,15 +335,20 @@ impl VoxDb {
         topic_id: i64,
         weight: f64,
     ) -> Result<(), StoreError> {
-        self.connection()
-            .execute(
-                "INSERT INTO conversation_topics (conversation_id, topic_id, weight)
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversation_topics (conversation_id, topic_id, weight)
                  VALUES (?1, ?2, ?3)
                  ON CONFLICT(conversation_id, topic_id) DO UPDATE SET weight = excluded.weight",
-                params![conversation_id, topic_id, weight],
-            )
-            .await?;
-        Ok(())
+                    params![conversation_id, topic_id, weight],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Link a single message to a topic (V14+).
@@ -276,15 +357,19 @@ impl VoxDb {
         conversation_message_id: i64,
         topic_id: i64,
     ) -> Result<(), StoreError> {
-        self
-            .connection()
-            .execute(
-                "INSERT OR IGNORE INTO conversation_message_topics (conversation_message_id, topic_id)
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO conversation_message_topics (conversation_message_id, topic_id)
                  VALUES (?1, ?2)",
-                params![conversation_message_id, topic_id],
-            )
-            .await?;
-        Ok(())
+                    params![conversation_message_id, topic_id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }
 

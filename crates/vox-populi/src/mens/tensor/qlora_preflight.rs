@@ -123,14 +123,12 @@ fn warn_on_missing_qwen35_rope_keys(
     }
 }
 
-fn first_tensor_shape(
-    weight_paths: &[PathBuf],
-    key: &str,
-) -> anyhow::Result<Option<Vec<usize>>> {
+fn first_tensor_shape(weight_paths: &[PathBuf], key: &str) -> anyhow::Result<Option<Vec<usize>>> {
     for wp in weight_paths {
         let bytes =
             std::fs::read(wp).with_context(|| format!("read weight shard {}", wp.display()))?;
-        let st = SafeTensors::deserialize(&bytes).with_context(|| format!("parse {}", wp.display()))?;
+        let st =
+            SafeTensors::deserialize(&bytes).with_context(|| format!("parse {}", wp.display()))?;
         if let Ok(t) = st.tensor(key) {
             return Ok(Some(t.shape().to_vec()));
         }
@@ -144,14 +142,15 @@ fn expect_shape_exact(
     expected: &[usize],
 ) -> anyhow::Result<()> {
     if let Some(found) = first_tensor_shape(weight_paths, key)?
-        && found != expected {
-            anyhow::bail!(
-                "qwen3_5 shape mismatch for `{}`: expected {:?}, found {:?}",
-                key,
-                expected,
-                found
-            );
-        }
+        && found != expected
+    {
+        anyhow::bail!(
+            "qwen3_5 shape mismatch for `{}`: expected {:?}, found {:?}",
+            key,
+            expected,
+            found
+        );
+    }
     Ok(())
 }
 
@@ -178,7 +177,10 @@ fn validate_qwen35_linear_shapes(bundle: &QloraEmbedBundle) -> anyhow::Result<()
         return Ok(());
     }
     let n_heads = bundle.layout.num_attention_heads.max(1);
-    let head_dim = bundle.layout.head_dim.unwrap_or(bundle.layout.hidden_size / n_heads);
+    let head_dim = bundle
+        .layout
+        .head_dim
+        .unwrap_or(bundle.layout.hidden_size / n_heads);
     let key_heads = bundle.layout.linear_num_key_heads.unwrap_or(n_heads);
     let value_heads = bundle.layout.linear_num_value_heads.unwrap_or(n_heads);
     let key_dim = bundle.layout.linear_key_head_dim.unwrap_or(head_dim);
@@ -312,7 +314,10 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
     let present = super::candle_qlora_weights::tensor_keys_union(&bundle.weight_paths)
         .context("read safetensors key union for Candle QLoRA preflight")?;
     if bundle.layout.architecture == HfArchitecture::Qwen35 {
-        let configured_probe = format!("{}.0.input_layernorm.weight", bundle.layout.namespace_prefix);
+        let configured_probe = format!(
+            "{}.0.input_layernorm.weight",
+            bundle.layout.namespace_prefix
+        );
         if !present.contains(&configured_probe)
             && present.contains("model.layers.0.input_layernorm.weight")
         {
@@ -371,8 +376,9 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
         warn_on_missing_qwen35_rope_keys(&bundle.layout, &present);
     }
 
-    let full =
-        super::candle_qlora_weights::ordered_full_block_weight_keys_strict_preflight(&bundle.layout);
+    let full = super::candle_qlora_weights::ordered_full_block_weight_keys_strict_preflight(
+        &bundle.layout,
+    );
     let matched_full = full.iter().filter(|k| present.contains(k.as_str())).count();
     if config.qlora_require_full_proxy_stack && matched_full < full.len() {
         let missing_full: Vec<String> = full
@@ -598,12 +604,7 @@ mod tests {
         )
         .expect("config");
         let st_embed = dir.path().join("embed.safetensors");
-        write_minimal_safetensors(
-            &st_embed,
-            "model.language_model.embed_tokens.weight",
-            5,
-            7,
-        );
+        write_minimal_safetensors(&st_embed, "model.language_model.embed_tokens.weight", 5, 7);
         let st_rope = dir.path().join("rope.safetensors");
         let rope_raw: Vec<u8> = vec![0u8; 3 * 4];
         write_tensor_view(

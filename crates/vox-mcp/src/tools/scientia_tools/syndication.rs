@@ -236,18 +236,6 @@ pub async fn vox_scientia_publication_retry_failed(
     state: &ServerState,
     params: VoxScientiaPublicationRetryFailedParams,
 ) -> String {
-    if let Some(ch) = params.channel.as_ref() {
-        return vox_scientia_publication_publish(
-            state,
-            VoxScientiaPublicationPublishParams {
-                publication_id: params.publication_id,
-                channels: Some(vec![ch.clone()]),
-                dry_run: params.dry_run,
-                json: params.json,
-            },
-        )
-        .await;
-    }
     let compact = params.json;
     let Some(db) = &state.db else {
         return no_voxdb_json_envelope(compact);
@@ -294,11 +282,16 @@ pub async fn vox_scientia_publication_retry_failed(
             outcome_json: a.outcome_json.as_str(),
         })
         .collect();
-    let failed = match vox_publisher::switching::failed_channels_from_latest_digest_attempt(
+    let explicit = params
+        .channel
+        .as_ref()
+        .map(|c| vox_publisher::switching::parse_channels_csv(c.trim()));
+    let plan = match vox_publisher::switching::plan_publication_retry_channels(
         attempt_refs.as_slice(),
         digest.as_str(),
+        explicit.as_deref(),
     ) {
-        Ok(Some(v)) => v,
+        Ok(Some(p)) => p,
         Ok(None) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
                 "no syndication attempt outcome for current manifest digest".to_string(),
@@ -314,19 +307,38 @@ pub async fn vox_scientia_publication_retry_failed(
             .to_json_styled(compact);
         }
     };
-    if failed.is_empty() {
+
+    if !plan.skipped_success_channels.is_empty() && plan.will_retry_channels.is_empty() {
         return ToolResult::ok(serde_json::json!({
             "publication_id": params.publication_id,
             "retried": false,
-            "reason": "no_failed_channels"
+            "reason": "channels_already_succeeded_for_digest",
+            "skipped_success_channels": plan.skipped_success_channels,
+            "blocked_channels": plan.blocked_channels,
         }))
         .to_json_styled(compact);
     }
+
+    if plan.will_retry_channels.is_empty() {
+        return ToolResult::ok(serde_json::json!({
+            "publication_id": params.publication_id,
+            "retried": false,
+            "reason": if params.channel.is_some() {
+                "no_channels_eligible_for_retry"
+            } else {
+                "no_failed_channels"
+            },
+            "skipped_success_channels": plan.skipped_success_channels,
+            "blocked_channels": plan.blocked_channels,
+        }))
+        .to_json_styled(compact);
+    }
+
     vox_scientia_publication_publish(
         state,
         VoxScientiaPublicationPublishParams {
             publication_id: params.publication_id,
-            channels: Some(failed),
+            channels: Some(plan.will_retry_channels),
             dry_run: params.dry_run,
             json: params.json,
         },

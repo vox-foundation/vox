@@ -38,6 +38,9 @@ pub enum WebIrVersion {
     V0_1,
 }
 
+/// Web-facing projection IR — same serde layout as [`WebIrModule`]; use this name at core/projection boundaries.
+pub type WebProjectionIR = WebIrModule;
+
 /// Opaque id into [`SourceSpanTable`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SourceSpanId(pub u32);

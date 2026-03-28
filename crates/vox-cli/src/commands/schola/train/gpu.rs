@@ -64,12 +64,13 @@ pub(super) async fn run_gpu_training(
             "🔄".cyan()
         );
     }
-    let contract_override = vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
-        workspace_root.as_deref(),
-        &data_dir,
-        skip_mix,
-        true,
-    )?;
+    let contract_override =
+        vox_corpus::training::mix_prepare::refresh_train_contract_override_from_mix(
+            workspace_root.as_deref(),
+            &data_dir,
+            skip_mix,
+            true,
+        )?;
 
     let resolved = vox_corpus::training::preflight::validate_train_preflight(
         &data_dir,
@@ -223,6 +224,15 @@ pub(super) async fn run_gpu_training(
         }
     }
 
+    let train_file_path =
+        vox_corpus::training::mix_prepare::recover_train_input_path_after_prefetch(
+            workspace_root.as_deref(),
+            &data_dir,
+            &mix_path,
+            skip_mix,
+            &resolved.path,
+        )?;
+
     let run_id = vox_corpus::training::timestamp_string();
     let git_sha = option_env!("VOX_GIT_HASH").unwrap_or("unknown").to_string();
     let device_profile_str = if device_kind == vox_populi::mens::DeviceKind::Cpu {
@@ -238,7 +248,7 @@ pub(super) async fn run_gpu_training(
         attribution_required,
         base_model_paths,
         tokenizer_path,
-        train_file: Some(resolved.path),
+        train_file: Some(train_file_path),
         rank,
         alpha,
         seq_len,

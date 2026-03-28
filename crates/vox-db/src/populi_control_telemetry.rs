@@ -3,6 +3,9 @@
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::research_metrics_contract::{
+    METRIC_TYPE_POPULI_CONTROL_EVENT, TelemetryWriteOptions,
+};
 use crate::{StoreError, VoxDb};
 
 #[derive(Debug, Clone, Serialize)]
@@ -30,8 +33,13 @@ impl VoxDb {
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
-        let session = format!("mens:{repository_id}");
-        self.append_research_metric(&session, "populi_control_event", None, Some(&json))
-            .await
+        let tw = TelemetryWriteOptions::new(repository_id);
+        self.append_research_metric(
+            &tw.session_mens(),
+            METRIC_TYPE_POPULI_CONTROL_EVENT,
+            None,
+            Some(&json),
+        )
+        .await
     }
 }

@@ -122,10 +122,12 @@ impl CloudResolver {
         let specs_path = root.join("mens/config/gpu-specs.yaml");
         let config = Arc::new(CloudProviderConfig::default());
 
-        let db =
-            vox_db::connect_canonical_optional(vox_db::DbConnectSurface::PopuliCloudResolver, false)
-                .await
-                .map(Arc::new);
+        let db = vox_db::connect_canonical_optional(
+            vox_db::DbConnectSurface::PopuliCloudResolver,
+            false,
+        )
+        .await
+        .map(Arc::new);
         let budget = Arc::new(BudgetLedger::new(db.clone(), &config));
 
         let profiles = if let Some(ref voxdb) = db {

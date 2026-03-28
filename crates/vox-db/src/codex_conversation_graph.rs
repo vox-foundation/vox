@@ -97,6 +97,7 @@ impl VoxDb {
 
 #[cfg(all(test, feature = "local"))]
 mod tests {
+    use crate::research_metrics_contract::METRIC_TYPE_SOCRATES_SURFACE;
     use crate::{DbConfig, VoxDb};
 
     #[tokio::test]
@@ -187,7 +188,7 @@ mod tests {
         let linked = db
             .research_metric_append_linked(
                 "sess-metric-1",
-                "socrates_surface",
+                METRIC_TYPE_SOCRATES_SURFACE,
                 Some(0.42),
                 Some(r#"{"k":1}"#),
                 "repo-x",

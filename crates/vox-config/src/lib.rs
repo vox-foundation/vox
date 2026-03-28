@@ -6,6 +6,7 @@ pub mod bootstrap_inference;
 pub mod config;
 pub mod inference;
 pub mod paths;
+pub mod rollout;
 pub mod routing_policy;
 
 pub use bootstrap_inference::{
@@ -28,6 +29,11 @@ pub use paths::{
 pub use routing_policy::{
     AutoModelStrategy, AutoRoutingPriority, GeminiRoutePolicy, GeminiRouteTargets,
     gemini_route_targets_from_env, resolve_openrouter_model,
+};
+pub use rollout::{
+    db_circuit_breaker_env_enabled, db_embedded_replica_integration_gate_armed,
+    db_sync_remote_integration_gate_armed, env_truthy, orchestration_lineage_persist_enabled,
+    rollout_flag_snapshot, workflow_journal_codex_persist_enabled, RolloutFlagSnapshot,
 };
 
 /// Minimum Vox MCP server version required for full agent capability.

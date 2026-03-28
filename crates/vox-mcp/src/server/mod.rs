@@ -5,4 +5,4 @@ mod handlers;
 mod lifecycle;
 
 pub use handlers::{VoxMcpServer, tool_json_envelope_is_error};
-pub use lifecycle::{mcp_agent_fleet_env_enabled, ServerState};
+pub use lifecycle::{ServerState, mcp_agent_fleet_env_enabled};

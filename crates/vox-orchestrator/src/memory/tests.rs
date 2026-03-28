@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::env;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+
+use tempfile::TempDir;
 
 use crate::types::AgentId;
 
@@ -10,25 +8,16 @@ use super::config::MemoryConfig;
 use super::daily_log::DailyLog;
 use super::long_term::LongTermMemory;
 use super::manager::MemoryManager;
-use super::time::{timestamp_hms, unix_secs_to_ymd};
+use super::time::unix_secs_to_ymd;
 
-static TEST_DIR_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-fn temp_dir() -> PathBuf {
-    let n = TEST_DIR_COUNTER.fetch_add(1, Ordering::SeqCst);
-    let d = env::temp_dir().join(format!(
-        "vox_memory_test_{}_{}",
-        timestamp_hms().replace(':', ""),
-        n
-    ));
-    fs::create_dir_all(&d).ok();
-    d
+fn memory_workdir() -> TempDir {
+    TempDir::new().expect("tempdir")
 }
 
 #[test]
 fn daily_log_append_and_read() {
-    let dir = temp_dir();
-    let log = DailyLog::open(&dir, "2026-02-27").expect("open");
+    let dir = memory_workdir();
+    let log = DailyLog::open(dir.path(), "2026-02-27").expect("open");
     log.append("compiler fixed").expect("append");
     let content = log.read().expect("read");
     assert!(content.contains("compiler fixed"));
@@ -37,8 +26,8 @@ fn daily_log_append_and_read() {
 
 #[test]
 fn daily_log_multiple_appends() {
-    let dir = temp_dir();
-    let log = DailyLog::open(&dir, "2026-02-28").expect("open");
+    let dir = memory_workdir();
+    let log = DailyLog::open(dir.path(), "2026-02-28").expect("open");
     log.append("first entry").expect("append");
     log.append("second entry").expect("append");
     let content = log.read().expect("read");
@@ -48,8 +37,8 @@ fn daily_log_multiple_appends() {
 
 #[test]
 fn long_term_memory_set_and_get() {
-    let dir = temp_dir();
-    let mem = LongTermMemory::open(&dir.join("MEMORY.md")).expect("open");
+    let dir = memory_workdir();
+    let mem = LongTermMemory::open(&dir.path().join("MEMORY.md")).expect("open");
     mem.set("current_crate", "vox-parser").expect("set");
     let val = mem.get("current_crate").expect("get");
     assert_eq!(val.as_deref(), Some("vox-parser"));
@@ -57,8 +46,8 @@ fn long_term_memory_set_and_get() {
 
 #[test]
 fn long_term_memory_upsert() {
-    let dir = temp_dir();
-    let mem = LongTermMemory::open(&dir.join("MEMORY.md")).expect("open");
+    let dir = memory_workdir();
+    let mem = LongTermMemory::open(&dir.path().join("MEMORY.md")).expect("open");
     mem.set("status", "in progress").expect("set first");
     mem.set("status", "completed").expect("set second (upsert)");
     let val = mem.get("status").expect("get");
@@ -67,8 +56,8 @@ fn long_term_memory_upsert() {
 
 #[test]
 fn long_term_memory_list_keys() {
-    let dir = temp_dir();
-    let mem = LongTermMemory::open(&dir.join("MEMORY.md")).expect("open");
+    let dir = memory_workdir();
+    let mem = LongTermMemory::open(&dir.path().join("MEMORY.md")).expect("open");
     mem.set("alpha", "a").expect("set");
     mem.set("beta", "b").expect("set");
     let keys = mem.list_keys().expect("list");
@@ -78,10 +67,10 @@ fn long_term_memory_list_keys() {
 
 #[test]
 fn memory_manager_persist_and_recall() {
-    let dir = temp_dir();
+    let dir = memory_workdir();
     let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.join("logs"),
-        memory_md_path: dir.join("MEMORY.md"),
+        log_dir: dir.path().join("logs"),
+        memory_md_path: dir.path().join("MEMORY.md"),
         log_retention_days: 7,
         enabled: true,
     })
@@ -94,10 +83,10 @@ fn memory_manager_persist_and_recall() {
 
 #[test]
 fn memory_manager_bootstrap_context() {
-    let dir = temp_dir();
+    let dir = memory_workdir();
     let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.join("logs"),
-        memory_md_path: dir.join("MEMORY.md"),
+        log_dir: dir.path().join("logs"),
+        memory_md_path: dir.path().join("MEMORY.md"),
         log_retention_days: 7,
         enabled: true,
     })
@@ -112,10 +101,10 @@ fn memory_manager_bootstrap_context() {
 
 #[test]
 fn memory_manager_search() {
-    let dir = temp_dir();
+    let dir = memory_workdir();
     let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.join("logs"),
-        memory_md_path: dir.join("MEMORY.md"),
+        log_dir: dir.path().join("logs"),
+        memory_md_path: dir.path().join("MEMORY.md"),
         log_retention_days: 7,
         enabled: true,
     })
@@ -136,10 +125,10 @@ fn memory_manager_search() {
 
 #[test]
 fn flush_before_compaction_persists_facts() {
-    let dir = temp_dir();
+    let dir = memory_workdir();
     let mut mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.join("logs"),
-        memory_md_path: dir.join("MEMORY.md"),
+        log_dir: dir.path().join("logs"),
+        memory_md_path: dir.path().join("MEMORY.md"),
         log_retention_days: 7,
         enabled: true,
     })
@@ -160,10 +149,10 @@ fn flush_before_compaction_persists_facts() {
 
 #[test]
 fn disabled_memory_manager_returns_empty_context() {
-    let dir = temp_dir();
+    let dir = memory_workdir();
     let mgr = MemoryManager::new(MemoryConfig {
-        log_dir: dir.join("logs"),
-        memory_md_path: dir.join("MEMORY.md"),
+        log_dir: dir.path().join("logs"),
+        memory_md_path: dir.path().join("MEMORY.md"),
         log_retention_days: 7,
         enabled: false,
     })

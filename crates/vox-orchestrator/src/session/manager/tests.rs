@@ -1,7 +1,5 @@
-use std::env;
-use std::fs;
-
 use serial_test::serial;
+use tempfile::TempDir;
 
 use crate::types::AgentId;
 
@@ -10,17 +8,9 @@ use super::super::errors::SessionError;
 use super::super::state::{SessionState, now_secs};
 use super::SessionManager;
 
-fn temp_sessions_dir() -> std::path::PathBuf {
-    static DIR_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    let c = DIR_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let d = env::temp_dir().join(format!("vox_sessions_{}_{c}", now_secs()));
-    fs::create_dir_all(&d).ok();
-    d
-}
-
-fn test_config() -> SessionConfig {
+fn session_defaults() -> SessionConfig {
     SessionConfig {
-        sessions_dir: temp_sessions_dir(),
+        sessions_dir: std::path::PathBuf::new(),
         repository_id: None,
         idle_timeout_secs: 30,
         archive_timeout_secs: 60,
@@ -29,9 +19,18 @@ fn test_config() -> SessionConfig {
     }
 }
 
+/// Unique sessions directory per call; keep the returned [`TempDir`] in scope for the whole test.
+fn test_config() -> (SessionConfig, TempDir) {
+    let dir = TempDir::new().expect("tempdir");
+    let mut c = session_defaults();
+    c.sessions_dir = dir.path().to_path_buf();
+    (c, dir)
+}
+
 #[test]
 fn create_and_retrieve_session() {
-    let mut mgr = SessionManager::new(test_config()).expect("create manager");
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
     let id = mgr.create(AgentId(1)).expect("create session");
     let session = mgr.get(&id).expect("get session");
     assert_eq!(session.agent_id, AgentId(1));
@@ -41,7 +40,8 @@ fn create_and_retrieve_session() {
 
 #[test]
 fn add_turn_and_check_tokens() {
-    let mut mgr = SessionManager::new(test_config()).expect("create manager");
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
     let id = mgr.create(AgentId(1)).expect("create");
     mgr.add_turn(&id, "user", "hello world", 3)
         .expect("add turn");
@@ -54,7 +54,8 @@ fn add_turn_and_check_tokens() {
 
 #[test]
 fn reset_clears_history() {
-    let mut mgr = SessionManager::new(test_config()).expect("create manager");
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
     let id = mgr.create(AgentId(1)).expect("create");
     mgr.add_turn(&id, "user", "hello", 2).expect("add");
     mgr.add_turn(&id, "assistant", "hi", 1).expect("add");
@@ -65,7 +66,8 @@ fn reset_clears_history() {
 
 #[test]
 fn compact_replaces_with_summary() {
-    let mut mgr = SessionManager::new(test_config()).expect("create manager");
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
     let id = mgr.create(AgentId(1)).expect("create");
     mgr.add_turn(&id, "user", "lots of content", 100)
         .expect("add");
@@ -80,7 +82,8 @@ fn compact_replaces_with_summary() {
 
 #[test]
 fn set_meta_persisted() {
-    let mut mgr = SessionManager::new(test_config()).expect("create manager");
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
     let id = mgr.create(AgentId(1)).expect("create");
     mgr.set_meta(&id, "model", "claude-sonnet-4")
         .expect("set meta");
@@ -91,25 +94,24 @@ fn set_meta_persisted() {
 #[tokio::test]
 #[serial]
 async fn session_persistence_roundtrip() {
-    let cfg = test_config();
-    let dir = cfg.sessions_dir.clone();
-    let session_id;
-
-    {
+    let dir = TempDir::new().expect("tempdir");
+    let mut cfg = session_defaults();
+    cfg.sessions_dir = dir.path().to_path_buf();
+    let session_path = cfg.sessions_dir.clone();
+    let session_id = {
         let mut mgr = SessionManager::new(cfg.clone()).expect("create");
-        session_id = mgr.create(AgentId(2)).expect("create session");
+        let session_id = mgr.create(AgentId(2)).expect("create session");
         mgr.add_turn(&session_id, "user", "fix parser", 10)
             .expect("add");
         mgr.set_meta(&session_id, "crate", "vox-parser")
             .expect("meta");
-    }
+        session_id
+    };
 
-    // Reload into fresh manager
-    let mut mgr2 = SessionManager::new(SessionConfig {
-        sessions_dir: dir,
-        ..cfg
-    })
-    .expect("create");
+    // Reload into fresh manager (same directory; `dir` stays alive).
+    let mut cfg2 = session_defaults();
+    cfg2.sessions_dir = session_path;
+    let mut mgr2 = SessionManager::new(cfg2).expect("create");
     mgr2.load(&session_id).await.expect("load");
     let s = mgr2.get(&session_id).expect("get");
     assert_eq!(s.agent_id, AgentId(2));
@@ -119,9 +121,10 @@ async fn session_persistence_roundtrip() {
 
 #[test]
 fn max_sessions_limit() {
+    let (base, _dir) = test_config();
     let cfg = SessionConfig {
         max_sessions: 2,
-        ..test_config()
+        ..base
     };
     let mut mgr = SessionManager::new(cfg).expect("create");
     mgr.create(AgentId(1)).expect("1st");
@@ -132,10 +135,11 @@ fn max_sessions_limit() {
 
 #[test]
 fn lifecycle_tick_marks_idle_then_archives() {
+    let (base, _dir) = test_config();
     let cfg = SessionConfig {
         idle_timeout_secs: 10,
         archive_timeout_secs: 10,
-        ..test_config()
+        ..base
     };
     let mut mgr = SessionManager::new(cfg).expect("create");
     let id = mgr.create(AgentId(1)).expect("create");
@@ -150,10 +154,11 @@ fn lifecycle_tick_marks_idle_then_archives() {
 
 #[test]
 fn cleanup_removes_archived_sessions() {
+    let (base, _dir) = test_config();
     let cfg = SessionConfig {
         idle_timeout_secs: 1,
         archive_timeout_secs: 1,
-        ..test_config()
+        ..base
     };
     let mut mgr = SessionManager::new(cfg).expect("create");
     let id = mgr.create(AgentId(1)).expect("create");
@@ -165,29 +170,58 @@ fn cleanup_removes_archived_sessions() {
     assert!(mgr.get(&id).is_none());
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial]
+async fn session_db_replay_matches_in_memory_state() {
+    let db = std::sync::Arc::new(vox_db::VoxDb::open_memory().await.expect("mem db"));
+    let (mut cfg, _dir) = test_config();
+    cfg.persist = false;
+    let mut mgr = SessionManager::new(cfg).unwrap().with_db(db.clone());
+    let id = mgr.create(AgentId(11)).expect("create");
+    mgr.add_turn(&id, "user", "hello", 5).expect("turn");
+    mgr.set_meta(&id, "k", "v").expect("meta");
+    mgr.set_plugin_state(&id, "p", serde_json::json!({"x": 1}))
+        .expect("plugin");
+    mgr.reset(&id).expect("reset");
+    mgr.add_turn(&id, "assistant", "after reset", 3)
+        .expect("turn2");
+    let live = mgr.get(&id).expect("live").clone();
+
+    let (mut cfg2, _dir2) = test_config();
+    cfg2.persist = false;
+    let mut mgr2 = SessionManager::new(cfg2).unwrap().with_db(db);
+    mgr2.load(&id).await.expect("load from db");
+    let replayed = mgr2.get(&id).expect("replay").clone();
+
+    assert_eq!(
+        serde_json::to_value(&live).unwrap(),
+        serde_json::to_value(&replayed).unwrap()
+    );
+}
+
 #[tokio::test]
 #[serial]
 async fn plugin_state_persistence_roundtrip() {
-    let cfg = test_config();
-    let dir = cfg.sessions_dir.clone();
-    let session_id;
+    let dir = TempDir::new().expect("tempdir");
+    let mut cfg = session_defaults();
+    cfg.sessions_dir = dir.path().to_path_buf();
+    let session_path = cfg.sessions_dir.clone();
 
-    {
+    let session_id = {
         let mut mgr = SessionManager::new(cfg.clone()).expect("create");
-        session_id = mgr.create(AgentId(3)).expect("create");
+        let session_id = mgr.create(AgentId(3)).expect("create");
         mgr.set_plugin_state(
             &session_id,
             "weather",
             serde_json::json!({"city": "London"}),
         )
         .expect("set");
-    }
+        session_id
+    };
 
-    let mut mgr2 = SessionManager::new(SessionConfig {
-        sessions_dir: dir,
-        ..cfg
-    })
-    .expect("create");
+    let mut cfg2 = session_defaults();
+    cfg2.sessions_dir = session_path;
+    let mut mgr2 = SessionManager::new(cfg2).expect("create");
     mgr2.load(&session_id).await.expect("load");
     let s = mgr2.get(&session_id).expect("get");
     assert_eq!(s.plugin_state.get("weather").unwrap()["city"], "London");

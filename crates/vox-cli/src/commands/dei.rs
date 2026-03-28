@@ -1,9 +1,7 @@
 #![cfg(feature = "dei")]
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_orchestrator::{
-    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
-};
+use vox_orchestrator::{AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority};
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
 pub async fn status() -> Result<()> {

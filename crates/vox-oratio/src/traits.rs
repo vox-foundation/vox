@@ -7,7 +7,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::refine::{CorrectionContext, CorrectionTrace};
 
-fn contextual_bias_phrases_for_session() -> Vec<String> {
+fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
+    let p = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH").ok()?;
+    let path = Path::new(p.trim());
+    let bytes = std::fs::read(path).ok()?;
+    crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes).ok()
+}
+
+fn contextual_bias_phrases_with_lex(
+    lex: Option<&crate::speech_lexicon::SpeechLexicon>,
+) -> Vec<String> {
     const DEFAULT_MAX: usize = 256;
     let max_phrases: usize = std::env::var("VOX_ORATIO_MAX_BIAS_PHRASES")
         .ok()
@@ -20,14 +29,9 @@ fn contextual_bias_phrases_for_session() -> Vec<String> {
     if !contextual_on {
         return Vec::new();
     }
-    let mut lex_phrases = Vec::new();
-    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
-        let path = std::path::Path::new(p.trim());
-        if let Ok(bytes) = std::fs::read(path)
-            && let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
-                lex_phrases = lex.bias_phrases_sorted(max_phrases);
-            }
-    }
+    let lex_phrases = lex
+        .map(|l| l.bias_phrases_sorted(max_phrases))
+        .unwrap_or_default();
     let extra: Vec<String> = std::env::var("VOX_ORATIO_SESSION_HOTWORDS")
         .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
         .unwrap_or_default();
@@ -38,8 +42,12 @@ fn finalize_after_refine(
     raw_text: String,
     refined: crate::refine::RefineOutput,
 ) -> TranscribeDetail {
-    let refined_after_lex = apply_optional_project_lexicon(&refined.text);
-    let bias = contextual_bias_phrases_for_session();
+    let lex = load_lexicon_from_env();
+    let refined_after_lex = lex
+        .as_ref()
+        .map(|l| l.apply(&refined.text))
+        .unwrap_or_else(|| refined.text.clone());
+    let bias = contextual_bias_phrases_with_lex(lex.as_ref());
     let candidates = crate::transcript_rerank::rerank_candidates_best_first_with_context(
         crate::transcript_rerank::build_transcript_candidates(&raw_text, &refined_after_lex),
         &bias,
@@ -57,17 +65,6 @@ fn finalize_after_refine(
         correction_trace: refined.trace,
         n_best,
     }
-}
-
-fn apply_optional_project_lexicon(text: &str) -> String {
-    if let Ok(p) = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH") {
-        let path = std::path::Path::new(p.trim());
-        if let Ok(bytes) = std::fs::read(path)
-            && let Ok(lex) = crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes) {
-                return lex.apply(text);
-            }
-    }
-    text.to_string()
 }
 
 /// File- or segment-level transcription result.

@@ -17,21 +17,31 @@ impl crate::VoxDb {
         &self,
         p: QuestionSessionCreateParams<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO question_sessions
+        let session_id = p.session_id.to_string();
+        let repository_id = p.repository_id.to_string();
+        let task_id = p.task_id.map(str::to_string);
+        let policy_version = p.policy_version.to_string();
+        let started_at_ms = p.started_at_ms;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO question_sessions
                  (session_id, repository_id, task_id, policy_version, started_at_ms)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    p.session_id,
-                    p.repository_id,
-                    p.task_id,
-                    p.policy_version,
-                    p.started_at_ms
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        session_id.as_str(),
+                        repository_id.as_str(),
+                        task_id.as_deref(),
+                        policy_version.as_str(),
+                        started_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Mark a `question_sessions` row as closed.
@@ -41,15 +51,21 @@ impl crate::VoxDb {
         resolution_status: &str,
         ended_at_ms: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE question_sessions
+        let resolution_status = resolution_status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE question_sessions
                  SET ended_at_ms = ?2, resolution_status = ?3
                  WHERE id = ?1",
-                params![question_session_id, ended_at_ms, resolution_status],
-            )
-            .await?;
-        Ok(())
+                    params![question_session_id, ended_at_ms, resolution_status.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Insert one `question_events` row and return its id.
@@ -57,31 +73,49 @@ impl crate::VoxDb {
         &self,
         p: QuestionEventParams<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO question_events
+        let question_id = p.question_id.to_string();
+        let actor = p.actor.to_string();
+        let question_kind = p.question_kind.to_string();
+        let prompt = p.prompt.to_string();
+        let answer_text = p.answer_text.map(str::to_string);
+        let answer_type = p.answer_type.map(str::to_string);
+        let question_session_id = p.question_session_id;
+        let turn_index = p.turn_index;
+        let expected_information_gain_bits = p.expected_information_gain_bits;
+        let expected_user_cost = p.expected_user_cost;
+        let utility_bits_per_cost = p.utility_bits_per_cost;
+        let answered_at_ms = p.answered_at_ms;
+        let created_at_ms = p.created_at_ms;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO question_events
                  (question_session_id, question_id, turn_index, actor, question_kind, prompt,
                   expected_information_gain_bits, expected_user_cost, utility_bits_per_cost,
                   answer_text, answer_type, answered_at_ms, created_at_ms)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
-                params![
-                    p.question_session_id,
-                    p.question_id,
-                    p.turn_index,
-                    p.actor,
-                    p.question_kind,
-                    p.prompt,
-                    p.expected_information_gain_bits,
-                    p.expected_user_cost,
-                    p.utility_bits_per_cost,
-                    p.answer_text,
-                    p.answer_type,
-                    p.answered_at_ms,
-                    p.created_at_ms
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        question_session_id,
+                        question_id.as_str(),
+                        turn_index,
+                        actor.as_str(),
+                        question_kind.as_str(),
+                        prompt.as_str(),
+                        expected_information_gain_bits,
+                        expected_user_cost,
+                        utility_bits_per_cost,
+                        answer_text.as_deref(),
+                        answer_type.as_deref(),
+                        answered_at_ms,
+                        created_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Upsert one option row tied to a question event.
@@ -89,9 +123,18 @@ impl crate::VoxDb {
         &self,
         p: QuestionOptionParams<'_>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO question_options
+        let option_id = p.option_id.to_string();
+        let label = p.label.to_string();
+        let question_event_id = p.question_event_id;
+        let prior_probability = p.prior_probability;
+        let posterior_probability = p.posterior_probability;
+        let is_other_flag = if p.is_other { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO question_options
                  (question_event_id, option_id, label, prior_probability, posterior_probability, is_other)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                  ON CONFLICT(question_event_id, option_id) DO UPDATE SET
@@ -99,17 +142,19 @@ impl crate::VoxDb {
                     prior_probability = excluded.prior_probability,
                     posterior_probability = excluded.posterior_probability,
                     is_other = excluded.is_other",
-                params![
-                    p.question_event_id,
-                    p.option_id,
-                    p.label,
-                    p.prior_probability,
-                    p.posterior_probability,
-                    if p.is_other { 1i64 } else { 0i64 }
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        question_event_id,
+                        option_id.as_str(),
+                        label.as_str(),
+                        prior_probability,
+                        posterior_probability,
+                        is_other_flag
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Insert one option outcome row.
@@ -117,22 +162,33 @@ impl crate::VoxDb {
         &self,
         p: QuestionOptionOutcomeParams<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO question_option_outcomes
+        let option_id = p.option_id.to_string();
+        let question_event_id = p.question_event_id;
+        let selected = if p.selected { 1i64 } else { 0i64 };
+        let diagnostic_weight = p.diagnostic_weight;
+        let information_contribution_bits = p.information_contribution_bits;
+        let created_at_ms = p.created_at_ms;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO question_option_outcomes
                  (question_event_id, option_id, selected, diagnostic_weight, information_contribution_bits, created_at_ms)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    p.question_event_id,
-                    p.option_id,
-                    if p.selected { 1i64 } else { 0i64 },
-                    p.diagnostic_weight,
-                    p.information_contribution_bits,
-                    p.created_at_ms
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        question_event_id,
+                        option_id.as_str(),
+                        selected,
+                        diagnostic_weight,
+                        information_contribution_bits,
+                        created_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Insert one stop event for a question session.
@@ -140,24 +196,36 @@ impl crate::VoxDb {
         &self,
         p: QuestionStopEventParams<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO question_stop_events
+        let stop_reason = p.stop_reason.to_string();
+        let question_session_id = p.question_session_id;
+        let confidence_at_stop = p.confidence_at_stop;
+        let marginal_gain_bits = p.marginal_gain_bits;
+        let expected_user_cost = p.expected_user_cost;
+        let turn_index = p.turn_index;
+        let created_at_ms = p.created_at_ms;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO question_stop_events
                  (question_session_id, stop_reason, confidence_at_stop, marginal_gain_bits,
                   expected_user_cost, turn_index, created_at_ms)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    p.question_session_id,
-                    p.stop_reason,
-                    p.confidence_at_stop,
-                    p.marginal_gain_bits,
-                    p.expected_user_cost,
-                    p.turn_index,
-                    p.created_at_ms
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        question_session_id,
+                        stop_reason.as_str(),
+                        confidence_at_stop,
+                        marginal_gain_bits,
+                        expected_user_cost,
+                        turn_index,
+                        created_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Open `question_sessions` row for this MCP logical session + repo (`ended_at_ms` unset).
@@ -322,19 +390,31 @@ impl crate::VoxDb {
         answer_type: &str,
         answered_at_ms: i64,
     ) -> Result<(), StoreError> {
-        let n = self
-            .conn
-            .execute(
-                "UPDATE question_events
+        let answer_text = answer_text.to_string();
+        let answer_type = answer_type.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "UPDATE question_events
              SET answer_text = ?2, answer_type = ?3, answered_at_ms = ?4
              WHERE id = ?1",
-                params![question_event_id, answer_text, answer_type, answered_at_ms],
-            )
-            .await?;
-        if n == 0 {
-            return Err(StoreError::Db("no question_event row updated".into()));
-        }
-        Ok(())
+                        params![
+                            question_event_id,
+                            answer_text.as_str(),
+                            answer_type.as_str(),
+                            answered_at_ms
+                        ],
+                    )
+                    .await?;
+                if n == 0 {
+                    return Err(StoreError::Db("no question_event row updated".into()));
+                }
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Persist a user reply to a pending clarification; optional MC outcome row.
@@ -400,6 +480,7 @@ impl crate::VoxDb {
         answered_at_ms: i64,
         selected_option_id: Option<&str>,
     ) -> Result<(), StoreError> {
+        let mut pending_option_updates: Vec<(i64, String, f64)> = Vec::new();
         let prev: Option<String> = {
             let mut rows = self
                 .conn
@@ -509,13 +590,7 @@ impl crate::VoxDb {
                         .collect();
                     per_q_obj.insert(question_id.to_string(), serde_json::Value::Object(prob_map));
                     for (oid, prob) in &updated {
-                        self.conn
-                            .execute(
-                                "UPDATE question_options SET posterior_probability = ?3
-                                 WHERE question_event_id = ?1 AND option_id = ?2",
-                                params![qeid, oid.as_str(), *prob],
-                            )
-                            .await?;
+                        pending_option_updates.push((qeid, oid.clone(), *prob));
                     }
                 }
             }
@@ -526,13 +601,26 @@ impl crate::VoxDb {
             serde_json::json!(answered_at_ms),
         );
         let out = serde_json::to_string(&v).map_err(|e| StoreError::Db(e.to_string()))?;
-        self.conn
-            .execute(
-                "UPDATE question_sessions SET belief_state_json = ?2 WHERE id = ?1",
-                params![question_session_id, out],
-            )
-            .await?;
-        Ok(())
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                for (qeid, oid, prob) in pending_option_updates {
+                    conn.execute(
+                        "UPDATE question_options SET posterior_probability = ?3
+                                 WHERE question_event_id = ?1 AND option_id = ?2",
+                        params![qeid, oid.as_str(), prob],
+                    )
+                    .await?;
+                }
+                conn.execute(
+                    "UPDATE question_sessions SET belief_state_json = ?2 WHERE id = ?1",
+                    params![question_session_id, out],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Pending assistant clarifications for a repo-bound MCP session (for UI / `vox_questioning_pending`).

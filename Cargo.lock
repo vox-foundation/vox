@@ -10312,6 +10312,7 @@ dependencies = [
  "sha3",
  "thiserror 1.0.69",
  "vox-eval",
+ "vox-repository",
  "zstd",
 ]
 

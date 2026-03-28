@@ -1,8 +1,11 @@
 //! Corpus mix + primary-source sync for Mens training (single prep path for CLI / schola / pipeline).
+//!
+//! Relative `--data-dir` / `--output-dir` / resume paths are anchored in
+//! [`crate::training::contract::normalize_workspace_relative_path`] before mix and validation run.
 
 use std::path::{Path, PathBuf};
 
-use crate::corpus::{self, MixConfigSchema};
+use crate::corpus::{self, MixConfigSchema, MixRunOptions};
 
 /// Relative path from workspace root to mix configuration.
 pub const MIX_CONFIG_REL: &str = "mens/config/mix.yaml";
@@ -104,7 +107,14 @@ pub fn refresh_train_contract_override_from_mix(
     if sync_primary_with_data_dir_train {
         sync_mix_primary_with_train_jsonl(workspace_root, data_dir, &mix_yaml)?;
     }
-    if let Err(e) = corpus::run_mix(&mix_yaml) {
+    let path_base_for_mix = workspace_root
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    if let Err(e) = corpus::run_mix_with_options(
+        &mix_yaml,
+        Some(path_base_for_mix.as_path()),
+        MixRunOptions::default(),
+    ) {
         tracing::warn!(error = %e, mix_yaml = %mix_yaml.display(), "corpus mix failed; continuing with existing train files");
         return Ok(None);
     }
@@ -113,10 +123,27 @@ pub fn refresh_train_contract_override_from_mix(
     };
     let mix_output = match workspace_root {
         Some(ws) => ws.join(&mix_cfg.output),
-        None => std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(&mix_cfg.output),
+        None => path_base_for_mix.join(&mix_cfg.output),
     };
+
+    // Prefer data_dir/train.jsonl after copy so training reads the same file mix just produced even if
+    // cwd/workspace differed historically or target/ is cleaned between preflight and load.
+    let mut use_train_jsonl = false;
+    if let Some(ws) = workspace_root {
+        match copy_mix_output_to_train_jsonl(ws, data_dir, &mix_yaml) {
+            Ok(true) => use_train_jsonl = true,
+            Ok(false) => {}
+            Err(e) => tracing::warn!(
+                error = %e,
+                data_dir = %data_dir.display(),
+                "copy mix output to data_dir train.jsonl failed; using mix output path"
+            ),
+        }
+    }
+    let train_jsonl = data_dir.join(super::preflight::PRIMARY_TRAIN_FILE);
+    if use_train_jsonl && train_jsonl.is_file() {
+        return Ok(Some(train_jsonl));
+    }
     if mix_output.is_file() {
         Ok(Some(mix_output))
     } else {
@@ -147,6 +174,56 @@ pub fn copy_mix_output_to_train_jsonl(
     }
     std::fs::copy(&mixed_path, &final_train_path)?;
     Ok(true)
+}
+
+/// Re-materialize training JSONL if it disappeared after preflight (e.g. long HF download while `cargo clean`
+/// removed `target/`, or the mixed file lived only under `target/`).
+pub fn recover_train_input_path_after_prefetch(
+    workspace_root: Option<&Path>,
+    data_dir: &Path,
+    mix_yaml: &Path,
+    skip_mix: bool,
+    previously_resolved: &Path,
+) -> anyhow::Result<PathBuf> {
+    if previously_resolved.is_file() {
+        return Ok(previously_resolved.to_path_buf());
+    }
+    tracing::warn!(
+        path = %previously_resolved.display(),
+        "training JSONL missing before kernel load; attempting recovery from mix output or re-mix"
+    );
+    let primary = data_dir.join(super::preflight::PRIMARY_TRAIN_FILE);
+
+    if let Some(ws) = workspace_root
+        && mix_yaml.is_file()
+    {
+        match copy_mix_output_to_train_jsonl(ws, data_dir, mix_yaml) {
+            Ok(true) if primary.is_file() => return Ok(primary),
+            Ok(true) => {}
+            Ok(false) => {}
+            Err(e) => tracing::warn!(
+                error = %e,
+                "recovery: copy mix output to data_dir train.jsonl failed"
+            ),
+        }
+    }
+
+    if !skip_mix && mix_yaml.is_file() {
+        match refresh_train_contract_override_from_mix(workspace_root, data_dir, false, true) {
+            Ok(Some(p)) if p.is_file() => return Ok(p),
+            Ok(_) => {}
+            Err(e) => tracing::warn!(error = %e, "recovery: corpus mix re-run failed"),
+        }
+    }
+
+    if primary.is_file() {
+        return Ok(primary);
+    }
+
+    anyhow::bail!(
+        "Training data `{}` is missing before training. If `--data-dir` is under `target/`, avoid `cargo clean` between preflight and load, or use a data directory outside `target/`.",
+        previously_resolved.display()
+    )
 }
 
 #[cfg(test)]

@@ -31,6 +31,14 @@ pub enum TypeckSeverity {
     Warning,
 }
 
+/// Machine-applicable edit (LSP / MCP repair loops).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DiagnosticFix {
+    pub label: String,
+    pub span: Span,
+    pub replacement: String,
+}
+
 /// Which compiler / pipeline stage produced a diagnostic (taxonomy for tooling and docs).
 ///
 /// See `docs/src/reference/diagnostic-taxonomy.md`.
@@ -66,6 +74,12 @@ pub struct Diagnostic {
     /// Origin category for filtering, metrics, and LSP `code` mapping.
     #[serde(default)]
     pub category: DiagnosticCategory,
+    /// Stable code for stall detection and speech-to-code traces (`typecheck.reactive.state`, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    /// Optional structured fixes (additive; consumers ignore if unsupported).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixes: Vec<DiagnosticFix>,
 }
 
 impl Diagnostic {
@@ -81,6 +95,8 @@ impl Diagnostic {
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
             category: DiagnosticCategory::Typecheck,
+            code: None,
+            fixes: vec![],
         }
     }
 
@@ -96,6 +112,8 @@ impl Diagnostic {
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
             category: DiagnosticCategory::Typecheck,
+            code: None,
+            fixes: vec![],
         }
     }
 
@@ -111,6 +129,8 @@ impl Diagnostic {
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
             category: DiagnosticCategory::HirInvariant,
+            code: None,
+            fixes: vec![],
         }
     }
 
@@ -126,6 +146,8 @@ impl Diagnostic {
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
             category: DiagnosticCategory::Lowering,
+            code: None,
+            fixes: vec![],
         }
     }
 
@@ -141,6 +163,8 @@ impl Diagnostic {
             context: Some(Self::capture_context(source, span)),
             suggestions: vec![],
             category: DiagnosticCategory::RuntimeContract,
+            code: None,
+            fixes: vec![],
         }
     }
 

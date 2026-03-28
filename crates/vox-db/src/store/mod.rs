@@ -43,6 +43,7 @@ pub mod ops_build;
 mod ops_cas;
 mod ops_codex;
 mod ops_learning;
+mod ops_lineage;
 mod ops_ludus;
 mod ops_mcp_diagnostics;
 mod ops_memory;

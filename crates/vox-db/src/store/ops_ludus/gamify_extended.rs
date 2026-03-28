@@ -1,6 +1,19 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use turso::params;
 
 use crate::store::types::{A2AMessageRow, StoreError};
+
+fn a2a_now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+fn default_a2a_consumer_id() -> String {
+    std::env::var("VOX_A2A_CONSUMER_ID").unwrap_or_else(|_| format!("pid:{}", std::process::id()))
+}
 
 impl crate::VoxDb {
     // ── Leaderboard (gamify_profiles fast path) ───────────────────────────────
@@ -81,13 +94,20 @@ impl crate::VoxDb {
 
     /// Acknowledge an A2A message by row id.
     pub async fn acknowledge_a2a_message_by_id(&self, id: i64) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE a2a_messages SET acknowledged=1 WHERE id=?1",
-                params![id],
-            )
-            .await?;
-        Ok(())
+        let now_ms = a2a_now_ms();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE a2a_messages SET acknowledged=1, claim_owner=NULL, claim_until_ms=NULL,
+                 processed_at_ms=?1 WHERE id=?2",
+                    params![now_ms, id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Send an A2A message and return the UUID.
@@ -102,62 +122,187 @@ impl crate::VoxDb {
         thread_id: Option<&str>,
         repository_id: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO a2a_messages
+        let message_uuid = message_uuid.to_string();
+        let sender_agent = sender_agent.to_string();
+        let receiver_agent = receiver_agent.to_string();
+        let msg_type = msg_type.to_string();
+        let payload = payload.to_string();
+        let thread_id = thread_id.map(str::to_string);
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO a2a_messages
              (message_uuid, sender_agent, receiver_agent, msg_type, payload, priority, thread_id, repository_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![message_uuid, sender_agent, receiver_agent, msg_type, payload,
-                    priority, thread_id, repository_id],
-        ).await?;
-        Ok(())
+                    params![
+                        message_uuid.as_str(),
+                        sender_agent.as_str(),
+                        receiver_agent.as_str(),
+                        msg_type.as_str(),
+                        payload.as_str(),
+                        priority,
+                        thread_id.as_deref(),
+                        repository_id.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Poll unacknowledged messages for an agent in a repository.
+    ///
+    /// Claims a bounded batch for [`default_a2a_consumer_id`] so concurrent poll workers do not
+    /// receive duplicate rows until the claim lease expires. Override the consumer via
+    /// `VOX_A2A_CONSUMER_ID` or call [`Self::poll_a2a_inbox_claimed`].
     pub async fn poll_a2a_inbox(
         &self,
         agent_id: &str,
         repository_id: &str,
     ) -> Result<Vec<A2AMessageRow>, StoreError> {
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload,
-                    priority, thread_id, acknowledged, created_at, repository_id
-             FROM a2a_messages
-             WHERE receiver_agent=?1 AND acknowledged=0 AND repository_id=?2
-             ORDER BY priority DESC, created_at ASC",
-                params![agent_id, repository_id],
-            )
-            .await?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next().await? {
-            let ack: i64 = row.get(8).unwrap_or(0);
-            out.push(A2AMessageRow {
-                id: row.get(0)?,
-                message_uuid: row.get(1)?,
-                sender_agent: row.get(2)?,
-                receiver_agent: row.get(3)?,
-                msg_type: row.get(4)?,
-                payload: row.get(5)?,
-                priority: row.get(6)?,
-                thread_id: row.get(7)?,
-                acknowledged: ack != 0,
-                created_at: row.get(9)?,
-                repository_id: row.get(10)?,
-            });
-        }
-        Ok(out)
+        self.poll_a2a_inbox_claimed(
+            agent_id,
+            repository_id,
+            &default_a2a_consumer_id(),
+            256,
+            120_000,
+        )
+        .await
+    }
+
+    /// Claim up to `limit` inbox rows for `consumer_id`, leasing each for `lease_ms` milliseconds.
+    pub async fn poll_a2a_inbox_claimed(
+        &self,
+        receiver_agent: &str,
+        repository_id: &str,
+        consumer_id: &str,
+        limit: i64,
+        lease_ms: i64,
+    ) -> Result<Vec<A2AMessageRow>, StoreError> {
+        let limit = limit.clamp(1, 2048);
+        let now_ms = a2a_now_ms();
+        let claim_deadline = now_ms.saturating_add(lease_ms);
+        let receiver_agent = receiver_agent.to_string();
+        let repository_id = repository_id.to_string();
+        let consumer_id = consumer_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+
+        breaker
+            .call(|| async move {
+                conn.execute("BEGIN IMMEDIATE", ())
+                    .await
+                    .map_err(StoreError::from)?;
+
+                let result = async {
+                    let mut id_rows = conn
+                        .query(
+                            "SELECT id FROM a2a_messages
+                     WHERE receiver_agent = ?1 AND repository_id = ?2 AND acknowledged = 0
+                       AND (claim_until_ms IS NULL OR claim_until_ms < ?3 OR claim_owner = ?4)
+                     ORDER BY priority DESC, id ASC
+                     LIMIT ?5",
+                            params![
+                                receiver_agent.as_str(),
+                                repository_id.as_str(),
+                                now_ms,
+                                consumer_id.as_str(),
+                                limit
+                            ],
+                        )
+                        .await?;
+
+                    let mut ids: Vec<i64> = Vec::new();
+                    while let Some(row) = id_rows.next().await? {
+                        ids.push(row.get(0)?);
+                    }
+
+                    for id in &ids {
+                        conn.execute(
+                            "UPDATE a2a_messages SET
+                           claim_owner = ?1,
+                           claim_until_ms = ?2,
+                           delivery_attempts = delivery_attempts + IIF(
+                             COALESCE(claim_owner, '') = ?1 AND COALESCE(claim_until_ms, 0) >= ?3,
+                             0,
+                             1
+                           ),
+                           last_claim_error = NULL
+                         WHERE id = ?4",
+                            params![consumer_id.as_str(), claim_deadline, now_ms, id],
+                        )
+                        .await?;
+                    }
+
+                    let mut out = Vec::new();
+                    for id in ids {
+                        let mut rows = conn
+                            .query(
+                                "SELECT id, message_uuid, sender_agent, receiver_agent, msg_type, payload,
+                            priority, thread_id, acknowledged, created_at, repository_id,
+                            claim_owner, claim_until_ms, COALESCE(delivery_attempts, 0),
+                            last_claim_error, processed_at_ms
+                     FROM a2a_messages WHERE id = ?1",
+                                params![id],
+                            )
+                            .await?;
+                        if let Some(row) = rows.next().await? {
+                            let ack: i64 = row.get(8).unwrap_or(0);
+                            out.push(A2AMessageRow {
+                                id: row.get(0)?,
+                                message_uuid: row.get(1)?,
+                                sender_agent: row.get(2)?,
+                                receiver_agent: row.get(3)?,
+                                msg_type: row.get(4)?,
+                                payload: row.get(5)?,
+                                priority: row.get(6)?,
+                                thread_id: row.get(7)?,
+                                acknowledged: ack != 0,
+                                created_at: row.get(9)?,
+                                repository_id: row.get(10)?,
+                                claim_owner: row.get(11)?,
+                                claim_until_ms: row.get(12)?,
+                                delivery_attempts: row.get(13)?,
+                                last_claim_error: row.get(14)?,
+                                processed_at_ms: row.get(15)?,
+                            });
+                        }
+                    }
+
+                    conn.execute("COMMIT", ()).await?;
+                    Ok::<Vec<A2AMessageRow>, StoreError>(out)
+                }
+                .await;
+
+                if result.is_err() {
+                    let _ = conn.execute("ROLLBACK", ()).await;
+                }
+                result
+            })
+            .await
     }
 
     /// Acknowledge an A2A message by UUID.
     pub async fn acknowledge_a2a_message_by_uuid(&self, uuid: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE a2a_messages SET acknowledged=1 WHERE message_uuid=?1",
-                params![uuid],
-            )
-            .await?;
-        Ok(())
+        let now_ms = a2a_now_ms();
+        let uuid = uuid.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE a2a_messages SET acknowledged=1, claim_owner=NULL, claim_until_ms=NULL,
+                 processed_at_ms=?1 WHERE message_uuid=?2",
+                    params![now_ms, uuid.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Prune old acknowledged A2A messages older than N days.
@@ -166,8 +311,14 @@ impl crate::VoxDb {
             "DELETE FROM a2a_messages WHERE acknowledged=1 AND created_at < datetime('now', '-{} days')",
             older_than_days
         );
-        let affected = self.conn.execute(&sql, ()).await?;
-        Ok(affected as u64)
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn.execute(&sql, ()).await?;
+                Ok::<_, StoreError>(affected as u64)
+            })
+            .await
     }
 
     // ── OpLog (agent_oplog) ───────────────────────────────────────────────────
@@ -186,14 +337,37 @@ impl crate::VoxDb {
         timestamp_ms: i64,
         repository_id: &str,
     ) -> Result<(), StoreError> {
-        self.conn.execute(
-            "INSERT INTO agent_oplog
+        let agent_id = agent_id.to_string();
+        let operation_id = operation_id.to_string();
+        let kind_json = kind_json.to_string();
+        let description = description.to_string();
+        let predecessor_hash = predecessor_hash.map(str::to_string);
+        let model_id = model_id.map(str::to_string);
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_oplog
              (agent_id, operation_id, kind, description, predecessor_hash, model_id, change_id, timestamp_ms, repository_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![agent_id, operation_id, kind_json, description, predecessor_hash,
-                    model_id, change_id, timestamp_ms, repository_id],
-        ).await?;
-        Ok(())
+                    params![
+                        agent_id.as_str(),
+                        operation_id.as_str(),
+                        kind_json.as_str(),
+                        description.as_str(),
+                        predecessor_hash.as_deref(),
+                        model_id.as_deref(),
+                        change_id,
+                        timestamp_ms,
+                        repository_id.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List oplog entries for a repository (optionally filtered by agent), newest first.
@@ -242,27 +416,41 @@ impl crate::VoxDb {
         operation_id: &str,
         undone: bool,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE agent_oplog SET undone=?1 WHERE operation_id=?2",
-                params![if undone { 1i64 } else { 0i64 }, operation_id],
-            )
-            .await?;
-        Ok(())
+        let operation_id = operation_id.to_string();
+        let undone_flag = if undone { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE agent_oplog SET undone=?1 WHERE operation_id=?2",
+                    params![undone_flag, operation_id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Actor State (actor_state) — V21 ──────────────────────────────────────
 
     /// Save a JSON-serialized actor state value under a key (upsert).
     pub async fn save_actor_state(&self, key: &str, value_json: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO actor_state (key, value) VALUES (?1, ?2)
+        let key = key.to_string();
+        let value_json = value_json.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO actor_state (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')",
-                params![key, value_json],
-            )
-            .await?;
-        Ok(())
+                    params![key.as_str(), value_json.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Load a JSON-serialized actor state value by key.
@@ -279,10 +467,19 @@ impl crate::VoxDb {
 
     /// Delete an actor state entry.
     pub async fn delete_actor_state(&self, key: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute("DELETE FROM actor_state WHERE key=?1", params![key])
-            .await?;
-        Ok(())
+        let key = key.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM actor_state WHERE key=?1",
+                    params![key.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Oplog Locks (agent_locks via ops_orchestrator) ────────────────────────
@@ -294,26 +491,41 @@ impl crate::VoxDb {
         agent_id: &str,
         repository_id: &str,
     ) -> Result<bool, StoreError> {
-        let affected = self
-            .conn
-            .execute(
-                "INSERT OR IGNORE INTO agent_locks (path, agent_id, repository_id, acquired_at)
+        let path = path.to_string();
+        let agent_id = agent_id.to_string();
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn
+                    .execute(
+                        "INSERT OR IGNORE INTO agent_locks (path, agent_id, repository_id, acquired_at)
              VALUES (?1, ?2, ?3, datetime('now'))",
-                params![path, agent_id, repository_id],
-            )
-            .await?;
-        Ok(affected > 0)
+                        params![path.as_str(), agent_id.as_str(), repository_id.as_str()],
+                    )
+                    .await?;
+                Ok::<_, StoreError>(affected > 0)
+            })
+            .await
     }
 
     /// Release a file lock held by an agent.
     pub async fn release_file_lock(&self, path: &str, agent_id: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "DELETE FROM agent_locks WHERE path=?1 AND agent_id=?2",
-                params![path, agent_id],
-            )
-            .await?;
-        Ok(())
+        let path = path.to_string();
+        let agent_id = agent_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM agent_locks WHERE path=?1 AND agent_id=?2",
+                    params![path.as_str(), agent_id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List current file locks for a repository.
@@ -348,16 +560,24 @@ impl crate::VoxDb {
         repository_id: &str,
         status: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO agent_heartbeats (agent_id, repository_id, status, last_seen)
+        let agent_id = agent_id.to_string();
+        let repository_id = repository_id.to_string();
+        let status = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_heartbeats (agent_id, repository_id, status, last_seen)
              VALUES (?1, ?2, ?3, datetime('now'))
              ON CONFLICT(agent_id, repository_id) DO UPDATE SET
                status=excluded.status, last_seen=datetime('now')",
-                params![agent_id, repository_id, status],
-            )
-            .await?;
-        Ok(())
+                    params![agent_id.as_str(), repository_id.as_str(), status.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List heartbeats for a repository.
@@ -385,15 +605,20 @@ impl crate::VoxDb {
 
     /// Delete heartbeats not updated within `timeout_secs` seconds.
     pub async fn prune_stale_heartbeats(&self, timeout_secs: i64) -> Result<u64, StoreError> {
-        let affected = self
-            .conn
-            .execute(
-                "DELETE FROM agent_heartbeats
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn
+                    .execute(
+                        "DELETE FROM agent_heartbeats
              WHERE last_seen < datetime('now', '-' || ?1 || ' seconds')",
-                params![timeout_secs],
-            )
-            .await?;
-        Ok(affected as u64)
+                        params![timeout_secs],
+                    )
+                    .await?;
+                Ok::<_, StoreError>(affected as u64)
+            })
+            .await
     }
 
     // ── Teaching profiles (gamify_teaching_profiles) ─────────────────────────
@@ -427,9 +652,17 @@ impl crate::VoxDb {
         mistake_counts_json: &str,
         cooldowns_json: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_teaching_profiles (user_id, stage, silenced, mistake_counts, cooldowns)
+        let user_id = user_id.to_string();
+        let stage = stage.to_string();
+        let mistake_counts_json = mistake_counts_json.to_string();
+        let cooldowns_json = cooldowns_json.to_string();
+        let silenced_flag = if silenced { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_teaching_profiles (user_id, stage, silenced, mistake_counts, cooldowns)
          VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(user_id) DO UPDATE SET
             stage = excluded.stage,
@@ -437,15 +670,17 @@ impl crate::VoxDb {
             mistake_counts = excluded.mistake_counts,
             cooldowns = excluded.cooldowns,
             updated_at = datetime('now')",
-                params![
-                    user_id,
-                    stage,
-                    if silenced { 1i64 } else { 0i64 },
-                    mistake_counts_json,
-                    cooldowns_json,
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        user_id.as_str(),
+                        stage.as_str(),
+                        silenced_flag,
+                        mistake_counts_json.as_str(),
+                        cooldowns_json.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

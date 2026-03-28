@@ -1,20 +1,29 @@
 use super::helpers::summarize_text;
 
-/// Show telemetry metrics for research sessions.
-pub async fn research_metrics(session_id: i64, metric_type: Option<&str>) -> anyhow::Result<()> {
+/// Show telemetry metrics for `research_metrics` rows matching a session id prefix.
+pub async fn research_metrics(session_id: &str, metric_type: Option<&str>) -> anyhow::Result<()> {
+    let sid = session_id.trim();
+    if sid.is_empty() {
+        anyhow::bail!(
+            "--session-id must be non-empty (examples: `mcp:<repository_id>`, `bench:<repo>`, `sess-key-1`)"
+        );
+    }
     let db = vox_db::VoxDb::connect_default().await?;
-    let sid = session_id.to_string();
-    let mt = metric_type.unwrap_or("");
     let metrics = db
-        .list_research_metrics_by_type(mt, &sid, 500)
+        .list_research_metrics_by_session(sid, metric_type, 500)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     if metrics.is_empty() {
-        println!("(no research metrics for session {session_id})");
+        println!("(no research_metrics rows for session prefix {sid:?})");
     } else {
-        println!("Research metrics (session {session_id})");
-        for (mtype, value, meta) in metrics {
-            print!("  - {mtype}: {}", value.map_or_else(|| "null".to_string(), |v| v.to_string()));
+        println!("research_metrics (session_id LIKE {sid:?}…)");
+        for (sess, mtype, value, meta) in metrics {
+            print!(
+                "  - [{}] {}  value={}",
+                mtype,
+                sess,
+                value.map_or_else(|| "null".to_string(), |v| v.to_string())
+            );
             if let Some(m) = meta {
                 print!("  metadata: {m}");
             }

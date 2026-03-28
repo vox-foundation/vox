@@ -110,6 +110,8 @@ mod tests {
             context: Some("let x = 1".to_string()),
             suggestions: vec!["let x: int = 1".to_string()],
             category: DiagnosticCategory::Typecheck,
+            code: None,
+            fixes: vec![],
         }];
         let fixes = fixer.suggest_fixes("let x = 1", &diags);
         assert_eq!(fixes.len(), 1);
@@ -129,6 +131,8 @@ mod tests {
             context: Some("ret x".to_string()),
             suggestions: vec![],
             category: DiagnosticCategory::Typecheck,
+            code: None,
+            fixes: vec![],
         }];
         let fixes = fixer.suggest_fixes("ret x", &diags);
         assert_eq!(fixes.len(), 1);

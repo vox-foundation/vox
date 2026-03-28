@@ -13,8 +13,7 @@ fn training_preflight_record_validates_against_contract_schema() {
     let schema_path = manifest_dir.join("../../contracts/mens/training-preflight.schema.json");
     let schema_raw = fs::read_to_string(&schema_path)
         .unwrap_or_else(|e| panic!("read {}: {e}", schema_path.display()));
-    let schema_val: serde_json::Value =
-        serde_json::from_str(&schema_raw).expect("schema JSON");
+    let schema_val: serde_json::Value = serde_json::from_str(&schema_raw).expect("schema JSON");
     let compiled = Validator::new(&schema_val).expect("compile JSON Schema");
 
     let good = json!({
@@ -23,7 +22,9 @@ fn training_preflight_record_validates_against_contract_schema() {
         "execution_kernel": "qlora",
         "notes": ["ok"]
     });
-    compiled.validate(&good).expect("valid preflight record must validate");
+    compiled
+        .validate(&good)
+        .expect("valid preflight record must validate");
 
     let missing_digest = json!({
         "schema_version": "vox.mens.preflight.v0",

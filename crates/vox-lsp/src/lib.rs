@@ -2,7 +2,7 @@
 //!
 //! Shared validation helpers used by the LSP binary and MCP / orchestrator quality gates.
 
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
 use vox_compiler::ast::decl::Decl;
 use vox_compiler::ast::expr::Expr;
 use vox_compiler::ast::stmt::Stmt;
@@ -39,7 +39,7 @@ fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
             TypeckSeverity::Error => DiagnosticSeverity::ERROR,
             TypeckSeverity::Warning => DiagnosticSeverity::WARNING,
         }),
-        code: None,
+        code: err.code.clone().map(NumberOrString::String),
         code_description: None,
         source: Some("vox-lsp".to_string()),
         message: err.message,

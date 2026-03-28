@@ -33,8 +33,25 @@ impl VoxDb {
             }
         }
         let ts = now_ms();
-        self.conn
-            .execute(
+        let publication_id = p.publication_id.to_string();
+        let content_sha3_256 = p.content_sha3_256.to_string();
+        let adapter = p.adapter.to_string();
+        let operation = p.operation.to_string();
+        let idempotency_key = p.idempotency_key.to_string();
+        let idempotency_key_for_row = idempotency_key.clone();
+        let status = p.status.to_string();
+        let lock_owner = p.lock_owner.map(std::string::ToString::to_string);
+        let lock_expires_at_ms = p.lock_expires_at_ms;
+        let next_retry_at_ms = p.next_retry_at_ms;
+        let attempt_count = p.attempt_count;
+        let last_error_class = p.last_error_class.map(std::string::ToString::to_string);
+        let last_error_message = p.last_error_message.map(std::string::ToString::to_string);
+        let metadata_json = p.metadata_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
                 "INSERT INTO external_submission_jobs (
                     publication_id, content_sha3_256, adapter, operation, idempotency_key,
                     status, lock_owner, lock_expires_at_ms, next_retry_at_ms, attempt_count,
@@ -50,27 +67,30 @@ impl VoxDb {
                     metadata_json = excluded.metadata_json,
                     updated_at_ms = excluded.updated_at_ms",
                 (
-                    p.publication_id.to_string(),
-                    p.content_sha3_256.to_string(),
-                    p.adapter.to_string(),
-                    p.operation.to_string(),
-                    p.idempotency_key.to_string(),
-                    p.status.to_string(),
-                    p.lock_owner.map(std::string::ToString::to_string),
-                    p.lock_expires_at_ms,
-                    p.next_retry_at_ms,
-                    p.attempt_count,
-                    p.last_error_class.map(std::string::ToString::to_string),
-                    p.last_error_message.map(std::string::ToString::to_string),
-                    p.metadata_json.map(std::string::ToString::to_string),
+                    publication_id,
+                    content_sha3_256,
+                    adapter,
+                    operation,
+                    idempotency_key.clone(),
+                    status,
+                    lock_owner,
+                    lock_expires_at_ms,
+                    next_retry_at_ms,
+                    attempt_count,
+                    last_error_class,
+                    last_error_message,
+                    metadata_json,
                     ts,
                 ),
             )
             .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
         let rows = self
             .query_all(
                 "SELECT id FROM external_submission_jobs WHERE idempotency_key = ?1",
-                (p.idempotency_key.to_string(),),
+                (idempotency_key_for_row,),
             )
             .await?;
         let row = rows.first().ok_or_else(|| {
@@ -252,10 +272,13 @@ impl VoxDb {
         job_id: i64,
     ) -> Result<ExternalSubmissionJobRow, StoreError> {
         let ts = now_ms();
-        let n = self
-            .conn
-            .execute(
-                "UPDATE external_submission_jobs SET
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let n = breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "UPDATE external_submission_jobs SET
                     status = 'queued',
                     lock_owner = NULL,
                     lock_expires_at_ms = NULL,
@@ -264,8 +287,11 @@ impl VoxDb {
                     last_error_message = NULL,
                     updated_at_ms = ?1
                  WHERE id = ?2 AND status = 'failed'",
-                (ts, job_id),
-            )
+                        (ts, job_id),
+                    )
+                    .await?;
+                Ok::<u64, StoreError>(n)
+            })
             .await?;
         if n == 0 {
             let Some(j) = self.get_external_submission_job_by_id(job_id).await? else {
@@ -296,10 +322,14 @@ impl VoxDb {
         now_ms_inclusive: i64,
     ) -> Result<bool, StoreError> {
         let ts = now_ms();
-        let n = self
-            .conn
-            .execute(
-                "UPDATE external_submission_jobs SET
+        let lock_owner = lock_owner.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let n = breaker
+            .call(|| async move {
+                let n = conn
+                    .execute(
+                        "UPDATE external_submission_jobs SET
                     status = 'running',
                     lock_owner = ?1,
                     lock_expires_at_ms = ?2,
@@ -312,14 +342,17 @@ impl VoxDb {
                          AND lock_expires_at_ms IS NOT NULL
                          AND lock_expires_at_ms < ?5)
                    )",
-                (
-                    lock_owner.to_string(),
-                    lock_expires_at_ms,
-                    ts,
-                    job_id,
-                    now_ms_inclusive,
-                ),
-            )
+                        (
+                            lock_owner,
+                            lock_expires_at_ms,
+                            ts,
+                            job_id,
+                            now_ms_inclusive,
+                        ),
+                    )
+                    .await?;
+                Ok::<u64, StoreError>(n)
+            })
             .await?;
         Ok(n > 0)
     }
@@ -375,31 +408,41 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         let ts = now_ms();
         let retryable_i: i64 = if p.retryable { 1 } else { 0 };
-        self.conn
-            .execute(
-                "INSERT INTO external_submission_attempts (
+        let job_id = p.job_id;
+        let http_status = p.http_status.map(i64::from);
+        let error_class = p.error_class.map(std::string::ToString::to_string);
+        let request_fingerprint = p.request_fingerprint.map(std::string::ToString::to_string);
+        let response_fingerprint = p.response_fingerprint.map(std::string::ToString::to_string);
+        let detail_json = p.detail_json.map(std::string::ToString::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO external_submission_attempts (
                     job_id, attempted_at_ms, http_status, error_class, retryable,
                     request_fingerprint, response_fingerprint, detail_json
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                (
-                    p.job_id,
-                    ts,
-                    p.http_status.map(i64::from),
-                    p.error_class.map(std::string::ToString::to_string),
-                    retryable_i,
-                    p.request_fingerprint.map(std::string::ToString::to_string),
-                    p.response_fingerprint.map(std::string::ToString::to_string),
-                    p.detail_json.map(std::string::ToString::to_string),
-                ),
-            )
-            .await?;
-        self.conn
-            .execute(
-                "UPDATE external_submission_jobs SET attempt_count = attempt_count + 1, updated_at_ms = ?2 WHERE id = ?1",
-                (p.job_id, ts),
-            )
-            .await?;
-        Ok(())
+                    (
+                        job_id,
+                        ts,
+                        http_status,
+                        error_class,
+                        retryable_i,
+                        request_fingerprint,
+                        response_fingerprint,
+                        detail_json,
+                    ),
+                )
+                .await?;
+                conn.execute(
+                    "UPDATE external_submission_jobs SET attempt_count = attempt_count + 1, updated_at_ms = ?2 WHERE id = ?1",
+                    (job_id, ts),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List attempts for a job, oldest first.

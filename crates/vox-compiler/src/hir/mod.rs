@@ -10,6 +10,9 @@
 //! Note: historical cross-module import resolver prototypes were retired; active
 //! import binding now flows through type registration/checker passes.
 
+/// Typed core IR v2 naming and version hooks (projection SSOT).
+pub mod core_ir;
+pub(crate) mod db_op_walk;
 /// Name resolution maps (`use`, re-exports).
 pub mod def_map;
 /// AST → HIR lowering entrypoints.
@@ -18,6 +21,7 @@ pub mod lower;
 pub mod nodes;
 /// Structural validation after lowering (invariants for codegen/type consumers).
 pub mod validate;
+pub use core_ir::{CoreIrVersion, TypedCoreIR_v2, WebEntrypointId, typed_core_version};
 pub use lower::{lower_classic_component_view, lower_module};
 pub use nodes::*;
 pub use validate::{HirValidationError, validate_module};

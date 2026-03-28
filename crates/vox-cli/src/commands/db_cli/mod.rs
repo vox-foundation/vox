@@ -136,7 +136,7 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliCore::ResearchMetrics {
                 session_id,
                 metric_type,
-            } => db::research_metrics(session_id, metric_type.as_deref()).await,
+            } => db::research_metrics(session_id.as_str(), metric_type.as_deref()).await,
             DbCliCore::ReliabilityList { domain, limit } => {
                 db::reliability_list(&domain, limit).await
             }

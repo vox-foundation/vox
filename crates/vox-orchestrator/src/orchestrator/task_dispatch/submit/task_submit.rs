@@ -151,6 +151,7 @@ impl Orchestrator {
         crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
 
         let remote_relay_desc = task.description.clone();
+        let lineage_desc_preview: String = remote_relay_desc.chars().take(240).collect();
         // Enqueue the task
         let handle = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
@@ -323,6 +324,29 @@ impl Orchestrator {
                     );
                 }
             });
+        }
+
+        if crate::lineage::orchestration_lineage_persist_enabled() {
+            if let Some(db) = self.db() {
+                let repo = crate::lineage::repository_id();
+                let payload = serde_json::json!({
+                    "description_preview": lineage_desc_preview,
+                });
+                let payload_str = payload.to_string();
+                let _ = db
+                    .append_orchestration_lineage_event(
+                        &repo,
+                        "task_submitted",
+                        task_id.0 as i64,
+                        Some(agent_id.0 as i64),
+                        session_id.as_deref(),
+                        None,
+                        None,
+                        None,
+                        Some(payload_str.as_str()),
+                    )
+                    .await;
+            }
         }
 
         Ok(task_id)

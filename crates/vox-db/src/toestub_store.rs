@@ -20,14 +20,21 @@ pub async fn add_suppression(
     reason: Option<&str>,
 ) -> Result<(), StoreError> {
     ensure_tables(db).await?;
-    db
-        .connection()
-        .execute(
-            "INSERT INTO toestub_suppressions (path, line, rule_id, reason) VALUES (?1, ?2, ?3, ?4)",
-            params![path, line, rule_id, reason],
-        )
-        .await?;
-    Ok(())
+    let path = path.to_string();
+    let rule_id = rule_id.to_string();
+    let reason = reason.map(str::to_string);
+    let breaker = db.breaker.clone();
+    let conn = db.conn.clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO toestub_suppressions (path, line, rule_id, reason) VALUES (?1, ?2, ?3, ?4)",
+                params![path.as_str(), line, rule_id.as_str(), reason.as_deref()],
+            )
+            .await?;
+            Ok::<(), StoreError>(())
+        })
+        .await
 }
 
 /// Load baseline JSON by logical name (any `run_scope`).
@@ -138,15 +145,28 @@ pub fn set_file_cache_blocking(
 ) -> Result<(), StoreError> {
     db.block_on(async {
         ensure_tables(db).await?;
-        db
-            .connection()
-            .execute(
-                "INSERT OR REPLACE INTO toestub_file_cache (path, content_hash, rules_version, findings_json, updated_at)
+        let path = path.to_string();
+        let content_hash = content_hash.to_string();
+        let rules_version = rules_version.to_string();
+        let findings_json = findings_json.to_string();
+        let breaker = db.breaker.clone();
+        let conn = db.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO toestub_file_cache (path, content_hash, rules_version, findings_json, updated_at)
                  VALUES (?1, ?2, ?3, ?4, datetime('now'))",
-                params![path, content_hash, rules_version, findings_json],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        path.as_str(),
+                        content_hash.as_str(),
+                        rules_version.as_str(),
+                        findings_json.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     })
 }
 

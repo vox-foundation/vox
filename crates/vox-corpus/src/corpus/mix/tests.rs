@@ -61,6 +61,16 @@ fn speech_to_code_normalizes_to_training_pair_shape() {
 }
 
 #[test]
+fn speech_to_code_preserves_diagnostics_snapshot() {
+    let raw = r#"{"refined_transcript":"fix typo","vox_code":"fn x() { }","diagnostics_snapshot":[{"message":"bad","code":"E001","severity":"error"}]}"#;
+    let out = normalize_training_jsonl_line(raw, Some("speech_to_code")).expect("ok");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let snap = v["diagnostics_snapshot"].as_array().expect("snapshot");
+    assert_eq!(snap.len(), 1);
+    assert_eq!(snap[0]["code"].as_str(), Some("E001"));
+}
+
+#[test]
 fn strict_rejects_missing_required_source() {
     let dir = tempfile::tempdir().expect("tempdir");
     let cfg_path = dir.path().join("mix.yaml");
@@ -75,6 +85,7 @@ fn strict_rejects_missing_required_source() {
     .unwrap();
     let err = run_mix_with_options(
         &cfg_path,
+        None,
         MixRunOptions {
             strict: true,
             write_report: false,

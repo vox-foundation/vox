@@ -32,14 +32,254 @@ pub struct PreflightFinding {
     pub message: String,
 }
 
+/// One human checkpoint surfaced outside scattered docs (live gates, legacy keys, manual venues).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ManualRequiredEntry {
+    pub code: &'static str,
+    pub reason: String,
+    pub severity: PreflightSeverity,
+    pub next_action: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_hint: Option<String>,
+}
+
+/// Coarse automation posture for this preflight pass.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PreflightConfidence {
+    AutoSafe,
+    AutoWithReview,
+    ManualRequired,
+}
+
+/// Optional gate / environment context so preflight can list live-publish blockers.
+#[derive(Debug, Clone)]
+pub struct PreflightAttentionInputs {
+    pub gate: Option<crate::gate::PublishGateDecision>,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PreflightReport {
     pub ok: bool,
     pub readiness_score: u8,
     pub findings: Vec<PreflightFinding>,
+    /// Consolidated operator checklist (non-secret; actionable next steps).
+    #[serde(default)]
+    pub manual_required: Vec<ManualRequiredEntry>,
+    pub confidence: PreflightConfidence,
     /// Conservative worthiness rubric output when requested (heuristic metrics; `meaningful_advance` is always false).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worthiness: Option<crate::publication_worthiness::WorthinessEvaluation>,
+}
+
+struct OperatorCredentialPresence {
+    twitter: bool,
+    github: bool,
+    open_collective: bool,
+    reddit: bool,
+    youtube: bool,
+}
+
+fn operator_credential_presence() -> OperatorCredentialPresence {
+    let cfg = crate::PublisherConfig::from_operator_environment(
+        true,
+        None,
+        crate::NewsSiteConfig::from_default_with_operator_env(),
+    );
+    OperatorCredentialPresence {
+        twitter: cfg.twitter_bearer_token.is_some(),
+        github: cfg.github_token.is_some(),
+        open_collective: cfg.open_collective_token.is_some(),
+        reddit: cfg.reddit_client_id.is_some()
+            && cfg.reddit_client_secret.is_some()
+            && cfg.reddit_refresh_token.is_some()
+            && cfg.reddit_user_agent.is_some(),
+        youtube: cfg.youtube_client_id.is_some()
+            && cfg.youtube_client_secret.is_some()
+            && cfg.youtube_refresh_token.is_some(),
+    }
+}
+
+fn collect_manual_required(
+    manifest: &PublicationManifest,
+    attention: Option<&PreflightAttentionInputs>,
+) -> Vec<ManualRequiredEntry> {
+    let mut out = Vec::new();
+    if let Some(raw) = manifest.metadata_json.as_deref()
+        && !raw.trim().is_empty()
+        && let Ok(root) = serde_json::from_str::<serde_json::Value>(raw)
+        && root
+            .get(crate::switching::LEGACY_METADATA_SYNDICATION_KEY)
+            .is_some()
+    {
+        out.push(ManualRequiredEntry {
+            code: "legacy_syndication_metadata_key",
+            reason: format!(
+                "metadata_json uses deprecated root key `{}`",
+                crate::switching::LEGACY_METADATA_SYNDICATION_KEY
+            ),
+            severity: PreflightSeverity::Warning,
+            next_action:
+                "Prefer `metadata_json.syndication` as the canonical distribution envelope (legacy keys still merge at hydrate time)."
+                    .to_string(),
+            command_hint: None,
+        });
+    }
+
+    if let Ok(item) = crate::switching::unified_news_item_from_manifest_parts(
+        manifest.publication_id.as_str(),
+        manifest.title.as_str(),
+        manifest.author.as_str(),
+        manifest.body_markdown.as_str(),
+        manifest.metadata_json.as_deref(),
+    ) {
+        if item.syndication.hacker_news.is_some() {
+            out.push(ManualRequiredEntry {
+                code: "hacker_news_manual_assist",
+                reason: "Hacker News syndication uses manual-assist handoff (no posting API)."
+                    .to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action: "Complete the operator assist URL from the syndication outcome; keep an audit trail."
+                    .to_string(),
+                command_hint: Some(
+                    "vox db publication-route-simulate --publication-id <id>".to_string(),
+                ),
+            });
+        }
+        if item.syndication.crates_io.is_some() {
+            out.push(ManualRequiredEntry {
+                code: "crates_io_not_automated",
+                reason: "crates.io channel is modeled in policy but has no live publisher adapter."
+                    .to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action:
+                    "Treat outcomes as explicit dry-run / not-implemented; use normal crate release tooling."
+                        .to_string(),
+                command_hint: None,
+            });
+        }
+        if item.syndication.distribution_policy.approval_required == Some(true) {
+            out.push(ManualRequiredEntry {
+                code: "distribution_policy_approval_required",
+                reason: "Manifest flags `distribution_policy.approval_required`.".to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action:
+                    "Record digest-bound approvals before any live fan-out (per publication policy)."
+                        .to_string(),
+                command_hint: Some(
+                    "vox scientia publication-approve --publication-id <id> --approver <name>"
+                        .to_string(),
+                ),
+            });
+        }
+        let cred = operator_credential_presence();
+        if item.syndication.twitter.is_some() && !cred.twitter {
+            out.push(ManualRequiredEntry {
+                code: "credential_twitter",
+                reason: "Twitter is enabled in syndication but no operator bearer token resolved."
+                    .to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action: "Configure the Twitter bearer token / Clavis mapping for this shell.".to_string(),
+                command_hint: Some("vox clavis doctor".to_string()),
+            });
+        }
+        if item.syndication.github.is_some() && !cred.github {
+            out.push(ManualRequiredEntry {
+                code: "credential_github",
+                reason: "GitHub syndication is enabled but no operator token resolved.".to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action: "Configure `VOX_NEWS_GITHUB_TOKEN` / GitHub token via Clavis.".to_string(),
+                command_hint: Some("vox clavis doctor".to_string()),
+            });
+        }
+        if item.syndication.open_collective.is_some() && !cred.open_collective {
+            out.push(ManualRequiredEntry {
+                code: "credential_open_collective",
+                reason: "Open Collective syndication is enabled but no operator token resolved."
+                    .to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action: "Configure `VOX_NEWS_OPENCOLLECTIVE_TOKEN` / Clavis mapping.".to_string(),
+                command_hint: Some("vox clavis doctor".to_string()),
+            });
+        }
+        if item.syndication.reddit.is_some() && !cred.reddit {
+            out.push(ManualRequiredEntry {
+                code: "credential_reddit",
+                reason: "Reddit syndication is enabled but OAuth client credentials are incomplete."
+                    .to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action: "Set `VOX_SOCIAL_REDDIT_*` secrets per Clavis SSOT.".to_string(),
+                command_hint: Some("vox clavis doctor".to_string()),
+            });
+        }
+        if item.syndication.youtube.is_some() && !cred.youtube {
+            out.push(ManualRequiredEntry {
+                code: "credential_youtube",
+                reason: "YouTube syndication is enabled but OAuth refresh credentials are incomplete."
+                    .to_string(),
+                severity: PreflightSeverity::Warning,
+                next_action: "Set `VOX_SOCIAL_YOUTUBE_*` secrets per Clavis SSOT.".to_string(),
+                command_hint: Some("vox clavis doctor".to_string()),
+            });
+        }
+    }
+
+    if let Some(att) = attention
+        && let Some(ref gate) = att.gate
+        && gate.would_be_live_without_dry_run
+        && !gate.live_publish_allowed
+    {
+        for br in &gate.blocking_reasons {
+            let (code, hint): (&'static str, Option<String>) = match br.code.as_str() {
+                "missing_dual_approval" => (
+                    "live_publish_dual_approval",
+                    Some(
+                        "vox scientia publication-approve --publication-id <id> --approver <name>"
+                            .to_string(),
+                    ),
+                ),
+                "publish_not_armed" => (
+                    "live_publish_not_armed",
+                    Some(
+                        "export VOX_NEWS_PUBLISH_ARMED=1 (and/or orchestrator [news].publish_armed)"
+                            .to_string(),
+                    ),
+                ),
+                "missing_db" => (
+                    "live_publish_db",
+                    Some("Attach Turso/VoxDb for this shell or MCP server.".to_string()),
+                ),
+                _ => ("live_publish_blocked", None),
+            };
+            out.push(ManualRequiredEntry {
+                code,
+                reason: br.message.clone(),
+                severity: PreflightSeverity::Error,
+                next_action: "Resolve this gate before attempting a live syndication fan-out.".to_string(),
+                command_hint: hint,
+            });
+        }
+    }
+    out
+}
+
+fn derive_confidence(
+    findings: &[PreflightFinding],
+    manual: &[ManualRequiredEntry],
+) -> PreflightConfidence {
+    let finding_err = findings
+        .iter()
+        .any(|f| f.severity == PreflightSeverity::Error);
+    let manual_err = manual
+        .iter()
+        .any(|m| m.severity == PreflightSeverity::Error);
+    if finding_err || manual_err {
+        return PreflightConfidence::ManualRequired;
+    }
+    if !manual.is_empty() || findings.iter().any(|f| f.severity == PreflightSeverity::Warning) {
+        return PreflightConfidence::AutoWithReview;
+    }
+    PreflightConfidence::AutoSafe
 }
 
 fn email_pattern() -> &'static Regex {
@@ -88,6 +328,16 @@ pub fn parse_scientific_from_metadata_json(
 /// Run checks; `ok` is false when any finding has severity [`PreflightSeverity::Error`].
 #[must_use]
 pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) -> PreflightReport {
+    run_preflight_with_attention(manifest, profile, None)
+}
+
+/// Like [`run_preflight`], with optional [`PreflightAttentionInputs`] (for example DB-backed publish gates).
+#[must_use]
+pub fn run_preflight_with_attention(
+    manifest: &PublicationManifest,
+    profile: PreflightProfile,
+    attention: Option<PreflightAttentionInputs>,
+) -> PreflightReport {
     let mut findings: Vec<PreflightFinding> = Vec::new();
 
     if manifest.title.trim().is_empty() {
@@ -288,10 +538,15 @@ pub fn run_preflight(manifest: &PublicationManifest, profile: PreflightProfile) 
     let mut score: i32 = 100 - (err_n as i32) * 25 - (warn_n as i32) * 10;
     score = score.clamp(0, 100);
 
+    let manual_required = collect_manual_required(manifest, attention.as_ref());
+    let confidence = derive_confidence(&findings, &manual_required);
+
     PreflightReport {
         ok: err_n == 0,
         readiness_score: score as u8,
         findings,
+        manual_required,
+        confidence,
         worthiness: None,
     }
 }
@@ -466,7 +721,18 @@ pub fn run_preflight_with_worthiness(
     profile: PreflightProfile,
     contract: &crate::publication_worthiness::PublicationWorthinessContract,
 ) -> PreflightReport {
-    let mut report = run_preflight(manifest, profile);
+    run_preflight_with_worthiness_attention(manifest, profile, contract, None)
+}
+
+/// Like [`run_preflight_with_worthiness`], with optional attention inputs.
+#[must_use]
+pub fn run_preflight_with_worthiness_attention(
+    manifest: &PublicationManifest,
+    profile: PreflightProfile,
+    contract: &crate::publication_worthiness::PublicationWorthinessContract,
+    attention: Option<PreflightAttentionInputs>,
+) -> PreflightReport {
+    let mut report = run_preflight_with_attention(manifest, profile, attention);
     let inputs = worthiness_inputs_from_manifest_and_preflight(manifest, &report);
     let eval = crate::publication_worthiness::evaluate_worthiness(contract, &inputs);
     report.worthiness = Some(eval);
@@ -492,6 +758,24 @@ mod tests {
         };
         f(&mut m);
         m
+    }
+
+    #[test]
+    fn legacy_distribution_key_surfaces_manual_migration_hint() {
+        let m = sample_manifest(|x| {
+            x.metadata_json = Some(format!(
+                r#"{{"{}": {{"rss": false}}, "topic_pack": null}}"#,
+                crate::switching::LEGACY_METADATA_SYNDICATION_KEY
+            ));
+        });
+        let r = run_preflight(&m, PreflightProfile::Default);
+        assert!(
+            r.manual_required
+                .iter()
+                .any(|e| e.code == "legacy_syndication_metadata_key"),
+            "{:?}",
+            r.manual_required
+        );
     }
 
     #[test]

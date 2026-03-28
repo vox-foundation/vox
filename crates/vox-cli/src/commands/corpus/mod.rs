@@ -198,6 +198,7 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             allow_missing_sources,
         } => vox_corpus::corpus::run_mix_with_options(
             &config,
+            None,
             vox_corpus::corpus::MixRunOptions {
                 strict: !allow_missing_sources,
                 write_report: true,

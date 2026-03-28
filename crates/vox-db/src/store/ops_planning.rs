@@ -10,9 +10,16 @@ impl crate::VoxDb {
         goal_text: &str,
         strategy: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO plan_sessions (
+        let plan_session_id = plan_session_id.to_string();
+        let origin_session_id = origin_session_id.map(str::to_string);
+        let goal_text = goal_text.to_string();
+        let strategy = strategy.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO plan_sessions (
                     plan_session_id, origin_session_id, goal_text, strategy, current_version, status
                 ) VALUES (?1, ?2, ?3, ?4, 1, 'pending')
                 ON CONFLICT(plan_session_id) DO UPDATE SET
@@ -20,10 +27,17 @@ impl crate::VoxDb {
                     goal_text = excluded.goal_text,
                     strategy = excluded.strategy,
                     updated_at = datetime('now')",
-                params![plan_session_id, origin_session_id, goal_text, strategy],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        plan_session_id.as_str(),
+                        origin_session_id.as_deref(),
+                        goal_text.as_str(),
+                        strategy.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn append_plan_version(
@@ -34,27 +48,34 @@ impl crate::VoxDb {
         trigger_event: Option<&str>,
         trigger_payload_json: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO plan_versions (
+        let plan_session_id = plan_session_id.to_string();
+        let trigger_event = trigger_event.map(str::to_string);
+        let trigger_payload_json = trigger_payload_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO plan_versions (
                     plan_session_id, version, parent_version, trigger_event, trigger_payload_json
                 ) VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    plan_session_id,
-                    version,
-                    parent_version,
-                    trigger_event,
-                    trigger_payload_json
-                ],
-            )
-            .await?;
-        self.conn
-            .execute(
-                "UPDATE plan_sessions SET current_version = ?2, updated_at = datetime('now') WHERE plan_session_id = ?1",
-                params![plan_session_id, version],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        plan_session_id.as_str(),
+                        version,
+                        parent_version,
+                        trigger_event.as_deref(),
+                        trigger_payload_json.as_deref(),
+                    ],
+                )
+                .await?;
+                conn.execute(
+                    "UPDATE plan_sessions SET current_version = ?2, updated_at = datetime('now') WHERE plan_session_id = ?1",
+                    params![plan_session_id.as_str(), version],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -69,9 +90,19 @@ impl crate::VoxDb {
         status: &str,
         workflow_invocation: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO plan_nodes (
+        let plan_session_id = plan_session_id.to_string();
+        let node_id = node_id.to_string();
+        let description = description.to_string();
+        let dependencies_json = dependencies_json.to_string();
+        let execution_policy_json = execution_policy_json.to_string();
+        let status = status.to_string();
+        let workflow_invocation = workflow_invocation.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO plan_nodes (
                     plan_session_id, version, node_id, description, dependencies_json, execution_policy_json, status, workflow_invocation
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                 ON CONFLICT(plan_session_id, version, node_id) DO UPDATE SET
@@ -81,19 +112,21 @@ impl crate::VoxDb {
                     status = excluded.status,
                     workflow_invocation = excluded.workflow_invocation,
                     updated_at = datetime('now')",
-                params![
-                    plan_session_id,
-                    version,
-                    node_id,
-                    description,
-                    dependencies_json,
-                    execution_policy_json,
-                    status,
-                    workflow_invocation
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        plan_session_id.as_str(),
+                        version,
+                        node_id.as_str(),
+                        description.as_str(),
+                        dependencies_json.as_str(),
+                        execution_policy_json.as_str(),
+                        status.as_str(),
+                        workflow_invocation.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn record_plan_node_attempt(
@@ -107,24 +140,34 @@ impl crate::VoxDb {
         error_text: Option<&str>,
         latency_ms: Option<i64>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO plan_node_attempts (
+        let plan_session_id = plan_session_id.to_string();
+        let node_id = node_id.to_string();
+        let task_id = task_id.map(str::to_string);
+        let outcome = outcome.to_string();
+        let error_text = error_text.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO plan_node_attempts (
                     plan_session_id, version, node_id, attempt_no, task_id, outcome, error_text, latency_ms
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    plan_session_id,
-                    version,
-                    node_id,
-                    attempt_no,
-                    task_id,
-                    outcome,
-                    error_text,
-                    latency_ms
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        plan_session_id.as_str(),
+                        version,
+                        node_id.as_str(),
+                        attempt_no,
+                        task_id.as_deref(),
+                        outcome.as_str(),
+                        error_text.as_deref(),
+                        latency_ms,
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn set_plan_head(
@@ -133,17 +176,24 @@ impl crate::VoxDb {
         version: i64,
         status: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE plan_sessions
+        let plan_session_id = plan_session_id.to_string();
+        let status = status.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE plan_sessions
                  SET current_version = ?2,
                      status = COALESCE(?3, status),
                      updated_at = datetime('now')
                  WHERE plan_session_id = ?1",
-                params![plan_session_id, version, status],
-            )
-            .await?;
-        Ok(())
+                    params![plan_session_id.as_str(), version, status.as_deref(),],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn load_plan_head(&self, plan_session_id: &str) -> Result<Option<i64>, StoreError> {
@@ -222,14 +272,27 @@ impl crate::VoxDb {
         node_id: &str,
         status: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE plan_nodes SET status = ?4, updated_at = datetime('now')
+        let plan_session_id = plan_session_id.to_string();
+        let node_id = node_id.to_string();
+        let status = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE plan_nodes SET status = ?4, updated_at = datetime('now')
                  WHERE plan_session_id = ?1 AND version = ?2 AND node_id = ?3",
-                params![plan_session_id, version, node_id, status],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        plan_session_id.as_str(),
+                        version,
+                        node_id.as_str(),
+                        status.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     pub async fn update_plan_session_iterative_fields(
@@ -240,24 +303,33 @@ impl crate::VoxDb {
         stop_reason: Option<&str>,
         metadata_json: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE plan_sessions SET
+        let plan_session_id = plan_session_id.to_string();
+        let question_session_id = question_session_id.map(str::to_string);
+        let stop_reason = stop_reason.map(str::to_string);
+        let metadata_json = metadata_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE plan_sessions SET
                     question_session_id = COALESCE(?2, question_session_id),
                     iterative_loop_round = ?3,
                     iterative_stop_reason = COALESCE(?4, iterative_stop_reason),
                     iterative_loop_metadata_json = COALESCE(?5, iterative_loop_metadata_json),
                     updated_at = datetime('now')
                  WHERE plan_session_id = ?1",
-                params![
-                    plan_session_id,
-                    question_session_id,
-                    loop_round,
-                    stop_reason,
-                    metadata_json
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        plan_session_id.as_str(),
+                        question_session_id.as_deref(),
+                        loop_round,
+                        stop_reason.as_deref(),
+                        metadata_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use vox_db::VoxDb;
 
 #[tokio::test]
@@ -42,6 +44,74 @@ async fn test_locks_crud() {
     // 6. Prune handles expires_at <= now
     let pruned = store.prune_stale_distributed_locks().await.unwrap();
     assert_eq!(pruned, 0); // Not expired yet
+}
+
+#[tokio::test]
+async fn distributed_lock_fence_increments_on_same_node_refresh() {
+    let store: VoxDb = VoxDb::open_memory().await.unwrap();
+    let repo = "repo-fence";
+    let ttl = 120;
+    let f1 = store
+        .acquire_distributed_lock("L", "n1", "a1", ttl, repo)
+        .await
+        .unwrap()
+        .unwrap();
+    let f2 = store
+        .acquire_distributed_lock("L", "n1", "a1", ttl, repo)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        f2 > f1,
+        "refresh by same holder must advance fence (got {f1} then {f2})"
+    );
+}
+
+#[tokio::test]
+async fn distributed_lock_concurrent_acquires_single_holder() {
+    let store = Arc::new(VoxDb::open_memory().await.unwrap());
+    let repo = "repo-contend";
+    let ttl = 300;
+    let mut handles = Vec::new();
+    for i in 0..16u32 {
+        let db = store.clone();
+        handles.push(tokio::spawn(async move {
+            let node = format!("node-{i}");
+            db.acquire_distributed_lock("contended", &node, "agent", ttl, repo)
+                .await
+        }));
+    }
+    let mut owners = 0i32;
+    for h in handles {
+        match h.await.unwrap() {
+            Ok(Ok(_)) => owners += 1,
+            Ok(Err(_)) => {}
+            Err(e) => panic!("acquire db error: {e:?}"),
+        }
+    }
+    assert_eq!(
+        owners, 1,
+        "exactly one concurrent acquirer may hold the lock"
+    );
+}
+
+#[tokio::test]
+async fn distributed_lock_many_distinct_keys_finishes_quickly() {
+    let store: VoxDb = VoxDb::open_memory().await.unwrap();
+    let repo = "repo-budget";
+    let ttl = 600;
+    let t0 = std::time::Instant::now();
+    for i in 0..100u32 {
+        store
+            .acquire_distributed_lock(&format!("budget-lock-{i}"), "node", "agent", ttl, repo)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    assert!(
+        t0.elapsed().as_secs() < 15,
+        "100 sequential acquires should stay within a modest budget"
+    );
 }
 
 #[tokio::test]

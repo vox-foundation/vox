@@ -81,17 +81,15 @@ pub(super) fn run_validation_pass(
                         })
                     && let Ok(loss_val) = (match loss.rank() {
                         0 => loss.to_scalar::<f32>(),
-                        1 => loss
-                            .dim(0)
-                            .and_then(|d0| {
-                                if d0 == 1 {
-                                    loss.squeeze(0)?.to_scalar::<f32>()
-                                } else {
-                                    Err(candle_core::Error::Msg(format!(
-                                        "unexpected rank-1 loss shape [{d0}]"
-                                    )))
-                                }
-                            }),
+                        1 => loss.dim(0).and_then(|d0| {
+                            if d0 == 1 {
+                                loss.squeeze(0)?.to_scalar::<f32>()
+                            } else {
+                                Err(candle_core::Error::Msg(format!(
+                                    "unexpected rank-1 loss shape [{d0}]"
+                                )))
+                            }
+                        }),
                         r => Err(candle_core::Error::Msg(format!(
                             "unexpected validation loss rank {r}"
                         ))),

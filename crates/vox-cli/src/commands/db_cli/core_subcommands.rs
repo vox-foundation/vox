@@ -273,10 +273,10 @@ pub enum DbCliCore {
     /// List research metrics for a session id
     #[command(name = "research-metrics")]
     ResearchMetrics {
-        /// ID of the Socrates session run.
+        /// `research_metrics.session_id` prefix (TEXT), e.g. `mcp:<repository_id>`, `bench:<repository_id>`, or a linked session key.
         #[arg(long)]
-        session_id: i64,
-        /// Optional string matched against metric_type column (e.g., `hallucination_score`).
+        session_id: String,
+        /// When set, filter to this `metric_type` (exact match), e.g. `socrates_surface`, `benchmark_event`.
         #[arg(long)]
         metric_type: Option<String>,
     },

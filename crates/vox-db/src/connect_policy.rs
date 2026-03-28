@@ -40,10 +40,7 @@ impl DbConnectSurface {
 }
 
 /// Format a single structured warning line for degraded optional connections.
-pub fn format_degraded_optional_connect(
-    surface: DbConnectSurface,
-    err: &StoreError,
-) -> String {
+pub fn format_degraded_optional_connect(surface: DbConnectSurface, err: &StoreError) -> String {
     format!(
         "VoxDB degraded (surface={}): {}. Persistence disabled until resolved. {}",
         surface.as_str(),

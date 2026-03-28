@@ -1,5 +1,7 @@
 //! Arca CRUD for build-observability tables (`build_run`, `build_crate_sample`, `build_warning`).
 
+use turso::params;
+
 use crate::store::types::StoreError;
 use serde::Serialize;
 
@@ -74,26 +76,36 @@ impl crate::VoxDb {
         fresh_count: i64,
         dep_fingerprint: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO build_run (repository_id, run_name, rustc_version, profile, total_ms,
+        let repository_id = repository_id.to_string();
+        let run_name = run_name.map(str::to_string);
+        let rustc_version = rustc_version.map(str::to_string);
+        let profile = profile.to_string();
+        let dep_fingerprint = dep_fingerprint.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO build_run (repository_id, run_name, rustc_version, profile, total_ms,
              crate_count, fresh_count, dep_fingerprint)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                (
-                    repository_id,
-                    run_name,
-                    rustc_version,
-                    profile,
-                    total_ms,
-                    crate_count,
-                    fresh_count,
-                    dep_fingerprint,
-                ),
-            )
-            .await?;
-        let mut rows = self.conn.query("SELECT last_insert_rowid()", ()).await?;
-        let id: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
-        Ok(id)
+                    params![
+                        repository_id.as_str(),
+                        run_name.as_deref(),
+                        rustc_version.as_deref(),
+                        profile.as_str(),
+                        total_ms,
+                        crate_count,
+                        fresh_count,
+                        dep_fingerprint.as_deref(),
+                    ],
+                )
+                .await?;
+                let mut rows = conn.query("SELECT last_insert_rowid()", ()).await?;
+                let id: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
+                Ok::<i64, StoreError>(id)
+            })
+            .await
     }
 
     /// Bulk-insert crate samples for a run (best-effort; skips on error).
@@ -103,11 +115,30 @@ impl crate::VoxDb {
         samples: &[(&str, Option<&str>, Option<i64>, bool, Option<&str>)],
     ) -> Result<(), StoreError> {
         for (name, version, elapsed_ms, fresh, features) in samples {
-            let _ = self.conn.execute(
-                "INSERT INTO build_crate_sample (run_id, name, version, elapsed_ms, fresh, features)
+            let name = name.to_string();
+            let version = version.map(str::to_string);
+            let features = features.map(str::to_string);
+            let fresh_i = if *fresh { 1i64 } else { 0i64 };
+            let breaker = self.breaker.clone();
+            let conn = self.conn.clone();
+            let _ = breaker
+                .call(|| async move {
+                    conn.execute(
+                        "INSERT INTO build_crate_sample (run_id, name, version, elapsed_ms, fresh, features)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                (run_id, *name, *version, *elapsed_ms, if *fresh { 1i64 } else { 0i64 }, *features),
-            ).await;
+                        params![
+                            run_id,
+                            name.as_str(),
+                            version.as_deref(),
+                            *elapsed_ms,
+                            fresh_i,
+                            features.as_deref(),
+                        ],
+                    )
+                    .await?;
+                    Ok::<(), StoreError>(())
+                })
+                .await;
         }
         Ok(())
     }
@@ -119,13 +150,28 @@ impl crate::VoxDb {
         warnings: &[(&str, &str, Option<&str>, &str)],
     ) -> Result<(), StoreError> {
         for (crate_name, level, code, message) in warnings {
-            let _ = self
-                .conn
-                .execute(
-                    "INSERT INTO build_warning (run_id, crate_name, level, code, message)
+            let crate_name = crate_name.to_string();
+            let level = level.to_string();
+            let code = code.map(str::to_string);
+            let message = message.to_string();
+            let breaker = self.breaker.clone();
+            let conn = self.conn.clone();
+            let _ = breaker
+                .call(|| async move {
+                    conn.execute(
+                        "INSERT INTO build_warning (run_id, crate_name, level, code, message)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                    (run_id, *crate_name, *level, *code, *message),
-                )
+                        params![
+                            run_id,
+                            crate_name.as_str(),
+                            level.as_str(),
+                            code.as_deref(),
+                            message.as_str(),
+                        ],
+                    )
+                    .await?;
+                    Ok::<(), StoreError>(())
+                })
                 .await;
         }
         Ok(())

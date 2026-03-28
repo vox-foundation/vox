@@ -16,20 +16,30 @@ impl VoxDb {
             .unwrap_or_default()
             .as_millis() as i64;
 
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO published_news (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id, content_sha3_256) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                (
-                    id.to_string(),
-                    now,
-                    github_release_id,
-                    twitter_tweet_id,
-                    opencollective_update_id,
-                    content_sha3_256.to_string(),
-                ),
-            )
-            .await?;
-        Ok(())
+        let id = id.to_string();
+        let content_sha3_256 = content_sha3_256.to_string();
+        let github_release_id = github_release_id.map(str::to_string);
+        let twitter_tweet_id = twitter_tweet_id.map(str::to_string);
+        let opencollective_update_id = opencollective_update_id.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO published_news (news_id, published_at_ms, github_release_id, twitter_tweet_id, opencollective_update_id, content_sha3_256) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    (
+                        id,
+                        now,
+                        github_release_id,
+                        twitter_tweet_id,
+                        opencollective_update_id,
+                        content_sha3_256,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// `true` when this news id was marked published **for this exact content digest** (or legacy row with unknown digest — see below).
@@ -67,13 +77,20 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO news_publish_approvals (news_id, approver, approved_at_ms) VALUES (?1, ?2, ?3)",
-                (news_id.to_string(), approver.to_string(), now),
-            )
-            .await?;
-        Ok(())
+        let news_id = news_id.to_string();
+        let approver = approver.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO news_publish_approvals (news_id, approver, approved_at_ms) VALUES (?1, ?2, ?3)",
+                    (news_id, approver, now),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Count distinct approvers recorded for this news id.
@@ -107,18 +124,21 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO news_publish_approvals_v2 (news_id, content_sha3_256, approver, approved_at_ms) VALUES (?1, ?2, ?3, ?4)",
-                (
-                    news_id.to_string(),
-                    content_sha3_256.to_string(),
-                    approver.to_string(),
-                    now,
-                ),
-            )
-            .await?;
-        Ok(())
+        let news_id = news_id.to_string();
+        let content_sha3_256 = content_sha3_256.to_string();
+        let approver = approver.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO news_publish_approvals_v2 (news_id, content_sha3_256, approver, approved_at_ms) VALUES (?1, ?2, ?3, ?4)",
+                    (news_id, content_sha3_256, approver, now),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Count distinct approvers recorded for this id+digest pair.
@@ -178,17 +198,20 @@ impl VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as i64;
-        self.conn
-            .execute(
-                "INSERT INTO news_publish_attempts (news_id, content_sha3_256, attempted_at_ms, result_json) VALUES (?1, ?2, ?3, ?4)",
-                (
-                    news_id.to_string(),
-                    content_sha3_256.to_string(),
-                    now,
-                    result_json.to_string(),
-                ),
-            )
-            .await?;
-        Ok(())
+        let news_id = news_id.to_string();
+        let content_sha3_256 = content_sha3_256.to_string();
+        let result_json = result_json.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO news_publish_attempts (news_id, content_sha3_256, attempted_at_ms, result_json) VALUES (?1, ?2, ?3, ?4)",
+                    (news_id, content_sha3_256, now, result_json),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

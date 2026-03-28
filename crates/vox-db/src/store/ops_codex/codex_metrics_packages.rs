@@ -1,5 +1,6 @@
 use turso::params;
 
+use crate::research_metrics_contract::validate_research_metric_row;
 use crate::store::types::{EndpointReliabilityEntry, PackageSearchResult, StoreError};
 
 impl crate::VoxDb {
@@ -7,8 +8,7 @@ impl crate::VoxDb {
 
     /// Append a `research_metrics` row. Returns its `rowid`.
     ///
-    /// Called from `vox-db/src/codex_conversation_graph.rs` and
-    /// `vox-db/src/socrates_telemetry.rs`.
+    /// Called from `vox-db` Codex / telemetry modules (see [`crate::research_metrics_contract`]).
     pub async fn append_research_metric(
         &self,
         session_id: &str,
@@ -16,14 +16,28 @@ impl crate::VoxDb {
         metric_value: Option<f64>,
         metadata_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO research_metrics (session_id, metric_type, metric_value, metadata_json)
+        validate_research_metric_row(session_id, metric_type, metadata_json)?;
+        let session_id = session_id.to_string();
+        let metric_type = metric_type.to_string();
+        let metadata_json = metadata_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_metrics (session_id, metric_type, metric_value, metadata_json)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![session_id, metric_type, metric_value, metadata_json],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        session_id.as_str(),
+                        metric_type.as_str(),
+                        metric_value,
+                        metadata_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Fetch the newest `research_metrics` rows of `metric_type` where `session_id` starts with
@@ -62,6 +76,61 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Newest `research_metrics` rows where `session_id` matches `session_id_prefix` (via `LIKE prefix%`).
+    ///
+    /// When `metric_type` is `Some` and non-empty, filters `metric_type = ?`. Returns
+    /// `(session_id, metric_type, metric_value, metadata_json)`.
+    ///
+    /// Empty `session_id_prefix` is treated as match-all (`%`) — callers should avoid this except
+    /// for diagnostics with a strict `limit`.
+    pub async fn list_research_metrics_by_session(
+        &self,
+        session_id_prefix: &str,
+        metric_type: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<(String, String, Option<f64>, Option<String>)>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let pattern = if session_id_prefix.is_empty() {
+            "%".to_string()
+        } else {
+            format!("{session_id_prefix}%")
+        };
+        let mt = metric_type.filter(|t| !t.trim().is_empty());
+        let mut rows = match mt {
+            Some(mt) => {
+                self.conn
+                    .query(
+                        "SELECT session_id, metric_type, metric_value, metadata_json
+                         FROM research_metrics
+                         WHERE session_id LIKE ?1 AND metric_type = ?2
+                         ORDER BY id DESC LIMIT ?3",
+                        params![pattern.as_str(), mt, lim],
+                    )
+                    .await?
+            }
+            None => {
+                self.conn
+                    .query(
+                        "SELECT session_id, metric_type, metric_value, metadata_json
+                         FROM research_metrics
+                         WHERE session_id LIKE ?1
+                         ORDER BY id DESC LIMIT ?2",
+                        params![pattern.as_str(), lim],
+                    )
+                    .await?
+            }
+        };
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let sid: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let mtype: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let mv: Option<f64> = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let meta: Option<String> = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((sid, mtype, mv, meta));
+        }
+        Ok(out)
+    }
+
     // ── Trusted Evidence Bundles (trusted_evidence_bundles) ───────────────────
 
     /// Upsert a `trusted_evidence_bundles` row. Returns its `rowid`.
@@ -76,9 +145,17 @@ impl crate::VoxDb {
         contradiction_count: i64,
         expires_at: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO trusted_evidence_bundles
+        let bundle_key = bundle_key.to_string();
+        let repository_id = repository_id.to_string();
+        let session_key = session_key.to_string();
+        let evidence_json = evidence_json.to_string();
+        let expires_at = expires_at.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO trusted_evidence_bundles
                      (bundle_key, repository_id, session_key, evidence_json,
                       contradiction_count, expires_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -87,17 +164,19 @@ impl crate::VoxDb {
                      contradiction_count = excluded.contradiction_count,
                      expires_at          = excluded.expires_at,
                      created_at          = datetime('now')",
-                params![
-                    bundle_key,
-                    repository_id,
-                    session_key,
-                    evidence_json,
-                    contradiction_count,
-                    expires_at
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        bundle_key.as_str(),
+                        repository_id.as_str(),
+                        session_key.as_str(),
+                        evidence_json.as_str(),
+                        contradiction_count,
+                        expires_at.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Fetch `evidence_json` for a `bundle_key`, or `None` if absent or expired.
@@ -181,9 +260,16 @@ impl crate::VoxDb {
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
 
-        self.conn
-            .execute(
-                "INSERT INTO endpoint_reliability
+        let endpoint_url = endpoint_url.to_string();
+        let model_id = model_id.to_string();
+        let rl = i64::from(is_rate_limit);
+        let to = i64::from(is_timeout);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO endpoint_reliability
                      (endpoint_url, model_id, total_requests,
                       hallucination_proxy_ewma, contradiction_ratio_ewma,
                       infra_failure_ewma, rate_limit_hits, timeout_hits, updated_at_ms)
@@ -196,19 +282,21 @@ impl crate::VoxDb {
                      rate_limit_hits           = rate_limit_hits + ?6,
                      timeout_hits              = timeout_hits    + ?7,
                      updated_at_ms             = ?8",
-                params![
-                    endpoint_url,
-                    model_id,
-                    hallucination_signal,
-                    contradiction_signal,
-                    infra_failure,
-                    i64::from(is_rate_limit),
-                    i64::from(is_timeout),
-                    now_ms
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        endpoint_url.as_str(),
+                        model_id.as_str(),
+                        hallucination_signal,
+                        contradiction_signal,
+                        infra_failure,
+                        rl,
+                        to,
+                        now_ms
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Fetch all `endpoint_reliability` rows sorted by composite degradation score (worst first).
@@ -355,25 +443,33 @@ impl crate::VoxDb {
         workflows_discovered: Option<i64>,
         metadata_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO eval_runs
+        let run_id = run_id.to_string();
+        let model_path = model_path.map(str::to_string);
+        let metadata_json = metadata_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO eval_runs
                      (run_id, model_path, format_validity, safety_rejection_rate,
                       quality_proxy, skills_discovered, workflows_discovered, metadata_json)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    run_id,
-                    model_path,
-                    format_validity,
-                    safety_rejection_rate,
-                    quality_proxy,
-                    skills_discovered,
-                    workflows_discovered,
-                    metadata_json
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        run_id.as_str(),
+                        model_path.as_deref(),
+                        format_validity,
+                        safety_rejection_rate,
+                        quality_proxy,
+                        skills_discovered,
+                        workflows_discovered,
+                        metadata_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     // ── Corpus Snapshots (corpus_snapshots) ───────────────────────────────────
@@ -388,20 +484,28 @@ impl crate::VoxDb {
         total_pairs: i64,
         pair_breakdown_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR IGNORE INTO corpus_snapshots
+        let fingerprint = fingerprint.to_string();
+        let generator_version = generator_version.to_string();
+        let pair_breakdown_json = pair_breakdown_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO corpus_snapshots
                      (fingerprint, generator_version, total_pairs, pair_breakdown_json)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    fingerprint,
-                    generator_version,
-                    total_pairs,
-                    pair_breakdown_json
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+                    params![
+                        fingerprint.as_str(),
+                        generator_version.as_str(),
+                        total_pairs,
+                        pair_breakdown_json.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     /// Return `true` if `fingerprint` is already recorded in `corpus_snapshots`.
@@ -492,12 +596,21 @@ impl crate::VoxDb {
         artifact: &[u8],
     ) -> Result<String, StoreError> {
         let hash = self.store("vox-pm-artifact", artifact).await?;
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO packages (name, version, hash, description, author, license, yanked)
+        let name = name.to_string();
+        let version = version.to_string();
+        let h = hash.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO packages (name, version, hash, description, author, license, yanked)
                  VALUES (?1, ?2, ?3, NULL, NULL, NULL, 0)",
-                params![name, version, hash.as_str()],
-            )
+                    params![name.as_str(), version.as_str(), h.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         Ok(hash)
     }

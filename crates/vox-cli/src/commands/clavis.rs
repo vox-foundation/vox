@@ -313,5 +313,15 @@ async fn run_doctor(
             }
         }
     }
+
+    let rf = vox_config::rollout_flag_snapshot();
+    println!(
+        "rollout_flags: lineage_persist={} workflow_journal_codex_persist={} db_circuit_breaker_env={} db_sync_remote_it_gate={} db_embedded_replica_it_gate={}",
+        rf.orchestration_lineage_persist,
+        rf.workflow_journal_codex_persist,
+        rf.db_circuit_breaker_env,
+        rf.db_sync_remote_integration_gate,
+        rf.db_embedded_replica_integration_gate
+    );
     Ok(())
 }

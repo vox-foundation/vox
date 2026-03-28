@@ -3,6 +3,9 @@
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::research_metrics_contract::{
+    METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY, TelemetryWriteOptions,
+};
 use crate::{StoreError, VoxDb};
 
 #[derive(Debug, Clone, Serialize)]
@@ -27,8 +30,13 @@ impl VoxDb {
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
-        let session = format!("workflow:{repository_id}");
-        self.append_research_metric(&session, "workflow_journal_entry", None, Some(&json))
-            .await
+        let tw = TelemetryWriteOptions::new(repository_id);
+        self.append_research_metric(
+            &tw.session_workflow(),
+            METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY,
+            None,
+            Some(&json),
+        )
+        .await
     }
 }

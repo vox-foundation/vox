@@ -4,6 +4,9 @@
 
 use serde::Serialize;
 
+use crate::research_metrics_contract::{
+    METRIC_TYPE_SYNTAX_K_EVENT, TelemetryWriteOptions,
+};
 use crate::{StoreError, VoxDb};
 
 /// Payload for one syntax-K observation.
@@ -38,9 +41,14 @@ impl VoxDb {
         };
         let json =
             serde_json::to_string(&meta).map_err(|e| StoreError::Serialization(e.to_string()))?;
-        let session = format!("syntaxk:{repository_id}");
-        self.append_research_metric(&session, "syntax_k_event", metric_value, Some(&json))
-            .await
+        let tw = TelemetryWriteOptions::new(repository_id);
+        self.append_research_metric(
+            &tw.session_syntaxk(),
+            METRIC_TYPE_SYNTAX_K_EVENT,
+            metric_value,
+            Some(&json),
+        )
+        .await
     }
 
     /// List newest syntax-k rows for `repository_id` as `(session_id, metric_value, metadata_json)`.
@@ -49,8 +57,8 @@ impl VoxDb {
         repository_id: &str,
         limit: i64,
     ) -> Result<Vec<(String, Option<f64>, Option<String>)>, StoreError> {
-        let prefix = format!("syntaxk:{repository_id}");
-        self.list_research_metrics_by_type("syntax_k_event", &prefix, limit)
+        let tw = TelemetryWriteOptions::new(repository_id);
+        self.list_research_metrics_by_type(METRIC_TYPE_SYNTAX_K_EVENT, &tw.session_syntaxk(), limit)
             .await
     }
 }

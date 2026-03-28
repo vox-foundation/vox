@@ -8,8 +8,8 @@ use super::registry::{extract_mcp_registry_tool_names, parse_mcp_registry_yaml};
 use super::validators::{
     check_dockerfiles_cargo_locked_policy, check_install_policy_surfaces,
     check_operator_docs_no_legacy_vox_install_pm_nudge,
-    check_packaging_pm_docs_no_resurrected_uv_copies,
-    check_project_pm_commands_no_toolchain_lane, check_upgrade_toolchain_only, kebab_to_pascal,
+    check_packaging_pm_docs_no_resurrected_uv_copies, check_project_pm_commands_no_toolchain_lane,
+    check_upgrade_toolchain_only, kebab_to_pascal,
 };
 
 #[test]

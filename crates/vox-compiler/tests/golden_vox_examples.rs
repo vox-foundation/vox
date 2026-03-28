@@ -4,16 +4,19 @@
 
 use std::path::{Path, PathBuf};
 
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parse;
+use vox_compiler::runtime_projection::{
+    RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
+};
 use vox_compiler::syntax_k::{
-    SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes, measure_syntax_k_event,
-    sha3_hex,
+    RepresentabilityPayload, SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes,
+    enrich_syntax_k_support_metrics, measure_syntax_k_event, sha3_hex,
 };
 use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
 use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
 use vox_compiler::web_ir::validate::validate_web_ir_with_metrics;
-use vox_compiler::hir::lower_module;
-use vox_compiler::lexer::lex;
-use vox_compiler::parser::parse;
 
 fn syntax_k_output_root() -> PathBuf {
     if let Ok(dir) = std::env::var("CARGO_TARGET_DIR")
@@ -53,35 +56,63 @@ fn assert_golden_file(path: &Path) {
     let fixture_id = fixture_id_from(path);
     let (web_ir, lower_summary) = lower_hir_to_web_ir_with_summary(&hir);
     let (diags, validate_metrics) = validate_web_ir_with_metrics(&web_ir);
-    assert!(diags.is_empty(), "{fixture_id}: web_ir validate diagnostics: {diags:?}");
+    assert!(
+        diags.is_empty(),
+        "{fixture_id}: web_ir validate diagnostics: {diags:?}"
+    );
 
     let web_ir_bytes = canonical_web_ir_bytes(&web_ir)
         .unwrap_or_else(|e| panic!("{fixture_id}: canonical_web_ir_bytes failed: {e}"));
     let source_hash = sha3_hex(src.as_bytes());
     let web_ir_hash = sha3_hex(&web_ir_bytes);
-    let support_metrics = serde_json::json!({
-        "web_ir_lower_summary": {
-            "client_route_trees": lower_summary.client_route_trees,
-            "http_loader_contracts": lower_summary.http_loader_contracts,
-            "server_fn_contracts": lower_summary.server_fn_contracts,
-            "query_fn_contracts": lower_summary.query_fn_contracts,
-            "mutation_contracts": lower_summary.mutation_contracts,
-            "reactive_components": lower_summary.reactive_components,
-            "classic_component_views_lowered": lower_summary.classic_component_views_lowered,
-            "classic_components_deferred": lower_summary.classic_components_deferred,
-            "style_rules_lowered": lower_summary.style_rules_lowered,
-            "dom_expr_fallbacks": lower_summary.dom_expr_fallbacks,
-            "lowering_diagnostics": lower_summary.lowering_diagnostics
-        },
-        "web_ir_validate_metrics": {
-            "view_roots_walked": validate_metrics.view_roots_walked,
-            "dom_nodes_traversed": validate_metrics.dom_nodes_traversed,
-            "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
-            "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
-            "style_nodes_checked": validate_metrics.style_nodes_checked,
-            "island_mounts_checked": validate_metrics.island_mounts_checked
-        },
+    let hir_ok = hir.legacy_ast_nodes.is_empty();
+    let rp = project_runtime_from_hir(&hir);
+    let rp_bytes = canonical_runtime_projection_bytes(&rp)
+        .unwrap_or_else(|e| panic!("{fixture_id}: runtime projection bytes: {e}"));
+    let rp_summary = serde_json::json!({
+        "schema_version": RUNTIME_PROJECTION_SCHEMA_VERSION,
+        "sha3_hex": sha3_hex(&rp_bytes),
+        "db_planning_policy_count": rp.db_planning_policies.len(),
+        "has_host_capability_probe": rp.host_capability_probe.is_some(),
+        "has_module_task_capability_hints": rp.module_task_capability_hints.is_some(),
     });
+    let llm_surface = serde_json::json!({
+        "interop_nodes": web_ir.interop_nodes.len(),
+        "web_ir_lowering_diagnostics": web_ir.diagnostic_nodes.len(),
+    });
+    let support_metrics = enrich_syntax_k_support_metrics(
+        serde_json::json!({
+            "web_ir_lower_summary": {
+                "client_route_trees": lower_summary.client_route_trees,
+                "http_loader_contracts": lower_summary.http_loader_contracts,
+                "server_fn_contracts": lower_summary.server_fn_contracts,
+                "query_fn_contracts": lower_summary.query_fn_contracts,
+                "mutation_contracts": lower_summary.mutation_contracts,
+                "reactive_components": lower_summary.reactive_components,
+                "classic_component_views_lowered": lower_summary.classic_component_views_lowered,
+                "classic_components_deferred": lower_summary.classic_components_deferred,
+                "style_rules_lowered": lower_summary.style_rules_lowered,
+                "dom_expr_fallbacks": lower_summary.dom_expr_fallbacks,
+                "lowering_diagnostics": lower_summary.lowering_diagnostics
+            },
+            "web_ir_validate_metrics": {
+                "view_roots_walked": validate_metrics.view_roots_walked,
+                "dom_nodes_traversed": validate_metrics.dom_nodes_traversed,
+                "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
+                "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
+                "style_nodes_checked": validate_metrics.style_nodes_checked,
+                "island_mounts_checked": validate_metrics.island_mounts_checked
+            },
+        }),
+        RepresentabilityPayload {
+            parse_ok: true,
+            hir_ok,
+            web_ir_validate_ok: true,
+            emit_preview_ok: None,
+        },
+        Some(llm_surface),
+        Some(rp_summary),
+    );
 
     let webir_event = measure_syntax_k_event(SyntaxKInput {
         fixture_id: &fixture_id,
@@ -101,6 +132,19 @@ fn assert_golden_file(path: &Path) {
         }
     }
     let emitted_bytes = canonical_emitted_files_bytes(&emitted_files);
+    let emit_support = enrich_syntax_k_support_metrics(
+        serde_json::json!({
+            "emitted_file_count": emitted_files.len(),
+        }),
+        RepresentabilityPayload {
+            parse_ok: true,
+            hir_ok,
+            web_ir_validate_ok: true,
+            emit_preview_ok: Some(!emitted_files.is_empty()),
+        },
+        None,
+        None,
+    );
     let emit_event = measure_syntax_k_event(SyntaxKInput {
         fixture_id: &fixture_id,
         target_kind: "emit_tsx_preview",
@@ -108,11 +152,11 @@ fn assert_golden_file(path: &Path) {
         source_hash: Some(&source_hash),
         web_ir_hash: Some(&web_ir_hash),
         baseline_bytes: None,
-        support_metrics: Some(serde_json::json!({
-            "emitted_file_count": emitted_files.len(),
-        })),
+        support_metrics: Some(emit_support),
     })
-    .unwrap_or_else(|e| panic!("{fixture_id}: measure_syntax_k_event(emit_tsx_preview) failed: {e}"));
+    .unwrap_or_else(|e| {
+        panic!("{fixture_id}: measure_syntax_k_event(emit_tsx_preview) failed: {e}")
+    });
 
     let artifact = serde_json::json!({
         "schema_version": 1,

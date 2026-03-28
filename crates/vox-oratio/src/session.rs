@@ -128,6 +128,9 @@ pub struct OratioSessionResult {
     pub language_diagnostics: Option<serde_json::Value>,
     /// Refinement trace for debugging and quality analysis.
     pub correction_trace: Vec<CorrectionTrace>,
+    /// Alternate transcript hypotheses when re-ranking produced more than one candidate (best-first).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n_best: Option<Vec<String>>,
     /// Session timing diagnostics.
     pub timings: OratioTimings,
     /// Final state of the session.
@@ -273,6 +276,7 @@ pub fn transcribe_path_session_with_runtime(
         language_hint: cfg.language_hint.clone(),
         language_diagnostics: Some(language_diagnostics),
         correction_trace: detail.correction_trace,
+        n_best: detail.n_best.clone(),
         timings: OratioTimings {
             total_ms,
             transcribe_ms,

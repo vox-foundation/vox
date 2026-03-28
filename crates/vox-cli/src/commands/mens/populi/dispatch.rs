@@ -102,7 +102,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Some(0.05),                        // validation_split_ratio
                 MensTokenizerCli::Hf.into(),
                 false, // qlora_no_double_quant
-                true, // qlora_require_full_proxy_stack
+                true,  // qlora_require_full_proxy_stack
                 None,  // qlora_max_skip_rate
                 false, // qlora_lm_head_only
                 None,  // qlora_proxy_max_layers

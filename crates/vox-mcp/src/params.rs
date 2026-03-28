@@ -24,6 +24,9 @@ pub struct ToolResult<T> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Optional operator hint (docs, env keys, next CLI) when `success` is false.
     pub remediation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Machine-readable extensions (`diagnostics_snapshot`, repair metadata, …).
+    pub meta: Option<serde_json::Value>,
 }
 
 impl<T: Serialize> ToolResult<T> {
@@ -34,6 +37,7 @@ impl<T: Serialize> ToolResult<T> {
             data: Some(data),
             error: None,
             remediation: None,
+            meta: None,
         }
     }
 
@@ -44,6 +48,7 @@ impl<T: Serialize> ToolResult<T> {
             data: None,
             error: Some(msg.into()),
             remediation: None,
+            meta: None,
         }
     }
 
@@ -54,6 +59,22 @@ impl<T: Serialize> ToolResult<T> {
             data: None,
             error: Some(msg.into()),
             remediation: Some(remediation.into()),
+            meta: None,
+        }
+    }
+
+    /// Failed [`ToolResult`] with remediation and structured `meta` (e.g. `diagnostics_snapshot`).
+    pub fn err_with_remediation_meta(
+        msg: impl Into<String>,
+        remediation: impl Into<String>,
+        meta: serde_json::Value,
+    ) -> Self {
+        Self {
+            success: false,
+            data: None,
+            error: Some(msg.into()),
+            remediation: Some(remediation.into()),
+            meta: Some(meta),
         }
     }
 
@@ -93,6 +114,18 @@ mod tool_result_tests {
         assert!(!de.success);
         assert_eq!(de.error.as_deref(), Some("bad"));
         assert_eq!(de.remediation.as_deref(), Some("try `vox doctor`"));
+        assert!(de.meta.is_none());
+    }
+
+    #[test]
+    fn meta_round_trips_json() {
+        let tr = ToolResult::<String>::err_with_remediation_meta(
+            "e",
+            "r",
+            serde_json::json!({ "diagnostics_snapshot": [] }),
+        );
+        let de: ToolResult<String> = serde_json::from_str(&tr.to_json_compact()).expect("parse");
+        assert!(de.meta.is_some());
     }
 }
 

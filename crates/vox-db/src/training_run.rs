@@ -125,28 +125,39 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO populi_training_run
+        let run_id = params.run_id.clone();
+        let adapter_tag = params.adapter_tag.clone();
+        let model_name = params.model_name.clone();
+        let output_dir = params.output_dir.clone();
+        let data_dir = params.data_dir.clone();
+        let planned_steps = params.planned_steps.map(|s| s as i64);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO populi_training_run
                  (run_id, adapter_tag, model_name, output_dir, data_dir,
                   status, epoch, global_step, planned_steps,
                   last_loss, last_checkpoint_path, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, 'running', 0, 0, ?6, NULL, NULL, ?7, ?7)",
-                turso::params![
-                    params.run_id.as_str(),
-                    params.adapter_tag.as_deref(),
-                    params.model_name.as_deref(),
-                    params.output_dir.as_str(),
-                    params.data_dir.as_str(),
-                    params.planned_steps.map(|s| s as i64),
-                    now,
-                ],
-            )
+                    turso::params![
+                        run_id.as_str(),
+                        adapter_tag.as_deref(),
+                        model_name.as_deref(),
+                        output_dir.as_str(),
+                        data_dir.as_str(),
+                        planned_steps,
+                        now,
+                    ],
+                )
+                .await
+                .map_err(|e: turso::Error| {
+                    StoreError::NotFound(format!("record_training_run_start: {e}"))
+                })?;
+                Ok::<(), StoreError>(())
+            })
             .await
-            .map_err(|e: turso::Error| {
-                StoreError::NotFound(format!("record_training_run_start: {e}"))
-            })?;
-        Ok(())
     }
 
     /// **READ** — fetch a training run by `run_id`. Returns `None` if not found.
@@ -224,20 +235,32 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self.conn
-            .execute(
-                "UPDATE populi_training_run
+        let run_id = run_id.to_string();
+        let final_adapter_path = final_adapter_path.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE populi_training_run
                  SET status = 'complete', global_step = ?2,
                      last_checkpoint_path = COALESCE(?3, last_checkpoint_path),
                      updated_at = ?4
                  WHERE run_id = ?1",
-                turso::params![run_id, global_step as i64, final_adapter_path, now,],
-            )
+                    turso::params![
+                        run_id.as_str(),
+                        global_step as i64,
+                        final_adapter_path.as_deref(),
+                        now,
+                    ],
+                )
+                .await
+                .map_err(|e: turso::Error| {
+                    StoreError::NotFound(format!("mark_training_complete: {e}"))
+                })?;
+                Ok::<(), StoreError>(())
+            })
             .await
-            .map_err(|e: turso::Error| {
-                StoreError::NotFound(format!("mark_training_complete: {e}"))
-            })?;
-        Ok(())
     }
 
     /// **UPDATE** — mark a run as failed with an optional error message in the status.
@@ -248,18 +271,24 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         self.ensure_training_run_table().await?;
         let now = unix_now();
-        self.conn
-            .execute(
-                "UPDATE populi_training_run
+        let run_id = run_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE populi_training_run
                  SET status = 'failed', global_step = ?2, updated_at = ?3
                  WHERE run_id = ?1",
-                turso::params![run_id, global_step as i64, now],
-            )
+                    turso::params![run_id.as_str(), global_step as i64, now],
+                )
+                .await
+                .map_err(|e: turso::Error| {
+                    StoreError::NotFound(format!("mark_training_failed: {e}"))
+                })?;
+                Ok::<(), StoreError>(())
+            })
             .await
-            .map_err(|e: turso::Error| {
-                StoreError::NotFound(format!("mark_training_failed: {e}"))
-            })?;
-        Ok(())
     }
 
     /// **READ** — list the most recent N training runs (ordered by `created_at DESC`).

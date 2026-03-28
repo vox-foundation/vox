@@ -24,10 +24,9 @@ mod run_body_helpers;
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
     run_build_timings, run_clavis_parity, run_cuda_features, run_cuda_release_build,
-    run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate, run_repo_guards,
-    run_data_ssot_guards, run_secret_env_guard, run_sql_surface_guard, run_ssot_drift,
-    run_toestub_scoped,
-    run_toestub_self_apply,
+    run_data_ssot_guards, run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate,
+    run_repo_guards, run_secret_env_guard, run_sql_surface_guard, run_ssot_drift,
+    run_toestub_scoped, run_toestub_self_apply,
 };
 
 /// Run `vox ci` subcommand.

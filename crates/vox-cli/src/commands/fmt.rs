@@ -24,10 +24,7 @@ fn atomic_write_file(path: &Path, contents: &str) -> Result<()> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let base = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("file");
+    let base = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
     let tmp: PathBuf = parent.join(format!("{base}.voxfmt.{stamp}.tmp"));
     std::fs::File::create(&tmp)
         .with_context(|| format!("create temp {}", tmp.display()))?
@@ -35,27 +32,16 @@ fn atomic_write_file(path: &Path, contents: &str) -> Result<()> {
         .with_context(|| format!("write temp {}", tmp.display()))?;
     #[cfg(unix)]
     {
-        std::fs::rename(&tmp, path).with_context(|| {
-            format!(
-                "rename {} -> {}",
-                tmp.display(),
-                path.display()
-            )
-        })?;
+        std::fs::rename(&tmp, path)
+            .with_context(|| format!("rename {} -> {}", tmp.display(), path.display()))?;
     }
     #[cfg(not(unix))]
     {
         if path.exists() {
-            std::fs::remove_file(path)
-                .with_context(|| format!("remove {}", path.display()))?;
+            std::fs::remove_file(path).with_context(|| format!("remove {}", path.display()))?;
         }
-        std::fs::rename(&tmp, path).with_context(|| {
-            format!(
-                "rename {} -> {}",
-                tmp.display(),
-                path.display()
-            )
-        })?;
+        std::fs::rename(&tmp, path)
+            .with_context(|| format!("rename {} -> {}", tmp.display(), path.display()))?;
     }
     Ok(())
 }

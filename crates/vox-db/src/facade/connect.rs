@@ -72,7 +72,9 @@ impl crate::VoxDb {
                         );
                         Ok(db)
                     }
-                    Err(StoreError::LegacySchemaChain { max_version: sidecar_max }) => {
+                    Err(StoreError::LegacySchemaChain {
+                        max_version: sidecar_max,
+                    }) => {
                         tracing::warn!(
                             sidecar = %sidecar.display(),
                             sidecar_schema_max = sidecar_max,

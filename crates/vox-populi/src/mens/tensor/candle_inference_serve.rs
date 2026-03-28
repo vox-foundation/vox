@@ -153,7 +153,9 @@ impl InferenceEngine {
 
         if layout.architecture == HfArchitecture::Qwen35 {
             let p = format!("{}.0.input_layernorm.weight", layout.namespace_prefix);
-            if get_tensor(&p).is_err() && get_tensor("model.layers.0.input_layernorm.weight").is_ok() {
+            if get_tensor(&p).is_err()
+                && get_tensor("model.layers.0.input_layernorm.weight").is_ok()
+            {
                 layout.namespace_prefix = "model.layers".to_string();
             }
         }
@@ -216,7 +218,11 @@ impl InferenceEngine {
                         &_device,
                     )?;
                     let conv = get_tensor(&format!("{p}.linear_attn.conv1d.weight"))?;
-                    let conv_weight = if conv.rank() == 3 { conv.squeeze(1)? } else { conv };
+                    let conv_weight = if conv.rank() == 3 {
+                        conv.squeeze(1)?
+                    } else {
+                        conv
+                    };
                     if conv_weight.dim(0)? != qkv_rows {
                         anyhow::bail!(
                             "qwen3_5 linear conv rows mismatch at layer {}: expected {}, got {}",
@@ -347,10 +353,14 @@ impl InferenceEngine {
                 let o_key = format!("model.layers.{i}.self_attn.o_proj.weight");
 
                 let head_dim = layout.hidden_size / layout.num_attention_heads;
-                let q_proj = QuantizedLinear::from_weight(&get_tensor(&q_key)?, None, &qlora_cfg, &_device)?;
-                let k_proj = QuantizedLinear::from_weight(&get_tensor(&k_key)?, None, &qlora_cfg, &_device)?;
-                let v_proj = QuantizedLinear::from_weight(&get_tensor(&v_key)?, None, &qlora_cfg, &_device)?;
-                let o_proj = QuantizedLinear::from_weight(&get_tensor(&o_key)?, None, &qlora_cfg, &_device)?;
+                let q_proj =
+                    QuantizedLinear::from_weight(&get_tensor(&q_key)?, None, &qlora_cfg, &_device)?;
+                let k_proj =
+                    QuantizedLinear::from_weight(&get_tensor(&k_key)?, None, &qlora_cfg, &_device)?;
+                let v_proj =
+                    QuantizedLinear::from_weight(&get_tensor(&v_key)?, None, &qlora_cfg, &_device)?;
+                let o_proj =
+                    QuantizedLinear::from_weight(&get_tensor(&o_key)?, None, &qlora_cfg, &_device)?;
 
                 let att = Qwen2Attention {
                     q_proj,
@@ -367,9 +377,24 @@ impl InferenceEngine {
                 let down_key = format!("model.layers.{i}.mlp.down_proj.weight");
 
                 let mlp = Qwen2MLP {
-                    gate_proj: QuantizedLinear::from_weight(&get_tensor(&gate_key)?, None, &qlora_cfg, &_device)?,
-                    up_proj: QuantizedLinear::from_weight(&get_tensor(&up_key)?, None, &qlora_cfg, &_device)?,
-                    down_proj: QuantizedLinear::from_weight(&get_tensor(&down_key)?, None, &qlora_cfg, &_device)?,
+                    gate_proj: QuantizedLinear::from_weight(
+                        &get_tensor(&gate_key)?,
+                        None,
+                        &qlora_cfg,
+                        &_device,
+                    )?,
+                    up_proj: QuantizedLinear::from_weight(
+                        &get_tensor(&up_key)?,
+                        None,
+                        &qlora_cfg,
+                        &_device,
+                    )?,
+                    down_proj: QuantizedLinear::from_weight(
+                        &get_tensor(&down_key)?,
+                        None,
+                        &qlora_cfg,
+                        &_device,
+                    )?,
                 };
 
                 let inv_freq_key = format!("model.layers.{i}.self_attn.rotary_emb.inv_freq");
@@ -408,7 +433,9 @@ impl InferenceEngine {
             InferenceModel::Qwen2(model)
         };
         let kv_cache = match &model {
-            InferenceModel::Qwen2(_) => InferenceCache::Qwen2(ForwardCache::new(layout.num_hidden_layers)),
+            InferenceModel::Qwen2(_) => {
+                InferenceCache::Qwen2(ForwardCache::new(layout.num_hidden_layers))
+            }
             InferenceModel::Qwen35(_) => {
                 InferenceCache::Qwen35(Qwen35ForwardCache::new(layout.num_hidden_layers))
             }
@@ -499,10 +526,16 @@ mod tests {
 
         let legacy = d.path().join("meta.json");
         std::fs::write(&legacy, "{}").expect("legacy");
-        assert_eq!(resolve_adapter_meta_path(d.path()).as_deref(), Some(legacy.as_path()));
+        assert_eq!(
+            resolve_adapter_meta_path(d.path()).as_deref(),
+            Some(legacy.as_path())
+        );
 
         let v2 = d.path().join("adapter_meta_v2.json");
         std::fs::write(&v2, "{}").expect("v2");
-        assert_eq!(resolve_adapter_meta_path(d.path()).as_deref(), Some(v2.as_path()));
+        assert_eq!(
+            resolve_adapter_meta_path(d.path()).as_deref(),
+            Some(v2.as_path())
+        );
     }
 }

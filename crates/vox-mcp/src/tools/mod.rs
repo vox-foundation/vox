@@ -35,9 +35,12 @@ pub mod repo_index;
 pub mod scientia_tools;
 /// Orchestrator task submit/status/cancel/drain tools.
 pub mod task_tools;
+pub(crate) mod text_normalization;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
 pub mod toestub_tools;
 mod tool_aliases;
+/// Workspace-relative path resolution (repo root joining, in-repo canonical checks).
+pub(crate) mod workspace_path;
 // Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
 use self::{input_schemas as _, tool_aliases as _};
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).

@@ -51,7 +51,7 @@ fn initial_training_manifest_burn_wires_kernel_and_candle_defaults() {
     assert_eq!(m.candle_qlora_proxy_stack_complete, None);
     assert_eq!(m.candle_qlora_graph_id.as_deref(), None);
     assert_eq!(m.candle_qlora_middle_layers_active, None);
-    assert_eq!(m.candle_qlora_ce_last_k, 64);
+    assert_eq!(m.candle_qlora_ce_last_k, 1);
     assert_eq!(m.candle_qlora_training_steps_executed, 0);
     assert_eq!(m.grad_accum, 3);
     assert_eq!(m.train_file, "train.jsonl");

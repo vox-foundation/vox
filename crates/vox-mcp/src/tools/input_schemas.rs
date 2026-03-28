@@ -126,7 +126,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Compiler / workspace ─────────────────────────────────────────────
         "vox_validate_file" | "vox_compiler::ast_inspect" => parse_obj(
-            r#"{"type":"object","properties":{"path":{"type":"string","description":"Path to a .vox file"}},"required":["path"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"path":{"type":"string","minLength":1,"description":"Workspace-relative or absolute path to a `.vox` file (absolute must resolve under the MCP repository root)"}},"required":["path"],"additionalProperties":false}"#,
         ),
         "vox_run_tests" => parse_obj(
             r#"{"type":"object","properties":{"crate_name":{"type":"string","description":"Cargo package name (-p)"},"test_filter":{"type":"string","description":"Optional substring after --"}},"required":["crate_name"],"additionalProperties":false}"#,
@@ -334,7 +334,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Codegen ──────────────────────────────────────────────────────────
         "vox_generate_code" => parse_obj(
-            r#"{"type":"object","properties":{"prompt":{"type":"string"}},"required":["prompt"],"additionalProperties":true}"#,
+            r#"{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"description":"Natural-language description of the `.vox` code to generate"},"validate":{"type":"boolean","description":"When true (default), run `validate_document_with_hir` and bounded repair retries"},"max_retries":{"type":"integer","minimum":0,"maximum":5,"description":"Max HIR repair attempts (clamped to speech policy cap)"},"session_id":{"type":"string","description":"Optional session id for model routing affinity"}},"required":["prompt"],"additionalProperties":false}"#,
         ),
 
         // ── Q&A & A2A ───────────────────────────────────────────────────────
@@ -606,5 +606,26 @@ mod tests {
         let s = props.get("session_id").and_then(|v| v.as_object()).unwrap();
         assert_eq!(s.get("minLength").and_then(|x| x.as_u64()), Some(1));
         assert_eq!(s.get("maxLength").and_then(|x| x.as_u64()), Some(2048));
+    }
+
+    #[test]
+    fn generate_code_schema_matches_implemented_args() {
+        let m = tool_input_schema("vox_generate_code");
+        let props = m.get("properties").and_then(|p| p.as_object()).unwrap();
+        for key in ["prompt", "validate", "max_retries", "session_id"] {
+            assert!(props.contains_key(key), "missing property {key}");
+        }
+        assert_eq!(
+            m.get("additionalProperties").and_then(|x| x.as_bool()),
+            Some(false)
+        );
+        let req = m
+            .get("required")
+            .and_then(|r| r.as_array())
+            .expect("required array");
+        assert!(
+            req.iter().any(|x| x.as_str() == Some("prompt")),
+            "prompt must be required"
+        );
     }
 }

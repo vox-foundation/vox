@@ -15,11 +15,20 @@ impl crate::VoxDb {
     /// the primary key. Duplicate writes (`INSERT OR IGNORE`) are a no-op. Returns the hash.
     pub async fn store(&self, kind: &str, data: &[u8]) -> Result<String, StoreError> {
         let hash = content_hash(data);
-        self.conn
-            .execute(
-                "INSERT OR IGNORE INTO objects (hash, kind, data) VALUES (?1, ?2, ?3)",
-                params![hash.as_str(), kind, data],
-            )
+        let kind = kind.to_string();
+        let data = data.to_vec();
+        let hash_insert = hash.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO objects (hash, kind, data) VALUES (?1, ?2, ?3)",
+                    params![hash_insert.as_str(), kind.as_str(), data.as_slice()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
         Ok(hash)
     }
@@ -50,16 +59,24 @@ impl crate::VoxDb {
         name: &str,
         hash: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO names (namespace, name, hash, updated_at)
-                 VALUES (?1, ?2, ?3, datetime('now'))
-                 ON CONFLICT(namespace, name)
-                 DO UPDATE SET hash = excluded.hash, updated_at = datetime('now')",
-                params![namespace, name, hash],
-            )
-            .await?;
-        Ok(())
+        let namespace = namespace.to_string();
+        let name = name.to_string();
+        let hash = hash.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO names (namespace, name, hash, updated_at)
+                     VALUES (?1, ?2, ?3, datetime('now'))
+                     ON CONFLICT(namespace, name)
+                     DO UPDATE SET hash = excluded.hash, updated_at = datetime('now')",
+                    params![namespace.as_str(), name.as_str(), hash.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// List `(name, hash)` from `names` for `namespace`, ordered by `name`.
@@ -108,30 +125,40 @@ impl crate::VoxDb {
         agent_id: &str,
         description: &str,
     ) -> Result<(), StoreError> {
-        // Capture a lightweight JSON-encoded snapshot of all table names (schema audit only).
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
-                (),
-            )
-            .await?;
-        let mut names: Vec<String> = Vec::new();
-        while let Some(row) = rows.next().await? {
-            let n: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            names.push(n);
-        }
-        let payload =
-            serde_json::to_string(&names).map_err(|e| StoreError::Serialization(e.to_string()))?;
-
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO db_snapshots (id, agent_id, description, payload)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![snap_id as i64, agent_id, description, payload],
-            )
-            .await?;
-        Ok(())
+        let agent_id = agent_id.to_string();
+        let description = description.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                // Capture a lightweight JSON-encoded snapshot of all table names (schema audit only).
+                let mut rows = conn
+                    .query(
+                        "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
+                        (),
+                    )
+                    .await?;
+                let mut names: Vec<String> = Vec::new();
+                while let Some(row) = rows.next().await? {
+                    let n: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                    names.push(n);
+                }
+                let payload = serde_json::to_string(&names)
+                    .map_err(|e| StoreError::Serialization(e.to_string()))?;
+                conn.execute(
+                    "INSERT OR REPLACE INTO db_snapshots (id, agent_id, description, payload)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        snap_id as i64,
+                        agent_id.as_str(),
+                        description.as_str(),
+                        payload
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Restore (replay) a db snapshot identified by `snap_id`.

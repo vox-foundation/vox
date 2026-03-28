@@ -185,6 +185,11 @@ pub struct A2AMessageRow {
     pub acknowledged: bool,
     pub created_at: String,
     pub repository_id: String,
+    pub claim_owner: Option<String>,
+    pub claim_until_ms: Option<i64>,
+    pub delivery_attempts: i64,
+    pub last_claim_error: Option<String>,
+    pub processed_at_ms: Option<i64>,
 }
 
 /// A single row from `agent_events` (telemetry / gamify audit).

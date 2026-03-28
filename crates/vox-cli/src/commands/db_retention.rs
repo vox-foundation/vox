@@ -1,4 +1,8 @@
 //! `vox db prune-plan` / `prune-apply` — read [`contracts/db/retention-policy.yaml`](../../../../contracts/db/retention-policy.yaml).
+//!
+//! Supported `kind` values consumed by the CLI today: `days` (datetime column), `ms_days` (Unix millis),
+//! `expires_lt_now` (TTL TEXT column versus `datetime('now')`).
+//! Other kinds are listed in the YAML for documentation only.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

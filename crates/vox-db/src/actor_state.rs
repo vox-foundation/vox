@@ -12,12 +12,20 @@ impl super::VoxDb {
     ) -> Result<(), StoreError> {
         let data = serde_json::to_string(value)
             .map_err(|e| StoreError::Db(e.to_string()))?;
-        self.connection().execute(
-            "INSERT INTO actor_state (key, value) VALUES (?1, ?2)
+        let key = key.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO actor_state (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = ?2",
-            turso::params![key, data],
-        ).await?;
-        Ok(())
+                    turso::params![key.as_str(), data],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Load an actor state value by key.

@@ -159,39 +159,70 @@ impl VoxDb {
         let meta = serde_json::to_string(&req.packet)
             .map_err(|e| StoreError::Serialization(e.to_string()))?;
 
-        self
-            .connection()
-            .execute(
-                "INSERT OR REPLACE INTO knowledge_nodes (id, label, content, node_type, metadata, created_at)
+        let title = req.packet.title.clone();
+        let body = req.body.clone();
+        let meta_exec = meta.clone();
+        let nid = node_id.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO knowledge_nodes (id, label, content, node_type, metadata, created_at)
                  VALUES (?1, ?2, ?3, 'external_research', ?4, datetime('now'))",
-                params![
-                    node_id.clone(),
-                    req.packet.title.as_str(),
-                    req.body.as_str(),
-                    meta.as_str()
-                ],
-            )
+                    params![nid.as_str(), title.as_str(), body.as_str(), meta_exec.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
             .await?;
 
         let packet_rowid = self.conn.last_insert_rowid();
 
+        let source_url_cl = req.packet.source_url.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM snippets WHERE language = 'research_chunk' AND source_ref = ?1",
+                    params![source_url_cl.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+
         let chunks = chunk_text(&req.body, 2048);
         let mut chunk_ids = Vec::new();
+        let topic = req.packet.topic.clone();
+        let summary = req.packet.summary.clone();
+        let tags_joined = req.packet.tags.join(",");
+        let source_url = req.packet.source_url.clone();
         for (i, chunk) in chunks.iter().enumerate() {
-            let title = format!("{}#{}", req.packet.topic, i);
-            self
-                .connection()
-                .execute(
-                    "INSERT INTO snippets (language, title, code, description, tags, author_id, source_ref, embedding_ref)
+            let title = format!("{}#{}", topic, i);
+            let chunk = chunk.to_string();
+            let summary_cl = summary.clone();
+            let tags_cl = tags_joined.clone();
+            let url_cl = source_url.clone();
+            let breaker = self.breaker.clone();
+            let conn = self.conn.clone();
+            breaker
+                .call(|| async move {
+                    conn.execute(
+                        "INSERT INTO snippets (language, title, code, description, tags, author_id, source_ref, embedding_ref)
                      VALUES ('research_chunk', ?1, ?2, ?3, ?4, NULL, ?5, NULL)",
-                    params![
-                        title,
-                        chunk.as_str(),
-                        req.packet.summary.as_str(),
-                        req.packet.tags.join(","),
-                        req.packet.source_url.as_str(),
-                    ],
-                )
+                        params![
+                            title.as_str(),
+                            chunk.as_str(),
+                            summary_cl.as_str(),
+                            tags_cl.as_str(),
+                            url_cl.as_str(),
+                        ],
+                    )
+                    .await?;
+                    Ok::<(), StoreError>(())
+                })
                 .await?;
             chunk_ids.push(self.conn.last_insert_rowid());
         }
@@ -292,25 +323,32 @@ impl VoxDb {
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
             let meta = serde_json::to_string(&rec.metadata)
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
-            self.connection()
-                .execute(
-                    "INSERT INTO codex_capability_map (
+            let rec = rec.clone();
+            let breaker = self.breaker.clone();
+            let conn = self.conn.clone();
+            breaker
+                .call(|| async move {
+                    conn.execute(
+                        "INSERT INTO codex_capability_map (
                         topic, vendor, area, openclaw_capability, vox_evidence, status,
                         advantage_direction, recommended_action, linked_paths_json, metadata_json
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                    params![
-                        rec.topic.as_str(),
-                        rec.vendor.as_str(),
-                        rec.area.as_str(),
-                        rec.openclaw_capability.as_str(),
-                        rec.vox_evidence.as_str(),
-                        rec.status.as_str(),
-                        rec.advantage_direction.as_str(),
-                        rec.recommended_action.as_str(),
-                        linked.as_str(),
-                        meta.as_str(),
-                    ],
-                )
+                        params![
+                            rec.topic.as_str(),
+                            rec.vendor.as_str(),
+                            rec.area.as_str(),
+                            rec.openclaw_capability.as_str(),
+                            rec.vox_evidence.as_str(),
+                            rec.status.as_str(),
+                            rec.advantage_direction.as_str(),
+                            rec.recommended_action.as_str(),
+                            linked.as_str(),
+                            meta.as_str(),
+                        ],
+                    )
+                    .await?;
+                    Ok::<(), StoreError>(())
+                })
                 .await?;
             Ok(self.conn.last_insert_rowid())
         })

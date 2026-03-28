@@ -21,28 +21,37 @@ impl crate::VoxDb {
         grind_capped: bool,
         lumens: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO gamify_policy_snapshots
+        let user_id = user_id.to_string();
+        let event_type = event_type.to_string();
+        let mode_label = mode_label.to_string();
+        let grind = if grind_capped { 1i64 } else { 0i64 };
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO gamify_policy_snapshots
              (user_id, event_type, base_xp, base_crystals, mode_label, effective_multiplier,
               awarded_xp, awarded_crystals, streak_days, grind_capped, lumens)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                params![
-                    user_id,
-                    event_type,
-                    base_xp,
-                    base_crystals,
-                    mode_label,
-                    effective_multiplier,
-                    awarded_xp,
-                    awarded_crystals,
-                    streak_days,
-                    if grind_capped { 1i64 } else { 0i64 },
-                    lumens
-                ],
-            )
-            .await?;
-        Ok(())
+                    params![
+                        user_id.as_str(),
+                        event_type.as_str(),
+                        base_xp,
+                        base_crystals,
+                        mode_label.as_str(),
+                        effective_multiplier,
+                        awarded_xp,
+                        awarded_crystals,
+                        streak_days,
+                        grind,
+                        lumens
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Collegium (gamify_collegium) ──────────────────────────────────────────
@@ -78,12 +87,18 @@ impl crate::VoxDb {
         collegium_id: &str,
         lumens_delta: i64,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE gamify_collegium SET lumens=COALESCE(lumens, 0)+?1 WHERE id=?2",
-                params![lumens_delta, collegium_id],
-            )
-            .await?;
-        Ok(())
+        let collegium_id = collegium_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE gamify_collegium SET lumens=COALESCE(lumens, 0)+?1 WHERE id=?2",
+                    params![lumens_delta, collegium_id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

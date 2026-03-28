@@ -47,6 +47,13 @@ TOESTUB rule IDs are emitted as shown below (see `crates/vox-toestub/src/detecto
 
 **CI parity:** hard gate is **`vox ci line-endings`** (forward-only diff); see [runner contract](../src/ci/runner-contract.md#line-endings-cross-platform).
 
+## Local scratch, logs, and side `target/` trees
+
+- **`.gitignore` (first line of defense):** keep broad, *root-anchored* rules where possible (see root `.gitignore` — `target-*/`, `/target*.stale-*/`, `/*.txt`, …) so ad-hoc logs, overflow Cargo target dirs, and rename leftovers stay untracked without listing every filename variant.
+- **TOESTUB:** use for **tracked source** shape (stubs, sprawl, god-object, **CR/LF** via `cross-platform/line-endings`). It does **not** replace `.gitignore` for build trees or one-off command output — those never enter the scan set if ignored.
+- **When adding a new scratch pattern:** prefer one **general** rule (e.g. `/check_err*.log` at repo root) over many exact names; avoid ignoring paths that could be real product folders (if unsure, root-anchor with `/`).
+- **Optional cleanup:** `cargo clean` (honors `.cargo/config.toml` `CARGO_TARGET_DIR`); remove stale `target*.stale-*` dirs after closing handles on `target/**/vox.exe`.
+
 ## God Object Lock
 
 Files exceeding **500 lines** or structs with **> 12 methods** are locked for new features.

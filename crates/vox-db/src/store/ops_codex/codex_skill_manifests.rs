@@ -15,24 +15,47 @@ impl crate::VoxDb {
         manifest_json: &str,
         skill_md: &str,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT OR REPLACE INTO skill_manifests (id, version, manifest_json, skill_md, created_at)
-                 VALUES (?1, ?2, ?3, ?4, datetime('now'))",
-                params![id, version, manifest_json, skill_md],
-            )
-            .await?;
-        Ok(())
+        let id = id.to_string();
+        let version = version.to_string();
+        let manifest_json = manifest_json.to_string();
+        let skill_md = skill_md.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO skill_manifests (id, version, manifest_json, skill_md, created_at)
+                     VALUES (?1, ?2, ?3, ?4, datetime('now'))",
+                    params![
+                        id.as_str(),
+                        version.as_str(),
+                        manifest_json.as_str(),
+                        skill_md.as_str()
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Delete the `skill_manifests` row for `id`. No-op if absent.
     ///
     /// Called from `vox-skills/src/registry.rs` `SkillRegistry::uninstall`.
     pub async fn unpublish_skill(&self, id: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute("DELETE FROM skill_manifests WHERE id = ?1", params![id])
-            .await?;
-        Ok(())
+        let id = id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM skill_manifests WHERE id = ?1",
+                    params![id.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Return all rows from `skill_manifests`, ordered by `id`.

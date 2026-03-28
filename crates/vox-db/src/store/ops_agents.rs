@@ -19,14 +19,28 @@ impl crate::VoxDb {
         payload_json: &str,
         cli_version: &str,
     ) -> Result<i64, StoreError> {
+        let agent_id = agent_id.to_string();
+        let event_type = event_type.to_string();
+        let payload_json = payload_json.to_string();
+        let cli_version = cli_version.to_string();
+        let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        conn.execute(
-            "INSERT INTO agent_events (agent_id, event_type, payload_json, cli_version, timestamp)
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_events (agent_id, event_type, payload_json, cli_version, timestamp)
              VALUES (?1, ?2, ?3, ?4, datetime('now'))",
-            params![agent_id, event_type, payload_json, cli_version],
-        )
-        .await?;
-        Ok(conn.last_insert_rowid())
+                    params![
+                        agent_id.as_str(),
+                        event_type.as_str(),
+                        payload_json.as_str(),
+                        cli_version.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<i64, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     // ── Agent Sessions (agent_sessions) ──────────────────────────────────────
@@ -41,30 +55,49 @@ impl crate::VoxDb {
         agent_id: &str,
         task_snapshot: Option<&str>,
     ) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO agent_sessions (id, agent_id, task_snapshot, status, started_at)
-                 VALUES (?1, ?2, ?3, 'active', datetime('now'))
-                 ON CONFLICT(id) DO UPDATE SET
-                     task_snapshot = excluded.task_snapshot,
-                     status        = 'active'",
-                params![session_id, agent_id, task_snapshot],
-            )
-            .await?;
-        Ok(())
+        let session_id = session_id.to_string();
+        let agent_id = agent_id.to_string();
+        let task_snapshot = task_snapshot.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_sessions (id, agent_id, task_snapshot, status, started_at)
+                     VALUES (?1, ?2, ?3, 'active', datetime('now'))
+                     ON CONFLICT(id) DO UPDATE SET
+                         task_snapshot = excluded.task_snapshot,
+                         status        = 'active'",
+                    params![
+                        session_id.as_str(),
+                        agent_id.as_str(),
+                        task_snapshot.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     /// Mark an `agent_sessions` row as the given `status` and set `ended_at`.
     pub async fn close_session(&self, session_id: &str, status: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE agent_sessions
-                 SET status = ?2, ended_at = datetime('now')
-                 WHERE id = ?1",
-                params![session_id, status],
-            )
-            .await?;
-        Ok(())
+        let session_id = session_id.to_string();
+        let status = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE agent_sessions
+                     SET status = ?2, ended_at = datetime('now')
+                     WHERE id = ?1",
+                    params![session_id.as_str(), status.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── LLM Interactions (llm_interactions) ──────────────────────────────────
@@ -82,23 +115,33 @@ impl crate::VoxDb {
         latency_ms: Option<i64>,
         token_count: Option<i64>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO llm_interactions
-                     (session_id, user_id, prompt, response, model_version, latency_ms, token_count)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    session_id,
-                    user_id,
-                    prompt,
-                    response,
-                    model_version,
-                    latency_ms,
-                    token_count
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+        let session_id = session_id.to_string();
+        let user_id = user_id.map(str::to_string);
+        let prompt = prompt.to_string();
+        let response = response.to_string();
+        let model_version = model_version.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO llm_interactions
+                         (session_id, user_id, prompt, response, model_version, latency_ms, token_count)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![
+                        session_id.as_str(),
+                        user_id.as_deref(),
+                        prompt.as_str(),
+                        response.as_str(),
+                        model_version.as_str(),
+                        latency_ms,
+                        token_count
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     // ── LLM Feedback (llm_feedback) ───────────────────────────────────────────
@@ -115,22 +158,31 @@ impl crate::VoxDb {
         correction_text: Option<&str>,
         preferred_response: Option<&str>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
-                "INSERT INTO llm_feedback
-                     (interaction_id, user_id, rating, feedback_type, correction_text, preferred_response)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    interaction_id,
-                    user_id,
-                    rating,
-                    feedback_type,
-                    correction_text,
-                    preferred_response
-                ],
-            )
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+        let user_id = user_id.map(str::to_string);
+        let feedback_type = feedback_type.to_string();
+        let correction_text = correction_text.map(str::to_string);
+        let preferred_response = preferred_response.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO llm_feedback
+                         (interaction_id, user_id, rating, feedback_type, correction_text, preferred_response)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        interaction_id,
+                        user_id.as_deref(),
+                        rating,
+                        feedback_type.as_str(),
+                        correction_text.as_deref(),
+                        preferred_response.as_deref(),
+                    ],
+                )
+                .await?;
+                Ok::<_, StoreError>(conn.last_insert_rowid())
+            })
+            .await
     }
 
     // ── Agent Reliability (agent_reliability) ─────────────────────────────────
@@ -172,40 +224,45 @@ impl crate::VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        if success {
-            self.conn
-                .execute(
-                    "INSERT INTO agent_reliability (agent_id, success_count, failure_count,
-                         reliability, updated_at_ms)
-                     VALUES (?1, 1, 0,
-                         CAST(2 AS REAL) / CAST(3 AS REAL),
-                         ?2)
-                     ON CONFLICT(agent_id) DO UPDATE SET
-                         success_count  = success_count + 1,
-                         reliability    = CAST(success_count + 2 AS REAL)
-                                        / CAST(success_count + failure_count + 3 AS REAL),
-                         updated_at_ms  = ?2",
-                    params![agent_id, now_ms],
-                )
-                .await?;
-        } else {
-            self.conn
-                .execute(
-                    "INSERT INTO agent_reliability (agent_id, success_count, failure_count,
-                         reliability, updated_at_ms)
-                     VALUES (?1, 0, 1,
-                         CAST(1 AS REAL) / CAST(3 AS REAL),
-                         ?2)
-                     ON CONFLICT(agent_id) DO UPDATE SET
-                         failure_count  = failure_count + 1,
-                         reliability    = CAST(success_count + 1 AS REAL)
-                                        / CAST(success_count + failure_count + 3 AS REAL),
-                         updated_at_ms  = ?2",
-                    params![agent_id, now_ms],
-                )
-                .await?;
-        }
-        Ok(())
+        let agent_id = agent_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                if success {
+                    conn.execute(
+                        "INSERT INTO agent_reliability (agent_id, success_count, failure_count,
+                             reliability, updated_at_ms)
+                         VALUES (?1, 1, 0,
+                             CAST(2 AS REAL) / CAST(3 AS REAL),
+                             ?2)
+                         ON CONFLICT(agent_id) DO UPDATE SET
+                             success_count  = success_count + 1,
+                             reliability    = CAST(success_count + 2 AS REAL)
+                                            / CAST(success_count + failure_count + 3 AS REAL),
+                             updated_at_ms  = ?2",
+                        params![agent_id.as_str(), now_ms],
+                    )
+                    .await?;
+                } else {
+                    conn.execute(
+                        "INSERT INTO agent_reliability (agent_id, success_count, failure_count,
+                             reliability, updated_at_ms)
+                         VALUES (?1, 0, 1,
+                             CAST(1 AS REAL) / CAST(3 AS REAL),
+                             ?2)
+                         ON CONFLICT(agent_id) DO UPDATE SET
+                             failure_count  = failure_count + 1,
+                             reliability    = CAST(success_count + 1 AS REAL)
+                                            / CAST(success_count + failure_count + 3 AS REAL),
+                             updated_at_ms  = ?2",
+                        params![agent_id.as_str(), now_ms],
+                    )
+                    .await?;
+                }
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 
     // ── Object / Workspace Metadata (user_preferences) ───────────────────────
@@ -282,6 +339,29 @@ impl crate::VoxDb {
             ));
         }
         Ok(out)
+    }
+
+    /// Fetch one `agent_sessions` row by id (any `status`), for replay without scanning actives.
+    pub async fn get_agent_session_row(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<(String, String, Option<String>)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, agent_id, task_snapshot FROM agent_sessions WHERE id = ?1 LIMIT 1",
+                params![session_id],
+            )
+            .await?;
+        Ok(if let Some(row) = rows.next().await? {
+            Some((
+                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                row.get(2).ok(),
+            ))
+        } else {
+            None
+        })
     }
 
     /// List all `agent_sessions` rows with status = 'active'.
@@ -362,12 +442,26 @@ impl crate::VoxDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-
-        self.conn.execute(
-            "INSERT INTO agent_session_events (session_id, event_type, payload_json, created_at_ms)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![session_id, event_type, payload_json, now_ms],
-        ).await?;
-        Ok(())
+        let session_id = session_id.to_string();
+        let event_type = event_type.to_string();
+        let payload_json = payload_json.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_session_events (session_id, event_type, payload_json, created_at_ms)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        session_id.as_str(),
+                        event_type.as_str(),
+                        payload_json.as_str(),
+                        now_ms,
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

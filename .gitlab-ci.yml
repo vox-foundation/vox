@@ -143,10 +143,10 @@ coverage:
     - cargo install cargo-llvm-cov --locked
     - cargo install cargo-nextest --locked
     - cargo llvm-cov nextest --workspace --profile ci
-    - cargo llvm-cov report --workspace --lcov --output-path lcov.info
-    - cargo llvm-cov report --workspace --cobertura --output-path cobertura.xml
-    - cargo llvm-cov report --workspace --text --summary-only
-    - cargo llvm-cov report --workspace --json --summary-only --output-path llvm-cov-summary.json
+    - cargo llvm-cov report --lcov --output-path lcov.info
+    - cargo llvm-cov report --cobertura --output-path cobertura.xml
+    - cargo llvm-cov report --text --summary-only
+    - cargo llvm-cov report --json --summary-only --output-path llvm-cov-summary.json
     - cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json llvm-cov-summary.json --mode enforce
   artifacts:
     reports:

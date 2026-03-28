@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::CircuitBreakerError;
+
 /// Store operation failure (Turso, not-found, or serialization).
 #[derive(Error, Debug)]
 pub enum StoreError {
@@ -33,4 +35,7 @@ pub enum StoreError {
         /// Highest `schema_version.version` present before baseline migration.
         max_version: i64,
     },
+    /// [`crate::DbCircuitBreaker`] is open (too many consecutive write failures).
+    #[error(transparent)]
+    CircuitBreaker(#[from] CircuitBreakerError),
 }

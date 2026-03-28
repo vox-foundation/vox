@@ -73,6 +73,37 @@ async fn test_research_metrics_telemetry() {
 }
 
 #[tokio::test]
+async fn list_research_metrics_by_session_optional_metric_type() {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("research_metrics_session.db");
+    let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
+
+    store
+        .append_research_metric("bench:r1", "benchmark_event", Some(1.0), None)
+        .await
+        .unwrap();
+    store
+        .append_research_metric("bench:r1", "socrates_surface", None, Some("{}"))
+        .await
+        .unwrap();
+
+    let all = store
+        .list_research_metrics_by_session("bench:r1", None, 10)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 2);
+
+    let filtered = store
+        .list_research_metrics_by_session("bench:r1", Some("benchmark_event"), 10)
+        .await
+        .unwrap();
+    assert_eq!(filtered.len(), 1);
+    assert_eq!(filtered[0].0, "bench:r1");
+    assert_eq!(filtered[0].1, "benchmark_event");
+    assert_eq!(filtered[0].2, Some(1.0));
+}
+
+#[tokio::test]
 async fn test_endpoint_reliability_ewma() {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("test.db");

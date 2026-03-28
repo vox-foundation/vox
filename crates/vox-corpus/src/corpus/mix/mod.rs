@@ -16,7 +16,7 @@
 //! ## `record_format: speech_to_code`
 //!
 //! Lines are JSON objects with `refined_transcript` (spoken intent) and `vox_code` (validated .vox source), optional
-//! `transcript_alternatives` and `repair_metadata`. See `mens/schemas/speech_to_code_trace.schema.json`.
+//! `transcript_alternatives`, `repair_metadata`, and `diagnostics_snapshot` (compiler/LSP repair loop). See `mens/schemas/speech_to_code_trace.schema.json`.
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -263,6 +263,9 @@ pub fn normalize_training_jsonl_line(
             if let Some(r) = v.get("rating").filter(|x| !x.is_null()) {
                 row.insert("rating".to_string(), r.clone());
             }
+            if let Some(ds) = v.get("diagnostics_snapshot").filter(|x| !x.is_null()) {
+                row.insert("diagnostics_snapshot".to_string(), ds.clone());
+            }
             serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
         }
         _ => Ok(trimmed.to_string()),
@@ -270,14 +273,28 @@ pub fn normalize_training_jsonl_line(
 }
 
 /// Same as [`run_mix_with_options`] with [`MixRunOptions::default`] (lenient; writes report).
+///
+/// Resolves relative `output` / source paths in the YAML against [`std::env::current_dir`].
 pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
-    run_mix_with_options(config_path, MixRunOptions::default())
+    run_mix_with_options(config_path, None, MixRunOptions::default())
 }
 
 /// Concatenate sources in order, repeating each file's lines proportional to `weight` (rounded up to one copy minimum).
-pub fn run_mix_with_options(config_path: &Path, options: MixRunOptions) -> anyhow::Result<()> {
+///
+/// Relative paths in the mix YAML are resolved against `path_base` when set (e.g. Cargo workspace root),
+/// otherwise against [`std::env::current_dir`]. This must match
+/// [`crate::training::mix_prepare::refresh_train_contract_override_from_mix`] so the written file
+/// matches the override path passed to [`crate::training::preflight::validate_train_preflight`].
+pub fn run_mix_with_options(
+    config_path: &Path,
+    path_base: Option<&Path>,
+    options: MixRunOptions,
+) -> anyhow::Result<()> {
     let cfg = MixConfigSchema::load(config_path)?;
-    let cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
+    let base_buf = path_base.map(|p| p.to_path_buf()).unwrap_or_else(|| {
+        std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf())
+    });
+    let cwd = base_buf.as_path();
     let out_path = cwd.join(&cfg.output);
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;

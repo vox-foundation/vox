@@ -88,9 +88,7 @@ fn validate_repo_layout(root: &Path) -> Result<()> {
     if !root.join(".git").exists() {
         bail!("not a git checkout (missing .git): {}", root.display());
     }
-    let cli_manifest = root
-        .join(SOURCE_INSTALL_CLI_REL_PATH)
-        .join("Cargo.toml");
+    let cli_manifest = root.join(SOURCE_INSTALL_CLI_REL_PATH).join("Cargo.toml");
     if !cli_manifest.is_file() {
         bail!(
             "expected a Vox workspace at {} (missing {})",
@@ -282,10 +280,7 @@ fn cargo_install_locked_cli(root: &Path) -> Result<()> {
             )
         })?;
     if !s.success() {
-        bail!(
-            "`cargo {}` failed",
-            CARGO_INSTALL_CLI_FROM_SOURCE.join(" ")
-        );
+        bail!("`cargo {}` failed", CARGO_INSTALL_CLI_FROM_SOURCE.join(" "));
     }
     Ok(())
 }

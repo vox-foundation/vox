@@ -29,14 +29,19 @@ pub async fn get_registry_preference(
 /// Reset all preferences for a given registry (DESTRUCTIVE).
 pub async fn reset_registry_preferences(registry: &str) -> Result<(), StoreError> {
     let db = crate::VoxDb::connect_default().await?;
-    let prefix = format!("{}.", registry);
-    db.connection()
-        .execute(
-            "DELETE FROM user_preferences WHERE user_id = 'local_user' AND key LIKE ?1",
-            (format!("{}%", prefix),),
-        )
-        .await?;
-    Ok(())
+    let prefix = format!("{}%", format!("{}.", registry));
+    let breaker = db.breaker.clone();
+    let conn = db.conn.clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "DELETE FROM user_preferences WHERE user_id = 'local_user' AND key LIKE ?1",
+                (prefix,),
+            )
+            .await?;
+            Ok::<(), StoreError>(())
+        })
+        .await
 }
 
 /// All `(key, value)` pairs for a registry, with the prefix stripped.
